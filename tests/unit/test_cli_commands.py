@@ -31,8 +31,8 @@ def test_start_learning_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # For this test, let's mock the interactive session part to avoid getting stuck
-        with patch('rich.prompt.Prompt.ask', side_effect=['/quit']):
+        # For this test, let's mock the input function instead of Prompt.ask
+        with patch('builtins.input', return_value='/quit'), patch('select.select'):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Check that the command executed and reached the interactive part
@@ -278,8 +278,10 @@ def test_slash_help_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # Mock the prompt to simulate user typing /help then quit
-        with patch('rich.prompt.Prompt.ask', side_effect=['/help', '/quit']):
+        # Mock both input and Prompt.ask (for the set-config flow)
+        with patch('builtins.input', side_effect=['/help', '/quit']), \
+             patch('select.select'), \
+             patch('rich.prompt.Prompt.ask', side_effect=['openai', 'gpt-4o', 'fake_key']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Verify that help message was shown (check for table elements now)
@@ -309,8 +311,10 @@ def test_slash_config_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # Mock the prompt to simulate user typing /config then quit
-        with patch('rich.prompt.Prompt.ask', side_effect=['/config', '/quit']):
+        # Mock both input and Prompt.ask (for the set-config flow)
+        with patch('builtins.input', side_effect=['/config', '/quit']), \
+             patch('select.select'), \
+             patch('rich.prompt.Prompt.ask', side_effect=['openai', 'gpt-4o', 'fake_key']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Verify that config info was shown
@@ -339,16 +343,16 @@ def test_slash_set_config_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # Mock the prompt to simulate user calling /set-config command
-        # It will ask for provider, then model, then API key, and then continue with other commands
-        with patch('rich.prompt.Prompt.ask', side_effect=[
-            '/set-config',  # First command
-            'anthropic',    # provider choice
-            'claude-3-opus', # model
-            'fake_key',     # API key
-            '/config',      # check config
-            '/quit'         # exit
-        ]):
+        # Mock both input and Prompt.ask for the full flow
+        with patch('builtins.input', side_effect=['/set-config', '/config', '/quit']), \
+             patch('select.select'), \
+             patch('rich.prompt.Prompt.ask', side_effect=[
+                 'anthropic',    # provider choice
+                 'claude-3-opus', # model
+                 'fake_key',     # API key
+                 'anthropic',    # provider to show in config
+                 'claude-3-opus' # model to show in config
+             ]):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Verify that the config was changed

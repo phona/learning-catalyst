@@ -101,77 +101,106 @@ def start_learning(
     # Print welcome message with rich formatting
     console.print("\n[bold green]🚀 Learning session started![/bold green] [blue]Use /help to see available commands.[/blue]")
     
+    import readline  # For input editing shortcuts like Ctrl+W
+    import sys
+    
+    # Initialize readline for enhanced input editing capabilities
+    # This enables common shortcuts like Ctrl+W to remove a word
+    try:
+        # Try to enable readline features if available
+        import rlcompleter
+        if 'libedit' in readline.__doc__:
+            readline.parse_and_bind("bind ^W ed-delete-prev-word")  # For libedit (macOS)
+            readline.parse_and_bind("bind ^U ed-kill-line")        # Clear line
+        else:
+            readline.parse_and_bind("Control-w: unix-word-rubout")  # For GNU readline
+            readline.parse_and_bind("Control-u: unix-line-discard") # Clear line
+    except:
+        # If readline is not available, continue without enhanced shortcuts
+        pass
+    
+    # Custom input handler for the interactive loop
+    def custom_input_handler():
+        try:
+            user_input = input("\n[bold yellow]Learning Catalyst[/bold yellow]> ")
+            return user_input
+        except KeyboardInterrupt:
+            # For Ctrl+C, just return empty input to show a new prompt
+            console.print()  # Go to new line
+            return None
+        except EOFError:
+            # For Ctrl+D, return special value to indicate exit
+            return "EOF"
+    
     # Main interactive loop with slash commands and beautiful UI
     while True:
-        try:
-            user_input = Prompt.ask("\n[bold yellow]Learning Catalyst[/bold yellow]", default="")
-            
-            # Handle slash commands
-            if user_input.startswith('/'):
-                command = user_input[1:].lower().strip()  # Remove the '/' and get the command
-                
-                if command in ['quit', 'exit', 'q']:
-                    console.print("[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
-                    break
-                elif command == 'help':
-                    table = Table(title="Available Slash Commands", show_header=True, header_style="bold magenta")
-                    table.add_column("Command", style="cyan", no_wrap=True)
-                    table.add_column("Description")
-                    
-                    table.add_row("/help", "Show this help message")
-                    table.add_row("/quit or /exit or /q", "Exit the application")
-                    table.add_row("/config", "Show current AI configuration")
-                    table.add_row("/set-config", "Set AI provider and model")
-                    table.add_row("/concepts", "Show available learning concepts")
-                    table.add_row("/reset", "Reset the learning session")
-                    
-                    console.print(table)
-                elif command == 'config':
-                    current_provider = prefs_manager.get_preference('ai.default_provider')
-                    current_model = prefs_manager.get_preference('ai.default_model')
-                    if current_provider and current_model:
-                        console.print(f"[blue]Current AI configuration:[/blue] [bold]{current_provider}[/bold] - [bold]{current_model}[/bold]")
-                    else:
-                        console.print("[red]No AI configuration set. Use /set-config to configure.[/red]")
-                elif command == 'set-config':
-                    # Prompt for provider
-                    providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
-                    provider = Prompt.ask(f"[bold magenta]Which AI provider?[/bold magenta] ({'/'.join(providers)})", 
-                                         choices=providers)
-                    prefs_manager.set_preference('ai.default_provider', provider.lower())
-                    
-                    # Prompt for model
-                    model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]")
-                    prefs_manager.set_preference('ai.default_model', model)
-                    
-                    # Prompt for API key if required
-                    if provider.lower() not in ["local"]:
-                        api_key = Prompt.ask("[bold magenta]Please enter your API key[/bold magenta]", password=True)
-                        prefs_manager.set_preference(f'ai.{provider.lower()}_api_key', api_key)
-                    
-                    console.print(f"[green]AI configuration updated:[/green] [cyan]{provider} - {model}[/cyan]")
-                elif command == 'concepts':
-                    console.print("[blue]Available concepts would be listed here based on your learning materials.[/blue]")
-                    # In real implementation, this would fetch from knowledge navigator
-                elif command == 'reset':
-                    console.print("[yellow]Session reset. Configuration remains unchanged.[/yellow]")
-                else:
-                    console.print(f"[red]Unknown command: /{command}. Type /help for available commands.[/red]")
-            else:
-                # Treat non-slash input as a concept request or general query for the AI
-                console.print(f"[blue]Learning request:[/blue] {user_input}")
-                console.print("[yellow]In a full implementation, this would connect to your AI model for learning assistance.[/yellow]")
-                console.print("[cyan]For now, please use slash commands like /concepts to see available topics or /help for commands.[/cyan]")
+        user_input = custom_input_handler()
         
-        except KeyboardInterrupt:
+        # Handle EOF (Ctrl+D)
+        if user_input == "EOF":
             console.print("\n\n[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
             break
-        except EOFError:  # Handle Ctrl+D
-            console.print("\n\n[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
-            break
-        except Exception as e:
-            console.print(f"[red]An error occurred: {e}[/red]")
+        
+        # Handle Ctrl+C (returned None)
+        if user_input is None:
             continue
+            
+        # Handle slash commands
+        if user_input.startswith('/'):
+            command = user_input[1:].lower().strip()  # Remove the '/' and get the command
+            
+            if command in ['quit', 'exit', 'q']:
+                console.print("[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
+                break
+            elif command == 'help':
+                table = Table(title="Available Slash Commands", show_header=True, header_style="bold magenta")
+                table.add_column("Command", style="cyan", no_wrap=True)
+                table.add_column("Description")
+                
+                table.add_row("/help", "Show this help message")
+                table.add_row("/quit or /exit or /q", "Exit the application")
+                table.add_row("/config", "Show current AI configuration")
+                table.add_row("/set-config", "Set AI provider and model")
+                table.add_row("/concepts", "Show available learning concepts")
+                table.add_row("/reset", "Reset the learning session")
+                
+                console.print(table)
+            elif command == 'config':
+                current_provider = prefs_manager.get_preference('ai.default_provider')
+                current_model = prefs_manager.get_preference('ai.default_model')
+                if current_provider and current_model:
+                    console.print(f"[blue]Current AI configuration:[/blue] [bold]{current_provider}[/bold] - [bold]{current_model}[/bold]")
+                else:
+                    console.print("[red]No AI configuration set. Use /set-config to configure.[/red]")
+            elif command == 'set-config':
+                # Prompt for provider
+                providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
+                provider = Prompt.ask(f"[bold magenta]Which AI provider?[/bold magenta] ({'/'.join(providers)})", 
+                                     choices=providers)
+                prefs_manager.set_preference('ai.default_provider', provider.lower())
+                
+                # Prompt for model
+                model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]")
+                prefs_manager.set_preference('ai.default_model', model)
+                
+                # Prompt for API key if required
+                if provider.lower() not in ["local"]:
+                    api_key = Prompt.ask("[bold magenta]Please enter your API key[/bold magenta]", password=True)
+                    prefs_manager.set_preference(f'ai.{provider.lower()}_api_key', api_key)
+                
+                console.print(f"[green]AI configuration updated:[/green] [cyan]{provider} - {model}[/cyan]")
+            elif command == 'concepts':
+                console.print("[blue]Available concepts would be listed here based on your learning materials.[/blue]")
+                # In real implementation, this would fetch from knowledge navigator
+            elif command == 'reset':
+                console.print("[yellow]Session reset. Configuration remains unchanged.[/yellow]")
+            else:
+                console.print(f"[red]Unknown command: /{command}. Type /help for available commands.[/red]")
+        else:
+            # Treat non-slash input as a concept request or general query for the AI
+            console.print(f"[blue]Learning request:[/blue] {user_input}")
+            console.print("[yellow]In a full implementation, this would connect to your AI model for learning assistance.[/yellow]")
+            console.print("[cyan]For now, please use slash commands like /concepts to see available topics or /help for commands.[/cyan]")
 
 
 @app.command()
