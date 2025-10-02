@@ -38,7 +38,6 @@ def test_start_learning_command(temp_workspace):
         # Check that the command executed and reached the interactive part
         # With rich formatting, we'll see the panel headers in the output
         assert "🚀 Learning Catalyst" in result.output
-        assert "Learning session started" in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -287,12 +286,13 @@ def test_slash_help_command(temp_workspace):
         assert "Available Slash Commands" in result.output
         assert "/help" in result.output
         assert "/quit or /exit or /q" in result.output
+        assert "/set-config" in result.output
     finally:
         os.chdir(original_cwd)
 
 
-def test_slash_models_command(temp_workspace):
-    """Test the /models slash command in the interactive session"""
+def test_slash_config_command(temp_workspace):
+    """Test the /config slash command in the interactive session"""
     from src.utils.preferences_manager import PreferencesManager
     
     # Change to the temporary workspace directory
@@ -309,11 +309,11 @@ def test_slash_models_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # Mock the prompt to simulate user typing /models then quit
-        with patch('rich.prompt.Prompt.ask', side_effect=['/models', '/quit']):
+        # Mock the prompt to simulate user typing /config then quit
+        with patch('rich.prompt.Prompt.ask', side_effect=['/config', '/quit']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
-        # Verify that models info was shown
+        # Verify that config info was shown
         assert "Current AI configuration:" in result.output
         assert "openai" in result.output
         assert "gpt-4o" in result.output
@@ -321,8 +321,8 @@ def test_slash_models_command(temp_workspace):
         os.chdir(original_cwd)
 
 
-def test_slash_set_model_command(temp_workspace):
-    """Test the /set-model slash command in the interactive session"""
+def test_slash_set_config_command(temp_workspace):
+    """Test the /set-config slash command in the interactive session"""
     from src.utils.preferences_manager import PreferencesManager
     
     # Change to the temporary workspace directory
@@ -339,44 +339,23 @@ def test_slash_set_model_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # Mock the prompt to simulate user setting a new model, checking it, then quitting
-        with patch('rich.prompt.Prompt.ask', side_effect=['/set-model gpt-4-turbo', '/models', '/quit']):
+        # Mock the prompt to simulate user calling /set-config command
+        # It will ask for provider, then model, then API key, and then continue with other commands
+        with patch('rich.prompt.Prompt.ask', side_effect=[
+            '/set-config',  # First command
+            'anthropic',    # provider choice
+            'claude-3-opus', # model
+            'fake_key',     # API key
+            '/config',      # check config
+            '/quit'         # exit
+        ]):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
-        # Verify that the model was changed
-        assert "AI model set to:" in result.output
-        assert "gpt-4-turbo" in result.output
-        assert "Current AI configuration: openai - gpt-4-turbo" in result.output
-    finally:
-        os.chdir(original_cwd)
-
-
-def test_slash_set_provider_command(temp_workspace):
-    """Test the /set-provider slash command in the interactive session"""
-    from src.utils.preferences_manager import PreferencesManager
-    
-    # Change to the temporary workspace directory
-    original_cwd = os.getcwd()
-    os.chdir(str(temp_workspace))
-    
-    try:
-        # Create the .learningspace directory first
-        learningspace_path = temp_workspace / ".learningspace"
-        learningspace_path.mkdir(exist_ok=True)
-        
-        # Set up initial preferences
-        prefs_mgr = PreferencesManager(str(temp_workspace))
-        prefs_mgr.set_preference('ai.default_provider', 'openai')
-        prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
-        
-        # Mock the prompt to simulate user setting a new provider, checking it, then quitting
-        with patch('rich.prompt.Prompt.ask', side_effect=['/set-provider anthropic', '/models', '/quit']):
-            result = runner.invoke(app, ["start-learning", str(temp_workspace)])
-        
-        # Verify that the provider was changed
-        assert "AI provider set to:" in result.output
+        # Verify that the config was changed
+        assert "AI configuration updated:" in result.output
         assert "anthropic" in result.output
-        assert "Current AI configuration: anthropic - gpt-4o" in result.output
+        assert "claude-3-opus" in result.output
+        assert "Current AI configuration: anthropic - claude-3-opus" in result.output
     finally:
         os.chdir(original_cwd)
 

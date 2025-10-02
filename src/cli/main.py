@@ -56,7 +56,7 @@ def start_learning(
         
         while True:
             provider = Prompt.ask("[bold magenta]Which AI provider would you like to use?[/bold magenta]", 
-                                 choices=providers, default="openai")
+                                 choices=providers)
             if provider.lower() in providers:
                 prefs_manager.set_preference('ai.default_provider', provider.lower())
                 break
@@ -64,7 +64,7 @@ def start_learning(
                 console.print(f"[red]Invalid provider. Please choose from: {', '.join(providers)}[/red]")
         
         # Prompt for model
-        model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]", default="gpt-4o")
+        model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]")
         prefs_manager.set_preference('ai.default_model', model)
         
         # Prompt for API key if required
@@ -120,40 +120,36 @@ def start_learning(
                     
                     table.add_row("/help", "Show this help message")
                     table.add_row("/quit or /exit or /q", "Exit the application")
-                    table.add_row("/models", "Show configured AI model")
-                    table.add_row("/set-model <model_name>", "Set the AI model to use")
-                    table.add_row("/set-provider <provider_name>", "Set the AI provider to use")
+                    table.add_row("/config", "Show current AI configuration")
+                    table.add_row("/set-config", "Set AI provider and model")
                     table.add_row("/concepts", "Show available learning concepts")
                     table.add_row("/reset", "Reset the learning session")
                     
                     console.print(table)
-                elif command == 'models':
+                elif command == 'config':
                     current_provider = prefs_manager.get_preference('ai.default_provider')
                     current_model = prefs_manager.get_preference('ai.default_model')
-                    console.print(f"[blue]Current AI configuration:[/blue] [bold]{current_provider}[/bold] - [bold]{current_model}[/bold]")
-                elif command.startswith('set-model'):
-                    # Extract model name from command
-                    parts = command.split(' ', 1)
-                    if len(parts) > 1:
-                        model_name = parts[1].strip()
-                        prefs_manager.set_preference('ai.default_model', model_name)
-                        console.print(f"[green]AI model set to:[/green] [bold]{model_name}[/bold]")
+                    if current_provider and current_model:
+                        console.print(f"[blue]Current AI configuration:[/blue] [bold]{current_provider}[/bold] - [bold]{current_model}[/bold]")
                     else:
-                        console.print("[red]Usage: /set-model <model_name>[/red]")
-                elif command.startswith('set-provider'):
-                    # Extract provider name from command
-                    parts = command.split(' ', 1)
-                    if len(parts) > 1:
-                        provider_name = parts[1].strip()
-                        # Validate provider
-                        valid_providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
-                        if provider_name.lower() in valid_providers:
-                            prefs_manager.set_preference('ai.default_provider', provider_name.lower())
-                            console.print(f"[green]AI provider set to:[/green] [bold]{provider_name.lower()}[/bold]")
-                        else:
-                            console.print(f"[red]Invalid provider. Valid providers: {', '.join(valid_providers)}[/red]")
-                    else:
-                        console.print("[red]Usage: /set-provider <provider_name>[/red]")
+                        console.print("[red]No AI configuration set. Use /set-config to configure.[/red]")
+                elif command == 'set-config':
+                    # Prompt for provider
+                    providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
+                    provider = Prompt.ask(f"[bold magenta]Which AI provider?[/bold magenta] ({'/'.join(providers)})", 
+                                         choices=providers)
+                    prefs_manager.set_preference('ai.default_provider', provider.lower())
+                    
+                    # Prompt for model
+                    model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]")
+                    prefs_manager.set_preference('ai.default_model', model)
+                    
+                    # Prompt for API key if required
+                    if provider.lower() not in ["local"]:
+                        api_key = Prompt.ask("[bold magenta]Please enter your API key[/bold magenta]", password=True)
+                        prefs_manager.set_preference(f'ai.{provider.lower()}_api_key', api_key)
+                    
+                    console.print(f"[green]AI configuration updated:[/green] [cyan]{provider} - {model}[/cyan]")
                 elif command == 'concepts':
                     console.print("[blue]Available concepts would be listed here based on your learning materials.[/blue]")
                     # In real implementation, this would fetch from knowledge navigator
@@ -168,6 +164,9 @@ def start_learning(
                 console.print("[cyan]For now, please use slash commands like /concepts to see available topics or /help for commands.[/cyan]")
         
         except KeyboardInterrupt:
+            console.print("\n\n[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
+            break
+        except EOFError:  # Handle Ctrl+D
             console.print("\n\n[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
             break
         except Exception as e:
