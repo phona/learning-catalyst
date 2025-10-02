@@ -20,9 +20,12 @@ Self-learners, students, or professionals who benefit from an interactive, guide
 - **Challenge Engine**: Works with the Catalyst Agent to present AI-generated questions
 - **Checkpoint Manager**: Saves/loads progress states
 - **Catalyst Agent**: Core AI-driven module that generates explanations, creates challenges, and provides guidance by interfacing with an LLM
-- **Model Abstraction Layer**: Provides a unified interface for communicating with various LLM providers (e.g., OpenAI, Anthropic, local models)
+- **Model Abstraction Layer**: Provides a unified interface for communicating with various LLM providers (e.g., OpenAI, Anthropic, ChatGLM, local models)
 - **Analytics Dashboard**: Shows proficiency, weak areas, trends (Phase 2+)
 - **Assessment Engine**: Background process for evaluating user progress and adapting difficulty
+- **Preferences Manager**: Handles configuration and user preferences with key-value support
+- **Workspace Manager**: Handles workspace initialization and path management
+- **Database Manager**: Manages SQLite database for user data and progress tracking
 
 ## Development Phases
 
@@ -98,11 +101,52 @@ Goal: Evolve the Catalyst Agent into a semi-autonomous tutor that can operate wi
 
 ## Building and Running
 
-The project is in early development stages. No build system has been established yet, but based on the requirements document, the following technologies will be used:
+The project now has a working implementation with the following technologies:
 
-- Backend: Likely Python, Node.js or Go for the core application
-- Database: SQLite/PostgreSQL for relational data, Vector DB for content context
-- AI Integration: Model abstraction layer for various LLM providers
+- Backend: Python 3.8+ with Typer for CLI, httpx for API calls
+- Data Layer: SQLite for user data and progress, with potential for Vector DB
+- AI Integration: Model abstraction layer supporting OpenAI, Claude, ChatGLM and other providers
+- Package: Distributed as a Python package with console script entry point
+
+### Setup and Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd learning-catalyst
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\\Scripts\\activate
+   ```
+
+3. Install the package:
+   ```bash
+   pip install -r requirements.txt
+   pip install -e .
+   ```
+
+### Usage
+
+1. Initialize a workspace directory:
+   ```bash
+   mkdir my_learning_workspace
+   cd my_learning_workspace
+   ```
+
+2. Configure your AI provider:
+   ```bash
+   learning-catalyst preference set ai.default_provider openai
+   learning-catalyst preference set ai.default_model gpt-4o
+   learning-catalyst preference set ai.openai_api_key your-api-key-here
+   ```
+
+3. Run the application:
+   ```bash
+   learning-catalyst start-learning
+   ```
 
 ## Development Conventions
 
@@ -113,4 +157,21 @@ The project is in early development stages. No build system has been established
 
 ## Project Status
 
-This is a concept project in the design phase, with the requirements and user stories documented but no actual implementation yet. The focus is on creating an AI-driven learning platform with a clear roadmap across three phases.
+The Learning Catalyst application is now in active development with Phase 1 BYOK (Bring Your Own Key) AI-Powered MVP features implemented:
+
+- ✅ AI configuration at first run - Users can configure their preferred AI provider and model with API key
+- ✅ AI-generated explanations - System sends Markdown content to configured LLM for fresh explanations
+- ✅ AI-generated challenges - Dynamic questions are created based on concept content
+- ✅ Challenge evaluation - System evaluates user answers with AI assistance
+- ✅ Checkpoint functionality - Progress can be saved and loaded manually
+- ✅ Multiple AI provider support - OpenAI, Claude, ChatGLM, and other providers implemented
+- ✅ Preference management - Users can change AI model preferences and other settings
+
+The core architecture is established with:
+- Model Abstraction Layer supporting multiple providers
+- Catalyst Agent for AI interactions
+- Challenge Engine for question generation and evaluation
+- Checkpoint Manager for progress persistence
+- Preferences Manager for configuration
+
+Current focus remains on completing Phase 1 functionality while preparing for Phase 2 implementation (analytics and adaptive difficulty).
