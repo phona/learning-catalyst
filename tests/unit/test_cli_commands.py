@@ -38,6 +38,9 @@ def test_start_learning_command(temp_workspace):
         # Check that the command executed and reached the interactive part
         # With rich formatting, we'll see the panel headers in the output
         assert "🚀 Learning Catalyst" in result.output
+        # Check for guidance messages
+        assert "💡 Tip:" in result.output
+        assert "Type /help to see all available commands" in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -289,6 +292,9 @@ def test_slash_help_command(temp_workspace):
         assert "/help" in result.output
         assert "/quit or /exit or /q" in result.output
         assert "/set-config" in result.output
+        # Verify guidance is included
+        assert "Getting Started:" in result.output
+        assert "Use /concepts" in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -321,6 +327,8 @@ def test_slash_config_command(temp_workspace):
         assert "Current AI configuration:" in result.output
         assert "openai" in result.output
         assert "gpt-4o" in result.output
+        # Verify configuration status message
+        assert "Configuration is set and ready to use" in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -360,6 +368,9 @@ def test_slash_set_config_command(temp_workspace):
         assert "anthropic" in result.output
         assert "claude-3-opus" in result.output
         assert "Current AI configuration: anthropic - claude-3-opus" in result.output
+        # Verify guidance after config update
+        assert "Next Steps:" in result.output
+        assert "Use /concepts" in result.output
     finally:
         os.chdir(original_cwd)
 

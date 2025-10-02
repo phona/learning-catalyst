@@ -47,32 +47,59 @@ def start_learning(
     if not default_provider or not default_model:
         # Welcome message with rich formatting
         console = Console()
-        console.print(Panel("[bold green]Welcome to Learning Catalyst![/bold green]", expand=False))
+        console.print(Panel.fit("🎓 [bold green]Welcome to Learning Catalyst![/bold green] 🚀", 
+                               border_style="green", padding=(1, 1)))
         console.print("[bold yellow]Let's configure your AI provider to get started.[/bold yellow]")
-        
-        # Prompt for provider
+        console.print("\n[bold]Supported providers:[/bold]")
         providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
-        console.print(f"[bold cyan]Available providers:[/bold cyan] {', '.join(providers)}")
         
+        # Show provider descriptions to guide user
+        provider_descriptions = {
+            "openai": "OpenAI (GPT models) - Great for general knowledge",
+            "anthropic": "Anthropic (Claude models) - Good for nuanced understanding",
+            "chatglm": "Zhipu AI (ChatGLM) - Chinese language models, good for multilingual content",
+            "siliconflow": "SiliconFlow - Optimized for speed",
+            "deepseek": "DeepSeek - Cost-effective option",
+            "local": "Local models - Privacy focused, requires local setup"
+        }
+        
+        for provider in providers:
+            desc = provider_descriptions.get(provider, f"{provider.title()} provider")
+            console.print(f"  [cyan]• {provider}[/cyan]: {desc}")
+        
+        # Prompt for provider with guidance
+        console.print("\n[bold magenta]Choose your AI provider:[/bold magenta]")
         while True:
-            provider = Prompt.ask("[bold magenta]Which AI provider would you like to use?[/bold magenta]", 
-                                 choices=providers)
+            provider = Prompt.ask("  [magenta]>[/magenta] ", choices=providers, show_choices=False)
             if provider.lower() in providers:
                 prefs_manager.set_preference('ai.default_provider', provider.lower())
                 break
             else:
                 console.print(f"[red]Invalid provider. Please choose from: {', '.join(providers)}[/red]")
         
-        # Prompt for model
-        model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]")
+        # Prompt for model with guidance
+        console.print(f"\n[bold magenta]Enter the model name for {provider} (e.g., gpt-4o, claude-3-opus):[/bold magenta]")
+        model = Prompt.ask("  [magenta]>[/magenta] ")
         prefs_manager.set_preference('ai.default_model', model)
         
         # Prompt for API key if required
         if provider.lower() not in ["local"]:
-            api_key = Prompt.ask("[bold magenta]Please enter your API key[/bold magenta]", password=True)
+            console.print(f"\n[bold magenta]Enter your {provider} API key:[/bold magenta]")
+            console.print("  [yellow]Note: This is stored locally and only used for API calls[/yellow]")
+            api_key = Prompt.ask("  [magenta]>[/magenta] ", password=True)
             prefs_manager.set_preference(f'ai.{provider.lower()}_api_key', api_key)
         
-        console.print(f"[bold green]AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
+        console.print(f"\n[bold green]✅ AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
+        console.print("[green]You're now ready to start learning![/green]")
+    else:
+        # If already configured, welcome back
+        current_provider = prefs_manager.get_preference('ai.default_provider')
+        current_model = prefs_manager.get_preference('ai.default_model')
+        console = Console()
+        console.print(Panel.fit(f"🎓 [bold green]Welcome back to Learning Catalyst![/bold green] 🚀", 
+                               border_style="blue", padding=(1, 1)))
+        console.print(f"[green]Using AI configuration:[/green] [cyan]{current_provider} - {current_model}[/cyan]")
+        console.print("[yellow]Type /help to see available commands.[/yellow]")
     
     # Launch the main application loop with beautiful formatting
     console = Console()
@@ -119,6 +146,10 @@ def start_learning(
         # If readline is not available, continue without enhanced shortcuts
         pass
     
+    # Show initial guidance message
+    console.print("\n[bold blue]💡 Tip:[/bold blue] [cyan]Type /help to see all available commands[/cyan]")
+    console.print("[bold blue]💡 Tip:[/bold blue] [cyan]Start with /concepts to see available learning materials[/cyan]")
+    
     # Custom input handler for the interactive loop
     def custom_input_handler():
         try:
@@ -157,19 +188,24 @@ def start_learning(
                 table.add_column("Command", style="cyan", no_wrap=True)
                 table.add_column("Description")
                 
-                table.add_row("/help", "Show this help message")
-                table.add_row("/quit or /exit or /q", "Exit the application")
+                table.add_row("/help", "Show this help message (you're here!)")
+                table.add_row("/concepts", "Show available learning concepts [bold green][RECOMMENDED START][/bold green]")
                 table.add_row("/config", "Show current AI configuration")
                 table.add_row("/set-config", "Set AI provider and model")
-                table.add_row("/concepts", "Show available learning concepts")
                 table.add_row("/reset", "Reset the learning session")
+                table.add_row("/quit or /exit or /q", "Exit the application")
                 
                 console.print(table)
+                console.print("\n[bold blue]💡 Getting Started:[/bold blue]")
+                console.print("  1. Use [bold]/concepts[/bold] to see available learning materials")
+                console.print("  2. Select a concept to begin learning")
+                console.print("  3. Answer questions to test your understanding")
             elif command == 'config':
                 current_provider = prefs_manager.get_preference('ai.default_provider')
                 current_model = prefs_manager.get_preference('ai.default_model')
                 if current_provider and current_model:
                     console.print(f"[blue]Current AI configuration:[/blue] [bold]{current_provider}[/bold] - [bold]{current_model}[/bold]")
+                    console.print("[green]Configuration is set and ready to use.[/green]")
                 else:
                     console.print("[red]No AI configuration set. Use /set-config to configure.[/red]")
             elif command == 'set-config':
@@ -188,19 +224,34 @@ def start_learning(
                     api_key = Prompt.ask("[bold magenta]Please enter your API key[/bold magenta]", password=True)
                     prefs_manager.set_preference(f'ai.{provider.lower()}_api_key', api_key)
                 
-                console.print(f"[green]AI configuration updated:[/green] [cyan]{provider} - {model}[/cyan]")
+                console.print(f"[green]✅ AI configuration updated:[/green] [cyan]{provider} - {model}[/cyan]")
+                console.print("[green]You're now ready to continue learning![/green]")
+                console.print("[bold blue]💡 Next Steps:[/bold blue]")
+                console.print("  • Use [bold]/concepts[/bold] to explore available learning materials")
+                console.print("  • Try [bold]/help[/bold] to see all available commands")
             elif command == 'concepts':
-                console.print("[blue]Available concepts would be listed here based on your learning materials.[/blue]")
+                console.print("[blue]📚 Available learning concepts:[/blue]")
                 # In real implementation, this would fetch from knowledge navigator
+                console.print("  [yellow]• Data Structures[/yellow]")
+                console.print("  [yellow]• Algorithms[/yellow]")
+                console.print("  [yellow]• Machine Learning Fundamentals[/yellow]")
+                console.print("  [yellow]• Python Programming[/yellow]")
+                console.print("\n[i]Select a concept to start learning![/i]")
             elif command == 'reset':
                 console.print("[yellow]Session reset. Configuration remains unchanged.[/yellow]")
+                console.print("[green]You can continue learning with your current settings.[/green]")
             else:
                 console.print(f"[red]Unknown command: /{command}. Type /help for available commands.[/red]")
+                console.print("[bold blue]💡 Tip:[/bold blue] [cyan]Check /help for a list of available commands[/cyan]")
         else:
             # Treat non-slash input as a concept request or general query for the AI
-            console.print(f"[blue]Learning request:[/blue] {user_input}")
-            console.print("[yellow]In a full implementation, this would connect to your AI model for learning assistance.[/yellow]")
-            console.print("[cyan]For now, please use slash commands like /concepts to see available topics or /help for commands.[/cyan]")
+            if user_input.strip() == "":
+                # If user just pressed enter with empty input, show helpful message
+                console.print("[bold blue]💡 Tip:[/bold blue] [cyan]Type a concept name or use /help for commands[/cyan]")
+            else:
+                console.print(f"[blue]Learning request:[/blue] {user_input}")
+                console.print("[yellow]In a full implementation, this would connect to your AI model for learning assistance.[/yellow]")
+                console.print("[cyan]For now, please use slash commands like /concepts to see available topics or /help for commands.[/cyan]")
 
 
 @app.command()
