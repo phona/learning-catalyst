@@ -85,33 +85,67 @@ def start_learning(
     
     typer.echo("Learning session started. Type 'help' for available commands or 'quit' to exit.")
     
-    # Main interactive loop
+    # Main interactive loop with slash commands
+    typer.echo("\nWelcome to Learning Catalyst! Use /help to see available commands.")
     while True:
         try:
             user_input = typer.prompt("\nLearning Catalyst", prompt_suffix="> ")
             
-            if user_input.lower() in ['quit', 'exit', 'q']:
-                typer.echo("Thanks for using Learning Catalyst. Goodbye!")
-                break
-            elif user_input.lower() == 'help':
-                typer.echo("\nAvailable commands:")
-                typer.echo("  help - Show this help message")
-                typer.echo("  quit/exit/q - Exit the application")
-                typer.echo("  models - Show configured AI model")
-                typer.echo("  concepts - Show available learning concepts")
-                typer.echo("  [concept_name] - Start learning a specific concept")
-            elif user_input.lower() == 'models':
-                current_provider = prefs_manager.get_preference('ai.default_provider')
-                current_model = prefs_manager.get_preference('ai.default_model')
-                typer.echo(f"Current AI configuration: {current_provider} - {current_model}")
-            elif user_input.lower() == 'concepts':
-                typer.echo("Available concepts would be listed here based on your learning materials.")
-                # In real implementation, this would fetch from knowledge navigator
+            # Handle slash commands
+            if user_input.startswith('/'):
+                command = user_input[1:].lower().strip()  # Remove the '/' and get the command
+                
+                if command in ['quit', 'exit', 'q']:
+                    typer.echo("Thanks for using Learning Catalyst. Goodbye!")
+                    break
+                elif command == 'help':
+                    typer.echo("\nAvailable slash commands:")
+                    typer.echo("  /help - Show this help message")
+                    typer.echo("  /quit or /exit or /q - Exit the application")
+                    typer.echo("  /models - Show configured AI model")
+                    typer.echo("  /set-model <model_name> - Set the AI model to use")
+                    typer.echo("  /set-provider <provider_name> - Set the AI provider to use")
+                    typer.echo("  /concepts - Show available learning concepts")
+                    typer.echo("  /reset - Reset the learning session")
+                elif command == 'models':
+                    current_provider = prefs_manager.get_preference('ai.default_provider')
+                    current_model = prefs_manager.get_preference('ai.default_model')
+                    typer.echo(f"Current AI configuration: {current_provider} - {current_model}")
+                elif command.startswith('set-model'):
+                    # Extract model name from command
+                    parts = command.split(' ', 1)
+                    if len(parts) > 1:
+                        model_name = parts[1].strip()
+                        prefs_manager.set_preference('ai.default_model', model_name)
+                        typer.echo(f"AI model set to: {model_name}")
+                    else:
+                        typer.echo("Usage: /set-model <model_name>")
+                elif command.startswith('set-provider'):
+                    # Extract provider name from command
+                    parts = command.split(' ', 1)
+                    if len(parts) > 1:
+                        provider_name = parts[1].strip()
+                        # Validate provider
+                        valid_providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
+                        if provider_name.lower() in valid_providers:
+                            prefs_manager.set_preference('ai.default_provider', provider_name.lower())
+                            typer.echo(f"AI provider set to: {provider_name.lower()}")
+                        else:
+                            typer.echo(f"Invalid provider. Valid providers: {', '.join(valid_providers)}")
+                    else:
+                        typer.echo("Usage: /set-provider <provider_name>")
+                elif command == 'concepts':
+                    typer.echo("Available concepts would be listed here based on your learning materials.")
+                    # In real implementation, this would fetch from knowledge navigator
+                elif command == 'reset':
+                    typer.echo("Session reset. Configuration remains unchanged.")
+                else:
+                    typer.echo(f"Unknown command: /{command}. Type /help for available commands.")
             else:
-                # Treat any other input as a concept request or general query
-                typer.echo(f"Request received: {user_input}")
+                # Treat non-slash input as a concept request or general query for the AI
+                typer.echo(f"Learning request: {user_input}")
                 typer.echo("In a full implementation, this would connect to your AI model for learning assistance.")
-                typer.echo("For now, please use 'concepts' to see available topics or 'help' for commands.")
+                typer.echo("For now, please use slash commands like /concepts to see available topics or /help for commands.")
         
         except KeyboardInterrupt:
             typer.echo("\n\nThanks for using Learning Catalyst. Goodbye!")
