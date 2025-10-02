@@ -6,6 +6,12 @@ from typing_extensions import Annotated
 import json
 import os
 from pathlib import Path
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.prompt import Prompt
+from rich.table import Table
+from rich import print
 
 app = typer.Typer()
 
@@ -29,7 +35,7 @@ def start_learning(
     if not os.path.exists(learningspace_path):
         os.makedirs(learningspace_path)
         # Initialize database, preferences, etc.
-        typer.echo(f"Created new learning space at: {learningspace_path}")
+        print("[bold blue]Created new learning space at:[/bold blue] " + learningspace_path)
     
     # Initialize preferences manager
     prefs_manager = PreferencesManager(workspace_path)
@@ -39,35 +45,44 @@ def start_learning(
     default_model = prefs_manager.get_preference('ai.default_model')
     
     if not default_provider or not default_model:
-        typer.echo("Welcome to Learning Catalyst!")
-        typer.echo("Let's configure your AI provider to get started.")
+        # Welcome message with rich formatting
+        console = Console()
+        console.print(Panel("[bold green]Welcome to Learning Catalyst![/bold green]", expand=False))
+        console.print("[bold yellow]Let's configure your AI provider to get started.[/bold yellow]")
         
         # Prompt for provider
         providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
-        typer.echo(f"Available providers: {', '.join(providers)}")
+        console.print(f"[bold cyan]Available providers:[/bold cyan] {', '.join(providers)}")
         
         while True:
-            provider = typer.prompt("Which AI provider would you like to use?", type=str)
+            provider = Prompt.ask("[bold magenta]Which AI provider would you like to use?[/bold magenta]", 
+                                 choices=providers, default="openai")
             if provider.lower() in providers:
                 prefs_manager.set_preference('ai.default_provider', provider.lower())
                 break
             else:
-                typer.echo(f"Invalid provider. Please choose from: {', '.join(providers)}")
+                console.print(f"[red]Invalid provider. Please choose from: {', '.join(providers)}[/red]")
         
         # Prompt for model
-        model = typer.prompt("Which model would you like to use?", type=str)
+        model = Prompt.ask("[bold magenta]Which model would you like to use?[/bold magenta]", default="gpt-4o")
         prefs_manager.set_preference('ai.default_model', model)
         
         # Prompt for API key if required
         if provider.lower() not in ["local"]:
-            api_key = typer.prompt("Please enter your API key", type=str, hide_input=True)
+            api_key = Prompt.ask("[bold magenta]Please enter your API key[/bold magenta]", password=True)
             prefs_manager.set_preference(f'ai.{provider.lower()}_api_key', api_key)
         
-        typer.echo(f"AI configuration saved: {provider} - {model}")
+        console.print(f"[bold green]AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
     
-    # Launch the main application loop
-    typer.echo(f"Starting Learning Catalyst in workspace: {workspace_path}")
-    typer.echo(f"Learningspace directory: {learningspace_path}")
+    # Launch the main application loop with beautiful formatting
+    console = Console()
+    console.print(Panel(
+        f"[bold green]Starting Learning Catalyst[/bold green]\n"
+        f"[cyan]Workspace:[/cyan] {workspace_path}\n"
+        f"[cyan]Learningspace:[/cyan] {learningspace_path}",
+        title="[bold]🚀 Learning Catalyst[/bold]",
+        expand=False
+    ))
     
     # Initialize components
     db_path = os.path.join(learningspace_path, "data.db")
@@ -83,43 +98,48 @@ def start_learning(
     challenge_engine = ChallengeEngineImpl(catalyst_agent)
     knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
     
-    typer.echo("Learning session started. Type 'help' for available commands or 'quit' to exit.")
+    # Print welcome message with rich formatting
+    console.print("\n[bold green]🚀 Learning session started![/bold green] [blue]Use /help to see available commands.[/blue]")
     
-    # Main interactive loop with slash commands
-    typer.echo("\nWelcome to Learning Catalyst! Use /help to see available commands.")
+    # Main interactive loop with slash commands and beautiful UI
     while True:
         try:
-            user_input = typer.prompt("\nLearning Catalyst", prompt_suffix="> ")
+            user_input = Prompt.ask("\n[bold yellow]Learning Catalyst[/bold yellow]", default="")
             
             # Handle slash commands
             if user_input.startswith('/'):
                 command = user_input[1:].lower().strip()  # Remove the '/' and get the command
                 
                 if command in ['quit', 'exit', 'q']:
-                    typer.echo("Thanks for using Learning Catalyst. Goodbye!")
+                    console.print("[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
                     break
                 elif command == 'help':
-                    typer.echo("\nAvailable slash commands:")
-                    typer.echo("  /help - Show this help message")
-                    typer.echo("  /quit or /exit or /q - Exit the application")
-                    typer.echo("  /models - Show configured AI model")
-                    typer.echo("  /set-model <model_name> - Set the AI model to use")
-                    typer.echo("  /set-provider <provider_name> - Set the AI provider to use")
-                    typer.echo("  /concepts - Show available learning concepts")
-                    typer.echo("  /reset - Reset the learning session")
+                    table = Table(title="Available Slash Commands", show_header=True, header_style="bold magenta")
+                    table.add_column("Command", style="cyan", no_wrap=True)
+                    table.add_column("Description")
+                    
+                    table.add_row("/help", "Show this help message")
+                    table.add_row("/quit or /exit or /q", "Exit the application")
+                    table.add_row("/models", "Show configured AI model")
+                    table.add_row("/set-model <model_name>", "Set the AI model to use")
+                    table.add_row("/set-provider <provider_name>", "Set the AI provider to use")
+                    table.add_row("/concepts", "Show available learning concepts")
+                    table.add_row("/reset", "Reset the learning session")
+                    
+                    console.print(table)
                 elif command == 'models':
                     current_provider = prefs_manager.get_preference('ai.default_provider')
                     current_model = prefs_manager.get_preference('ai.default_model')
-                    typer.echo(f"Current AI configuration: {current_provider} - {current_model}")
+                    console.print(f"[blue]Current AI configuration:[/blue] [bold]{current_provider}[/bold] - [bold]{current_model}[/bold]")
                 elif command.startswith('set-model'):
                     # Extract model name from command
                     parts = command.split(' ', 1)
                     if len(parts) > 1:
                         model_name = parts[1].strip()
                         prefs_manager.set_preference('ai.default_model', model_name)
-                        typer.echo(f"AI model set to: {model_name}")
+                        console.print(f"[green]AI model set to:[/green] [bold]{model_name}[/bold]")
                     else:
-                        typer.echo("Usage: /set-model <model_name>")
+                        console.print("[red]Usage: /set-model <model_name>[/red]")
                 elif command.startswith('set-provider'):
                     # Extract provider name from command
                     parts = command.split(' ', 1)
@@ -129,29 +149,29 @@ def start_learning(
                         valid_providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
                         if provider_name.lower() in valid_providers:
                             prefs_manager.set_preference('ai.default_provider', provider_name.lower())
-                            typer.echo(f"AI provider set to: {provider_name.lower()}")
+                            console.print(f"[green]AI provider set to:[/green] [bold]{provider_name.lower()}[/bold]")
                         else:
-                            typer.echo(f"Invalid provider. Valid providers: {', '.join(valid_providers)}")
+                            console.print(f"[red]Invalid provider. Valid providers: {', '.join(valid_providers)}[/red]")
                     else:
-                        typer.echo("Usage: /set-provider <provider_name>")
+                        console.print("[red]Usage: /set-provider <provider_name>[/red]")
                 elif command == 'concepts':
-                    typer.echo("Available concepts would be listed here based on your learning materials.")
+                    console.print("[blue]Available concepts would be listed here based on your learning materials.[/blue]")
                     # In real implementation, this would fetch from knowledge navigator
                 elif command == 'reset':
-                    typer.echo("Session reset. Configuration remains unchanged.")
+                    console.print("[yellow]Session reset. Configuration remains unchanged.[/yellow]")
                 else:
-                    typer.echo(f"Unknown command: /{command}. Type /help for available commands.")
+                    console.print(f"[red]Unknown command: /{command}. Type /help for available commands.[/red]")
             else:
                 # Treat non-slash input as a concept request or general query for the AI
-                typer.echo(f"Learning request: {user_input}")
-                typer.echo("In a full implementation, this would connect to your AI model for learning assistance.")
-                typer.echo("For now, please use slash commands like /concepts to see available topics or /help for commands.")
+                console.print(f"[blue]Learning request:[/blue] {user_input}")
+                console.print("[yellow]In a full implementation, this would connect to your AI model for learning assistance.[/yellow]")
+                console.print("[cyan]For now, please use slash commands like /concepts to see available topics or /help for commands.[/cyan]")
         
         except KeyboardInterrupt:
-            typer.echo("\n\nThanks for using Learning Catalyst. Goodbye!")
+            console.print("\n\n[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
             break
         except Exception as e:
-            typer.echo(f"An error occurred: {e}")
+            console.print(f"[red]An error occurred: {e}[/red]")
             continue
 
 

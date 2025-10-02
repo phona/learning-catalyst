@@ -32,13 +32,13 @@ def test_start_learning_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
         # For this test, let's mock the interactive session part to avoid getting stuck
-        with patch('typer.prompt', side_effect=['/quit']):
+        with patch('rich.prompt.Prompt.ask', side_effect=['/quit']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Check that the command executed and reached the interactive part
-        assert "Starting Learning Catalyst in workspace:" in result.output
+        # With rich formatting, we'll see the panel headers in the output
+        assert "🚀 Learning Catalyst" in result.output
         assert "Learning session started" in result.output
-        assert "Welcome to Learning Catalyst! Use /help to see available commands." in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -280,13 +280,13 @@ def test_slash_help_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
         # Mock the prompt to simulate user typing /help then quit
-        with patch('typer.prompt', side_effect=['/help', '/quit']):
+        with patch('rich.prompt.Prompt.ask', side_effect=['/help', '/quit']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
-        # Verify that help message was shown
-        assert "Available slash commands:" in result.output
-        assert "/help - Show this help message" in result.output
-        assert "/quit or /exit or /q - Exit the application" in result.output
+        # Verify that help message was shown (check for table elements now)
+        assert "Available Slash Commands" in result.output
+        assert "/help" in result.output
+        assert "/quit or /exit or /q" in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -310,11 +310,13 @@ def test_slash_models_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
         # Mock the prompt to simulate user typing /models then quit
-        with patch('typer.prompt', side_effect=['/models', '/quit']):
+        with patch('rich.prompt.Prompt.ask', side_effect=['/models', '/quit']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Verify that models info was shown
-        assert "Current AI configuration: openai - gpt-4o" in result.output
+        assert "Current AI configuration:" in result.output
+        assert "openai" in result.output
+        assert "gpt-4o" in result.output
     finally:
         os.chdir(original_cwd)
 
@@ -338,11 +340,12 @@ def test_slash_set_model_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
         # Mock the prompt to simulate user setting a new model, checking it, then quitting
-        with patch('typer.prompt', side_effect=['/set-model gpt-4-turbo', '/models', '/quit']):
+        with patch('rich.prompt.Prompt.ask', side_effect=['/set-model gpt-4-turbo', '/models', '/quit']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Verify that the model was changed
-        assert "AI model set to: gpt-4-turbo" in result.output
+        assert "AI model set to:" in result.output
+        assert "gpt-4-turbo" in result.output
         assert "Current AI configuration: openai - gpt-4-turbo" in result.output
     finally:
         os.chdir(original_cwd)
@@ -367,11 +370,12 @@ def test_slash_set_provider_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
         # Mock the prompt to simulate user setting a new provider, checking it, then quitting
-        with patch('typer.prompt', side_effect=['/set-provider anthropic', '/models', '/quit']):
+        with patch('rich.prompt.Prompt.ask', side_effect=['/set-provider anthropic', '/models', '/quit']):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Verify that the provider was changed
-        assert "AI provider set to: anthropic" in result.output
+        assert "AI provider set to:" in result.output
+        assert "anthropic" in result.output
         assert "Current AI configuration: anthropic - gpt-4o" in result.output
     finally:
         os.chdir(original_cwd)
