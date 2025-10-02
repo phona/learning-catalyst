@@ -91,6 +91,20 @@ def start_learning(
         
         console.print(f"\n[bold green]✅ AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
         console.print("[green]You're now ready to start learning![/green]")
+        
+        # Provide post-setup guidance
+        console.print("\n[bold blue]🎯 Getting Started Guide:[/bold blue]")
+        console.print("  1. [bold]Explore Concepts:[/bold] Use the [cyan]/concepts[/cyan] command to see available learning materials")
+        console.print("  2. [bold]Start Learning:[/bold] Select a concept to begin your learning journey")
+        console.print("  3. [bold]Practice:[/bold] Answer AI-generated questions to test your understanding")
+        console.print("  4. [bold]Track Progress:[/bold] Your learning progress is automatically saved")
+        
+        console.print("\n[bold blue]💡 Quick Tips:[/bold blue]")
+        console.print("  • Type [cyan]/help[/cyan] anytime to see all available commands")
+        console.print("  • Use [cyan]/config[/cyan] to view or change your AI configuration")
+        console.print("  • Press [cyan]Ctrl+C[/cyan] to clear your input, [cyan]Ctrl+D[/cyan] to exit")
+        
+        console.print("\n[green]Let's begin![/green] Type [cyan]/concepts[/cyan] to see available learning materials.")
     else:
         # If already configured, welcome back
         current_provider = prefs_manager.get_preference('ai.default_provider')
@@ -99,7 +113,19 @@ def start_learning(
         console.print(Panel.fit(f"🎓 [bold green]Welcome back to Learning Catalyst![/bold green] 🚀", 
                                border_style="blue", padding=(1, 1)))
         console.print(f"[green]Using AI configuration:[/green] [cyan]{current_provider} - {current_model}[/cyan]")
-        console.print("[yellow]Type /help to see available commands.[/yellow]")
+        
+        # Provide returning user guidance
+        console.print("\n[bold blue]🎯 Continue Your Learning Journey:[/bold blue]")
+        console.print("  • Use [cyan]/concepts[/cyan] to see available learning materials")
+        console.print("  • Resume where you left off or explore new topics")
+        console.print("  • Your progress is automatically saved between sessions")
+        
+        console.print("\n[bold blue]💡 Quick Reminders:[/bold blue]")
+        console.print("  • Type [cyan]/help[/cyan] to see all available commands")
+        console.print("  • Use [cyan]/config[/cyan] to view or change your AI configuration")
+        console.print("  • Press [cyan]Ctrl+C[/cyan] to clear your input, [cyan]Ctrl+D[/cyan] to exit")
+        
+        console.print("\n[green]Ready to continue learning![/green] Type [cyan]/concepts[/cyan] to get started.")
     
     # Launch the main application loop with beautiful formatting
     console = Console()

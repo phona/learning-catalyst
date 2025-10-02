@@ -45,6 +45,23 @@ def test_start_learning_command(temp_workspace):
         os.chdir(original_cwd)
 
 
+def test_enhanced_guidance_messages():
+    """Test that enhanced guidance messages are present in the code"""
+    # This is a simple test to verify that our enhanced guidance messages exist
+    # in the source code. We don't need to run the full interactive setup here.
+    
+    # Read the main.py file to check for our enhanced guidance messages
+    with open('/mnt/d/Projects/learning_catalyst/src/cli/main.py', 'r') as f:
+        content = f.read()
+    
+    # Check that our enhanced guidance messages are present
+    assert "🎯 Getting Started Guide:" in content
+    assert "💡 Quick Tips:" in content
+    assert "Let's begin!" in content
+    assert "Continue Your Learning Journey:" in content
+    assert "Quick Reminders:" in content
+
+
 def test_models_command():
     """Test the models command"""
     result = runner.invoke(app, ["models"])
