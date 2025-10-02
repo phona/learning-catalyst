@@ -153,11 +153,13 @@ def start_learning(
     # Custom input handler for the interactive loop
     def custom_input_handler():
         try:
-            user_input = input("\n[bold yellow]Learning Catalyst[/bold yellow]> ")
+            # Print the prompt with rich formatting, then get input without formatting
+            console.print("[bold yellow]Learning Catalyst[/bold yellow]", end="", style="yellow")
+            user_input = input("> ")
             return user_input
         except KeyboardInterrupt:
             # For Ctrl+C, just return empty input to show a new prompt
-            console.print()  # Go to new line
+            console.print()  # Go to new line without extra text
             return None
         except EOFError:
             # For Ctrl+D, return special value to indicate exit
