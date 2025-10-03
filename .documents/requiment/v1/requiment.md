@@ -1,232 +1,266 @@
-# 📑 Learning Catalyst – Requirement Specification Document
+# 📑 Learning Catalyst
 
 ## 1. Introduction
 
 ### 1.1 Purpose
-
-The Learning Catalyst is an **AI-driven interactive learning game** designed to guide users through Markdown-based learning materials. It provides a **knowledge map, adaptive challenges, checkpoints, and analytics**. Over successive phases, the system will evolve from static learning delivery to an **AI-driven adaptive tutor**.
+Learning Catalyst is a **local-first, conversational AI tutor** that operates within the command line. It fosters a natural, dialogue-led learning experience, **proactively guiding users** through their local Markdown-based materials. The application initiates the learning process from the moment it starts, suggesting next steps and ensuring a continuous, supportive journey. By leveraging configurable AI models, it provides on-demand explanations, adaptive challenges, and persistent progress tracking in a private and highly controlled environment.
 
 ### 1.2 Scope
+*   **Proactive Conversational Interface**: The primary interaction is a continuous chat dialogue where the AI tutor actively guides the conversation.
+*   **Guided Startup & Resumption**: The application intelligently resumes previous sessions or onboards new users with context-aware suggestions, eliminating user uncertainty.
+*   **Context-Aware Learning**: The AI grounds its responses and challenges in the user's local Markdown files.
+*   **Persistent State**: The application automatically saves the user's conversation and progress, allowing them to seamlessly resume at any time.
+*   **Pluggable AI Models**: Users can configure and switch between various AI providers and models to manage cost and performance.
+*   **Progressive Enhancement**: The system is designed to evolve from a core conversational tool into a fully adaptive AI tutor.
 
-- **AI-powered gamified environment** where users explore concepts, answer AI-generated challenges, and save progress.
-- **Persistent storage** for user progress, checkpoints, and profiles.
-- **User-selectable AI models and providers** for flexibility and cost management.
-- **Progressive enhancement** of analytics, gamification, and AI autonomy over subsequent phases.
+**Target Users**: Self-learners, students, and professionals who want a supportive, AI-driven learning partner and value local data control.
 
-Target users: **self-learners, students, or professionals** who benefit from an interactive, guided learning experience.
-
-------
+---
 
 ## 2. System Overview
 
 ### 2.1 Core Modules
-
-- **Knowledge Navigator**: Displays knowledge map, available actions.
-- **Challenge Engine**: Works with the Catalyst Agent to present AI-generated questions.
-- **Checkpoint Manager**: Saves/loads progress states.
-- **Catalyst Agent**: **Core AI-driven module from Phase 1.** It generates explanations, creates challenges, and provides guidance by interfacing with an LLM.
-- **Model Abstraction Layer**: **Core module from Phase 1.** Provides a unified interface for communicating with various LLM providers (e.g., OpenAI, Anthropic, local models).
-- **Analytics Dashboard**: (Phase 2) Shows proficiency, weak areas, trends.
-- **Assessment Engine**: Background process for evaluating user progress and adapting difficulty.
+- **Configuration Manager**: Manages providers, models, and API keys via `config.json`.
+- **CLI Interface**: Renders the conversational dialogue and handles user input and system commands.
+- **Catalyst Agent**: The core AI-driven module. It interprets user intent, processes queries, generates explanations, formulates challenges, and is **responsible for generating context-aware startup prompts to guide the user immediately upon launch.**
+- **Challenge Engine**: Works with the Catalyst Agent to present AI-generated questions and process user answers.
+- **State Manager**: Handles the **mechanics** of automatically saving the application state on exit and seamlessly loading it on launch for the Catalyst Agent to interpret. Manages manual checkpoints.
+- **Model Abstraction Layer**: Provides a unified interface for communicating with various LLM providers.
+- **Analytics Dashboard**: (Phase 2) Displays user proficiency and learning trends.
+- **Assessment Engine**: (Phase 2) A background process that evaluates user performance to update competency profiles.
 
 ### 2.2 Data Persistence
+- **User Profiles**: Stores preferences, a long-term competency profile, and the selected AI model.
+- **Q&A Database (SQLite)**: A persistent log of all concepts, AI-generated questions, user attempts, and AI feedback.
+- **Application State**: A file representing the current conversational context and UI state, automatically saved on exit.
+- **System Configuration (`config.json`)**: Stores models, providers, and API keys.
+- **Vector DB (ChromaDB or FAISS)**: (Phase 3 Recommended) For enabling long-term memory and semantic retrieval of content.
 
-- **User Profiles** (preferences, progress, competency profile, selected AI model/provider settings).
-- **Q&A Database** (all concepts, AI-generated questions, user attempts, AI feedback, timestamps).
-- **Checkpoints** (compressed state saves).
-- **System Configuration** (available models, API endpoints, credentials management).
-- **Vector DB (Optional but Recommended for Phase 1)**: For efficient semantic retrieval of content chunks to provide context to the LLM.
+### 2.3 Technology Stack
+- **CLI Framework**: Click or Typer
+- **Configuration**: JSON files
+- **Database**: SQLite for profiles and Q&A history
+- **Vector DB**: ChromaDB or FAISS (optional)
+- **API Standard**: OpenAI-compatible interface for all providers
 
-------
+---
 
 ## 3. Functional Requirements
 
-### 3.1 User Actions
+### High-Level User Story: Guided Application Startup
 
-- **Explore Concept**
-  - **Phase 1**: The Catalyst Agent reads the relevant Markdown section and uses an LLM to generate a tailored, engaging explanation.
-- **Answer Challenges**
-  - **Phase 1**: The Catalyst Agent uses the LLM to generate relevant questions (e.g., multiple-choice, open-ended) based on the concept content. The system evaluates the user's answer, potentially using the LLM for grading open-ended responses.
-- **Set Preferences**
-  - **Phase 1**: Select AI Model & Provider (e.g., GPT-4o, Claude 3 Sonnet), theme.
-  - **Phase 2+**: Adjust difficulty, learning style.
-- **View Stats**
-  - **Phase 1**: Simple stats (attempts, correctness).
-  - **Phase 2+**: Enhanced analytics with proficiency trends.
-- **Manage Checkpoints**
-  - Save/load learning state.
-- **Free Query (Navigator Mode)** – Phase 3 only.
+> **As a** Learning Catalyst user,
+> **I want** the application to proactively guide my next learning step upon startup,
+> **so that** I can immediately re-engage with my learning path or start a new one without uncertainty.
 
-### 3.2 Background Processing
+### 3.1 Application Startup & Resumption
+The application must provide a guided experience from the moment it is launched, eliminating blank states and actively directing the user.
 
-- Track Q&A history.
-- Update user’s competency profile.
-- Identify patterns (weak concepts, learning pace).
-- Adjust difficulty (rule-based → AI-driven).
+#### 3.1.1 Scenario: Guided Resumption (Existing User)
+-   **GIVEN** a user has a previously saved learning session,
+-   **WHEN** the user launches the application,
+-   **THEN** the system must:
+    1.  Automatically load the last saved state, displaying the full conversation history.
+    2.  Use the **Catalyst Agent** to generate a dynamic, context-aware welcome message that summarizes the last point of discussion (e.g., `Welcome back! We were just discussing JavaScript closures.`).
+    3.  Propose a specific, actionable next step to re-engage the user (e.g., `"Would you like me to quiz you on that now?"` or `"Shall we move on to the next topic, 'Immediately Invoked Function Expressions'?"`).
+    4.  Activate the input prompt, awaiting the user's response to the AI's suggestion.
 
-------
+#### 3.1.2 Scenario: Guided Onboarding (New User)
+-   **GIVEN** a user is launching the application for the first time or no state file exists,
+-   **WHEN** the user launches the application,
+-   **THEN** the system must:
+    1.  Initialize a new session.
+    2.  Use the **Catalyst Agent** to perform a lightweight scan of the available local Markdown files.
+    3.  Display a welcome message that immediately suggests a concrete first topic based on the scanned content (e.g., `Welcome to Learning Catalyst! I see you have materials on Python. To get started, shall I explain the first topic, 'Variables and Data Types'?'`).
+    4.  Guide the user with a simple choice (e.g., "yes", "no") rather than requiring them to formulate an initial query.
+    5.  Activate the input prompt, awaiting the user's response to the onboarding suggestion.
+
+### 3.2 The Core Conversational Experience
+The primary user interaction is a single, continuous conversation.
+
+| User Input Type                                              | System Behavior                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| **Query for Information**<br/>(e.g., `Explain closures in JavaScript.`) | The **Catalyst Agent** retrieves relevant content from the Markdown files and generates a detailed explanation. |
+| **Request for a Challenge**<br/>(e.g., `Quiz me on that.` or `Give me a hard question.`) | The **Challenge Engine** generates a relevant question (MCQ, open-ended) based on the current context or a specified topic. |
+| **Answer to a Challenge**<br/>(e.g., `A closure is...` or `C`) | The system receives the input as an answer to the last-asked question. The **Catalyst Agent** evaluates its correctness and provides feedback. |
+
+### 3.3 System and State Management Commands
+These commands are prefixed with `/` to distinguish them from conversational input.
+
+| Command                   | Description                                                  |
+| ------------------------- | ------------------------------------------------------------ |
+| `/clear`                  | Resets the AI's short-term conversational context. This is for starting a fresh topic without losing overall progress history. |
+| `/checkpoint save <name>` | Manually saves a named snapshot of the current state, allowing the user to create specific restore points. |
+| `/checkpoint load <name>` | Restores the application to a previously saved checkpoint.   |
+| `/stats`                  | (Phase 2) Displays the user's analytics dashboard.           |
+| `/suggest`                | (Phase 3) Asks the AI tutor to suggest the next concept to learn based on the user's profile. |
+
+### 3.4 Configuration Commands
+These commands are used for one-time setup and management of AI models.
+
+| Command                 | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| `/provider list`        | Lists all configured providers.                              |
+| `/provider add`         | A wizard to add a new provider (ID, endpoint, auth scheme).  |
+| `/provider remove <id>` | Removes a provider configuration.                            |
+| `/models`               | Lists all configured models (never shows API keys).          |
+| `/model add`            | A wizard to add a model (ID, provider, model name, API key). |
+| `/model remove <id>`    | Removes a model configuration.                               |
+| `/model use <id>`       | Sets the active model for all AI operations.                 |
+
+---
 
 ## 4. Non-Functional Requirements
 
-- **Scalability**: Handle large Markdown books (100+ chapters).
-- **Performance**: Load concept & checkpoint within <2s.
-- **Reliability**: Auto-save checkpoints on exit.
-- **Security**: Isolate user data (multi-user support).
-- **Modularity & Extensibility**: The architecture must support plugging in new LLM providers via the Model Abstraction Layer without requiring significant changes to the `Catalyst Agent` or core application logic.
+- **Local-First**: All user data, progress, and configuration must be stored on the user's local machine.
+- **Persistent State**: The application **must** automatically save its full state on exit and use that state to provide a **guided, proactive resumption experience** on the next launch.
+- **Simplicity**: Configuration is managed through a single, human-readable `config.json` file.
+- **Performance**: Application startup and state restoration should complete in under 2 seconds. AI-driven startup prompts may take slightly longer and should be streamed to the user.
+- **Modularity**: The Model Abstraction Layer must allow for easy integration of new OpenAI-compatible AI providers.
+- **Security**: API keys are stored in plaintext in the local `config.json`. Users are responsible for securing this file (e.g., via file permissions and `.gitignore`).
 
-------
+---
 
-## 5. Architecture Considerations
+## 5. Architecture
 
-- **Layered Architecture**
-  - **Presentation Layer**: Game UI (knowledge map, chat-like interface for AI interaction).
-  - **Logic Layer**: **Catalyst Agent**, **Model Abstraction Layer**, Challenge Engine, Assessment Engine.
-  - **Data Layer**: Relational DB, Vector DB.
-- **Integration Points**
-  - **Phase 1**: Catalyst Agent → **Model Abstraction Layer** → User-selected LLM API. The core game loop is dependent on this integration.
-- **Storage Technology**
-  - **Phase 1**: SQLite/Postgres for profiles and Q&A history. **Vector DB (e.g., ChromaDB, FAISS) is highly recommended** for providing context to the LLM.
+### 5.1 Layered Architecture
+```
+┌───────────────────────────────────┐
+│        CLI Interface              │
+│      (Conversation View)          │
+└─────────────────┬─────────────────┘
+                  │
+┌─────────────────▼─────────────────┐
+│          Logic Layer              │
+│  ┌─────────────────┐  ┌───────────┐│
+│  │ Catalyst Agent │  │Challenge  ││
+│  │(Intent/AI Proc)│  │Engine     ││
+│  └─────────────────┘  └───────────┘│
+│  ┌─────────────────┐  ┌───────────┐│
+│  │Model Abstraction│  │State      ││
+│  │Layer           │  │Manager    ││
+│  └─────────────────┘  └───────────┘│
+└─────────────────┬─────────────────┘
+                  │
+┌─────────────────▼─────────────────┐
+│          Data Layer               │
+│  ┌───────────┐  ┌───────────┐    │
+│  │SQLite DB  │  │Vector DB  │    │
+│  │(Q&A Hist) │  │(Content)  │    │
+│  └───────────┘  └───────────┘    │
+└───────────────────────────────────┘
+```
+
+### 5.2 Phase 1 (MVP) Flow
+```mermaid
+flowchart TD
+    A[Start CLI] --> B[State Manager: Load Last State]
+    B --> C{State Found?}
+
+    subgraph StartupGuidance [Startup Guidance]
+        C -- Yes --> C_YES[Catalyst Agent: Analyze History & Generate Guided Welcome Prompt]
+        C -- No --> C_NO[Catalyst Agent: Scan Content & Generate Onboarding Prompt]
+    end
+
+    C_YES --> MAL_Startup[Send to Model Abstraction Layer]
+    C_NO --> MAL_Startup
+
+    MAL_Startup --> D[Display AI-Generated Welcome & Await Input]
+  
+    subgraph ConversationLoop [Conversation Loop]
+        D --> E[User types text]
+        E --> F{Is it a /command?}
+        F -- Yes --> G[Execute System/Config Command] --> D
+        F -- No --> H[Catalyst Agent: Interpret Intent]
+        H --> I{Query, Challenge, or Answer?}
+        I -- Query --> J[Generate Explanation Prompt] --> MAL_Conv
+        I -- Challenge Request --> K[Generate Challenge Prompt] --> MAL_Conv
+        I -- Answer --> L[Generate Evaluation Prompt] --> MAL_Conv
+
+        subgraph MAL_Conv [Model Abstraction Layer]
+            M1[Route to Selected Model & Send API Call]
+        end
+
+        MAL_Conv --> N[Display AI Response to User]
+        L --> O[Store Q&A in DB]
+
+        N --> D
+        O --> D
+    end
+
+    subgraph ExitProcess [On Exit]
+        P[User Closes Terminal] --> Q[State Manager: Save Current State]
+    end
+
+    ConversationLoop -- Interrupted by Ctrl+C or Close --> P
+```
 
 ---
 
 ## 6. Project Lifecycle
 
-------
+### 📌 Phase 1 – MVP (Guided Conversational Core)
+- Implement **intelligent, guided startup**: Proactively suggest the next learning step upon resumption or a starting topic for new users.
+- Implement the **continuous conversational interface**.
+- **AI-generated explanations and challenges** driven by natural language input.
+- **Automatic state saving** on exit and resumption on launch.
+- The `/clear` command to reset conversational context.
+- Full suite of commands for **model and provider configuration**.
+- Manual checkpointing (`/checkpoint save/load`).
 
-### 📌 Phase 1 – MVP (Static Learning Game)
+### 📌 Phase 2 – Enhanced Analytics & Adaptivity
+- Implement a background **Assessment Engine** to build a user competency profile.
+- Introduce **rule-based adaptive difficulty** where the AI adjusts challenge hardness based on user performance.
+- Add the `/stats` command to display an **analytics dashboard** with proficiency trends.
 
-**Goal**: Deliver a core interactive learning experience where the AI generates curriculum content and challenges on the fly.
-
-- **AI-generated explanations** from source Markdown.
-- **AI-generated challenges** based on concept content.
-- LLM-based evaluation for simple answers.
-- User can **select their preferred AI model and provider**.
-- Basic progress tracking and manual checkpoints.
-
-**Flowchart (MVP)**
-
-```mermaid
-flowchart TD
-    A[Start Game] --> B["Initialize Connections<br/>(DB, Vector DB)"]
-    B --> C["Load User Profile & Preferences<br/>(incl. Selected AI Model)"]
-
-    C --> D{Main Game Loop}
-    subgraph D [Game Loop - AI Powered]
-        D1[User Selects a Concept<br/>from Knowledge Map]
-        
-        D1 --> D2[Catalyst Agent:<br/>Retrieve Content from Markdown]
-        D2 --> D3[Generate Prompt for Explanation]
-        
-        subgraph MAL [Model Abstraction Layer]
-             M1["Route request to<br/>Selected Provider (e.g., OpenAI)"]
-             M2[Send API Call & Await Response]
-             M3[Normalize Response]
-        end
-
-        D3 --> M1
-        M3 --> D4[Display AI-Generated Explanation]
-        
-        D4 --> D5[Catalyst Agent:<br/>Generate Prompt for Challenge]
-        D5 --> M1
-        M3 --> D6[Present AI-Generated Challenge]
-
-        D6 --> D7[User Answers]
-        D7 --> D8["Evaluate Answer<br/>(AI-assisted if needed)"]
-        D8 --> D9[Store Q&A & Update Progress]
-        D9 --> D1
-    end
-
-    subgraph Actions
-        D1 -- "Set Preferences" --> P1[Change AI Model/Provider]
-        P1 --> C
-        D1 -- "Save Checkpoint" --> CP1[Save Current State]
-    end
-
-    subgraph DB [Persistent Storage]
-      DB1[(User Profiles)]
-      DB2[(Q&A History)]
-      DB3[(Checkpoints)]
-    end
-
-    C --> DB1
-    D9 --> DB2
-    CP1 --> DB3
-
-    D1 -- "Exit" --> E[Save Final State & Close Connections]
-
-```
-
-------
-
-### 📌 Phase 2 – Gamified Progression
-
-**Goal**: Enhance the AI core with robust analytics, gamification, and smarter progression.
-
-- **Analytics Dashboard** showing proficiency, weak areas, and learning trends.
-- **Background Assessment Engine** updates a user's competency profile based on performance.
-- Rule-based **adaptive difficulty** (e.g., ask harder questions on mastered topics).
-- **Autosave** checkpoints.
-
-**Flowchart (Phase 2)**: This phase adds the `Assessment Engine` and `Analytics Dashboard` around the existing AI core loop from Phase 1. The main interaction loop remains the same, but its outputs now feed a more complex background system.
-
-------
-
-### 📌 Phase 3 – AI-Driven Catalyst
-
-**Goal**: Evolve the Catalyst Agent into a semi-autonomous tutor that can operate with more freedom.
-
-- **Navigator Mode**: Allow free-form Q&A with the AI about the learning material.
-- **AI-Driven Pathing**: The AI suggests the next concept to study based on the user's competency profile and goals.
-- **Long-term Memory**: Use advanced vector context to allow the AI to remember interactions across multiple sessions.
-- Fully **AI-driven adaptive difficulty** and content personalization.
-
-**Flowchart (Phase 3)**: This phase adds the "Free Query" path and makes the AI's role more proactive, potentially breaking from the linear "Select Concept -> Explain -> Challenge" loop by suggesting concepts itself.
-
-------
-
-## 7. Risks & Dependencies
-
-- **LLM API Cost & Latency (Primary MVP Risk)**: The core user experience is directly tied to the performance and cost of external AI services. This must be managed and monitored from day one.
-- **Quality of AI Generation**: The quality of explanations and challenges is dependent on prompt engineering and the chosen model. Poor generation can lead to a frustrating user experience.
-- **Data Privacy & Security**: Sending learning material to third-party APIs requires clear privacy policies. User data and API keys must be secured.
-- **Initial Setup Complexity**: The MVP now requires integration with LLM APIs and potentially a vector DB, increasing initial development effort compared to a static version.
+### 📌 Phase 3 – AI-Driven Tutor
+- Integrate a **vector database** to provide the AI with long-term memory across all conversations.
+- Implement the `/suggest` command for **AI-driven learning path suggestions**.
+- Evolve the system into a **fully adaptive, personalized tutor** that can initiate topics and guide the user proactively throughout the entire session.
 
 ---
 
-## 8. Success Criteria
+## 7. Security & Configuration
+- **API Key Storage**: Keys are stored in plaintext in the local `config.json`. This is acceptable for a local-only application but requires user awareness.
+- **Security Recommendations**:
+  - Add `config.json` and the `.learningspace` directory to `.gitignore`.
+  - Use restrictive file permissions on the application's data directory.
+  - Never share the `config.json` file.
 
-- **Phase 1**: Users can successfully learn from a Markdown file where the **AI generates the explanations and challenges**, and their progress is saved. Users can switch between configured AI models.
-- **Phase 2**: The system provides users with a **meaningful analytics dashboard** that helps them understand their strengths and weaknesses.
-- **Phase 3**: Users can treat the application like a **personal tutor**, asking free-form questions and receiving intelligent suggestions on what to learn next.
+---
 
-------
+## 8. Risks & Dependencies
+- **API Cost & Latency**: The user experience is directly tied to the performance and cost of external AI services. The AI-driven startup adds an API call on launch.
+- **AI Generation Quality**: The utility of the tool and the relevance of its guidance depend heavily on prompt engineering and the quality of the chosen AI model.
+- **Data Privacy**: Although local-first, the content is sent to third-party APIs. The user is responsible for choosing trusted providers.
+- **Setup Complexity**: Initial setup requires the user to procure and configure API keys.
 
-## 9. Requirements Traceability Matrix (RTM)
+---
 
-| Requirement ID             | User Story                                     | Flowchart Node(s) | Component(s)                                           |
-| -------------------------- | ---------------------------------------------- | ----------------- | ------------------------------------------------------ |
-| **BYOK-R1 (Prerequisite)** | **US1: Provide and Validate AI Configuration** | **A to K**        | **Configuration Manager, UI, Model Abstraction Layer** |
-| **BYOK-R2**                | US2: Get AI Explanation                        | L1, L2, L3        | Catalyst Agent, Model Abstraction Layer                |
-| **BYOK-R3**                | US3: Answer AI Challenge                       | L3, L4            | Catalyst Agent, Challenge Engine                       |
-| **BYOK-R4**                | US4: Change My AI Config                       | C                 | Configuration Manager, UI                              |
-| **BYOK-R5**                | US5: Save Progress                             | M1                | Checkpoint Manager                                     |
+## 9. Success Criteria
+- **Phase 1**: Users are immediately greeted with a relevant, AI-generated suggestion upon launching the app, either continuing a past topic or suggesting a new one. The application state is successfully saved and restored, and users can fully configure their AI models.
+- **Phase 2**: The system provides a meaningful analytics dashboard via `/stats`, and users notice that challenge difficulty adapts to their skill level.
+- **Phase 3**: The AI demonstrates long-term memory by referencing past topics, and the `/suggest` command provides relevant, intelligent recommendations for what to learn next.
 
-------
+---
 
-| Requirement ID | User Story               | Flowchart Node(s)             | Component(s)                          |
-| -------------- | ------------------------ | ----------------------------- | ------------------------------------- |
-| **GAM-R1**     | US1: Adaptive Difficulty | D5, D6, AssessmentEngine, D14 | Assessment Engine, Challenge Engine   |
-| **GAM-R2**     | US2: View Stats Trends   | D9, DB1, DB2                  | Analytics Engine, DB1, DB2            |
-| **GAM-R3**     | US3: Update Preferences  | D1, D11, DB2                  | UI Panel, Preferences Manager         |
-| **GAM-R4**     | US4: Autosave            | D6, D8, DB3                   | Checkpoint Manager, Persistence Layer |
+## 10. Requirements Traceability Matrix (RTM)
 
-------
-
-| Requirement ID | User Story                         | Flowchart Node(s)  | Component(s)                                           |
-| -------------- | ---------------------------------- | ------------------ | ------------------------------------------------------ |
-| **AI-R1**      | US1: Personalized Explanation      | D2, D3, M1-M4, D4  | Catalyst Agent, Model Abstraction Layer                |
-| **AI-R2**      | US2: Semantic Challenge Evaluation | D5-D8, AIEngine    | Challenge Engine, AI Assessment Engine, LLM API        |
-| **AI-R3**      | US3: Navigator Mode                | D1, D12, M1-M4, D4 | UI Panel, Catalyst Agent, Model Abstraction Layer      |
-| **AI-R4**      | US4: AI-Driven Adaptive Path       | AIEngine           | Assessment Engine, LLM API                             |
-| **AI-R5**      | US5: Contextual Checkpoints        | D10, DB3           | Checkpoint Manager, Context Compressor                 |
-| **AI-R6**      | US6: Select AI Model & Provider    | D11, C, DB2        | UI Panel, Preferences Manager, Model Abstraction Layer |
+| ID           | Requirement                          | Description                                                  | Component                           | Phase |
+| ------------ | ------------------------------------ | ------------------------------------------------------------ | ----------------------------------- | ----- |
+| **START-R1** | **Intelligent Startup & Resumption** | Proactively guide the user upon application launch. If a prior state exists, resume the context with a suggestion. If not, onboard the user by suggesting an initial topic from their materials. | Catalyst Agent, State Manager       | 1     |
+| **CONV-R1**  | Continuous conversational UI         | The main interface is a seamless, scrolling chat dialogue.   | CLI Interface                       | 1     |
+| **CONV-R2**  | AI intent interpretation             | Distinguish between queries, challenge requests, and answers. | Catalyst Agent                      | 1     |
+| **STATE-R1** | Automatic State Persistence          | The application's full conversational state is automatically saved on exit and loaded on start. | State Manager                       | 1     |
+| **STATE-R2** | Clear conversational context         | The `/clear` command resets the AI's short-term memory.      | Catalyst Agent                      | 1     |
+| **STATE-R3** | Manual checkpointing                 | The `/checkpoint` commands allow users to save/load named states. | State Manager                       | 1     |
+| **CONF-R1**  | Configuration Management             | Commands to manage AI providers and models.                  | Config Manager                      | 1     |
+| **AI-R1**    | Generate explanations                | Generate explanations based on user queries and Markdown content. | Catalyst Agent                      | 1     |
+| **AI-R2**    | Generate challenges                  | Create questions based on the current learning context.      | Challenge Engine                    | 1     |
+| **AI-R3**    | Evaluate answers                     | Use an LLM to assess the correctness of user answers to challenges. | Catalyst Agent                      | 1     |
+| **DATA-R1**  | Persist Q&A history                  | Log questions, answers, and feedback in a local database.    | SQLite DB                           | 1     |
+| **ANAL-R1**  | Track user competency profile        | A background system to build a proficiency model of the user. | Assessment Engine                   | 2     |
+| **ANAL-R2**  | Display analytics dashboard          | The `/stats` command to show user progress and weak areas.   | Analytics Dashboard                 | 2     |
+| **ADAPT-R1** | Adaptive challenge difficulty        | Adjust challenge hardness based on user performance.         | Assessment Engine, Challenge Engine | 2     |
+| **TUTOR-R1** | AI-driven learning suggestions       | The `/suggest` command for proactive topic recommendations.  | Catalyst Agent                      | 3     |
+| **TUTOR-R2** | Long-term contextual memory          | Use a vector database for semantic recall across sessions.   | Vector DB                           | 3     |

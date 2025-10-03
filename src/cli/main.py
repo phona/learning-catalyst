@@ -22,12 +22,12 @@ def start_learning(
 ):
     """Start the Learning Catalyst application in the specified workspace"""
     import sys
-    from src.utils.preferences_manager import PreferencesManager
-    from src.ai.service import ModelAbstractionService
-    from src.core.catalyst_agent import CatalystAgentImpl
-    from src.core.challenge_engine import ChallengeEngineImpl
-    from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
-    from src.data.database_manager import DatabaseManager
+    from utils.preferences_manager import PreferencesManager
+    from ai.service import ModelAbstractionService
+    from core.catalyst_agent import CatalystAgentImpl
+    from core.challenge_engine import ChallengeEngineImpl
+    from core.knowledge_navigator import SQLiteKnowledgeNavigator
+    from data.database_manager import DatabaseManager
     
     # Initialize the workspace and start the application
     learningspace_path = os.path.join(workspace_path, ".learningspace")
@@ -102,6 +102,9 @@ def start_learning(
         console.print("\n[bold blue]💡 Quick Tips:[/bold blue]")
         console.print("  • Type [cyan]/help[/cyan] anytime to see all available commands")
         console.print("  • Use [cyan]/config[/cyan] to view or change your AI configuration")
+        console.print("  • Use [cyan]/models[/cyan] to see available models")
+        console.print("  • Use [cyan]/tokens[/cyan] to view token usage statistics")
+        console.print("  • Use [cyan]/knowledge-map[/cyan] to view the knowledge structure")
         console.print("  • Press [cyan]Ctrl+C[/cyan] to clear your input, [cyan]Ctrl+D[/cyan] to exit")
         
         console.print("\n[green]Let's begin![/green] Type [cyan]/concepts[/cyan] to see available learning materials.")
@@ -123,6 +126,9 @@ def start_learning(
         console.print("\n[bold blue]💡 Quick Reminders:[/bold blue]")
         console.print("  • Type [cyan]/help[/cyan] to see all available commands")
         console.print("  • Use [cyan]/config[/cyan] to view or change your AI configuration")
+        console.print("  • Use [cyan]/models[/cyan] to see available models")
+        console.print("  • Use [cyan]/tokens[/cyan] to view token usage statistics")
+        console.print("  • Use [cyan]/knowledge-map[/cyan] to view the knowledge structure")
         console.print("  • Press [cyan]Ctrl+C[/cyan] to clear your input, [cyan]Ctrl+D[/cyan] to exit")
         
         console.print("\n[green]Ready to continue learning![/green] Type [cyan]/concepts[/cyan] to get started.")
@@ -220,6 +226,10 @@ def start_learning(
                 table.add_row("/concepts", "Show available learning concepts [bold green][RECOMMENDED START][/bold green]")
                 table.add_row("/config", "Show current AI configuration")
                 table.add_row("/set-config", "Set AI provider and model")
+                table.add_row("/models", "List all configured and available AI models")
+                table.add_row("/tokens", "Show token usage statistics summary (use with model name for detailed usage)")
+                table.add_row("/knowledge-map", "Display the current knowledge map structure")
+                table.add_row("/preference", "Manage application preferences (use list or set to view/change)")
                 table.add_row("/reset", "Reset the learning session")
                 table.add_row("/quit or /exit or /q", "Exit the application")
                 
@@ -259,12 +269,131 @@ def start_learning(
                 console.print("  • Try [bold]/help[/bold] to see all available commands")
             elif command == 'concepts':
                 console.print("[blue]📚 Available learning concepts:[/blue]")
-                # In real implementation, this would fetch from knowledge navigator
-                console.print("  [yellow]• Data Structures[/yellow]")
-                console.print("  [yellow]• Algorithms[/yellow]")
-                console.print("  [yellow]• Machine Learning Fundamentals[/yellow]")
-                console.print("  [yellow]• Python Programming[/yellow]")
-                console.print("\n[i]Select a concept to start learning![/i]")
+                
+                # Use knowledge_navigator to fetch actual concepts from workspace
+                try:
+                    # Load concepts from the knowledge navigator
+                    available_concepts = knowledge_navigator.get_available_concepts()
+                    
+                    if available_concepts:
+                        for i, concept in enumerate(available_concepts, 1):
+                            console.print(f"  [yellow]{i}. {concept.title}[/yellow]")
+                            if concept.content and len(concept.content) > 100:
+                                console.print(f"     {concept.content[:100]}...")
+                            elif concept.content:
+                                console.print(f"     {concept.content}")
+                    else:
+                        console.print("  [yellow]No concepts found in the learning materials.[/yellow]")
+                        console.print("  [i]Make sure you have markdown files with concepts in your workspace.[/i]")
+                except Exception as e:
+                    console.print(f"[red]Error loading concepts: {str(e)}[/red]")
+                    console.print("[yellow]• Data Structures[/yellow]")
+                    console.print("[yellow]• Algorithms[/yellow]")
+                    console.print("[yellow]• Machine Learning Fundamentals[/yellow]")
+                    console.print("[yellow]• Python Programming[/yellow]")
+                    console.print("\n[i]Select a concept to start learning![/i]")
+            elif command == 'models':
+                # Use system commands handler to list available models
+                try:
+                    from cli.system_commands_handler import SystemCommandsHandlerImpl
+                    import asyncio
+                    system_handler = SystemCommandsHandlerImpl(db_manager, model_service, prefs_manager)
+                    models = asyncio.run(system_handler.list_available_models())
+                    
+                    if models:
+                        console.print("[blue]📋 Available AI Models:[/blue]")
+                        for model in models:
+                            console.print(f"  [cyan]• {model['provider']} - {model['model']}[/cyan]: {model['description']}")
+                    else:
+                        console.print("[yellow]No models configured. Please set up your AI provider first.[/yellow]")
+                except Exception as e:
+                    console.print(f"[red]Error retrieving models: {str(e)}[/red]")
+                    console.print("[yellow]Available AI models would be listed here[/yellow]")
+            elif command == 'tokens':
+                # Use system commands handler to get token usage
+                try:
+                    from cli.system_commands_handler import SystemCommandsHandlerImpl
+                    import asyncio
+                    system_handler = SystemCommandsHandlerImpl(db_manager, model_service, prefs_manager)
+                    token_usage = asyncio.run(system_handler.get_token_usage())
+                    
+                    console.print("[blue]📊 Token Usage Summary:[/blue]")
+                    console.print(f"  [cyan]Total Tokens (Last 30 days):[/cyan] {token_usage.get('total_tokens', 0)}")
+                    console.print(f"  [cyan]Input Tokens: {token_usage.get('input_tokens', 0)}[/cyan]")
+                    console.print(f"  [cyan]Output Tokens: {token_usage.get('output_tokens', 0)}[/cyan]")
+                    
+                    # If a specific model was mentioned, show detailed usage for that model
+                    if ' ' in user_input.lower():
+                        requested_model = user_input.split(' ', 1)[1].strip()
+                        if requested_model:
+                            detailed_usage = asyncio.run(system_handler.get_detailed_token_usage(requested_model))
+                            console.print(f"\n[blue]Detailed Usage for {requested_model}:[/blue]")
+                            for record in detailed_usage:
+                                console.print(f"  [cyan]{record['timestamp']}: {record['input_tokens']} input, {record['output_tokens']} output[/cyan]")
+                except Exception as e:
+                    console.print(f"[red]Error retrieving token usage: {str(e)}[/red]")
+                    console.print("[yellow]Getting token usage summary[/yellow]")
+            elif command == 'knowledge-map':
+                # Use system commands handler to get the knowledge map
+                try:
+                    from cli.system_commands_handler import SystemCommandsHandlerImpl
+                    import asyncio
+                    system_handler = SystemCommandsHandlerImpl(db_manager, model_service, prefs_manager)
+                    knowledge_map = asyncio.run(system_handler.get_knowledge_map())
+                    
+                    console.print("[blue]🗺️  Knowledge Map:[/blue]")
+                    
+                    if knowledge_map.concepts:
+                        console.print("  [bold]Concepts:[/bold]")
+                        for concept in knowledge_map.concepts:
+                            console.print(f"    [cyan]• {concept['title']}[/cyan] (ID: {concept['id']})")
+                        
+                        if knowledge_map.relationships:
+                            console.print("\n  [bold]Relationships:[/bold]")
+                            for relationship in knowledge_map.relationships:
+                                console.print(f"    [magenta]{relationship['from']}[/magenta] → [magenta]{relationship['to']}[/magenta]")
+                    else:
+                        console.print("  [yellow]No knowledge map available. Add learning materials to your workspace.[/yellow]")
+                except Exception as e:
+                    console.print(f"[red]Error retrieving knowledge map: {str(e)}[/red]")
+                    console.print("[yellow]Knowledge map would be displayed here[/yellow]")
+            elif command.startswith('preference'):
+                # Handle preference commands
+                try:
+                    parts = command.split(' ', 2)
+                    if len(parts) == 1:
+                        # Show help for preference command
+                        console.print("[blue]🔧 Preference Command Usage:[/blue]")
+                        console.print("  [cyan]List all preferences:[/cyan] /preference list")
+                        console.print("  [cyan]Set a preference:[/cyan] /preference set [key] [value]")
+                        console.print("\n[i]Example: /preference set ui.theme dark[/i]")
+                    elif parts[1] == 'list':
+                        from cli.system_commands_handler import SystemCommandsHandlerImpl
+                        import asyncio
+                        system_handler = SystemCommandsHandlerImpl(db_manager, model_service, prefs_manager)
+                        preferences = asyncio.run(system_handler.list_preferences())
+                        
+                        console.print("[blue]📋 Current Preferences:[/blue]")
+                        console.print_json(data=preferences)
+                    elif parts[1] == 'set' and len(parts) == 3:
+                        key_val = parts[2].split(' ', 1)
+                        if len(key_val) == 2:
+                            key, value = key_val
+                            from cli.system_commands_handler import SystemCommandsHandlerImpl
+                            import asyncio
+                            system_handler = SystemCommandsHandlerImpl(db_manager, model_service, prefs_manager)
+                            success = asyncio.run(system_handler.set_preference(key, _parse_value(value)))
+                            
+                            if success:
+                                console.print(f"[green]✅ Preference {key} set to {value}[/green]")
+                            else:
+                                console.print(f"[red]❌ Failed to set preference {key}[/red]")
+                        else:
+                            console.print("[red]❌ Invalid format. Use: /preference set [key] [value][/red]")
+                    else:
+                        console.print("[red]❌ Invalid preference command. Use 'list' or 'set'.[/red]")
+                except Exception as e:
+                    console.print(f"[red]Error with preference command: {str(e)}[/red]")
             elif command == 'reset':
                 console.print("[yellow]Session reset. Configuration remains unchanged.[/yellow]")
                 console.print("[green]You can continue learning with your current settings.[/green]")
@@ -285,25 +414,22 @@ def start_learning(
 @app.command()
 def models():
     """List available AI models configured for the application"""
-    # Get models from system commands handler
-    typer.echo("Available AI models would be listed here")
+    from cli.commands import models
+    models.models()
 
 
 @app.command()
 def tokens(model_name: str = typer.Argument("", help="Optional model name to get detailed usage")):
     """Show token usage statistics"""
-    # Display token usage from database
-    if model_name:
-        typer.echo(f"Getting detailed token usage for model: {model_name}")
-    else:
-        typer.echo("Getting token usage summary")
+    from cli.commands import tokens
+    tokens.tokens(model_name=model_name)
 
 
 @app.command()
 def knowledge_map():
     """Display the current knowledge map structure"""
-    # Get and display knowledge map
-    typer.echo("Knowledge map would be displayed here")
+    from cli.commands import knowledge_map
+    knowledge_map.knowledge_map()
 
 
 @app.command()
@@ -313,30 +439,8 @@ def preference(
     value: str = typer.Argument("", help="Value to set (required for set)")
 ):
     """Manage application preferences using key-value syntax (like npm config)"""
-    learningspace_path = os.path.join(os.getcwd(), ".learningspace")
-    preferences_path = os.path.join(learningspace_path, "preferences.json")
-    
-    if action == "list":
-        # Read and display all preferences
-        if os.path.exists(preferences_path):
-            with open(preferences_path, "r") as f:
-                preferences = json.load(f)
-                typer.echo(json.dumps(preferences, indent=2))
-        else:
-            typer.echo("No preferences file found. Using defaults.")
-    
-    elif action == "set":
-        if not key or not value:
-            typer.echo("Key and value required for set operation")
-            raise typer.Exit(code=1)
-        
-        # Parse value to appropriate type (string, number, boolean, or JSON)
-        parsed_value = _parse_value(value)
-        
-        # Update preferences file at key location
-        _update_preferences(preferences_path, key, parsed_value)
-    else:
-        typer.echo(f"Unknown action: {action}. Use 'list' or 'set'.")
+    from cli.commands import preference
+    preference.preference(action=action, key=key, value=value)
 
 
 def _parse_value(value: str):

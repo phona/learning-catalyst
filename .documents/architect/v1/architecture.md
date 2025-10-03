@@ -3,10 +3,10 @@
 ## 1. Introduction
 
 ### 1.1 Purpose
-This document describes the architectural design for the Learning Catalyst project - an AI-driven interactive command-line learning application designed to guide users through Markdown-based learning materials. The application operates within a user-specified workspace directory and stores all data in a `.learningspace` subdirectory. The architecture supports multiple AI providers including OpenAI, Claude, ChatGLM, SiliconFlow, DeepSeek, and local models. Additionally, users can configure custom embedding and rerank models to enhance content retrieval and relevance. The application provides system commands (prefixed with /) for users to check token usage, available models, knowledge map structure, and configure preferences using key-value syntax stored in a JSON configuration file. The design is intended to support progressive enhancement across three phases: MVP, Gamified Progression, and Autonomous Tutor.
+This document describes the architectural design for the Learning Catalyst project - a **local-first, conversational AI tutor** that operates within the command line. It fosters a natural, dialogue-led learning experience, **proactively guiding users** through their local Markdown-based materials. The application operates within a user-specified workspace directory and stores all data in a `.learningspace` subdirectory. The architecture supports multiple AI providers including OpenAI, Claude, ChatGLM, SiliconFlow, DeepSeek, and local models. Additionally, users can configure custom embedding and rerank models to enhance content retrieval and relevance. The application provides system commands (prefixed with /) for users to check token usage, manage models and providers, and configure preferences using key-value syntax stored in a JSON configuration file. The design is intended to support progressive enhancement across three phases: Guided Conversational Core, Enhanced Analytics & Adaptivity, and AI-Driven Tutor.
 
 ### 1.2 Scope
-This architecture covers the core modules, data persistence systems, and integration points required to implement the Learning Catalyst command-line platform that operates within user-defined workspaces. The application creates a `.learningspace` directory in the workspace to store all data. The design ensures support for multiple AI providers including OpenAI, Claude, ChatGLM, SiliconFlow, DeepSeek, and local models, with user-configurable settings. Additionally, users can configure custom embedding and rerank models for enhanced content retrieval. The application includes slash-prefixed system commands (/models, /tokens, /knowledge-map, /preference) for users to monitor token usage, view available models, explore the knowledge structure, and configure preferences using key-value syntax with support for string, number, boolean, and JSON values (similar to npm config set). The architecture maintains system performance and security while providing maximum flexibility for AI model selection.
+This architecture covers the core modules, data persistence systems, and integration points required to implement the Learning Catalyst command-line platform that operates within user-defined workspaces. The application creates a `.learningspace` directory in the workspace to store all data. The design ensures support for multiple AI providers including OpenAI, Claude, ChatGLM, SiliconFlow, DeepSeek, and local models, with user-configurable settings. Additionally, users can configure custom embedding and rerank models for enhanced content retrieval. The application features a continuous conversational interface where the AI tutor actively guides the conversation and includes slash-prefixed system commands for user management. The architecture maintains system performance and security while providing maximum flexibility for AI model selection and configuration management.
 
 ### 1.3 Document Conventions
 - The architecture is designed using a layered approach
@@ -39,17 +39,17 @@ The system follows a clean architecture pattern with distinct layers:
 ```mermaid
 graph TB
     subgraph "Presentation Layer"
-        CLI[Command Line Interface]
+        CLI[Command Line Interface<br/>Conversational View]
     end
 
     subgraph "Application Layer"
-        NA[Knowledge Navigator]
-        CA[Catalyst Agent]
+        CA[Catalyst Agent<br/>Intent/AI Processing]
         CE[Challenge Engine]
-        CM[Checkpoint Manager]
+        SM[State Manager]
+        CM[Configuration Manager]
+        SC[System Commands Handler]
         AA[Assessment Engine]
         AD[Analytics Dashboard]
-        SC[System Commands Handler]
     end
 
     subgraph "Infrastructure Layer"
@@ -58,26 +58,24 @@ graph TB
         AI[(External LLM APIs)]
     end
 
-    CLI --> NA
     CLI --> CA
-    CLI --> CM
     CLI --> SC
+    CLI --> SM
     
-    NA --> CA
     CA --> CE
-    CA --> CM
+    CA --> SM
+    CA --> AA
     CE --> AA
-    AA --> AD
     
-    SC --> MAL
+    SC --> CM
     SC --> DB
-    SC --> FS[File System (preferences.json)]
+    SC --> FS[File System (config.json, preferences.json)]
     CA --> MAL
+    CM --> MAL
     MAL --> AI
-    NA --> DB
     CA --> DB
     CE --> DB
-    CM --> DB
+    SM --> DB
     AA --> DB
     AD --> DB
 ```
@@ -86,19 +84,21 @@ graph TB
 
 ## 3. Core Modules Architecture
 
-### 3.1 Knowledge Navigator
-**Purpose**: Displays knowledge map and available user actions
+### 3.1 CLI Interface (Conversational View)
+**Purpose**: Renders the conversational dialogue and handles user input and system commands
 
 **Responsibilities**:
-- Load and parse Markdown learning materials
-- Generate visual knowledge map
-- Provide concept selection interface
-- Handle navigation between concepts
+- Display continuous chat dialogue between user and AI tutor
+- Handle user text input and distinguish between conversational input and system commands
+- Render AI responses in the conversation flow
+- Manage the input prompt and handle command parsing
+- Display system command outputs separately from conversation
 
 **Technology Stack**:
-- Python Markdown parser for content processing
-- Graph visualization library for knowledge map
-- Command-line interaction handler
+- Rich library for advanced terminal UI
+- Click or Typer for command parsing
+- Markdown processing libraries
+- Asynchronous I/O handlers
 
 **Interface**:
 ```python
@@ -108,59 +108,67 @@ from dataclasses import dataclass
 import asyncio
 
 @dataclass
-class KnowledgeMap:
-    concepts: List[Dict[str, Any]]
-    relationships: List[Dict[str, Any]]
-
-@dataclass
-class Concept:
-    id: str
-    title: str
+class ConversationMessage:
+    role: str  # "user", "assistant", "system"
     content: str
-    prerequisites: List[str]
-    difficulty: int
+    timestamp: str
+    metadata: Optional[Dict[str, Any]] = None
 
 @dataclass
-class UserProgress:
-    concept_id: str
-    completed: bool
-    score: float
+class CommandResult:
+    success: bool
+    message: str
+    data: Optional[Dict[str, Any]] = None
 
-class KnowledgeNavigator(ABC):
+class CLIInterface(ABC):
     @abstractmethod
-    async def load_content(self, file_path: str) -> KnowledgeMap:
-        """Load and parse Markdown content into a knowledge map"""
+    def display_message(self, message: ConversationMessage) -> None:
+        """Display a message in the conversation view"""
         pass
     
     @abstractmethod
-    async def get_available_concepts(self) -> List[Concept]:
-        """Get list of available concepts"""
+    def display_system_message(self, message: str) -> None:
+        """Display a system message separately from conversation"""
         pass
     
     @abstractmethod
-    def get_concept_path(self, concept_id: str) -> List[Concept]:
-        """Get the learning path to reach a specific concept"""
+    async def get_user_input(self) -> str:
+        """Get input from user, distinguishing between commands and conversation"""
         pass
     
     @abstractmethod
-    def update_progress(self, concept_id: str, progress: UserProgress) -> None:
-        """Update progress for a specific concept"""
+    async def handle_command(self, command: str) -> CommandResult:
+        """Process a system command and return result"""
+        pass
+    
+    @abstractmethod
+    def clear_conversation_context(self) -> None:
+        """Reset the AI's short-term conversational context"""
+        pass
+    
+    @abstractmethod
+    def render_conversation(self, messages: List[ConversationMessage]) -> None:
+        """Render the full conversation history to the terminal"""
         pass
 ```
 
 ### 3.2 Catalyst Agent
-**Purpose**: Core AI-driven module that generates explanations, creates challenges, and provides guidance
+**Purpose**: Core AI-driven module that interprets user intent, processes queries, generates explanations, formulates challenges, and is responsible for generating context-aware startup prompts to guide the user immediately upon launch
 
 **Responsibilities**:
+- Interpret user intent from conversational input (query, challenge request, or answer)
 - Generate AI-based explanations from Markdown content
 - Create prompts for challenge generation
 - Interface with the Model Abstraction Layer
-- Personalize content based on user profile and history
+- Personalize content based on user profile and conversation history
+- Generate context-aware startup prompts to guide the user immediately upon launch
+- Proactively suggest next steps in the learning process
 
 **Technology Stack**:
 - Python prompt engineering framework
 - Content personalization engine
 - Context management system
+- Intent classification algorithms
 
 **Interface**:
 ```python
@@ -191,46 +199,140 @@ class UserProfile:
     ai_config: Dict[str, Any]
 
 @dataclass
-class Context:
+class ConversationContext:
     user_profile: UserProfile
-    current_concept: Concept
-    interaction_history: List[Dict[str, Any]]
+    current_concept: Optional[Concept]
+    conversation_history: List[Dict[str, Any]]  # Full conversation history
+    interaction_history: List[Dict[str, Any]]  # Question/answer interactions
+
+@dataclass
+class IntentClassification:
+    intent_type: str  # "query", "challenge_request", "answer", "general_conversation"
+    concept_reference: Optional[str]  # If user refers to a specific concept
+    confidence: float
 
 class CatalystAgent(ABC):
     @abstractmethod
-    async def generate_explanation(self, concept: Concept, context: Context) -> str:
+    async def interpret_intent(self, user_input: str, context: ConversationContext) -> IntentClassification:
+        """Interpret user's intent from conversational input"""
+        pass
+    
+    @abstractmethod
+    async def generate_response(self, user_input: str, intent: IntentClassification, context: ConversationContext) -> str:
+        """Generate appropriate response based on user input and intent"""
+        pass
+    
+    @abstractmethod
+    async def generate_explanation(self, concept: Concept, context: ConversationContext) -> str:
         """Generate AI-based explanation for a concept"""
         pass
     
     @abstractmethod
-    async def generate_challenge(self, concept: Concept, context: Context) -> Challenge:
+    async def generate_challenge(self, concept: Concept, context: ConversationContext) -> Challenge:
         """Generate an AI-based challenge for a concept"""
         pass
     
     @abstractmethod
-    async def evaluate_answer(self, answer: str, expected: str, context: Context) -> Evaluation:
+    async def evaluate_answer(self, answer: str, challenge: Challenge, context: ConversationContext) -> Evaluation:
         """Evaluate user's answer to a challenge"""
         pass
     
     @abstractmethod
-    async def suggest_next_concepts(self, profile: UserProfile, progress: UserProgress) -> List[Concept]:
-        """Suggest next concepts based on user profile and progress"""
+    async def generate_startup_prompt(self, has_previous_state: bool, context: ConversationContext) -> str:
+        """Generate context-aware welcome message and suggestions upon application launch"""
+        pass
+    
+    @abstractmethod
+    async def suggest_next_concepts(self, profile: UserProfile, context: ConversationContext) -> List[Concept]:
+        """Suggest next concepts based on user profile and conversation context"""
         pass
     
     @abstractmethod
     async def track_token_usage(self, model: str, input_tokens: int, output_tokens: int, context: str) -> None:
         """Track token usage for analytics and reporting"""
         pass
+    
+    @abstractmethod
+    async def proactive_challenge_offer(self, concept: Concept, context: ConversationContext) -> bool:
+        """Determine if the AI should proactively offer a challenge after an explanation"""
+        pass
 ```
 
-### 3.3 Challenge Engine
-**Purpose**: Works with the Catalyst Agent to present AI-generated questions
+### 3.3 State Manager
+**Purpose**: Handles the mechanics of automatically saving the application state on exit and seamlessly loading it on launch for the Catalyst Agent to interpret. Manages manual checkpoints.
 
 **Responsibilities**:
-- Format and present challenges to users
+- Automatically save full application state on exit
+- Automatically load previous state on application start
+- Manage conversational context persistence
+- Handle manual checkpoint creation and restoration
+- Serialize/deserialize conversation history and application state
+
+**Technology Stack**:
+- Python serialization (pickle or JSON)
+- File system operations
+- Compression algorithms (gzip)
+- SQLite persistence service
+
+**Interface**:
+```python
+from abc import ABC, abstractmethod
+from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
+import asyncio
+import json
+
+@dataclass
+class ApplicationState:
+    user_profile: UserProfile
+    conversation_context: ConversationContext  # From Catalyst Agent
+    conversation_messages: List[ConversationMessage]  # Full chat history
+    current_state_metadata: Dict[str, Any]  # Current application state info
+
+@dataclass
+class Checkpoint:
+    id: str
+    user_id: str
+    state_data: str  # JSON string of the state
+    created_at: str
+    description: str
+
+class StateManager(ABC):
+    @abstractmethod
+    async def save_current_state(self, state: ApplicationState) -> None:
+        """Automatically save current application state"""
+        pass
+    
+    @abstractmethod
+    async def load_last_state(self) -> Optional[ApplicationState]:
+        """Load the last saved application state on startup"""
+        pass
+    
+    @abstractmethod
+    async def create_checkpoint(self, state: ApplicationState, description: str) -> Checkpoint:
+        """Create a named checkpoint from current application state"""
+        pass
+    
+    @abstractmethod
+    async def load_checkpoint(self, checkpoint_id: str) -> Optional[ApplicationState]:
+        """Load application state from a named checkpoint"""
+        pass
+    
+    @abstractmethod
+    async def list_checkpoints(self) -> List[Checkpoint]:
+        """List available checkpoints for user"""
+        pass
+```
+
+### 3.4 Challenge Engine
+**Purpose**: Works with the Catalyst Agent to present AI-generated questions and process user answers
+
+**Responsibilities**:
+- Format and present challenges to users within the conversation flow
 - Collect and validate user responses
 - Determine challenge types (multiple-choice, open-ended, etc.)
 - Integrate with evaluation systems
+- Work with Catalyst Agent to proactively offer challenges
 
 **Interface**:
 ```python
@@ -254,86 +356,118 @@ class ChallengeResult:
 
 class ChallengeEngine(ABC):
     @abstractmethod
-    def present_challenge(self, challenge: Challenge) -> None:
-        """Present a challenge to the user"""
+    def present_challenge(self, challenge: Challenge, context: ConversationContext) -> str:
+        """Generate text to present a challenge to the user in the conversation"""
         pass
     
     @abstractmethod
-    async def collect_answer(self) -> UserAnswer:
-        """Collect answer from user"""
-        pass
-    
-    @abstractmethod
-    async def validate_answer(self, user_answer: UserAnswer, challenge: Challenge) -> ChallengeResult:
-        """Validate user's answer to a challenge"""
+    async def process_answer(self, user_answer: UserAnswer, challenge: Challenge, context: ConversationContext) -> ChallengeResult:
+        """Process and evaluate user's answer to a challenge"""
         pass
     
     @abstractmethod
     def adapt_challenge(self, challenge: Challenge, user_profile: UserProfile) -> Challenge:
-        """Adapt challenge based on user profile"""
+        """Adapt challenge based on user profile and competency"""
         pass
 ```
 
-### 3.4 Checkpoint Manager
-**Purpose**: Saves/loads progress states
+### 3.5 Configuration Manager
+**Purpose**: Manages providers, models, and API keys via `config.json`
 
 **Responsibilities**:
-- Serialize user progress and state
-- Handle checkpoint creation and restoration
-- Compress state data for efficient storage
-- Manage auto-save functionality
+- Handle configuration of AI providers and their settings
+- Manage model definitions and API keys
+- Validate provider configurations and credentials
+- Provide model switching capabilities
+- Handle configuration import/export and validation
 
 **Technology Stack**:
-- Python serialization (pickle or JSON)
-- Compression algorithms (gzip)
-- SQLite persistence service
+- JSON file handling
+- Provider validation services
+- Configuration schema validation
+- API key management
 
 **Interface**:
 ```python
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union
 from dataclasses import dataclass
 import asyncio
-import json
 
 @dataclass
-class ApplicationState:
-    user_profile: UserProfile
-    current_concept: Concept
-    interaction_history: List[Dict[str, Any]]
-    progress_data: Dict[str, Any]
-
-@dataclass
-class Checkpoint:
+class ProviderConfig:
     id: str
-    user_id: str
-    state_data: str  # JSON string of the state
-    created_at: str
-    description: str
+    provider_type: str  # "openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"
+    base_url: Optional[str] = None
+    auth_scheme: str = "api_key"  # or other auth methods
+    settings: Optional[Dict[str, Any]] = None  # provider-specific settings
 
-class CheckpointManager(ABC):
+@dataclass
+class ModelConfig:
+    id: str
+    provider_id: str
+    model_name: str
+    settings: Optional[Dict[str, Any]] = None  # model-specific settings
+
+@dataclass
+class ActiveConfig:
+    active_model_id: str
+    providers: List[ProviderConfig]
+    models: List[ModelConfig]
+
+class ConfigurationManager(ABC):
     @abstractmethod
-    async def create_checkpoint(self, state: ApplicationState) -> Checkpoint:
-        """Create a checkpoint from current application state"""
+    async def load_config(self) -> ActiveConfig:
+        """Load configuration from config.json"""
         pass
     
     @abstractmethod
-    async def load_checkpoint(self, checkpoint_id: str) -> ApplicationState:
-        """Load application state from checkpoint"""
+    async def save_config(self, config: ActiveConfig) -> bool:
+        """Save configuration to config.json"""
         pass
     
     @abstractmethod
-    async def auto_save(self, state: ApplicationState) -> None:
-        """Automatically save current state"""
+    async def add_provider(self, provider: ProviderConfig) -> bool:
+        """Add a new provider configuration"""
         pass
     
     @abstractmethod
-    async def list_checkpoints(self) -> List[Checkpoint]:
-        """List available checkpoints for user"""
+    async def remove_provider(self, provider_id: str) -> bool:
+        """Remove a provider configuration"""
+        pass
+    
+    @abstractmethod
+    async def add_model(self, model: ModelConfig) -> bool:
+        """Add a new model configuration"""
+        pass
+    
+    @abstractmethod
+    async def remove_model(self, model_id: str) -> bool:
+        """Remove a model configuration"""
+        pass
+    
+    @abstractmethod
+    async def set_active_model(self, model_id: str) -> bool:
+        """Set the active model for all AI operations"""
+        pass
+    
+    @abstractmethod
+    async def validate_provider_config(self, provider: ProviderConfig) -> bool:
+        """Validate provider configuration and credentials"""
+        pass
+    
+    @abstractmethod
+    async def list_providers(self) -> List[ProviderConfig]:
+        """List all configured providers"""
+        pass
+    
+    @abstractmethod
+    async def list_models(self) -> List[ModelConfig]:
+        """List all configured models (excluding API keys)"""
         pass
 ```
 
-### 3.5 Model Abstraction Layer
+### 3.6 Model Abstraction Layer
 **Purpose**: Provides a unified interface for communicating with various LLM providers
 
 **Responsibilities**:
@@ -341,6 +475,7 @@ class CheckpointManager(ABC):
 - Handle API key management and validation
 - Normalize responses from different providers
 - Route requests to the appropriate provider
+- Interface with Configuration Manager for model selection
 
 **Technology Stack**:
 - Python HTTP clients (httpx/requests)
@@ -367,7 +502,6 @@ class AIResponse:
     usage: Dict[str, int]  # tokens used
     timestamp: str
 
-@dataclass
 @dataclass
 class Credentials:
     provider: str  # "openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local", "embedding", "rerank"
@@ -592,18 +726,21 @@ class AssessmentEngine(ABC):
 ```
 
 ### 3.8 System Commands Handler
-**Purpose**: Handle system-level commands for model information, token usage, and configuration
+**Purpose**: Handle system-level commands for model information, token usage, configuration, and state management
 
 **Responsibilities**:
+- Handle all system commands prefixed with '/'
 - Provide available models information to users
 - Track and display token usage statistics
-- Manage model configuration and switching
-- Handle user system queries
+- Manage model and provider configuration
+- Handle state management commands (save/load checkpoints)
+- Handle conversational context commands
+- Handle analytics and recommendations commands
 
 **Technology Stack**:
 - Command parsing and validation
 - Statistics aggregation and reporting
-- Model management utilities
+- Model and configuration management utilities
 
 **Interface**:
 ```python
@@ -638,40 +775,91 @@ class TokenUsageSummary:
     period_start: str
     period_end: str
 
+@dataclass
+class CommandResult:
+    success: bool
+    message: str
+    data: Optional[Dict[str, Any]] = None
+
 class SystemCommandsHandler(ABC):
     @abstractmethod
-    async def list_available_models(self) -> List[ModelInfo]:
-        """Get list of all configured and available models"""
+    async def handle_models_command(self) -> CommandResult:
+        """Handle /models command - list all configured models (never shows API keys)"""
         pass
     
     @abstractmethod
-    async def get_token_usage(self, period_days: int = 30) -> TokenUsageSummary:
-        """Get token usage summary for specified period"""
+    async def handle_model_use_command(self, model_id: str) -> CommandResult:
+        """Handle /model use <id> command - set active model for all operations"""
         pass
     
     @abstractmethod
-    async def get_detailed_token_usage(self, model_name: str = None) -> List[TokenUsage]:
-        """Get detailed token usage records, optionally filtered by model"""
+    async def handle_model_add_command(self) -> CommandResult:
+        """Handle /model add command - wizard to add a new model"""
         pass
     
     @abstractmethod
-    async def show_model_capabilities(self, model_name: str) -> ModelInfo:
-        """Show detailed capabilities of a specific model"""
+    async def handle_model_remove_command(self, model_id: str) -> CommandResult:
+        """Handle /model remove <id> command - removes a model configuration"""
         pass
     
     @abstractmethod
-    async def get_knowledge_map(self) -> KnowledgeMap:
-        """Get the current knowledge map structure for display"""
+    async def handle_provider_list_command(self) -> CommandResult:
+        """Handle /provider list command - list all configured providers"""
         pass
     
     @abstractmethod
-    async def list_preferences(self) -> Dict[str, Any]:
-        """List all current user preferences from preferences.json"""
+    async def handle_provider_add_command(self) -> CommandResult:
+        """Handle /provider add command - wizard to add a new provider"""
         pass
     
     @abstractmethod
-    async def set_preference(self, key: str, value: Union[str, int, float, bool, Dict[str, Any]]) -> bool:
-        """Set a specific configuration preference using key-value format in preferences.json (e.g., ui.theme, learning.difficulty_level, features.ai_enhancements) similar to npm config set"""
+    async def handle_provider_remove_command(self, provider_id: str) -> CommandResult:
+        """Handle /provider remove <id> command - removes a provider configuration"""
+        pass
+    
+    @abstractmethod
+    async def handle_token_usage_command(self, period_days: int = 30) -> CommandResult:
+        """Handle /tokens command - show token usage summary for specified period"""
+        pass
+    
+    @abstractmethod
+    async def handle_clear_command(self) -> CommandResult:
+        """Handle /clear command - reset AI's short-term conversational context"""
+        pass
+    
+    @abstractmethod
+    async def handle_checkpoint_save_command(self, name: str) -> CommandResult:
+        """Handle /checkpoint save <name> command - manually save named snapshot"""
+        pass
+    
+    @abstractmethod
+    async def handle_checkpoint_load_command(self, name: str) -> CommandResult:
+        """Handle /checkpoint load <name> command - restore to named checkpoint"""
+        pass
+    
+    @abstractmethod
+    async def handle_stats_command(self) -> CommandResult:
+        """Handle /stats command - display analytics dashboard (Phase 2)"""
+        pass
+    
+    @abstractmethod
+    async def handle_suggest_command(self) -> CommandResult:
+        """Handle /suggest command - AI-driven learning suggestions (Phase 3)"""
+        pass
+    
+    @abstractmethod
+    async def handle_knowledge_map_command(self) -> CommandResult:
+        """Handle /knowledge-map command - display learning concept map/tree structure"""
+        pass
+    
+    @abstractmethod
+    async def handle_preference_list_command(self) -> CommandResult:
+        """Handle /preference list command - show all configuration settings"""
+        pass
+    
+    @abstractmethod
+    async def handle_preference_set_command(self, key: str, value: Union[str, int, float, bool, Dict[str, Any]]) -> CommandResult:
+        """Handle /preference set <key> <value> command - set configuration using key-value format"""
         pass
 ```
 
@@ -685,7 +873,7 @@ from typing import List, Dict, Optional, Any, Union
 
 ## 4. Phase-Specific Architecture
 
-### 4.1 Phase 1 Architecture (BYOK AI-Powered MVP)
+### 4.1 Phase 1 Architecture (Guided Conversational Core)
 
 #### 4.1.1 Component Interactions
 ```mermaid
@@ -908,6 +1096,16 @@ CREATE TABLE user_profiles (
     current_checkpoint_id TEXT
 );
 
+-- Conversation Messages
+CREATE TABLE conversation_messages (
+    id TEXT PRIMARY KEY,  -- Using TEXT for UUID in SQLite
+    user_id TEXT REFERENCES user_profiles(id),
+    role TEXT,            -- 'user', 'assistant', 'system'
+    content TEXT,         -- The message content
+    timestamp TEXT,       -- Using TEXT for TIMESTAMP in SQLite (ISO 8601 format)
+    metadata TEXT         -- Additional metadata as JSON (e.g., intent classification)
+);
+
 -- Q&A History
 CREATE TABLE qa_history (
     id TEXT PRIMARY KEY,  -- Using TEXT for UUID in SQLite
@@ -925,7 +1123,7 @@ CREATE TABLE qa_history (
 CREATE TABLE checkpoints (
     id TEXT PRIMARY KEY,  -- Using TEXT for UUID in SQLite
     user_id TEXT REFERENCES user_profiles(id),
-    state_data TEXT,      -- JSON stored as TEXT in SQLite
+    state_data TEXT,      -- JSON stored as TEXT in SQLite (full application state)
     created_at TEXT,      -- Using TEXT for TIMESTAMP in SQLite (ISO 8601 format)
     description TEXT
 );
@@ -939,7 +1137,22 @@ CREATE TABLE concepts (
     difficulty_level INTEGER
 );
 
+-- Configuration for AI Providers and Models
+CREATE TABLE ai_configurations (
+    id TEXT PRIMARY KEY,
+    config_type TEXT,     -- 'provider' or 'model'
+    provider_id TEXT,     -- Reference to provider for models
+    name TEXT,            -- Display name
+    provider_type TEXT,   -- 'openai', 'anthropic', 'chatglm', etc.
+    model_name TEXT,      -- For model configs
+    settings TEXT,        -- JSON configuration
+    base_url TEXT,        -- Optional custom endpoint
+    is_active BOOLEAN DEFAULT 0  -- Whether this is currently selected
+);
+
 -- Create indexes for performance
+CREATE INDEX idx_conversation_messages_user_id ON conversation_messages(user_id);
+CREATE INDEX idx_conversation_messages_timestamp ON conversation_messages(timestamp);
 CREATE INDEX idx_qa_history_user_id ON qa_history(user_id);
 CREATE INDEX idx_qa_history_concept_id ON qa_history(concept_id);
 CREATE INDEX idx_qa_history_timestamp ON qa_history(timestamp);
