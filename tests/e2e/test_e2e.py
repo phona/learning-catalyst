@@ -78,10 +78,10 @@ class TestEndToEnd:
         assert len(available_concepts) >= 2
         
         # Step 4: Generate an explanation for the first concept
-        # Mock the model service response
+        # Mock the model_service.send_message method directly
         explanation_response = MagicMock()
         explanation_response.content = "Machine learning is a method of teaching computers to learn and adapt..."
-        model_service.send_message.return_value = explanation_response
+        model_service.send_message = AsyncMock(return_value=explanation_response)
         
         explanation_context = {
             "provider": "openai",
@@ -92,9 +92,12 @@ class TestEndToEnd:
         assert "teaching computers" in explanation.lower()
         
         # Step 5: Generate a challenge for the concept
+        # First, create a new mock response for the challenge
         challenge_response = MagicMock()
         challenge_response.content = "What is the main purpose of machine learning?"
-        model_service.send_message.return_value = challenge_response
+        
+        # Update the mocked send_message to return the challenge response
+        model_service.send_message = AsyncMock(return_value=challenge_response)
         
         challenge_context = {
             "provider": "openai", 
@@ -131,13 +134,19 @@ class TestEndToEnd:
         knowledge_navigator.update_progress(concept1.id, progress)
         
         # Step 9: Create a checkpoint of the current state
+        # Convert UserProgress object to a dictionary for JSON serialization
+        progress_dict = {
+            "concept_id": progress.concept_id,
+            "completed": progress.completed,
+            "score": progress.score
+        }
         session_state = {
             "current_concept_id": concept1.id,
             "current_explanation": explanation,
             "current_challenge": challenge,
             "user_answer": user_answer,
             "evaluation": evaluation,
-            "user_progress": [progress],
+            "user_progress": [progress_dict],
             "session_timestamp": "2023-06-01T10:00:00"
         }
         checkpoint_id = await checkpoint_manager.create_checkpoint(session_state)
@@ -235,7 +244,7 @@ class TestEndToEnd:
             mock.content = content
             return mock
         
-        model_service.send_message.return_value = mock_response("Mocked response")
+        model_service.send_message = AsyncMock(return_value=mock_response("Mocked response"))
         
         # Session 1: Learn concept 1
         explanation1 = await catalyst_agent.generate_explanation(concept1, {})
@@ -332,7 +341,7 @@ class TestEndToEnd:
         # Step 4: Generate explanation with the user's preferences context
         mock_response = MagicMock()
         mock_response.content = "Complex explanation tailored for visual learners..."
-        model_service.send_message.return_value = mock_response
+        model_service.send_message = AsyncMock(return_value=mock_response)
         
         user_context = {
             "provider": "openai",
@@ -382,8 +391,22 @@ class TestEndToEnd:
             db_manager, 
             model_service
         )
+        # Create a mock TokenUsageAnalytics class with all required methods
         token_analytics = type('TokenUsageAnalytics', (), {
-            '__init__': lambda self, db: setattr(self, 'db_manager', db)
+            '__init__': lambda self: None,
+            'get_detailed_usage_summary': lambda self, user_id, days: {
+                'summary': {
+                    'records_count': 3,
+                    'models': [
+                        {'model': 'gpt-4', 'provider': 'openai', 'total_tokens': 450, 'cost': 0.02},
+                        {'model': 'claude-3', 'provider': 'anthropic', 'total_tokens': 600, 'cost': 0.03}
+                    ]
+                },
+                'detailed_usage': [
+                    {'model': 'gpt-4', 'provider': 'openai', 'total_tokens': 450, 'cost': 0.02},
+                    {'model': 'claude-3', 'provider': 'anthropic', 'total_tokens': 600, 'cost': 0.03}
+                ]
+            }
         })()
         token_analytics.db_manager = db_manager  # Manual initialization for test
         

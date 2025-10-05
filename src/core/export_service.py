@@ -1,11 +1,12 @@
 """
 Export functionality implementation
 """
-import json
 import csv
+import json
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Dict
+
 from src.data.database_manager import DatabaseManager
 from src.data.models.extended_models import AnalyticsExport
 
@@ -14,10 +15,12 @@ class ExportService:
     def __init__(self, workspace_path: str, db_manager: DatabaseManager):
         self.workspace_path = Path(workspace_path)
         self.db_manager = db_manager
-        self.reports_dir = self.workspace_path / ".learningspace" / "reports"
+        self.reports_dir = self.workspace_path / ".catalyst" / "reports"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
-    def export_analytics(self, user_id: str, export_format: str = "json", report_type: str = "progress") -> AnalyticsExport:
+    def export_analytics(
+        self, user_id: str, export_format: str = "json", report_type: str = "progress"
+    ) -> AnalyticsExport:
         """Export analytics data in the specified format"""
         # Generate analytics data based on the report type
         if report_type == "progress":
@@ -117,7 +120,7 @@ class ExportService:
             writer = csv.writer(output)
             writer.writerow(["Metric", "Value"])
             for key, value in report_data.items():
-                if isinstance(value, dict) or isinstance(value, list):
+                if isinstance(value, (dict, list)):
                     # Handle complex values specially
                     writer.writerow([key, json.dumps(value)])
                 else:
@@ -180,30 +183,28 @@ class ExportService:
         # These are example costs - in a real implementation, these would come from provider APIs
         input_cost_per_1k_tokens = 0.01
         output_cost_per_1k_tokens = 0.03
-        
+
         input_cost = (token_usage["input_tokens"] / 1000) * input_cost_per_1k_tokens
         output_cost = (token_usage["output_tokens"] / 1000) * output_cost_per_1k_tokens
-        
+
         return round(input_cost + output_cost, 4)
 
     def export_user_checkpoint(self, checkpoint_id: str, export_format: str = "json") -> str:
         """Export a specific checkpoint in the specified format"""
         from ..core.checkpoint_manager import CheckpointManagerImpl
-        
+
         # Create a checkpoint manager and load the checkpoint
         checkpoint_mgr = CheckpointManagerImpl(self.workspace_path)
         checkpoint_data = checkpoint_mgr.load_checkpoint(checkpoint_id)
-        
+
         filename = f"checkpoint_{checkpoint_id}.{export_format}"
         filepath = self.reports_dir / filename
-        
+
         with open(filepath, 'w', encoding='utf-8') as f:
             if export_format == "json":
-                import json
                 json.dump(checkpoint_data, f, indent=2)
             else:
                 # Default to JSON format
-                import json
                 json.dump(checkpoint_data, f, indent=2)
-        
+
         return str(filepath)

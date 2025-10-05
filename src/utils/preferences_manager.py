@@ -2,22 +2,21 @@
 Preferences manager implementation with key-value support (like npm config)
 """
 import json
-import os
-from typing import Union, Dict, Any
 from pathlib import Path
+from typing import Any, Dict, Union
 
 
 class PreferencesManager:
     def __init__(self, workspace_path: str):
         self.workspace_path = Path(workspace_path)
-        self.preferences_path = self.workspace_path / ".learningspace" / "preferences.json"
+        self.preferences_path = self.workspace_path / ".catalyst" / "preferences.json"
         self.preferences_path.parent.mkdir(exist_ok=True)
 
         # Initialize with default preferences if file doesn't exist
         if not self.preferences_path.exists():
             self._init_default_preferences()
         else:
-            with open(self.preferences_path, 'r') as f:
+            with open(self.preferences_path, 'r', encoding='utf-8') as f:
                 self.preferences = json.load(f)
 
     def _init_default_preferences(self):
@@ -51,7 +50,7 @@ class PreferencesManager:
             }
         }
 
-        with open(self.preferences_path, 'w') as f:
+        with open(self.preferences_path, 'w', encoding='utf-8') as f:
             json.dump(default_prefs, f, indent=2)
 
         self.preferences = default_prefs
@@ -78,11 +77,11 @@ class PreferencesManager:
             current[final_key] = value
 
             # Save back to file
-            with open(self.preferences_path, 'w') as f:
+            with open(self.preferences_path, 'w', encoding='utf-8') as f:
                 json.dump(self.preferences, f, indent=2)
 
             return True
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             print(f"Error setting preference: {e}")
             return False
 
@@ -100,6 +99,6 @@ class PreferencesManager:
                     return None
 
             return current
-        except Exception as e:
+        except (KeyError, TypeError, ValueError) as e:
             print(f"Error getting preference: {e}")
             return None

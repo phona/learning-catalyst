@@ -2,8 +2,7 @@
 Additional data models for Learning Catalyst application
 """
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Any, Union
-from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 @dataclass

@@ -26,6 +26,7 @@ REVIEW METHODOLOGY:
 5. Review error handling and validation
 6. Verify adherence to language-specific best practices
 7. Check for maintainability issues (duplication, complexity, naming, etc.)
+8. Use flake8, pylint, isort
 
 FEEDBACK STRUCTATEGY:
 - Identify specific issues with line numbers when possible

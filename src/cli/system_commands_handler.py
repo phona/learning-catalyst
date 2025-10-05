@@ -2,13 +2,11 @@
 System Commands Handler for Learning Catalyst
 Implements the SystemCommandsHandler interface as defined in the development document
 """
-from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any, Union
-from dataclasses import dataclass
-import asyncio
-import json
 import sqlite3
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Union
 
 
 @dataclass
@@ -55,7 +53,9 @@ class SystemCommandsHandler(ABC):
 
     @abstractmethod
     async def set_preference(self, key: str, value: Union[str, int, float, bool, Dict[str, Any]]) -> bool:
-        """Set a specific configuration preference using key-value format in preferences.json (e.g., ui.theme, learning.difficulty_level, features.ai_enhancements) similar to npm config set"""
+        """Set a specific configuration preference using key-value format in preferences.json
+        (e.g., ui.theme, learning.difficulty_level, features.ai_enhancements)
+        similar to npm config set"""
         pass
 
 
@@ -69,10 +69,10 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
             # Get the default provider and model from preferences
             default_provider = self.preferences_manager.get_preference('ai.default_provider')
             default_model = self.preferences_manager.get_preference('ai.default_model')
-            
+
             # Create a list of available models
             models = []
-            
+
             if default_provider and default_model:
                 # Add the configured default model
                 models.append({
@@ -81,7 +81,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
                     'description': f'Configured default model for {default_provider}',
                     'is_default': True
                 })
-            
+
             # Add other potential models based on the provider
             all_providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
             for provider in all_providers:
@@ -98,7 +98,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
                             "deepseek": ["deepseek-chat", "deepseek-coder"],
                             "local": ["llama3", "mistral", "phi3"]
                         }
-                        
+
                         for model in example_models.get(provider, [f"{provider}-default"]):
                             models.append({
                                 'provider': provider,
@@ -106,7 +106,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
                                 'description': f'Example model for {provider}',
                                 'is_default': False
                             })
-            
+
             return models
         except Exception as e:
             print(f"Error listing available models: {e}")
@@ -118,12 +118,12 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
             # Calculate the date threshold
             start_date = (datetime.now() - timedelta(days=period_days)).isoformat()
             end_date = datetime.now().isoformat()
-            
+
             # Use the database manager's method to get summary
             # Note: We need to provide a user_id - for now, let's use a default value
             # In a real system, we would get the actual user's ID
             token_summary = self.db_manager.get_token_usage_summary("default_user", start_date, end_date)
-            
+
             return {
                 'period_days': period_days,
                 'input_tokens': token_summary.get('input_tokens', 0),
@@ -145,12 +145,12 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
             # Query the database for detailed token usage
             conn = sqlite3.connect(self.db_manager.db_path)
             cursor = conn.cursor()
-            
+
             if model_name:
                 # Filter by specific model
                 cursor.execute("""
                     SELECT model_name, provider, input_tokens, output_tokens, total_tokens, timestamp, context
-                    FROM token_usage 
+                    FROM token_usage
                     WHERE model_name = ?
                     ORDER BY timestamp DESC
                     LIMIT 50
@@ -159,14 +159,14 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
                 # Get all records
                 cursor.execute("""
                     SELECT model_name, provider, input_tokens, output_tokens, total_tokens, timestamp, context
-                    FROM token_usage 
+                    FROM token_usage
                     ORDER BY timestamp DESC
                     LIMIT 50
                 """)
-            
+
             rows = cursor.fetchall()
             conn.close()
-            
+
             detailed_usage = []
             for row in rows:
                 detailed_usage.append({
@@ -178,7 +178,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
                     'timestamp': row[5],
                     'context': row[6] if len(row) > 6 else 'unknown'
                 })
-            
+
             return detailed_usage
         except Exception as e:
             print(f"Error getting detailed token usage: {e}")
@@ -207,18 +207,19 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
         try:
             # Get concepts from the database using the database manager
             concepts_from_db = self.db_manager.get_all_concepts()
-            
+
             # Convert to the required format
             concepts = []
             for concept in concepts_from_db:
                 concept_dict = {
                     'id': concept.id,
                     'title': concept.title,
-                    'content': concept.content[:100] + "..." if len(concept.content) > 100 else concept.content if concept.content else "",
+                    'content': (concept.content[:100] + "..." if len(concept.content) > 100
+                               else concept.content if concept.content else ""),
                     'prerequisites': concept.prerequisites
                 }
                 concepts.append(concept_dict)
-            
+
             # For relationships, we'll create them based on prerequisites
             relationships = []
             for concept in concepts:
@@ -227,7 +228,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
                         'from': prereq_id,
                         'to': concept['id']
                     })
-            
+
             return KnowledgeMap(concepts=concepts, relationships=relationships)
         except Exception as e:
             print(f"Error getting knowledge map: {e}")

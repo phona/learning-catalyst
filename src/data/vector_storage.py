@@ -2,9 +2,9 @@
 Vector storage implementation with SQLite
 """
 import sqlite3
-import json
-from typing import List, Dict, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 
 
@@ -58,7 +58,7 @@ class VectorStorage:
         conn.commit()
         conn.close()
 
-    def store_embedding(self, table: str, id: str, vector: List[float], model: str):
+    def store_embedding(self, table: str, record_id: str, vector: List[float], model: str):
         """Store vector embedding in the specified table"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -68,7 +68,7 @@ class VectorStorage:
 
         if table == "concepts":
             cursor.execute("""
-            UPDATE concepts 
+            UPDATE concepts
             SET content_embedding = ?, embedding_model = ?
             WHERE id = ?
             """, (vector_binary, model, id))
@@ -92,7 +92,7 @@ class VectorStorage:
         conn.commit()
         conn.close()
 
-    def get_embedding(self, table: str, id: str) -> Optional[List[float]]:
+    def get_embedding(self, table: str, record_id: str) -> Optional[List[float]]:
         """Retrieve vector embedding from the specified table"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -115,16 +115,17 @@ class VectorStorage:
             return vector_array.tolist()
         return None
 
-    def find_similar_by_embedding(self, table: str, query_embedding: List[float], top_k: int = 10) -> List[Dict[str, Any]]:
+    def find_similar_by_embedding(
+        self, table: str, query_embedding: List[float], top_k: int = 10
+    ) -> List[Dict[str, Any]]:
         """Find similar items based on embedding similarity (simplified implementation)"""
         # Note: A proper implementation would use SQLite-VSS functions for vector similarity
         # This is a simplified version that would need to be replaced with the actual SQLite-VSS functions
         conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
 
         # For now, return empty list as this requires SQLite-VSS extension
         # In a real implementation, this would use SQLite's vector similarity functions
         results = []
-        
+
         conn.close()
         return results

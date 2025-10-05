@@ -2,10 +2,9 @@
 Data model for Token Usage
 """
 from dataclasses import dataclass
-from datetime import datetime
 
 
-@dataclass
+@dataclass  # pylint: disable=too-many-instance-attributes
 class TokenUsage:
     id: str
     model_name: str

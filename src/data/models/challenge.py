@@ -2,7 +2,7 @@
 Data model for Challenge
 """
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass

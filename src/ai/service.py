@@ -1,233 +1,175 @@
 """
 Model abstraction service implementation
 """
-import httpx
-from datetime import datetime
-from typing import List, Optional
-from .abstraction import ModelAbstractionLayer
-from src.data.models.extended_models import Message, AIResponse, Credentials, EmbeddingResponse, RerankResponse, ProviderCapabilities
-from .providers.openai_provider import OpenAIProvider
-from .providers.claude_provider import ClaudeProvider
-from .providers.chatglm_provider import ChatGLMProvider
-from .providers.siliconflow_provider import SiliconFlowProvider
-from .providers.deepseek_provider import DeepSeekProvider
-from .providers.local_provider import LocalModelProvider
-from .providers.embedding_provider import EmbeddingProvider
-from .providers.rerank_provider import RerankProvider
+
+from typing import Dict, List, Optional
+
+from src.data.models.extended_models import (
+    AIResponse,
+    Credentials,
+    EmbeddingResponse,
+    Message,
+    RerankResponse,
+)
+
+from .abstraction import ModelAbstractionLayer, ModelProvider, ChatModel, EmbeddingModel, RerankModel, ConfiguredModels, Model
 
 
 class ModelAbstractionService(ModelAbstractionLayer):
+    """Service implementation for the model abstraction layer that handles
+    communication with various LLM providers."""
+    
     def __init__(self):
-        self.providers = {
-            "openai": None,
-            "anthropic": None,
-            "chatglm": None,
-            "siliconflow": None,
-            "deepseek": None,
-            "local": None,
-            "embedding": None,
-            "rerank": None
-        }
+        self._providers: Dict[str, ModelProvider] = {}
+        self._chat_model: Optional[ChatModel] = None
+        self._embedding_model: Optional[EmbeddingModel] = None
+        self._rerank_model: Optional[RerankModel] = None
 
-    def set_provider(self, provider_type: str, provider_instance):
-        self.providers[provider_type] = provider_instance
+    def register_provider(self, provider: ModelProvider) -> None:
+        """Register a model provider with the service."""
+        self._providers[provider.name] = provider
 
     async def send_message(
-        self, 
-        provider: str, 
-        model: str, 
-        messages: List[Message],
-        temperature: float = 0.7
+        self, messages: List[Message], temperature: float = 0.7
     ) -> AIResponse:
-        # Convert messages to the format expected by the provider
-        message_dicts = [{"role": msg.role, "content": msg.content} for msg in messages]
-
-        if provider == "openai" and self.providers["openai"]:
-            result = await self.providers["openai"].send_message(model, message_dicts, temperature)
-            # Format response to AIResponse object
-            return AIResponse(
-                content=result["choices"][0]["message"]["content"],
-                model=model,
-                usage={
-                    "input_tokens": result["usage"]["prompt_tokens"],
-                    "output_tokens": result["usage"]["completion_tokens"],
-                    "total_tokens": result["usage"]["total_tokens"]
-                },
-                timestamp=str(datetime.now())
+        """Send message to LLM provider and get response."""
+        if not self._chat_model:
+            raise ValueError(
+                "No chat model configured. Please use the /set-config command to set up your AI provider and model first."
             )
-        elif provider == "anthropic" and self.providers["anthropic"]:
-            # Claude has a slightly different API, so special handling would be needed
-            result = await self.providers["anthropic"].send_message(model, message_dicts, temperature)
-            return AIResponse(
-                content=result["content"][0]["text"],
-                model=model,
-                usage={
-                    "input_tokens": result["usage"]["input_tokens"],
-                    "output_tokens": result["usage"]["output_tokens"],
-                    "total_tokens": result["usage"]["input_tokens"] + result["usage"]["output_tokens"]
-                },
-                timestamp=str(datetime.now())
-            )
-        elif provider == "chatglm" and self.providers["chatglm"]:
-            result = await self.providers["chatglm"].send_message(model, message_dicts, temperature)
-            # Format accordingly
-            return AIResponse(
-                content=result["choices"][0]["message"]["content"],
-                model=model,
-                usage={
-                    "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
-                    "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-                    "total_tokens": result.get("usage", {}).get("total_tokens", 0)
-                },
-                timestamp=str(datetime.now())
-            )
-        elif provider == "siliconflow" and self.providers["siliconflow"]:
-            result = await self.providers["siliconflow"].send_message(model, message_dicts, temperature)
-            # Format accordingly
-            return AIResponse(
-                content=result["choices"][0]["message"]["content"],
-                model=model,
-                usage={
-                    "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
-                    "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-                    "total_tokens": result.get("usage", {}).get("total_tokens", 0)
-                },
-                timestamp=str(datetime.now())
-            )
-        elif provider == "deepseek" and self.providers["deepseek"]:
-            result = await self.providers["deepseek"].send_message(model, message_dicts, temperature)
-            # Format accordingly
-            return AIResponse(
-                content=result["choices"][0]["message"]["content"],
-                model=model,
-                usage={
-                    "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
-                    "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-                    "total_tokens": result.get("usage", {}).get("total_tokens", 0)
-                },
-                timestamp=str(datetime.now())
-            )
-        elif provider == "local" and self.providers["local"]:
-            result = await self.providers["local"].send_message(model, message_dicts, temperature)
-            # Format accordingly
-            return AIResponse(
-                content=result["choices"][0]["message"]["content"],
-                model=model,
-                usage={
-                    "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
-                    "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-                    "total_tokens": result.get("usage", {}).get("total_tokens", 0)
-                },
-                timestamp=str(datetime.now())
-            )
-        else:
-            raise ValueError(f"Provider {provider} not implemented or not set")
+        
+        return await self._chat_model.send_message(messages, temperature)
 
     async def get_embeddings(
-        self,
-        provider: str,
-        model: str,
-        texts: List[str],
-        dimensions: Optional[int] = None
+        self, texts: List[str], dimensions: Optional[int] = None
     ) -> EmbeddingResponse:
-        if provider == "openai" and self.providers["openai"]:
-            result = await self.providers["openai"].get_embeddings(model, texts)
-            embeddings = [item["embedding"] for item in result["data"]]
-            usage = {
-                "input_tokens": result["usage"]["prompt_tokens"],
-                "output_tokens": result["usage"]["completion_tokens"],
-                "total_tokens": result["usage"]["total_tokens"]
-            }
-        elif provider == "embedding" and self.providers["embedding"]:
-            result = await self.providers["embedding"].get_embeddings(model, texts)
-            embeddings = result["data"]  # Assuming the provider handles the format
-            usage = {
-                "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
-                "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-                "total_tokens": result.get("usage", {}).get("total_tokens", 0)
-            }
-        else:
-            raise ValueError(f"Embedding provider {provider} not implemented or not set")
+        """Get embeddings for texts using specified provider and model."""
+        if not self._embedding_model:
+            raise ValueError(
+                "No embedding model configured. Please use the /set-config command to set up your AI provider and model first."
+            )
         
-        return EmbeddingResponse(
-            embeddings=embeddings,
-            model=model,
-            usage=usage
-        )
+        return await self._embedding_model.get_embeddings(texts, dimensions)
 
     async def rerank(
-        self,
-        provider: str,
-        model: str,
-        query: str,
-        documents: List[str],
-        top_k: int = 10
+        self, query: str, documents: List[str], top_k: int = 10
     ) -> RerankResponse:
-        if provider == "rerank" and self.providers["rerank"]:
-            result = await self.providers["rerank"].rerank(model, query, documents, top_k)
-            return RerankResponse(
-                results=result["results"],
-                model=model
+        """Rerank documents based on query relevance."""
+        if not self._rerank_model:
+            raise ValueError(
+                "No rerank model configured. Please use the /set-config command to set up your AI provider and model first."
             )
-        else:
-            raise ValueError(f"Rerank provider {provider} not implemented or not set")
+        
+        return await self._rerank_model.rerank(query, documents, top_k)
+
+    async def set_chat_model(self, provider_name: Optional[str] = None, model_id: Optional[str] = None) -> None:
+        """Set the chat model to use for send_message operations."""
+        if provider_name and provider_name in self._providers:
+            provider = self._providers[provider_name]
+            if model_id:
+                # Find the specific model
+                models = await provider.list_available_models()
+                for model in models:
+                    if isinstance(model, ChatModel) and await model.get_id() == model_id:
+                        self._chat_model = model
+                        return
+                raise ValueError(f"Chat model {model_id} not found in provider {provider_name}")
+            else:
+                # Use the first available chat model
+                models = await provider.list_available_models()
+                chat_models = [m for m in models if isinstance(m, ChatModel)]
+                if chat_models:
+                    self._chat_model = chat_models[0]
+                    return
+                raise ValueError(f"No chat models available in provider {provider_name}")
+        elif self._chat_model is None:
+            raise ValueError("No provider specified and no chat model currently configured")
+
+    async def set_embedding_model(self, provider_name: Optional[str] = None, model_id: Optional[str] = None) -> None:
+        """Set the embedding model to use for get_embeddings operations."""
+        if provider_name and provider_name in self._providers:
+            provider = self._providers[provider_name]
+            if model_id:
+                # Find the specific model
+                models = await provider.list_available_models()
+                for model in models:
+                    if isinstance(model, EmbeddingModel) and await model.get_id() == model_id:
+                        self._embedding_model = model
+                        return
+                raise ValueError(f"Embedding model {model_id} not found in provider {provider_name}")
+            else:
+                # Use the first available embedding model
+                models = await provider.list_available_models()
+                embedding_models = [m for m in models if isinstance(m, EmbeddingModel)]
+                if embedding_models:
+                    self._embedding_model = embedding_models[0]
+                    return
+                raise ValueError(f"No embedding models available in provider {provider_name}")
+        elif self._embedding_model is None:
+            raise ValueError("No provider specified and no embedding model currently configured")
+
+    async def set_rerank_model(self, provider_name: Optional[str] = None, model_id: Optional[str] = None) -> None:
+        """Set the rerank model to use for rerank operations."""
+        if provider_name and provider_name in self._providers:
+            provider = self._providers[provider_name]
+            if model_id:
+                # Find the specific model
+                models = await provider.list_available_models()
+                for model in models:
+                    if isinstance(model, RerankModel) and await model.get_id() == model_id:
+                        self._rerank_model = model
+                        return
+                raise ValueError(f"Rerank model {model_id} not found in provider {provider_name}")
+            else:
+                # Use the first available rerank model
+                models = await provider.list_available_models()
+                rerank_models = [m for m in models if isinstance(m, RerankModel)]
+                if rerank_models:
+                    self._rerank_model = rerank_models[0]
+                    return
+                raise ValueError(f"No rerank models available in provider {provider_name}")
+        elif self._rerank_model is None:
+            raise ValueError("No provider specified and no rerank model currently configured")
+
+    def inused_models(self) -> ConfiguredModels:
+        """Get currently in-use models."""
+        # Create dummy instances if models are not set
+        chat_model = self._chat_model
+        embedding_model = self._embedding_model
+        rerank_model = self._rerank_model
+        
+        return ConfiguredModels(
+            chat_model=chat_model,
+            embedding_model=embedding_model,
+            rerank_model=rerank_model
+        )
+
+    def list_configured_models(self) -> Dict[str, List[Model]]:
+        """
+        List all configured models grouped by provider.
+        Each provider maps to a list of its models.
+        models include chat, embedding, and rerank models.
+        """
+        # This method returns the currently configured providers, not their available models
+        # For a complete list, use list_available_models()
+        result: Dict[str, List[Model]] = {}
+        for provider_name in self._providers.keys():
+            # We can't call async method here, so we return empty lists
+            # The actual models should be fetched via list_available_models()
+            result[provider_name] = []
+        return result
 
     async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
-        if provider == "openai" and self.providers["openai"]:
-            return await self.providers["openai"].validate_credentials(credentials)
-        elif provider == "anthropic" and self.providers["anthropic"]:
-            return await self.providers["anthropic"].validate_credentials(credentials)
-        elif provider == "chatglm" and self.providers["chatglm"]:
-            return await self.providers["chatglm"].validate_credentials(credentials)
-        elif provider == "siliconflow" and self.providers["siliconflow"]:
-            return await self.providers["siliconflow"].validate_credentials(credentials)
-        elif provider == "deepseek" and self.providers["deepseek"]:
-            return await self.providers["deepseek"].validate_credentials(credentials)
-        elif provider == "local" and self.providers["local"]:
-            return await self.providers["local"].validate_credentials(credentials)
-        elif provider == "embedding" and self.providers["embedding"]:
-            return await self.providers["embedding"].validate_credentials(credentials)
-        elif provider == "rerank" and self.providers["rerank"]:
-            return await self.providers["rerank"].validate_credentials(credentials)
-        else:
-            raise ValueError(f"Provider {provider} not implemented or not set")
+        """Validate API credentials for a provider."""
+        if provider not in self._providers:
+            raise ValueError(f"Provider {provider} not registered")
+        
+        return await self._providers[provider].validate_credentials(provider, credentials)
 
-    async def list_available_models(self, provider: str) -> List[str]:
-        if provider == "openai" and self.providers["openai"]:
-            return await self.providers["openai"].list_available_models()
-        elif provider == "anthropic" and self.providers["anthropic"]:
-            return await self.providers["anthropic"].list_available_models()
-        elif provider == "chatglm" and self.providers["chatglm"]:
-            return await self.providers["chatglm"].list_available_models()
-        elif provider == "siliconflow" and self.providers["siliconflow"]:
-            return await self.providers["siliconflow"].list_available_models()
-        elif provider == "deepseek" and self.providers["deepseek"]:
-            return await self.providers["deepseek"].list_available_models()
-        elif provider == "local" and self.providers["local"]:
-            return await self.providers["local"].list_available_models()
-        elif provider == "embedding" and self.providers["embedding"]:
-            return await self.providers["embedding"].list_available_models()
-        elif provider == "rerank" and self.providers["rerank"]:
-            return await self.providers["rerank"].list_available_models()
-        else:
-            raise ValueError(f"Provider {provider} not implemented or not set")
-
-    async def get_provider_capabilities(self, provider: str) -> ProviderCapabilities:
-        if provider == "openai" and self.providers["openai"]:
-            return await self.providers["openai"].get_provider_capabilities()
-        elif provider == "anthropic" and self.providers["anthropic"]:
-            return await self.providers["anthropic"].get_provider_capabilities()
-        elif provider == "chatglm" and self.providers["chatglm"]:
-            return await self.providers["chatglm"].get_provider_capabilities()
-        elif provider == "siliconflow" and self.providers["siliconflow"]:
-            return await self.providers["siliconflow"].get_provider_capabilities()
-        elif provider == "deepseek" and self.providers["deepseek"]:
-            return await self.providers["deepseek"].get_provider_capabilities()
-        elif provider == "local" and self.providers["local"]:
-            return await self.providers["local"].get_provider_capabilities()
-        elif provider == "embedding" and self.providers["embedding"]:
-            return await self.providers["embedding"].get_provider_capabilities()
-        elif provider == "rerank" and self.providers["rerank"]:
-            return await self.providers["rerank"].get_provider_capabilities()
-        else:
-            raise ValueError(f"Provider {provider} not implemented or not set")
+    async def list_available_models(self) -> List[Model]:
+        """Get list of available models for all providers."""
+        all_models: List[Model] = []
+        for provider in self._providers.values():
+            models = await provider.list_available_models()
+            all_models.extend(models)
+        return all_models

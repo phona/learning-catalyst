@@ -48,3 +48,4 @@ config/
 # Learning space data
 **/.learningspace/
 .testenv
+**/.catalyst/

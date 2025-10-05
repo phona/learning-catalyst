@@ -1,44 +1,24 @@
 """
 Model abstraction layer interface
 """
+
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any, Union
-from src.data.models.extended_models import Message, AIResponse, Credentials, EmbeddingResponse, RerankResponse, ProviderCapabilities
+from typing import Dict, List, Optional, NamedTuple
+
+from src.data.models.extended_models import (
+    AIResponse,
+    Credentials,
+    EmbeddingResponse,
+    Message,
+    RerankResponse,
+)
 
 
-class ModelAbstractionLayer(ABC):
+class ModelProvider(ABC):
+    @property
     @abstractmethod
-    async def send_message(
-        self, 
-        provider: str, 
-        model: str, 
-        messages: List[Message],
-        temperature: float = 0.7
-    ) -> AIResponse:
-        """Send message to LLM provider and get response"""
-        pass
-
-    @abstractmethod
-    async def get_embeddings(
-        self,
-        provider: str,
-        model: str,
-        texts: List[str],
-        dimensions: Optional[int] = None
-    ) -> EmbeddingResponse:
-        """Get embeddings for texts using specified provider and model"""
-        pass
-
-    @abstractmethod
-    async def rerank(
-        self,
-        provider: str,
-        model: str,
-        query: str,
-        documents: List[str],
-        top_k: int = 10
-    ) -> RerankResponse:
-        """Rerank documents based on query relevance"""
+    def name(self) -> str:
+        """Get the name of the provider"""
         pass
 
     @abstractmethod
@@ -47,11 +27,92 @@ class ModelAbstractionLayer(ABC):
         pass
 
     @abstractmethod
-    async def list_available_models(self, provider: str) -> List[str]:
+    async def list_available_models(self) -> List["Model"]:
         """Get list of available models for a provider"""
         pass
 
+
+class Model(ABC):
     @abstractmethod
-    async def get_provider_capabilities(self, provider: str) -> ProviderCapabilities:
-        """Get capabilities information for a provider"""
+    async def get_provider(self) -> ModelProvider: ...
+    @abstractmethod
+    async def get_id(self) -> str: ...
+
+
+class ChatModel(Model):
+    @abstractmethod
+    async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
+        """Send message to LLM and get response"""
+        pass
+
+
+class EmbeddingModel(Model):
+    @abstractmethod
+    async def get_embeddings(
+        self, texts: List[str], dimensions: Optional[int] = None
+    ) -> EmbeddingResponse:
+        """Get embeddings for texts"""
+        pass
+
+
+class RerankModel(Model):
+    @abstractmethod
+    async def rerank(
+        self, query: str, documents: List[str], top_k: int = 10
+    ) -> RerankResponse:
+        """Rerank documents based on query relevance"""
+        pass
+
+
+ConfiguredModels = NamedTuple(
+    "ConfiguredModels", [("chat_model", Optional[ChatModel]), ("embedding_model", Optional[EmbeddingModel]), ("rerank_model", Optional[RerankModel])]
+)
+
+
+class ModelAbstractionLayer(ABC):
+    @abstractmethod
+    async def send_message(
+        self, messages: List[Message], temperature: float = 0.7
+    ) -> AIResponse:
+        """Send message to LLM provider and get response"""
+        pass
+
+    @abstractmethod
+    async def get_embeddings(
+        self, texts: List[str], dimensions: Optional[int] = None
+    ) -> EmbeddingResponse:
+        """Get embeddings for texts using specified provider and model"""
+        pass
+
+    @abstractmethod
+    async def rerank(
+        self, query: str, documents: List[str], top_k: int = 10
+    ) -> RerankResponse:
+        """Rerank documents based on query relevance"""
+        pass
+
+    @abstractmethod
+    async def set_chat_model(self) -> None:
+        pass
+
+    @abstractmethod
+    async def set_embedding_model(self) -> None:
+        pass
+
+    @abstractmethod
+    async def set_rerank_model(self) -> None:
+        pass
+
+    @abstractmethod
+    def inused_models(self) -> ConfiguredModels: 
+        """Get currently in-use models"""
+        pass
+
+    @abstractmethod
+    def list_configured_models(self) -> Dict[str, List[Model]]:
+        """
+        List all configured models grouped by provider.
+        Each provider maps to a list of its models.
+        models include chat, embedding, and rerank models.
+        """
         pass

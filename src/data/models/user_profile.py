@@ -2,9 +2,7 @@
 Data model for User Profile
 """
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
-import json
-from datetime import datetime
+from typing import Any, Dict, Optional
 
 
 @dataclass

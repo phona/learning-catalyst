@@ -1,16 +1,16 @@
 """
 Simple test to verify basic functionality
 """
-import asyncio
 import tempfile
 import os
 from pathlib import Path
+import pytest
 from src.utils.workspace_manager import WorkspaceManager
 from src.utils.preferences_manager import PreferencesManager
 from src.data.database_manager import DatabaseManager
 
 
-async def test_basic_setup():
+def test_basic_setup():
     """Test basic setup functionality"""
     print("Testing basic setup...")
     
@@ -44,4 +44,4 @@ async def test_basic_setup():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_basic_setup())
+    test_basic_setup()

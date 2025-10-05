@@ -32,7 +32,9 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "learning-catalyst=cli.main:app",
+            "learning-catalyst=src.cli.main:app",
         ],
     },
 )
+
+

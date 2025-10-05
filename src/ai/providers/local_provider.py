@@ -1,82 +1,44 @@
 """
-Local model provider implementation (for Ollama, Llama.cpp, etc.)
+Local provider implementation
 """
-import httpx
-from typing import List, Dict, Any
-from src.data.models.extended_models import Credentials, ProviderCapabilities
+from typing import Optional
+
+from src.ai.abstraction import Model
+from .base_provider import BaseProvider, BaseChatModel, BaseEmbeddingModel, BaseRerankModel
 
 
-class LocalModelProvider:
-    def __init__(self, base_url: str):
-        self.base_url = base_url
+class LocalModelProvider(BaseProvider):
+    """Provider class for interacting with local models via HTTP API."""
+    
+    def __init__(self, api_key: str, base_url: str):
+        super().__init__(api_key, base_url)
+    
+    @property
+    def name(self) -> str:
+        """Get the name of the provider"""
+        return "local"
+    
+    def _create_model_instance(self, model_id: str) -> Optional[Model]:
+        """Create appropriate model instance based on model type"""
+        if "chat" in model_id.lower() or "llm" in model_id.lower():
+            return LocalChatModel(self, model_id)
+        elif "embedding" in model_id.lower():
+            return LocalEmbeddingModel(self, model_id)
+        elif "rerank" in model_id.lower():
+            return LocalRerankModel(self, model_id)
+        return None
 
-    async def send_message(self, model: str, messages: List[Dict], temperature: float = 0.7):
-        headers = {
-            "Content-Type": "application/json",
-        }
 
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "stream": False  # For simplicity, not using streaming
-        }
+class LocalChatModel(BaseChatModel):
+    def __init__(self, provider: LocalModelProvider, model_id: str):
+        super().__init__(provider, model_id)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{self.base_url}/chat/completions", 
-                                        json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
 
-    async def get_embeddings(self, model: str, texts: List[str]):
-        headers = {
-            "Content-Type": "application/json",
-        }
+class LocalEmbeddingModel(BaseEmbeddingModel):
+    def __init__(self, provider: LocalModelProvider, model_id: str):
+        super().__init__(provider, model_id)
 
-        payload = {
-            "model": model,
-            "input": texts
-        }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{self.base_url}/embeddings", 
-                                        json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
-
-    async def validate_credentials(self, credentials: Credentials) -> bool:
-        """Validate local model endpoint"""
-        try:
-            headers = {
-                "Content-Type": "application/json",
-            }
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{credentials.base_url or self.base_url}/models", headers=headers)
-                return response.status_code == 200
-        except Exception:
-            return False
-
-    async def list_available_models(self) -> List[str]:
-        """Get list of available local models"""
-        headers = {
-            "Content-Type": "application/json",
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.base_url}/models", headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            return [model["id"] for model in data["data"]]
-
-    async def get_provider_capabilities(self) -> ProviderCapabilities:
-        """Get capabilities information for local model provider"""
-        return ProviderCapabilities(
-            supports_streaming=True,
-            max_tokens=4096,  # Typical for local models
-            supported_models=await self.list_available_models(),
-            input_cost_per_token=0,  # No cost for local models
-            output_cost_per_token=0,  # No cost for local models
-            supports_embeddings=True,
-            supports_rerank=False
-        )
+class LocalRerankModel(BaseRerankModel):
+    def __init__(self, provider: LocalModelProvider, model_id: str):
+        super().__init__(provider, model_id)

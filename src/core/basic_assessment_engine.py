@@ -2,10 +2,12 @@
 Basic implementation of AssessmentEngine
 """
 from datetime import datetime
-from typing import List, Dict, Any
-from .assessment_engine import AssessmentEngine
-from src.data.models.extended_models import CompetencyProfile, Recommendations
+from typing import Any, Dict
+
 from src.data.database_manager import DatabaseManager
+from src.data.models.extended_models import CompetencyProfile, Recommendations
+
+from .assessment_engine import AssessmentEngine
 
 
 class BasicAssessmentEngine(AssessmentEngine):
@@ -50,5 +52,6 @@ class BasicAssessmentEngine(AssessmentEngine):
             resources=[],  # Would include additional resources
             timestamp=datetime.now().isoformat()
         )
-        
+
         return recommendations
+

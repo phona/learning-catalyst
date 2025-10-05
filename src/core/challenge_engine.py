@@ -1,8 +1,9 @@
 """
 Challenge Engine implementation
 """
-import asyncio
-from typing import Dict, Any
+
+from typing import Any, Dict
+
 from . import ChallengeEngine
 
 
@@ -36,7 +37,7 @@ class ChallengeEngineImpl(ChallengeEngine):
             expected=challenge.get("expected_answer", ""),
             context={"provider": "openai", "model": "gpt-4"}
         )
-        
+
         return evaluation
 
     async def adapt_challenge(self, challenge: Dict[str, Any], user_performance: Dict[str, Any]) -> Dict[str, Any]:

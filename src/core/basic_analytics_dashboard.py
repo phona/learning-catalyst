@@ -2,10 +2,13 @@
 Basic implementation of AnalyticsDashboard
 """
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
-from .analytics_dashboard import AnalyticsDashboard
-from src.data.models.extended_models import ProgressReport, TrendData, AnalyticsExport, TimePeriod
+from typing import Dict, List
+
 from src.data.database_manager import DatabaseManager
+from src.data.models.extended_models import (AnalyticsExport, ProgressReport,
+                                             TimePeriod, TrendData)
+
+from .analytics_dashboard import AnalyticsDashboard
 
 
 class BasicAnalyticsDashboard(AnalyticsDashboard):
@@ -17,22 +20,22 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
         # Get concepts from database
         all_concepts = self.db_manager.get_all_concepts()
         total_concepts = len(all_concepts)
-        
+
         # In a real implementation, we would query the database for user progress
         # For now, returning a basic report
         concepts_mastered = 0  # This would come from actual user progress data
-        
+
         # Calculate overall score based on some criteria
         overall_score = (concepts_mastered / total_concepts) * 100 if total_concepts > 0 else 0
-        
+
         # Identify weak areas
         weak_areas = self.identify_weak_areas(user_id)
-        
+
         time_period_obj = TimePeriod(
             start_date=time_period.get("start", ""),
             end_date=time_period.get("end", "")
         )
-        
+
         return ProgressReport(
             user_id=user_id,
             concepts_mastered=concepts_mastered,
@@ -62,9 +65,9 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
             "start": (datetime.now() - timedelta(days=30)).isoformat(),
             "end": datetime.now().isoformat()
         }
-        
+
         report = self.generate_progress_report(user_id, time_period)
-        
+
         if export_format == "json":
             content = f"""{{
     "user_id": "{report.user_id}",
@@ -78,14 +81,18 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
     "weak_areas": {report.weak_areas}
 }}"""
         elif export_format == "csv":
-            content = f"""user_id,concepts_mastered,total_concepts,overall_score,weak_areas
-{report.user_id},{report.concepts_mastered},{report.total_concepts},{report.overall_score},"{','.join(report.weak_areas)}\""""
+            content = (
+                f"""user_id,concepts_mastered,total_concepts,overall_score,weak_areas
+{report.user_id},{report.concepts_mastered},{report.total_concepts},
+{report.overall_score},"{','.join(report.weak_areas)}\""""
+            )
         else:
             content = f"Analytics report for user {user_id}"
-        
+
         return AnalyticsExport(
             report_type="progress",
             content=content,
             format=export_format,
             timestamp=datetime.now().isoformat()
         )
+

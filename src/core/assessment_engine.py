@@ -2,7 +2,8 @@
 Assessment Engine interface
 """
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any, Dict
+
 from src.data.models.extended_models import CompetencyProfile, Recommendations
 
 

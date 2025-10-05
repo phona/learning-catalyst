@@ -1,13 +1,13 @@
 """
 SQLite implementation of KnowledgeNavigator
 """
-import sqlite3
 import json
-import os
-from typing import List
-from pathlib import Path
+import sqlite3
+from typing import Any, Dict, List
+
 from src.data.models.concept import Concept
 from src.data.models.extended_models import KnowledgeMap, UserProgress
+
 from . import KnowledgeNavigator
 
 
@@ -35,36 +35,92 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         conn.commit()
         conn.close()
 
-    async def load_content(self, file_path: str) -> KnowledgeMap:
+    async def load_content(self, file_path: str = "", workspace_path: str = None) -> KnowledgeMap:
         # Implementation to load markdown content into knowledge map
-        # For now, return an empty knowledge map
-        # This would involve parsing the markdown file and extracting concepts
+        from utils.markdown_parser import MarkdownParser
+        parser = MarkdownParser()
+
         concepts = []
         relationships = []
-        
-        # If it's a markdown file, parse it
-        if file_path.endswith('.md'):
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-                # Very basic parsing - would need more sophisticated parsing in a real implementation
-                # This is just a placeholder implementation
-                import re
-                
-                # Find headers as potential concepts
-                headers = re.findall(r'^(#+)\s+(.+)$', content, re.MULTILINE)
-                
-                for level, title in headers:
-                    concept_id = title.lower().replace(' ', '_').replace('#', '')
-                    concept = {
-                        "id": concept_id,
-                        "title": title,
-                        "content": f"Content for {title}",
-                        "difficulty": len(level)  # Use header level as difficulty
-                    }
+
+        # If workspace_path is provided, scan all markdown files in workspace
+        if workspace_path:
+            try:
+                from utils.markdown_parser import extract_all_concepts
+                concepts_data = extract_all_concepts(workspace_path)
+
+                # Convert to the format expected by the system
+                for concept_data in concepts_data:
+                    concept = Concept(
+                        id=concept_data['id'],
+                        title=concept_data['title'],
+                        content=concept_data['content'],
+                        prerequisites=[],  # Will be filled in later based on relationships
+                        difficulty_level=concept_data['level']
+                    )
                     concepts.append(concept)
-        
+
+                # Create relationships based on header hierarchy
+                relationships = self._create_relationships_from_headers(concepts_data)
+
+            except (FileNotFoundError, PermissionError, OSError) as e:
+                print(f"Error scanning workspace {workspace_path}: {str(e)}")
+        # If it's a markdown file, parse it
+        elif file_path.endswith('.md'):
+            try:
+                # Parse the markdown file to extract concepts
+                concepts_data = parser.find_concepts_in_file(file_path)
+
+                # Convert to the format expected by the system
+                for concept_data in concepts_data:
+                    concept = Concept(
+                        id=concept_data['id'],
+                        title=concept_data['title'],
+                        content=concept_data['content'],
+                        prerequisites=[],  # Will be filled in later based on relationships
+                        difficulty_level=concept_data['level']
+                    )
+                    concepts.append(concept)
+
+                # Create relationships based on header hierarchy
+                relationships = self._create_relationships_from_headers(concepts_data)
+
+            except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
+                print(f"Error parsing {file_path}: {str(e)}")
+
         return KnowledgeMap(concepts=concepts, relationships=relationships)
+
+    def _create_relationships_from_headers(self, concepts: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """
+        Create relationships between concepts based on their header hierarchy
+        """
+        if not concepts:
+            return []
+
+        relationships = []
+
+        # Create a mapping from concept ID to concept for easy lookup
+        concept_map = {c['id']: c for c in concepts}  # pylint: disable=unused-variable
+        
+        # Iterate through each concept to find potential parent concepts based on header hierarchy
+        for concept in concepts:
+            current_level = concept.get('level', 1)
+
+            # Look for concepts with a higher level (lower number = higher level)
+            for other_concept in concepts:
+                other_level = other_concept.get('level', 1)
+
+                # If other_concept has a higher level (1 is higher than 2) and appears before this concept
+                if other_level < current_level and other_concept != concept:
+                    # In a real implementation, we'd need to check document order
+                    # For now, we'll add a simple relationship
+                    relationships.append({
+                        'source': other_concept['id'],
+                        'target': concept['id'],
+                        'relationship_type': 'subtopic_of'
+                    })
+
+        return relationships
 
     async def get_available_concepts(self) -> List[Concept]:
         # Implementation to retrieve concepts from database
@@ -84,7 +140,7 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
                 prerequisites=json.loads(row[3]) if row[3] else [],
                 difficulty_level=row[4]
             ))
-        
+
         return concepts
 
     def get_available_concepts_sync(self) -> List[Concept]:
@@ -105,33 +161,33 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
                 prerequisites=json.loads(row[3]) if row[3] else [],
                 difficulty_level=row[4]
             ))
-        
+
         return concepts
 
     def get_concept_path(self, concept_id: str) -> List[Concept]:
         # Implementation to get the learning path for a specific concept
         # This would consider prerequisites
         all_concepts = self.get_available_concepts_sync()
-        
+
         # Find the specific concept
         target_concept = None
         for concept in all_concepts:
             if concept.id == concept_id:
                 target_concept = concept
                 break
-                
+
         if not target_concept:
             return []
-        
+
         # Find prerequisite concepts
         path = []
         for concept in all_concepts:
             if concept.id in target_concept.prerequisites:
                 path.append(concept)
-        
+
         # Add the target concept at the end
         path.append(target_concept)
-        
+
         return path
 
     def update_progress(self, concept_id: str, progress: UserProgress) -> None:
@@ -139,12 +195,12 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         # This would typically update the database
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         # Update or insert progress in the user_progress table
         cursor.execute("""
         INSERT OR REPLACE INTO user_progress (concept_id, completed, score)
         VALUES (?, ?, ?)
         """, (concept_id, progress.completed, progress.score))
-        
+
         conn.commit()
         conn.close()

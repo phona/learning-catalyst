@@ -7,6 +7,7 @@ API keys should never be saved in committed code - they should only be used loca
 import asyncio
 import tempfile
 import os
+import pytest
 from pathlib import Path
 from src.utils.workspace_manager import WorkspaceManager
 from src.utils.preferences_manager import PreferencesManager
@@ -19,6 +20,7 @@ from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
 
 
+@pytest.mark.asyncio
 async def test_with_zhipu_models():
     """Test the Learning Catalyst with Zhipu AI models"""
     

@@ -1,14 +1,13 @@
 """
 Database manager implementation with SQLite
 """
-import sqlite3
 import json
+import sqlite3
 from datetime import datetime
-from typing import List, Dict, Optional, Any
-from .models.user_profile import UserProfile
+from typing import Dict, List, Optional
+
 from .models.concept import Concept
-from .models.challenge import Challenge
-from .models.token_usage import TokenUsage
+from .models.user_profile import UserProfile
 
 
 class DatabaseManager:
@@ -102,7 +101,7 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def insert_token_usage(self, model_name: str, provider: str, input_tokens: int, 
+    def insert_token_usage(self, model_name: str, provider: str, input_tokens: int,
                           output_tokens: int, user_id: str, context: str):
         """Insert token usage record into the database"""
         conn = sqlite3.connect(self.db_path)
@@ -113,10 +112,10 @@ class DatabaseManager:
         timestamp = datetime.now().isoformat()
 
         cursor.execute("""
-        INSERT INTO token_usage (id, model_name, provider, input_tokens, output_tokens, 
+        INSERT INTO token_usage (id, model_name, provider, input_tokens, output_tokens,
                                 total_tokens, timestamp, user_id, context)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (record_id, model_name, provider, input_tokens, output_tokens, 
+        """, (record_id, model_name, provider, input_tokens, output_tokens,
               total_tokens, timestamp, user_id, context))
 
         conn.commit()
@@ -128,7 +127,7 @@ class DatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT 
+        SELECT
             SUM(input_tokens) as total_input,
             SUM(output_tokens) as total_output,
             SUM(total_tokens) as total
@@ -153,7 +152,7 @@ class DatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        INSERT OR REPLACE INTO user_profiles 
+        INSERT OR REPLACE INTO user_profiles
         (id, created_at, preferences, competency_profile, ai_config, current_checkpoint_id)
         VALUES (?, ?, ?, ?, ?, ?)
         """, (
@@ -194,7 +193,7 @@ class DatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        INSERT OR REPLACE INTO concepts 
+        INSERT OR REPLACE INTO concepts
         (id, title, content, prerequisites, difficulty_level)
         VALUES (?, ?, ?, ?, ?)
         """, (
