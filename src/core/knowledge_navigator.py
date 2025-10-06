@@ -3,7 +3,7 @@ SQLite implementation of KnowledgeNavigator
 """
 import json
 import sqlite3
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from src.data.models.concept import Concept
 from src.data.models.extended_models import KnowledgeMap, UserProgress
@@ -35,10 +35,10 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         conn.commit()
         conn.close()
 
-    async def load_content(self, file_path: str = "", workspace_path: str = None) -> KnowledgeMap:
+    async def load_content(self, file_path: str = "", workspace_path: Optional[str] = None, extraction_mode: str = "headers") -> KnowledgeMap:
         # Implementation to load markdown content into knowledge map
         from utils.markdown_parser import MarkdownParser
-        parser = MarkdownParser()
+        parser = MarkdownParser(extraction_mode)
 
         concepts = []
         relationships = []
@@ -47,7 +47,7 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         if workspace_path:
             try:
                 from utils.markdown_parser import extract_all_concepts
-                concepts_data = extract_all_concepts(workspace_path)
+                concepts_data = extract_all_concepts(workspace_path, extraction_mode)
 
                 # Convert to the format expected by the system
                 for concept_data in concepts_data:
@@ -62,6 +62,9 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
                 # Create relationships based on header hierarchy
                 relationships = self._create_relationships_from_headers(concepts_data)
+                
+                # Save concepts to database
+                self._save_concepts_to_db(concepts)
 
             except (FileNotFoundError, PermissionError, OSError) as e:
                 print(f"Error scanning workspace {workspace_path}: {str(e)}")
@@ -84,6 +87,9 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
                 # Create relationships based on header hierarchy
                 relationships = self._create_relationships_from_headers(concepts_data)
+                
+                # Save concepts to database
+                self._save_concepts_to_db(concepts)
 
             except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
                 print(f"Error parsing {file_path}: {str(e)}")
@@ -201,6 +207,29 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         INSERT OR REPLACE INTO user_progress (concept_id, completed, score)
         VALUES (?, ?, ?)
         """, (concept_id, progress.completed, progress.score))
+
+        conn.commit()
+        conn.close()
+
+    def _save_concepts_to_db(self, concepts: List[Concept]) -> None:
+        """
+        Save concepts to the database
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        for concept in concepts:
+            # Insert or replace concept in the database
+            cursor.execute("""
+            INSERT OR REPLACE INTO concepts (id, title, content, prerequisites, difficulty_level)
+            VALUES (?, ?, ?, ?, ?)
+            """, (
+                concept.id,
+                concept.title,
+                concept.content,
+                json.dumps(concept.prerequisites) if concept.prerequisites else "[]",
+                concept.difficulty_level
+            ))
 
         conn.commit()
         conn.close()

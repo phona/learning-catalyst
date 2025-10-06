@@ -1,8 +1,8 @@
 """
-State Manager implementation for Learning Catalyst
+Enhanced State Manager implementation for Learning Catalyst
 Handles the mechanics of automatically saving the application state on exit
 and seamlessly loading it on launch for the Catalyst Agent to interpret.
-Manages manual checkpoints.
+Manages manual checkpoints with additional features.
 """
 import json
 import os
@@ -10,7 +10,7 @@ import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from src.cli.formatting import CLIFormatter
 
@@ -33,7 +33,7 @@ class Checkpoint:
     size: int = 0  # Size in bytes
 
 
-class StateManager:
+class EnhancedStateManager:
     def __init__(self, workspace_path: str):
         self.workspace_path = Path(workspace_path)
         self.catalyst_path = self.workspace_path / ".catalyst"
@@ -98,21 +98,71 @@ class StateManager:
     async def load_last_state(self) -> Optional[ApplicationState]:
         """Load the last saved application state on startup"""
         if not self.state_file.exists():
+            self.formatter.format_info("No saved state found. Starting with a fresh session.")
             return None
 
         try:
             with open(self.state_file, 'r', encoding='utf-8') as f:
                 state_dict = json.load(f)
 
-            return ApplicationState(
+            state = ApplicationState(
                 user_profile=state_dict.get("user_profile", {}),
                 conversation_context=state_dict.get("conversation_context", {}),
                 conversation_messages=state_dict.get("conversation_messages", []),
                 current_state_metadata=state_dict.get("current_state_metadata", {})
             )
+            
+            saved_at = state_dict.get("saved_at", "Unknown time")
+            self.formatter.format_success(f"State loaded successfully (saved at {saved_at})")
+            
+            return state
         except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
-            print(f"Error loading state: {e}")
+            self.formatter.format_error(f"Error loading state: {str(e)}")
+            
+            # Try to restore from backup
+            self.formatter.format_info("Attempting to restore from backup...")
+            restored_state = await self._restore_from_backup()
+            
+            if restored_state:
+                self.formatter.format_success("State restored from backup")
+                return restored_state
+            
             return None
+    
+    async def _restore_from_backup(self) -> Optional[ApplicationState]:
+        """Try to restore state from the most recent backup"""
+        backup_files = list(self.backup_dir.glob("state_backup_*.json"))
+        
+        if not backup_files:
+            self.formatter.format_info("No backup files found")
+            return None
+        
+        # Sort by modification time (newest first)
+        backup_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        
+        # Try the most recent backup first
+        for backup_file in backup_files:
+            try:
+                with open(backup_file, 'r', encoding='utf-8') as f:
+                    state_dict = json.load(f)
+
+                state = ApplicationState(
+                    user_profile=state_dict.get("user_profile", {}),
+                    conversation_context=state_dict.get("conversation_context", {}),
+                    conversation_messages=state_dict.get("conversation_messages", []),
+                    current_state_metadata=state_dict.get("current_state_metadata", {})
+                )
+                
+                # Restore the backup as the current state
+                with open(self.state_file, 'w', encoding='utf-8') as f:
+                    json.dump(state_dict, f, indent=2, ensure_ascii=False)
+                
+                return state
+            except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
+                self.formatter.format_warning(f"Failed to restore from backup {backup_file}: {str(e)}")
+                continue
+        
+        return None
 
     async def create_checkpoint(self, state: ApplicationState, description: str) -> Checkpoint:
         """Create a named checkpoint from current application state"""
@@ -135,8 +185,13 @@ class StateManager:
             "description": description
         }
 
-        with open(checkpoint_path, 'w', encoding='utf-8') as f:
-            json.dump(checkpoint_data, f, indent=2)
+        try:
+            with open(checkpoint_path, 'w', encoding='utf-8') as f:
+                json.dump(checkpoint_data, f, indent=2)
+            
+            self.formatter.format_success(f"Checkpoint '{checkpoint_id}' created successfully")
+        except (IOError, PermissionError) as e:
+            self.formatter.format_error(f"Failed to create checkpoint: {str(e)}")
 
         return Checkpoint(
             id=checkpoint_id,
@@ -151,7 +206,8 @@ class StateManager:
         checkpoint_path = self.checkpoints_dir / f"{checkpoint_id}.json"
 
         if not checkpoint_path.exists():
-            raise FileNotFoundError(f"Checkpoint {checkpoint_id} not found")
+            self.formatter.format_error(f"Checkpoint {checkpoint_id} not found")
+            return None
 
         try:
             with open(checkpoint_path, 'r', encoding='utf-8') as f:
@@ -166,7 +222,7 @@ class StateManager:
                 current_state_metadata=state_dict.get("current_state_metadata", {})
             )
         except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
-            print(f"Error loading checkpoint {checkpoint_id}: {e}")
+            self.formatter.format_error(f"Error loading checkpoint {checkpoint_id}: {str(e)}")
             return None
 
     async def list_checkpoints(self) -> List[Checkpoint]:
@@ -187,8 +243,88 @@ class StateManager:
                 )
                 checkpoints.append(checkpoint)
             except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
-                print(f"Error reading checkpoint file {checkpoint_file}: {e}")
+                self.formatter.format_warning(f"Error reading checkpoint file {checkpoint_file}: {str(e)}")
 
         # Sort by creation time (newest first)
         checkpoints.sort(key=lambda cp: cp.created_at, reverse=True)
         return checkpoints
+    
+    async def delete_checkpoint(self, checkpoint_id: str) -> bool:
+        """Delete a checkpoint by ID"""
+        checkpoint_path = self.checkpoints_dir / f"{checkpoint_id}.json"
+        
+        if not checkpoint_path.exists():
+            self.formatter.format_error(f"Checkpoint {checkpoint_id} not found")
+            return False
+        
+        try:
+            checkpoint_path.unlink()
+            self.formatter.format_success(f"Checkpoint {checkpoint_id} deleted successfully")
+            return True
+        except (IOError, PermissionError) as e:
+            self.formatter.format_error(f"Failed to delete checkpoint {checkpoint_id}: {str(e)}")
+            return False
+    
+    async def restore_checkpoint(self, checkpoint_id: str) -> Optional[ApplicationState]:
+        """Restore a checkpoint and make it the current state"""
+        state = await self.load_checkpoint(checkpoint_id)
+        
+        if state:
+            # Save the restored state as the current state
+            await self.save_current_state(state)
+            self.formatter.format_success(f"Checkpoint {checkpoint_id} restored successfully")
+            return state
+        else:
+            self.formatter.format_error(f"Failed to restore checkpoint {checkpoint_id}")
+            return None
+    
+    async def get_state_info(self) -> Dict[str, Any]:
+        """Get information about the current state and checkpoints"""
+        info = {
+            "state_file_exists": self.state_file.exists(),
+            "state_file_size": 0,
+            "state_file_modified": None,
+            "backup_count": 0,
+            "checkpoint_count": 0,
+            "newest_checkpoint": None,
+            "oldest_checkpoint": None
+        }
+        
+        # Get state file info
+        if self.state_file.exists():
+            stat = self.state_file.stat()
+            info["state_file_size"] = stat.st_size
+            info["state_file_modified"] = datetime.fromtimestamp(stat.st_mtime).isoformat()
+        
+        # Get backup count
+        backup_files = list(self.backup_dir.glob("state_backup_*.json"))
+        info["backup_count"] = len(backup_files)
+        
+        # Get checkpoint info
+        checkpoints = await self.list_checkpoints()
+        info["checkpoint_count"] = len(checkpoints)
+        
+        if checkpoints:
+            info["newest_checkpoint"] = checkpoints[0].created_at
+            info["oldest_checkpoint"] = checkpoints[-1].created_at
+        
+        return info
+    
+    async def cleanup_old_checkpoints(self, max_checkpoints: int = 10) -> int:
+        """Remove old checkpoints, keeping only the most recent ones"""
+        checkpoints = await self.list_checkpoints()
+        
+        if len(checkpoints) <= max_checkpoints:
+            return 0
+        
+        # Sort by creation time (oldest first)
+        checkpoints.sort(key=lambda cp: cp.created_at)
+        
+        # Remove excess checkpoints
+        removed_count = 0
+        while len(checkpoints) > max_checkpoints:
+            oldest_checkpoint = checkpoints.pop(0)
+            if await self.delete_checkpoint(oldest_checkpoint.id):
+                removed_count += 1
+        
+        return removed_count

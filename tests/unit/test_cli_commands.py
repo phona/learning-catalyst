@@ -31,8 +31,8 @@ def test_start_learning_command(temp_workspace):
         prefs_mgr.set_preference('ai.default_provider', 'openai')
         prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
         
-        # For this test, let's mock the input function instead of Prompt.ask
-        with patch('builtins.input', return_value='/quit'), patch('select.select'):
+        # For this test, let's mock the input function to immediately quit
+        with patch('builtins.input', side_effect=['/quit']), patch('select.select', return_value=([], [], [])):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
         
         # Check that the command executed and reached the interactive part
@@ -527,7 +527,8 @@ def test_slash_help_command(temp_workspace):
     
     try:
         # Mock the input to simulate the /help command
-        with patch('builtins.input', side_effect=['/help', '/quit']), patch('select.select'):
+        with patch('builtins.input', side_effect=['/help', '/quit']), \
+             patch('select.select', return_value=([], [], [])):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
             
             # Check that the command executed successfully
@@ -553,7 +554,7 @@ def test_slash_config_command(temp_workspace):
         
         # Mock both input and Prompt.ask for the full flow
         with patch('builtins.input', side_effect=['/set-config', '/quit']), \
-             patch('select.select'), \
+             patch('select.select', return_value=([], [], [])), \
              patch('rich.prompt.Prompt.ask', side_effect=[
                  'anthropic',    # provider choice
                  'claude-3-opus', # model
@@ -587,7 +588,7 @@ def test_slash_set_config_command(temp_workspace):
         
         # Mock both input and Prompt.ask for the full flow
         with patch('builtins.input', side_effect=['/set-config', '/quit']), \
-             patch('select.select'), \
+             patch('select.select', return_value=([], [], [])), \
              patch('rich.prompt.Prompt.ask', side_effect=[
                  'anthropic',    # provider choice
                  'claude-3-opus', # model

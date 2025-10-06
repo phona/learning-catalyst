@@ -26,6 +26,7 @@ class CommandPalette:
         self.cli_interface = cli_interface
         self.commands: Dict[str, CommandInfo] = {}
         self.context: Dict[str, Any] = {}
+        self.command_history: List[str] = []
         self._register_default_commands()
 
     def _register_default_commands(self) -> None:
@@ -109,6 +110,15 @@ class CommandPalette:
             category="Learning"
         )
 
+        self.register_command(
+            name="knowledge-map",
+            description="Display the current knowledge map structure",
+            aliases=["kmap"],
+            handler=self._knowledge_map_command,
+            usage="/knowledge-map",
+            category="Learning"
+        )
+
     def register_command(self, name: str, description: str, aliases: List[str],
                         handler: Callable, usage: str = "", category: str = "General") -> None:
         """Register a new command"""
@@ -141,6 +151,9 @@ class CommandPalette:
         """
         if not command_input.startswith('/'):
             return False
+
+        # Add to command history
+        self.add_to_history(command_input)
 
         # Parse command and arguments
         parts = command_input[1:].strip().split()
@@ -183,6 +196,93 @@ class CommandPalette:
     def get_command_by_name(self, name: str) -> Optional[CommandInfo]:
         """Get command by name or alias"""
         return self.commands.get(name.lower())
+    
+    def add_to_history(self, command: str) -> None:
+        """Add a command to the history"""
+        # Don't add empty commands or duplicates of the last command
+        if not command or (self.command_history and self.command_history[-1] == command):
+            return
+        
+        self.command_history.append(command)
+        
+        # Limit history size
+        if len(self.command_history) > 100:
+            self.command_history = self.command_history[-100:]
+    
+    def get_command_history(self, reverse: bool = True) -> List[str]:
+        """Get command history, most recent first by default"""
+        if reverse:
+            return list(reversed(self.command_history))
+        return self.command_history.copy()
+    
+    def get_autocomplete_suggestions(self, partial_input: str) -> List[str]:
+        """
+        Get autocomplete suggestions for a partial command input
+        
+        Args:
+            partial_input: The partial command string (may or may not include / prefix)
+            
+        Returns:
+            List of suggested command completions
+        """
+        suggestions = []
+        
+        # If input starts with /, we're completing a command
+        if partial_input.startswith('/'):
+            command_part = partial_input[1:].lower()
+            
+            # Find matching commands
+            for name, command_info in self.commands.items():
+                if name.lower().startswith(command_part):
+                    suggestions.append(f"/{name}")
+        
+        return suggestions
+    
+    def get_concept_suggestions(self, partial_input: str, context: Dict[str, Any]) -> List[str]:
+        """
+        Get concept suggestions for a partial input
+        
+        Args:
+            partial_input: The partial input string
+            context: Context data including workspace path
+            
+        Returns:
+            List of suggested concept names
+        """
+        suggestions = []
+        
+        try:
+            # Import required modules inside the method to avoid circular imports
+            from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+            import os
+            import asyncio
+            
+            # Get workspace path from context
+            workspace_path = context.get('workspace_path', '.')
+            
+            # Initialize knowledge navigator
+            learningspace_path = os.path.join(workspace_path, ".catalyst")
+            db_path = os.path.join(learningspace_path, "data.db")
+            knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
+            
+            # Get available concepts
+            concepts = asyncio.run(knowledge_navigator.get_available_concepts())
+            
+            # Find matching concepts
+            partial_lower = partial_input.lower()
+            for concept in concepts:
+                if concept.title.lower().startswith(partial_lower):
+                    suggestions.append(concept.title)
+            
+            # Limit suggestions
+            if len(suggestions) > 10:
+                suggestions = suggestions[:10]
+                
+        except Exception:
+            # If we can't get concepts, return empty list
+            pass
+        
+        return suggestions
 
     def _help_command(self, args: List[str], context: Dict[str, Any]) -> None:
         """Handler for the help command"""
@@ -565,4 +665,57 @@ class CommandPalette:
         except Exception as e:
             self.cli_interface.display_message(
                 Message(role="system", content=f"Error generating challenge: {str(e)}")
+            )
+
+    def _knowledge_map_command(self, args: List[str], context: Dict[str, Any]) -> None:
+        """Handler for the knowledge-map command"""
+        try:
+            # Import required modules inside the handler to avoid circular imports
+            from src.data.models.extended_models import Message
+            from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+            import os
+
+            # Get workspace path from context
+            workspace_path = context.get('workspace_path', '.')
+            
+            # Initialize knowledge navigator
+            learningspace_path = os.path.join(workspace_path, ".catalyst")
+            db_path = os.path.join(learningspace_path, "data.db")
+            knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
+            
+            # Get available concepts
+            import asyncio
+            concepts = asyncio.run(knowledge_navigator.get_available_concepts())
+            
+            if not concepts:
+                self.cli_interface.display_message(
+                    Message(
+                        role="system",
+                        content="No concepts found. Please make sure you have Markdown files in your workspace."
+                    )
+                )
+                return
+
+            # Format and display knowledge map
+            content = "🗺️  Knowledge Map:\n\n"
+            content += "  Concepts:\n"
+            
+            for concept in concepts:
+                content += f"    • {concept.title} (ID: {concept.id})\n"
+            
+            content += "\n  Relationships:\n"
+            
+            # For now, we'll show a simple relationship structure
+            # In a real implementation, this would be more sophisticated
+            content += "    • Hierarchical relationships based on document structure\n"
+            
+            content += "\n💡 Tip: Use /explain <concept-name> to learn more about a specific concept"
+            
+            self.cli_interface.display_message(
+                Message(role="system", content=content)
+            )
+            
+        except Exception as e:
+            self.cli_interface.display_message(
+                Message(role="system", content=f"Error displaying knowledge map: {str(e)}")
             )

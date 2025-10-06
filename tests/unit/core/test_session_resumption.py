@@ -64,7 +64,7 @@ class TestSessionResumption:
         }
         
         # Initialize Catalyst Agent
-        catalyst_agent = CatalystAgentImpl(model_service_mock)
+        catalyst_agent = CatalystAgentImpl(model_service)
         
         # Test welcome back message generation
         welcome_message = await catalyst_agent.generate_welcome_message(is_first_time_user=False)

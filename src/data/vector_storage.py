@@ -1,6 +1,7 @@
 """
 Vector storage implementation with SQLite
 """
+import os
 import sqlite3
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -16,6 +17,8 @@ class VectorStorage:
 
     def _init_vector_tables(self):
         """Initialize tables for vector storage"""
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
@@ -58,7 +61,7 @@ class VectorStorage:
         conn.commit()
         conn.close()
 
-    def store_embedding(self, table: str, record_id: str, vector: List[float], model: str):
+    def store_embedding(self, table: str, record_id: str, vector: List[float], model: str, id: Optional[str] = None):
         """Store vector embedding in the specified table"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -71,21 +74,21 @@ class VectorStorage:
             UPDATE concepts
             SET content_embedding = ?, embedding_model = ?
             WHERE id = ?
-            """, (vector_binary, model, id))
+            """, (vector_binary, model, record_id))
         elif table == "content_chunks":
             # Implementation for content_chunks table
             cursor.execute("""
             INSERT OR REPLACE INTO content_chunks
             (id, concept_id, chunk_text, chunk_embedding, embedding_model, chunk_index)
             VALUES (?, ?, ?, ?, ?, ?)
-            """, (id, "", "", vector_binary, model, 0))
+            """, (record_id, "", "", vector_binary, model, 0))
         elif table == "conversation_history":
             # Implementation for conversation_history table
             cursor.execute("""
             INSERT OR REPLACE INTO conversation_history
             (id, user_id, conversation_embedding, conversation_text, embedding_model, timestamp, context_tags)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (id, "", vector_binary, "", model, datetime.now().isoformat(), ""))
+            """, (record_id, "", vector_binary, "", model, datetime.now().isoformat(), ""))
         else:
             raise ValueError(f"Unknown table: {table}")
 
@@ -98,11 +101,11 @@ class VectorStorage:
         cursor = conn.cursor()
 
         if table == "concepts":
-            cursor.execute("SELECT content_embedding FROM concepts WHERE id = ?", (id,))
+            cursor.execute("SELECT content_embedding FROM concepts WHERE id = ?", (record_id,))
         elif table == "content_chunks":
-            cursor.execute("SELECT chunk_embedding FROM content_chunks WHERE id = ?", (id,))
+            cursor.execute("SELECT chunk_embedding FROM content_chunks WHERE id = ?", (record_id,))
         elif table == "conversation_history":
-            cursor.execute("SELECT conversation_embedding FROM conversation_history WHERE id = ?", (id,))
+            cursor.execute("SELECT conversation_embedding FROM conversation_history WHERE id = ?", (record_id,))
         else:
             raise ValueError(f"Unknown table: {table}")
 

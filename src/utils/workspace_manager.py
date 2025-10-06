@@ -10,6 +10,7 @@ class WorkspaceManager:
     def __init__(self, workspace_path: str):
         self.workspace_path = Path(workspace_path)
         self.catalyst_path = self.workspace_path / ".catalyst"
+        self.learningspace_path = self.workspace_path / ".learningspace"
 
     def initialize_workspace(self) -> bool:
         """Initialize the .catalyst directory and its subdirectories"""
@@ -22,6 +23,13 @@ class WorkspaceManager:
             (self.catalyst_path / "content_chunks").mkdir(exist_ok=True)
             (self.catalyst_path / "reports").mkdir(exist_ok=True)
             (self.catalyst_path / "logs").mkdir(exist_ok=True)
+            
+            # Create .learningspace directory for backward compatibility
+            self.learningspace_path.mkdir(exist_ok=True)
+            (self.learningspace_path / "checkpoints").mkdir(exist_ok=True)
+            (self.learningspace_path / "content_chunks").mkdir(exist_ok=True)
+            (self.learningspace_path / "reports").mkdir(exist_ok=True)
+            (self.learningspace_path / "logs").mkdir(exist_ok=True)
 
             # Create default config.json if it doesn't exist
             config_path = self.catalyst_path / "config.json"
@@ -46,7 +54,7 @@ class WorkspaceManager:
                     json.dump(default_config, f, indent=2)
 
             # Create database file
-            db_path = self.catalyst_path / "data.db"
+            db_path = self.get_database_path()
             if not db_path.exists():
                 # Just create an empty file that will be initialized by DatabaseManager later
                 db_path.touch()
@@ -67,20 +75,20 @@ class WorkspaceManager:
 
     def get_database_path(self) -> Path:
         """Get the path to the database file"""
-        return self.catalyst_path / "data.db"
+        return self.learningspace_path / "data.db"
 
     def get_checkpoints_path(self) -> Path:
         """Get the path to the checkpoints directory"""
-        return self.catalyst_path / "checkpoints"
+        return self.learningspace_path / "checkpoints"
 
     def get_content_chunks_path(self) -> Path:
         """Get the path to the content chunks directory"""
-        return self.catalyst_path / "content_chunks"
+        return self.learningspace_path / "content_chunks"
 
     def get_reports_path(self) -> Path:
         """Get the path to the reports directory"""
-        return self.catalyst_path / "reports"
+        return self.learningspace_path / "reports"
 
     def get_logs_path(self) -> Path:
         """Get the path to the logs directory"""
-        return self.catalyst_path / "logs"
+        return self.learningspace_path / "logs"

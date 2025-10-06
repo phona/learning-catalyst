@@ -1,184 +1,128 @@
 """
 Autocomplete functionality for Learning Catalyst CLI
-Provides intelligent command and argument suggestions
+Provides command and concept autocompletion
 """
-import difflib
-from typing import Any, Dict, List
+import os
+import re
+from typing import Any, Dict, List, Optional
 
 from src.cli.command_palette import CommandPalette
-from src.data.models.concept import Concept
+from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+from src.data.models.extended_models import Message
 
 
-class AutocompleteEngine:
-    """Autocomplete engine for CLI commands and concepts"""
-
-    def __init__(self, command_palette: CommandPalette):
+class AutoCompleter:
+    """Handles autocompletion for commands and concepts"""
+    
+    def __init__(self, command_palette: CommandPalette, workspace_path: str):
         self.command_palette = command_palette
-        self.learned_concepts: List[Concept] = []
-        self.recent_inputs: List[str] = []
-
-    def suggest_commands(self, partial_input: str) -> List[str]:
+        self.workspace_path = workspace_path
+        self.knowledge_navigator = None
+        self._init_knowledge_navigator()
+    
+    def _init_knowledge_navigator(self) -> None:
+        """Initialize the knowledge navigator"""
+        try:
+            learningspace_path = os.path.join(self.workspace_path, ".catalyst")
+            db_path = os.path.join(learningspace_path, "data.db")
+            self.knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
+        except Exception:
+            # If we can't initialize the knowledge navigator, we'll continue without it
+            self.knowledge_navigator = None
+    
+    def get_completions(self, text: str, state: int) -> Optional[str]:
         """
-        Suggest commands based on partial input
-
+        Get completion for the given text
+        
         Args:
-            partial_input: The partially typed command
-
+            text: The current input text
+            state: The state of completion (0 for first call, >0 for subsequent calls)
+            
         Returns:
-            List of suggested commands sorted by relevance
+            The next completion or None if no more completions
         """
-        if not partial_input.startswith('/'):
-            return []
-
-        # Extract the command part (after /)
-        command_part = partial_input[1:].strip().split()
-        if not command_part:
-            # If only "/" is typed, suggest all commands
-            all_commands = [f"/{cmd.name}" for cmd in self.command_palette.get_command_list()]
-            return sorted(all_commands)[:10]  # Limit to top 10
-
-        typed_command = command_part[0].lower()
-
-        # Get all available commands
-        all_commands = []
-        for cmd in self.command_palette.get_command_list():
-            all_commands.append(cmd.name)
-            all_commands.extend(cmd.aliases)
-
-        # Find close matches using difflib
-        matches = difflib.get_close_matches(typed_command, all_commands, n=5, cutoff=0.3)
-
-        # Add prefix and sort by length (shorter first)
-        suggestions = [f"/{match}" for match in matches]
-        return sorted(suggestions, key=len)
-
-    def suggest_concepts(self, partial_text: str) -> List[str]:
-        """
-        Suggest learned concepts based on partial text
-
-        Args:
-            partial_text: The partially typed concept name
-
-        Returns:
-            List of suggested concepts sorted by relevance
-        """
-        if not partial_text:
-            return []
-
-        # Get concept names
-        concept_names = [concept.name for concept in self.learned_concepts]
-
-        # Find close matches
-        matches = difflib.get_close_matches(partial_text.lower(),
-                                          [name.lower() for name in concept_names],
-                                          n=5, cutoff=0.3)
-
-        # Return original case names
-        result = []
-        for match in matches:
-            for concept in self.learned_concepts:
-                if concept.name.lower() == match:
-                    result.append(concept.name)
-                    break
-
-        return result
-
-    def update_learned_concepts(self, concepts: List[Concept]) -> None:
-        """
-        Update the list of learned concepts for suggestions
-
-        Args:
-            concepts: List of concepts to use for suggestions
-        """
-        self.learned_concepts = concepts
-
-    def add_recent_input(self, input_text: str) -> None:
-        """
-        Add input to recent history for better suggestions
-
-        Args:
-            input_text: The input text to add to history
-        """
-        self.recent_inputs.append(input_text)
-        # Keep only last 50 inputs
-        if len(self.recent_inputs) > 50:
-            self.recent_inputs = self.recent_inputs[-50:]
-
-    def get_context_aware_suggestions(self, current_input: str, context: Dict[str, Any]) -> List[str]:
-        """
-        Get context-aware suggestions based on current input and application context
-
-        Args:
-            current_input: The current user input
-            context: Application context including state, recent commands, etc.
-
-        Returns:
-            List of contextually relevant suggestions
-        """
-        suggestions = []
-
-        # If it starts with /, suggest commands
-        if current_input.startswith('/'):
-            suggestions.extend(self.suggest_commands(current_input))
+        # Store completions between calls
+        if not hasattr(self, '_completions'):
+            self._completions = []
+            self._completion_index = 0
+        
+        # If state is 0, we're starting a new completion
+        if state == 0:
+            self._completions = self._get_matching_completions(text)
+            self._completion_index = 0
+        
+        # Return the current completion or None if we've exhausted all completions
+        if self._completion_index < len(self._completions):
+            completion = self._completions[self._completion_index]
+            self._completion_index += 1
+            return completion
+        
+        return None
+    
+    def _get_matching_completions(self, text: str) -> List[str]:
+        """Get all matching completions for the given text"""
+        completions = []
+        
+        # If text starts with /, we're completing a command
+        if text.startswith('/'):
+            command_completions = self._get_command_completions(text)
+            completions.extend(command_completions)
         else:
-            # For regular text, suggest concepts if we're in a learning context
-            if context.get('mode') == 'learning':
-                suggestions.extend(self.suggest_concepts(current_input))
-
-            # Add recent inputs that are similar
-            if current_input:
-                recent_matches = difflib.get_close_matches(
-                    current_input.lower(),
-                    [inp.lower() for inp in self.recent_inputs],
-                    n=3,
-                    cutoff=0.4
-                )
-                suggestions.extend(recent_matches)
-
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_suggestions = []
-        for suggestion in suggestions:
-            if suggestion not in seen:
-                seen.add(suggestion)
-                unique_suggestions.append(suggestion)
-
-        return unique_suggestions[:10]  # Limit to 10 suggestions
-
-    def get_argument_suggestions(self, command: str, argument_position: int,
-                               partial_argument: str) -> List[str]:
-        """
-        Get suggestions for command arguments
-
-        Args:
-            command: The command name
-            argument_position: Position of the argument (0-indexed)
-            partial_argument: Partially typed argument
-
-        Returns:
-            List of suggested arguments
-        """
-        cmd_info = self.command_palette.get_command_by_name(command.replace('/', ''))
-        if not cmd_info:
-            return []
-
-        suggestions = []
-
-        # Special handling for specific commands
-        if cmd_info.name == "checkpoint":
-            if argument_position == 0:
-                # First argument for checkpoint command is action
-                actions = ["save", "load", "list"]
-                suggestions = difflib.get_close_matches(partial_argument, actions, n=3, cutoff=0.3)
-            elif argument_position == 1 and partial_argument:
-                # Second argument could be checkpoint name
-                # In a real implementation, this would fetch actual checkpoint names
-                suggestions = ["recent_checkpoint", "last_session", "beginner_concepts"]
-
-        elif cmd_info.name == "help":
-            if argument_position == 0 and partial_argument:
-                # Help command argument is another command name
-                all_commands = [cmd.name for cmd in self.command_palette.get_command_list()]
-                suggestions = difflib.get_close_matches(partial_argument, all_commands, n=5, cutoff=0.3)
-
-        return suggestions
+            # Check if we're in a command that takes concept arguments
+            concept_completions = self._get_concept_completions(text)
+            completions.extend(concept_completions)
+        
+        return completions
+    
+    def _get_command_completions(self, text: str) -> List[str]:
+        """Get command completions for the given text"""
+        completions = []
+        
+        # Get command suggestions from the command palette
+        command_suggestions = self.command_palette.get_autocomplete_suggestions(text)
+        completions.extend(command_suggestions)
+        
+        return completions
+    
+    def _get_concept_completions(self, text: str) -> List[str]:
+        """Get concept completions for the given text"""
+        completions = []
+        
+        # Get concept suggestions from the command palette
+        context = {'workspace_path': self.workspace_path}
+        concept_suggestions = self.command_palette.get_concept_suggestions(text, context)
+        completions.extend(concept_suggestions)
+        
+        return completions
+    
+    def setup_readline_completion(self) -> None:
+        """Set up readline completion for the CLI"""
+        try:
+            import readline
+            
+            # Set up the completer function
+            readline.set_completer(self.get_completions)
+            
+            # Enable tab completion
+            readline.parse_and_bind("tab: complete")
+            
+            # Set up history
+            history_file = os.path.join(self.workspace_path, ".catalyst", "history")
+            if os.path.exists(history_file):
+                readline.read_history_file(history_file)
+            
+            # Set up history saving on exit
+            import atexit
+            atexit.register(readline.write_history_file, history_file)
+            
+        except ImportError:
+            # readline is not available on all platforms
+            pass
+    
+    def get_command_history(self, limit: int = 10) -> List[str]:
+        """Get recent command history"""
+        return self.command_palette.get_command_history()[:limit]
+    
+    def add_to_command_history(self, command: str) -> None:
+        """Add a command to the history"""
+        self.command_palette.add_to_history(command)

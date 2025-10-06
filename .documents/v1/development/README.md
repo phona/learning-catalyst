@@ -31,11 +31,11 @@
 - **CRITICAL PENDING: Integration with local Markdown files for content-aware responses**
 
 **Success Criteria**:
-- [x] Functional CLI with basic conversation flow
-- [x] Working state persistence
-- [x] Configurable AI model support
-- [x] Command palette access to core features
-- [x] Efficient autocomplete functionality
+- [ ] Functional CLI with basic conversation flow
+- [ ] Working state persistence
+- [ ] Configurable AI model support
+- [ ] Command palette access to core features
+- [ ] Efficient autocomplete functionality
 - [ ] Guided startup with proactive suggestions (START-R1)
 - [ ] Context-aware learning with local Markdown files (CTX-R1)
 
@@ -51,10 +51,10 @@
 - Challenge generation system
 
 **Success Criteria**:
-- [x] Comprehensive knowledge map
-- [x] Effective concept relationships
-- [x] Accurate search results
-- [x] Personalized recommendations
+- [ ] Comprehensive knowledge map
+- [ ] Effective concept relationships
+- [ ] Accurate search results
+- [ ] Personalized recommendations
 
 ### Phase 3: Advanced Features and Optimization
 **Objective**: Enhance user experience with advanced capabilities and optimizations

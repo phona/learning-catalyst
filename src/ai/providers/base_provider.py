@@ -35,7 +35,7 @@ class BaseProvider(ModelProvider):
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{credentials.base_url or self.base_url}/models", 
+                    f"{credentials.base_url or self.base_url}/models",
                     headers=headers
                 )
                 return response.status_code == 200
@@ -199,11 +199,6 @@ Return a JSON array with objects containing "document" (the original text) and "
             "temperature": 0.1
         }
 
-        result = await self._provider._make_request("chat/completions", payload)
-        
-        # Parse the response to extract rankings
-        content = result["choices"][0]["message"]["content"]
-        
         # For now, return a simple ranking based on document order
         results = []
         for i, doc in enumerate(documents[:top_k]):

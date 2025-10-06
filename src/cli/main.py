@@ -36,15 +36,24 @@ def start_learning(
     from ai.service import ModelAbstractionService
     from core.catalyst_agent import CatalystAgentImpl
     from core.knowledge_navigator import SQLiteKnowledgeNavigator
+    from core.state_manager import StateManager
+    from core.startup_guide import StartupGuide
     from utils.preferences_manager import PreferencesManager
 
     # Initialize the workspace and start the application
     learningspace_path = os.path.join(workspace_path, ".catalyst")
+    is_first_time = not os.path.exists(learningspace_path)
 
-    if not os.path.exists(learningspace_path):
+    if is_first_time:
         os.makedirs(learningspace_path)
         # Initialize database, preferences, etc.
         print("[bold blue]Created new learning space at:[/bold blue] " + learningspace_path)
+
+    # Initialize core components
+    db_path = os.path.join(learningspace_path, "data.db")
+    knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
+    state_manager = StateManager(workspace_path)
+    startup_guide = StartupGuide(workspace_path, knowledge_navigator, state_manager)
 
     # Initialize preferences manager
     prefs_manager = PreferencesManager(workspace_path)
@@ -53,14 +62,26 @@ def start_learning(
     default_provider = prefs_manager.get_preference('ai.default_provider')
     default_model = prefs_manager.get_preference('ai.default_model')
 
+    # Check if there's a previous state
+    has_previous_state = False
+    try:
+        previous_state = asyncio.run(state_manager.load_last_state())
+        has_previous_state = previous_state is not None
+    except Exception:
+        has_previous_state = False
+
+    # Display context-aware startup message
+    console = Console()
+    startup_message = asyncio.run(startup_guide.generate_startup_message(is_first_time, has_previous_state))
+    console.print(Panel.fit(
+        startup_message,
+        title="🎓 Learning Catalyst 🚀",
+        border_style="green" if is_first_time else "blue",
+        padding=(1, 2)
+    ))
+
+    # If AI provider is not configured, prompt the user
     if not default_provider or not default_model:
-        # Welcome message with rich formatting
-        console = Console()
-        console.print(Panel.fit(
-            "🎓 [bold green]Welcome to Learning Catalyst![/bold green] 🚀",
-            border_style="green",
-            padding=(1, 1)
-        ))
         console.print("[bold yellow]Let's configure your AI provider to get started.[/bold yellow]")
         console.print("\n[bold]Supported providers:[/bold]")
         providers = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek", "local"]
@@ -105,50 +126,26 @@ def start_learning(
         console.print(f"\n[bold green]✅ AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
         console.print("[green]You're now ready to start learning![/green]")
 
-        # Provide post-setup guidance
-        console.print("\n[bold blue]🎯 Getting Started Guide:[/bold blue]")
-        console.print("  1. [bold]Explore Concepts:[/bold] Use the [cyan]/concepts[/cyan] command "
-                      "to see available learning materials")
-        console.print("  2. [bold]Start Learning:[/bold] Select a concept to begin your learning journey")
-        console.print("  3. [bold]Practice:[/bold] Answer AI-generated questions to test your understanding")
-        console.print("  4. [bold]Track Progress:[/bold] Your learning progress is automatically saved")
+    # Get user profile for contextual suggestions
+    user_profile = {
+        "ai_config": {
+            "default_provider": prefs_manager.get_preference('ai.default_provider'),
+            "default_model": prefs_manager.get_preference('ai.default_model')
+        },
+        "learning_style": prefs_manager.get_preference('learning.style') or 'intermediate'
+    }
 
-        console.print("\n[bold blue]💡 Quick Tips:[/bold blue]")
-        console.print("  • Type [cyan]/help[/cyan] anytime to see all available commands")
-        console.print("  • Use [cyan]/config[/cyan] to view or change your AI configuration")
-        console.print("  • Use [cyan]/models[/cyan] to see available models")
-        console.print("  • Use [cyan]/tokens[/cyan] to view token usage statistics")
-        console.print("  • Use [cyan]/knowledge-map[/cyan] to view the knowledge structure")
-        console.print("  • Press [cyan]Ctrl+C[/cyan] to clear your input, [cyan]Ctrl+D[/cyan] to exit")
-
-        console.print("\n[green]Let's begin![/green] Type [cyan]/concepts[/cyan] to see available learning materials.")
-    else:
-        # If already configured, welcome back
-        current_provider = prefs_manager.get_preference('ai.default_provider')
-        current_model = prefs_manager.get_preference('ai.default_model')
-        console = Console()
-        console.print(Panel.fit(
-            "🎓 [bold green]Welcome back to Learning Catalyst![/bold green] 🚀",
-            border_style="blue",
-            padding=(1, 1)
-        ))
-        console.print(f"[green]Using AI configuration:[/green] [cyan]{current_provider} - {current_model}[/cyan]")
-
-        # Provide returning user guidance
-        console.print("\n[bold blue]🎯 Continue Your Learning Journey:[/bold blue]")
-        console.print("  • Use [cyan]/concepts[/cyan] to see available learning materials")
-        console.print("  • Resume where you left off or explore new topics")
-        console.print("  • Your progress is automatically saved between sessions")
-
-        console.print("\n[bold blue]💡 Quick Reminders:[/bold blue]")
-        console.print("  • Type [cyan]/help[/cyan] to see all available commands")
-        console.print("  • Use [cyan]/config[/cyan] to view or change your AI configuration")
-        console.print("  • Use [cyan]/models[/cyan] to see available models")
-        console.print("  • Use [cyan]/tokens[/cyan] to view token usage statistics")
-        console.print("  • Use [cyan]/knowledge-map[/cyan] to view the knowledge structure")
-        console.print("  • Press [cyan]Ctrl+C[/cyan] to clear your input, [cyan]Ctrl+D[/cyan] to exit")
-
-        console.print("\n[green]Ready to continue learning![/green] Type [cyan]/concepts[/cyan] to get started.")
+    # Generate and display contextual suggestions
+    try:
+        suggestions = asyncio.run(startup_guide.get_contextual_suggestions(user_profile))
+        if suggestions:
+            console.print("\n[bold blue]💡 Suggestions for you:[/bold blue]")
+            for i, suggestion in enumerate(suggestions, 1):
+                console.print(f"\n[cyan]{i}. {suggestion['title']}[/cyan]")
+                console.print(f"   {suggestion['description']}")
+                console.print(f"   [green]Command: {suggestion['command']}[/green]")
+    except Exception as e:
+        console.print(f"[yellow]Note: Could not load suggestions: {str(e)}[/yellow]")
 
     # Launch the main application loop with beautiful formatting
     console = Console()

@@ -100,11 +100,7 @@ class CatalystAgentImpl(CatalystAgent):
                 )
             ]
             
-            response = await self.model_service.send_message(
-                provider=context.user_profile.get("ai_config", {}).get("default_provider", "openai"),
-                model=context.user_profile.get("ai_config", {}).get("default_model", "gpt-4"),
-                messages=messages
-            )
+            response = await self.model_service.send_message(messages=messages)
             
             return response.content
             
@@ -136,11 +132,7 @@ class CatalystAgentImpl(CatalystAgent):
             )
         ]
         
-        response = await self.model_service.send_message(
-            provider=context.user_profile.get("ai_config", {}).get("default_provider", "openai"),
-            model=context.user_profile.get("ai_config", {}).get("default_model", "gpt-4"),
-            messages=messages
-        )
+        response = await self.model_service.send_message(messages=messages)
         
         return response.content
 
@@ -173,11 +165,7 @@ class CatalystAgentImpl(CatalystAgent):
                 )
             ]
         
-        response = await self.model_service.send_message(
-            provider=context.user_profile.get("ai_config", {}).get("default_provider", "openai"),
-            model=context.user_profile.get("ai_config", {}).get("default_model", "gpt-4"),
-            messages=messages
-        )
+        response = await self.model_service.send_message(messages=messages)
         
         return response.content
 
@@ -212,11 +200,7 @@ class CatalystAgentImpl(CatalystAgent):
             )
         ]
         
-        response = await self.model_service.send_message(
-            provider=user_profile.get("ai_config", {}).get("default_provider", "openai"),
-            model=user_profile.get("ai_config", {}).get("default_model", "gpt-4"),
-            messages=messages
-        )
+        response = await self.model_service.send_message(messages=messages)
         
         return response.content
 
@@ -233,11 +217,7 @@ class CatalystAgentImpl(CatalystAgent):
             )
         ]
         
-        response = await self.model_service.send_message(
-            provider=context.get("provider", "openai"),
-            model=context.get("model", "gpt-4"),
-            messages=messages
-        )
+        response = await self.model_service.send_message(messages=messages)
         
         # Parse the response to extract challenge details
         # This is a simplified implementation - in reality, you might want to use structured outputs
@@ -263,11 +243,7 @@ class CatalystAgentImpl(CatalystAgent):
             )
         ]
         
-        response = await self.model_service.send_message(
-            provider=context.get("provider", "openai"),
-            model=context.get("model", "gpt-4"),
-            messages=messages
-        )
+        response = await self.model_service.send_message(messages=messages)
 
         # Determine correctness from the AI response
         # This is a simplified heuristic - in a real implementation, we'd use more sophisticated parsing
@@ -299,11 +275,7 @@ class CatalystAgentImpl(CatalystAgent):
             )
         ]
         
-        await self.model_service.send_message(
-            provider=profile.get("ai_config", {}).get("default_provider", "openai"),
-            model=profile.get("ai_config", {}).get("default_model", "gpt-4"),
-            messages=messages
-        )
+        await self.model_service.send_message(messages=messages)
         
         # In a real implementation, we would need to parse the response to get concept IDs
         # and then look them up in the database

@@ -75,6 +75,7 @@ class Message:
 class AIResponse:
     content: str
     model: str
+    provider: str
     usage: Dict[str, int]  # tokens used
     timestamp: str
 

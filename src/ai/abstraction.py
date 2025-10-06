@@ -33,6 +33,7 @@ class ModelProvider(ABC):
 
 
 class Model(ABC):
+    """Abstract base class for all models."""
     @abstractmethod
     async def get_provider(self) -> ModelProvider: ...
     @abstractmethod
@@ -65,11 +66,16 @@ class RerankModel(Model):
 
 
 ConfiguredModels = NamedTuple(
-    "ConfiguredModels", [("chat_model", Optional[ChatModel]), ("embedding_model", Optional[EmbeddingModel]), ("rerank_model", Optional[RerankModel])]
+    "ConfiguredModels", [
+        ("chat_model", Optional[ChatModel]),
+        ("embedding_model", Optional[EmbeddingModel]),
+        ("rerank_model", Optional[RerankModel])
+    ]
 )
 
 
 class ModelAbstractionLayer(ABC):
+    """Abstract layer for model abstraction."""
     @abstractmethod
     async def send_message(
         self, messages: List[Message], temperature: float = 0.7
@@ -93,10 +99,12 @@ class ModelAbstractionLayer(ABC):
 
     @abstractmethod
     async def set_chat_model(self) -> None:
+        """Set the chat model to use."""
         pass
 
     @abstractmethod
     async def set_embedding_model(self) -> None:
+        """Set the embedding model to use."""
         pass
 
     @abstractmethod
@@ -104,7 +112,7 @@ class ModelAbstractionLayer(ABC):
         pass
 
     @abstractmethod
-    def inused_models(self) -> ConfiguredModels: 
+    def inused_models(self) -> ConfiguredModels:
         """Get currently in-use models"""
         pass
 

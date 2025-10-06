@@ -2,6 +2,7 @@
 Database manager implementation with SQLite
 """
 import json
+import os
 import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -17,6 +18,8 @@ class DatabaseManager:
 
     def _init_db(self):
         """Initialize the database with the required tables"""
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
