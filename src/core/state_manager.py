@@ -50,7 +50,7 @@ class StateManager:
         # Create a backup of the current state file if it exists
         if self.state_file.exists():
             await self._create_backup()
-        
+
         state_dict = {
             "user_profile": state.user_profile,
             "conversation_context": state.conversation_context,
@@ -62,31 +62,31 @@ class StateManager:
         try:
             with open(self.state_file, 'w', encoding='utf-8') as f:
                 json.dump(state_dict, f, indent=2, ensure_ascii=False)
-            
+
             self.formatter.format_success("State saved successfully")
         except (IOError, PermissionError) as e:
             self.formatter.format_error(f"Failed to save state: {str(e)}")
-    
+
     async def _create_backup(self) -> None:
         """Create a backup of the current state file"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = self.backup_dir / f"state_backup_{timestamp}.json"
-        
+
         try:
             shutil.copy2(self.state_file, backup_file)
-            
+
             # Clean up old backups if we have too many
             await self._cleanup_old_backups()
         except (IOError, PermissionError) as e:
             self.formatter.format_warning(f"Failed to create backup: {str(e)}")
-    
+
     async def _cleanup_old_backups(self) -> None:
         """Remove old backup files, keeping only the most recent ones"""
         backup_files = list(self.backup_dir.glob("state_backup_*.json"))
-        
+
         # Sort by modification time (oldest first)
         backup_files.sort(key=lambda f: f.stat().st_mtime)
-        
+
         # Remove excess backups
         while len(backup_files) > self.max_backups:
             oldest_file = backup_files.pop(0)

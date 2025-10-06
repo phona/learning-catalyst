@@ -26,7 +26,7 @@ def knowledge_map():
     db_manager = DatabaseManager(db_path)
     model_service = ModelAbstractionService()
     prefs_manager = PreferencesManager(workspace_path)
-    
+
     # Note: Providers and models are configured by the user during first-time setup
     # The model service will be set up with the user's preferred configuration
 

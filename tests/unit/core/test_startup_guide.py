@@ -100,7 +100,7 @@ class TestStartupGuide:
             current_state_metadata={"last_access": datetime.now().isoformat()}
         )
         mock_state_manager.load_last_state.return_value = mock_state
-        
+
         concepts = [
             Concept(
                 id="python-basics",

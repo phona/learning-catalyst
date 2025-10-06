@@ -196,92 +196,92 @@ class CommandPalette:
     def get_command_by_name(self, name: str) -> Optional[CommandInfo]:
         """Get command by name or alias"""
         return self.commands.get(name.lower())
-    
+
     def add_to_history(self, command: str) -> None:
         """Add a command to the history"""
         # Don't add empty commands or duplicates of the last command
         if not command or (self.command_history and self.command_history[-1] == command):
             return
-        
+
         self.command_history.append(command)
-        
+
         # Limit history size
         if len(self.command_history) > 100:
             self.command_history = self.command_history[-100:]
-    
+
     def get_command_history(self, reverse: bool = True) -> List[str]:
         """Get command history, most recent first by default"""
         if reverse:
             return list(reversed(self.command_history))
         return self.command_history.copy()
-    
+
     def get_autocomplete_suggestions(self, partial_input: str) -> List[str]:
         """
         Get autocomplete suggestions for a partial command input
-        
+
         Args:
             partial_input: The partial command string (may or may not include / prefix)
-            
+
         Returns:
             List of suggested command completions
         """
         suggestions = []
-        
+
         # If input starts with /, we're completing a command
         if partial_input.startswith('/'):
             command_part = partial_input[1:].lower()
-            
+
             # Find matching commands
             for name, command_info in self.commands.items():
                 if name.lower().startswith(command_part):
                     suggestions.append(f"/{name}")
-        
+
         return suggestions
-    
+
     def get_concept_suggestions(self, partial_input: str, context: Dict[str, Any]) -> List[str]:
         """
         Get concept suggestions for a partial input
-        
+
         Args:
             partial_input: The partial input string
             context: Context data including workspace path
-            
+
         Returns:
             List of suggested concept names
         """
         suggestions = []
-        
+
         try:
             # Import required modules inside the method to avoid circular imports
             from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
             import os
             import asyncio
-            
+
             # Get workspace path from context
             workspace_path = context.get('workspace_path', '.')
-            
+
             # Initialize knowledge navigator
             learningspace_path = os.path.join(workspace_path, ".catalyst")
             db_path = os.path.join(learningspace_path, "data.db")
             knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-            
+
             # Get available concepts
             concepts = asyncio.run(knowledge_navigator.get_available_concepts())
-            
+
             # Find matching concepts
             partial_lower = partial_input.lower()
             for concept in concepts:
                 if concept.title.lower().startswith(partial_lower):
                     suggestions.append(concept.title)
-            
+
             # Limit suggestions
             if len(suggestions) > 10:
                 suggestions = suggestions[:10]
-                
+
         except Exception:
             # If we can't get concepts, return empty list
             pass
-        
+
         return suggestions
 
     def _help_command(self, args: List[str], context: Dict[str, Any]) -> None:
@@ -470,20 +470,20 @@ class CommandPalette:
 
             # Get workspace path from context
             workspace_path = context.get('workspace_path', '.')
-            
+
             # Initialize knowledge navigator
             learningspace_path = os.path.join(workspace_path, ".catalyst")
             db_path = os.path.join(learningspace_path, "data.db")
             knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-            
+
             # Get available concepts
             import asyncio
             concepts = asyncio.run(knowledge_navigator.get_available_concepts())
-            
+
             if not concepts:
                 self.cli_interface.display_message(
                     Message(
-                        role="system", 
+                        role="system",
                         content="No concepts found. Please make sure you have Markdown files in your workspace."
                     )
                 )
@@ -496,17 +496,17 @@ class CommandPalette:
                 if hasattr(concept, 'prerequisites') and concept.prerequisites:
                     content += f"  Prerequisites: {', '.join(concept.prerequisites)}\n"
                 content += "\n"
-            
+
             if len(concepts) > 20:
                 content += f"... and {len(concepts) - 20} more concepts\n\n"
-            
+
             content += "💡 Tip: Use /explain <concept-name> to learn more about a specific concept\n"
             content += "💡 Tip: Use /quiz <concept-name> to test your knowledge\n"
-            
+
             self.cli_interface.display_message(
                 Message(role="system", content=content)
             )
-            
+
         except Exception as e:
             self.cli_interface.display_message(
                 Message(role="system", content=f"Error retrieving concepts: {str(e)}")
@@ -517,7 +517,7 @@ class CommandPalette:
         if not args:
             self.cli_interface.display_message(
                 Message(
-                    role="system", 
+                    role="system",
                     content="Usage: /explain <concept-name>\nPlease specify what you'd like to learn about."
                 )
             )
@@ -532,45 +532,45 @@ class CommandPalette:
 
             # Get workspace path from context
             workspace_path = context.get('workspace_path', '.')
-            
+
             # Initialize components
             model_service = ModelAbstractionService()
-            
+
             # Get preferences manager to retrieve user's preferred provider and model
             from src.utils.preferences_manager import PreferencesManager
             prefs_manager = PreferencesManager(workspace_path)
-            
+
             # Get user's preferred provider and model
             default_provider = prefs_manager.get_preference('ai.default_provider')
             default_model = prefs_manager.get_preference('ai.default_model')
-            
+
             # Note: Providers will be configured by the user through the /models command
             # The model service will be set up with the user's preferred configuration
-            
+
             learningspace_path = os.path.join(workspace_path, ".catalyst")
             db_path = os.path.join(learningspace_path, "data.db")
-            
+
             from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
             knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-            
+
             catalyst_agent = CatalystAgentImpl(model_service, knowledge_navigator=knowledge_navigator)
-            
+
             # Search for the requested concept
             import asyncio
             concept_name = " ".join(args)
             concepts = asyncio.run(knowledge_navigator.get_available_concepts())
-            
+
             # Find matching concept (simple matching for now)
             target_concept = None
             for concept in concepts:
                 if concept_name.lower() in concept.title.lower():
                     target_concept = concept
                     break
-            
+
             if not target_concept:
                 self.cli_interface.display_message(
                     Message(
-                        role="system", 
+                        role="system",
                         content=f"No concept found matching '{concept_name}'. Try using /concepts to see available topics."
                     )
                 )
@@ -578,17 +578,17 @@ class CommandPalette:
 
             # Generate explanation using the catalyst agent
             explanation = asyncio.run(catalyst_agent.generate_explanation(
-                target_concept, 
+                target_concept,
                 {"learning_level": "intermediate"}
             ))
-            
+
             self.cli_interface.display_message(
                 Message(
-                    role="system", 
+                    role="system",
                     content=f"📘 Explanation: {target_concept.title}\n\n{explanation}"
                 )
             )
-            
+
         except Exception as e:
             self.cli_interface.display_message(
                 Message(role="system", content=f"Error generating explanation: {str(e)}")
@@ -599,7 +599,7 @@ class CommandPalette:
         if not args:
             self.cli_interface.display_message(
                 Message(
-                    role="system", 
+                    role="system",
                     content="Usage: /quiz <concept-name>\nPlease specify what you'd like to be quizzed on."
                 )
             )
@@ -614,36 +614,36 @@ class CommandPalette:
 
             # Get workspace path from context
             workspace_path = context.get('workspace_path', '.')
-            
+
             # Initialize components
             model_service = ModelAbstractionService()
             # Note: In a real implementation, we would properly configure the provider
             # For now, we'll proceed with the configuration
-            
+
             learningspace_path = os.path.join(workspace_path, ".catalyst")
             db_path = os.path.join(learningspace_path, "data.db")
-            
+
             from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
             knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-            
+
             catalyst_agent = CatalystAgentImpl(model_service, knowledge_navigator=knowledge_navigator)
-            
+
             # Search for the requested concept
             import asyncio
             concept_name = " ".join(args)
             concepts = asyncio.run(knowledge_navigator.get_available_concepts())
-            
+
             # Find matching concept (simple matching for now)
             target_concept = None
             for concept in concepts:
                 if concept_name.lower() in concept.title.lower():
                     target_concept = concept
                     break
-            
+
             if not target_concept:
                 self.cli_interface.display_message(
                     Message(
-                        role="system", 
+                        role="system",
                         content=f"No concept found matching '{concept_name}'. Try using /concepts to see available topics."
                     )
                 )
@@ -651,17 +651,17 @@ class CommandPalette:
 
             # Generate challenge using the catalyst agent
             challenge_data = asyncio.run(catalyst_agent.generate_challenge(
-                target_concept, 
+                target_concept,
                 {"challenge_type": "multiple-choice", "difficulty": "medium"}
             ))
-            
+
             self.cli_interface.display_message(
                 Message(
-                    role="system", 
+                    role="system",
                     content=f"❓ Challenge: {target_concept.title}\n\n{challenge_data.get('challenge_text', 'Challenge content not available.')}"
                 )
             )
-            
+
         except Exception as e:
             self.cli_interface.display_message(
                 Message(role="system", content=f"Error generating challenge: {str(e)}")
@@ -677,16 +677,16 @@ class CommandPalette:
 
             # Get workspace path from context
             workspace_path = context.get('workspace_path', '.')
-            
+
             # Initialize knowledge navigator
             learningspace_path = os.path.join(workspace_path, ".catalyst")
             db_path = os.path.join(learningspace_path, "data.db")
             knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-            
+
             # Get available concepts
             import asyncio
             concepts = asyncio.run(knowledge_navigator.get_available_concepts())
-            
+
             if not concepts:
                 self.cli_interface.display_message(
                     Message(
@@ -699,22 +699,22 @@ class CommandPalette:
             # Format and display knowledge map
             content = "🗺️  Knowledge Map:\n\n"
             content += "  Concepts:\n"
-            
+
             for concept in concepts:
                 content += f"    • {concept.title} (ID: {concept.id})\n"
-            
+
             content += "\n  Relationships:\n"
-            
+
             # For now, we'll show a simple relationship structure
             # In a real implementation, this would be more sophisticated
             content += "    • Hierarchical relationships based on document structure\n"
-            
+
             content += "\n💡 Tip: Use /explain <concept-name> to learn more about a specific concept"
-            
+
             self.cli_interface.display_message(
                 Message(role="system", content=content)
             )
-            
+
         except Exception as e:
             self.cli_interface.display_message(
                 Message(role="system", content=f"Error displaying knowledge map: {str(e)}")

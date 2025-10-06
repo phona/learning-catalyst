@@ -23,7 +23,7 @@ class WorkspaceManager:
             (self.catalyst_path / "content_chunks").mkdir(exist_ok=True)
             (self.catalyst_path / "reports").mkdir(exist_ok=True)
             (self.catalyst_path / "logs").mkdir(exist_ok=True)
-            
+
             # Create .learningspace directory for backward compatibility
             self.learningspace_path.mkdir(exist_ok=True)
             (self.learningspace_path / "checkpoints").mkdir(exist_ok=True)

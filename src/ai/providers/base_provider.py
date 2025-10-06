@@ -18,16 +18,16 @@ from .utils import make_http_request
 
 class BaseProvider(ModelProvider):
     """Base provider class with common functionality for all AI providers."""
-    
+
     def __init__(self, api_key: Optional[str] = None, base_url: str = ""):
         self.api_key = api_key
         self.base_url = base_url
-    
+
     @property
     def name(self) -> str:
         """Get the name of the provider - to be implemented by subclasses"""
         raise NotImplementedError("Subclasses must implement the name property")
-    
+
     async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
         """Validate API credentials"""
         try:
@@ -41,7 +41,7 @@ class BaseProvider(ModelProvider):
                 return response.status_code == 200
         except Exception:
             return False
-    
+
     async def list_available_models(self) -> List[Model]:
         """Get list of available models"""
         headers = self._get_headers()
@@ -50,31 +50,31 @@ class BaseProvider(ModelProvider):
             response = await client.get(f"{self.base_url}/models", headers=headers)
             response.raise_for_status()
             data = response.json()
-            
+
             models = []
             for model_data in data["data"]:
                 model_id = model_data["id"]
                 model = self._create_model_instance(model_id)
                 if model:
                     models.append(model)
-            
+
             return models
-    
+
     async def _make_request(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Helper method to make HTTP requests to API"""
         headers = self._get_headers()
         return await make_http_request(self.base_url, endpoint, headers, payload)
-    
+
     def _get_headers(self, credentials: Optional[Credentials] = None) -> Dict[str, str]:
         """Get headers for API requests - to be implemented by subclasses"""
         headers = {"Content-Type": "application/json"}
-        
+
         api_key = credentials.api_key if credentials else self.api_key
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        
+
         return headers
-    
+
     def _create_model_instance(self, model_id: str) -> Optional[Model]:
         """Create appropriate model instance based on model type - to be implemented by subclasses"""
         raise NotImplementedError("Subclasses must implement _create_model_instance")
@@ -82,7 +82,7 @@ class BaseProvider(ModelProvider):
 
 class BaseChatModel(ChatModel):
     """Base chat model with common functionality."""
-    
+
     def __init__(self, provider: BaseProvider, model_id: str):
         self._provider = provider
         self._model_id = model_id
@@ -105,14 +105,14 @@ class BaseChatModel(ChatModel):
         }
 
         result = await self._provider._make_request("chat/completions", payload)
-        
+
         return AIResponse(
             content=result["choices"][0]["message"]["content"],
             model=self._model_id,
             usage=self._extract_usage(result),
             timestamp=datetime.now().isoformat()
         )
-    
+
     def _extract_usage(self, result: Dict[str, Any]) -> Dict[str, int]:
         """Extract usage information from API response"""
         return {
@@ -124,7 +124,7 @@ class BaseChatModel(ChatModel):
 
 class BaseEmbeddingModel(EmbeddingModel):
     """Base embedding model with common functionality."""
-    
+
     def __init__(self, provider: BaseProvider, model_id: str):
         self._provider = provider
         self._model_id = model_id
@@ -143,18 +143,18 @@ class BaseEmbeddingModel(EmbeddingModel):
             "model": self._model_id,
             "input": texts
         }
-        
+
         if dimensions:
             payload["dimensions"] = dimensions
 
         result = await self._provider._make_request("embeddings", payload)
-        
+
         return EmbeddingResponse(
             embeddings=[item["embedding"] for item in result["data"]],
             model=self._model_id,
             usage=self._extract_usage(result)
         )
-    
+
     def _extract_usage(self, result: Dict[str, Any]) -> Dict[str, int]:
         """Extract usage information from API response"""
         return {
@@ -166,7 +166,7 @@ class BaseEmbeddingModel(EmbeddingModel):
 
 class BaseRerankModel(RerankModel):
     """Base rerank model with common functionality."""
-    
+
     def __init__(self, provider: BaseProvider, model_id: str):
         self._provider = provider
         self._model_id = model_id
@@ -209,7 +209,7 @@ Return a JSON array with objects containing "document" (the original text) and "
                 "relevance_score": max(0.0, relevance_score),
                 "index": i
             })
-        
+
         return RerankResponse(
             results=results,
             model=self._model_id

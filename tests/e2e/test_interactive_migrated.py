@@ -33,13 +33,13 @@ def run_command(process, command, wait_time=2):
 
 class TestInteractive:
     """Test class for interactive functionality"""
-    
+
     def test_basic_interactive_functionality(self, test_environment):
         """Test basic interactive functionality"""
         # Start the application
         # Get the path to the project directory
         project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        
+
         process = subprocess.Popen(
             [sys.executable, "-m", "src.cli.main", "start-learning"],
             stdin=subprocess.PIPE,
@@ -49,19 +49,19 @@ class TestInteractive:
             cwd=project_dir,
             env={**os.environ, "PYTHONPATH": project_dir}
         )
-        
+
         try:
             # Wait for the application to start
             time.sleep(3)
-            
+
             # Check if process is running
             assert process.poll() is None, "Application failed to start"
-            
+
             # Test basic commands
             assert run_command(process, "/help"), "Help command failed"
             assert run_command(process, "/config"), "Config command failed"
             assert run_command(process, "/quit"), "Quit command failed"
-            
+
         finally:
             # Terminate the process
             try:

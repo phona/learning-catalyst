@@ -28,7 +28,7 @@ class TestChallengeAndFeedback:
             prerequisites=[],
             difficulty_level=1
         )
-        
+
         # Configure mock to simulate challenge response
         model_service.send_message = AsyncMock(return_value=AIResponse(
             content="What will be the output of the following Python code?\n\n```python\nmy_list = [1, 2, 3, 4, 5]\nmy_list[1:3] = [10, 20]\nprint(my_list)\n```\n\nA) [1, 10, 20, 4, 5]\nB) [1, 10, 20, 3, 4, 5]\nC) [10, 20, 4, 5]\nD) [1, 2, 10, 20, 4, 5]",
@@ -48,11 +48,11 @@ class TestChallengeAndFeedback:
 
         # Test challenge generation by using the catalyst agent directly
         challenge_data = await catalyst_agent.generate_challenge(concept, context)
-        
+
         # Verify the response contains challenge elements
         assert "output of the following Python code" in challenge_data["challenge_text"]
         assert "A)" in challenge_data["challenge_text"] and "B)" in challenge_data["challenge_text"]
-        
+
     @pytest.mark.asyncio
     async def test_answer_evaluation_correct(self, model_service):
         """Test that the system correctly evaluates a correct answer"""
@@ -70,7 +70,7 @@ class TestChallengeAndFeedback:
                 "D": "[1, 2, 10, 20, 4, 5]"
             }
         )
-        
+
         # Configure mock to simulate feedback for correct answer
         model_service.send_message = AsyncMock(return_value=AIResponse(
             content="Excellent! You chose correctly.\n\n" \
@@ -84,25 +84,25 @@ class TestChallengeAndFeedback:
             usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
             timestamp="2023-01-01T00:00:00"
         ))
-        
+
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
-        
+
         # Create context as dictionary to match interface
         context = {
             "provider": "openai",
             "model": "gpt-4o"
         }
-        
+
         # Test answer evaluation (correct) - using the catalyst agent's method
         feedback = await catalyst_agent.evaluate_answer("A", "A", context)
-        
+
         # Verify the feedback is positive and explains the correct answer
         assert "Excellent" in feedback["feedback"] or "correctly" in feedback["feedback"]
         assert "A) [1, 10, 20, 4, 5]" in feedback["feedback"]
         assert "list slicing with assignment" in feedback["feedback"].lower()
         assert feedback["correctness"] is True  # Changed to is True instead of == True for clarity
-        
+
     @pytest.mark.asyncio
     async def test_answer_evaluation_incorrect(self, model_service):
         """Test that the system correctly evaluates an incorrect answer and provides constructive feedback"""
@@ -120,7 +120,7 @@ class TestChallengeAndFeedback:
                 "D": "[1, 2, 10, 20, 4, 5]"
             }
         )
-        
+
         # Configure mock to simulate feedback for incorrect answer
         model_service.send_message = AsyncMock(return_value=AIResponse(
             content="Not quite. Let's take a closer look.\n\n" \
@@ -133,25 +133,25 @@ class TestChallengeAndFeedback:
             usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
             timestamp="2023-01-01T00:00:00"
         ))
-        
+
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
-        
+
         # Create context as dictionary to match interface
         context = {
             "provider": "openai",
             "model": "gpt-4o"
         }
-        
+
         # Test answer evaluation (incorrect) - using the catalyst agent's method
         feedback = await catalyst_agent.evaluate_answer("B", "A", context)  # user answered B, correct is A
-        
+
         # Verify the feedback is constructive and explains the mistake
         assert "Not quite" in feedback["feedback"] or "closer look" in feedback["feedback"].lower()
         assert "correct answer is a)" in feedback["feedback"].lower()
         assert "replacing the elements at indices 1 and 2" in feedback["feedback"].lower()
         assert feedback["correctness"] is False
-        
+
     @pytest.mark.asyncio
     async def test_challenge_response_storage(self, db_manager):
         """Test that challenge responses are properly stored in the database"""
@@ -164,10 +164,10 @@ class TestChallengeAndFeedback:
             expected_answer="A",
             options={"A": "Option A", "B": "Option B"}
         )
-        
+
         # Mock database manager's add_challenge_response method
         db_manager.add_challenge_response = AsyncMock()
-        
+
         # Add challenge response to database
         await db_manager.add_challenge_response(
             "test-session-1",
@@ -176,7 +176,7 @@ class TestChallengeAndFeedback:
             True,
             "Feedback content"
         )
-        
+
         # Verify the add_challenge_response method was called correctly
         db_manager.add_challenge_response.assert_called_once()
         args, kwargs = db_manager.add_challenge_response.call_args
@@ -185,7 +185,7 @@ class TestChallengeAndFeedback:
         assert args[2] == "A"
         assert args[3] is True
         assert args[4] == "Feedback content"
-        
+
     @pytest.mark.asyncio
     async def test_variety_of_challenge_types(self, model_service):
         """Test that the system can generate different types of challenges"""

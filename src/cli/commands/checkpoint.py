@@ -28,7 +28,7 @@ def checkpoint(
 
     # Initialize necessary components
     state_manager = StateManager(workspace_path)
-    
+
     # Note: Checkpoint functionality doesn't directly use the model service
     # But if it did, providers and models would be configured by the user during first-time setup
 

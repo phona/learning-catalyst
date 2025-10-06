@@ -24,15 +24,15 @@ class TestSQLiteKnowledgeNavigator:
         # Create a temporary markdown file
         import tempfile
         import os
-        
+
         with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
             f.write("# Test Concept\nThis is a test concept for learning.")
             temp_file = f.name
-        
+
         try:
             # Load content from the file
             knowledge_map = await knowledge_navigator.load_content(temp_file)
-            
+
             # Verify that the knowledge map was created
             assert knowledge_map is not None
             assert isinstance(knowledge_map.concepts, list)
@@ -46,15 +46,15 @@ class TestSQLiteKnowledgeNavigator:
         # Save a concept first
         knowledge_navigator._init_db()  # Ensure tables exist
         knowledge_navigator.db_path = knowledge_navigator.db_path
-        
+
         # Use the database manager to save the concept
         from src.data.database_manager import DatabaseManager
         db_manager = DatabaseManager(knowledge_navigator.db_path)
         db_manager.save_concept(sample_concept)
-        
+
         # Get available concepts
         concepts = await knowledge_navigator.get_available_concepts()
-        
+
         # Verify that the concept is in the list
         assert len(concepts) >= 1
         found = False
@@ -75,7 +75,7 @@ class TestSQLiteKnowledgeNavigator:
         db_manager = DatabaseManager(knowledge_navigator.db_path)
         sample_concept.prerequisites = ["prereq1", "prereq2"]
         db_manager.save_concept(sample_concept)
-        
+
         # Create a prerequisite concept
         prereq_concept = Concept(
             id="prereq1",
@@ -85,10 +85,10 @@ class TestSQLiteKnowledgeNavigator:
             difficulty_level=3
         )
         db_manager.save_concept(prereq_concept)
-        
+
         # Get concept path
         path = knowledge_navigator.get_concept_path(sample_concept.id)
-        
+
         # Path should include both the prerequisite and the target concept
         assert len(path) >= 1
         # The target concept should be in the path
@@ -102,7 +102,7 @@ class TestSQLiteKnowledgeNavigator:
             completed=True,
             score=0.85
         )
-        
+
         # This should not raise an exception
         knowledge_navigator.update_progress("test_concept_001", progress)
 
@@ -115,16 +115,16 @@ class TestCatalystAgent:
         mock_response = MagicMock()
         mock_response.content = "This is an explanation for the concept."
         model_service.send_message.return_value = mock_response
-        
+
         # Generate explanation
         context = {
             "provider": "openai",
             "model": "gpt-4",
             "learning_level": "intermediate"
         }
-        
+
         explanation = await catalyst_agent.generate_explanation(sample_concept, context)
-        
+
         # Verify the explanation was generated
         assert explanation == "This is an explanation for the concept."
         # Verify the model service was called
@@ -137,7 +137,7 @@ class TestCatalystAgent:
         mock_response = MagicMock()
         mock_response.content = "What is the main principle of this concept?"
         model_service.send_message.return_value = mock_response
-        
+
         # Generate challenge
         context = {
             "provider": "openai",
@@ -145,9 +145,9 @@ class TestCatalystAgent:
             "challenge_type": "multiple-choice",
             "difficulty": "medium"
         }
-        
+
         challenge = await catalyst_agent.generate_challenge(sample_concept, context)
-        
+
         # Verify the challenge was generated
         assert "What is the main principle of this concept?" in challenge["challenge_text"]
         # Verify the model service was called
@@ -160,19 +160,19 @@ class TestCatalystAgent:
         mock_response = MagicMock()
         mock_response.content = "The answer is correct with a score of 0.9."
         model_service.send_message.return_value = mock_response
-        
+
         # Evaluate answer
         context = {
             "provider": "openai",
             "model": "gpt-4"
         }
-        
+
         evaluation = await catalyst_agent.evaluate_answer(
             answer="42",
             expected="42",
             context=context
         )
-        
+
         # Verify the evaluation was performed
         assert "correct" in evaluation["feedback"].lower() or "incorrect" in evaluation["feedback"].lower()
         # Verify the model service was called
@@ -196,7 +196,7 @@ class TestChallengeEngine:
             "challenge_text": "What is 2+2?",
             "options": {"A": "3", "B": "4", "C": "5"}
         }
-        
+
         # This should not raise an exception
         challenge_engine.present_challenge(challenge)
 
@@ -215,11 +215,11 @@ class TestChallengeEngine:
             "expected_answer": "4",
             "challenge_text": "What is 2+2?"
         }
-        
+
         # The validation will use the CatalystAgent to evaluate the answer
         # For this test, we'll just check that it returns a valid evaluation structure
         evaluation = await challenge_engine.validate_answer("4", challenge)
-        
+
         assert "correctness" in evaluation
         assert "feedback" in evaluation
         assert "score" in evaluation
@@ -234,17 +234,17 @@ class TestCheckpointManager:
             "current_concept": "test_concept_001",
             "user_progress": [{"concept_id": "test_concept_001", "completed": True, "score": 0.8}]
         }
-        
+
         # Create a checkpoint
         checkpoint_id = await checkpoint_manager.create_checkpoint(test_state)
-        
+
         # Verify checkpoint ID is returned
         assert checkpoint_id is not None
         assert isinstance(checkpoint_id, str)
-        
+
         # Load the checkpoint
         loaded_state = await checkpoint_manager.load_checkpoint(checkpoint_id)
-        
+
         # Verify the state was loaded correctly
         assert loaded_state == test_state
 
@@ -254,10 +254,10 @@ class TestCheckpointManager:
         # Create a test state and checkpoint
         test_state = {"test": "data"}
         checkpoint_id = await checkpoint_manager.create_checkpoint(test_state)
-        
+
         # List checkpoints
         checkpoints = await checkpoint_manager.list_checkpoints()
-        
+
         # Verify that our checkpoint is in the list
         assert len(checkpoints) >= 1
         found = False
@@ -280,19 +280,19 @@ class TestSystemCommandsHandler:
         """Test listing available models"""
         # Mock the model service response
         model_service.list_available_models.return_value = ["gpt-4", "gpt-3.5-turbo"]
-        
+
         # List available models
         models = await system_commands_handler.list_available_models()
-        
+
         # Verify the response
         assert len(models) >= 0  # May be empty if providers aren't configured
-        
+
     @pytest.mark.asyncio
     async def test_get_token_usage(self, system_commands_handler):
         """Test getting token usage"""
         # Get token usage
         usage = await system_commands_handler.get_token_usage(period_days=30)
-        
+
         # Verify the structure of the response
         assert "period" in usage
         assert "usage" in usage
@@ -304,7 +304,7 @@ class TestSystemCommandsHandler:
         """Test getting detailed token usage"""
         # Get detailed token usage
         usage = await system_commands_handler.get_detailed_token_usage(model_name="gpt-4")
-        
+
         # Verify the response is a list
         assert isinstance(usage, list)
 
@@ -313,7 +313,7 @@ class TestSystemCommandsHandler:
         """Test showing model capabilities"""
         # Show model capabilities (will be empty since not implemented in mock)
         caps = await system_commands_handler.show_model_capabilities("gpt-4")
-        
+
         # Verify the response is a dict
         assert isinstance(caps, dict)
 
@@ -322,7 +322,7 @@ class TestSystemCommandsHandler:
         """Test getting knowledge map"""
         # Get knowledge map
         km = await system_commands_handler.get_knowledge_map()
-        
+
         # Verify it returns a KnowledgeMap object
         from src.data.models.extended_models import KnowledgeMap
         assert isinstance(km, KnowledgeMap)
@@ -333,11 +333,11 @@ class TestSystemCommandsHandler:
         # Test listing preferences
         prefs = await system_commands_handler.list_preferences()
         assert isinstance(prefs, dict)
-        
+
         # Test setting a preference
         result = await system_commands_handler.set_preference("test.key", "test_value")
         assert result is True
-        
+
         # Verify the preference was set
         updated_prefs = await system_commands_handler.list_preferences()
         assert updated_prefs["test"]["key"] == "test_value"

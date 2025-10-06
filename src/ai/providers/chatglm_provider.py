@@ -9,15 +9,15 @@ from .base_provider import BaseProvider, BaseChatModel, BaseEmbeddingModel, Base
 
 class ChatGLMProvider(BaseProvider):
     """Provider class for interacting with ChatGLM API."""
-    
+
     def __init__(self, api_key: str, base_url: str = "https://open.bigmodel.cn/api/paas/v4"):
         super().__init__(api_key, base_url)
-    
+
     @property
     def name(self) -> str:
         """Get the name of the provider"""
         return "chatglm"
-    
+
     def _create_model_instance(self, model_id: str) -> Optional[Model]:
         """Create appropriate model instance based on model type"""
         if "glm" in model_id.lower():

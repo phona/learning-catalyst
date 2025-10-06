@@ -62,7 +62,7 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
                 # Create relationships based on header hierarchy
                 relationships = self._create_relationships_from_headers(concepts_data)
-                
+
                 # Save concepts to database
                 self._save_concepts_to_db(concepts)
 
@@ -87,7 +87,7 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
                 # Create relationships based on header hierarchy
                 relationships = self._create_relationships_from_headers(concepts_data)
-                
+
                 # Save concepts to database
                 self._save_concepts_to_db(concepts)
 
@@ -107,7 +107,7 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
         # Create a mapping from concept ID to concept for easy lookup
         concept_map = {c['id']: c for c in concepts}  # pylint: disable=unused-variable
-        
+
         # Iterate through each concept to find potential parent concepts based on header hierarchy
         for concept in concepts:
             current_level = concept.get('level', 1)

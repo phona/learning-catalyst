@@ -47,11 +47,11 @@ class TestConceptBuilder:
         # Arrange
         file_path = "test_file.md"
         granularity = "headers"
-        
+
         with patch('src.core.concept_builder.MarkdownParser') as mock_parser_class:
             mock_parser = Mock()
             mock_parser_class.return_value = mock_parser
-            
+
             mock_parser.find_concepts_in_file.return_value = [
                 {
                     'id': 'concept-1',
@@ -66,10 +66,10 @@ class TestConceptBuilder:
                     'level': 2
                 }
             ]
-            
+
             # Act
             concepts = await concept_builder.extract_concepts_from_markdown(file_path, granularity)
-            
+
             # Assert
             assert len(concepts) == 2
             assert concepts[0].title == "Test Concept 1"
@@ -83,11 +83,11 @@ class TestConceptBuilder:
         # Arrange
         file_path = "test_file.md"
         granularity = "summaries"
-        
+
         with patch('src.core.concept_builder.MarkdownParser') as mock_parser_class:
             mock_parser = Mock()
             mock_parser_class.return_value = mock_parser
-            
+
             mock_parser.find_concepts_in_file.return_value = [
                 {
                     'id': 'concept-1',
@@ -96,10 +96,10 @@ class TestConceptBuilder:
                     'level': 1
                 }
             ]
-            
+
             # Act
             concepts = await concept_builder.extract_concepts_from_markdown(file_path, granularity)
-            
+
             # Assert
             assert len(concepts) == 1
             assert concepts[0].title == "Test Concept 1"
@@ -112,11 +112,11 @@ class TestConceptBuilder:
         # Arrange
         file_path = "test_file.md"
         granularity = "full_content"
-        
+
         with patch('src.core.concept_builder.MarkdownParser') as mock_parser_class:
             mock_parser = Mock()
             mock_parser_class.return_value = mock_parser
-            
+
             mock_parser.find_concepts_in_file.return_value = [
                 {
                     'id': 'concept-1',
@@ -125,10 +125,10 @@ class TestConceptBuilder:
                     'level': 1
                 }
             ]
-            
+
             # Act
             concepts = await concept_builder.extract_concepts_from_markdown(file_path, granularity)
-            
+
             # Assert
             assert len(concepts) == 1
             assert concepts[0].title == "Test Concept 1"
@@ -140,7 +140,7 @@ class TestConceptBuilder:
         # Arrange
         dir_path = "test_dir"
         granularity = "headers"
-        
+
         with patch('src.core.concept_builder.extract_all_concepts') as mock_extract:
             mock_extract.return_value = [
                 {
@@ -150,10 +150,10 @@ class TestConceptBuilder:
                     'level': 1
                 }
             ]
-            
+
             # Act
             concepts = await concept_builder.extract_concepts_from_directory(dir_path, granularity)
-            
+
             # Assert
             assert len(concepts) == 1
             assert concepts[0].title == "Test Concept 1"
@@ -163,10 +163,10 @@ class TestConceptBuilder:
         """Test building relationships with no concepts."""
         # Arrange
         concept_builder.concepts = []
-        
+
         # Act
         relationships = concept_builder.build_concept_relationships()
-        
+
         # Assert
         assert len(relationships) == 0
 
@@ -189,10 +189,10 @@ class TestConceptBuilder:
                 difficulty_level=2
             )
         ]
-        
+
         # Act
         relationships = concept_builder.build_concept_relationships()
-        
+
         # Assert
         assert len(relationships) > 0
         # Should have at least one relationship based on hierarchy
@@ -210,10 +210,10 @@ class TestConceptBuilder:
                 difficulty_level=1
             )
         ]
-        
+
         # Act
         concept_builder.save_concepts_to_db()
-        
+
         # Assert
         mock_db_manager.save_concepts.assert_called_once_with(concept_builder.concepts)
 
@@ -221,10 +221,10 @@ class TestConceptBuilder:
         """Test validating empty concepts list."""
         # Arrange
         concept_builder.concepts = []
-        
+
         # Act
         results = concept_builder.validate_concepts()
-        
+
         # Assert
         assert len(results) == 0
 
@@ -240,10 +240,10 @@ class TestConceptBuilder:
                 difficulty_level=1
             )
         ]
-        
+
         # Act
         results = concept_builder.validate_concepts()
-        
+
         # Assert
         assert len(results) == 1
         assert results[0].concept_id == "concept-1"
@@ -262,10 +262,10 @@ class TestConceptBuilder:
                 difficulty_level=1
             )
         ]
-        
+
         # Act
         results = concept_builder.validate_concepts()
-        
+
         # Assert
         assert len(results) == 1
         assert results[0].is_valid is False
@@ -275,10 +275,10 @@ class TestConceptBuilder:
         """Test detecting duplicates in empty concepts list."""
         # Arrange
         concept_builder.concepts = []
-        
+
         # Act
         duplicates = concept_builder.detect_duplicate_concepts()
-        
+
         # Assert
         assert len(duplicates) == 0
 
@@ -301,10 +301,10 @@ class TestConceptBuilder:
                 difficulty_level=1
             )
         ]
-        
+
         # Act
         duplicates = concept_builder.detect_duplicate_concepts()
-        
+
         # Assert
         assert len(duplicates) == 0
 
@@ -327,10 +327,10 @@ class TestConceptBuilder:
                 difficulty_level=1
             )
         ]
-        
+
         # Act
         duplicates = concept_builder.detect_duplicate_concepts()
-        
+
         # Assert
         assert len(duplicates) == 1
         assert len(duplicates[0]) == 2  # Two concepts in the duplicate group
@@ -340,10 +340,10 @@ class TestConceptBuilder:
         """Test summarizing empty concepts list."""
         # Arrange
         concept_builder.concepts = []
-        
+
         # Act
         summaries = await concept_builder.summarize_concepts()
-        
+
         # Assert
         assert len(summaries) == 0
 
@@ -360,14 +360,14 @@ class TestConceptBuilder:
                 difficulty_level=1
             )
         ]
-        
+
         mock_model_service.generate_summary.return_value = "Test summary"
         mock_model_service.extract_key_points.return_value = ["Point 1", "Point 2"]
         mock_model_service.calculate_difficulty.return_value = 0.5
-        
+
         # Act
         summaries = await concept_builder.summarize_concepts()
-        
+
         # Assert
         assert len(summaries) == 1
         assert summaries[0].concept_id == "concept-1"

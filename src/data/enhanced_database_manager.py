@@ -183,10 +183,10 @@ class EnhancedDatabaseManager:
 
         # Check if schema_version table exists
         cursor.execute("""
-        SELECT name FROM sqlite_master 
+        SELECT name FROM sqlite_master
         WHERE type='table' AND name='schema_version'
         """)
-        
+
         if not cursor.fetchone():
             # Schema version table doesn't exist, create it and set initial version
             cursor.execute("""
@@ -196,18 +196,18 @@ class EnhancedDatabaseManager:
                 description TEXT
             )
             """)
-            
+
             cursor.execute("""
             INSERT INTO schema_version (version, applied_at, description)
             VALUES (1, ?, 'Initial schema')
             """, (datetime.now().isoformat(),))
-            
+
             conn.commit()
-        
+
         # Get current schema version
         cursor.execute("SELECT MAX(version) FROM schema_version")
         current_version = cursor.fetchone()[0] or 0
-        
+
         # Apply migrations if needed
         migrations = [
             (2, "Add tags, created_at, updated_at to concepts", self._migrate_v2),
@@ -218,7 +218,7 @@ class EnhancedDatabaseManager:
             (7, "Add notes table", self._migrate_v7),
             (8, "Add resources table", self._migrate_v8)
         ]
-        
+
         for version, description, migration_func in migrations:
             if version > current_version:
                 try:
@@ -227,14 +227,14 @@ class EnhancedDatabaseManager:
                     INSERT INTO schema_version (version, applied_at, description)
                     VALUES (?, ?, ?)
                     """, (version, datetime.now().isoformat(), description))
-                    
+
                     self.formatter.format_success(f"Applied database migration to version {version}: {description}")
                 except Exception as e:
                     self.formatter.format_error(f"Failed to apply migration to version {version}: {str(e)}")
                     conn.rollback()
                     conn.close()
                     raise
-        
+
         conn.commit()
         conn.close()
 
@@ -259,13 +259,13 @@ class EnhancedDatabaseManager:
             attempts INTEGER
         )
         """)
-        
+
         # Copy data from old table
         cursor.execute("""
         INSERT INTO user_progress_new (id, user_id, concept_id, completed, score)
         SELECT concept_id, 'default', concept_id, completed, score FROM user_progress
         """)
-        
+
         # Drop old table and rename new one
         cursor.execute("DROP TABLE user_progress")
         cursor.execute("ALTER TABLE user_progress_new RENAME TO user_progress")
@@ -286,7 +286,7 @@ class EnhancedDatabaseManager:
             created_at TEXT
         )
         """)
-        
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_concept_relationships_source ON concept_relationships(source_concept_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_concept_relationships_target ON concept_relationships(target_concept_id)")
 
@@ -303,7 +303,7 @@ class EnhancedDatabaseManager:
             average_score REAL
         )
         """)
-        
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_learning_sessions_user_id ON learning_sessions(user_id)")
 
     def _migrate_v7(self, cursor):
@@ -318,7 +318,7 @@ class EnhancedDatabaseManager:
             updated_at TEXT
         )
         """)
-        
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_concept_id ON notes(concept_id)")
 
@@ -335,7 +335,7 @@ class EnhancedDatabaseManager:
             created_at TEXT
         )
         """)
-        
+
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_resources_concept_id ON resources(concept_id)")
 
     # Token Usage Methods
@@ -473,11 +473,11 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         now = datetime.now().isoformat()
-        
+
         # Check if concept exists
         cursor.execute("SELECT id FROM concepts WHERE id = ?", (concept.id,))
         exists = cursor.fetchone() is not None
-        
+
         if exists:
             # Update existing concept
             cursor.execute("""
@@ -580,15 +580,15 @@ class EnhancedDatabaseManager:
 
         search_term = f"%{query}%"
         cursor.execute("""
-        SELECT * FROM concepts 
+        SELECT * FROM concepts
         WHERE title LIKE ? OR content LIKE ?
-        ORDER BY 
-            CASE 
+        ORDER BY
+            CASE
                 WHEN title LIKE ? THEN 1
                 ELSE 2
             END
         """, (search_term, search_term, search_term))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -604,7 +604,7 @@ class EnhancedDatabaseManager:
         return concepts
 
     # User Progress Methods
-    def save_user_progress(self, user_id: str, concept_id: str, completed: bool, 
+    def save_user_progress(self, user_id: str, concept_id: str, completed: bool,
                           score: float, time_spent_seconds: int = 0, attempts: int = 1):
         """Save or update user progress for a concept"""
         conn = sqlite3.connect(self.db_path)
@@ -617,7 +617,7 @@ class EnhancedDatabaseManager:
         INSERT OR REPLACE INTO user_progress
         (id, user_id, concept_id, completed, score, last_accessed, time_spent_seconds, attempts)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (progress_id, user_id, concept_id, completed, score, now, 
+        """, (progress_id, user_id, concept_id, completed, score, now,
               time_spent_seconds, attempts))
 
         conn.commit()
@@ -629,10 +629,10 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM user_progress 
+        SELECT * FROM user_progress
         WHERE user_id = ? AND concept_id = ?
         """, (user_id, concept_id))
-        
+
         row = cursor.fetchone()
         conn.close()
 
@@ -655,11 +655,11 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM user_progress 
+        SELECT * FROM user_progress
         WHERE user_id = ?
         ORDER BY last_accessed DESC
         """, (user_id,))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -691,7 +691,7 @@ class EnhancedDatabaseManager:
         INSERT OR REPLACE INTO concept_relationships
         (id, source_concept_id, target_concept_id, relationship_type, strength, created_at)
         VALUES (?, ?, ?, ?, ?, ?)
-        """, (relationship_id, source_concept_id, target_concept_id, 
+        """, (relationship_id, source_concept_id, target_concept_id,
               relationship_type, strength, now))
 
         conn.commit()
@@ -704,15 +704,15 @@ class EnhancedDatabaseManager:
 
         if relationship_type:
             cursor.execute("""
-            SELECT * FROM concept_relationships 
+            SELECT * FROM concept_relationships
             WHERE (source_concept_id = ? OR target_concept_id = ?) AND relationship_type = ?
             """, (concept_id, concept_id, relationship_type))
         else:
             cursor.execute("""
-            SELECT * FROM concept_relationships 
+            SELECT * FROM concept_relationships
             WHERE source_concept_id = ? OR target_concept_id = ?
             """, (concept_id, concept_id))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -745,7 +745,7 @@ class EnhancedDatabaseManager:
 
         conn.commit()
         conn.close()
-        
+
         return session_id
 
     def update_learning_session(self, session_id: str, concepts_covered: List[str],
@@ -805,12 +805,12 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM learning_sessions 
+        SELECT * FROM learning_sessions
         WHERE user_id = ?
         ORDER BY start_time DESC
         LIMIT ?
         """, (user_id, limit))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -834,7 +834,7 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         now = datetime.now().isoformat()
-        
+
         if note_id:
             # Update existing note
             cursor.execute("""
@@ -853,7 +853,7 @@ class EnhancedDatabaseManager:
 
         conn.commit()
         conn.close()
-        
+
         return note_id
 
     def get_note(self, note_id: str, user_id: str) -> Optional[Dict[str, Any]]:
@@ -862,10 +862,10 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM notes 
+        SELECT * FROM notes
         WHERE id = ? AND user_id = ?
         """, (note_id, user_id))
-        
+
         row = cursor.fetchone()
         conn.close()
 
@@ -886,11 +886,11 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM notes 
+        SELECT * FROM notes
         WHERE user_id = ? AND concept_id = ?
         ORDER BY updated_at DESC
         """, (user_id, concept_id))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -912,11 +912,11 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM notes 
+        SELECT * FROM notes
         WHERE user_id = ?
         ORDER BY updated_at DESC
         """, (user_id,))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -938,25 +938,25 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        DELETE FROM notes 
+        DELETE FROM notes
         WHERE id = ? AND user_id = ?
         """, (note_id, user_id))
-        
+
         affected_rows = cursor.rowcount
         conn.commit()
         conn.close()
-        
+
         return affected_rows > 0
 
     # Resources Methods
-    def save_resource(self, concept_id: str, title: str, url: str, resource_type: str, 
+    def save_resource(self, concept_id: str, title: str, url: str, resource_type: str,
                      description: str = "", resource_id: Optional[str] = None) -> str:
         """Save or update a resource for a concept"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         now = datetime.now().isoformat()
-        
+
         if resource_id:
             # Update existing resource
             cursor.execute("""
@@ -975,7 +975,7 @@ class EnhancedDatabaseManager:
 
         conn.commit()
         conn.close()
-        
+
         return resource_id
 
     def get_resource(self, resource_id: str) -> Optional[Dict[str, Any]]:
@@ -1005,11 +1005,11 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM resources 
+        SELECT * FROM resources
         WHERE concept_id = ?
         ORDER BY title
         """, (concept_id,))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -1035,7 +1035,7 @@ class EnhancedDatabaseManager:
         affected_rows = cursor.rowcount
         conn.commit()
         conn.close()
-        
+
         return affected_rows > 0
 
     # QA History Methods
@@ -1051,10 +1051,10 @@ class EnhancedDatabaseManager:
 
         cursor.execute("""
         INSERT INTO qa_history
-        (id, user_id, concept_id, challenge_type, challenge_text, user_answer, 
+        (id, user_id, concept_id, challenge_type, challenge_text, user_answer,
          ai_evaluation, timestamp, score)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (record_id, user_id, concept_id, challenge_type, challenge_text, 
+        """, (record_id, user_id, concept_id, challenge_type, challenge_text,
               user_answer, ai_evaluation, timestamp, score))
 
         conn.commit()
@@ -1066,12 +1066,12 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM qa_history 
+        SELECT * FROM qa_history
         WHERE user_id = ?
         ORDER BY timestamp DESC
         LIMIT ?
         """, (user_id, limit))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -1096,11 +1096,11 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM qa_history 
+        SELECT * FROM qa_history
         WHERE user_id = ? AND concept_id = ?
         ORDER BY timestamp DESC
         """, (user_id, concept_id))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -1161,12 +1161,12 @@ class EnhancedDatabaseManager:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT * FROM checkpoints 
+        SELECT * FROM checkpoints
         WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT ?
         """, (user_id, limit))
-        
+
         rows = cursor.fetchall()
         conn.close()
 
@@ -1190,7 +1190,7 @@ class EnhancedDatabaseManager:
         affected_rows = cursor.rowcount
         conn.commit()
         conn.close()
-        
+
         return affected_rows > 0
 
     # Database Maintenance Methods
@@ -1209,33 +1209,33 @@ class EnhancedDatabaseManager:
         """Get statistics about the database"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         stats = {}
-        
+
         # Get table sizes
         tables = [
-            "user_profiles", "qa_history", "checkpoints", "concepts", 
-            "user_progress", "token_usage", "concept_relationships", 
+            "user_profiles", "qa_history", "checkpoints", "concepts",
+            "user_progress", "token_usage", "concept_relationships",
             "learning_sessions", "notes", "resources"
         ]
-        
+
         for table in tables:
             cursor.execute(f"SELECT COUNT(*) FROM {table}")
             count = cursor.fetchone()[0]
             stats[f"{table}_count"] = count
-        
+
         # Get database file size
         db_file = Path(self.db_path)
         if db_file.exists():
             stats["database_size_bytes"] = db_file.stat().st_size
             stats["database_size_mb"] = round(stats["database_size_bytes"] / (1024 * 1024), 2)
-        
+
         # Get schema version
         cursor.execute("SELECT MAX(version) FROM schema_version")
         stats["schema_version"] = cursor.fetchone()[0] or 0
-        
+
         conn.close()
-        
+
         return stats
 
     def vacuum_database(self) -> bool:
@@ -1246,7 +1246,7 @@ class EnhancedDatabaseManager:
             cursor.execute("VACUUM")
             conn.commit()
             conn.close()
-            
+
             self.formatter.format_success("Database vacuumed successfully")
             return True
         except Exception as e:

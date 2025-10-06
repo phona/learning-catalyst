@@ -43,20 +43,20 @@ class ChallengeEngineImpl(ChallengeEngine):
     async def generate_challenge(self, concept: Concept, context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Generate a challenge based on the given concept and context
-        
+
         Args:
             concept: The concept to generate a challenge for
             context: Additional context for challenge generation
-            
+
         Returns:
             A dictionary containing the challenge data
         """
         # Determine challenge type based on context or random selection
         challenge_type = self._determine_challenge_type(context)
-        
+
         # Adjust difficulty based on user performance
         difficulty = self._adjust_difficulty(context)
-        
+
         # Generate challenge prompt
         challenge_prompt = self._create_challenge_prompt(
             concept=concept,
@@ -64,22 +64,22 @@ class ChallengeEngineImpl(ChallengeEngine):
             difficulty=difficulty,
             context=context
         )
-        
+
         # Use the model service to generate the challenge
         messages = [
             Message(role="system", content="You are an expert educational content creator specializing in creating challenging and engaging learning exercises."),
             Message(role="user", content=challenge_prompt)
         ]
-        
+
         response = await self.model_service.send_message(messages, temperature=0.7)
-        
+
         # Parse the response to extract challenge data
         challenge_data = self._parse_challenge_response(
             response.content,
             challenge_type=challenge_type,
             concept=concept
         )
-        
+
         # Add metadata to the challenge
         challenge_data.update({
             "concept_id": concept.id,
@@ -88,9 +88,9 @@ class ChallengeEngineImpl(ChallengeEngine):
             "difficulty": difficulty.value,
             "context": context
         })
-        
+
         return challenge_data
-    
+
     def _determine_challenge_type(self, context: Dict[str, Any]) -> ChallengeType:
         """Determine the type of challenge to generate"""
         # Check if a specific challenge type is requested
@@ -100,25 +100,25 @@ class ChallengeEngineImpl(ChallengeEngine):
                 return ChallengeType(requested_type)
             except ValueError:
                 pass
-        
+
         # Based on concept content, determine appropriate challenge type
         concept_content = context.get("concept_content", "").lower()
-        
+
         # If concept contains code, prefer code completion
         if any(keyword in concept_content for keyword in ["code", "function", "class", "programming"]):
             return ChallengeType.CODE_COMPLETION
-        
+
         # If concept has clear true/false statements
         if any(keyword in concept_content for keyword in ["true", "false", "correct", "incorrect"]):
             return ChallengeType.TRUE_FALSE
-        
+
         # If concept has definitions or terms to fill in
         if any(keyword in concept_content for keyword in ["define", "term", "blank", "missing"]):
             return ChallengeType.FILL_IN_BLANK
-        
+
         # Default to multiple choice for better engagement
         return ChallengeType.MULTIPLE_CHOICE
-    
+
     def _adjust_difficulty(self, context: Dict[str, Any]) -> DifficultyLevel:
         """Adjust difficulty based on user performance and context"""
         # Check if a specific difficulty is requested
@@ -138,13 +138,13 @@ class ChallengeEngineImpl(ChallengeEngine):
                     return difficulty_map.get(requested_difficulty.lower(), self.current_difficulty)
             except (ValueError, KeyError):
                 pass
-        
+
         # Adjust based on user performance history
         if self.user_performance_history:
             # Calculate average performance score
             recent_performance = self.user_performance_history[-5:]  # Last 5 attempts
             avg_score = sum(p.get("score", 0) for p in recent_performance) / len(recent_performance)
-            
+
             # Adjust difficulty based on performance
             if avg_score > 0.8 and self.current_difficulty.value < DifficultyLevel.EXPERT.value:
                 # User is performing well, increase difficulty
@@ -152,9 +152,9 @@ class ChallengeEngineImpl(ChallengeEngine):
             elif avg_score < 0.5 and self.current_difficulty.value > DifficultyLevel.BEGINNER.value:
                 # User is struggling, decrease difficulty
                 self.current_difficulty = DifficultyLevel(self.current_difficulty.value - 1)
-        
+
         return self.current_difficulty
-    
+
     def _create_challenge_prompt(self, concept: Concept, challenge_type: ChallengeType,
                                  difficulty: DifficultyLevel, context: Dict[str, Any]) -> str:
         """Create a prompt for generating a challenge"""
@@ -164,7 +164,7 @@ class ChallengeEngineImpl(ChallengeEngine):
             DifficultyLevel.ADVANCED: "complex questions that require deep analysis, synthesis, and evaluation",
             DifficultyLevel.EXPERT: "challenging questions that require creative thinking, problem-solving, and mastery of the subject"
         }
-        
+
         challenge_type_instructions = {
             ChallengeType.MULTIPLE_CHOICE: "Create a multiple-choice question with 4 options (A, B, C, D). Clearly indicate which option is correct.",
             ChallengeType.SHORT_ANSWER: "Create a short-answer question that requires a brief response (1-2 sentences). Provide a sample answer that captures the key points.",
@@ -172,7 +172,7 @@ class ChallengeEngineImpl(ChallengeEngine):
             ChallengeType.TRUE_FALSE: "Create a true/false question. Clearly indicate whether the statement is true or false.",
             ChallengeType.FILL_IN_BLANK: "Create a fill-in-the-blank question with 1-3 blanks. Provide the complete answer with all blanks filled in."
         }
-        
+
         prompt = f"""
 Create a {difficulty.name.lower()} level {challenge_type.value.replace('-', ' ')} challenge for the following concept:
 
@@ -194,30 +194,30 @@ Format your response as a JSON object with the following structure:
 
 Ensure the challenge is relevant to the concept and appropriate for the specified difficulty level.
 """
-        
+
         return prompt
-    
+
     def _parse_challenge_response(self, response: str, challenge_type: ChallengeType, concept: Concept) -> Dict[str, Any]:
         """Parse the model response to extract challenge data"""
         try:
             # Try to extract JSON from the response
             start_idx = response.find('{')
             end_idx = response.rfind('}') + 1
-            
+
             if start_idx != -1 and end_idx != -1:
                 json_str = response[start_idx:end_idx]
                 challenge_data = json.loads(json_str)
-                
+
                 # Ensure required fields are present
                 if "challenge_text" not in challenge_data:
                     challenge_data["challenge_text"] = f"Challenge about {concept.title}"
-                
+
                 if "correct_answer" not in challenge_data:
                     challenge_data["correct_answer"] = "Answer not provided"
-                
+
                 if "explanation" not in challenge_data:
                     challenge_data["explanation"] = "No explanation provided"
-                
+
                 return challenge_data
             else:
                 # If no JSON found, create a basic challenge
@@ -226,7 +226,7 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
                     "correct_answer": "Answer not provided",
                     "explanation": "No explanation provided"
                 }
-                
+
         except json.JSONDecodeError:
             # If JSON parsing fails, create a basic challenge
             return {
@@ -238,15 +238,15 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
     def present_challenge(self, challenge: Dict[str, Any]) -> None:
         """Present a challenge to the user"""
         self.formatter.format_header("Challenge", f"Difficulty: {challenge.get('difficulty', 'Unknown')}")
-        
+
         challenge_text = challenge.get('challenge_text', 'No challenge text')
         self.formatter.format_section("Question", challenge_text)
-        
+
         if 'options' in challenge and challenge['options']:
             self.formatter.format_section("Options", "")
             for key, value in challenge['options'].items():
                 self.formatter.print(f"  {key}: {value}")
-        
+
         # Show hints if available
         if 'hints' in challenge and challenge['hints']:
             self.formatter.format_section("Hints", "")
@@ -268,23 +268,23 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
         """Validate user's answer to a challenge"""
         # Get the correct answer
         correct_answer = challenge.get("correct_answer", "")
-        
+
         # For multiple choice, normalize to uppercase
         if challenge.get("challenge_type") == "multiple-choice":
             user_answer = user_answer.strip().upper()
             correct_answer = correct_answer.strip().upper()
-        
+
         # For true/false, normalize to lowercase
         elif challenge.get("challenge_type") == "true-false":
             user_answer = user_answer.strip().lower()
             correct_answer = correct_answer.strip().lower()
-        
+
         # Determine if the answer is correct
         is_correct = user_answer == correct_answer
-        
+
         # Calculate a score (0.0 to 1.0)
         score = 1.0 if is_correct else 0.0
-        
+
         # Create evaluation result
         evaluation = {
             "is_correct": is_correct,
@@ -294,10 +294,10 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
             "explanation": challenge.get("explanation", "No explanation provided"),
             "feedback": self._generate_feedback(is_correct, challenge)
         }
-        
+
         # Record performance
         self._record_performance(score, challenge)
-        
+
         return evaluation
 
     def _generate_feedback(self, is_correct: bool, challenge: Dict[str, Any]) -> str:
@@ -316,12 +316,12 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
                 "That's not the right answer. Check the explanation for more details.",
                 "Incorrect. Keep practicing and you'll get it next time."
             ])
-        
+
         # Add explanation if available
         explanation = challenge.get("explanation", "")
         if explanation:
             feedback += f"\n\nExplanation: {explanation}"
-        
+
         return feedback
 
     def _record_performance(self, score: float, challenge: Dict[str, Any]) -> None:
@@ -333,9 +333,9 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
             "difficulty": challenge.get("difficulty"),
             "concept_id": challenge.get("concept_id")
         }
-        
+
         self.user_performance_history.append(performance_record)
-        
+
         # Limit history size
         if len(self.user_performance_history) > 100:
             self.user_performance_history = self.user_performance_history[-100:]
@@ -344,10 +344,10 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
         """Adapt challenge based on user performance"""
         # Get the current difficulty
         current_difficulty = challenge.get("difficulty", 2)
-        
+
         # Get the user's score
         score = user_performance.get("score", 0.0)
-        
+
         # Adapt the challenge based on performance
         if score > 0.8 and current_difficulty < 4:
             # User performed well, increase difficulty
@@ -361,10 +361,10 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
             # Keep the same difficulty
             adapted_difficulty = current_difficulty
             adaptation_message = "The next challenge will be at a similar difficulty level."
-        
+
         # Add adaptation information to the challenge
         adapted_challenge = challenge.copy()
         adapted_challenge["difficulty"] = adapted_difficulty
         adapted_challenge["adaptation_message"] = adaptation_message
-        
+
         return adapted_challenge

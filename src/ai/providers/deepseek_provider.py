@@ -15,7 +15,7 @@ class DeepSeekProvider(BaseProvider):
     def name(self) -> str:
         """Get the name of the provider"""
         return "deepseek"
-    
+
     def _create_model_instance(self, model_id: str) -> Optional[Model]:
         """Create appropriate model instance based on model type"""
         if "deepseek" in model_id.lower():

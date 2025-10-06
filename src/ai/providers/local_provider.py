@@ -9,15 +9,15 @@ from .base_provider import BaseProvider, BaseChatModel, BaseEmbeddingModel, Base
 
 class LocalModelProvider(BaseProvider):
     """Provider class for interacting with local models via HTTP API."""
-    
+
     def __init__(self, api_key: str, base_url: str):
         super().__init__(api_key, base_url)
-    
+
     @property
     def name(self) -> str:
         """Get the name of the provider"""
         return "local"
-    
+
     def _create_model_instance(self, model_id: str) -> Optional[Model]:
         """Create appropriate model instance based on model type"""
         if "chat" in model_id.lower() or "llm" in model_id.lower():

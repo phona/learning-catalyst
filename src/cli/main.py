@@ -213,17 +213,17 @@ def start_learning(
     # Initialize readline history
     import atexit
     history_file = os.path.join(learningspace_path, ".history")
-    
+
     try:
         # Load previous command history
         readline.read_history_file(history_file)
     except FileNotFoundError:
         # If history file doesn't exist, initialize with empty history
         readline.write_history_file(history_file)
-    
+
     # Set history length
     readline.set_history_length(1000)
-    
+
     # Register to save history at exit
     atexit.register(readline.write_history_file, history_file)
 

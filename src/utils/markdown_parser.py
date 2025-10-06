@@ -15,7 +15,7 @@ class MarkdownParser:
     def __init__(self, extraction_mode: str = "headers"):
         """
         Initialize the markdown parser with a specific extraction mode
-        
+
         Args:
             extraction_mode: How to extract concepts from markdown
                 "headers" - Extract based on headers (default)
@@ -149,7 +149,7 @@ class MarkdownParser:
                         }
                     }
                     concepts.append(concept)
-        
+
         elif self.extraction_mode == "sections":
             # Extract concepts based on sections with more context
             for i, section in enumerate(parsed_content['sections']):
@@ -159,7 +159,7 @@ class MarkdownParser:
                     if i > 0:
                         prev_section = parsed_content['sections'][i-1]
                         context = f"Context: {prev_section['title']}\n"
-                    
+
                     concept = {
                         'id': self._create_concept_id(section['title']),
                         'title': section['title'],
@@ -174,12 +174,12 @@ class MarkdownParser:
                         }
                     }
                     concepts.append(concept)
-        
+
         elif self.extraction_mode == "paragraphs":
             # Extract concepts based on paragraphs
             full_content = parsed_content['full_content']
             paragraphs = re.split(r'\n\s*\n', full_content)
-            
+
             for i, paragraph in enumerate(paragraphs):
                 if paragraph.strip() and len(paragraph.strip()) > 50:  # Skip short paragraphs
                     # Try to find a title for this paragraph
@@ -189,7 +189,7 @@ class MarkdownParser:
                            full_content.find(paragraph) > full_content.find(header['title']):
                             title = header['title']
                             break
-                    
+
                     concept = {
                         'id': self._create_concept_id(title) + f"_p{i+1}",
                         'title': title,
@@ -204,7 +204,7 @@ class MarkdownParser:
                         }
                     }
                     concepts.append(concept)
-        
+
         elif self.extraction_mode == "code_blocks":
             # Extract code blocks as concepts
             for i, code_block in enumerate(parsed_content['code_blocks']):
@@ -212,19 +212,19 @@ class MarkdownParser:
                 title = f"Code Example {i+1}"
                 if code_block.get('language'):
                     title = f"{code_block['language']} Example {i+1}"
-                
+
                 # Find context around the code block
                 content = code_block['content']
                 full_content = parsed_content['full_content']
                 code_pos = full_content.find(code_block['content'])
-                
+
                 # Look for headers before this code block
                 for header in parsed_content['headers']:
                     header_pos = full_content.find(header['title'])
                     if header_pos < code_pos and header_pos > code_pos - 1000:  # Within 1000 chars
                         title = f"{header['title']} - {title}"
                         break
-                
+
                 concept = {
                     'id': self._create_concept_id(title),
                     'title': title,
@@ -264,7 +264,7 @@ def scan_workspace_for_markdown(workspace_path: str) -> List[str]:
 def extract_all_concepts(workspace_path: str, extraction_mode: str = "headers") -> List[Dict[str, Any]]:
     """
     Extract all concepts from all markdown files in a workspace
-    
+
     Args:
         workspace_path: Path to the workspace directory
         extraction_mode: How to extract concepts from markdown
@@ -272,7 +272,7 @@ def extract_all_concepts(workspace_path: str, extraction_mode: str = "headers") 
             "sections" - Extract based on sections with headers
             "paragraphs" - Extract based on paragraphs
             "code_blocks" - Extract code blocks as concepts
-    
+
     Returns:
         List of extracted concepts
     """

@@ -16,7 +16,7 @@ class SiliconFlowProvider(BaseProvider):
     def name(self) -> str:
         """Get the name of the provider"""
         return "siliconflow"
-    
+
     def _create_model_instance(self, model_id: str) -> Optional[Model]:
         """Create appropriate model instance based on model type"""
         if "embedding" in model_id.lower():

@@ -7,12 +7,12 @@ from src.data.models.user_profile import UserProfile
 from src.data.models.challenge import Challenge
 from src.data.models.token_usage import TokenUsage
 from src.data.models.extended_models import (
-    KnowledgeMap, UserProgress, Evaluation, Context, 
+    KnowledgeMap, UserProgress, Evaluation, Context,
     UserAnswer, ChallengeResult, ApplicationState, Checkpoint,
-    Message, AIResponse, Credentials, EmbeddingResponse, 
+    Message, AIResponse, Credentials, EmbeddingResponse,
     RerankResponse, ProviderCapabilities, ModelInfo,
-    TokenUsageSummary, TimePeriod, ProgressReport, 
-    TrendData, AnalyticsExport, InteractionHistory, 
+    TokenUsageSummary, TimePeriod, ProgressReport,
+    TrendData, AnalyticsExport, InteractionHistory,
     AnalysisResult, CompetencyProfile, Recommendations
 )
 
@@ -26,7 +26,7 @@ class TestConcept:
             prerequisites=["prereq1", "prereq2"],
             difficulty_level=5
         )
-        
+
         assert concept.id == "test_id"
         assert concept.title == "Test Title"
         assert concept.content == "Test Content"
@@ -44,7 +44,7 @@ class TestUserProfile:
             ai_config={"default_provider": "openai", "default_model": "gpt-4"},
             current_checkpoint_id="chk_123"
         )
-        
+
         assert user_profile.id == "user_001"
         assert user_profile.created_at == "2023-01-01T00:00:00"
         assert user_profile.preferences == {"ui": {"theme": "dark"}}
@@ -63,7 +63,7 @@ class TestChallenge:
             expected_answer="4",
             options={"A": "3", "B": "4", "C": "5"}
         )
-        
+
         assert challenge.id == "challenge_001"
         assert challenge.concept_id == "concept_001"
         assert challenge.challenge_type == "multiple_choice"
@@ -85,7 +85,7 @@ class TestTokenUsage:
             user_id="user_001",
             context="explanation"
         )
-        
+
         assert token_usage.id == "token_001"
         assert token_usage.model_name == "gpt-4"
         assert token_usage.provider == "openai"

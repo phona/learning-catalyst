@@ -23,57 +23,57 @@ from src.data.models.concept import Concept
 @pytest.mark.asyncio
 async def test_with_zhipu_models():
     """Test the Learning Catalyst with Zhipu AI models"""
-    
+
     print("Testing Learning Catalyst with Zhipu AI models...")
-    
+
     # Create a temporary workspace for testing
     with tempfile.TemporaryDirectory() as temp_dir:
         workspace_path = Path(temp_dir)
         print(f"Using temporary workspace: {workspace_path}")
-        
+
         # Initialize workspace
         workspace_mgr = WorkspaceManager(workspace_path)
         workspace_mgr.initialize_workspace()
-        
+
         # Initialize database
         db_path = workspace_mgr.get_database_path()
         db_manager = DatabaseManager(str(db_path))
-        
+
         # Initialize preferences
         preferences_mgr = PreferencesManager(str(workspace_path))
-        
+
         # Configure Zhipu AI model settings
         # NOTE: In a real implementation, you would set these via environment variables or local config
         # NEVER commit API keys to version control
         zhipu_api_key = os.getenv("ZHIPU_API_KEY", "YOUR_API_KEY_HERE")  # Placeholder
         zhipu_base_url = os.getenv("ZHIPU_BASE_URL", "https://open.bigmodel.cn/api/paas/v4/")
-        
+
         # Initialize the model abstraction service
         model_service = ModelAbstractionService()
-        
+
         # Create and configure the ChatGLM provider
         chatglm_provider = ChatGLMProvider(
             api_key=zhipu_api_key,
             base_url=zhipu_base_url
         )
-        
+
         # Set the provider in the model service
         model_service.set_provider("chatglm", chatglm_provider)
-        
+
         # Initialize components
         knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
         catalyst_agent = CatalystAgentImpl(model_service)
         challenge_engine = ChallengeEngineImpl(catalyst_agent)
-        
+
         # Create sample learning content to test
         sample_concept = Concept(
             id="ml_introduction",
             title="Introduction to Machine Learning",
             content="""
-            Machine learning is a method of data analysis that automates analytical model building. 
-            It is a branch of artificial intelligence based on the idea that systems can learn from data, 
+            Machine learning is a method of data analysis that automates analytical model building.
+            It is a branch of artificial intelligence based on the idea that systems can learn from data,
             identify patterns and make decisions with minimal human intervention.
-            
+
             There are three main types:
             1. Supervised Learning
             2. Unsupervised Learning
@@ -82,16 +82,16 @@ async def test_with_zhipu_models():
             prerequisites=[],
             difficulty_level=5
         )
-        
+
         # Save concept to database
         db_manager.save_concept(sample_concept)
         print(f"Saved concept: {sample_concept.title}")
-        
+
         # Test generating an explanation using the Zhipu model
         print("\nTesting explanation generation...")
         try:
             explanation = await catalyst_agent.generate_explanation(
-                sample_concept, 
+                sample_concept,
                 context={
                     "provider": "chatglm",
                     "model": "glm-4.5-air",  # Using the provided model
@@ -103,14 +103,14 @@ async def test_with_zhipu_models():
         except Exception as e:
             print(f"Error generating explanation: {e}")
             print("This is expected if API key is not properly configured")
-        
+
         # Test generating a challenge
         print("\nTesting challenge generation...")
         try:
             challenge = await catalyst_agent.generate_challenge(
                 sample_concept,
                 context={
-                    "provider": "chatglm", 
+                    "provider": "chatglm",
                     "model": "glm-4.5-air",
                     "challenge_type": "open_ended",
                     "difficulty": "medium"
@@ -122,16 +122,16 @@ async def test_with_zhipu_models():
         except Exception as e:
             print(f"Error generating challenge: {e}")
             print("This is expected if API key is not properly configured")
-        
+
         # Test the knowledge navigator
         print("\nTesting knowledge navigator...")
         available_concepts = await knowledge_navigator.get_available_concepts()
         print(f"Available concepts in navigator: {len(available_concepts)}")
-        
+
         # Test concept path
         concept_path = knowledge_navigator.get_concept_path(sample_concept.id)
         print(f"Concept path length: {len(concept_path)}")
-        
+
         print("\nTest completed. Note:")
         print("- If you want to run this with actual Zhipu AI models, set the ZHIPU_API_KEY environment variable")
         print("- Never commit API keys to version control")
@@ -140,7 +140,7 @@ async def test_with_zhipu_models():
 
 def demo_preferences_config():
     """Demonstrate how to configure preferences for Zhipu AI models"""
-    
+
     print("\n" + "="*60)
     print("CONFIGURATION DEMONSTRATION")
     print("="*60)
@@ -163,8 +163,8 @@ def demo_preferences_config():
 if __name__ == "__main__":
     print("Learning Catalyst Test Script")
     print("Note: API credentials should only be used locally and never committed")
-    
+
     demo_preferences_config()
-    
+
     print("\nRunning functional tests...")
     asyncio.run(test_with_zhipu_models())

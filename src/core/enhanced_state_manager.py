@@ -50,7 +50,7 @@ class EnhancedStateManager:
         # Create a backup of the current state file if it exists
         if self.state_file.exists():
             await self._create_backup()
-        
+
         state_dict = {
             "user_profile": state.user_profile,
             "conversation_context": state.conversation_context,
@@ -62,31 +62,31 @@ class EnhancedStateManager:
         try:
             with open(self.state_file, 'w', encoding='utf-8') as f:
                 json.dump(state_dict, f, indent=2, ensure_ascii=False)
-            
+
             self.formatter.format_success("State saved successfully")
         except (IOError, PermissionError) as e:
             self.formatter.format_error(f"Failed to save state: {str(e)}")
-    
+
     async def _create_backup(self) -> None:
         """Create a backup of the current state file"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_file = self.backup_dir / f"state_backup_{timestamp}.json"
-        
+
         try:
             shutil.copy2(self.state_file, backup_file)
-            
+
             # Clean up old backups if we have too many
             await self._cleanup_old_backups()
         except (IOError, PermissionError) as e:
             self.formatter.format_warning(f"Failed to create backup: {str(e)}")
-    
+
     async def _cleanup_old_backups(self) -> None:
         """Remove old backup files, keeping only the most recent ones"""
         backup_files = list(self.backup_dir.glob("state_backup_*.json"))
-        
+
         # Sort by modification time (oldest first)
         backup_files.sort(key=lambda f: f.stat().st_mtime)
-        
+
         # Remove excess backups
         while len(backup_files) > self.max_backups:
             oldest_file = backup_files.pop(0)
@@ -111,35 +111,35 @@ class EnhancedStateManager:
                 conversation_messages=state_dict.get("conversation_messages", []),
                 current_state_metadata=state_dict.get("current_state_metadata", {})
             )
-            
+
             saved_at = state_dict.get("saved_at", "Unknown time")
             self.formatter.format_success(f"State loaded successfully (saved at {saved_at})")
-            
+
             return state
         except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
             self.formatter.format_error(f"Error loading state: {str(e)}")
-            
+
             # Try to restore from backup
             self.formatter.format_info("Attempting to restore from backup...")
             restored_state = await self._restore_from_backup()
-            
+
             if restored_state:
                 self.formatter.format_success("State restored from backup")
                 return restored_state
-            
+
             return None
-    
+
     async def _restore_from_backup(self) -> Optional[ApplicationState]:
         """Try to restore state from the most recent backup"""
         backup_files = list(self.backup_dir.glob("state_backup_*.json"))
-        
+
         if not backup_files:
             self.formatter.format_info("No backup files found")
             return None
-        
+
         # Sort by modification time (newest first)
         backup_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-        
+
         # Try the most recent backup first
         for backup_file in backup_files:
             try:
@@ -152,16 +152,16 @@ class EnhancedStateManager:
                     conversation_messages=state_dict.get("conversation_messages", []),
                     current_state_metadata=state_dict.get("current_state_metadata", {})
                 )
-                
+
                 # Restore the backup as the current state
                 with open(self.state_file, 'w', encoding='utf-8') as f:
                     json.dump(state_dict, f, indent=2, ensure_ascii=False)
-                
+
                 return state
             except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
                 self.formatter.format_warning(f"Failed to restore from backup {backup_file}: {str(e)}")
                 continue
-        
+
         return None
 
     async def create_checkpoint(self, state: ApplicationState, description: str) -> Checkpoint:
@@ -188,7 +188,7 @@ class EnhancedStateManager:
         try:
             with open(checkpoint_path, 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_data, f, indent=2)
-            
+
             self.formatter.format_success(f"Checkpoint '{checkpoint_id}' created successfully")
         except (IOError, PermissionError) as e:
             self.formatter.format_error(f"Failed to create checkpoint: {str(e)}")
@@ -248,15 +248,15 @@ class EnhancedStateManager:
         # Sort by creation time (newest first)
         checkpoints.sort(key=lambda cp: cp.created_at, reverse=True)
         return checkpoints
-    
+
     async def delete_checkpoint(self, checkpoint_id: str) -> bool:
         """Delete a checkpoint by ID"""
         checkpoint_path = self.checkpoints_dir / f"{checkpoint_id}.json"
-        
+
         if not checkpoint_path.exists():
             self.formatter.format_error(f"Checkpoint {checkpoint_id} not found")
             return False
-        
+
         try:
             checkpoint_path.unlink()
             self.formatter.format_success(f"Checkpoint {checkpoint_id} deleted successfully")
@@ -264,11 +264,11 @@ class EnhancedStateManager:
         except (IOError, PermissionError) as e:
             self.formatter.format_error(f"Failed to delete checkpoint {checkpoint_id}: {str(e)}")
             return False
-    
+
     async def restore_checkpoint(self, checkpoint_id: str) -> Optional[ApplicationState]:
         """Restore a checkpoint and make it the current state"""
         state = await self.load_checkpoint(checkpoint_id)
-        
+
         if state:
             # Save the restored state as the current state
             await self.save_current_state(state)
@@ -277,7 +277,7 @@ class EnhancedStateManager:
         else:
             self.formatter.format_error(f"Failed to restore checkpoint {checkpoint_id}")
             return None
-    
+
     async def get_state_info(self) -> Dict[str, Any]:
         """Get information about the current state and checkpoints"""
         info = {
@@ -289,42 +289,42 @@ class EnhancedStateManager:
             "newest_checkpoint": None,
             "oldest_checkpoint": None
         }
-        
+
         # Get state file info
         if self.state_file.exists():
             stat = self.state_file.stat()
             info["state_file_size"] = stat.st_size
             info["state_file_modified"] = datetime.fromtimestamp(stat.st_mtime).isoformat()
-        
+
         # Get backup count
         backup_files = list(self.backup_dir.glob("state_backup_*.json"))
         info["backup_count"] = len(backup_files)
-        
+
         # Get checkpoint info
         checkpoints = await self.list_checkpoints()
         info["checkpoint_count"] = len(checkpoints)
-        
+
         if checkpoints:
             info["newest_checkpoint"] = checkpoints[0].created_at
             info["oldest_checkpoint"] = checkpoints[-1].created_at
-        
+
         return info
-    
+
     async def cleanup_old_checkpoints(self, max_checkpoints: int = 10) -> int:
         """Remove old checkpoints, keeping only the most recent ones"""
         checkpoints = await self.list_checkpoints()
-        
+
         if len(checkpoints) <= max_checkpoints:
             return 0
-        
+
         # Sort by creation time (oldest first)
         checkpoints.sort(key=lambda cp: cp.created_at)
-        
+
         # Remove excess checkpoints
         removed_count = 0
         while len(checkpoints) > max_checkpoints:
             oldest_checkpoint = checkpoints.pop(0)
             if await self.delete_checkpoint(oldest_checkpoint.id):
                 removed_count += 1
-        
+
         return removed_count
