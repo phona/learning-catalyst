@@ -1,13 +1,16 @@
 """
 Simple test to verify basic functionality
 """
-import tempfile
+
 import os
+import tempfile
 from pathlib import Path
+
 import pytest
-from src.utils.workspace_manager import WorkspaceManager
-from src.utils.preferences_manager import PreferencesManager
+
 from src.data.database_manager import DatabaseManager
+from src.utils.preferences_manager import PreferencesManager
+from src.utils.workspace_manager import WorkspaceManager
 
 
 def test_basic_setup():

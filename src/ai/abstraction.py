@@ -34,6 +34,7 @@ class ModelProvider(ABC):
 
 class Model(ABC):
     """Abstract base class for all models."""
+
     @abstractmethod
     async def get_provider(self) -> ModelProvider: ...
     @abstractmethod
@@ -49,51 +50,43 @@ class ChatModel(Model):
 
 class EmbeddingModel(Model):
     @abstractmethod
-    async def get_embeddings(
-        self, texts: List[str], dimensions: Optional[int] = None
-    ) -> EmbeddingResponse:
+    async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
         """Get embeddings for texts"""
         pass
 
 
 class RerankModel(Model):
     @abstractmethod
-    async def rerank(
-        self, query: str, documents: List[str], top_k: int = 10
-    ) -> RerankResponse:
+    async def rerank(self, query: str, documents: List[str], top_k: int = 10) -> RerankResponse:
         """Rerank documents based on query relevance"""
         pass
 
 
 ConfiguredModels = NamedTuple(
-    "ConfiguredModels", [
+    "ConfiguredModels",
+    [
         ("chat_model", Optional[ChatModel]),
         ("embedding_model", Optional[EmbeddingModel]),
-        ("rerank_model", Optional[RerankModel])
-    ]
+        ("rerank_model", Optional[RerankModel]),
+    ],
 )
 
 
 class ModelAbstractionLayer(ABC):
     """Abstract layer for model abstraction."""
+
     @abstractmethod
-    async def send_message(
-        self, messages: List[Message], temperature: float = 0.7
-    ) -> AIResponse:
+    async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
         """Send message to LLM provider and get response"""
         pass
 
     @abstractmethod
-    async def get_embeddings(
-        self, texts: List[str], dimensions: Optional[int] = None
-    ) -> EmbeddingResponse:
+    async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
         """Get embeddings for texts using specified provider and model"""
         pass
 
     @abstractmethod
-    async def rerank(
-        self, query: str, documents: List[str], top_k: int = 10
-    ) -> RerankResponse:
+    async def rerank(self, query: str, documents: List[str], top_k: int = 10) -> RerankResponse:
         """Rerank documents based on query relevance"""
         pass
 

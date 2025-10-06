@@ -2,20 +2,21 @@
 Integration tests for the complete learning workflow.
 """
 
-import pytest
-import tempfile
 import os
-from unittest.mock import Mock, AsyncMock, patch
+import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.core.startup_guide import StartupGuide
-from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
-from src.core.state_manager import StateManager
-from src.core.catalyst_agent import CatalystAgentImpl
-from src.core.challenge_engine import ChallengeEngineImpl
+import pytest
+
 from src.ai.service import ModelAbstractionService
 from src.cli.command_palette import CommandPalette
 from src.cli.interface import CLIInterface
+from src.core.catalyst_agent import CatalystAgentImpl
+from src.core.challenge_engine import ChallengeEngineImpl
+from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+from src.core.startup_guide import StartupGuide
+from src.core.state_manager import StateManager
 from src.data.models.concept import Concept
 from src.data.models.extended_models import Message
 
@@ -34,7 +35,8 @@ class TestCompleteLearningWorkflow:
             # Create a test markdown file
             test_file = Path(temp_dir) / "test_concepts.md"
             with open(test_file, "w") as f:
-                f.write("""# Python Basics
+                f.write(
+                    """# Python Basics
 
 ## Variables
 Variables are used to store data values.
@@ -44,7 +46,8 @@ Python has various data types like integers, strings, and lists.
 
 ## Control Flow
 Control flow statements allow you to control the execution order of your code.
-""")
+"""
+                )
 
             yield temp_dir
 
@@ -63,15 +66,10 @@ Control flow statements allow you to control the execution order of your code.
         service = Mock()
         service.generate_response = AsyncMock(return_value="Test explanation")
         service.generate_summary = AsyncMock(return_value="Test summary")
-        service.generate_challenge = AsyncMock(return_value={
-            "question": "Test question",
-            "options": ["A", "B", "C", "D"],
-            "correct_answer": "A"
-        })
-        service.evaluate_answer = AsyncMock(return_value={
-            "is_correct": True,
-            "feedback": "Good job!"
-        })
+        service.generate_challenge = AsyncMock(
+            return_value={"question": "Test question", "options": ["A", "B", "C", "D"], "correct_answer": "A"}
+        )
+        service.evaluate_answer = AsyncMock(return_value={"is_correct": True, "feedback": "Good job!"})
         return service
 
     @pytest.fixture
@@ -106,15 +104,13 @@ Control flow statements allow you to control the execution order of your code.
         return CommandPalette(mock_cli_interface)
 
     @pytest.mark.asyncio
-    async def test_complete_learning_workflow(self, temp_workspace, knowledge_navigator,
-                                            startup_guide, catalyst_agent, challenge_engine):
+    async def test_complete_learning_workflow(
+        self, temp_workspace, knowledge_navigator, startup_guide, catalyst_agent, challenge_engine
+    ):
         """Test the complete learning workflow from content loading to challenge completion."""
 
         # Step 1: Load content from markdown files
-        knowledge_map = await knowledge_navigator.load_content(
-            workspace_path=temp_workspace,
-            extraction_mode="headers"
-        )
+        knowledge_map = await knowledge_navigator.load_content(workspace_path=temp_workspace, extraction_mode="headers")
 
         # Verify concepts were extracted
         assert len(knowledge_map.concepts) > 0
@@ -127,10 +123,7 @@ Control flow statements allow you to control the execution order of your code.
         assert len(concepts) > 0
 
         # Step 3: Generate startup message for first-time user
-        startup_message = await startup_guide.generate_startup_message(
-            is_first_time=True,
-            has_previous_state=False
-        )
+        startup_message = await startup_guide.generate_startup_message(is_first_time=True, has_previous_state=False)
         assert "Welcome to Learning Catalyst" in startup_message
 
         # Step 4: Generate contextual suggestions
@@ -140,32 +133,27 @@ Control flow statements allow you to control the execution order of your code.
 
         # Step 5: Generate explanation for a concept
         target_concept = concepts[0]
-        explanation = await catalyst_agent.generate_explanation(
-            target_concept,
-            {"learning_level": "beginner"}
-        )
+        explanation = await catalyst_agent.generate_explanation(target_concept, {"learning_level": "beginner"})
         assert explanation is not None
 
         # Step 6: Generate a challenge for the same concept
         challenge = await catalyst_agent.generate_challenge(
-            target_concept,
-            {"challenge_type": "multiple-choice", "difficulty": "easy"}
+            target_concept, {"challenge_type": "multiple-choice", "difficulty": "easy"}
         )
         assert challenge is not None
         assert "question" in challenge
 
         # Step 7: Evaluate an answer to the challenge
         evaluation = await catalyst_agent.evaluate_answer(
-            "A",  # User answer
-            challenge.get("correct_answer", "A"),
-            {"concept": target_concept.title}
+            "A", challenge.get("correct_answer", "A"), {"concept": target_concept.title}  # User answer
         )
         assert evaluation is not None
         assert "is_correct" in evaluation
 
     @pytest.mark.asyncio
-    async def test_session_persistence_and_resumption(self, temp_workspace, state_manager,
-                                                    knowledge_navigator, startup_guide):
+    async def test_session_persistence_and_resumption(
+        self, temp_workspace, state_manager, knowledge_navigator, startup_guide
+    ):
         """Test session persistence and resumption functionality."""
 
         # Step 1: Create and save a session state
@@ -176,12 +164,9 @@ Control flow statements allow you to control the execution order of your code.
             conversation_context={"current_concept": "Variables"},
             conversation_messages=[
                 {"role": "user", "content": "What are variables?"},
-                {"role": "assistant", "content": "Variables are containers for storing data values."}
+                {"role": "assistant", "content": "Variables are containers for storing data values."},
             ],
-            current_state_metadata={
-                "last_access": "2024-01-01T12:00:00",
-                "session_id": "test-session-123"
-            }
+            current_state_metadata={"last_access": "2024-01-01T12:00:00", "session_id": "test-session-123"},
         )
 
         # Save the state
@@ -197,10 +182,7 @@ Control flow statements allow you to control the execution order of your code.
         assert len(loaded_state.conversation_messages) == 2
 
         # Step 3: Generate a returning user message
-        startup_message = await startup_guide.generate_startup_message(
-            is_first_time=False,
-            has_previous_state=True
-        )
+        startup_message = await startup_guide.generate_startup_message(is_first_time=False, has_previous_state=True)
         assert "Welcome back" in startup_message
 
     @pytest.mark.asyncio
@@ -215,16 +197,13 @@ Control flow statements allow you to control the execution order of your code.
             conversation_context={"current_concept": "Data Types"},
             conversation_messages=[
                 {"role": "user", "content": "Tell me about data types"},
-                {"role": "assistant", "content": "Python has several built-in data types..."}
+                {"role": "assistant", "content": "Python has several built-in data types..."},
             ],
-            current_state_metadata={"session_id": "checkpoint-test-456"}
+            current_state_metadata={"session_id": "checkpoint-test-456"},
         )
 
         # Step 2: Create a checkpoint
-        checkpoint = await state_manager.create_checkpoint(
-            session_state,
-            "Before learning about control flow"
-        )
+        checkpoint = await state_manager.create_checkpoint(session_state, "Before learning about control flow")
 
         # Verify the checkpoint was created
         assert checkpoint is not None
@@ -270,25 +249,18 @@ Control flow statements allow you to control the execution order of your code.
         assert "/help" in history
 
     @pytest.mark.asyncio
-    async def test_concept_learning_flow(self, temp_workspace, knowledge_navigator,
-                                       catalyst_agent, startup_guide):
+    async def test_concept_learning_flow(self, temp_workspace, knowledge_navigator, catalyst_agent, startup_guide):
         """Test the complete concept learning flow."""
 
         # Step 1: Load content
-        knowledge_map = await knowledge_navigator.load_content(
-            workspace_path=temp_workspace,
-            extraction_mode="headers"
-        )
+        knowledge_map = await knowledge_navigator.load_content(workspace_path=temp_workspace, extraction_mode="headers")
         concepts = await knowledge_navigator.get_available_concepts()
 
         # Step 2: Select a concept to learn
         target_concept = concepts[0]
 
         # Step 3: Generate explanation
-        explanation = await catalyst_agent.generate_explanation(
-            target_concept,
-            {"learning_level": "beginner"}
-        )
+        explanation = await catalyst_agent.generate_explanation(target_concept, {"learning_level": "beginner"})
 
         # Step 4: Generate proactive suggestions based on the concept
         conversation_context = {"current_concept": target_concept.title}
@@ -305,20 +277,14 @@ Control flow statements allow you to control the execution order of your code.
         """Test concept relationship building."""
 
         # Step 1: Load content with hierarchical structure
-        knowledge_map = await knowledge_navigator.load_content(
-            workspace_path=temp_workspace,
-            extraction_mode="headers"
-        )
+        knowledge_map = await knowledge_navigator.load_content(workspace_path=temp_workspace, extraction_mode="headers")
 
         # Verify relationships were created
         assert len(knowledge_map.relationships) > 0
 
         # Verify parent-child relationships exist
         relationships = knowledge_map.relationships
-        assert any(
-            r["source"] == "python-basics" and r["target"] == "variables"
-            for r in relationships
-        )
+        assert any(r["source"] == "python-basics" and r["target"] == "variables" for r in relationships)
 
     @pytest.mark.asyncio
     async def test_adaptive_difficulty_adjustment(self, mock_model_service, knowledge_navigator):
@@ -329,25 +295,20 @@ Control flow statements allow you to control the execution order of your code.
 
         # Create a test concept
         concept = Concept(
-            id="test-concept",
-            title="Test Concept",
-            content="Test content",
-            prerequisites=[],
-            difficulty_level=2
+            id="test-concept", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=2
         )
 
         # Simulate user performance history
         user_profile = {
             "performance_history": [
                 {"concept_id": "test-concept", "score": 0.8, "timestamp": "2024-01-01T10:00:00"},
-                {"concept_id": "test-concept", "score": 0.9, "timestamp": "2024-01-01T11:00:00"}
+                {"concept_id": "test-concept", "score": 0.9, "timestamp": "2024-01-01T11:00:00"},
             ]
         }
 
         # Generate challenge with adaptive difficulty
         challenge = await catalyst_agent.generate_challenge(
-            concept,
-            {"difficulty": "adaptive", "user_profile": user_profile}
+            concept, {"difficulty": "adaptive", "user_profile": user_profile}
         )
 
         # Verify challenge was generated

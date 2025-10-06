@@ -1,6 +1,7 @@
 """
 Data model for Concept
 """
+
 from dataclasses import dataclass
 from typing import List
 

@@ -1,6 +1,7 @@
 """
 Additional data models for Learning Catalyst application
 """
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 

@@ -1,13 +1,15 @@
 """
 Unit tests for AI communication functionality
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-import sys
+
 import os
+import sys
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add the src directory to the path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 class TestAICommunication:
@@ -25,8 +27,12 @@ class TestAICommunication:
         """Create a catalyst agent with mock dependencies"""
         # Create a mock catalyst agent with the methods we need
         agent = Mock()
-        agent.interpret_intent = Mock(side_effect=lambda x: "QUERY" if "Explain" in x else "CHALLENGE_REQUEST" if "challenge" in x else "ANSWER")
-        agent.generate_explanation_prompt = Mock(side_effect=lambda query, context: f"Mock prompt for explaining {query} in context: {context}")
+        agent.interpret_intent = Mock(
+            side_effect=lambda x: "QUERY" if "Explain" in x else "CHALLENGE_REQUEST" if "challenge" in x else "ANSWER"
+        )
+        agent.generate_explanation_prompt = Mock(
+            side_effect=lambda query, context: f"Mock prompt for explaining {query} in context: {context}"
+        )
         agent.process_query = Mock(side_effect=lambda query: f"Mock response about {query}")
         agent.model_service = mock_model_service
         return agent
@@ -95,9 +101,9 @@ class TestAICommunication:
         question = challenge_engine.generate_question(context, question_type, difficulty)
 
         assert question is not None, "Question should not be None"
-        assert hasattr(question, 'text'), "Question should have text attribute"
-        assert hasattr(question, 'options'), "Question should have options attribute"
-        assert hasattr(question, 'correct_answer'), "Question should have correct_answer attribute"
+        assert hasattr(question, "text"), "Question should have text attribute"
+        assert hasattr(question, "options"), "Question should have options attribute"
+        assert hasattr(question, "correct_answer"), "Question should have correct_answer attribute"
 
     def test_challenge_engine_evaluate_answer(self, challenge_engine):
         """Test that challenge engine correctly evaluates answers"""
@@ -111,7 +117,7 @@ class TestAICommunication:
         evaluation = challenge_engine.evaluate_answer(mock_question, user_answer)
 
         assert evaluation is not None, "Evaluation should not be None"
-        assert hasattr(evaluation, 'is_correct'), "Evaluation should have is_correct attribute"
+        assert hasattr(evaluation, "is_correct"), "Evaluation should have is_correct attribute"
         assert evaluation.is_correct, "Answer should be marked as correct"
 
     def test_ai_service_communication(self, mock_model_service):
@@ -126,6 +132,6 @@ class TestAICommunication:
     def test_ai_service_error_handling(self, catalyst_agent):
         """Test that AI service handles errors gracefully"""
         # Test with a mock that raises an exception
-        with patch.object(catalyst_agent.model_service, 'generate_response', side_effect=Exception("API Error")):
+        with patch.object(catalyst_agent.model_service, "generate_response", side_effect=Exception("API Error")):
             with pytest.raises(Exception):
                 catalyst_agent.model_service.generate_response("Test prompt")

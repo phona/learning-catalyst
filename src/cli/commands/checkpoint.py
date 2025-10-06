@@ -1,6 +1,7 @@
 """
 Checkpoint command implementation
 """
+
 import asyncio
 import os
 from datetime import datetime
@@ -9,7 +10,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from ai.service import ModelAbstractionService
 from core.state_manager import ApplicationState, StateManager
 
 app = typer.Typer()
@@ -19,12 +19,10 @@ app = typer.Typer()
 def checkpoint(
     action: str = typer.Argument(..., help="Action: save, load, or list"),
     name: str = typer.Argument("", help="Checkpoint name (required for save/load)"),
-    description: str = typer.Option("", "--description", "-d", help="Description for the checkpoint")
+    description: str = typer.Option("", "--description", "-d", help="Description for the checkpoint"),
 ):
     """Manage application checkpoints for saving and restoring learning states"""
     workspace_path = os.getcwd()
-    learningspace_path = os.path.join(workspace_path, ".catalyst")
-    db_path = os.path.join(learningspace_path, "data.db")
 
     # Initialize necessary components
     state_manager = StateManager(workspace_path)
@@ -69,8 +67,8 @@ def checkpoint(
             current_state_metadata={
                 "user_id": "default_user",
                 "timestamp": datetime.now().isoformat(),
-                "checkpoint_name": name
-            }
+                "checkpoint_name": name,
+            },
         )
 
         try:

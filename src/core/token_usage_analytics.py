@@ -1,6 +1,7 @@
 """
 Enhanced token usage analytics
 """
+
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
@@ -25,14 +26,7 @@ class TokenUsageAnalytics:
         # Calculate summary statistics
         summary = self._calculate_summary_statistics(detailed_usage)
 
-        return {
-            "period": {
-                "start": start_str,
-                "end": end_str
-            },
-            "summary": summary,
-            "detailed_usage": detailed_usage
-        }
+        return {"period": {"start": start_str, "end": end_str}, "summary": summary, "detailed_usage": detailed_usage}
 
     def _get_detailed_usage_from_db(self, user_id: str, start_date: str, end_date: str) -> List[Dict[str, Any]]:
         """Retrieve detailed token usage records from the database"""
@@ -40,30 +34,36 @@ class TokenUsageAnalytics:
         # For now, we'll simulate the data
         conn = self.db_manager.db_path
         import sqlite3
+
         conn = sqlite3.connect(conn)
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT model_name, provider, input_tokens, output_tokens, total_tokens, timestamp, context
             FROM token_usage
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             ORDER BY timestamp DESC
-        """, (user_id, start_date, end_date))
+        """,
+            (user_id, start_date, end_date),
+        )
 
         rows = cursor.fetchall()
         conn.close()
 
         usage_records = []
         for row in rows:
-            usage_records.append({
-                "model_name": row[0],
-                "provider": row[1],
-                "input_tokens": row[2],
-                "output_tokens": row[3],
-                "total_tokens": row[4],
-                "timestamp": row[5],
-                "context": row[6]
-            })
+            usage_records.append(
+                {
+                    "model_name": row[0],
+                    "provider": row[1],
+                    "input_tokens": row[2],
+                    "output_tokens": row[3],
+                    "total_tokens": row[4],
+                    "timestamp": row[5],
+                    "context": row[6],
+                }
+            )
 
         return usage_records
 
@@ -78,7 +78,7 @@ class TokenUsageAnalytics:
                 "unique_providers": [],
                 "records_count": 0,
                 "average_tokens_per_request": 0,
-                "cost_estimate": 0.0
+                "cost_estimate": 0.0,
             }
 
         total_input = sum(record["input_tokens"] for record in usage_records)
@@ -101,7 +101,7 @@ class TokenUsageAnalytics:
             "unique_providers": unique_providers,
             "records_count": len(usage_records),
             "average_tokens_per_request": round(avg_tokens_per_request, 2),
-            "cost_estimate": cost_estimate
+            "cost_estimate": cost_estimate,
         }
 
     def _calculate_cost_estimate(self, usage_records: List[Dict[str, Any]]) -> float:
@@ -133,10 +133,12 @@ class TokenUsageAnalytics:
 
         conn = self.db_manager.db_path
         import sqlite3
+
         conn = sqlite3.connect(conn)
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT provider,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -145,7 +147,9 @@ class TokenUsageAnalytics:
             FROM token_usage
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             GROUP BY provider
-        """, (user_id, start_str, end_str))
+        """,
+            (user_id, start_str, end_str),
+        )
 
         rows = cursor.fetchall()
         conn.close()
@@ -156,7 +160,7 @@ class TokenUsageAnalytics:
                 "input_tokens": row[1],
                 "output_tokens": row[2],
                 "total_tokens": row[3],
-                "request_count": row[4]
+                "request_count": row[4],
             }
 
         return provider_comparison
@@ -171,10 +175,12 @@ class TokenUsageAnalytics:
 
         conn = self.db_manager.db_path
         import sqlite3
+
         conn = sqlite3.connect(conn)
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT model_name,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -184,7 +190,9 @@ class TokenUsageAnalytics:
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             GROUP BY model_name
             ORDER BY total DESC
-        """, (user_id, start_str, end_str))
+        """,
+            (user_id, start_str, end_str),
+        )
 
         rows = cursor.fetchall()
         conn.close()
@@ -195,7 +203,7 @@ class TokenUsageAnalytics:
                 "input_tokens": row[1],
                 "output_tokens": row[2],
                 "total_tokens": row[3],
-                "request_count": row[4]
+                "request_count": row[4],
             }
 
         return model_comparison
@@ -210,10 +218,12 @@ class TokenUsageAnalytics:
 
         conn = self.db_manager.db_path
         import sqlite3
+
         conn = sqlite3.connect(conn)
         cursor = conn.cursor()
 
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT context,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -222,7 +232,9 @@ class TokenUsageAnalytics:
             FROM token_usage
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             GROUP BY context
-        """, (user_id, start_str, end_str))
+        """,
+            (user_id, start_str, end_str),
+        )
 
         rows = cursor.fetchall()
         conn.close()
@@ -233,7 +245,7 @@ class TokenUsageAnalytics:
                 "input_tokens": row[1],
                 "output_tokens": row[2],
                 "total_tokens": row[3],
-                "usage_count": row[4]
+                "usage_count": row[4],
             }
 
         return context_analysis
@@ -244,10 +256,11 @@ class TokenUsageAnalytics:
 
         # Get provider comparison to identify expensive providers
         provider_comparison = self.get_provider_comparison(user_id, period_days)
-        most_expensive_provider = max(
-            provider_comparison.items(),
-            key=lambda x: x[1]["total_tokens"]
-        ) if provider_comparison else (None, {"total_tokens": 0})
+        most_expensive_provider = (
+            max(provider_comparison.items(), key=lambda x: x[1]["total_tokens"])
+            if provider_comparison
+            else (None, {"total_tokens": 0})
+        )
 
         if most_expensive_provider[1]["total_tokens"] > 10000:  # If more than 10K tokens used
             suggestions.append(

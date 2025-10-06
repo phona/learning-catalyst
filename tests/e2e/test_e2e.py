@@ -1,24 +1,27 @@
 """
 End-to-end tests for Learning Catalyst project
 """
-import pytest
-import tempfile
+
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from src.utils.workspace_manager import WorkspaceManager
-from src.utils.preferences_manager import PreferencesManager
-from src.data.database_manager import DatabaseManager
+
+import pytest
+
 from src.ai.service import ModelAbstractionService
-from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
+from src.core.basic_assessment_engine import BasicAssessmentEngine
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.core.checkpoint_manager import CheckpointManagerImpl
+from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.core.system_commands_handler import SystemCommandsHandlerImpl
-from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
-from src.core.basic_assessment_engine import BasicAssessmentEngine
+from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
 from src.data.models.user_profile import UserProfile
+from src.utils.preferences_manager import PreferencesManager
+from src.utils.workspace_manager import WorkspaceManager
 
 
 class TestEndToEnd:
@@ -60,14 +63,14 @@ class TestEndToEnd:
             title="Basic Machine Learning Concepts",
             content="Machine learning is a subset of AI that enables systems to learn and improve from experience...",
             prerequisites=[],
-            difficulty_level=5
+            difficulty_level=5,
         )
         concept2 = Concept(
             id="e2e_concept_2",
             title="Neural Networks",
             content="Neural networks are computing systems inspired by the human brain...",
             prerequisites=["e2e_concept_1"],
-            difficulty_level=7
+            difficulty_level=7,
         )
 
         db_manager.save_concept(concept1)
@@ -83,11 +86,7 @@ class TestEndToEnd:
         explanation_response.content = "Machine learning is a method of teaching computers to learn and adapt..."
         model_service.send_message = AsyncMock(return_value=explanation_response)
 
-        explanation_context = {
-            "provider": "openai",
-            "model": "gpt-4",
-            "learning_level": "intermediate"
-        }
+        explanation_context = {"provider": "openai", "model": "gpt-4", "learning_level": "intermediate"}
         explanation = await catalyst_agent.generate_explanation(concept1, explanation_context)
         assert "teaching computers" in explanation.lower()
 
@@ -103,7 +102,7 @@ class TestEndToEnd:
             "provider": "openai",
             "model": "gpt-4",
             "challenge_type": "open_ended",
-            "difficulty": "medium"
+            "difficulty": "medium",
         }
         challenge = await catalyst_agent.generate_challenge(concept1, challenge_context)
         assert "purpose" in challenge["challenge_text"].lower()
@@ -112,13 +111,15 @@ class TestEndToEnd:
         challenge_engine.present_challenge(challenge)
 
         # Mock user answer
-        with patch('builtins.input', return_value="To enable computers to learn from data"):
+        with patch("builtins.input", return_value="To enable computers to learn from data"):
             user_answer = await challenge_engine.collect_answer()
             assert "learn from data" in user_answer.lower()
 
         # Step 7: Evaluate the answer
         evaluation_response = MagicMock()
-        evaluation_response.content = "The answer is correct. Machine learning does enable computers to learn from data."
+        evaluation_response.content = (
+            "The answer is correct. Machine learning does enable computers to learn from data."
+        )
         model_service.send_message.return_value = evaluation_response
 
         evaluation = await catalyst_agent.evaluate_answer(user_answer, challenge["challenge_text"], explanation_context)
@@ -126,20 +127,13 @@ class TestEndToEnd:
 
         # Step 8: Update progress in the knowledge navigator
         from src.data.models.extended_models import UserProgress
-        progress = UserProgress(
-            concept_id=concept1.id,
-            completed=True,
-            score=0.9
-        )
+
+        progress = UserProgress(concept_id=concept1.id, completed=True, score=0.9)
         knowledge_navigator.update_progress(concept1.id, progress)
 
         # Step 9: Create a checkpoint of the current state
         # Convert UserProgress object to a dictionary for JSON serialization
-        progress_dict = {
-            "concept_id": progress.concept_id,
-            "completed": progress.completed,
-            "score": progress.score
-        }
+        progress_dict = {"concept_id": progress.concept_id, "completed": progress.completed, "score": progress.score}
         session_state = {
             "current_concept_id": concept1.id,
             "current_explanation": explanation,
@@ -147,16 +141,13 @@ class TestEndToEnd:
             "user_answer": user_answer,
             "evaluation": evaluation,
             "user_progress": [progress_dict],
-            "session_timestamp": "2023-06-01T10:00:00"
+            "session_timestamp": "2023-06-01T10:00:00",
         }
         checkpoint_id = await checkpoint_manager.create_checkpoint(session_state)
         assert checkpoint_id is not None
 
         # Step 10: Generate analytics report
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-12-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-12-31T23:59:59"}
         progress_report = analytics_dashboard.generate_progress_report("e2e_user", time_period)
         assert progress_report.user_id == "e2e_user"
         # The report might be empty since we're simulating, but it should still generate
@@ -168,13 +159,14 @@ class TestEndToEnd:
 
         # Step 12: Generate recommendations
         from src.data.models.extended_models import CompetencyProfile
+
         profile = CompetencyProfile(
             user_id="e2e_user",
             skills={"machine_learning": 0.9},
             learning_style="visual",
             strengths=["machine_learning"],
             weaknesses=[],
-            last_updated="2023-06-01T10:00:00"
+            last_updated="2023-06-01T10:00:00",
         )
         recommendations = assessment_engine.generate_recommendations(profile)
         assert recommendations.user_id == "e2e_user"
@@ -212,25 +204,21 @@ class TestEndToEnd:
 
         # Set up prerequisites chain
         concept1 = Concept(
-            id="session_concept_1",
-            title="Fundamentals",
-            content="Basic concepts",
-            prerequisites=[],
-            difficulty_level=3
+            id="session_concept_1", title="Fundamentals", content="Basic concepts", prerequisites=[], difficulty_level=3
         )
         concept2 = Concept(
             id="session_concept_2",
             title="Intermediate Concepts",
             content="More advanced concepts",
             prerequisites=["session_concept_1"],
-            difficulty_level=5
+            difficulty_level=5,
         )
         concept3 = Concept(
             id="session_concept_3",
             title="Advanced Topics",
             content="Complex topics",
             prerequisites=["session_concept_2"],
-            difficulty_level=8
+            difficulty_level=8,
         )
 
         # Save concepts
@@ -252,6 +240,7 @@ class TestEndToEnd:
 
         # Mark concept1 as completed
         from src.data.models.extended_models import UserProgress
+
         progress1 = UserProgress(concept_id=concept1.id, completed=True, score=0.85)
         knowledge_navigator.update_progress(concept1.id, progress1)
 
@@ -272,10 +261,7 @@ class TestEndToEnd:
         knowledge_navigator.update_progress(concept3.id, progress3)
 
         # Generate final analytics report
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-12-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-12-31T23:59:59"}
         final_report = analytics_dashboard.generate_progress_report("multi_session_user", time_period)
         assert final_report.user_id == "multi_session_user"
 
@@ -288,7 +274,7 @@ class TestEndToEnd:
         session_state = {
             "session_number": 3,
             "completed_concepts": ["session_concept_1", "session_concept_2", "session_concept_3"],
-            "overall_performance": 0.75  # Average of all scores
+            "overall_performance": 0.75,  # Average of all scores
         }
         checkpoint_id = await checkpoint_manager.create_checkpoint(session_state)
         assert checkpoint_id is not None
@@ -334,7 +320,7 @@ class TestEndToEnd:
             title="Advanced Neural Network Architectures",
             content="Deep learning architectures like transformers and ResNets...",
             prerequisites=[],
-            difficulty_level=8  # Matches the user's difficulty preference
+            difficulty_level=8,  # Matches the user's difficulty preference
         )
         db_manager.save_concept(complex_concept)
 
@@ -347,7 +333,7 @@ class TestEndToEnd:
             "provider": "openai",
             "model": "gpt-4",
             "learning_level": "advanced",
-            "learning_style": "visual"  # This would come from user preferences
+            "learning_style": "visual",  # This would come from user preferences
         }
 
         explanation = await catalyst_agent.generate_explanation(complex_concept, user_context)
@@ -359,10 +345,7 @@ class TestEndToEnd:
         # The challenge should be appropriate for the difficulty level
 
         # Step 6: Generate an analytics report that respects user preferences
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-12-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-12-31T23:59:59"}
         report = analytics_dashboard.generate_progress_report("pref_user", time_period)
 
         # The report itself doesn't need to change based on preferences,
@@ -386,28 +369,28 @@ class TestEndToEnd:
         model_service.providers["openai"] = AsyncMock()
         model_service.providers["anthropic"] = AsyncMock()
 
-        system_commands = SystemCommandsHandlerImpl(
-            PreferencesManager(str(temp_workspace)),
-            db_manager,
-            model_service
-        )
+        system_commands = SystemCommandsHandlerImpl(PreferencesManager(str(temp_workspace)), db_manager, model_service)
         # Create a mock TokenUsageAnalytics class with all required methods
-        token_analytics = type('TokenUsageAnalytics', (), {
-            '__init__': lambda self: None,
-            'get_detailed_usage_summary': lambda self, user_id, days: {
-                'summary': {
-                    'records_count': 3,
-                    'models': [
-                        {'model': 'gpt-4', 'provider': 'openai', 'total_tokens': 450, 'cost': 0.02},
-                        {'model': 'claude-3', 'provider': 'anthropic', 'total_tokens': 600, 'cost': 0.03}
-                    ]
+        token_analytics = type(
+            "TokenUsageAnalytics",
+            (),
+            {
+                "__init__": lambda self: None,
+                "get_detailed_usage_summary": lambda self, user_id, days: {
+                    "summary": {
+                        "records_count": 3,
+                        "models": [
+                            {"model": "gpt-4", "provider": "openai", "total_tokens": 450, "cost": 0.02},
+                            {"model": "claude-3", "provider": "anthropic", "total_tokens": 600, "cost": 0.03},
+                        ],
+                    },
+                    "detailed_usage": [
+                        {"model": "gpt-4", "provider": "openai", "total_tokens": 450, "cost": 0.02},
+                        {"model": "claude-3", "provider": "anthropic", "total_tokens": 600, "cost": 0.03},
+                    ],
                 },
-                'detailed_usage': [
-                    {'model': 'gpt-4', 'provider': 'openai', 'total_tokens': 450, 'cost': 0.02},
-                    {'model': 'claude-3', 'provider': 'anthropic', 'total_tokens': 600, 'cost': 0.03}
-                ]
-            }
-        })()
+            },
+        )()
         token_analytics.db_manager = db_manager  # Manual initialization for test
 
         # Simulate multiple AI interactions that use tokens
@@ -417,7 +400,7 @@ class TestEndToEnd:
             input_tokens=150,
             output_tokens=300,
             user_id="token_user",
-            context="explanation"
+            context="explanation",
         )
 
         db_manager.insert_token_usage(
@@ -426,7 +409,7 @@ class TestEndToEnd:
             input_tokens=100,
             output_tokens=200,
             user_id="token_user",
-            context="challenge"
+            context="challenge",
         )
 
         db_manager.insert_token_usage(
@@ -435,7 +418,7 @@ class TestEndToEnd:
             input_tokens=200,
             output_tokens=400,
             user_id="token_user",
-            context="evaluation"
+            context="evaluation",
         )
 
         # Verify token usage through system commands

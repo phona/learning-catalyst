@@ -2,6 +2,7 @@
 Formatting utilities for Learning Catalyst CLI
 Provides consistent formatting for different types of content
 """
+
 from typing import Any, Dict, List
 
 from rich.console import Console
@@ -45,9 +46,9 @@ class CLIFormatter:
 
         for concept in concepts:
             table.add_row(
-                concept.get('title', 'Unknown'),
-                concept.get('description', 'No description available'),
-                str(concept.get('level', 1))
+                concept.get("title", "Unknown"),
+                concept.get("description", "No description available"),
+                str(concept.get("level", 1)),
             )
 
         self.console.print(table)
@@ -63,9 +64,9 @@ class CLIFormatter:
         for command in commands:
             table.add_row(
                 f"/{command.get('name', 'Unknown')}",
-                command.get('description', 'No description available'),
-                command.get('usage', ''),
-                ', '.join(command.get('aliases', []))
+                command.get("description", "No description available"),
+                command.get("usage", ""),
+                ", ".join(command.get("aliases", [])),
             )
 
         self.console.print(table)
@@ -76,7 +77,7 @@ class CLIFormatter:
         help_text += f"[dim]{command_info.get('description', 'No description available')}[/dim]\n\n"
         help_text += f"[bold]Usage:[/bold] {command_info.get('usage', f'/{command_name}')}\n\n"
 
-        aliases = command_info.get('aliases', [])
+        aliases = command_info.get("aliases", [])
         if aliases:
             help_text += f"[bold]Aliases:[/bold] {', '.join(aliases)}\n"
 
@@ -100,19 +101,15 @@ class CLIFormatter:
 
     def format_progress(self, task_description: str) -> Progress:
         """Create and return a progress indicator"""
-        return Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console
-        )
+        return Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=self.console)
 
     def format_tree(self, root_label: str, items: List[Dict[str, Any]]) -> None:
         """Format and display a tree structure"""
         tree = Tree(f"[bold green]{root_label}[/bold green]")
 
         for item in items:
-            label = item.get('title', item.get('name', 'Unknown'))
-            description = item.get('description', '')
+            label = item.get("title", item.get("name", "Unknown"))
+            description = item.get("description", "")
 
             if description:
                 node = tree.add(f"[cyan]{label}[/cyan] [dim]({description})[/dim]")
@@ -120,10 +117,10 @@ class CLIFormatter:
                 node = tree.add(f"[cyan]{label}[/cyan]")
 
             # Add children if any
-            children = item.get('children', [])
+            children = item.get("children", [])
             for child in children:
-                child_label = child.get('title', child.get('name', 'Unknown'))
-                child_description = child.get('description', '')
+                child_label = child.get("title", child.get("name", "Unknown"))
+                child_description = child.get("description", "")
 
                 if child_description:
                     node.add(f"[yellow]{child_label}[/yellow] [dim]({child_description})[/dim]")

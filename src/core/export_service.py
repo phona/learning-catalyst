@@ -1,6 +1,7 @@
 """
 Export functionality implementation
 """
+
 import csv
 import json
 from datetime import datetime
@@ -38,14 +39,11 @@ class ExportService:
         filepath = self.reports_dir / filename
 
         # Write the content to the file
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
 
         return AnalyticsExport(
-            report_type=report_type,
-            content=str(filepath),
-            format=export_format,
-            timestamp=datetime.now().isoformat()
+            report_type=report_type, content=str(filepath), format=export_format, timestamp=datetime.now().isoformat()
         )
 
     def _generate_progress_report(self, user_id: str, export_format: str) -> str:
@@ -62,8 +60,8 @@ class ExportService:
             "time_spent": "5 hours 23 minutes",
             "recent_activity": [
                 {"date": "2023-10-01", "activity": "Learned basic concepts"},
-                {"date": "2023-10-02", "activity": "Completed challenges for concept A"}
-            ]
+                {"date": "2023-10-02", "activity": "Completed challenges for concept A"},
+            ],
         }
 
         if export_format == "json":
@@ -88,29 +86,24 @@ class ExportService:
         """Generate a token usage report"""
         # Get actual token usage data from the database
         token_usage = self.db_manager.get_token_usage_summary(
-            user_id=user_id,
-            start_date="2023-01-01T00:00:00",
-            end_date=datetime.now().isoformat()
+            user_id=user_id, start_date="2023-01-01T00:00:00", end_date=datetime.now().isoformat()
         )
 
         report_data = {
             "user_id": user_id,
             "report_type": "token_usage",
             "generated_at": datetime.now().isoformat(),
-            "period": {
-                "start": "2023-01-01T00:00:00",
-                "end": datetime.now().isoformat()
-            },
+            "period": {"start": "2023-01-01T00:00:00", "end": datetime.now().isoformat()},
             "usage_summary": {
                 "input_tokens": token_usage["input_tokens"],
                 "output_tokens": token_usage["output_tokens"],
                 "total_tokens": token_usage["total_tokens"],
-                "estimated_cost": self._calculate_cost(token_usage)
+                "estimated_cost": self._calculate_cost(token_usage),
             },
             "usage_by_model": [
                 {"model": "gpt-4", "input_tokens": 5000, "output_tokens": 3000},
-                {"model": "claude-3", "input_tokens": 2000, "output_tokens": 1500}
-            ]
+                {"model": "claude-3", "input_tokens": 2000, "output_tokens": 1500},
+            ],
         }
 
         if export_format == "json":
@@ -142,10 +135,7 @@ class ExportService:
             "improvement_areas": ["Calculus", "Statistics"],
             "learning_velocity": "moderate",
             "consistency_score": 78,
-            "recommendations": [
-                "Spend more time on challenging topics",
-                "Practice problems more frequently"
-            ]
+            "recommendations": ["Spend more time on challenging topics", "Practice problems more frequently"],
         }
 
         if export_format == "json":
@@ -170,7 +160,7 @@ class ExportService:
             "user_id": user_id,
             "report_type": "general",
             "generated_at": datetime.now().isoformat(),
-            "summary": "This is a general learning progress summary."
+            "summary": "This is a general learning progress summary.",
         }
 
         if export_format == "json":
@@ -200,7 +190,7 @@ class ExportService:
         filename = f"checkpoint_{checkpoint_id}.{export_format}"
         filepath = self.reports_dir / filename
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             if export_format == "json":
                 json.dump(checkpoint_data, f, indent=2)
             else:

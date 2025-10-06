@@ -2,9 +2,10 @@
 Unit tests for the startup guide module.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from src.core.startup_guide import StartupGuide
 from src.core.state_manager import ApplicationState
@@ -57,7 +58,7 @@ class TestStartupGuide:
             user_profile={"learning_style": "visual"},
             conversation_context={"current_concept": "Python Basics"},
             conversation_messages=[],
-            current_state_metadata={"last_access": datetime.now().isoformat()}
+            current_state_metadata={"last_access": datetime.now().isoformat()},
         )
         mock_state_manager.load_last_state.return_value = mock_state
 
@@ -90,14 +91,16 @@ class TestStartupGuide:
         assert "first time" in message.lower()
 
     @pytest.mark.asyncio
-    async def test_get_returning_user_message_with_state(self, startup_guide, mock_state_manager, mock_knowledge_navigator):
+    async def test_get_returning_user_message_with_state(
+        self, startup_guide, mock_state_manager, mock_knowledge_navigator
+    ):
         """Test returning user message with previous state."""
         # Arrange
         mock_state = ApplicationState(
             user_profile={},
             conversation_context={"current_concept": "Python Basics"},
             conversation_messages=[],
-            current_state_metadata={"last_access": datetime.now().isoformat()}
+            current_state_metadata={"last_access": datetime.now().isoformat()},
         )
         mock_state_manager.load_last_state.return_value = mock_state
 
@@ -107,7 +110,7 @@ class TestStartupGuide:
                 title="Python Basics",
                 content="Basic Python programming concepts",
                 prerequisites=[],
-                difficulty_level=1
+                difficulty_level=1,
             )
         ]
         mock_knowledge_navigator.get_available_concepts.return_value = concepts
@@ -158,15 +161,15 @@ class TestStartupGuide:
                 title="Python Basics",
                 content="Basic Python programming concepts",
                 prerequisites=[],
-                difficulty_level=1
+                difficulty_level=1,
             ),
             Concept(
                 id="data-structures",
                 title="Data Structures",
                 content="Common data structures in programming",
                 prerequisites=[],
-                difficulty_level=2
-            )
+                difficulty_level=2,
+            ),
         ]
 
         # Act
@@ -200,36 +203,36 @@ class TestStartupGuide:
                 title="Python Basics",
                 content="Basic Python programming concepts",
                 prerequisites=[],
-                difficulty_level=1
+                difficulty_level=1,
             ),
             Concept(
                 id="data-structures",
                 title="Data Structures",
                 content="Common data structures in programming",
                 prerequisites=[],
-                difficulty_level=2
+                difficulty_level=2,
             ),
             Concept(
                 id="algorithms",
                 title="Algorithms",
                 content="Algorithm design and analysis",
                 prerequisites=[],
-                difficulty_level=2
+                difficulty_level=2,
             ),
             Concept(
                 id="oop",
                 title="Object-Oriented Programming",
                 content="OOP concepts and principles",
                 prerequisites=[],
-                difficulty_level=3
+                difficulty_level=3,
             ),
             Concept(
                 id="testing",
                 title="Testing",
                 content="Software testing methodologies",
                 prerequisites=[],
-                difficulty_level=2
-            )
+                difficulty_level=2,
+            ),
         ]
         mock_knowledge_navigator.get_available_concepts.return_value = concepts
         user_profile = {"learning_style": "visual"}
@@ -253,7 +256,7 @@ class TestStartupGuide:
                 title="Python Basics",
                 content="Basic Python programming concepts",
                 prerequisites=[],
-                difficulty_level=1
+                difficulty_level=1,
             )
         ]
         mock_knowledge_navigator.get_available_concepts.return_value = concepts
@@ -306,13 +309,7 @@ class TestStartupGuide:
     def test_format_suggestions_with_data(self, startup_guide):
         """Test formatting suggestions with data."""
         # Arrange
-        suggestions = [
-            {
-                "title": "Test Suggestion",
-                "description": "Test description",
-                "command": "/test"
-            }
-        ]
+        suggestions = [{"title": "Test Suggestion", "description": "Test description", "command": "/test"}]
 
         # Act
         formatted = startup_guide.format_suggestions(suggestions)
@@ -332,7 +329,7 @@ class TestStartupGuide:
             title="Python Basics",
             content="Basic Python programming concepts",
             prerequisites=[],
-            difficulty_level=1
+            difficulty_level=1,
         )
         user_profile = {}
 
@@ -351,7 +348,7 @@ class TestStartupGuide:
             title="Python Basics",
             content="Basic Python programming concepts",
             prerequisites=[],
-            difficulty_level=1
+            difficulty_level=1,
         )
 
         # Act

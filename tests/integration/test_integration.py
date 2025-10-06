@@ -1,23 +1,26 @@
 """
 Integration tests for Learning Catalyst project
 """
-import pytest
-import tempfile
+
 import os
+import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from src.utils.workspace_manager import WorkspaceManager
-from src.utils.preferences_manager import PreferencesManager
-from src.data.database_manager import DatabaseManager
+
+import pytest
+
 from src.ai.service import ModelAbstractionService
-from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.core.checkpoint_manager import CheckpointManagerImpl
+from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.core.system_commands_handler import SystemCommandsHandlerImpl
-from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
+from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
 from src.data.models.user_profile import UserProfile
+from src.utils.preferences_manager import PreferencesManager
+from src.utils.workspace_manager import WorkspaceManager
 
 
 class TestIntegration:
@@ -51,7 +54,7 @@ class TestIntegration:
             title="Integration Test Concept",
             content="This is a test concept for integration testing.",
             prerequisites=[],
-            difficulty_level=5
+            difficulty_level=5,
         )
         db_manager.save_concept(test_concept)
 
@@ -108,7 +111,7 @@ class TestIntegration:
             title="Test Concept",
             content="This is a test concept.",
             prerequisites=[],
-            difficulty_level=5
+            difficulty_level=5,
         )
 
         # Generate an explanation
@@ -130,11 +133,9 @@ class TestIntegration:
             "current_concept": "test_concept_123",
             "user_progress": [
                 {"concept_id": "concept1", "completed": True, "score": 0.8},
-                {"concept_id": "concept2", "completed": False, "score": 0.0}
+                {"concept_id": "concept2", "completed": False, "score": 0.0},
             ],
-            "learning_history": [
-                {"concept_id": "concept1", "timestamp": "2023-01-01T00:00:00", "score": 0.8}
-            ]
+            "learning_history": [{"concept_id": "concept1", "timestamp": "2023-01-01T00:00:00", "score": 0.8}],
         }
 
         # Create a checkpoint
@@ -173,7 +174,7 @@ class TestIntegration:
             title="Integration Flow Concept",
             content="This concept is used for integration flow testing.",
             prerequisites=[],
-            difficulty_level=5
+            difficulty_level=5,
         )
         db_manager.save_concept(test_concept)
 
@@ -195,15 +196,17 @@ class TestIntegration:
         assert "challenge" in str(challenge).lower()
 
         # Step 5: Update user progress
-        knowledge_navigator.update_progress(test_concept.id,
-                                          type('UserProgress', (), {'concept_id': test_concept.id, 'completed': False, 'score': 0.0})())
+        knowledge_navigator.update_progress(
+            test_concept.id,
+            type("UserProgress", (), {"concept_id": test_concept.id, "completed": False, "score": 0.0})(),
+        )
 
         # Step 6: Create a checkpoint
         state_data = {
             "current_concept": test_concept.id,
             "explanation": explanation,
             "challenge": challenge,
-            "user_progress": [{"concept_id": test_concept.id, "completed": False, "score": 0.0}]
+            "user_progress": [{"concept_id": test_concept.id, "completed": False, "score": 0.0}],
         }
         checkpoint_id = await checkpoint_manager.create_checkpoint(state_data)
         assert checkpoint_id is not None
@@ -214,10 +217,7 @@ class TestIntegration:
         assert loaded_state["explanation"] == explanation
 
         # Step 8: Generate a progress report using analytics
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-12-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-12-31T23:59:59"}
         progress_report = analytics_dashboard.generate_progress_report("test_user", time_period)
         assert progress_report.user_id == "test_user"
 
@@ -246,21 +246,18 @@ class TestIntegration:
             input_tokens=100,
             output_tokens=200,
             user_id="integration_user",
-            context="explanation"
+            context="explanation",
         )
 
         # Initialize analytics components
         analytics_dashboard = BasicAnalyticsDashboard(db_manager)
-        token_analytics = type('TokenUsageAnalytics', (), {
-            '__init__': lambda self, db: setattr(self, 'db_manager', db)
-        })()
+        token_analytics = type(
+            "TokenUsageAnalytics", (), {"__init__": lambda self, db: setattr(self, "db_manager", db)}
+        )()
         token_analytics.db_manager = db_manager  # Manual initialization for test
 
         # Test that analytics can access the database data
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-12-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-12-31T23:59:59"}
         report = analytics_dashboard.generate_progress_report("integration_user", time_period)
 
         # Even though we don't have actual progress data, the report should be generated
@@ -268,9 +265,7 @@ class TestIntegration:
 
         # Test token usage summary
         summary = db_manager.get_token_usage_summary(
-            user_id="integration_user",
-            start_date=time_period["start"],
-            end_date=time_period["end"]
+            user_id="integration_user", start_date=time_period["start"], end_date=time_period["end"]
         )
         assert summary["input_tokens"] == 100
         assert summary["output_tokens"] == 200
@@ -296,7 +291,7 @@ class TestIntegration:
             title="Challenge Integration Concept",
             content="Content for challenge integration test.",
             prerequisites=[],
-            difficulty_level=5
+            difficulty_level=5,
         )
 
         # Generate a challenge
@@ -316,7 +311,7 @@ class TestIntegration:
         challenge_engine.present_challenge(challenge)
 
         # Mock user input for the answer
-        with patch('builtins.input', return_value="The main principle is..."):
+        with patch("builtins.input", return_value="The main principle is..."):
             answer = await challenge_engine.collect_answer()
             assert answer == "The main principle is..."
 

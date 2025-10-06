@@ -1,6 +1,7 @@
 """
 Start learning command implementation
 """
+
 import os
 
 import typer
@@ -9,9 +10,7 @@ app = typer.Typer()
 
 
 @app.command()
-def start_learning(
-    workspace_path: str = typer.Argument(".", help="Path to the learning workspace")
-):
+def start_learning(workspace_path: str = typer.Argument(".", help="Path to the learning workspace")):
     """Start the Learning Catalyst application in the specified workspace"""
     # Initialize the workspace and start the application
     learningspace_path = os.path.join(workspace_path, ".catalyst")

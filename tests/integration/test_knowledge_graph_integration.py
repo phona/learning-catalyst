@@ -1,22 +1,25 @@
 """
 Integration tests for Knowledge Graph Implementation (KNOW-R3) - Mocked version since the actual implementation isn't found
 """
-import sys
-import os
-import pytest
+
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
+import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+from src.ai.service import ModelAbstractionService as AIService
+from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
+from src.data.vector_storage import VectorStorage
 # Relationship model and KnowledgeGraph don't exist - we'll mock them
 from src.utils.workspace_manager import WorkspaceManager
-from src.data.database_manager import DatabaseManager
-from src.data.vector_storage import VectorStorage
-from src.ai.service import ModelAbstractionService as AIService
+
 
 # Mock the KnowledgeGraph class since it doesn't exist yet
 class KnowledgeGraph:
@@ -43,6 +46,7 @@ class KnowledgeGraph:
 
     async def find_similar_concepts(self, query, vector_storage, db_manager):
         return []
+
 
 # Mock the Relationship class since it doesn't exist yet
 class Relationship:
@@ -88,7 +92,7 @@ class TestKnowledgeGraphIntegration:
             name="Python Classes",
             description="Blueprints for creating objects",
             relevance=0.9,
-            session_id=session.id
+            session_id=session.id,
         )
 
         concept2 = Concept(
@@ -96,7 +100,7 @@ class TestKnowledgeGraphIntegration:
             name="Python Objects",
             description="Instances of classes",
             relevance=0.8,
-            session_id=session.id
+            session_id=session.id,
         )
 
         concept3 = Concept(
@@ -104,7 +108,7 @@ class TestKnowledgeGraphIntegration:
             name="Python Inheritance",
             description="Mechanism for reusing code",
             relevance=0.7,
-            session_id=session.id
+            session_id=session.id,
         )
 
         # Add concepts to knowledge graph
@@ -123,7 +127,7 @@ class TestKnowledgeGraphIntegration:
             source_id="python-objects",
             target_id="python-classes",
             relationship_type="IS_INSTANCE_OF",
-            description="Objects are instances of classes"
+            description="Objects are instances of classes",
         )
 
         relationship2 = Relationship(
@@ -131,7 +135,7 @@ class TestKnowledgeGraphIntegration:
             source_id="python-inheritance",
             target_id="python-classes",
             relationship_type="EXTENDS",
-            description="Inheritance extends class functionality"
+            description="Inheritance extends class functionality",
         )
 
         # Add relationships to knowledge graph
@@ -145,17 +149,19 @@ class TestKnowledgeGraphIntegration:
 
         # 4. Simulate AI service identifying new relationships
         # Mock AI service to identify a new relationship
-        ai_service_mock.identify_relationships = AsyncMock(return_value=[{
-            "source_id": "python-classes",
-            "target_id": "python-objects",
-            "relationship_type": "CREATES",
-            "description": "Classes create objects"
-        }])
+        ai_service_mock.identify_relationships = AsyncMock(
+            return_value=[
+                {
+                    "source_id": "python-classes",
+                    "target_id": "python-objects",
+                    "relationship_type": "CREATES",
+                    "description": "Classes create objects",
+                }
+            ]
+        )
 
         # Let AI service analyze the concepts and suggest new relationships
-        suggested_relationships = await ai_service_mock.identify_relationships(
-            [concept1, concept2, concept3]
-        )
+        suggested_relationships = await ai_service_mock.identify_relationships([concept1, concept2, concept3])
 
         # Add the new suggested relationship
         new_relationship = Relationship(
@@ -163,7 +169,7 @@ class TestKnowledgeGraphIntegration:
             source_id=suggested_relationships[0]["source_id"],
             target_id=suggested_relationships[0]["target_id"],
             relationship_type=suggested_relationships[0]["relationship_type"],
-            description=suggested_relationships[0]["description"]
+            description=suggested_relationships[0]["description"],
         )
 
         await knowledge_graph.add_relationship(new_relationship, db_manager_mock)
@@ -172,7 +178,9 @@ class TestKnowledgeGraphIntegration:
         assert db_manager_mock.save_relationship.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_knowledge_graph_with_conversation_context(self, temp_workspace, db_manager_mock, vector_storage_mock):
+    async def test_knowledge_graph_with_conversation_context(
+        self, temp_workspace, db_manager_mock, vector_storage_mock
+    ):
         """Test knowledge graph integration with conversation context"""
         # Initialize components
         workspace_manager = WorkspaceManager(str(temp_workspace))
@@ -195,18 +203,45 @@ class TestKnowledgeGraphIntegration:
         # 1. Simulate a conversation about Python OOP
         conversation_history = [
             {"speaker": "user", "message": "Can you explain object-oriented programming in Python?"},
-            {"speaker": "ai", "message": "Object-oriented programming (OOP) in Python uses classes and objects. A class is a blueprint for creating objects, and an object is an instance of a class. Python supports inheritance, polymorphism, and encapsulation."}
+            {
+                "speaker": "ai",
+                "message": "Object-oriented programming (OOP) in Python uses classes and objects. A class is a blueprint for creating objects, and an object is an instance of a class. Python supports inheritance, polymorphism, and encapsulation.",
+            },
         ]
 
         # 2. Extract concepts from the AI response
-        ai_service_mock.extract_concepts = AsyncMock(return_value=[
-            {"id": "python-oop", "name": "Python OOP", "description": "Object-oriented programming paradigm in Python", "relevance": 1.0},
-            {"id": "python-classes", "name": "Python Classes", "description": "Blueprints for creating objects", "relevance": 0.9},
-            {"id": "python-objects", "name": "Python Objects", "description": "Instances of classes", "relevance": 0.9},
-            {"id": "python-inheritance", "name": "Python Inheritance", "description": "Mechanism for reusing code", "relevance": 0.7}
-        ])
+        ai_service_mock.extract_concepts = AsyncMock(
+            return_value=[
+                {
+                    "id": "python-oop",
+                    "name": "Python OOP",
+                    "description": "Object-oriented programming paradigm in Python",
+                    "relevance": 1.0,
+                },
+                {
+                    "id": "python-classes",
+                    "name": "Python Classes",
+                    "description": "Blueprints for creating objects",
+                    "relevance": 0.9,
+                },
+                {
+                    "id": "python-objects",
+                    "name": "Python Objects",
+                    "description": "Instances of classes",
+                    "relevance": 0.9,
+                },
+                {
+                    "id": "python-inheritance",
+                    "name": "Python Inheritance",
+                    "description": "Mechanism for reusing code",
+                    "relevance": 0.7,
+                },
+            ]
+        )
 
-        concepts_data = await ai_service_mock.extract_concepts(conversation_history[1]["message"], conversation_history[0]["message"])
+        concepts_data = await ai_service_mock.extract_concepts(
+            conversation_history[1]["message"], conversation_history[0]["message"]
+        )
 
         # 3. Create concept objects and add to knowledge graph
         concepts = []
@@ -216,19 +251,41 @@ class TestKnowledgeGraphIntegration:
                 name=concept_data["name"],
                 description=concept_data["description"],
                 relevance=concept_data["relevance"],
-                session_id=session.id
+                session_id=session.id,
             )
             concepts.append(concept)
             await knowledge_graph.add_concept(concept, db_manager_mock)
             await knowledge_graph.add_concept_to_vector_store(concept, vector_storage_mock)
 
         # 4. Identify and add relationships between concepts
-        ai_service_mock.identify_relationships = AsyncMock(return_value=[
-            {"source_id": "python-oop", "target_id": "python-classes", "relationship_type": "USES", "description": "OOP uses classes"},
-            {"source_id": "python-oop", "target_id": "python-objects", "relationship_type": "USES", "description": "OOP uses objects"},
-            {"source_id": "python-oop", "target_id": "python-inheritance", "relationship_type": "USES", "description": "OOP uses inheritance"},
-            {"source_id": "python-objects", "target_id": "python-classes", "relationship_type": "IS_INSTANCE_OF", "description": "Objects are instances of classes"}
-        ])
+        ai_service_mock.identify_relationships = AsyncMock(
+            return_value=[
+                {
+                    "source_id": "python-oop",
+                    "target_id": "python-classes",
+                    "relationship_type": "USES",
+                    "description": "OOP uses classes",
+                },
+                {
+                    "source_id": "python-oop",
+                    "target_id": "python-objects",
+                    "relationship_type": "USES",
+                    "description": "OOP uses objects",
+                },
+                {
+                    "source_id": "python-oop",
+                    "target_id": "python-inheritance",
+                    "relationship_type": "USES",
+                    "description": "OOP uses inheritance",
+                },
+                {
+                    "source_id": "python-objects",
+                    "target_id": "python-classes",
+                    "relationship_type": "IS_INSTANCE_OF",
+                    "description": "Objects are instances of classes",
+                },
+            ]
+        )
 
         relationships_data = await ai_service_mock.identify_relationships(concepts)
 
@@ -239,7 +296,7 @@ class TestKnowledgeGraphIntegration:
                 source_id=rel_data["source_id"],
                 target_id=rel_data["target_id"],
                 relationship_type=rel_data["relationship_type"],
-                description=rel_data["description"]
+                description=rel_data["description"],
             )
             await knowledge_graph.add_relationship(relationship, db_manager_mock)
 
@@ -252,20 +309,22 @@ class TestKnowledgeGraphIntegration:
         followup_question = "How does inheritance work in Python?"
 
         # Mock vector search to find relevant concepts
-        vector_storage_mock.search_similar_concepts = AsyncMock(return_value=[
-            ("python-inheritance", 0.95),
-            ("python-oop", 0.8),
-            ("python-classes", 0.75)
-        ])
+        vector_storage_mock.search_similar_concepts = AsyncMock(
+            return_value=[("python-inheritance", 0.95), ("python-oop", 0.8), ("python-classes", 0.75)]
+        )
 
         # Find similar concepts to provide context for the AI response
-        similar_concepts = await knowledge_graph.find_similar_concepts(followup_question, vector_storage_mock, db_manager_mock)
+        similar_concepts = await knowledge_graph.find_similar_concepts(
+            followup_question, vector_storage_mock, db_manager_mock
+        )
 
         # Verify vector search was used
         vector_storage_mock.search_similar_concepts.assert_called_once_with(followup_question, top_k=5)
 
     @pytest.mark.asyncio
-    async def test_knowledge_graph_persistence_and_session_resumption(self, temp_workspace, db_manager_mock, vector_storage_mock):
+    async def test_knowledge_graph_persistence_and_session_resumption(
+        self, temp_workspace, db_manager_mock, vector_storage_mock
+    ):
         """Test knowledge graph persistence across sessions"""
         # Initialize components
         workspace_manager = WorkspaceManager(str(temp_workspace))
@@ -311,7 +370,7 @@ class TestKnowledgeGraphIntegration:
             name="Python Lists",
             description="Ordered, mutable collections",
             relevance=0.9,
-            session_id=session1.id
+            session_id=session1.id,
         )
 
         concept2 = Concept(
@@ -319,7 +378,7 @@ class TestKnowledgeGraphIntegration:
             name="Python Iterators",
             description="Objects that implement __iter__ and __next__",
             relevance=0.8,
-            session_id=session1.id
+            session_id=session1.id,
         )
 
         relationship = Relationship(
@@ -327,7 +386,7 @@ class TestKnowledgeGraphIntegration:
             source_id="python-lists",
             target_id="python-iterators",
             relationship_type="IMPLEMENTS",
-            description="Lists implement the iterator protocol"
+            description="Lists implement the iterator protocol",
         )
 
         # Add to knowledge graph
@@ -349,7 +408,7 @@ class TestKnowledgeGraphIntegration:
             name="Python Generators",
             description="Special type of iterators created with yield",
             relevance=0.85,
-            session_id=session2.id
+            session_id=session2.id,
         )
 
         relationship2 = Relationship(
@@ -357,7 +416,7 @@ class TestKnowledgeGraphIntegration:
             source_id="python-generators",
             target_id="python-iterators",
             relationship_type="IS_A",
-            description="Generators are a type of iterator"
+            description="Generators are a type of iterator",
         )
 
         # Add new concept and relationship

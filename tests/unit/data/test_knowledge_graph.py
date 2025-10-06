@@ -1,20 +1,23 @@
 """
 Unit tests for Knowledge Graph Implementation (KNOW-R3) - Mocked version since the actual implementation isn't found
 """
-import sys
-import os
-import pytest
+
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+import os
+import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from src.data.models.concept import Concept
 # Relationship model doesn't exist - we'll mock it
 # KnowledgeGraph doesn't exist - we'll mock it
 from src.data.database_manager import DatabaseManager
+from src.data.models.concept import Concept
+
 
 # Mock the KnowledgeGraph class since it doesn't exist yet
 class KnowledgeGraph:
@@ -42,6 +45,7 @@ class KnowledgeGraph:
     async def find_similar_concepts(self, query, vector_storage, db_manager):
         return []
 
+
 # Mock the Relationship class since it doesn't exist yet
 class Relationship:
     def __init__(self, id, source_id, target_id, relationship_type, description):
@@ -65,7 +69,7 @@ class TestKnowledgeGraph:
             name="Python Lists",
             description="Ordered, mutable collections of items",
             relevance=0.9,
-            session_id="test-session-1"
+            session_id="test-session-1",
         )
 
         # Mock database save_concept method
@@ -103,7 +107,7 @@ class TestKnowledgeGraph:
             name="Python Lists",
             description="Ordered, mutable collections",
             relevance=0.9,
-            session_id="test-session-1"
+            session_id="test-session-1",
         )
 
         concept2 = Concept(
@@ -111,7 +115,7 @@ class TestKnowledgeGraph:
             name="Python Iterables",
             description="Objects that can be iterated over",
             relevance=0.8,
-            session_id="test-session-1"
+            session_id="test-session-1",
         )
 
         relationship = Relationship(
@@ -119,7 +123,7 @@ class TestKnowledgeGraph:
             source_id="python-lists",
             target_id="python-iterables",
             relationship_type="IS_A",
-            description="Python lists are a type of iterable"
+            description="Python lists are a type of iterable",
         )
 
         # Mock database methods
@@ -160,22 +164,60 @@ class TestKnowledgeGraph:
 
         # Create concepts with hierarchical relationships
         concepts = [
-            Concept(id="python-data-structures", name="Python Data Structures", description="", relevance=0.9, session_id="test-session-1"),
-            Concept(id="python-sequences", name="Python Sequences", description="", relevance=0.8, session_id="test-session-1"),
+            Concept(
+                id="python-data-structures",
+                name="Python Data Structures",
+                description="",
+                relevance=0.9,
+                session_id="test-session-1",
+            ),
+            Concept(
+                id="python-sequences",
+                name="Python Sequences",
+                description="",
+                relevance=0.8,
+                session_id="test-session-1",
+            ),
             Concept(id="python-lists", name="Python Lists", description="", relevance=0.9, session_id="test-session-1"),
-            Concept(id="python-tuples", name="Python Tuples", description="", relevance=0.8, session_id="test-session-1")
+            Concept(
+                id="python-tuples", name="Python Tuples", description="", relevance=0.8, session_id="test-session-1"
+            ),
         ]
 
         relationships = [
-            Relationship(id="rel-1", source_id="python-sequences", target_id="python-data-structures", relationship_type="IS_A", description="Sequences are data structures"),
-            Relationship(id="rel-2", source_id="python-lists", target_id="python-sequences", relationship_type="IS_A", description="Lists are sequences"),
-            Relationship(id="rel-3", source_id="python-tuples", target_id="python-sequences", relationship_type="IS_A", description="Tuples are sequences")
+            Relationship(
+                id="rel-1",
+                source_id="python-sequences",
+                target_id="python-data-structures",
+                relationship_type="IS_A",
+                description="Sequences are data structures",
+            ),
+            Relationship(
+                id="rel-2",
+                source_id="python-lists",
+                target_id="python-sequences",
+                relationship_type="IS_A",
+                description="Lists are sequences",
+            ),
+            Relationship(
+                id="rel-3",
+                source_id="python-tuples",
+                target_id="python-sequences",
+                relationship_type="IS_A",
+                description="Tuples are sequences",
+            ),
         ]
 
         # Mock database methods
-        db_manager_mock.get_concept = AsyncMock(side_effect=lambda concept_id: next((c for c in concepts if c.id == concept_id), None))
-        db_manager_mock.get_relationships_from = AsyncMock(side_effect=lambda source_id: [r for r in relationships if r.source_id == source_id])
-        db_manager_mock.get_relationships_to = AsyncMock(side_effect=lambda target_id: [r for r in relationships if r.target_id == target_id])
+        db_manager_mock.get_concept = AsyncMock(
+            side_effect=lambda concept_id: next((c for c in concepts if c.id == concept_id), None)
+        )
+        db_manager_mock.get_relationships_from = AsyncMock(
+            side_effect=lambda source_id: [r for r in relationships if r.source_id == source_id]
+        )
+        db_manager_mock.get_relationships_to = AsyncMock(
+            side_effect=lambda target_id: [r for r in relationships if r.target_id == target_id]
+        )
 
         # Test upward navigation (finding parents)
         parent_relationships = await kg.get_relationships_from("python-lists", db_manager_mock)
@@ -204,8 +246,20 @@ class TestKnowledgeGraph:
         concept2 = Concept(id="django", name="Django", description="", relevance=0.8, session_id="test-session-1")
 
         relationships = [
-            Relationship(id="rel-1", source_id="django", target_id="python", relationship_type="BUILT_WITH", description="Django is built with Python"),
-            Relationship(id="rel-2", source_id="django", target_id="python", relationship_type="EXTENDS", description="Django extends Python's capabilities")
+            Relationship(
+                id="rel-1",
+                source_id="django",
+                target_id="python",
+                relationship_type="BUILT_WITH",
+                description="Django is built with Python",
+            ),
+            Relationship(
+                id="rel-2",
+                source_id="django",
+                target_id="python",
+                relationship_type="EXTENDS",
+                description="Django extends Python's capabilities",
+            ),
         ]
 
         # Mock database methods
@@ -231,25 +285,63 @@ class TestKnowledgeGraph:
         kg = KnowledgeGraph(str(temp_workspace))
 
         # Create a central concept and its neighbors
-        central_concept = Concept(id="python-functions", name="Python Functions", description="", relevance=0.9, session_id="test-session-1")
+        central_concept = Concept(
+            id="python-functions", name="Python Functions", description="", relevance=0.9, session_id="test-session-1"
+        )
 
         neighbor_concepts = [
-            Concept(id="python-parameters", name="Python Parameters", description="", relevance=0.8, session_id="test-session-1"),
-            Concept(id="python-return-values", name="Python Return Values", description="", relevance=0.8, session_id="test-session-1"),
-            Concept(id="python-scope", name="Python Scope", description="", relevance=0.7, session_id="test-session-1")
+            Concept(
+                id="python-parameters",
+                name="Python Parameters",
+                description="",
+                relevance=0.8,
+                session_id="test-session-1",
+            ),
+            Concept(
+                id="python-return-values",
+                name="Python Return Values",
+                description="",
+                relevance=0.8,
+                session_id="test-session-1",
+            ),
+            Concept(id="python-scope", name="Python Scope", description="", relevance=0.7, session_id="test-session-1"),
         ]
 
         relationships = [
-            Relationship(id="rel-1", source_id="python-functions", target_id="python-parameters", relationship_type="HAS_PART", description="Functions have parameters"),
-            Relationship(id="rel-2", source_id="python-functions", target_id="python-return-values", relationship_type="PRODUCES", description="Functions produce return values"),
-            Relationship(id="rel-3", source_id="python-scope", target_id="python-functions", relationship_type="AFFECTS", description="Scope affects functions")
+            Relationship(
+                id="rel-1",
+                source_id="python-functions",
+                target_id="python-parameters",
+                relationship_type="HAS_PART",
+                description="Functions have parameters",
+            ),
+            Relationship(
+                id="rel-2",
+                source_id="python-functions",
+                target_id="python-return-values",
+                relationship_type="PRODUCES",
+                description="Functions produce return values",
+            ),
+            Relationship(
+                id="rel-3",
+                source_id="python-scope",
+                target_id="python-functions",
+                relationship_type="AFFECTS",
+                description="Scope affects functions",
+            ),
         ]
 
         # Mock database methods
         all_concepts = [central_concept] + neighbor_concepts
-        db_manager_mock.get_concept = AsyncMock(side_effect=lambda concept_id: next((c for c in all_concepts if c.id == concept_id), None))
-        db_manager_mock.get_relationships_from = AsyncMock(return_value=[r for r in relationships if r.source_id == "python-functions"])
-        db_manager_mock.get_relationships_to = AsyncMock(return_value=[r for r in relationships if r.target_id == "python-functions"])
+        db_manager_mock.get_concept = AsyncMock(
+            side_effect=lambda concept_id: next((c for c in all_concepts if c.id == concept_id), None)
+        )
+        db_manager_mock.get_relationships_from = AsyncMock(
+            return_value=[r for r in relationships if r.source_id == "python-functions"]
+        )
+        db_manager_mock.get_relationships_to = AsyncMock(
+            return_value=[r for r in relationships if r.target_id == "python-functions"]
+        )
 
         # Get outgoing relationships (concepts the central concept points to)
         outgoing_relationships = await kg.get_relationships_from("python-functions", db_manager_mock)
@@ -275,18 +367,36 @@ class TestKnowledgeGraph:
         assert "python-scope" in neighbor_ids
 
     @pytest.mark.asyncio
-    async def test_knowledge_graph_integration_with_vector_search(self, temp_workspace, db_manager_mock, vector_storage_mock):
+    async def test_knowledge_graph_integration_with_vector_search(
+        self, temp_workspace, db_manager_mock, vector_storage_mock
+    ):
         """Test integration between knowledge graph and vector storage for semantic search"""
         # Initialize knowledge graph
         kg = KnowledgeGraph(str(temp_workspace))
 
         # Create concepts
-        concept1 = Concept(id="python-lists", name="Python Lists", description="Ordered, mutable collections", relevance=0.9, session_id="test-session-1")
-        concept2 = Concept(id="python-dictionaries", name="Python Dictionaries", description="Key-value pairs", relevance=0.8, session_id="test-session-1")
+        concept1 = Concept(
+            id="python-lists",
+            name="Python Lists",
+            description="Ordered, mutable collections",
+            relevance=0.9,
+            session_id="test-session-1",
+        )
+        concept2 = Concept(
+            id="python-dictionaries",
+            name="Python Dictionaries",
+            description="Key-value pairs",
+            relevance=0.8,
+            session_id="test-session-1",
+        )
 
         # Mock database and vector storage
-        db_manager_mock.get_concept = AsyncMock(side_effect=lambda concept_id: concept1 if concept_id == "python-lists" else concept2)
-        vector_storage_mock.search_similar_concepts = AsyncMock(return_value=[("python-lists", 0.95), ("python-dictionaries", 0.7)])
+        db_manager_mock.get_concept = AsyncMock(
+            side_effect=lambda concept_id: concept1 if concept_id == "python-lists" else concept2
+        )
+        vector_storage_mock.search_similar_concepts = AsyncMock(
+            return_value=[("python-lists", 0.95), ("python-dictionaries", 0.7)]
+        )
 
         # Add concepts to vector storage
         await kg.add_concept_to_vector_store(concept1, vector_storage_mock)

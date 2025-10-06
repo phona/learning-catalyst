@@ -1,12 +1,15 @@
 """
 Unit tests for core application logic
 """
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock, patch
-from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+
+import pytest
+
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.core.checkpoint_manager import CheckpointManagerImpl
+from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.core.system_commands_handler import SystemCommandsHandlerImpl
 from src.data.models.concept import Concept
 from src.data.models.extended_models import UserProgress
@@ -22,10 +25,10 @@ class TestSQLiteKnowledgeNavigator:
     async def test_load_content(self, knowledge_navigator):
         """Test loading content from a file"""
         # Create a temporary markdown file
-        import tempfile
         import os
+        import tempfile
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             f.write("# Test Concept\nThis is a test concept for learning.")
             temp_file = f.name
 
@@ -49,6 +52,7 @@ class TestSQLiteKnowledgeNavigator:
 
         # Use the database manager to save the concept
         from src.data.database_manager import DatabaseManager
+
         db_manager = DatabaseManager(knowledge_navigator.db_path)
         db_manager.save_concept(sample_concept)
 
@@ -72,6 +76,7 @@ class TestSQLiteKnowledgeNavigator:
         """Test getting the concept path"""
         # Save a concept with prerequisites
         from src.data.database_manager import DatabaseManager
+
         db_manager = DatabaseManager(knowledge_navigator.db_path)
         sample_concept.prerequisites = ["prereq1", "prereq2"]
         db_manager.save_concept(sample_concept)
@@ -82,7 +87,7 @@ class TestSQLiteKnowledgeNavigator:
             title="Prerequisite Concept",
             content="This is a prerequisite concept.",
             prerequisites=[],
-            difficulty_level=3
+            difficulty_level=3,
         )
         db_manager.save_concept(prereq_concept)
 
@@ -97,11 +102,7 @@ class TestSQLiteKnowledgeNavigator:
 
     def test_update_progress(self, knowledge_navigator):
         """Test updating user progress"""
-        progress = UserProgress(
-            concept_id="test_concept_001",
-            completed=True,
-            score=0.85
-        )
+        progress = UserProgress(concept_id="test_concept_001", completed=True, score=0.85)
 
         # This should not raise an exception
         knowledge_navigator.update_progress("test_concept_001", progress)
@@ -117,11 +118,7 @@ class TestCatalystAgent:
         model_service.send_message.return_value = mock_response
 
         # Generate explanation
-        context = {
-            "provider": "openai",
-            "model": "gpt-4",
-            "learning_level": "intermediate"
-        }
+        context = {"provider": "openai", "model": "gpt-4", "learning_level": "intermediate"}
 
         explanation = await catalyst_agent.generate_explanation(sample_concept, context)
 
@@ -139,12 +136,7 @@ class TestCatalystAgent:
         model_service.send_message.return_value = mock_response
 
         # Generate challenge
-        context = {
-            "provider": "openai",
-            "model": "gpt-4",
-            "challenge_type": "multiple-choice",
-            "difficulty": "medium"
-        }
+        context = {"provider": "openai", "model": "gpt-4", "challenge_type": "multiple-choice", "difficulty": "medium"}
 
         challenge = await catalyst_agent.generate_challenge(sample_concept, context)
 
@@ -162,16 +154,9 @@ class TestCatalystAgent:
         model_service.send_message.return_value = mock_response
 
         # Evaluate answer
-        context = {
-            "provider": "openai",
-            "model": "gpt-4"
-        }
+        context = {"provider": "openai", "model": "gpt-4"}
 
-        evaluation = await catalyst_agent.evaluate_answer(
-            answer="42",
-            expected="42",
-            context=context
-        )
+        evaluation = await catalyst_agent.evaluate_answer(answer="42", expected="42", context=context)
 
         # Verify the evaluation was performed
         assert "correct" in evaluation["feedback"].lower() or "incorrect" in evaluation["feedback"].lower()
@@ -182,20 +167,37 @@ class TestCatalystAgent:
     async def test_suggest_next_concepts(self, catalyst_agent, sample_user_profile):
         """Test suggesting next concepts"""
         # For now, just verify it doesn't crash
-        concepts = await catalyst_agent.suggest_next_concepts(
-            sample_user_profile.ai_config,
-            {"score": 0.8}
-        )
+        concepts = await catalyst_agent.suggest_next_concepts(sample_user_profile.ai_config, {"score": 0.8})
         assert isinstance(concepts, list)
 
 
 class TestChallengeEngine:
+    @pytest.fixture
+    def mock_catalyst_agent(self):
+        """Create a mock catalyst agent"""
+        agent = MagicMock()
+        return agent
+
+    @pytest.fixture
+    def mock_model_service(self):
+        """Create a mock model service"""
+        service = AsyncMock()
+        return service
+
+    @pytest.fixture
+    def temp_workspace_path(self):
+        """Create a temporary workspace path"""
+        import tempfile
+        return tempfile.mkdtemp()
+
+    @pytest.fixture
+    def challenge_engine(self, mock_catalyst_agent, mock_model_service, temp_workspace_path):
+        """Create a ChallengeEngine instance with mocked dependencies"""
+        return ChallengeEngineImpl(mock_catalyst_agent, mock_model_service, temp_workspace_path)
+
     def test_present_challenge(self, challenge_engine, sample_concept):
         """Test presenting a challenge"""
-        challenge = {
-            "challenge_text": "What is 2+2?",
-            "options": {"A": "3", "B": "4", "C": "5"}
-        }
+        challenge = {"challenge_text": "What is 2+2?", "options": {"A": "3", "B": "4", "C": "5"}}
 
         # This should not raise an exception
         challenge_engine.present_challenge(challenge)
@@ -204,23 +206,20 @@ class TestChallengeEngine:
     async def test_collect_answer(self, challenge_engine):
         """Test collecting an answer"""
         # Mock input to simulate user input
-        with patch('builtins.input', return_value="4"):
+        with patch("builtins.input", return_value="4"):
             answer = await challenge_engine.collect_answer()
             assert answer == "4"
 
     @pytest.mark.asyncio
     async def test_validate_answer(self, challenge_engine):
         """Test validating an answer"""
-        challenge = {
-            "expected_answer": "4",
-            "challenge_text": "What is 2+2?"
-        }
+        challenge = {"correct_answer": "4", "challenge_text": "What is 2+2?"}
 
         # The validation will use the CatalystAgent to evaluate the answer
         # For this test, we'll just check that it returns a valid evaluation structure
         evaluation = await challenge_engine.validate_answer("4", challenge)
 
-        assert "correctness" in evaluation
+        assert "is_correct" in evaluation
         assert "feedback" in evaluation
         assert "score" in evaluation
 
@@ -232,7 +231,7 @@ class TestCheckpointManager:
         # Create a test state
         test_state = {
             "current_concept": "test_concept_001",
-            "user_progress": [{"concept_id": "test_concept_001", "completed": True, "score": 0.8}]
+            "user_progress": [{"concept_id": "test_concept_001", "completed": True, "score": 0.8}],
         }
 
         # Create a checkpoint
@@ -325,6 +324,7 @@ class TestSystemCommandsHandler:
 
         # Verify it returns a KnowledgeMap object
         from src.data.models.extended_models import KnowledgeMap
+
         assert isinstance(km, KnowledgeMap)
 
     @pytest.mark.asyncio

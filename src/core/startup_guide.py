@@ -2,6 +2,7 @@
 Startup Guide implementation for Learning Catalyst
 Provides context-aware suggestions and guidance during application startup
 """
+
 import os
 from typing import Any, Dict, List
 
@@ -121,12 +122,14 @@ What would you like to do today?
 
             if not concepts:
                 # No concepts available, suggest setting up workspace
-                suggestions.append({
-                    "type": "setup",
-                    "title": "Set up your learning workspace",
-                    "description": "Add markdown files to your workspace to get started",
-                    "command": "/help"
-                })
+                suggestions.append(
+                    {
+                        "type": "setup",
+                        "title": "Set up your learning workspace",
+                        "description": "Add markdown files to your workspace to get started",
+                        "command": "/help",
+                    }
+                )
                 return suggestions
 
             # Get user's learning style from profile
@@ -137,59 +140,71 @@ What would you like to do today?
 
             # Suggest continuing with recent concepts
             for concept in recent_concepts:
-                suggestions.append({
-                    "type": "continue",
-                    "title": f"Continue learning: {concept.title}",
-                    "description": f"Pick up where you left off with {concept.title}",
-                    "command": f"/explain {concept.title}"
-                })
+                suggestions.append(
+                    {
+                        "type": "continue",
+                        "title": f"Continue learning: {concept.title}",
+                        "description": f"Pick up where you left off with {concept.title}",
+                        "command": f"/explain {concept.title}",
+                    }
+                )
 
             # Suggest exploring new concepts
             if len(concepts) > 3:
                 new_concepts = concepts[3:6] if len(concepts) >= 6 else concepts[3:]
                 for concept in new_concepts:
-                    suggestions.append({
-                        "type": "explore",
-                        "title": f"Explore: {concept.title}",
-                        "description": f"Discover something new with {concept.title}",
-                        "command": f"/explain {concept.title}"
-                    })
+                    suggestions.append(
+                        {
+                            "type": "explore",
+                            "title": f"Explore: {concept.title}",
+                            "description": f"Discover something new with {concept.title}",
+                            "command": f"/explain {concept.title}",
+                        }
+                    )
 
             # Suggest challenges based on learning style
             if learning_style == "visual":
-                suggestions.append({
-                    "type": "challenge",
-                    "title": "Test your knowledge",
-                    "description": "Take a quiz to reinforce your learning",
-                    "command": "/quiz"
-                })
+                suggestions.append(
+                    {
+                        "type": "challenge",
+                        "title": "Test your knowledge",
+                        "description": "Take a quiz to reinforce your learning",
+                        "command": "/quiz",
+                    }
+                )
             else:
-                suggestions.append({
-                    "type": "practice",
-                    "title": "Practice with challenges",
-                    "description": "Apply what you've learned with interactive challenges",
-                    "command": "/quiz"
-                })
+                suggestions.append(
+                    {
+                        "type": "practice",
+                        "title": "Practice with challenges",
+                        "description": "Apply what you've learned with interactive challenges",
+                        "command": "/quiz",
+                    }
+                )
 
             # Add configuration suggestion if not set up
             ai_config = user_profile.get("ai_config", {})
             if not ai_config.get("default_provider") or not ai_config.get("default_model"):
-                suggestions.append({
-                    "type": "config",
-                    "title": "Configure AI provider",
-                    "description": "Set up your AI provider to enable explanations and challenges",
-                    "command": "/set-config"
-                })
+                suggestions.append(
+                    {
+                        "type": "config",
+                        "title": "Configure AI provider",
+                        "description": "Set up your AI provider to enable explanations and challenges",
+                        "command": "/set-config",
+                    }
+                )
 
         except Exception as e:
             print(f"Error generating contextual suggestions: {e}")
             # Fallback suggestions
-            suggestions.append({
-                "type": "help",
-                "title": "Get started",
-                "description": "Use the help command to see available options",
-                "command": "/help"
-            })
+            suggestions.append(
+                {
+                    "type": "help",
+                    "title": "Get started",
+                    "description": "Use the help command to see available options",
+                    "command": "/help",
+                }
+            )
 
         return suggestions
 

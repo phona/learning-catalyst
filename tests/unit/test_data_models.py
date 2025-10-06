@@ -1,20 +1,26 @@
 """
 Unit tests for data models
 """
+
 import pytest
-from src.data.models.concept import Concept
-from src.data.models.user_profile import UserProfile
+
 from src.data.models.challenge import Challenge
+from src.data.models.concept import Concept
+from src.data.models.extended_models import (AIResponse, AnalysisResult,
+                                             AnalyticsExport, ApplicationState,
+                                             ChallengeResult, Checkpoint,
+                                             CompetencyProfile, Context,
+                                             Credentials, EmbeddingResponse,
+                                             Evaluation, InteractionHistory,
+                                             KnowledgeMap, Message, ModelInfo,
+                                             ProgressReport,
+                                             ProviderCapabilities,
+                                             Recommendations, RerankResponse,
+                                             TimePeriod, TokenUsageSummary,
+                                             TrendData, UserAnswer,
+                                             UserProgress)
 from src.data.models.token_usage import TokenUsage
-from src.data.models.extended_models import (
-    KnowledgeMap, UserProgress, Evaluation, Context,
-    UserAnswer, ChallengeResult, ApplicationState, Checkpoint,
-    Message, AIResponse, Credentials, EmbeddingResponse,
-    RerankResponse, ProviderCapabilities, ModelInfo,
-    TokenUsageSummary, TimePeriod, ProgressReport,
-    TrendData, AnalyticsExport, InteractionHistory,
-    AnalysisResult, CompetencyProfile, Recommendations
-)
+from src.data.models.user_profile import UserProfile
 
 
 class TestConcept:
@@ -24,7 +30,7 @@ class TestConcept:
             title="Test Title",
             content="Test Content",
             prerequisites=["prereq1", "prereq2"],
-            difficulty_level=5
+            difficulty_level=5,
         )
 
         assert concept.id == "test_id"
@@ -42,7 +48,7 @@ class TestUserProfile:
             preferences={"ui": {"theme": "dark"}},
             competency_profile={"math": 0.8, "science": 0.6},
             ai_config={"default_provider": "openai", "default_model": "gpt-4"},
-            current_checkpoint_id="chk_123"
+            current_checkpoint_id="chk_123",
         )
 
         assert user_profile.id == "user_001"
@@ -61,7 +67,7 @@ class TestChallenge:
             challenge_type="multiple_choice",
             challenge_text="What is 2+2?",
             expected_answer="4",
-            options={"A": "3", "B": "4", "C": "5"}
+            options={"A": "3", "B": "4", "C": "5"},
         )
 
         assert challenge.id == "challenge_001"
@@ -83,7 +89,7 @@ class TestTokenUsage:
             total_tokens=300,
             timestamp="2023-01-01T00:00:00",
             user_id="user_001",
-            context="explanation"
+            context="explanation",
         )
 
         assert token_usage.id == "token_001"
@@ -100,28 +106,19 @@ class TestTokenUsage:
 class TestExtendedModels:
     def test_knowledge_map_creation(self):
         km = KnowledgeMap(
-            concepts=[{"id": "c1", "title": "Concept 1"}],
-            relationships=[{"source": "c1", "target": "c2"}]
+            concepts=[{"id": "c1", "title": "Concept 1"}], relationships=[{"source": "c1", "target": "c2"}]
         )
         assert len(km.concepts) == 1
         assert len(km.relationships) == 1
 
     def test_user_progress_creation(self):
-        up = UserProgress(
-            concept_id="c1",
-            completed=True,
-            score=0.85
-        )
+        up = UserProgress(concept_id="c1", completed=True, score=0.85)
         assert up.concept_id == "c1"
         assert up.completed is True
         assert up.score == 0.85
 
     def test_evaluation_creation(self):
-        eval = Evaluation(
-            correctness=True,
-            feedback="Great job!",
-            score=0.9
-        )
+        eval = Evaluation(correctness=True, feedback="Great job!", score=0.9)
         assert eval.correctness is True
         assert eval.feedback == "Great job!"
         assert eval.score == 0.9
@@ -131,7 +128,7 @@ class TestExtendedModels:
             user_profile={"id": "user1"},
             current_concept="concept1",
             learning_history=[{"id": "c1", "score": 0.9}],
-            preferences={"difficulty": 5}
+            preferences={"difficulty": 5},
         )
         assert ctx.user_profile == {"id": "user1"}
         assert ctx.current_concept == "concept1"
@@ -139,11 +136,7 @@ class TestExtendedModels:
         assert ctx.preferences == {"difficulty": 5}
 
     def test_user_answer_creation(self):
-        ua = UserAnswer(
-            challenge_id="ch1",
-            answer_text="42",
-            timestamp="2023-01-01T00:00:00"
-        )
+        ua = UserAnswer(challenge_id="ch1", answer_text="42", timestamp="2023-01-01T00:00:00")
         assert ua.challenge_id == "ch1"
         assert ua.answer_text == "42"
         assert ua.timestamp == "2023-01-01T00:00:00"
@@ -153,7 +146,7 @@ class TestExtendedModels:
             challenge_id="ch1",
             user_answer="42",
             evaluation=Evaluation(correctness=True, feedback="Good", score=0.9),
-            timestamp="2023-01-01T00:00:00"
+            timestamp="2023-01-01T00:00:00",
         )
         assert cr.challenge_id == "ch1"
         assert cr.user_answer == "42"
@@ -167,12 +160,7 @@ class TestExtendedModels:
             current_concept="c1",
             user_progress=[UserProgress(concept_id="c1", completed=True, score=0.9)],
             checkpoint_id="chk1",
-            context=Context(
-                user_profile={"id": "user1"},
-                current_concept="c1",
-                learning_history=[],
-                preferences={}
-            )
+            context=Context(user_profile={"id": "user1"}, current_concept="c1", learning_history=[], preferences={}),
         )
         assert as_.current_concept == "c1"
         assert as_.checkpoint_id == "chk1"
@@ -184,7 +172,7 @@ class TestExtendedModels:
             user_id="user1",
             state_data={"key": "value"},
             created_at="2023-01-01T00:00:00",
-            description="Test checkpoint"
+            description="Test checkpoint",
         )
         assert cp.id == "chk1"
         assert cp.user_id == "user1"
@@ -201,8 +189,9 @@ class TestExtendedModels:
         ar = AIResponse(
             content="Response",
             model="gpt-4",
+            provider="openai",
             usage={"input_tokens": 10, "output_tokens": 20, "total_tokens": 30},
-            timestamp="2023-01-01T00:00:00"
+            timestamp="2023-01-01T00:00:00",
         )
         assert ar.content == "Response"
         assert ar.model == "gpt-4"
@@ -214,7 +203,7 @@ class TestExtendedModels:
             provider="openai",
             api_key="test_key",
             base_url="https://api.openai.com/v1",
-            additional_config={"organization": "test_org"}
+            additional_config={"organization": "test_org"},
         )
         assert creds.provider == "openai"
         assert creds.api_key == "test_key"
@@ -223,9 +212,7 @@ class TestExtendedModels:
 
     def test_embedding_response_creation(self):
         er = EmbeddingResponse(
-            embeddings=[[0.1, 0.2, 0.3]],
-            model="text-embedding-ada-002",
-            usage={"input_tokens": 100}
+            embeddings=[[0.1, 0.2, 0.3]], model="text-embedding-ada-002", provider="openai", usage={"input_tokens": 100}
         )
         assert er.embeddings == [[0.1, 0.2, 0.3]]
         assert er.model == "text-embedding-ada-002"
@@ -234,7 +221,9 @@ class TestExtendedModels:
     def test_rerank_response_creation(self):
         rr = RerankResponse(
             results=[{"document": "doc1", "relevance_score": 0.9}],
-            model="rerank-model"
+            model="rerank-model",
+            provider="openai",
+            usage={"input_tokens": 50, "output_tokens": 10}
         )
         assert rr.results == [{"document": "doc1", "relevance_score": 0.9}]
         assert rr.model == "rerank-model"
@@ -247,7 +236,7 @@ class TestExtendedModels:
             input_cost_per_token=0.01,
             output_cost_per_token=0.03,
             supports_embeddings=True,
-            supports_rerank=False
+            supports_rerank=False,
         )
         assert pc.supports_streaming is True
         assert pc.max_tokens == 4096
@@ -265,7 +254,7 @@ class TestExtendedModels:
             input_cost_per_token=0.01,
             output_cost_per_token=0.03,
             supports_embeddings=True,
-            supports_rerank=False
+            supports_rerank=False,
         )
         mi = ModelInfo(name="gpt-4", provider="openai", capabilities=pc)
         assert mi.name == "gpt-4"
@@ -278,7 +267,7 @@ class TestExtendedModels:
             total_output_tokens=2000,
             total_tokens=3000,
             period_start="2023-01-01",
-            period_end="2023-01-31"
+            period_end="2023-01-31",
         )
         assert tus.total_input_tokens == 1000
         assert tus.total_output_tokens == 2000
@@ -299,7 +288,7 @@ class TestExtendedModels:
             total_concepts=10,
             overall_score=85.5,
             time_period=tp,
-            weak_areas=["math", "science"]
+            weak_areas=["math", "science"],
         )
         assert pr.user_id == "user1"
         assert pr.concepts_mastered == 5
@@ -310,21 +299,14 @@ class TestExtendedModels:
 
     def test_trend_data_creation(self):
         tp = TimePeriod(start_date="2023-01-01", end_date="2023-01-31")
-        td = TrendData(
-            metric="accuracy",
-            values=[{"date": "2023-01-01", "value": 0.8}],
-            period=tp
-        )
+        td = TrendData(metric="accuracy", values=[{"date": "2023-01-01", "value": 0.8}], period=tp)
         assert td.metric == "accuracy"
         assert td.values == [{"date": "2023-01-01", "value": 0.8}]
         assert td.period == tp
 
     def test_analytics_export_creation(self):
         ae = AnalyticsExport(
-            report_type="progress",
-            content="test content",
-            format="json",
-            timestamp="2023-01-01T00:00:00"
+            report_type="progress", content="test content", format="json", timestamp="2023-01-01T00:00:00"
         )
         assert ae.report_type == "progress"
         assert ae.content == "test content"
@@ -333,9 +315,7 @@ class TestExtendedModels:
 
     def test_interaction_history_creation(self):
         ih = InteractionHistory(
-            user_id="user1",
-            interactions=[{"type": "message", "content": "hello"}],
-            timestamp="2023-01-01T00:00:00"
+            user_id="user1", interactions=[{"type": "message", "content": "hello"}], timestamp="2023-01-01T00:00:00"
         )
         assert ih.user_id == "user1"
         assert ih.interactions == [{"type": "message", "content": "hello"}]
@@ -343,10 +323,7 @@ class TestExtendedModels:
 
     def test_analysis_result_creation(self):
         ar = AnalysisResult(
-            metric="accuracy",
-            value=0.85,
-            interpretation="Good performance",
-            timestamp="2023-01-01T00:00:00"
+            metric="accuracy", value=0.85, interpretation="Good performance", timestamp="2023-01-01T00:00:00"
         )
         assert ar.metric == "accuracy"
         assert ar.value == 0.85
@@ -360,7 +337,7 @@ class TestExtendedModels:
             learning_style="visual",
             strengths=["math"],
             weaknesses=["writing"],
-            last_updated="2023-01-01T00:00:00"
+            last_updated="2023-01-01T00:00:00",
         )
         assert cp.user_id == "user1"
         assert cp.skills == {"math": 0.8, "science": 0.7}
@@ -375,7 +352,7 @@ class TestExtendedModels:
             next_concepts=["concept2", "concept3"],
             learning_path=["concept1", "concept2"],
             resources=["resource1"],
-            timestamp="2023-01-01T00:00:00"
+            timestamp="2023-01-01T00:00:00",
         )
         assert r.user_id == "user1"
         assert r.next_concepts == ["concept2", "concept3"]

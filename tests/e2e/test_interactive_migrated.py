@@ -1,13 +1,15 @@
 """
 Interactive test for Learning Catalyst application
 """
+
+import os
+import shutil
 import subprocess
 import sys
-import time
-import pytest
 import tempfile
-import shutil
-import os
+import time
+
+import pytest
 
 
 @pytest.fixture
@@ -47,7 +49,7 @@ class TestInteractive:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:

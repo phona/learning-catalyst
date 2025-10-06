@@ -5,18 +5,20 @@ This test file verifies that users can actually communicate with AI in the app,
 not just receive fixed response messages.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock
 import asyncio
+from unittest.mock import AsyncMock, Mock
 
+import pytest
+
+from src.ai.abstraction import ModelAbstractionLayer
 # Import the components we need to test
 from src.ai.service import ModelAbstractionService
-from src.ai.abstraction import ModelAbstractionLayer
-from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext, IntentClassification
+from src.core.catalyst_agent import (CatalystAgentImpl, ConversationContext,
+                                     IntentClassification)
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
-from src.data.models.extended_models import Message, AIResponse
+from src.data.models.extended_models import AIResponse, Message
 
 
 class TestRealAICommunication:
@@ -50,16 +52,12 @@ class TestRealAICommunication:
             elif "challenge" in user_content.lower() and "list" in user_content.lower():
                 content = "Here's a challenge about Python lists: Write a function that takes a list of numbers and returns only the even numbers, without using list comprehension."
             elif "example" in user_content.lower() and "class" in user_content.lower():
-                content = "Here's an example of a Python class:\n\nclass Dog:\n    def __init__(self, name, age):\n        self.name = name\n        self.age = age\n    \n    def bark(self):\n        return f\"{self.name} says woof!\""
+                content = 'Here\'s an example of a Python class:\n\nclass Dog:\n    def __init__(self, name, age):\n        self.name = name\n        self.age = age\n    \n    def bark(self):\n        return f"{self.name} says woof!"'
             else:
                 content = "I understand your question. Let me provide a helpful response based on my knowledge."
 
             return AIResponse(
-                content=content,
-                model="gpt-3.5-turbo",
-                provider="openai",
-                usage={},
-                timestamp="2024-01-01T00:00:00"
+                content=content, model="gpt-3.5-turbo", provider="openai", usage={}, timestamp="2024-01-01T00:00:00"
             )
 
         mock_service.send_message = AsyncMock(side_effect=mock_send_message)
@@ -85,7 +83,7 @@ class TestRealAICommunication:
             title="Python Decorators",
             content="Python decorators are functions that modify other functions.",
             prerequisites=["functions"],
-            difficulty_level=2
+            difficulty_level=2,
         )
 
     @pytest.mark.asyncio
@@ -96,7 +94,7 @@ class TestRealAICommunication:
             user_profile={"learning_level": "intermediate"},
             current_concept=sample_concept,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # Test explanation request
@@ -119,7 +117,7 @@ class TestRealAICommunication:
         context = {
             "challenge_type": "short-answer",
             "difficulty": "intermediate",
-            "concept_content": sample_concept.content
+            "concept_content": sample_concept.content,
         }
 
         challenge = await challenge_engine.generate_challenge(sample_concept, context)
@@ -127,7 +125,9 @@ class TestRealAICommunication:
         # Verify the challenge is meaningful
         assert challenge is not None, "Challenge should be generated"
         assert "challenge_text" in challenge, "Challenge should have text"
-        assert sample_concept.title.lower() in challenge["challenge_text"].lower(), "Challenge should mention the concept"
+        assert (
+            sample_concept.title.lower() in challenge["challenge_text"].lower()
+        ), "Challenge should mention the concept"
         assert len(challenge["challenge_text"]) > 20, "Challenge should be substantial"
 
     @pytest.mark.asyncio
@@ -138,7 +138,7 @@ class TestRealAICommunication:
             user_profile={"learning_level": "intermediate"},
             current_concept=sample_concept,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # First message to establish context
@@ -167,14 +167,14 @@ class TestRealAICommunication:
             user_profile={"learning_level": "intermediate"},
             current_concept=None,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # Test with different types of questions
         questions = [
             "What is a Python decorator?",
             "How do I use decorators in Python?",
-            "Can you show me a complex decorator example?"
+            "Can you show me a complex decorator example?",
         ]
 
         responses = []
@@ -199,7 +199,7 @@ class TestRealAICommunication:
             user_profile={"learning_level": "intermediate"},
             current_concept=None,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # Simulate a conversation
@@ -208,7 +208,7 @@ class TestRealAICommunication:
             "Can you explain what a function is?",
             "How do I create a function with parameters?",
             "What about default parameters?",
-            "Thanks for the explanation!"
+            "Thanks for the explanation!",
         ]
 
         for i, user_input in enumerate(conversation):
@@ -230,31 +230,32 @@ class TestRealAICommunication:
         """Test that AI communication works with different models."""
         # Create mock providers
         mock_openai = Mock()
-        mock_openai.send_message = AsyncMock(return_value=AIResponse(
-            content="OpenAI response: This is from OpenAI model.",
-            model="gpt-4",
-            provider="openai",
-            usage={},
-            timestamp="2024-01-01T00:00:00"
-        ))
+        mock_openai.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="OpenAI response: This is from OpenAI model.",
+                model="gpt-4",
+                provider="openai",
+                usage={},
+                timestamp="2024-01-01T00:00:00",
+            )
+        )
 
         mock_anthropic = Mock()
-        mock_anthropic.send_message = AsyncMock(return_value=AIResponse(
-            content="Anthropic response: This is from Anthropic model.",
-            model="claude-3",
-            provider="anthropic",
-            usage={},
-            timestamp="2024-01-01T00:00:00"
-        ))
+        mock_anthropic.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="Anthropic response: This is from Anthropic model.",
+                model="claude-3",
+                provider="anthropic",
+                usage={},
+                timestamp="2024-01-01T00:00:00",
+            )
+        )
 
         # Create model abstraction service
         model_service = ModelAbstractionService()
 
         # Mock the providers
-        model_service._providers = {
-            "openai": mock_openai,
-            "anthropic": mock_anthropic
-        }
+        model_service._providers = {"openai": mock_openai, "anthropic": mock_anthropic}
 
         # Test with OpenAI
         await model_service.set_chat_model("openai", "gpt-4")

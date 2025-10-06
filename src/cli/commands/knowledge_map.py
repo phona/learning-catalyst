@@ -1,16 +1,17 @@
 """
 Knowledge map command implementation
 """
+
 import asyncio
 import os
 
 import typer
 from rich.console import Console
 
-from ai.service import ModelAbstractionService
-from cli.system_commands_handler import SystemCommandsHandlerImpl
-from data.database_manager import DatabaseManager
-from utils.preferences_manager import PreferencesManager
+from src.ai.service import ModelAbstractionService
+from src.cli.system_commands_handler import SystemCommandsHandlerImpl
+from src.data.database_manager import DatabaseManager
+from src.utils.preferences_manager import PreferencesManager
 
 app = typer.Typer()
 
@@ -40,12 +41,12 @@ def knowledge_map():
     if knowledge_map_result:
         console.print("[blue]🗺️  Knowledge Map:[/blue]")
 
-        if hasattr(knowledge_map_result, 'concepts') and knowledge_map_result.concepts:
+        if hasattr(knowledge_map_result, "concepts") and knowledge_map_result.concepts:
             console.print("  [bold]Concepts:[/bold]")
             for i, concept in enumerate(knowledge_map_result.concepts, 1):
                 console.print(f"    [cyan]{i}. {concept.get('title', 'N/A')}[/cyan] (ID: {concept.get('id', 'N/A')})")
 
-            if hasattr(knowledge_map_result, 'relationships') and knowledge_map_result.relationships:
+            if hasattr(knowledge_map_result, "relationships") and knowledge_map_result.relationships:
                 console.print("\n  [bold]Relationships:[/bold]")
                 for relationship in knowledge_map_result.relationships:
                     console.print(

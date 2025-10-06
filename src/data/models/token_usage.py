@@ -1,6 +1,7 @@
 """
 Data model for Token Usage
 """
+
 from dataclasses import dataclass
 
 

@@ -1,6 +1,7 @@
 """
 SiliconFlow provider implementation
 """
+
 from typing import Optional
 
 from src.ai.abstraction import Model
@@ -9,6 +10,7 @@ from .base_provider import BaseProvider, BaseChatModel, BaseEmbeddingModel, Base
 
 class SiliconFlowProvider(BaseProvider):
     """SiliconFlow provider implementation"""
+
     def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.siliconflow.cn/v1"):
         super().__init__(api_key, base_url)
 
@@ -27,17 +29,20 @@ class SiliconFlowProvider(BaseProvider):
 
 class SiliconFlowChatModel(BaseChatModel):
     """SiliconFlow chat model implementation"""
+
     def __init__(self, provider: SiliconFlowProvider, model_id: str):
         super().__init__(provider, model_id)
 
 
 class SiliconFlowEmbeddingModel(BaseEmbeddingModel):
     """SiliconFlow embedding model implementation"""
+
     def __init__(self, provider: SiliconFlowProvider, model_id: str):
         super().__init__(provider, model_id)
 
 
 class SiliconFlowRerankModel(BaseRerankModel):
     """SiliconFlow rerank model implementation"""
+
     def __init__(self, provider: SiliconFlowProvider, model_id: str):
         super().__init__(provider, model_id)

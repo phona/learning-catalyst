@@ -1,15 +1,17 @@
 """
 Unit tests for First-Time User Experience (Story 1) functionality
 """
-import sys
+
 import os
-import pytest
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.data.models.concept import Concept
@@ -21,20 +23,20 @@ class TestFirstTimeUserExperience:
         """Test that a new user gets an appropriate welcome message"""
         # Configure mock to simulate new user response
         # We need to mock the provider's send_message method
-        model_service.providers["openai"].send_message = AsyncMock(return_value={
-            "choices": [{
-                "message": {
-                    "content": "🎓 Welcome to Learning Catalyst! 🚀\n\n" \
-                              "It looks like this is your first time using Learning Catalyst. " \
-                              "To get started, you need to configure an AI model for our learning sessions."
-                }
-            }],
-            "usage": {
-                "prompt_tokens": 50,
-                "completion_tokens": 100,
-                "total_tokens": 150
+        model_service.providers["openai"].send_message = AsyncMock(
+            return_value={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "🎓 Welcome to Learning Catalyst! 🚀\n\n"
+                            "It looks like this is your first time using Learning Catalyst. "
+                            "To get started, you need to configure an AI model for our learning sessions."
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 50, "completion_tokens": 100, "total_tokens": 150},
             }
-        })
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
@@ -42,15 +44,11 @@ class TestFirstTimeUserExperience:
         # Test welcome message generation
         # Since there's no specific generate_welcome_message method, we'll test intent interpretation
         from src.core.catalyst_agent import ConversationContext
+
         context = ConversationContext(
-            user_profile={
-                "ai_config": {
-                    "default_provider": "openai",
-                    "default_model": "gpt-4o"
-                }
-            },
+            user_profile={"ai_config": {"default_provider": "openai", "default_model": "gpt-4o"}},
             current_concept=None,
-            conversation_history=[]
+            conversation_history=[],
         )
 
         # Test intent interpretation for a welcome message
@@ -62,12 +60,9 @@ class TestFirstTimeUserExperience:
         # Test explanation generation as a proxy for welcome message
         # Create a mock concept for testing
         from src.data.models.concept import Concept
+
         concept = Concept(
-            id="welcome",
-            title="Welcome",
-            content="Welcome to Learning Catalyst!",
-            prerequisites=[],
-            difficulty_level=1
+            id="welcome", title="Welcome", content="Welcome to Learning Catalyst!", prerequisites=[], difficulty_level=1
         )
 
         explanation = await catalyst_agent.generate_explanation(concept, context)
@@ -80,22 +75,22 @@ class TestFirstTimeUserExperience:
     async def test_initial_model_setup_guidance(self, model_service):
         """Test that guidance for model setup is provided to first-time users"""
         # Configure mock to simulate model setup guidance
-        model_service.providers["openai"].send_message = AsyncMock(return_value={
-            "choices": [{
-                "message": {
-                    "content": "Let's set up your AI model. First, which AI provider would you like to use?\n\n" \
-                              "Available providers:\n" \
-                              "1. openai\n" \
-                              "2. anthropic\n" \
-                              "3. local"
-                }
-            }],
-            "usage": {
-                "prompt_tokens": 50,
-                "completion_tokens": 100,
-                "total_tokens": 150
+        model_service.providers["openai"].send_message = AsyncMock(
+            return_value={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "Let's set up your AI model. First, which AI provider would you like to use?\n\n"
+                            "Available providers:\n"
+                            "1. openai\n"
+                            "2. anthropic\n"
+                            "3. local"
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 50, "completion_tokens": 100, "total_tokens": 150},
             }
-        })
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
@@ -103,26 +98,23 @@ class TestFirstTimeUserExperience:
         # Test model setup guidance by generating an explanation
         # Since there's no specific provide_model_setup_guidance method, we'll test intent interpretation
         from src.core.catalyst_agent import ConversationContext
+
         context = ConversationContext(
-            user_profile={
-                "ai_config": {
-                    "default_provider": "openai",
-                    "default_model": "gpt-4o"
-                }
-            },
+            user_profile={"ai_config": {"default_provider": "openai", "default_model": "gpt-4o"}},
             current_concept=None,
-            conversation_history=[]
+            conversation_history=[],
         )
 
         # Test explanation generation for model setup guidance
         # Create a mock concept for testing
         from src.data.models.concept import Concept
+
         concept = Concept(
             id="model-setup",
             title="Model Setup",
             content="Guide for setting up AI models",
             prerequisites=[],
-            difficulty_level=1
+            difficulty_level=1,
         )
 
         explanation = await catalyst_agent.generate_explanation(concept, context)
@@ -138,27 +130,37 @@ class TestFirstTimeUserExperience:
         """Test that initial topic suggestions are provided based on content analysis"""
         # Mock knowledge navigator to return sample concepts
         sample_concepts = [
-            Concept(id="test-concept-1", title="Variables and Data Types", content="Sample content",
-                    prerequisites=[], difficulty_level=1),
-            Concept(id="test-concept-2", title="Control Flow", content="Sample content",
-                    prerequisites=[], difficulty_level=1)
+            Concept(
+                id="test-concept-1",
+                title="Variables and Data Types",
+                content="Sample content",
+                prerequisites=[],
+                difficulty_level=1,
+            ),
+            Concept(
+                id="test-concept-2",
+                title="Control Flow",
+                content="Sample content",
+                prerequisites=[],
+                difficulty_level=1,
+            ),
         ]
         knowledge_navigator.get_available_concepts = AsyncMock(return_value=sample_concepts)
 
         # Configure mock to simulate topic suggestion response
-        model_service.providers["openai"].send_message = AsyncMock(return_value={
-            "choices": [{
-                "message": {
-                    "content": "I can see you have materials on Python programming. " \
-                              "To get started, shall I explain the first topic, 'Variables and Data Types'?\n\n(y/n)"
-                }
-            }],
-            "usage": {
-                "prompt_tokens": 50,
-                "completion_tokens": 100,
-                "total_tokens": 150
+        model_service.providers["openai"].send_message = AsyncMock(
+            return_value={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "I can see you have materials on Python programming. "
+                            "To get started, shall I explain the first topic, 'Variables and Data Types'?\n\n(y/n)"
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 50, "completion_tokens": 100, "total_tokens": 150},
             }
-        })
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
@@ -179,7 +181,7 @@ class TestFirstTimeUserExperience:
         knowledge_navigator.load_content = AsyncMock()
 
         # Create a temporary markdown file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
             f.write("# Test Concept\nThis is a test concept for learning.")
             temp_file = f.name
 
@@ -223,29 +225,41 @@ class TestFirstTimeUserExperience:
         """Test that the system provides context-aware topic suggestions based on local Markdown files"""
         # Mock knowledge navigator to return sample concepts from Markdown files
         sample_concepts = [
-            Concept(id="python-basics", title="Python Basics", content="Introduction to Python programming",
-                    prerequisites=[], difficulty_level=1),
-            Concept(id="variables-data-types", title="Variables and Data Types", content="Understanding variables and data types in Python",
-                    prerequisites=[], difficulty_level=1)
+            Concept(
+                id="python-basics",
+                title="Python Basics",
+                content="Introduction to Python programming",
+                prerequisites=[],
+                difficulty_level=1,
+            ),
+            Concept(
+                id="variables-data-types",
+                title="Variables and Data Types",
+                content="Understanding variables and data types in Python",
+                prerequisites=[],
+                difficulty_level=1,
+            ),
         ]
         knowledge_navigator.get_available_concepts = AsyncMock(return_value=sample_concepts)
 
         # Since there's no suggest_initial_topic method in CatalystAgent, we'll test that
         # we can get concepts and suggest to the AI to generate a topic suggestion
         # Configure the model service mock to return a proper AI response
-        from src.data.models.extended_models import Message, AIResponse
+        from src.data.models.extended_models import AIResponse, Message
 
         # Mock the send_message method to return the expected content
-        model_service.send_message = AsyncMock(return_value=AIResponse(
-            content="🎓 Welcome to Learning Catalyst! 🚀\n\n"
-                    "I found 2 learning materials in your workspace:\n"
-                    "- Python Basics (python_intro.md)\n"
-                    "- Variables and Data Types (python_intro.md)\n\n"
-                    "To get started, shall I explain the first topic, 'Python Basics'?\n\n(y/n)",
-            model="gpt-4o",
-            usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
-            timestamp="2023-01-01T00:00:00"
-        ))
+        model_service.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="🎓 Welcome to Learning Catalyst! 🚀\n\n"
+                "I found 2 learning materials in your workspace:\n"
+                "- Python Basics (python_intro.md)\n"
+                "- Variables and Data Types (python_intro.md)\n\n"
+                "To get started, shall I explain the first topic, 'Python Basics'?\n\n(y/n)",
+                model="gpt-4o",
+                usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
+                timestamp="2023-01-01T00:00:00",
+            )
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
@@ -262,15 +276,11 @@ class TestFirstTimeUserExperience:
         # with this information - in a real case, the agent would send a message to the AI
         # asking for topic suggestions based on the available concepts
         from src.core.catalyst_agent import ConversationContext
+
         context = ConversationContext(
-            user_profile={
-                "ai_config": {
-                    "default_provider": "openai",
-                    "default_model": "gpt-4o"
-                }
-            },
+            user_profile={"ai_config": {"default_provider": "openai", "default_model": "gpt-4o"}},
             current_concept=None,
-            conversation_history=[]
+            conversation_history=[],
         )
 
         # For now, we just verify that concepts can be retrieved and used as input

@@ -1,14 +1,17 @@
 """
 Unit tests for utilities
 """
-import pytest
+
 import json
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import patch, mock_open
-from src.utils.workspace_manager import WorkspaceManager
+from unittest.mock import mock_open, patch
+
+import pytest
+
 from src.utils.preferences_manager import PreferencesManager
+from src.utils.workspace_manager import WorkspaceManager
 
 
 class TestWorkspaceManager:
@@ -37,6 +40,7 @@ class TestWorkspaceManager:
         learningspace_dir = temp_workspace / ".learningspace"
         if learningspace_dir.exists():
             import shutil
+
             shutil.rmtree(learningspace_dir)
 
         workspace_mgr = WorkspaceManager(temp_workspace)
@@ -168,7 +172,7 @@ class TestPreferencesManager:
         learningspace_path.mkdir(exist_ok=True)
         prefs_file = learningspace_path / "preferences.json"
 
-        with open(prefs_file, 'w') as f:
+        with open(prefs_file, "w") as f:
             f.write("invalid json content")
 
         # This should create default preferences since the file is invalid

@@ -1,9 +1,11 @@
 """
 Integration tests for the CommandPalette with the main application
 """
-import unittest
-import tempfile
+
 import os
+import tempfile
+import unittest
+
 from src.cli.command_palette import CommandPalette
 from src.cli.interface import CLIInterfaceImpl
 from src.data.models.extended_models import Message
@@ -35,10 +37,10 @@ class TestCommandPaletteIntegration(unittest.TestCase):
     def test_context_functionality(self):
         """Test that context functionality works correctly"""
         # Set context
-        self.palette.context['workspace_path'] = self.test_dir
+        self.palette.context["workspace_path"] = self.test_dir
 
         # Verify context is set
-        self.assertEqual(self.palette.context['workspace_path'], self.test_dir)
+        self.assertEqual(self.palette.context["workspace_path"], self.test_dir)
 
         # Test context merging in command execution
         # This is tested in unit tests, but we verify the attribute exists
@@ -74,12 +76,12 @@ class TestCommandPaletteIntegration(unittest.TestCase):
     def test_command_execution_with_context(self):
         """Test command execution with context merging"""
         # Set up context
-        self.palette.context['workspace_path'] = self.test_dir
+        self.palette.context["workspace_path"] = self.test_dir
 
         # This test verifies the structure rather than executing the command
         # which would require user input
         self.assertTrue(callable(self.palette._set_config_command))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

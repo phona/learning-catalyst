@@ -1,26 +1,26 @@
 """
 Unit tests for analytics components
 """
+
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
 from src.core.basic_assessment_engine import BasicAssessmentEngine
-from src.core.trend_analyzer import TrendAnalyzer
-from src.core.weak_area_identifier import WeakAreaIdentifier
 from src.core.export_service import ExportService
 from src.core.token_usage_analytics import TokenUsageAnalytics
-from datetime import datetime, timedelta
+from src.core.trend_analyzer import TrendAnalyzer
+from src.core.weak_area_identifier import WeakAreaIdentifier
 
 
 class TestBasicAnalyticsDashboard:
     def test_generate_progress_report(self, analytics_dashboard, db_manager):
         """Test generating a progress report"""
         # Mock the database manager to return concepts
-        with patch.object(db_manager, 'get_all_concepts', return_value=[]):
-            time_period = {
-                "start": "2023-01-01T00:00:00",
-                "end": "2023-01-31T23:59:59"
-            }
+        with patch.object(db_manager, "get_all_concepts", return_value=[]):
+            time_period = {"start": "2023-01-01T00:00:00", "end": "2023-01-31T23:59:59"}
 
             report = analytics_dashboard.generate_progress_report("user123", time_period)
 
@@ -39,10 +39,7 @@ class TestBasicAnalyticsDashboard:
 
     def test_generate_trend_data(self, analytics_dashboard):
         """Test generating trend data"""
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-01-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-01-31T23:59:59"}
 
         trends = analytics_dashboard.generate_trend_data("user123", "accuracy", time_period)
 
@@ -56,7 +53,7 @@ class TestBasicAnalyticsDashboard:
         # Verify the export structure
         assert export.report_type == "progress"
         assert export.format == "json"
-        assert export.content.startswith('{')  # JSON should start with '{'
+        assert export.content.startswith("{")  # JSON should start with '{'
 
     def test_export_analytics_csv(self, analytics_dashboard):
         """Test exporting analytics in CSV format"""
@@ -71,10 +68,7 @@ class TestBasicAnalyticsDashboard:
 class TestBasicAssessmentEngine:
     def test_analyze_performance(self, assessment_engine):
         """Test analyzing performance"""
-        time_period = {
-            "start": "2023-01-01T00:00:00",
-            "end": "2023-01-31T23:59:59"
-        }
+        time_period = {"start": "2023-01-01T00:00:00", "end": "2023-01-31T23:59:59"}
 
         analysis = assessment_engine.analyze_performance("user123", time_period)
 
@@ -94,7 +88,7 @@ class TestBasicAssessmentEngine:
             learning_style="visual",
             strengths=["math"],
             weaknesses=["writing"],
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
 
         updated_profile = assessment_engine.update_competency_profile(profile)
@@ -122,7 +116,7 @@ class TestBasicAssessmentEngine:
             learning_style="visual",
             strengths=["math"],
             weaknesses=["writing"],
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
 
         recommendations = assessment_engine.generate_recommendations(profile)
@@ -137,10 +131,7 @@ class TestTrendAnalyzer:
         """Test generating trend data"""
         analyzer = TrendAnalyzer(db_manager)
 
-        time_period = {
-            "start": (datetime.now() - timedelta(days=7)).isoformat(),
-            "end": datetime.now().isoformat()
-        }
+        time_period = {"start": (datetime.now() - timedelta(days=7)).isoformat(), "end": datetime.now().isoformat()}
 
         trends = analyzer.generate_trend_data("user123", "accuracy", time_period)
 
@@ -152,13 +143,13 @@ class TestTrendAnalyzer:
         analyzer = TrendAnalyzer(db_manager)
 
         # Create mock trend data
-        from src.data.models.extended_models import TrendData, TimePeriod
+        from src.data.models.extended_models import TimePeriod, TrendData
 
         mock_trend_data = [
             TrendData(
                 metric="accuracy",
                 values=[{"date": "2023-01-01", "value": 0.7}, {"date": "2023-01-02", "value": 0.8}],
-                period=TimePeriod(start_date="2023-01-01", end_date="2023-01-31")
+                period=TimePeriod(start_date="2023-01-01", end_date="2023-01-31"),
             )
         ]
 
@@ -171,10 +162,7 @@ class TestTrendAnalyzer:
         """Test getting performance insights"""
         analyzer = TrendAnalyzer(db_manager)
 
-        time_period = {
-            "start": (datetime.now() - timedelta(days=30)).isoformat(),
-            "end": datetime.now().isoformat()
-        }
+        time_period = {"start": (datetime.now() - timedelta(days=30)).isoformat(), "end": datetime.now().isoformat()}
 
         insights = analyzer.get_performance_insights("user123", time_period)
 
@@ -233,7 +221,7 @@ class TestWeakAreaIdentifier:
             learning_style="visual",
             strengths=["math"],
             weaknesses=["writing"],
-            last_updated=datetime.now().isoformat()
+            last_updated=datetime.now().isoformat(),
         )
 
         updated_profile = identifier.update_competency_profile_with_weak_areas("user123", profile)
@@ -253,7 +241,7 @@ class TestExportService:
         # Verify the export structure
         assert export_result.report_type == "progress"
         assert export_result.format == "json"
-        assert export_result.content.endswith('.json')
+        assert export_result.content.endswith(".json")
 
     def test_export_token_usage_report(self, temp_workspace, db_manager):
         """Test exporting token usage report"""
@@ -264,7 +252,7 @@ class TestExportService:
         # Verify the export structure
         assert export_result.report_type == "token_usage"
         assert export_result.format == "json"
-        assert export_result.content.endswith('.json')
+        assert export_result.content.endswith(".json")
 
     def test_export_performance_report(self, temp_workspace, db_manager):
         """Test exporting performance report"""
@@ -275,17 +263,13 @@ class TestExportService:
         # Verify the export structure
         assert export_result.report_type == "performance"
         assert export_result.format == "json"
-        assert export_result.content.endswith('.json')
+        assert export_result.content.endswith(".json")
 
     def test_calculate_cost(self, temp_workspace, db_manager):
         """Test cost calculation"""
         export_service = ExportService(str(temp_workspace), db_manager)
 
-        token_usage = {
-            "input_tokens": 1000,
-            "output_tokens": 2000,
-            "total_tokens": 3000
-        }
+        token_usage = {"input_tokens": 1000, "output_tokens": 2000, "total_tokens": 3000}
 
         cost = export_service._calculate_cost(token_usage)
 

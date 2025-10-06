@@ -1,6 +1,7 @@
 """
 Concepts command implementation for Learning Catalyst CLI
 """
+
 from typing import Optional
 
 import typer
@@ -27,8 +28,7 @@ def concepts(
 
 def _list_concepts(console):
     """List all learned concepts"""
-    console.print(Panel.fit("[bold blue]Learned Concepts[/bold blue]",
-                           border_style="blue"))
+    console.print(Panel.fit("[bold blue]Learned Concepts[/bold blue]", border_style="blue"))
 
     # In a real implementation, this would fetch concepts from the knowledge navigator
     # For now, showing sample data
@@ -57,8 +57,7 @@ def _list_concepts(console):
 
 def _search_concepts(console, search_term):
     """Search for concepts by name"""
-    console.print(Panel.fit(f"[bold blue]Search Results for '{search_term}'[/bold blue]",
-                           border_style="blue"))
+    console.print(Panel.fit(f"[bold blue]Search Results for '{search_term}'[/bold blue]", border_style="blue"))
 
     # In a real implementation, this would search concepts in the knowledge navigator
     # For now, showing sample data

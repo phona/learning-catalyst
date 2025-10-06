@@ -2,11 +2,12 @@
 End-to-end tests for the complete user journey in Learning Catalyst.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 class TestEndToEndUserJourney:
@@ -23,7 +24,8 @@ class TestEndToEndUserJourney:
             # Create test markdown files with learning content
             python_file = Path(temp_dir) / "python_basics.md"
             with open(python_file, "w") as f:
-                f.write("""# Python Basics
+                f.write(
+                    """# Python Basics
 
 ## Variables and Data Types
 Variables are containers for storing data values. Python has various data types including:
@@ -45,11 +47,13 @@ Loops allow you to repeat code multiple times.
 
 ## Functions
 Functions are reusable blocks of code that perform a specific task.
-""")
+"""
+                )
 
             data_structures_file = Path(temp_dir) / "data_structures.md"
             with open(data_structures_file, "w") as f:
-                f.write("""# Data Structures
+                f.write(
+                    """# Data Structures
 
 ## Lists
 Lists are ordered collections of items.
@@ -59,7 +63,8 @@ Dictionaries are key-value pairs.
 
 ## Sets
 Sets are unordered collections of unique items.
-""")
+"""
+                )
 
             yield temp_dir
 
@@ -76,46 +81,73 @@ Sets are unordered collections of unique items.
         mock_model_service = Mock()
         mock_model_service.generate_response = AsyncMock(return_value="This is a test explanation.")
         mock_model_service.generate_summary = AsyncMock(return_value="Test summary.")
-        mock_model_service.generate_challenge = AsyncMock(return_value={
-            "question": "What is a variable in Python?",
-            "options": ["A) A container for storing data", "B) A type of loop", "C) A function", "D) A class"],
-            "correct_answer": "A"
-        })
-        mock_model_service.evaluate_answer = AsyncMock(return_value={
-            "is_correct": True,
-            "feedback": "Correct! Variables are containers for storing data."
-        })
+        mock_model_service.generate_challenge = AsyncMock(
+            return_value={
+                "question": "What is a variable in Python?",
+                "options": ["A) A container for storing data", "B) A type of loop", "C) A function", "D) A class"],
+                "correct_answer": "A",
+            }
+        )
+        mock_model_service.evaluate_answer = AsyncMock(
+            return_value={"is_correct": True, "feedback": "Correct! Variables are containers for storing data."}
+        )
 
         # Step 1: User starts the application for the first time
-        with patch('src.core.startup_guide.StartupGuide') as mock_startup_guide:
-            with patch('src.core.knowledge_navigator.SQLiteKnowledgeNavigator') as mock_knowledge_navigator:
-                with patch('src.core.state_manager.StateManager') as mock_state_manager:
-                    with patch('src.ai.service.ModelAbstractionService', return_value=mock_model_service):
-                        with patch('src.cli.command_palette.CommandPalette') as mock_command_palette:
+        with patch("src.core.startup_guide.StartupGuide") as mock_startup_guide:
+            with patch("src.core.knowledge_navigator.SQLiteKnowledgeNavigator") as mock_knowledge_navigator:
+                with patch("src.core.state_manager.StateManager") as mock_state_manager:
+                    with patch("src.ai.service.ModelAbstractionService", return_value=mock_model_service):
+                        with patch("src.cli.command_palette.CommandPalette") as mock_command_palette:
                             # Initialize the mocked components
                             startup_guide_instance = Mock()
-                            startup_guide_instance.generate_startup_message = AsyncMock(return_value="Welcome to Learning Catalyst!")
-                            startup_guide_instance.get_contextual_suggestions = AsyncMock(return_value=[
-                                {
-                                    "type": "setup",
-                                    "title": "Set up your AI provider",
-                                    "description": "Configure your AI provider to enable explanations",
-                                    "command": "/set-config"
-                                }
-                            ])
+                            startup_guide_instance.generate_startup_message = AsyncMock(
+                                return_value="Welcome to Learning Catalyst!"
+                            )
+                            startup_guide_instance.get_contextual_suggestions = AsyncMock(
+                                return_value=[
+                                    {
+                                        "type": "setup",
+                                        "title": "Set up your AI provider",
+                                        "description": "Configure your AI provider to enable explanations",
+                                        "command": "/set-config",
+                                    }
+                                ]
+                            )
                             mock_startup_guide.return_value = startup_guide_instance
 
                             knowledge_navigator_instance = Mock()
-                            knowledge_navigator_instance.load_content = AsyncMock(return_value=Mock(concepts=[
-                                Mock(id="variables", title="Variables and Data Types", content="Variables are containers..."),
-                                Mock(id="control-flow", title="Control Flow", content="Control flow statements..."),
-                                Mock(id="functions", title="Functions", content="Functions are reusable blocks...")
-                            ]))
-                            knowledge_navigator_instance.get_available_concepts = AsyncMock(return_value=[
-                                Mock(id="variables", title="Variables and Data Types", content="Variables are containers..."),
-                                Mock(id="control-flow", title="Control Flow", content="Control flow statements..."),
-                                Mock(id="functions", title="Functions", content="Functions are reusable blocks...")
-                            ])
+                            knowledge_navigator_instance.load_content = AsyncMock(
+                                return_value=Mock(
+                                    concepts=[
+                                        Mock(
+                                            id="variables",
+                                            title="Variables and Data Types",
+                                            content="Variables are containers...",
+                                        ),
+                                        Mock(
+                                            id="control-flow",
+                                            title="Control Flow",
+                                            content="Control flow statements...",
+                                        ),
+                                        Mock(
+                                            id="functions",
+                                            title="Functions",
+                                            content="Functions are reusable blocks...",
+                                        ),
+                                    ]
+                                )
+                            )
+                            knowledge_navigator_instance.get_available_concepts = AsyncMock(
+                                return_value=[
+                                    Mock(
+                                        id="variables",
+                                        title="Variables and Data Types",
+                                        content="Variables are containers...",
+                                    ),
+                                    Mock(id="control-flow", title="Control Flow", content="Control flow statements..."),
+                                    Mock(id="functions", title="Functions", content="Functions are reusable blocks..."),
+                                ]
+                            )
                             mock_knowledge_navigator.return_value = knowledge_navigator_instance
 
                             state_manager_instance = Mock()
@@ -129,12 +161,12 @@ Sets are unordered collections of unique items.
 
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
+
                             app = LearningCatalystApp(temp_workspace)
 
                             # Step 2: User sees the welcome message
                             welcome_message = await startup_guide_instance.generate_startup_message(
-                                is_first_time=True,
-                                has_previous_state=False
+                                is_first_time=True, has_previous_state=False
                             )
                             assert "Welcome" in welcome_message
 
@@ -182,38 +214,44 @@ Sets are unordered collections of unique items.
         mock_previous_state.conversation_context = {"current_concept": "Control Flow"}
         mock_previous_state.conversation_messages = [
             {"role": "user", "content": "What are control flow statements?"},
-            {"role": "assistant", "content": "Control flow statements allow you to control the execution order..."}
+            {"role": "assistant", "content": "Control flow statements allow you to control the execution order..."},
         ]
         mock_previous_state.current_state_metadata = {
             "last_access": "2024-01-01T12:00:00",
-            "session_id": "previous-session-123"
+            "session_id": "previous-session-123",
         }
 
         # Step 1: User starts the application with previous state
-        with patch('src.core.startup_guide.StartupGuide') as mock_startup_guide:
-            with patch('src.core.knowledge_navigator.SQLiteKnowledgeNavigator') as mock_knowledge_navigator:
-                with patch('src.core.state_manager.StateManager') as mock_state_manager:
-                    with patch('src.ai.service.ModelAbstractionService', return_value=mock_model_service):
-                        with patch('src.cli.command_palette.CommandPalette') as mock_command_palette:
+        with patch("src.core.startup_guide.StartupGuide") as mock_startup_guide:
+            with patch("src.core.knowledge_navigator.SQLiteKnowledgeNavigator") as mock_knowledge_navigator:
+                with patch("src.core.state_manager.StateManager") as mock_state_manager:
+                    with patch("src.ai.service.ModelAbstractionService", return_value=mock_model_service):
+                        with patch("src.cli.command_palette.CommandPalette") as mock_command_palette:
                             # Initialize the mocked components
                             startup_guide_instance = Mock()
-                            startup_guide_instance.generate_startup_message = AsyncMock(return_value="Welcome back to Learning Catalyst!")
-                            startup_guide_instance.get_contextual_suggestions = AsyncMock(return_value=[
-                                {
-                                    "type": "continue",
-                                    "title": "Continue learning: Control Flow",
-                                    "description": "Pick up where you left off",
-                                    "command": "/explain Control Flow"
-                                }
-                            ])
+                            startup_guide_instance.generate_startup_message = AsyncMock(
+                                return_value="Welcome back to Learning Catalyst!"
+                            )
+                            startup_guide_instance.get_contextual_suggestions = AsyncMock(
+                                return_value=[
+                                    {
+                                        "type": "continue",
+                                        "title": "Continue learning: Control Flow",
+                                        "description": "Pick up where you left off",
+                                        "command": "/explain Control Flow",
+                                    }
+                                ]
+                            )
                             mock_startup_guide.return_value = startup_guide_instance
 
                             knowledge_navigator_instance = Mock()
-                            knowledge_navigator_instance.get_available_concepts = AsyncMock(return_value=[
-                                Mock(id="variables", title="Variables and Data Types"),
-                                Mock(id="control-flow", title="Control Flow"),
-                                Mock(id="functions", title="Functions")
-                            ])
+                            knowledge_navigator_instance.get_available_concepts = AsyncMock(
+                                return_value=[
+                                    Mock(id="variables", title="Variables and Data Types"),
+                                    Mock(id="control-flow", title="Control Flow"),
+                                    Mock(id="functions", title="Functions"),
+                                ]
+                            )
                             mock_knowledge_navigator.return_value = knowledge_navigator_instance
 
                             state_manager_instance = Mock()
@@ -227,12 +265,12 @@ Sets are unordered collections of unique items.
 
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
+
                             app = LearningCatalystApp(temp_workspace)
 
                             # Step 2: User sees the welcome back message
                             welcome_message = await startup_guide_instance.generate_startup_message(
-                                is_first_time=False,
-                                has_previous_state=True
+                                is_first_time=False, has_previous_state=True
                             )
                             assert "Welcome back" in welcome_message
 
@@ -272,22 +310,26 @@ Sets are unordered collections of unique items.
         mock_model_service.generate_response = AsyncMock(return_value="This is a test explanation.")
 
         # Step 1: User creates checkpoints at different points
-        with patch('src.core.startup_guide.StartupGuide') as mock_startup_guide:
-            with patch('src.core.knowledge_navigator.SQLiteKnowledgeNavigator') as mock_knowledge_navigator:
-                with patch('src.core.state_manager.StateManager') as mock_state_manager:
-                    with patch('src.ai.service.ModelAbstractionService', return_value=mock_model_service):
-                        with patch('src.cli.command_palette.CommandPalette') as mock_command_palette:
+        with patch("src.core.startup_guide.StartupGuide") as mock_startup_guide:
+            with patch("src.core.knowledge_navigator.SQLiteKnowledgeNavigator") as mock_knowledge_navigator:
+                with patch("src.core.state_manager.StateManager") as mock_state_manager:
+                    with patch("src.ai.service.ModelAbstractionService", return_value=mock_model_service):
+                        with patch("src.cli.command_palette.CommandPalette") as mock_command_palette:
                             # Initialize the mocked components
                             startup_guide_instance = Mock()
-                            startup_guide_instance.generate_startup_message = AsyncMock(return_value="Welcome to Learning Catalyst!")
+                            startup_guide_instance.generate_startup_message = AsyncMock(
+                                return_value="Welcome to Learning Catalyst!"
+                            )
                             mock_startup_guide.return_value = startup_guide_instance
 
                             knowledge_navigator_instance = Mock()
-                            knowledge_navigator_instance.get_available_concepts = AsyncMock(return_value=[
-                                Mock(id="variables", title="Variables and Data Types"),
-                                Mock(id="control-flow", title="Control Flow"),
-                                Mock(id="functions", title="Functions")
-                            ])
+                            knowledge_navigator_instance.get_available_concepts = AsyncMock(
+                                return_value=[
+                                    Mock(id="variables", title="Variables and Data Types"),
+                                    Mock(id="control-flow", title="Control Flow"),
+                                    Mock(id="functions", title="Functions"),
+                                ]
+                            )
                             mock_knowledge_navigator.return_value = knowledge_navigator_instance
 
                             # Create mock checkpoints
@@ -315,6 +357,7 @@ Sets are unordered collections of unique items.
 
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
+
                             app = LearningCatalystApp(temp_workspace)
 
                             # Step 2: User learns about variables and creates a checkpoint
@@ -350,20 +393,22 @@ Sets are unordered collections of unique items.
         mock_model_service.generate_response = AsyncMock(side_effect=Exception("API Error"))
 
         # Step 1: User encounters an error
-        with patch('src.core.startup_guide.StartupGuide') as mock_startup_guide:
-            with patch('src.core.knowledge_navigator.SQLiteKnowledgeNavigator') as mock_knowledge_navigator:
-                with patch('src.core.state_manager.StateManager') as mock_state_manager:
-                    with patch('src.ai.service.ModelAbstractionService', return_value=mock_model_service):
-                        with patch('src.cli.command_palette.CommandPalette') as mock_command_palette:
+        with patch("src.core.startup_guide.StartupGuide") as mock_startup_guide:
+            with patch("src.core.knowledge_navigator.SQLiteKnowledgeNavigator") as mock_knowledge_navigator:
+                with patch("src.core.state_manager.StateManager") as mock_state_manager:
+                    with patch("src.ai.service.ModelAbstractionService", return_value=mock_model_service):
+                        with patch("src.cli.command_palette.CommandPalette") as mock_command_palette:
                             # Initialize the mocked components
                             startup_guide_instance = Mock()
-                            startup_guide_instance.generate_startup_message = AsyncMock(return_value="Welcome to Learning Catalyst!")
+                            startup_guide_instance.generate_startup_message = AsyncMock(
+                                return_value="Welcome to Learning Catalyst!"
+                            )
                             mock_startup_guide.return_value = startup_guide_instance
 
                             knowledge_navigator_instance = Mock()
-                            knowledge_navigator_instance.get_available_concepts = AsyncMock(return_value=[
-                                Mock(id="variables", title="Variables and Data Types")
-                            ])
+                            knowledge_navigator_instance.get_available_concepts = AsyncMock(
+                                return_value=[Mock(id="variables", title="Variables and Data Types")]
+                            )
                             mock_knowledge_navigator.return_value = knowledge_navigator_instance
 
                             state_manager_instance = Mock()
@@ -377,6 +422,7 @@ Sets are unordered collections of unique items.
 
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
+
                             app = LearningCatalystApp(temp_workspace)
 
                             # Step 2: User tries to get an explanation but encounters an error
@@ -405,20 +451,22 @@ Sets are unordered collections of unique items.
         mock_model_service.generate_response = AsyncMock(return_value="This is a test explanation.")
 
         # Step 1: User explores advanced features
-        with patch('src.core.startup_guide.StartupGuide') as mock_startup_guide:
-            with patch('src.core.knowledge_navigator.SQLiteKnowledgeNavigator') as mock_knowledge_navigator:
-                with patch('src.core.state_manager.StateManager') as mock_state_manager:
-                    with patch('src.ai.service.ModelAbstractionService', return_value=mock_model_service):
-                        with patch('src.cli.command_palette.CommandPalette') as mock_command_palette:
+        with patch("src.core.startup_guide.StartupGuide") as mock_startup_guide:
+            with patch("src.core.knowledge_navigator.SQLiteKnowledgeNavigator") as mock_knowledge_navigator:
+                with patch("src.core.state_manager.StateManager") as mock_state_manager:
+                    with patch("src.ai.service.ModelAbstractionService", return_value=mock_model_service):
+                        with patch("src.cli.command_palette.CommandPalette") as mock_command_palette:
                             # Initialize the mocked components
                             startup_guide_instance = Mock()
-                            startup_guide_instance.generate_startup_message = AsyncMock(return_value="Welcome to Learning Catalyst!")
+                            startup_guide_instance.generate_startup_message = AsyncMock(
+                                return_value="Welcome to Learning Catalyst!"
+                            )
                             mock_startup_guide.return_value = startup_guide_instance
 
                             knowledge_navigator_instance = Mock()
-                            knowledge_navigator_instance.get_available_concepts = AsyncMock(return_value=[
-                                Mock(id="variables", title="Variables and Data Types")
-                            ])
+                            knowledge_navigator_instance.get_available_concepts = AsyncMock(
+                                return_value=[Mock(id="variables", title="Variables and Data Types")]
+                            )
                             mock_knowledge_navigator.return_value = knowledge_navigator_instance
 
                             state_manager_instance = Mock()
@@ -432,6 +480,7 @@ Sets are unordered collections of unique items.
 
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
+
                             app = LearningCatalystApp(temp_workspace)
 
                             # Step 2: User checks token usage

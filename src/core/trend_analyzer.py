@@ -1,6 +1,7 @@
 """
 Trend analysis implementation
 """
+
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
@@ -15,8 +16,8 @@ class TrendAnalyzer:
     def generate_trend_data(self, user_id: str, metric: str, time_period: Dict[str, str]) -> List[TrendData]:
         """Generate trend data for the specified metric and time period"""
         # Based on the time period, decide the granularity of the trend data
-        start_date = datetime.fromisoformat(time_period["start"].replace('Z', '+00:00'))
-        end_date = datetime.fromisoformat(time_period["end"].replace('Z', '+00:00'))
+        start_date = datetime.fromisoformat(time_period["start"].replace("Z", "+00:00"))
+        end_date = datetime.fromisoformat(time_period["end"].replace("Z", "+00:00"))
 
         # Calculate appropriate interval based on the time span
         days_diff = (end_date - start_date).days
@@ -35,14 +36,8 @@ class TrendAnalyzer:
         for date_str, value in data_points:
             trend = TrendData(
                 metric=metric,
-                values=[{
-                    "date": date_str,
-                    "value": value
-                }],
-                period=TimePeriod(
-                    start_date=time_period["start"],
-                    end_date=time_period["end"]
-                )
+                values=[{"date": date_str, "value": value}],
+                period=TimePeriod(start_date=time_period["start"], end_date=time_period["end"]),
             )
             trends.append(trend)
 
@@ -141,7 +136,7 @@ class TrendAnalyzer:
             "accuracy_trend": self.analyze_trend_direction(accuracy_trends),
             "completion_trend": self.analyze_trend_direction(completion_trends),
             "time_spent_trend": self.analyze_trend_direction(time_spent_trends),
-            "recommendations": []
+            "recommendations": [],
         }
 
         # Generate recommendations based on trends

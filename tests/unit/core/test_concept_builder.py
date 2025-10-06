@@ -2,9 +2,10 @@
 Unit tests for the concept builder module.
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from src.core.concept_builder import ConceptBuilder
 from src.data.models.concept import Concept
@@ -48,23 +49,13 @@ class TestConceptBuilder:
         file_path = "test_file.md"
         granularity = "headers"
 
-        with patch('src.core.concept_builder.MarkdownParser') as mock_parser_class:
+        with patch("src.core.concept_builder.MarkdownParser") as mock_parser_class:
             mock_parser = Mock()
             mock_parser_class.return_value = mock_parser
 
             mock_parser.find_concepts_in_file.return_value = [
-                {
-                    'id': 'concept-1',
-                    'title': 'Test Concept 1',
-                    'content': 'Test content 1',
-                    'level': 1
-                },
-                {
-                    'id': 'concept-2',
-                    'title': 'Test Concept 2',
-                    'content': 'Test content 2',
-                    'level': 2
-                }
+                {"id": "concept-1", "title": "Test Concept 1", "content": "Test content 1", "level": 1},
+                {"id": "concept-2", "title": "Test Concept 2", "content": "Test content 2", "level": 2},
             ]
 
             # Act
@@ -84,17 +75,12 @@ class TestConceptBuilder:
         file_path = "test_file.md"
         granularity = "summaries"
 
-        with patch('src.core.concept_builder.MarkdownParser') as mock_parser_class:
+        with patch("src.core.concept_builder.MarkdownParser") as mock_parser_class:
             mock_parser = Mock()
             mock_parser_class.return_value = mock_parser
 
             mock_parser.find_concepts_in_file.return_value = [
-                {
-                    'id': 'concept-1',
-                    'title': 'Test Concept 1',
-                    'content': 'Test content 1',
-                    'level': 1
-                }
+                {"id": "concept-1", "title": "Test Concept 1", "content": "Test content 1", "level": 1}
             ]
 
             # Act
@@ -113,17 +99,12 @@ class TestConceptBuilder:
         file_path = "test_file.md"
         granularity = "full_content"
 
-        with patch('src.core.concept_builder.MarkdownParser') as mock_parser_class:
+        with patch("src.core.concept_builder.MarkdownParser") as mock_parser_class:
             mock_parser = Mock()
             mock_parser_class.return_value = mock_parser
 
             mock_parser.find_concepts_in_file.return_value = [
-                {
-                    'id': 'concept-1',
-                    'title': 'Test Concept 1',
-                    'content': 'Test content 1',
-                    'level': 1
-                }
+                {"id": "concept-1", "title": "Test Concept 1", "content": "Test content 1", "level": 1}
             ]
 
             # Act
@@ -141,14 +122,9 @@ class TestConceptBuilder:
         dir_path = "test_dir"
         granularity = "headers"
 
-        with patch('src.core.concept_builder.extract_all_concepts') as mock_extract:
+        with patch("src.core.concept_builder.extract_all_concepts") as mock_extract:
             mock_extract.return_value = [
-                {
-                    'id': 'concept-1',
-                    'title': 'Test Concept 1',
-                    'content': 'Test content 1',
-                    'level': 1
-                }
+                {"id": "concept-1", "title": "Test Concept 1", "content": "Test content 1", "level": 1}
             ]
 
             # Act
@@ -175,19 +151,11 @@ class TestConceptBuilder:
         # Arrange
         concept_builder.concepts = [
             Concept(
-                id="concept-1",
-                title="Parent Concept",
-                content="Parent content",
-                prerequisites=[],
-                difficulty_level=1
+                id="concept-1", title="Parent Concept", content="Parent content", prerequisites=[], difficulty_level=1
             ),
             Concept(
-                id="concept-2",
-                title="Child Concept",
-                content="Child content",
-                prerequisites=[],
-                difficulty_level=2
-            )
+                id="concept-2", title="Child Concept", content="Child content", prerequisites=[], difficulty_level=2
+            ),
         ]
 
         # Act
@@ -202,13 +170,7 @@ class TestConceptBuilder:
         """Test saving concepts to database."""
         # Arrange
         concept_builder.concepts = [
-            Concept(
-                id="concept-1",
-                title="Test Concept",
-                content="Test content",
-                prerequisites=[],
-                difficulty_level=1
-            )
+            Concept(id="concept-1", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=1)
         ]
 
         # Act
@@ -232,13 +194,7 @@ class TestConceptBuilder:
         """Test validating valid concepts."""
         # Arrange
         concept_builder.concepts = [
-            Concept(
-                id="concept-1",
-                title="Test Concept",
-                content="Test content",
-                prerequisites=[],
-                difficulty_level=1
-            )
+            Concept(id="concept-1", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=1)
         ]
 
         # Act
@@ -259,7 +215,7 @@ class TestConceptBuilder:
                 title="",  # Invalid empty title
                 content="",  # Invalid empty content
                 prerequisites=[],
-                difficulty_level=1
+                difficulty_level=1,
             )
         ]
 
@@ -287,19 +243,11 @@ class TestConceptBuilder:
         # Arrange
         concept_builder.concepts = [
             Concept(
-                id="concept-1",
-                title="Test Concept 1",
-                content="Test content 1",
-                prerequisites=[],
-                difficulty_level=1
+                id="concept-1", title="Test Concept 1", content="Test content 1", prerequisites=[], difficulty_level=1
             ),
             Concept(
-                id="concept-2",
-                title="Test Concept 2",
-                content="Test content 2",
-                prerequisites=[],
-                difficulty_level=1
-            )
+                id="concept-2", title="Test Concept 2", content="Test content 2", prerequisites=[], difficulty_level=1
+            ),
         ]
 
         # Act
@@ -312,20 +260,14 @@ class TestConceptBuilder:
         """Test detecting duplicates when they exist."""
         # Arrange
         concept_builder.concepts = [
-            Concept(
-                id="concept-1",
-                title="Test Concept",
-                content="Test content",
-                prerequisites=[],
-                difficulty_level=1
-            ),
+            Concept(id="concept-1", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=1),
             Concept(
                 id="concept-2",
                 title="Test Concept",  # Same title
                 content="Different content",
                 prerequisites=[],
-                difficulty_level=1
-            )
+                difficulty_level=1,
+            ),
         ]
 
         # Act
@@ -352,13 +294,7 @@ class TestConceptBuilder:
         """Test summarizing concepts."""
         # Arrange
         concept_builder.concepts = [
-            Concept(
-                id="concept-1",
-                title="Test Concept",
-                content="Test content",
-                prerequisites=[],
-                difficulty_level=1
-            )
+            Concept(id="concept-1", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=1)
         ]
 
         mock_model_service.generate_summary.return_value = "Test summary"

@@ -1,17 +1,12 @@
 """
 Base provider implementation to reduce code duplication
 """
+
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import httpx
 
-from src.data.models.extended_models import (
-    AIResponse,
-    Credentials,
-    EmbeddingResponse,
-    Message,
-    RerankResponse
-)
+from src.data.models.extended_models import AIResponse, Credentials, EmbeddingResponse, Message, RerankResponse
 from src.ai.abstraction import ModelProvider, ChatModel, EmbeddingModel, RerankModel, Model
 from .utils import make_http_request
 
@@ -34,10 +29,7 @@ class BaseProvider(ModelProvider):
             headers = self._get_headers(credentials)
 
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{credentials.base_url or self.base_url}/models",
-                    headers=headers
-                )
+                response = await client.get(f"{credentials.base_url or self.base_url}/models", headers=headers)
                 return response.status_code == 200
         except Exception:
             return False
@@ -98,11 +90,7 @@ class BaseChatModel(ChatModel):
         # Convert Message objects to dict format
         message_dicts = [{"role": msg.role, "content": msg.content} for msg in messages]
 
-        payload = {
-            "model": self._model_id,
-            "messages": message_dicts,
-            "temperature": temperature
-        }
+        payload = {"model": self._model_id, "messages": message_dicts, "temperature": temperature}
 
         result = await self._provider._make_request("chat/completions", payload)
 
@@ -111,7 +99,7 @@ class BaseChatModel(ChatModel):
             model=self._model_id,
             provider=self._provider.name,
             usage=self._extract_usage(result),
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
 
     def _extract_usage(self, result: Dict[str, Any]) -> Dict[str, int]:
@@ -119,7 +107,7 @@ class BaseChatModel(ChatModel):
         return {
             "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
             "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-            "total_tokens": result.get("usage", {}).get("total_tokens", 0)
+            "total_tokens": result.get("usage", {}).get("total_tokens", 0),
         }
 
 
@@ -136,14 +124,9 @@ class BaseEmbeddingModel(EmbeddingModel):
     async def get_id(self) -> str:
         return self._model_id
 
-    async def get_embeddings(
-        self, texts: List[str], dimensions: Optional[int] = None
-    ) -> EmbeddingResponse:
+    async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
         """Get embeddings for texts"""
-        payload = {
-            "model": self._model_id,
-            "input": texts
-        }
+        payload = {"model": self._model_id, "input": texts}
 
         if dimensions:
             payload["dimensions"] = dimensions
@@ -154,7 +137,7 @@ class BaseEmbeddingModel(EmbeddingModel):
             embeddings=[item["embedding"] for item in result["data"]],
             model=self._model_id,
             provider=self._provider.name,
-            usage=self._extract_usage(result)
+            usage=self._extract_usage(result),
         )
 
     def _extract_usage(self, result: Dict[str, Any]) -> Dict[str, int]:
@@ -162,7 +145,7 @@ class BaseEmbeddingModel(EmbeddingModel):
         return {
             "input_tokens": result.get("usage", {}).get("prompt_tokens", 0),
             "output_tokens": result.get("usage", {}).get("completion_tokens", 0),
-            "total_tokens": result.get("usage", {}).get("total_tokens", 0)
+            "total_tokens": result.get("usage", {}).get("total_tokens", 0),
         }
 
 
@@ -179,42 +162,15 @@ class BaseRerankModel(RerankModel):
     async def get_id(self) -> str:
         return self._model_id
 
-    async def rerank(
-        self, query: str, documents: List[str], top_k: int = 10
-    ) -> RerankResponse:
+    async def rerank(self, query: str, documents: List[str], top_k: int = 10) -> RerankResponse:
         """Rerank documents using chat completions"""
-        # Create a prompt for reranking using chat completions
-        document_list = "\n".join([f"{i+1}. {doc}" for i, doc in enumerate(documents)])
-        prompt = f"""Please rank the following documents by relevance to the query: "{query}"
-
-Documents:
-{document_list}
-
-Return a JSON array with objects containing "document" (the original text) and "relevance_score" (0-1)."""
-
-        payload = {
-            "model": self._model_id,
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant that ranks documents by relevance."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.1
-        }
-
         # For now, return a simple ranking based on document order
         results = []
         for i, doc in enumerate(documents[:top_k]):
             # Simple relevance scoring based on position (placeholder)
             relevance_score = 1.0 - (i * 0.1)
-            results.append({
-                "document": doc,
-                "relevance_score": max(0.0, relevance_score),
-                "index": i
-            })
+            results.append({"document": doc, "relevance_score": max(0.0, relevance_score), "index": i})
 
         return RerankResponse(
-            results=results,
-            model=self._model_id,
-            provider=self._provider.name,
-            usage={"total_tokens": 0}
+            results=results, model=self._model_id, provider=self._provider.name, usage={"total_tokens": 0}
         )

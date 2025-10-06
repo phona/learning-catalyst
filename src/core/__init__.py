@@ -1,14 +1,20 @@
 """
 Core interfaces and implementations for Learning Catalyst application
 """
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
 from src.data.models.concept import Concept
-from src.data.models.extended_models import (AnalyticsExport,
-                                             CompetencyProfile, KnowledgeMap,
-                                             ProgressReport, Recommendations,
-                                             TrendData, UserProgress)
+from src.data.models.extended_models import (
+    AnalyticsExport,
+    CompetencyProfile,
+    KnowledgeMap,
+    ProgressReport,
+    Recommendations,
+    TrendData,
+    UserProgress,
+)
 
 
 # Core interfaces
@@ -169,13 +175,13 @@ class AssessmentEngine(ABC):
         pass
 
 
+# Import implementations
 from .basic_analytics_dashboard import BasicAnalyticsDashboard
 from .basic_assessment_engine import BasicAssessmentEngine
 from .catalyst_agent import CatalystAgentImpl
 from .challenge_engine import ChallengeEngineImpl
 from .checkpoint_manager import CheckpointManagerImpl
 from .export_service import ExportService
-# Import implementations
 from .knowledge_navigator import SQLiteKnowledgeNavigator
 from .system_commands_handler import SystemCommandsHandlerImpl
 from .token_usage_analytics import TokenUsageAnalytics
@@ -184,14 +190,23 @@ from .weak_area_identifier import WeakAreaIdentifier
 
 __all__ = [
     # Interfaces
-    'KnowledgeNavigator', 'CatalystAgent', 'ChallengeEngine',
-    'CheckpointManager', 'SystemCommandsHandler', 'AnalyticsDashboard',
-    'AssessmentEngine',
-
+    "KnowledgeNavigator",
+    "CatalystAgent",
+    "ChallengeEngine",
+    "CheckpointManager",
+    "SystemCommandsHandler",
+    "AnalyticsDashboard",
+    "AssessmentEngine",
     # Implementations
-    'SQLiteKnowledgeNavigator', 'CatalystAgentImpl', 'ChallengeEngineImpl',
-    'CheckpointManagerImpl', 'SystemCommandsHandlerImpl',
-    'BasicAnalyticsDashboard', 'BasicAssessmentEngine',
-    'TrendAnalyzer', 'WeakAreaIdentifier', 'ExportService', 'TokenUsageAnalytics'
+    "SQLiteKnowledgeNavigator",
+    "CatalystAgentImpl",
+    "ChallengeEngineImpl",
+    "CheckpointManagerImpl",
+    "SystemCommandsHandlerImpl",
+    "BasicAnalyticsDashboard",
+    "BasicAssessmentEngine",
+    "TrendAnalyzer",
+    "WeakAreaIdentifier",
+    "ExportService",
+    "TokenUsageAnalytics",
 ]
-

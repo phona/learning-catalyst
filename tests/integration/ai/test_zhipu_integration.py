@@ -5,19 +5,21 @@ API keys should never be saved in committed code - they should only be used loca
 """
 
 import asyncio
-import tempfile
 import os
-import pytest
+import tempfile
 from pathlib import Path
-from src.utils.workspace_manager import WorkspaceManager
-from src.utils.preferences_manager import PreferencesManager
-from src.ai.service import ModelAbstractionService
+
+import pytest
+
 from src.ai.providers.chatglm_provider import ChatGLMProvider
-from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+from src.ai.service import ModelAbstractionService
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.challenge_engine import ChallengeEngineImpl
+from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
+from src.utils.preferences_manager import PreferencesManager
+from src.utils.workspace_manager import WorkspaceManager
 
 
 @pytest.mark.asyncio
@@ -52,10 +54,7 @@ async def test_with_zhipu_models():
         model_service = ModelAbstractionService()
 
         # Create and configure the ChatGLM provider
-        chatglm_provider = ChatGLMProvider(
-            api_key=zhipu_api_key,
-            base_url=zhipu_base_url
-        )
+        chatglm_provider = ChatGLMProvider(api_key=zhipu_api_key, base_url=zhipu_base_url)
 
         # Set the provider in the model service
         model_service.set_provider("chatglm", chatglm_provider)
@@ -80,7 +79,7 @@ async def test_with_zhipu_models():
             3. Reinforcement Learning
             """,
             prerequisites=[],
-            difficulty_level=5
+            difficulty_level=5,
         )
 
         # Save concept to database
@@ -95,8 +94,8 @@ async def test_with_zhipu_models():
                 context={
                     "provider": "chatglm",
                     "model": "glm-4.5-air",  # Using the provided model
-                    "learning_level": "beginner"
-                }
+                    "learning_level": "beginner",
+                },
             )
             print(f"Generated explanation length: {len(explanation) if explanation else 0} characters")
             print(f"Explanation preview: {explanation[:100]}..." if explanation else "No explanation generated")
@@ -113,8 +112,8 @@ async def test_with_zhipu_models():
                     "provider": "chatglm",
                     "model": "glm-4.5-air",
                     "challenge_type": "open_ended",
-                    "difficulty": "medium"
-                }
+                    "difficulty": "medium",
+                },
             )
             print(f"Challenge generated: {bool(challenge)}")
             if challenge:
@@ -141,9 +140,9 @@ async def test_with_zhipu_models():
 def demo_preferences_config():
     """Demonstrate how to configure preferences for Zhipu AI models"""
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("CONFIGURATION DEMONSTRATION")
-    print("="*60)
+    print("=" * 60)
     print("To configure Learning Catalyst with Zhipu AI models, you can use the CLI:")
     print()
     print("# Set the provider and model preferences")
@@ -157,7 +156,7 @@ def demo_preferences_config():
     print("export ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4/")
     print()
     print("IMPORTANT: Never commit API keys to version control!")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":

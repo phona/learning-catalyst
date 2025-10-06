@@ -1,23 +1,24 @@
-
-import sys
-import os
-import pytest
 import asyncio
+import os
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-# Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+import pytest
 
-from src.cli.main import app
-from src.utils.workspace_manager import WorkspaceManager
-from src.utils.preferences_manager import PreferencesManager
-from src.data.database_manager import DatabaseManager
-from src.core.checkpoint_manager import CheckpointManagerImpl
-from src.core.catalyst_agent import CatalystAgentImpl
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
 from src.ai.service import ModelAbstractionService as AIService
+from src.cli.main import app
+from src.core.catalyst_agent import CatalystAgentImpl
+from src.core.checkpoint_manager import CheckpointManagerImpl
+from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
+from src.utils.preferences_manager import PreferencesManager
+from src.utils.workspace_manager import WorkspaceManager
+
 
 # Mock the Session class since it doesn't exist yet
 class Session:
@@ -27,6 +28,7 @@ class Session:
         self.start_time = start_time
         self.last_active_time = last_active_time
         self.status = status
+
 
 # Mock the Preferences class since it doesn't exist yet
 class Preferences:
@@ -38,17 +40,17 @@ class Preferences:
 
 
 class TestCompleteLearningWorkflow:
-    '''Integration tests for complete learning workflows, combining multiple features'''
+    """Integration tests for complete learning workflows, combining multiple features"""
 
     @pytest.mark.asyncio
     async def test_first_time_user_onboarding(self, temp_workspace):
-        '''Test the complete onboarding flow for a first-time user'''
+        """Test the complete onboarding flow for a first-time user"""
         # Initialize managers
         workspace_manager = WorkspaceManager(str(temp_workspace))
         prefs_manager = PreferencesManager(str(temp_workspace))
 
         # Mock the session-related methods on workspace_manager
-        mock_session = Session('test-session-1', 'test-user', '2023-01-01T12:00:00', '2023-01-01T12:00:00', 'active')
+        mock_session = Session("test-session-1", "test-user", "2023-01-01T12:00:00", "2023-01-01T12:00:00", "active")
         mock_session.workspace_path = str(temp_workspace)
         workspace_manager.create_new_session = AsyncMock(return_value=mock_session)
 
@@ -58,20 +60,20 @@ class TestCompleteLearningWorkflow:
 
         # Mock AI service to provide responses
         ai_service_mock = AsyncMock(spec=AIService)
-        ai_service_mock.generate_welcome_message = AsyncMock(return_value='Welcome to Learning Catalyst!')
-        ai_service_mock.suggest_initial_topics = AsyncMock(return_value=['Python basics', 'Data structures'])
-        ai_service_mock.analyze_content = AsyncMock(return_value={'concepts': ['variables', 'data types']})
+        ai_service_mock.generate_welcome_message = AsyncMock(return_value="Welcome to Learning Catalyst!")
+        ai_service_mock.suggest_initial_topics = AsyncMock(return_value=["Python basics", "Data structures"])
+        ai_service_mock.analyze_content = AsyncMock(return_value={"concepts": ["variables", "data types"]})
 
         # 1. Workspace is already initialized by the temp_workspace fixture
         # Just verify it exists
-        assert (Path(temp_workspace) / '.learningspace').exists()
+        assert (Path(temp_workspace) / ".learningspace").exists()
 
         # 3. Configure preferences
-        prefs_manager.set_preference('ai.default_provider', 'openai')
-        prefs_manager.set_preference('ai.default_model', 'gpt-3.5-turbo')
-        prefs_manager.set_preference('learning.difficulty_level', 'beginner')
-        prefs_manager.set_preference('learning.learning_style', 'visual')
-        prefs_manager.set_preference('learning.preferred_topics', ['Python'])
+        prefs_manager.set_preference("ai.default_provider", "openai")
+        prefs_manager.set_preference("ai.default_model", "gpt-3.5-turbo")
+        prefs_manager.set_preference("learning.difficulty_level", "beginner")
+        prefs_manager.set_preference("learning.learning_style", "visual")
+        prefs_manager.set_preference("learning.preferred_topics", ["Python"])
 
         # 4. Create first session
         session = await workspace_manager.create_new_session()
@@ -89,19 +91,19 @@ class TestCompleteLearningWorkflow:
         ai_service_mock.suggest_initial_topics.assert_called_once()
 
         # 6. Verify preferences were set correctly
-        assert prefs_manager.get_preference('ai.default_provider') == 'openai'
-        assert prefs_manager.get_preference('learning.difficulty_level') == 'beginner'
+        assert prefs_manager.get_preference("ai.default_provider") == "openai"
+        assert prefs_manager.get_preference("learning.difficulty_level") == "beginner"
 
     @pytest.mark.asyncio
     async def test_conversation_and_concept_learning_flow(self, temp_workspace):
-        '''Test a complete conversation and concept learning flow'''
+        """Test a complete conversation and concept learning flow"""
         # Initialize managers
         workspace_manager = WorkspaceManager(str(temp_workspace))
         await workspace_manager.initialize_workspace()
 
         # Mock the session-related methods on workspace_manager
-        mock_session = Session('test-session-2', 'test-user', '2023-01-01T12:00:00', '2023-01-01T12:00:00', 'active')
-        mock_session.id = 'test-session-2'
+        mock_session = Session("test-session-2", "test-user", "2023-01-01T12:00:00", "2023-01-01T12:00:00", "active")
+        mock_session.id = "test-session-2"
         mock_session.current_concept_id = None
         workspace_manager.create_new_session = AsyncMock(return_value=mock_session)
         workspace_manager.update_session_concept = AsyncMock()
@@ -112,8 +114,12 @@ class TestCompleteLearningWorkflow:
 
         # Mock AI service to handle conversation
         ai_service_mock = AsyncMock(spec=AIService)
-        ai_service_mock.generate_response = AsyncMock(return_value='Python lists are ordered, mutable collections of items.')
-        ai_service_mock.extract_concepts = AsyncMock(return_value=[{'id': 'python-lists', 'name': 'Python Lists', 'relevance': 0.9}])
+        ai_service_mock.generate_response = AsyncMock(
+            return_value="Python lists are ordered, mutable collections of items."
+        )
+        ai_service_mock.extract_concepts = AsyncMock(
+            return_value=[{"id": "python-lists", "name": "Python Lists", "relevance": 0.9}]
+        )
 
         # Mock database to save concepts and conversations
         db_manager_mock = AsyncMock()
@@ -121,23 +127,23 @@ class TestCompleteLearningWorkflow:
         db_manager_mock.save_concept = AsyncMock()
 
         # 1. Start conversation about Python lists
-        user_message = 'Can you explain Python lists?'
+        user_message = "Can you explain Python lists?"
         response = await ai_service_mock.generate_response(user_message, session.id, [])
 
         # 2. Extract and save concepts
         concepts = await ai_service_mock.extract_concepts(response, user_message)
 
         # 3. Save conversation and concepts
-        await db_manager_mock.save_conversation(session.id, 'user', user_message)
-        await db_manager_mock.save_conversation(session.id, 'ai', response)
+        await db_manager_mock.save_conversation(session.id, "user", user_message)
+        await db_manager_mock.save_conversation(session.id, "ai", response)
 
         for concept_data in concepts:
             concept = Concept(
-                id=concept_data['id'],
-                name=concept_data['name'],
-                description='',  # In a real scenario, this would be filled
-                relevance=concept_data['relevance'],
-                session_id=session.id
+                id=concept_data["id"],
+                name=concept_data["name"],
+                description="",  # In a real scenario, this would be filled
+                relevance=concept_data["relevance"],
+                session_id=session.id,
             )
             await db_manager_mock.save_concept(concept)
 
@@ -148,23 +154,23 @@ class TestCompleteLearningWorkflow:
         assert db_manager_mock.save_concept.call_count == 1
 
         # 5. Update session with current concept
-        await workspace_manager.update_session_concept(session.id, 'python-lists')
+        await workspace_manager.update_session_concept(session.id, "python-lists")
 
         # 6. Get updated session and verify
         updated_session = await workspace_manager.get_session(session.id)
-        assert updated_session.current_concept_id == 'python-lists'
+        assert updated_session.current_concept_id == "python-lists"
 
     @pytest.mark.asyncio
     async def test_checkpoint_save_and_restore_flow(self, temp_workspace):
-        '''Test the complete flow of saving a checkpoint and restoring it'''
+        """Test the complete flow of saving a checkpoint and restoring it"""
         # Initialize managers
         workspace_manager = WorkspaceManager(str(temp_workspace))
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
         await workspace_manager.initialize_workspace()
 
         # Mock the session-related methods on workspace_manager
-        mock_session = Session('test-session-3', 'test-user', '2023-01-01T12:00:00', '2023-01-01T12:00:00', 'active')
-        mock_session.id = 'test-session-3'
+        mock_session = Session("test-session-3", "test-user", "2023-01-01T12:00:00", "2023-01-01T12:00:00", "active")
+        mock_session.id = "test-session-3"
         mock_session.current_concept_id = None
         workspace_manager.create_new_session = AsyncMock(return_value=mock_session)
         workspace_manager.update_session_concept = AsyncMock()
@@ -175,13 +181,13 @@ class TestCompleteLearningWorkflow:
         # Mock database to return conversation history
         db_manager_mock = AsyncMock()
         mock_conversations = [
-            {'speaker': 'user', 'message': 'What is recursion?'},
-            {'speaker': 'ai', 'message': 'Recursion is a programming technique...'}
+            {"speaker": "user", "message": "What is recursion?"},
+            {"speaker": "ai", "message": "Recursion is a programming technique..."},
         ]
         db_manager_mock.get_conversation_history = AsyncMock(return_value=mock_conversations)
 
         # 1. Save a checkpoint
-        checkpoint_name = 'Recursion Basics'
+        checkpoint_name = "Recursion Basics"
         checkpoint_id = await checkpoint_manager.create_checkpoint(session, checkpoint_name, db_manager_mock)
 
         # 2. Verify checkpoint was saved
@@ -189,7 +195,7 @@ class TestCompleteLearningWorkflow:
 
         # 3. Create a new session that would overwrite the current state
         new_session = await workspace_manager.create_new_session()
-        await workspace_manager.update_session_concept(new_session.id, 'different-concept')
+        await workspace_manager.update_session_concept(new_session.id, "different-concept")
 
         # 4. Load the checkpoint
         restored_session = await checkpoint_manager.load_checkpoint(checkpoint_id)
@@ -200,19 +206,19 @@ class TestCompleteLearningWorkflow:
 
         # 6. List all checkpoints and verify
         checkpoints = await checkpoint_manager.list_checkpoints()
-        assert any(cp['name'] == checkpoint_name for cp in checkpoints)
+        assert any(cp["name"] == checkpoint_name for cp in checkpoints)
 
     @pytest.mark.asyncio
     async def test_complete_workflow_with_error_handling(self, temp_workspace):
-        '''Test a complete workflow with error handling scenarios'''
+        """Test a complete workflow with error handling scenarios"""
         # Initialize managers
         workspace_manager = WorkspaceManager(str(temp_workspace))
         prefs_manager = PreferencesManager(str(temp_workspace))
         await workspace_manager.initialize_workspace()
 
         # Mock the session-related methods on workspace_manager
-        mock_session = Session('test-session-4', 'test-user', '2023-01-01T12:00:00', '2023-01-01T12:00:00', 'active')
-        mock_session.id = 'test-session-4'
+        mock_session = Session("test-session-4", "test-user", "2023-01-01T12:00:00", "2023-01-01T12:00:00", "active")
+        mock_session.id = "test-session-4"
         workspace_manager.create_new_session = AsyncMock(return_value=mock_session)
 
         # Create mock objects
@@ -221,56 +227,56 @@ class TestCompleteLearningWorkflow:
         # Mock AI service to sometimes fail
         ai_service_mock = AsyncMock(spec=AIService)
         ai_service_mock.generate_response.side_effect = [
-            Exception('API Service Unavailable'),  # First call fails
-            'Python loops allow you to repeatedly execute a block of code.'  # Second call succeeds
+            Exception("API Service Unavailable"),  # First call fails
+            "Python loops allow you to repeatedly execute a block of code.",  # Second call succeeds
         ]
 
         # Create a session
         session = await workspace_manager.create_new_session()
 
         # 1. Attempt to get a response when AI service is unavailable
-        user_message = 'Explain Python loops'
+        user_message = "Explain Python loops"
         try:
             await ai_service_mock.generate_response(user_message, session.id, [])
-            assert False, 'Should have raised an exception'
+            assert False, "Should have raised an exception"
         except Exception as e:
-            assert str(e) == 'API Service Unavailable'
+            assert str(e) == "API Service Unavailable"
 
         # 2. Configure fallback preferences
-        prefs_manager.set_preference('ai.default_provider', 'local_fallback')
-        prefs_manager.set_preference('ai.default_model', 'fallback_model')
-        prefs_manager.set_preference('learning.difficulty_level', 'beginner')
-        prefs_manager.set_preference('learning.learning_style', 'textual')
-        prefs_manager.set_preference('learning.preferred_topics', ['Python'])
+        prefs_manager.set_preference("ai.default_provider", "local_fallback")
+        prefs_manager.set_preference("ai.default_model", "fallback_model")
+        prefs_manager.set_preference("learning.difficulty_level", "beginner")
+        prefs_manager.set_preference("learning.learning_style", "textual")
+        prefs_manager.set_preference("learning.preferred_topics", ["Python"])
 
         # 3. Try again with fallback configuration
         try:
             response = await ai_service_mock.generate_response(user_message, session.id, [])
-            assert response == 'Python loops allow you to repeatedly execute a block of code.'
+            assert response == "Python loops allow you to repeatedly execute a block of code."
         except Exception:
-            assert False, 'Should have succeeded with fallback configuration'
+            assert False, "Should have succeeded with fallback configuration"
 
     @pytest.mark.asyncio
     async def test_concept_mastery_tracking_flow(self, temp_workspace):
-        '''Test the flow of tracking concept mastery through challenges and feedback'''
+        """Test the flow of tracking concept mastery through challenges and feedback"""
         # Initialize managers
         workspace_manager = WorkspaceManager(str(temp_workspace))
         await workspace_manager.initialize_workspace()
 
         # Mock the session-related methods on workspace_manager
-        mock_session = Session('test-session-5', 'test-user', '2023-01-01T12:00:00', '2023-01-01T12:00:00', 'active')
-        mock_session.id = 'test-session-5'
+        mock_session = Session("test-session-5", "test-user", "2023-01-01T12:00:00", "2023-01-01T12:00:00", "active")
+        mock_session.id = "test-session-5"
         workspace_manager.create_new_session = AsyncMock(return_value=mock_session)
 
         # Create a session and concept
         session = await workspace_manager.create_new_session()
         concept = Concept(
-            id='python-functions',
-            name='Python Functions',
-            description='Functions are reusable blocks of code',
+            id="python-functions",
+            name="Python Functions",
+            description="Functions are reusable blocks of code",
             relevance=0.9,
             session_id=session.id,
-            mastery_level=0.0  # Starting with 0% mastery
+            mastery_level=0.0,  # Starting with 0% mastery
         )
 
         # Create mock objects
@@ -282,29 +288,33 @@ class TestCompleteLearningWorkflow:
 
         # Mock AI service for challenge generation and evaluation
         ai_service_mock = AsyncMock(spec=AIService)
-        ai_service_mock.generate_challenge = AsyncMock(return_value={
-            'question': 'How do you define a function in Python?',
-            'type': 'open_ended',
-            'difficulty': 'beginner'
-        })
-        ai_service_mock.evaluate_answer = AsyncMock(return_value={
-            'correct': True,
-            'score': 1.0,
-            'feedback': 'Excellent! That''s exactly how you define a function in Python.'
-        })
+        ai_service_mock.generate_challenge = AsyncMock(
+            return_value={
+                "question": "How do you define a function in Python?",
+                "type": "open_ended",
+                "difficulty": "beginner",
+            }
+        )
+        ai_service_mock.evaluate_answer = AsyncMock(
+            return_value={
+                "correct": True,
+                "score": 1.0,
+                "feedback": "Excellent! That" "s exactly how you define a function in Python.",
+            }
+        )
 
         # 1. Save initial concept
         await db_manager_mock.save_concept(concept)
 
         # 2. Generate a challenge for the concept
-        challenge = await ai_service_mock.generate_challenge(concept.id, 'beginner')
+        challenge = await ai_service_mock.generate_challenge(concept.id, "beginner")
 
         # 3. Submit an answer to the challenge
-        user_answer = 'You define a function using the ''def'' keyword followed by the function name and parentheses.'
-        evaluation = await ai_service_mock.evaluate_answer(challenge['question'], user_answer, concept.id)
+        user_answer = "You define a function using the " "def" " keyword followed by the function name and parentheses."
+        evaluation = await ai_service_mock.evaluate_answer(challenge["question"], user_answer, concept.id)
 
         # 4. Update concept mastery based on evaluation
-        if evaluation['correct']:
+        if evaluation["correct"]:
             new_mastery = min(concept.mastery_level + 0.3, 1.0)  # Increase by 30% for correct answer
         else:
             new_mastery = max(concept.mastery_level - 0.1, 0.0)  # Decrease by 10% for incorrect answer
@@ -312,10 +322,9 @@ class TestCompleteLearningWorkflow:
         await db_manager_mock.update_concept_mastery(concept.id, new_mastery)
 
         # 5. Verify all interactions
-        ai_service_mock.generate_challenge.assert_called_once_with(concept.id, 'beginner')
-        ai_service_mock.evaluate_answer.assert_called_once_with(challenge['question'], user_answer, concept.id)
+        ai_service_mock.generate_challenge.assert_called_once_with(concept.id, "beginner")
+        ai_service_mock.evaluate_answer.assert_called_once_with(challenge["question"], user_answer, concept.id)
         db_manager_mock.update_concept_mastery.assert_called_once_with(concept.id, new_mastery)
 
         # 6. Verify mastery level increased
         assert new_mastery == 0.3  # Starting from 0.0, increased by 0.3
-

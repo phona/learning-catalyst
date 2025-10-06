@@ -2,6 +2,7 @@
 Catalyst Agent implementation
 Implements the conversational interface and intent interpretation as per the architecture document
 """
+
 from typing import Any, Dict, List, Optional
 
 from src.data.models.concept import Concept
@@ -12,6 +13,7 @@ from . import CatalystAgent
 
 class IntentClassification:
     """Simple intent classification for user input"""
+
     def __init__(self, intent_type: str, concept_reference: Optional[str] = None, confidence: float = 1.0):
         self.intent_type = intent_type  # "query", "challenge_request", "answer", "general_conversation"
         self.concept_reference = concept_reference
@@ -20,9 +22,14 @@ class IntentClassification:
 
 class ConversationContext:
     """Context for managing conversation state"""
-    def __init__(self, user_profile: Dict[str, Any], current_concept: Optional[Concept] = None,
-                 conversation_history: Optional[List[Dict[str, Any]]] = None,
-                 interaction_history: Optional[List[Dict[str, Any]]] = None):
+
+    def __init__(
+        self,
+        user_profile: Dict[str, Any],
+        current_concept: Optional[Concept] = None,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+        interaction_history: Optional[List[Dict[str, Any]]] = None,
+    ):
         self.user_profile = user_profile
         self.current_concept = current_concept
         self.conversation_history = conversation_history or []
@@ -43,7 +50,7 @@ class CatalystAgentImpl(CatalystAgent):
         if any(keyword in user_input_lower for keyword in challenge_keywords):
             return IntentClassification(
                 intent_type="challenge_request",
-                concept_reference=context.current_concept.id if context.current_concept else None
+                concept_reference=context.current_concept.id if context.current_concept else None,
             )
 
         # Check for answer to a challenge (simple heuristic)
@@ -54,30 +61,46 @@ class CatalystAgentImpl(CatalystAgent):
                 return IntentClassification(intent_type="answer")
 
         # Check for common greeting phrases that indicate the user wants to learn or start
-        greeting_keywords = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening",
-                            "i'm new", "i am new", "new here", "how do i start", "get started",
-                            "where do i start", "start learning", "begin learning"]
+        greeting_keywords = [
+            "hello",
+            "hi",
+            "hey",
+            "good morning",
+            "good afternoon",
+            "good evening",
+            "i'm new",
+            "i am new",
+            "new here",
+            "how do i start",
+            "get started",
+            "where do i start",
+            "start learning",
+            "begin learning",
+        ]
         if any(keyword in user_input_lower for keyword in greeting_keywords):
             # These are typically requests for guidance, which can be treated as queries
             return IntentClassification(
-                intent_type="query",
-                concept_reference=context.current_concept.id if context.current_concept else None
+                intent_type="query", concept_reference=context.current_concept.id if context.current_concept else None
             )
 
         # Check for concept query
         # Look for keywords that suggest the user is asking about a specific topic
-        if any(keyword in user_input_lower for keyword in ["explain", "what is", "what's", "how does", "describe", "define"]):
+        if any(
+            keyword in user_input_lower
+            for keyword in ["explain", "what is", "what's", "how does", "describe", "define"]
+        ):
             # Try to extract concept from user input
             # This is a simplified implementation - in a real system, you'd have more sophisticated NLP
             return IntentClassification(
-                intent_type="query",
-                concept_reference=context.current_concept.id if context.current_concept else None
+                intent_type="query", concept_reference=context.current_concept.id if context.current_concept else None
             )
 
         # Default to general conversation
         return IntentClassification(intent_type="general_conversation")
 
-    async def generate_response(self, user_input: str, intent: IntentClassification, context: ConversationContext) -> str:
+    async def generate_response(
+        self, user_input: str, intent: IntentClassification, context: ConversationContext
+    ) -> str:
         """Generate appropriate response based on user input and intent"""
         if intent.intent_type == "query":
             # If we have a specific concept in mind
@@ -92,12 +115,9 @@ class CatalystAgentImpl(CatalystAgent):
             messages = [
                 Message(
                     role="system",
-                    content="You are an AI tutor helping the student learn. Respond to their query using your knowledge and any available context."
+                    content="You are an AI tutor helping the student learn. Respond to their query using your knowledge and any available context.",
                 ),
-                Message(
-                    role="user",
-                    content=f"Student query: {user_input}"
-                )
+                Message(role="user", content=f"Student query: {user_input}"),
             ]
 
             response = await self.model_service.send_message(messages=messages)
@@ -107,10 +127,7 @@ class CatalystAgentImpl(CatalystAgent):
         if intent.intent_type == "challenge_request":
             # Generate a challenge for the current concept
             if context.current_concept:
-                challenge_data = await self.generate_challenge(
-                    context.current_concept,
-                    context.user_profile
-                )
+                challenge_data = await self.generate_challenge(context.current_concept, context.user_profile)
                 return challenge_data.get("challenge_text", "I couldn't create a challenge for this topic right now.")
             return "I can create a challenge once we're looking at a specific concept."
 
@@ -124,19 +141,14 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are a helpful AI tutor guiding the student through their learning journey. Maintain a supportive, educational tone."
+                content="You are a helpful AI tutor guiding the student through their learning journey. Maintain a supportive, educational tone.",
             ),
-            Message(
-                role="user",
-                content=f"Student message: {user_input}"
-            )
+            Message(role="user", content=f"Student message: {user_input}"),
         ]
 
         response = await self.model_service.send_message(messages=messages)
 
         return response.content
-
-
 
     async def generate_startup_prompt(self, has_previous_state: bool, context: ConversationContext) -> str:
         """Generate context-aware welcome message and suggestions upon application launch"""
@@ -145,31 +157,29 @@ class CatalystAgentImpl(CatalystAgent):
             messages = [
                 Message(
                     role="system",
-                    content="You are a helpful AI tutor welcoming back a returning student. Provide a warm welcome and suggest what they might want to do next in their learning journey."
+                    content="You are a helpful AI tutor welcoming back a returning student. Provide a warm welcome and suggest what they might want to do next in their learning journey.",
                 ),
                 Message(
                     role="user",
-                    content=f"The student has returned to continue their learning. Their last activity was related to concept: {context.current_concept.title if context.current_concept else 'unknown'}. Suggest a specific action they can take next."
-                )
+                    content=f"The student has returned to continue their learning. Their last activity was related to concept: {context.current_concept.title if context.current_concept else 'unknown'}. Suggest a specific action they can take next.",
+                ),
             ]
         else:
             # New user welcome with suggestions
             messages = [
                 Message(
                     role="system",
-                    content="You are a helpful AI tutor welcoming a new student. Provide a warm welcome and suggest a specific first topic or action based on what you know about their learning goals."
+                    content="You are a helpful AI tutor welcoming a new student. Provide a warm welcome and suggest a specific first topic or action based on what you know about their learning goals.",
                 ),
                 Message(
                     role="user",
-                    content=f"The student is new and just started learning. Based on their profile: {context.user_profile}. Suggest a specific first topic or action."
-                )
+                    content=f"The student is new and just started learning. Based on their profile: {context.user_profile}. Suggest a specific first topic or action.",
+                ),
             ]
 
         response = await self.model_service.send_message(messages=messages)
 
         return response.content
-
-
 
     async def proactive_challenge_offer(self, concept: Concept, context: ConversationContext) -> bool:
         """Determine if the AI should proactively offer a challenge after an explanation"""
@@ -180,24 +190,22 @@ class CatalystAgentImpl(CatalystAgent):
     async def generate_explanation(self, concept: Concept, context: Dict[str, Any]) -> str:
         """Generate AI-based explanation for a concept"""
         # Determine if context is a ConversationContext object or plain dictionary
-        if hasattr(context, 'user_profile'):
+        if hasattr(context, "user_profile"):
             # It's a ConversationContext object
-            user_profile = context.user_profile
-            learning_level = context.user_profile.get('learning_level', 'intermediate')
+            learning_level = context.user_profile.get("learning_level", "intermediate")
         else:
             # It's a plain dictionary
-            user_profile = context
-            learning_level = context.get('learning_level', 'intermediate')
+            learning_level = context.get("learning_level", "intermediate")
 
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator helping students understand concepts. Provide a clear, comprehensive explanation."
+                content="You are an expert educator helping students understand concepts. Provide a clear, comprehensive explanation.",
             ),
             Message(
                 role="user",
-                content=f"Explain the concept: {concept.title}\n\nContent: {concept.content}\n\nTarget audience: {learning_level}"
-            )
+                content=f"Explain the concept: {concept.title}\n\nContent: {concept.content}\n\nTarget audience: {learning_level}",
+            ),
         ]
 
         response = await self.model_service.send_message(messages=messages)
@@ -209,12 +217,12 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator creating challenges to test understanding of concepts. Create a challenge with clear instructions."
+                content="You are an expert educator creating challenges to test understanding of concepts. Create a challenge with clear instructions.",
             ),
             Message(
                 role="user",
-                content=f"Create a challenge for the concept: {concept.title}\n\nContent: {concept.content}\n\nChallenge type: {context.get('challenge_type', 'multiple-choice')}\n\nDifficulty: {context.get('difficulty', 'medium')}"
-            )
+                content=f"Create a challenge for the concept: {concept.title}\n\nContent: {concept.content}\n\nChallenge type: {context.get('challenge_type', 'multiple-choice')}\n\nDifficulty: {context.get('difficulty', 'medium')}",
+            ),
         ]
 
         response = await self.model_service.send_message(messages=messages)
@@ -227,7 +235,7 @@ class CatalystAgentImpl(CatalystAgent):
             "challenge_type": context.get("challenge_type", "multiple-choice"),
             "challenge_text": response.content,
             "expected_answer": "",  # This would be extracted from the AI response in a real implementation
-            "options": {}  # This would be extracted from the AI response in a real implementation
+            "options": {},  # This would be extracted from the AI response in a real implementation
         }
 
     async def evaluate_answer(self, answer: str, expected: str, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -235,12 +243,12 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator evaluating student answers. Provide detailed feedback."
+                content="You are an expert educator evaluating student answers. Provide detailed feedback.",
             ),
             Message(
                 role="user",
-                content=f"Evaluate this answer: '{answer}' for the expected response: '{expected}'. Provide feedback and a score (0-1)."
-            )
+                content=f"Evaluate this answer: '{answer}' for the expected response: '{expected}'. Provide feedback and a score (0-1).",
+            ),
         ]
 
         response = await self.model_service.send_message(messages=messages)
@@ -250,7 +258,9 @@ class CatalystAgentImpl(CatalystAgent):
         feedback_content = response.content.lower()
         is_correct = True  # Default assumption
         # If the feedback contains words indicating incorrectness, mark as false
-        if any(phrase in feedback_content for phrase in ["incorrect", "not correct", "not quite", "wrong", "not accurate"]):
+        if any(
+            phrase in feedback_content for phrase in ["incorrect", "not correct", "not quite", "wrong", "not accurate"]
+        ):
             is_correct = False
         # If feedback clearly confirms correctness, mark as true (reinforcing the default)
         elif any(phrase in feedback_content for phrase in ["correct", "that's right", "excellent", "right on"]):
@@ -259,7 +269,7 @@ class CatalystAgentImpl(CatalystAgent):
         return {
             "correctness": is_correct,
             "feedback": response.content,
-            "score": 0.8  # Would be determined from AI response in real implementation
+            "score": 0.8,  # Would be determined from AI response in real implementation
         }
 
     async def suggest_next_concepts(self, profile: Dict[str, Any], progress: UserProgress) -> List[Concept]:
@@ -267,12 +277,12 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator suggesting the next concepts for a student based on their profile and progress."
+                content="You are an expert educator suggesting the next concepts for a student based on their profile and progress.",
             ),
             Message(
                 role="user",
-                content=f"Student profile: {profile}\n\nStudent progress: {progress}\n\nSuggest 3-5 concepts for the student to learn next, considering their learning style, strengths, and weaknesses."
-            )
+                content=f"Student profile: {profile}\n\nStudent progress: {progress}\n\nSuggest 3-5 concepts for the student to learn next, considering their learning style, strengths, and weaknesses.",
+            ),
         ]
 
         await self.model_service.send_message(messages=messages)
@@ -282,7 +292,9 @@ class CatalystAgentImpl(CatalystAgent):
         # For now, return an empty list
         return []
 
-    async def track_token_usage(self, model_name: str, provider: str, token_counts: Dict[str, int], user_id: str, context: str):  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    async def track_token_usage(
+        self, model_name: str, provider: str, token_counts: Dict[str, int], user_id: str, context: str
+    ):  # pylint: disable=too-many-arguments,too-many-positional-arguments
         """Track token usage for analytics
 
         Args:
@@ -293,8 +305,8 @@ class CatalystAgentImpl(CatalystAgent):
             context: Context of the usage
         """
         # Extract token counts for potential use
-        _input_tokens = token_counts.get('input_tokens', 0)
-        _output_tokens = token_counts.get('output_tokens', 0)
+        _input_tokens = token_counts.get("input_tokens", 0)
+        _output_tokens = token_counts.get("output_tokens", 0)
         # This would typically call a method on the database manager
         # to store the token usage information
         pass

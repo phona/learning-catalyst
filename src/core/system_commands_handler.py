@@ -1,6 +1,7 @@
 """
 System Commands Handler implementation
 """
+
 from typing import Any, Dict, List
 
 from src.data.database_manager import DatabaseManager
@@ -29,10 +30,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
             try:
                 models = await self.model_service.list_available_models(provider)
                 for model in models:
-                    available_models.append({
-                        "name": model,
-                        "provider": provider
-                    })
+                    available_models.append({"name": model, "provider": provider})
             except (ConnectionError, TimeoutError, ValueError):
                 # Skip providers that are not properly configured
                 continue
@@ -43,6 +41,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
         """Get token usage summary for specified period"""
         # Calculate date range
         from datetime import datetime, timedelta
+
         end_date = datetime.now().date().isoformat()
         start_date = (datetime.now() - timedelta(days=period_days)).date().isoformat()
 
@@ -50,13 +49,10 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
         token_usage = self.db_manager.get_token_usage_summary(
             user_id="default_user",  # In a real implementation, this would be the actual user ID
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
         )
 
-        return {
-            "period": {"start": start_date, "end": end_date},
-            "usage": token_usage
-        }
+        return {"period": {"start": start_date, "end": end_date}, "usage": token_usage}
 
     async def get_detailed_token_usage(self, model_name: str = None) -> List[Dict[str, Any]]:
         """Get detailed token usage records, optionally filtered by model"""

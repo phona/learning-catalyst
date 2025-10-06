@@ -1,6 +1,7 @@
 """
 Data model for Challenge
 """
+
 from dataclasses import dataclass
 from typing import Any, Dict
 

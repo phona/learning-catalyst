@@ -1,6 +1,7 @@
 """
 Weak area identification system
 """
+
 from typing import Any, Dict, List
 
 from src.data.database_manager import DatabaseManager
@@ -42,12 +43,14 @@ class WeakAreaIdentifier:
         # Create targeted practice recommendations
         practice_recommendations = []
         for area in weak_areas:
-            practice_recommendations.append({
-                "concept_id": area,
-                "recommended_sessions": 3,
-                "focus_area": "review",
-                "estimated_time": "10-15 minutes"
-            })
+            practice_recommendations.append(
+                {
+                    "concept_id": area,
+                    "recommended_sessions": 3,
+                    "focus_area": "review",
+                    "estimated_time": "10-15 minutes",
+                }
+            )
 
         return practice_recommendations
 
@@ -62,15 +65,11 @@ class WeakAreaIdentifier:
         return {
             "best_performance_time": "morning",
             "challenging_concept_types": ["advanced", "theoretical"],
-            "learning_patterns": {
-                "consistency": "moderate",
-                "retention_rate": "good",
-                "improvement_rate": "average"
-            },
+            "learning_patterns": {"consistency": "moderate", "retention_rate": "good", "improvement_rate": "average"},
             "suggested_improvements": [
                 "Practice challenging concept types more frequently",
-                "Schedule learning sessions during peak performance time"
-            ]
+                "Schedule learning sessions during peak performance time",
+            ],
         }
 
     def update_competency_profile_with_weak_areas(self, user_id: str, profile: CompetencyProfile) -> CompetencyProfile:

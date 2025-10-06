@@ -1,17 +1,20 @@
 """
 Unit tests for Seamless Session Resumption (Story 2)
 """
-import sys
+
 import os
-import pytest
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.checkpoint_manager import CheckpointManagerImpl
+
 
 # Mock the Session class since it doesn't exist yet
 class Session:
@@ -21,6 +24,7 @@ class Session:
         self.current_concept_id = current_concept_id
         self.start_time = start_time
         self.end_time = end_time
+
 
 # Mock the Conversation class since it doesn't exist yet
 class Conversation:
@@ -38,10 +42,10 @@ class TestSessionResumption:
         """Test that the system correctly detects existing sessions"""
         # Mock checkpoint manager to return a sample checkpoint
         mock_checkpoint = {
-            'id': 'test-checkpoint-1',
-            'name': 'Python Basics Session',
-            'timestamp': '2023-05-10 14:30:00',
-            'context': {'current_topic': 'Variables and Data Types'}
+            "id": "test-checkpoint-1",
+            "name": "Python Basics Session",
+            "timestamp": "2023-05-10 14:30:00",
+            "context": {"current_topic": "Variables and Data Types"},
         }
         checkpoint_manager.list_checkpoints.return_value = [mock_checkpoint]
 
@@ -50,17 +54,17 @@ class TestSessionResumption:
 
         # Verify checkpoints exist
         assert len(checkpoints) > 0
-        assert checkpoints[0]['name'] == 'Python Basics Session'
-        assert checkpoints[0]['context']['current_topic'] == 'Variables and Data Types'
+        assert checkpoints[0]["name"] == "Python Basics Session"
+        assert checkpoints[0]["context"]["current_topic"] == "Variables and Data Types"
 
     @pytest.mark.asyncio
     async def test_welcome_back_message_generation(self, model_service):
         """Test that returning users get an appropriate welcome back message"""
         # Configure mock to simulate returning user response
         model_service.generate_response.return_value = {
-            'content': "🎓 Welcome back to Learning Catalyst! 🚀\n\n" \
-                      "I see you have a saved checkpoint: \"Understanding Python Lists and Recursion\". " \
-                      "Would you like to resume from there, or start fresh?"
+            "content": "🎓 Welcome back to Learning Catalyst! 🚀\n\n"
+            'I see you have a saved checkpoint: "Understanding Python Lists and Recursion". '
+            "Would you like to resume from there, or start fresh?"
         }
 
         # Initialize Catalyst Agent
@@ -82,7 +86,7 @@ class TestSessionResumption:
             workspace_path=str(temp_workspace),
             current_concept_id="python-lists",
             start_time="2023-05-10 14:00:00",
-            last_active_time="2023-05-10 14:30:00"
+            last_active_time="2023-05-10 14:30:00",
         )
 
         # Mock checkpoint manager to load the session
@@ -106,15 +110,15 @@ class TestSessionResumption:
                 session_id="test-session-1",
                 speaker="user",
                 message="Can you explain Python lists?",
-                timestamp="2023-05-10 14:01:00"
+                timestamp="2023-05-10 14:01:00",
             ),
             Conversation(
                 id="conv-2",
                 session_id="test-session-1",
                 speaker="ai",
                 message="Python lists are ordered, mutable collections of items...",
-                timestamp="2023-05-10 14:01:30"
-            )
+                timestamp="2023-05-10 14:01:30",
+            ),
         ]
 
         # Mock database manager to return conversation history
@@ -133,18 +137,20 @@ class TestSessionResumption:
         """Test that context-aware suggestions are provided when resuming"""
         # Configure mock to simulate context-aware suggestion
         model_service_mock.generate_response.return_value = {
-            'content': "Great! We were discussing JavaScript closures. Let me refresh your memory:\n\n" \
-                      "A closure is the combination of a function bundled together with references to its surrounding state." \
-                      "We looked at this example:\n\n" \
-                      "```javascript\nfunction outer(x) {\n    return function inner(y) {\n        return x + y;\n    };\n}\n```\n\n" \
-                      "Would you like me to quiz you on JavaScript closures now, or shall we move on to the next topic, \'Immediately Invoked Function Expressions\'?"
+            "content": "Great! We were discussing JavaScript closures. Let me refresh your memory:\n\n"
+            "A closure is the combination of a function bundled together with references to its surrounding state."
+            "We looked at this example:\n\n"
+            "```javascript\nfunction outer(x) {\n    return function inner(y) {\n        return x + y;\n    };\n}\n```\n\n"
+            "Would you like me to quiz you on JavaScript closures now, or shall we move on to the next topic, 'Immediately Invoked Function Expressions'?"
         }
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service_mock)
 
         # Test context-aware suggestion
-        suggestion = await catalyst_agent.generate_response("JavaScript closures", "We were discussing closures and I provided an example")
+        suggestion = await catalyst_agent.generate_response(
+            "JavaScript closures", "We were discussing closures and I provided an example"
+        )
 
         # Verify the response contains context-aware suggestions
         assert "JavaScript closures" in suggestion

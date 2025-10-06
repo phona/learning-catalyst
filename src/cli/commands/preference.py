@@ -1,6 +1,7 @@
 """
 Preference command implementation
 """
+
 import asyncio
 import json
 import os
@@ -8,10 +9,10 @@ import os
 import typer
 from rich.console import Console
 
-from ai.service import ModelAbstractionService
-from cli.system_commands_handler import SystemCommandsHandlerImpl
-from data.database_manager import DatabaseManager
-from utils.preferences_manager import PreferencesManager
+from src.ai.service import ModelAbstractionService
+from src.cli.system_commands_handler import SystemCommandsHandlerImpl
+from src.data.database_manager import DatabaseManager
+from src.utils.preferences_manager import PreferencesManager
 
 app = typer.Typer()
 
@@ -26,7 +27,7 @@ def _parse_value(value: str):
 
     # Try to parse as number
     try:
-        if '.' in value:
+        if "." in value:
             return float(value)
         else:
             return int(value)
@@ -34,8 +35,8 @@ def _parse_value(value: str):
         pass
 
     # Check for boolean values
-    if value.lower() in ('true', 'false'):
-        return value.lower() == 'true'
+    if value.lower() in ("true", "false"):
+        return value.lower() == "true"
 
     # Return as string
     return value
@@ -45,7 +46,7 @@ def _parse_value(value: str):
 def preference(
     action: str = typer.Argument(..., help="Action: list or set"),
     key: str = typer.Argument("", help="Key for preference (required for set)"),
-    value: str = typer.Argument("", help="Value to set (required for set)")
+    value: str = typer.Argument("", help="Value to set (required for set)"),
 ):
     """Manage application preferences using key-value syntax (like npm config)"""
     workspace_path = os.getcwd()

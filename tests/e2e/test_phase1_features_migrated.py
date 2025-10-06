@@ -2,13 +2,15 @@
 Comprehensive end-to-end tests for Learning Catalyst Phase 1 features
 based on the requirements in .documents/v1/requirement/README.md
 """
-import subprocess
-import time
-import sys
+
 import os
-import pytest
-import tempfile
 import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+import pytest
 
 
 def run_command(process, command, wait_time=2):
@@ -58,7 +60,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:
@@ -93,7 +95,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:
@@ -128,7 +130,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:
@@ -163,7 +165,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:
@@ -201,7 +203,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:
@@ -239,7 +241,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:
@@ -280,7 +282,7 @@ class TestPhase1Features:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         try:

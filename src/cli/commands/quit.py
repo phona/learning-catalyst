@@ -1,6 +1,7 @@
 """
 Quit command implementation for Learning Catalyst CLI
 """
+
 import sys
 
 import typer
@@ -11,9 +12,7 @@ app = typer.Typer()
 
 
 @app.command()
-def quit_command(
-    force: bool = typer.Option(False, "--force", "-f", help="Force quit without confirmation")
-):
+def quit_command(force: bool = typer.Option(False, "--force", "-f", help="Force quit without confirmation")):
     """Exit the Learning Catalyst application"""
     console = Console()
 
@@ -24,8 +23,7 @@ def quit_command(
             console.print("[green]Exit cancelled. Continue learning![/green]")
             return
 
-    console.print(Panel.fit("[bold blue]Thank you for using Learning Catalyst![/bold blue]",
-                           border_style="blue"))
+    console.print(Panel.fit("[bold blue]Thank you for using Learning Catalyst![/bold blue]", border_style="blue"))
     console.print("Your progress has been saved.")
     console.print("[italic]See you next time![/italic]")
 

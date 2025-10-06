@@ -1,14 +1,16 @@
 """
 Unit tests for CLI commands
 """
-import pytest
-import tempfile
-import os
-from pathlib import Path
-from typer.testing import CliRunner
-from unittest.mock import patch, MagicMock
-from src.cli.main import app
 
+import os
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+from typer.testing import CliRunner
+
+from src.cli.main import app
 
 runner = CliRunner()
 
@@ -28,11 +30,11 @@ def test_start_learning_command(temp_workspace):
 
         # Set up preferences to avoid the interactive setup
         prefs_mgr = PreferencesManager(str(temp_workspace))
-        prefs_mgr.set_preference('ai.default_provider', 'openai')
-        prefs_mgr.set_preference('ai.default_model', 'gpt-4o')
+        prefs_mgr.set_preference("ai.default_provider", "openai")
+        prefs_mgr.set_preference("ai.default_model", "gpt-4o")
 
         # For this test, let's mock the input function to immediately quit
-        with patch('builtins.input', side_effect=['/quit']), patch('select.select', return_value=([], [], [])):
+        with patch("builtins.input", side_effect=["/quit"]), patch("select.select", return_value=([], [], [])):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
 
         # Check that the command executed and reached the interactive part
@@ -51,7 +53,7 @@ def test_enhanced_guidance_messages():
     # in the source code. We don't need to run the full interactive setup here.
 
     # Read the main.py file to check for our enhanced guidance messages
-    with open('/mnt/d/Projects/learning_catalyst/src/cli/main.py', 'r') as f:
+    with open("/mnt/d/Projects/learning_catalyst/src/cli/main.py", "r") as f:
         content = f.read()
 
     # Check that our enhanced guidance messages are present
@@ -110,6 +112,7 @@ def test_preference_list_command(temp_workspace):
 
     # Initialize with default preferences
     from src.utils.preferences_manager import PreferencesManager
+
     prefs_mgr = PreferencesManager(str(temp_workspace))
 
     try:
@@ -352,7 +355,8 @@ def test_checkpoint_load_valid_id(temp_workspace):
         # Extract the checkpoint ID from the output
         # The output format is like: checkpoint_20251003_222402_9988
         import re
-        match = re.search(r'checkpoint_\d{8}_\d{6}_\d{4}', result.output)
+
+        match = re.search(r"checkpoint_\d{8}_\d{6}_\d{4}", result.output)
         assert match is not None
         checkpoint_id = match.group(0)
 
@@ -527,8 +531,7 @@ def test_slash_help_command(temp_workspace):
 
     try:
         # Mock the input to simulate the /help command
-        with patch('builtins.input', side_effect=['/help', '/quit']), \
-             patch('select.select', return_value=([], [], [])):
+        with patch("builtins.input", side_effect=["/help", "/quit"]), patch("select.select", return_value=([], [], [])):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
 
             # Check that the command executed successfully
@@ -553,13 +556,12 @@ def test_slash_config_command(temp_workspace):
         learningspace_path.mkdir(exist_ok=True)
 
         # Mock both input and Prompt.ask for the full flow
-        with patch('builtins.input', side_effect=['/set-config', '/quit']), \
-             patch('select.select', return_value=([], [], [])), \
-             patch('rich.prompt.Prompt.ask', side_effect=[
-                 'anthropic',    # provider choice
-                 'claude-3-opus', # model
-                 'fake_key'     # API key
-             ]):
+        with patch("builtins.input", side_effect=["/set-config", "/quit"]), patch(
+            "select.select", return_value=([], [], [])
+        ), patch(
+            "rich.prompt.Prompt.ask",
+            side_effect=["anthropic", "claude-3-opus", "fake_key"],  # provider choice  # model  # API key
+        ):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
 
         # Verify that the config was changed
@@ -587,13 +589,12 @@ def test_slash_set_config_command(temp_workspace):
         learningspace_path.mkdir(exist_ok=True)
 
         # Mock both input and Prompt.ask for the full flow
-        with patch('builtins.input', side_effect=['/set-config', '/quit']), \
-             patch('select.select', return_value=([], [], [])), \
-             patch('rich.prompt.Prompt.ask', side_effect=[
-                 'anthropic',    # provider choice
-                 'claude-3-opus', # model
-                 'fake_key'     # API key
-             ]):
+        with patch("builtins.input", side_effect=["/set-config", "/quit"]), patch(
+            "select.select", return_value=([], [], [])
+        ), patch(
+            "rich.prompt.Prompt.ask",
+            side_effect=["anthropic", "claude-3-opus", "fake_key"],  # provider choice  # model  # API key
+        ):
             result = runner.invoke(app, ["start-learning", str(temp_workspace)])
 
         # Verify that the config was changed

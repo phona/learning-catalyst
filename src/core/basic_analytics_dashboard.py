@@ -1,12 +1,12 @@
 """
 Basic implementation of AnalyticsDashboard
 """
+
 from datetime import datetime, timedelta
 from typing import Dict, List
 
 from src.data.database_manager import DatabaseManager
-from src.data.models.extended_models import (AnalyticsExport, ProgressReport,
-                                             TimePeriod, TrendData)
+from src.data.models.extended_models import AnalyticsExport, ProgressReport, TimePeriod, TrendData
 
 from .analytics_dashboard import AnalyticsDashboard
 
@@ -31,10 +31,7 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
         # Identify weak areas
         weak_areas = self.identify_weak_areas(user_id)
 
-        time_period_obj = TimePeriod(
-            start_date=time_period.get("start", ""),
-            end_date=time_period.get("end", "")
-        )
+        time_period_obj = TimePeriod(start_date=time_period.get("start", ""), end_date=time_period.get("end", ""))
 
         return ProgressReport(
             user_id=user_id,
@@ -42,7 +39,7 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
             total_concepts=total_concepts,
             overall_score=overall_score,
             time_period=time_period_obj,
-            weak_areas=weak_areas
+            weak_areas=weak_areas,
         )
 
     def identify_weak_areas(self, user_id: str) -> List[str]:
@@ -61,10 +58,7 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
     def export_analytics(self, user_id: str, export_format: str = "json") -> AnalyticsExport:
         """Export analytics data in the specified format"""
         # Generate a basic report
-        time_period = {
-            "start": (datetime.now() - timedelta(days=30)).isoformat(),
-            "end": datetime.now().isoformat()
-        }
+        time_period = {"start": (datetime.now() - timedelta(days=30)).isoformat(), "end": datetime.now().isoformat()}
 
         report = self.generate_progress_report(user_id, time_period)
 
@@ -81,18 +75,12 @@ class BasicAnalyticsDashboard(AnalyticsDashboard):
     "weak_areas": {report.weak_areas}
 }}"""
         elif export_format == "csv":
-            content = (
-                f"""user_id,concepts_mastered,total_concepts,overall_score,weak_areas
+            content = f"""user_id,concepts_mastered,total_concepts,overall_score,weak_areas
 {report.user_id},{report.concepts_mastered},{report.total_concepts},
 {report.overall_score},"{','.join(report.weak_areas)}\""""
-            )
         else:
             content = f"Analytics report for user {user_id}"
 
         return AnalyticsExport(
-            report_type="progress",
-            content=content,
-            format=export_format,
-            timestamp=datetime.now().isoformat()
+            report_type="progress", content=content, format=export_format, timestamp=datetime.now().isoformat()
         )
-

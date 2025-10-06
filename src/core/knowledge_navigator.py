@@ -1,6 +1,7 @@
 """
 SQLite implementation of KnowledgeNavigator
 """
+
 import json
 import sqlite3
 from typing import Any, Dict, List, Optional
@@ -22,7 +23,8 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         cursor = conn.cursor()
 
         # Create concepts table
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS concepts (
             id TEXT PRIMARY KEY,
             title TEXT,
@@ -30,14 +32,18 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
             prerequisites TEXT,
             difficulty_level INTEGER
         )
-        """)
+        """
+        )
 
         conn.commit()
         conn.close()
 
-    async def load_content(self, file_path: str = "", workspace_path: Optional[str] = None, extraction_mode: str = "headers") -> KnowledgeMap:
+    async def load_content(
+        self, file_path: str = "", workspace_path: Optional[str] = None, extraction_mode: str = "headers"
+    ) -> KnowledgeMap:
         # Implementation to load markdown content into knowledge map
-        from utils.markdown_parser import MarkdownParser
+        from src.utils.markdown_parser import MarkdownParser
+
         parser = MarkdownParser(extraction_mode)
 
         concepts = []
@@ -46,17 +52,18 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         # If workspace_path is provided, scan all markdown files in workspace
         if workspace_path:
             try:
-                from utils.markdown_parser import extract_all_concepts
+                from src.utils.markdown_parser import extract_all_concepts
+
                 concepts_data = extract_all_concepts(workspace_path, extraction_mode)
 
                 # Convert to the format expected by the system
                 for concept_data in concepts_data:
                     concept = Concept(
-                        id=concept_data['id'],
-                        title=concept_data['title'],
-                        content=concept_data['content'],
+                        id=concept_data["id"],
+                        title=concept_data["title"],
+                        content=concept_data["content"],
                         prerequisites=[],  # Will be filled in later based on relationships
-                        difficulty_level=concept_data['level']
+                        difficulty_level=concept_data["level"],
                     )
                     concepts.append(concept)
 
@@ -69,7 +76,7 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
             except (FileNotFoundError, PermissionError, OSError) as e:
                 print(f"Error scanning workspace {workspace_path}: {str(e)}")
         # If it's a markdown file, parse it
-        elif file_path.endswith('.md'):
+        elif file_path.endswith(".md"):
             try:
                 # Parse the markdown file to extract concepts
                 concepts_data = parser.find_concepts_in_file(file_path)
@@ -77,11 +84,11 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
                 # Convert to the format expected by the system
                 for concept_data in concepts_data:
                     concept = Concept(
-                        id=concept_data['id'],
-                        title=concept_data['title'],
-                        content=concept_data['content'],
+                        id=concept_data["id"],
+                        title=concept_data["title"],
+                        content=concept_data["content"],
                         prerequisites=[],  # Will be filled in later based on relationships
-                        difficulty_level=concept_data['level']
+                        difficulty_level=concept_data["level"],
                     )
                     concepts.append(concept)
 
@@ -106,25 +113,23 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         relationships = []
 
         # Create a mapping from concept ID to concept for easy lookup
-        concept_map = {c['id']: c for c in concepts}  # pylint: disable=unused-variable
+        # concept_map = {c['id']: c for c in concepts}  # pylint: disable=unused-variable
 
         # Iterate through each concept to find potential parent concepts based on header hierarchy
         for concept in concepts:
-            current_level = concept.get('level', 1)
+            current_level = concept.get("level", 1)
 
             # Look for concepts with a higher level (lower number = higher level)
             for other_concept in concepts:
-                other_level = other_concept.get('level', 1)
+                other_level = other_concept.get("level", 1)
 
                 # If other_concept has a higher level (1 is higher than 2) and appears before this concept
                 if other_level < current_level and other_concept != concept:
                     # In a real implementation, we'd need to check document order
                     # For now, we'll add a simple relationship
-                    relationships.append({
-                        'source': other_concept['id'],
-                        'target': concept['id'],
-                        'relationship_type': 'subtopic_of'
-                    })
+                    relationships.append(
+                        {"source": other_concept["id"], "target": concept["id"], "relationship_type": "subtopic_of"}
+                    )
 
         return relationships
 
@@ -139,13 +144,15 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
         concepts = []
         for row in rows:
-            concepts.append(Concept(
-                id=row[0],
-                title=row[1],
-                content=row[2],
-                prerequisites=json.loads(row[3]) if row[3] else [],
-                difficulty_level=row[4]
-            ))
+            concepts.append(
+                Concept(
+                    id=row[0],
+                    title=row[1],
+                    content=row[2],
+                    prerequisites=json.loads(row[3]) if row[3] else [],
+                    difficulty_level=row[4],
+                )
+            )
 
         return concepts
 
@@ -160,13 +167,15 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
         concepts = []
         for row in rows:
-            concepts.append(Concept(
-                id=row[0],
-                title=row[1],
-                content=row[2],
-                prerequisites=json.loads(row[3]) if row[3] else [],
-                difficulty_level=row[4]
-            ))
+            concepts.append(
+                Concept(
+                    id=row[0],
+                    title=row[1],
+                    content=row[2],
+                    prerequisites=json.loads(row[3]) if row[3] else [],
+                    difficulty_level=row[4],
+                )
+            )
 
         return concepts
 
@@ -203,10 +212,13 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         cursor = conn.cursor()
 
         # Update or insert progress in the user_progress table
-        cursor.execute("""
+        cursor.execute(
+            """
         INSERT OR REPLACE INTO user_progress (concept_id, completed, score)
         VALUES (?, ?, ?)
-        """, (concept_id, progress.completed, progress.score))
+        """,
+            (concept_id, progress.completed, progress.score),
+        )
 
         conn.commit()
         conn.close()
@@ -220,16 +232,19 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
 
         for concept in concepts:
             # Insert or replace concept in the database
-            cursor.execute("""
+            cursor.execute(
+                """
             INSERT OR REPLACE INTO concepts (id, title, content, prerequisites, difficulty_level)
             VALUES (?, ?, ?, ?, ?)
-            """, (
-                concept.id,
-                concept.title,
-                concept.content,
-                json.dumps(concept.prerequisites) if concept.prerequisites else "[]",
-                concept.difficulty_level
-            ))
+            """,
+                (
+                    concept.id,
+                    concept.title,
+                    concept.content,
+                    json.dumps(concept.prerequisites) if concept.prerequisites else "[]",
+                    concept.difficulty_level,
+                ),
+            )
 
         conn.commit()
         conn.close()

@@ -2,15 +2,17 @@
 Complete end-to-end tests for Learning Catalyst Phase 1 features
 based on the requirements in .documents/v1/requirement/README.md
 """
-import subprocess
-import time
-import sys
+
 import os
-import threading
 import queue
-import pytest
-import tempfile
 import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+import pytest
 
 
 class Phase1Tester:
@@ -54,7 +56,7 @@ class Phase1Tester:
             stderr=subprocess.PIPE,
             text=True,
             cwd=project_dir,
-            env={**os.environ, "PYTHONPATH": project_dir}
+            env={**os.environ, "PYTHONPATH": project_dir},
         )
 
         # Start a thread to read output

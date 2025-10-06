@@ -1,6 +1,7 @@
 """
 Basic implementation of AssessmentEngine
 """
+
 from datetime import datetime
 from typing import Any, Dict
 
@@ -25,7 +26,7 @@ class BasicAssessmentEngine(AssessmentEngine):
             "correct_answers": 0,
             "accuracy_rate": 0.0,
             "average_response_time": 0.0,
-            "improvement_trend": "neutral"
+            "improvement_trend": "neutral",
         }
 
     def update_competency_profile(self, profile: CompetencyProfile) -> CompetencyProfile:
@@ -50,8 +51,7 @@ class BasicAssessmentEngine(AssessmentEngine):
             next_concepts=profile.weaknesses[:3],  # Recommend focusing on weaknesses first
             learning_path=[],  # Would be generated based on prerequisites
             resources=[],  # Would include additional resources
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
         )
 
         return recommendations
-

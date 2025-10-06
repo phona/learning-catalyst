@@ -2,13 +2,12 @@
 Autocomplete functionality for Learning Catalyst CLI
 Provides command and concept autocompletion
 """
+
 import os
-import re
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from src.cli.command_palette import CommandPalette
 from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
-from src.data.models.extended_models import Message
 
 
 class AutoCompleter:
@@ -42,7 +41,7 @@ class AutoCompleter:
             The next completion or None if no more completions
         """
         # Store completions between calls
-        if not hasattr(self, '_completions'):
+        if not hasattr(self, "_completions"):
             self._completions = []
             self._completion_index = 0
 
@@ -64,7 +63,7 @@ class AutoCompleter:
         completions = []
 
         # If text starts with /, we're completing a command
-        if text.startswith('/'):
+        if text.startswith("/"):
             command_completions = self._get_command_completions(text)
             completions.extend(command_completions)
         else:
@@ -89,7 +88,7 @@ class AutoCompleter:
         completions = []
 
         # Get concept suggestions from the command palette
-        context = {'workspace_path': self.workspace_path}
+        context = {"workspace_path": self.workspace_path}
         concept_suggestions = self.command_palette.get_concept_suggestions(text, context)
         completions.extend(concept_suggestions)
 
@@ -113,6 +112,7 @@ class AutoCompleter:
 
             # Set up history saving on exit
             import atexit
+
             atexit.register(readline.write_history_file, history_file)
 
         except ImportError:

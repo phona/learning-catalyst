@@ -1,6 +1,7 @@
 """
 OpenAI provider implementation
 """
+
 from typing import Optional
 
 from src.ai.abstraction import Model
@@ -9,6 +10,7 @@ from .base_provider import BaseProvider, BaseChatModel, BaseEmbeddingModel, Base
 
 class OpenAIProvider(BaseProvider):
     """OpenAI provider implementation"""
+
     def __init__(self, api_key: Optional[str] = None, base_url: str = "https://api.openai.com/v1"):
         super().__init__(api_key, base_url)
 
@@ -29,17 +31,20 @@ class OpenAIProvider(BaseProvider):
 
 class OpenAIChatModel(BaseChatModel):
     """OpenAI chat model implementation"""
+
     def __init__(self, provider: OpenAIProvider, model_id: str):
         super().__init__(provider, model_id)
 
 
 class OpenAIEmbeddingModel(BaseEmbeddingModel):
     """OpenAI embedding model implementation"""
+
     def __init__(self, provider: OpenAIProvider, model_id: str):
         super().__init__(provider, model_id)
 
 
 class OpenAIRerankModel(BaseRerankModel):
     """OpenAI rerank model implementation"""
+
     def __init__(self, provider: OpenAIProvider, model_id: str):
         super().__init__(provider, model_id)

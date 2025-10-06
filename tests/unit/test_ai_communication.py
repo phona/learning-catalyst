@@ -2,17 +2,18 @@
 """
 Unit tests for AI communication features in Learning Catalyst
 """
-import pytest
-import subprocess
-import time
-import sys
 import os
-import threading
 import queue
-import tempfile
 import shutil
-from unittest.mock import patch, MagicMock
+import subprocess
+import sys
+import tempfile
+import threading
+import time
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class AICommunicationTester:
@@ -61,7 +62,7 @@ class AICommunicationTester:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            cwd=self.test_dir
+            cwd=self.test_dir,
         )
 
         # Start a thread to read output
@@ -155,9 +156,7 @@ class TestAICommunication:
 
         # Verify the response contains relevant content about decorators
         has_content = any(
-            "decorator" in line.lower() or
-            "function" in line.lower() or
-            "wrapper" in line.lower()
+            "decorator" in line.lower() or "function" in line.lower() or "wrapper" in line.lower()
             for line in explanation_output
             if "AI Tutor:" in line
         )
@@ -177,9 +176,7 @@ class TestAICommunication:
 
         # Verify the response contains challenge-related content
         has_challenge = any(
-            "challenge" in line.lower() or
-            "question" in line.lower() or
-            "?" in line
+            "challenge" in line.lower() or "question" in line.lower() or "?" in line
             for line in challenge_output
             if "AI Tutor:" in line
         )
@@ -203,8 +200,7 @@ class TestAICommunication:
 
         # Verify the response maintains context and provides an example
         has_context = any(
-            "class" in line.lower() and
-            ("example" in line.lower() or "__init__" in line or "def " in line)
+            "class" in line.lower() and ("example" in line.lower() or "__init__" in line or "def " in line)
             for line in followup_output
             if "AI Tutor:" in line
         )
@@ -238,8 +234,7 @@ class TestAICommunication:
         assert knowledge_map_output, "No knowledge map output received"
 
         # Check if knowledge map is displayed
-        map_found = any("Knowledge Map" in line or "Relationships" in line
-                       for line in knowledge_map_output)
+        map_found = any("Knowledge Map" in line or "Relationships" in line for line in knowledge_map_output)
         # This is a soft check as the knowledge map might not always be available
 
     def test_session_persistence(self, ai_tester):
@@ -286,20 +281,16 @@ class TestAICommunication:
 class TestAIModelAbstraction:
     """Test class for AI model abstraction layer"""
 
-    @patch('src.ai.service.openai')
+    @patch("src.ai.service.openai")
     def test_openai_provider_initialization(self, mock_openai):
         """Test OpenAI provider initialization"""
         from src.ai.service import ModelAbstractionService
 
         # Create a mock configuration
-        mock_config = {
-            "provider": "openai",
-            "model": "gpt-3.5-turbo",
-            "api_key": "test-key"
-        }
+        mock_config = {"provider": "openai", "model": "gpt-3.5-turbo", "api_key": "test-key"}
 
         # Test service initialization
-        with patch('src.ai.service.ConfigurationManager') as mock_config_manager:
+        with patch("src.ai.service.ConfigurationManager") as mock_config_manager:
             mock_config_manager.return_value.load_config.return_value = mock_config
             service = ModelAbstractionService()
             assert service is not None
@@ -312,7 +303,7 @@ class TestAIModelAbstraction:
         service = ModelAbstractionService()
 
         # Check if providers are registered
-        assert hasattr(service, 'providers'), "Providers not initialized"
+        assert hasattr(service, "providers"), "Providers not initialized"
 
     def test_ai_response_creation(self):
         """Test AI response creation"""
@@ -323,7 +314,7 @@ class TestAIModelAbstraction:
             content="Test response",
             model="test-model",
             provider="test-provider",
-            usage={"prompt_tokens": 10, "completion_tokens": 20}
+            usage={"prompt_tokens": 10, "completion_tokens": 20},
         )
 
         assert response.content == "Test response"

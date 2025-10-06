@@ -1,13 +1,16 @@
 """
 Unit tests for database layer
 """
-import pytest
+
 import sqlite3
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from src.data.database_manager import DatabaseManager
-from src.data.vector_storage import VectorStorage
 from src.data.models.concept import Concept
 from src.data.models.user_profile import UserProfile
+from src.data.vector_storage import VectorStorage
 
 
 class TestDatabaseManager:
@@ -40,7 +43,7 @@ class TestDatabaseManager:
             input_tokens=50,
             output_tokens=100,
             user_id="user123",
-            context="explanation"
+            context="explanation",
         )
 
         # Verify the record was inserted by querying the database
@@ -70,15 +73,11 @@ class TestDatabaseManager:
             input_tokens=50,
             output_tokens=100,
             user_id="user123",
-            context="explanation"
+            context="explanation",
         )
 
         # Get the summary
-        summary = db_manager.get_token_usage_summary(
-            user_id="user123",
-            start_date="2020-01-01",
-            end_date="2030-01-01"
-        )
+        summary = db_manager.get_token_usage_summary(user_id="user123", start_date="2020-01-01", end_date="2030-01-01")
 
         assert summary["input_tokens"] == 50
         assert summary["output_tokens"] == 100
@@ -159,24 +158,26 @@ class TestVectorStorage:
         db_manager = DatabaseManager(str(db_path))
         vector_storage = VectorStorage(str(db_path))
 
+        # Create a test concept first (required for storing embedding)
+        test_concept = Concept(
+            id="test_embedding_001",
+            title="Test Concept",
+            content="This is a test concept for embedding.",
+            prerequisites=[],
+            difficulty_level=5,
+        )
+        db_manager.save_concept(test_concept)
+
         # Test embedding
         test_embedding = [0.1, 0.2, 0.3, 0.4]
         test_id = "test_embedding_001"
         test_model = "test_model"
 
         # Store embedding
-        vector_storage.store_embedding(
-            table="concepts",
-            id=test_id,
-            vector=test_embedding,
-            model=test_model
-        )
+        vector_storage.store_embedding(table="concepts", record_id=test_id, vector=test_embedding, model=test_model)
 
         # Retrieve embedding
-        retrieved_embedding = vector_storage.get_embedding(
-            table="concepts",
-            id=test_id
-        )
+        retrieved_embedding = vector_storage.get_embedding(table="concepts", record_id=test_id)
 
         assert retrieved_embedding is not None
         assert len(retrieved_embedding) == len(test_embedding)
@@ -190,12 +191,7 @@ class TestVectorStorage:
         vector_storage = VectorStorage(str(db_path))
 
         with pytest.raises(ValueError):
-            vector_storage.store_embedding(
-                table="invalid_table",
-                id="test_id",
-                vector=[0.1, 0.2],
-                model="test_model"
-            )
+            vector_storage.store_embedding(table="invalid_table", record_id="test_id", vector=[0.1, 0.2], model="test_model")
 
     def test_find_similar_by_embedding(self, temp_workspace):
         """Test finding similar items by embedding"""
@@ -204,11 +200,7 @@ class TestVectorStorage:
 
         # This test is limited since we don't have SQLite-VSS in the test environment
         # The implementation returns empty results for now
-        results = vector_storage.find_similar_by_embedding(
-            table="concepts",
-            query_embedding=[0.1, 0.2, 0.3],
-            top_k=5
-        )
+        results = vector_storage.find_similar_by_embedding(table="concepts", query_embedding=[0.1, 0.2, 0.3], top_k=5)
 
         # For now, just verify it returns a list (empty in test environment)
         assert isinstance(results, list)

@@ -5,14 +5,16 @@ This test file verifies that users can actually communicate with AI in the app,
 not just receive fixed response messages.
 """
 
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 
 from src.ai.service import ModelAbstractionService
-from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext, IntentClassification
+from src.core.catalyst_agent import (CatalystAgentImpl, ConversationContext,
+                                     IntentClassification)
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.data.models.concept import Concept
-from src.data.models.extended_models import Message, AIResponse
+from src.data.models.extended_models import AIResponse, Message
 
 
 class TestAIIntegration:
@@ -27,7 +29,7 @@ class TestAIIntegration:
             model="gpt-3.5-turbo",
             provider="openai",
             usage={},
-            timestamp="2024-01-01T00:00:00"
+            timestamp="2024-01-01T00:00:00",
         )
 
         # Create the service
@@ -61,7 +63,7 @@ class TestAIIntegration:
             user_profile={"learning_level": "intermediate"},
             current_concept=None,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # Test different types of input
@@ -69,14 +71,12 @@ class TestAIIntegration:
             ("What is a decorator?", "query"),
             ("Give me a challenge", "challenge_request"),
             ("Hello, I'm new here", "query"),
-            ("Just chatting", "general_conversation")
+            ("Just chatting", "general_conversation"),
         ]
 
         for user_input, expected_intent in test_cases:
             intent = await agent.interpret_intent(user_input, context)
-            assert intent.intent_type == expected_intent, (
-                f"Should interpret '{user_input}' as {expected_intent}"
-            )
+            assert intent.intent_type == expected_intent, f"Should interpret '{user_input}' as {expected_intent}"
 
     @pytest.mark.asyncio
     async def test_catalyst_agent_generate_response(self):
@@ -88,7 +88,7 @@ class TestAIIntegration:
             model="gpt-3.5-turbo",
             provider="openai",
             usage={},
-            timestamp="2024-01-01T00:00:00"
+            timestamp="2024-01-01T00:00:00",
         )
         mock_service.send_message = AsyncMock(return_value=mock_response)
 
@@ -100,7 +100,7 @@ class TestAIIntegration:
             user_profile={"learning_level": "intermediate"},
             current_concept=None,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # Test generating a response
@@ -121,12 +121,12 @@ class TestAIIntegration:
         mock_service = Mock(spec=ModelAbstractionService)
         mock_response = AIResponse(
             content='{"challenge_text": "Write a decorator that measures execution time", '
-                    '"correct_answer": "Use time module", '
-                    '"explanation": "Decorators can wrap functions to add functionality"}',
+            '"correct_answer": "Use time module", '
+            '"explanation": "Decorators can wrap functions to add functionality"}',
             model="gpt-3.5-turbo",
             provider="openai",
             usage={},
-            timestamp="2024-01-01T00:00:00"
+            timestamp="2024-01-01T00:00:00",
         )
         mock_service.send_message = AsyncMock(return_value=mock_response)
 
@@ -142,24 +142,18 @@ class TestAIIntegration:
             title="Python Decorators",
             content="Python decorators are functions that modify other functions.",
             prerequisites=["functions"],
-            difficulty_level=2
+            difficulty_level=2,
         )
 
         # Generate a challenge
-        context = {
-            "challenge_type": "short-answer",
-            "difficulty": "intermediate",
-            "concept_content": concept.content
-        }
+        context = {"challenge_type": "short-answer", "difficulty": "intermediate", "concept_content": concept.content}
 
         challenge = await engine.generate_challenge(concept, context)
 
         # Verify the challenge
         assert challenge is not None, "Should generate a challenge"
         assert "challenge_text" in challenge, "Should have challenge text"
-        assert "decorator" in challenge["challenge_text"].lower(), (
-            "Challenge should mention decorators"
-        )
+        assert "decorator" in challenge["challenge_text"].lower(), "Challenge should mention decorators"
         assert len(challenge["challenge_text"]) > 10, "Challenge should be substantial"
 
     @pytest.mark.asyncio
@@ -180,19 +174,12 @@ class TestAIIntegration:
             if "decorator" in user_content.lower():
                 content = "Python decorators are functions that modify other functions."
             elif "example" in user_content.lower():
-                content = (
-                    "Here's an example of a decorator:\n\n"
-                    "@timing\ndef my_function():\n    pass"
-                )
+                content = "Here's an example of a decorator:\n\n" "@timing\ndef my_function():\n    pass"
             else:
                 content = "I understand your question. Let me provide a helpful response."
 
             return AIResponse(
-                content=content,
-                model="gpt-3.5-turbo",
-                provider="openai",
-                usage={},
-                timestamp="2024-01-01T00:00:00"
+                content=content, model="gpt-3.5-turbo", provider="openai", usage={}, timestamp="2024-01-01T00:00:00"
             )
 
         mock_service.send_message = AsyncMock(side_effect=mock_send_message)
@@ -205,14 +192,11 @@ class TestAIIntegration:
             user_profile={"learning_level": "intermediate"},
             current_concept=None,
             conversation_history=[],
-            interaction_history=[]
+            interaction_history=[],
         )
 
         # Simulate a conversation
-        conversation = [
-            "What is a Python decorator?",
-            "Can you give me an example?"
-        ]
+        conversation = ["What is a Python decorator?", "Can you give me an example?"]
 
         for user_input in conversation:
             # Interpret intent
@@ -235,7 +219,7 @@ class TestAIIntegration:
         service = ModelAbstractionService()
 
         # Verify it has providers
-        assert hasattr(service, 'providers'), "Should have providers attribute"
+        assert hasattr(service, "providers"), "Should have providers attribute"
         assert len(service.providers) > 0, "Should have at least one provider"
 
         # Verify it has default providers

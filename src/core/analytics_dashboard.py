@@ -1,11 +1,11 @@
 """
 Analytics Dashboard interface
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from src.data.models.extended_models import (AnalyticsExport, ProgressReport,
-                                             TrendData)
+from src.data.models.extended_models import AnalyticsExport, ProgressReport, TrendData
 
 
 class AnalyticsDashboard(ABC):

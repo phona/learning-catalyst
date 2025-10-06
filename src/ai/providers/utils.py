@@ -1,16 +1,13 @@
 """
 Utility functions for AI providers
 """
+
 from typing import Dict, Any
 import httpx
 
 
 async def make_http_request(
-    base_url: str,
-    endpoint: str,
-    headers: Dict[str, str],
-    payload: Dict[str, Any],
-    timeout: float = 30.0
+    base_url: str, endpoint: str, headers: Dict[str, str], payload: Dict[str, Any], timeout: float = 30.0
 ) -> Dict[str, Any]:
     """Helper method to make HTTP requests with proper error handling"""
     try:
@@ -24,7 +21,7 @@ async def make_http_request(
         raise httpx.HTTPStatusError(
             f"HTTP error {e.response.status_code} when calling {endpoint}: {e.response.text}",
             request=e.request,
-            response=e.response
+            response=e.response,
         ) from e
     except httpx.RequestError as e:
         raise httpx.RequestError(f"Request error when calling {endpoint}: {str(e)}") from e

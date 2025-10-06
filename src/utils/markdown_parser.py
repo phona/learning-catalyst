@@ -2,9 +2,10 @@
 Markdown parser utility for Learning Catalyst
 Handles parsing markdown files and extracting content for AI processing
 """
+
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 
 class MarkdownParser:
@@ -32,7 +33,7 @@ class MarkdownParser:
         """
         Parse a Markdown file and extract its content
         """
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         return self.parse_content(content)
@@ -50,28 +51,19 @@ class MarkdownParser:
         # Extract content sections based on headers
         sections = self._extract_sections(content, headers)
 
-        return {
-            'headers': headers,
-            'code_blocks': code_blocks,
-            'sections': sections,
-            'full_content': content
-        }
+        return {"headers": headers, "code_blocks": code_blocks, "sections": sections, "full_content": content}
 
     def _extract_headers(self, content: str) -> List[Dict[str, Any]]:
         """
         Extract headers from markdown content
         """
-        header_pattern = r'^(#{1,6})\s+(.+)$'
+        header_pattern = r"^(#{1,6})\s+(.+)$"
         headers = []
 
-        for line_num, line in enumerate(content.split('\n')):
+        for line_num, line in enumerate(content.split("\n")):
             match = re.match(header_pattern, line.strip())
             if match:
-                headers.append({
-                    'level': len(match.group(1)),
-                    'title': match.group(2).strip(),
-                    'line_number': line_num
-                })
+                headers.append({"level": len(match.group(1)), "title": match.group(2).strip(), "line_number": line_num})
 
         return headers
 
@@ -79,14 +71,11 @@ class MarkdownParser:
         """
         Extract code blocks from markdown content
         """
-        code_block_pattern = r'```(\w*)\n(.*?)```'
+        code_block_pattern = r"```(\w*)\n(.*?)```"
         code_blocks = []
 
         for match in re.finditer(code_block_pattern, content, re.DOTALL):
-            code_blocks.append({
-                'language': match.group(1),
-                'content': match.group(2).strip()
-            })
+            code_blocks.append({"language": match.group(1), "content": match.group(2).strip()})
 
         return code_blocks
 
@@ -94,34 +83,26 @@ class MarkdownParser:
         """
         Extract content sections based on headers
         """
-        lines = content.split('\n')
+        lines = content.split("\n")
         sections = []
 
         if not headers:
             # If no headers, return the entire content as one section
-            return [{
-                'title': 'Document',
-                'content': content,
-                'level': 0
-            }]
+            return [{"title": "Document", "content": content, "level": 0}]
 
         # Add sections based on headers
         for i, header in enumerate(headers):
-            start_line = header['line_number'] + 1
+            start_line = header["line_number"] + 1
             end_line = len(lines)  # Default to end of file
 
             # If there's a next header, the section ends there
             if i + 1 < len(headers):
-                end_line = headers[i + 1]['line_number']
+                end_line = headers[i + 1]["line_number"]
 
             # Extract content for this section
-            section_content = '\n'.join(lines[start_line:end_line])
+            section_content = "\n".join(lines[start_line:end_line])
 
-            sections.append({
-                'title': header['title'],
-                'content': section_content.strip(),
-                'level': header['level']
-            })
+            sections.append({"title": header["title"], "content": section_content.strip(), "level": header["level"]})
 
         return sections
 
@@ -134,109 +115,110 @@ class MarkdownParser:
 
         if self.extraction_mode == "headers":
             # Extract concepts based on headers
-            for section in parsed_content['sections']:
-                if section['content'].strip():  # Only create concepts for non-empty sections
+            for section in parsed_content["sections"]:
+                if section["content"].strip():  # Only create concepts for non-empty sections
                     concept = {
-                        'id': self._create_concept_id(section['title']),
-                        'title': section['title'],
-                        'content': section['content'],
-                        'source_file': file_path,
-                        'granularity': 'headers',
-                        'level': section.get('level', 1),
-                        'metadata': {
-                            'word_count': len(section['content'].split()),
-                            'char_count': len(section['content'])
-                        }
+                        "id": self._create_concept_id(section["title"]),
+                        "title": section["title"],
+                        "content": section["content"],
+                        "source_file": file_path,
+                        "granularity": "headers",
+                        "level": section.get("level", 1),
+                        "metadata": {
+                            "word_count": len(section["content"].split()),
+                            "char_count": len(section["content"]),
+                        },
                     }
                     concepts.append(concept)
 
         elif self.extraction_mode == "sections":
             # Extract concepts based on sections with more context
-            for i, section in enumerate(parsed_content['sections']):
-                if section['content'].strip():
+            for i, section in enumerate(parsed_content["sections"]):
+                if section["content"].strip():
                     # Include some context from previous section if available
                     context = ""
                     if i > 0:
-                        prev_section = parsed_content['sections'][i-1]
+                        prev_section = parsed_content["sections"][i - 1]
                         context = f"Context: {prev_section['title']}\n"
 
                     concept = {
-                        'id': self._create_concept_id(section['title']),
-                        'title': section['title'],
-                        'content': context + section['content'],
-                        'source_file': file_path,
-                        'granularity': 'sections',
-                        'level': section.get('level', 1),
-                        'metadata': {
-                            'word_count': len(section['content'].split()),
-                            'char_count': len(section['content']),
-                            'has_context': bool(context)
-                        }
+                        "id": self._create_concept_id(section["title"]),
+                        "title": section["title"],
+                        "content": context + section["content"],
+                        "source_file": file_path,
+                        "granularity": "sections",
+                        "level": section.get("level", 1),
+                        "metadata": {
+                            "word_count": len(section["content"].split()),
+                            "char_count": len(section["content"]),
+                            "has_context": bool(context),
+                        },
                     }
                     concepts.append(concept)
 
         elif self.extraction_mode == "paragraphs":
             # Extract concepts based on paragraphs
-            full_content = parsed_content['full_content']
-            paragraphs = re.split(r'\n\s*\n', full_content)
+            full_content = parsed_content["full_content"]
+            paragraphs = re.split(r"\n\s*\n", full_content)
 
             for i, paragraph in enumerate(paragraphs):
                 if paragraph.strip() and len(paragraph.strip()) > 50:  # Skip short paragraphs
                     # Try to find a title for this paragraph
                     title = f"Paragraph {i+1}"
-                    for header in parsed_content['headers']:
-                        if header['line_number'] < len(full_content.split('\n')) and \
-                           full_content.find(paragraph) > full_content.find(header['title']):
-                            title = header['title']
+                    for header in parsed_content["headers"]:
+                        if header["line_number"] < len(full_content.split("\n")) and full_content.find(
+                            paragraph
+                        ) > full_content.find(header["title"]):
+                            title = header["title"]
                             break
 
                     concept = {
-                        'id': self._create_concept_id(title) + f"_p{i+1}",
-                        'title': title,
-                        'content': paragraph,
-                        'source_file': file_path,
-                        'granularity': 'paragraphs',
-                        'level': 1,  # Paragraphs don't have levels
-                        'metadata': {
-                            'word_count': len(paragraph.split()),
-                            'char_count': len(paragraph),
-                            'paragraph_index': i
-                        }
+                        "id": self._create_concept_id(title) + f"_p{i+1}",
+                        "title": title,
+                        "content": paragraph,
+                        "source_file": file_path,
+                        "granularity": "paragraphs",
+                        "level": 1,  # Paragraphs don't have levels
+                        "metadata": {
+                            "word_count": len(paragraph.split()),
+                            "char_count": len(paragraph),
+                            "paragraph_index": i,
+                        },
                     }
                     concepts.append(concept)
 
         elif self.extraction_mode == "code_blocks":
             # Extract code blocks as concepts
-            for i, code_block in enumerate(parsed_content['code_blocks']):
+            for i, code_block in enumerate(parsed_content["code_blocks"]):
                 # Find the nearest header to use as title
                 title = f"Code Example {i+1}"
-                if code_block.get('language'):
+                if code_block.get("language"):
                     title = f"{code_block['language']} Example {i+1}"
 
                 # Find context around the code block
-                content = code_block['content']
-                full_content = parsed_content['full_content']
-                code_pos = full_content.find(code_block['content'])
+                content = code_block["content"]
+                full_content = parsed_content["full_content"]
+                code_pos = full_content.find(code_block["content"])
 
                 # Look for headers before this code block
-                for header in parsed_content['headers']:
-                    header_pos = full_content.find(header['title'])
+                for header in parsed_content["headers"]:
+                    header_pos = full_content.find(header["title"])
                     if header_pos < code_pos and header_pos > code_pos - 1000:  # Within 1000 chars
                         title = f"{header['title']} - {title}"
                         break
 
                 concept = {
-                    'id': self._create_concept_id(title),
-                    'title': title,
-                    'content': f"```{code_block.get('language', '')}\n{content}\n```",
-                    'source_file': file_path,
-                    'granularity': 'code_blocks',
-                    'level': 1,
-                    'metadata': {
-                        'language': code_block.get('language', 'unknown'),
-                        'line_count': len(content.split('\n')),
-                        'char_count': len(content)
-                    }
+                    "id": self._create_concept_id(title),
+                    "title": title,
+                    "content": f"```{code_block.get('language', '')}\n{content}\n```",
+                    "source_file": file_path,
+                    "granularity": "code_blocks",
+                    "level": 1,
+                    "metadata": {
+                        "language": code_block.get("language", "unknown"),
+                        "line_count": len(content.split("\n")),
+                        "char_count": len(content),
+                    },
                 }
                 concepts.append(concept)
 
@@ -247,8 +229,8 @@ class MarkdownParser:
         Create a unique ID for a concept based on its title
         """
         # Convert title to a safe ID format
-        id_str = re.sub(r'[^a-zA-Z0-9\s-]', '', title.lower())
-        id_str = re.sub(r'\s+', '_', id_str.strip())
+        id_str = re.sub(r"[^a-zA-Z0-9\s-]", "", title.lower())
+        id_str = re.sub(r"\s+", "_", id_str.strip())
         return f"md:{id_str}"
 
 

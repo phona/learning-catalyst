@@ -4,7 +4,7 @@ Challenge Engine implementation
 
 import json
 import random
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 from enum import Enum
 
 from src.ai.service import ModelAbstractionService
@@ -16,6 +16,7 @@ from . import ChallengeEngine
 
 class ChallengeType(Enum):
     """Types of challenges that can be generated"""
+
     MULTIPLE_CHOICE = "multiple-choice"
     SHORT_ANSWER = "short-answer"
     CODE_COMPLETION = "code-completion"
@@ -25,6 +26,7 @@ class ChallengeType(Enum):
 
 class DifficultyLevel(Enum):
     """Difficulty levels for challenges"""
+
     BEGINNER = 1
     INTERMEDIATE = 2
     ADVANCED = 3
@@ -59,35 +61,35 @@ class ChallengeEngineImpl(ChallengeEngine):
 
         # Generate challenge prompt
         challenge_prompt = self._create_challenge_prompt(
-            concept=concept,
-            challenge_type=challenge_type,
-            difficulty=difficulty,
-            context=context
+            concept=concept, challenge_type=challenge_type, difficulty=difficulty, context=context
         )
 
         # Use the model service to generate the challenge
         messages = [
-            Message(role="system", content="You are an expert educational content creator specializing in creating challenging and engaging learning exercises."),
-            Message(role="user", content=challenge_prompt)
+            Message(
+                role="system",
+                content="You are an expert educational content creator specializing in creating challenging and engaging learning exercises.",
+            ),
+            Message(role="user", content=challenge_prompt),
         ]
 
         response = await self.model_service.send_message(messages, temperature=0.7)
 
         # Parse the response to extract challenge data
         challenge_data = self._parse_challenge_response(
-            response.content,
-            challenge_type=challenge_type,
-            concept=concept
+            response.content, challenge_type=challenge_type, concept=concept
         )
 
         # Add metadata to the challenge
-        challenge_data.update({
-            "concept_id": concept.id,
-            "concept_title": concept.title,
-            "challenge_type": challenge_type.value,
-            "difficulty": difficulty.value,
-            "context": context
-        })
+        challenge_data.update(
+            {
+                "concept_id": concept.id,
+                "concept_title": concept.title,
+                "challenge_type": challenge_type.value,
+                "difficulty": difficulty.value,
+                "context": context,
+            }
+        )
 
         return challenge_data
 
@@ -133,7 +135,7 @@ class ChallengeEngineImpl(ChallengeEngine):
                         "beginner": DifficultyLevel.BEGINNER,
                         "intermediate": DifficultyLevel.INTERMEDIATE,
                         "advanced": DifficultyLevel.ADVANCED,
-                        "expert": DifficultyLevel.EXPERT
+                        "expert": DifficultyLevel.EXPERT,
                     }
                     return difficulty_map.get(requested_difficulty.lower(), self.current_difficulty)
             except (ValueError, KeyError):
@@ -155,14 +157,15 @@ class ChallengeEngineImpl(ChallengeEngine):
 
         return self.current_difficulty
 
-    def _create_challenge_prompt(self, concept: Concept, challenge_type: ChallengeType,
-                                 difficulty: DifficultyLevel, context: Dict[str, Any]) -> str:
+    def _create_challenge_prompt(
+        self, concept: Concept, challenge_type: ChallengeType, difficulty: DifficultyLevel, context: Dict[str, Any]
+    ) -> str:
         """Create a prompt for generating a challenge"""
         difficulty_descriptions = {
             DifficultyLevel.BEGINNER: "basic, foundational questions that test simple recall and understanding",
             DifficultyLevel.INTERMEDIATE: "questions that require application of concepts and some analysis",
             DifficultyLevel.ADVANCED: "complex questions that require deep analysis, synthesis, and evaluation",
-            DifficultyLevel.EXPERT: "challenging questions that require creative thinking, problem-solving, and mastery of the subject"
+            DifficultyLevel.EXPERT: "challenging questions that require creative thinking, problem-solving, and mastery of the subject",
         }
 
         challenge_type_instructions = {
@@ -170,7 +173,7 @@ class ChallengeEngineImpl(ChallengeEngine):
             ChallengeType.SHORT_ANSWER: "Create a short-answer question that requires a brief response (1-2 sentences). Provide a sample answer that captures the key points.",
             ChallengeType.CODE_COMPLETION: "Create a code completion challenge where the user needs to fill in missing parts of a code snippet. Provide the complete solution.",
             ChallengeType.TRUE_FALSE: "Create a true/false question. Clearly indicate whether the statement is true or false.",
-            ChallengeType.FILL_IN_BLANK: "Create a fill-in-the-blank question with 1-3 blanks. Provide the complete answer with all blanks filled in."
+            ChallengeType.FILL_IN_BLANK: "Create a fill-in-the-blank question with 1-3 blanks. Provide the complete answer with all blanks filled in.",
         }
 
         prompt = f"""
@@ -197,12 +200,14 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
 
         return prompt
 
-    def _parse_challenge_response(self, response: str, challenge_type: ChallengeType, concept: Concept) -> Dict[str, Any]:
+    def _parse_challenge_response(
+        self, response: str, challenge_type: ChallengeType, concept: Concept
+    ) -> Dict[str, Any]:
         """Parse the model response to extract challenge data"""
         try:
             # Try to extract JSON from the response
-            start_idx = response.find('{')
-            end_idx = response.rfind('}') + 1
+            start_idx = response.find("{")
+            end_idx = response.rfind("}") + 1
 
             if start_idx != -1 and end_idx != -1:
                 json_str = response[start_idx:end_idx]
@@ -224,7 +229,7 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
                 return {
                     "challenge_text": response,
                     "correct_answer": "Answer not provided",
-                    "explanation": "No explanation provided"
+                    "explanation": "No explanation provided",
                 }
 
         except json.JSONDecodeError:
@@ -232,25 +237,25 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
             return {
                 "challenge_text": response,
                 "correct_answer": "Answer not provided",
-                "explanation": "No explanation provided"
+                "explanation": "No explanation provided",
             }
 
     def present_challenge(self, challenge: Dict[str, Any]) -> None:
         """Present a challenge to the user"""
         self.formatter.format_header("Challenge", f"Difficulty: {challenge.get('difficulty', 'Unknown')}")
 
-        challenge_text = challenge.get('challenge_text', 'No challenge text')
+        challenge_text = challenge.get("challenge_text", "No challenge text")
         self.formatter.format_section("Question", challenge_text)
 
-        if 'options' in challenge and challenge['options']:
+        if "options" in challenge and challenge["options"]:
             self.formatter.format_section("Options", "")
-            for key, value in challenge['options'].items():
+            for key, value in challenge["options"].items():
                 self.formatter.print(f"  {key}: {value}")
 
         # Show hints if available
-        if 'hints' in challenge and challenge['hints']:
+        if "hints" in challenge and challenge["hints"]:
             self.formatter.format_section("Hints", "")
-            for i, hint in enumerate(challenge['hints'], 1):
+            for i, hint in enumerate(challenge["hints"], 1):
                 self.formatter.print(f"  {i}. {hint}")
 
     async def collect_answer(self) -> str:
@@ -258,6 +263,7 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
         # In a real implementation, this might have a timeout or be part of a GUI
         try:
             from rich.prompt import Prompt
+
             answer = Prompt.ask("\nYour answer")
             return answer
         except (EOFError, KeyboardInterrupt):
@@ -292,7 +298,7 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
             "user_answer": user_answer,
             "correct_answer": correct_answer,
             "explanation": challenge.get("explanation", "No explanation provided"),
-            "feedback": self._generate_feedback(is_correct, challenge)
+            "feedback": self._generate_feedback(is_correct, challenge),
         }
 
         # Record performance
@@ -303,19 +309,23 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
     def _generate_feedback(self, is_correct: bool, challenge: Dict[str, Any]) -> str:
         """Generate feedback based on whether the answer was correct"""
         if is_correct:
-            feedback = random.choice([
-                "Correct! Well done!",
-                "Great job! That's the right answer.",
-                "Excellent! You got it right.",
-                "Correct! You're making good progress."
-            ])
+            feedback = random.choice(
+                [
+                    "Correct! Well done!",
+                    "Great job! That's the right answer.",
+                    "Excellent! You got it right.",
+                    "Correct! You're making good progress.",
+                ]
+            )
         else:
-            feedback = random.choice([
-                "Not quite right. Let's review the explanation.",
-                "Incorrect. The correct answer is provided in the explanation.",
-                "That's not the right answer. Check the explanation for more details.",
-                "Incorrect. Keep practicing and you'll get it next time."
-            ])
+            feedback = random.choice(
+                [
+                    "Not quite right. Let's review the explanation.",
+                    "Incorrect. The correct answer is provided in the explanation.",
+                    "That's not the right answer. Check the explanation for more details.",
+                    "Incorrect. Keep practicing and you'll get it next time.",
+                ]
+            )
 
         # Add explanation if available
         explanation = challenge.get("explanation", "")
@@ -331,7 +341,7 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
             "timestamp": None,  # Would be set to current time in a real implementation
             "challenge_type": challenge.get("challenge_type"),
             "difficulty": challenge.get("difficulty"),
-            "concept_id": challenge.get("concept_id")
+            "concept_id": challenge.get("concept_id"),
         }
 
         self.user_performance_history.append(performance_record)

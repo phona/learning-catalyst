@@ -1,6 +1,7 @@
 """
 Tokens command implementation
 """
+
 import asyncio
 import os
 
@@ -8,10 +9,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from ai.service import ModelAbstractionService
-from cli.system_commands_handler import SystemCommandsHandlerImpl
-from data.database_manager import DatabaseManager
-from utils.preferences_manager import PreferencesManager
+from src.ai.service import ModelAbstractionService
+from src.cli.system_commands_handler import SystemCommandsHandlerImpl
+from src.data.database_manager import DatabaseManager
+from src.utils.preferences_manager import PreferencesManager
 
 app = typer.Typer()
 
@@ -51,10 +52,10 @@ def tokens(model_name: str = typer.Argument("", help="Optional model name to get
 
             for record in detailed_usage:
                 table.add_row(
-                    record['timestamp'],
-                    str(record['input_tokens']),
-                    str(record['output_tokens']),
-                    record.get('context', 'N/A')
+                    record["timestamp"],
+                    str(record["input_tokens"]),
+                    str(record["output_tokens"]),
+                    record.get("context", "N/A"),
                 )
             console.print(table)
         else:

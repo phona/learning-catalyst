@@ -1,6 +1,7 @@
 """
 Reset command implementation for Learning Catalyst CLI
 """
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -9,9 +10,7 @@ app = typer.Typer()
 
 
 @app.command()
-def reset(
-    force: bool = typer.Option(False, "--force", "-f", help="Force reset without confirmation")
-):
+def reset(force: bool = typer.Option(False, "--force", "-f", help="Force reset without confirmation")):
     """Reset the current learning session"""
     console = Console()
 
@@ -28,8 +27,7 @@ def reset(
     # 3. Clear temporary state
     # 4. Optionally create a checkpoint before resetting
 
-    console.print(Panel.fit("[bold green]Session Reset Successfully[/bold green]",
-                           border_style="green"))
+    console.print(Panel.fit("[bold green]Session Reset Successfully[/bold green]", border_style="green"))
     console.print("Your learning session has been reset.")
     console.print("You can now start a new learning session.")
 

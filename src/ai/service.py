@@ -2,6 +2,7 @@
 Model Abstraction Service implementation
 Provides a unified interface for interacting with different AI providers
 """
+
 from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
 from src.ai.abstraction import (
@@ -68,14 +69,12 @@ class OpenAIProvider(BaseModelProvider):
         try:
             import openai
 
-            # Set API key
-            openai.api_key = credentials.api_key
+            # Create client with API key
+            client = openai.OpenAI(api_key=credentials.api_key)
 
             # Make a simple API call to validate
-            await openai.ChatCompletion.acreate(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": "Hello"}],
-                max_tokens=5
+            await client.chat.completions.create(
+                model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Hello"}], max_tokens=5
             )
 
             # If we get here, the API key is valid
@@ -118,22 +117,17 @@ class OpenAIChatModel(ChatModel):
         try:
             import openai
 
-            # Set API key
-            openai.api_key = self._provider._api_key
+            # Create client with API key
+            client = openai.OpenAI(api_key=self._provider._api_key)
 
             # Convert messages to OpenAI format
             openai_messages = []
             for msg in messages:
-                openai_messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
+                openai_messages.append({"role": msg.role, "content": msg.content})
 
             # Make API call
-            response = await openai.ChatCompletion.acreate(
-                model=self._model_id,
-                messages=openai_messages,
-                temperature=temperature
+            response = await client.chat.completions.create(
+                model=self._model_id, messages=openai_messages, temperature=temperature
             )
 
             # Extract response content
@@ -141,31 +135,33 @@ class OpenAIChatModel(ChatModel):
 
             # Extract token usage if available
             token_usage = None
-            if hasattr(response, 'usage') and response.usage:
+            if hasattr(response, "usage") and response.usage:
                 token_usage = {
                     "prompt_tokens": response.usage.prompt_tokens,
                     "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens
+                    "total_tokens": response.usage.total_tokens,
                 }
 
             from datetime import datetime
+
             return AIResponse(
                 content=content,
                 model=self._model_id,
                 provider=self._provider.name,
                 usage=token_usage or {},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
         except Exception as e:
             # Return error response
             from datetime import datetime
+
             return AIResponse(
                 content=f"Error: {str(e)}",
                 model=self._model_id,
                 provider=self._provider.name,
                 usage={},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
 
@@ -182,21 +178,16 @@ class OpenAIEmbeddingModel(EmbeddingModel):
     async def get_id(self) -> str:
         return self._model_id
 
-    async def get_embeddings(
-        self, texts: List[str], dimensions: Optional[int] = None
-    ) -> EmbeddingResponse:
+    async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
         """Get embeddings for texts using OpenAI"""
         try:
             import openai
 
-            # Set API key
-            openai.api_key = self._provider._api_key
+            # Create client with API key
+            client = openai.OpenAI(api_key=self._provider._api_key)
 
             # Make API call
-            response = await openai.Embedding.acreate(
-                model=self._model_id,
-                input=texts
-            )
+            response = await client.embeddings.create(model=self._model_id, input=texts)
 
             # Extract embeddings
             embeddings = []
@@ -205,27 +196,20 @@ class OpenAIEmbeddingModel(EmbeddingModel):
 
             # Extract token usage if available
             token_usage = None
-            if hasattr(response, 'usage') and response.usage:
+            if hasattr(response, "usage") and response.usage:
                 token_usage = {
                     "prompt_tokens": response.usage.prompt_tokens,
-                    "total_tokens": response.usage.total_tokens
+                    "total_tokens": response.usage.total_tokens,
                 }
 
             return EmbeddingResponse(
-                embeddings=embeddings,
-                model=self._model_id,
-                provider=self._provider.name,
-                usage=token_usage or {}
+                embeddings=embeddings, model=self._model_id, provider=self._provider.name, usage=token_usage or {}
             )
 
         except Exception as e:
             # Return error response
             return EmbeddingResponse(
-                embeddings=[],
-                model=self._model_id,
-                provider=self._provider.name,
-                usage={},
-                error=str(e)
+                embeddings=[], model=self._model_id, provider=self._provider.name, usage={}, error=str(e)
             )
 
 
@@ -246,9 +230,7 @@ class AnthropicProvider(BaseModelProvider):
 
             # Make a simple API call to validate
             await client.messages.create(
-                model="claude-3-haiku-20240307",
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Hello"}]
+                model="claude-3-haiku-20240307", max_tokens=10, messages=[{"role": "user", "content": "Hello"}]
             )
 
             # If we get here, the API key is valid
@@ -307,30 +289,32 @@ class AnthropicChatModel(ChatModel):
                 model=self._model_id,
                 max_tokens=1000,  # Default max tokens
                 temperature=temperature,
-                messages=anthropic_messages
+                messages=anthropic_messages,
             )
 
             # Extract response content
             content = response.content[0].text
 
             from datetime import datetime
+
             return AIResponse(
                 content=content,
                 model=self._model_id,
                 provider=self._provider.name,
                 usage={},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
         except Exception as e:
             # Return error response
             from datetime import datetime
+
             return AIResponse(
                 content=f"Error: {str(e)}",
                 model=self._model_id,
                 provider=self._provider.name,
                 usage={},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
 
@@ -352,12 +336,8 @@ class LocalProvider(BaseModelProvider):
             # Make a simple API call to validate
             response = requests.post(
                 f"{self._base_url}/v1/chat/completions",
-                json={
-                    "model": "test",
-                    "messages": [{"role": "user", "content": "Hello"}],
-                    "max_tokens": 5
-                },
-                timeout=5
+                json={"model": "test", "messages": [{"role": "user", "content": "Hello"}], "max_tokens": 5},
+                timeout=5,
             )
 
             # If we get a valid response, the server is accessible
@@ -399,20 +379,13 @@ class LocalChatModel(ChatModel):
             # Convert messages to OpenAI-compatible format
             openai_messages = []
             for msg in messages:
-                openai_messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
+                openai_messages.append({"role": msg.role, "content": msg.content})
 
             # Make API call
             response = requests.post(
                 f"{self._provider._base_url}/v1/chat/completions",
-                json={
-                    "model": self._model_id,
-                    "messages": openai_messages,
-                    "temperature": temperature
-                },
-                timeout=30
+                json={"model": self._model_id, "messages": openai_messages, "temperature": temperature},
+                timeout=30,
             )
 
             # Parse response
@@ -426,37 +399,40 @@ class LocalChatModel(ChatModel):
                     token_usage = {
                         "prompt_tokens": data["usage"].get("prompt_tokens", 0),
                         "completion_tokens": data["usage"].get("completion_tokens", 0),
-                        "total_tokens": data["usage"].get("total_tokens", 0)
+                        "total_tokens": data["usage"].get("total_tokens", 0),
                     }
 
                 from datetime import datetime
+
                 return AIResponse(
                     content=content,
                     model=self._model_id,
                     provider=self._provider.name,
                     usage=token_usage or {},
-                    timestamp=datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat(),
                 )
             else:
                 # Return error response
                 from datetime import datetime
+
                 return AIResponse(
                     content=f"Error: HTTP {response.status_code}",
                     model=self._model_id,
                     provider=self._provider.name,
                     usage={},
-                    timestamp=datetime.now().isoformat()
+                    timestamp=datetime.now().isoformat(),
                 )
 
         except Exception as e:
             # Return error response
             from datetime import datetime
+
             return AIResponse(
                 content=f"Error: {str(e)}",
                 model=self._model_id,
                 provider=self._provider.name,
                 usage={},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
 
@@ -466,9 +442,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
     def __init__(self):
         self._providers: Dict[str, ModelProvider] = {}
         self._configured_models: ConfiguredModels = ConfiguredModels(
-            chat_model=None,
-            embedding_model=None,
-            rerank_model=None
+            chat_model=None, embedding_model=None, rerank_model=None
         )
 
         # Register default providers
@@ -484,6 +458,9 @@ class ModelAbstractionService(ModelAbstractionLayer):
         self.register_provider(OpenAIProvider())
         self.register_provider(AnthropicProvider())
         self.register_provider(LocalProvider())
+        # Register ChatGLM provider with None API key (will be set later)
+        from src.ai.providers.chatglm_provider import ChatGLMProvider
+        self.register_provider(ChatGLMProvider(api_key=None))
 
     def register_provider(self, provider: ModelProvider) -> None:
         """Register a model provider"""
@@ -493,9 +470,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
         """Get a provider by name"""
         return self._providers.get(name)
 
-    async def send_message(
-        self, messages: List[Message], temperature: float = 0.7
-    ) -> AIResponse:
+    async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
         """Send message to LLM provider and get response"""
         if not self._configured_models.chat_model:
             # Try to set a default chat model
@@ -503,19 +478,18 @@ class ModelAbstractionService(ModelAbstractionLayer):
 
         if not self._configured_models.chat_model:
             from datetime import datetime
+
             return AIResponse(
                 content="Error: No chat model configured",
                 model="unknown",
                 provider="unknown",
                 usage={},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now().isoformat(),
             )
 
         return await self._configured_models.chat_model.send_message(messages, temperature)
 
-    async def get_embeddings(
-        self, texts: List[str], dimensions: Optional[int] = None
-    ) -> EmbeddingResponse:
+    async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
         """Get embeddings for texts using specified provider and model"""
         if not self._configured_models.embedding_model:
             # Try to set a default embedding model
@@ -523,18 +497,12 @@ class ModelAbstractionService(ModelAbstractionLayer):
 
         if not self._configured_models.embedding_model:
             return EmbeddingResponse(
-                embeddings=[],
-                model="unknown",
-                provider="unknown",
-                usage={},
-                error="No embedding model configured"
+                embeddings=[], model="unknown", provider="unknown", usage={}, error="No embedding model configured"
             )
 
         return await self._configured_models.embedding_model.get_embeddings(texts, dimensions)
 
-    async def rerank(
-        self, query: str, documents: List[str], top_k: int = 10
-    ) -> RerankResponse:
+    async def rerank(self, query: str, documents: List[str], top_k: int = 10) -> RerankResponse:
         """Rerank documents based on query relevance"""
         if not self._configured_models.rerank_model:
             # Try to set a default rerank model
@@ -542,11 +510,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
 
         if not self._configured_models.rerank_model:
             return RerankResponse(
-                results=[],
-                model="unknown",
-                provider="unknown",
-                usage={},
-                error="No rerank model configured"
+                results=[], model="unknown", provider="unknown", usage={}, error="No rerank model configured"
             )
 
         return await self._configured_models.rerank_model.rerank(query, documents, top_k)
@@ -579,7 +543,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
                 self._configured_models = ConfiguredModels(
                     chat_model=model,
                     embedding_model=self._configured_models.embedding_model,
-                    rerank_model=self._configured_models.rerank_model
+                    rerank_model=self._configured_models.rerank_model,
                 )
                 return
 
@@ -609,7 +573,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
                 self._configured_models = ConfiguredModels(
                     chat_model=self._configured_models.chat_model,
                     embedding_model=model,
-                    rerank_model=self._configured_models.rerank_model
+                    rerank_model=self._configured_models.rerank_model,
                 )
                 return
 
@@ -642,7 +606,10 @@ class ModelAbstractionService(ModelAbstractionLayer):
                 models.append(self._configured_models.chat_model)
 
             # Add embedding models
-            if self._configured_models.embedding_model and self._configured_models.embedding_model.get_provider() == provider:
+            if (
+                self._configured_models.embedding_model
+                and self._configured_models.embedding_model.get_provider() == provider
+            ):
                 models.append(self._configured_models.embedding_model)
 
             # Add rerank models
@@ -662,3 +629,15 @@ class ModelAbstractionService(ModelAbstractionLayer):
 
         credentials = Credentials(provider=provider_name, api_key=api_key)
         return await provider.validate_credentials(provider_name, credentials)
+
+    def update_provider_api_key(self, provider_name: str, api_key: str) -> bool:
+        """Update the API key for an existing provider"""
+        provider = self.get_provider(provider_name)
+        if not provider:
+            return False
+        
+        # Update the API key for the provider
+        if hasattr(provider, 'api_key'):
+            provider.api_key = api_key
+            return True
+        return False

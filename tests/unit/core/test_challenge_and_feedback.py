@@ -1,19 +1,21 @@
 """
 Unit tests for Requesting a Challenge (Story 4) and Getting Feedback (Story 5)
 """
-import sys
+
 import os
-import pytest
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
-from src.data.models.concept import Concept
+
+import pytest
+
 from src.data.models.challenge import Challenge
+from src.data.models.concept import Concept
 from src.data.models.extended_models import AIResponse
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
-from src.core.catalyst_agent import CatalystAgentImpl
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext
 from src.core.challenge_engine import ChallengeEngineImpl
-from src.core.catalyst_agent import ConversationContext
 
 
 class TestChallengeAndFeedback:
@@ -26,25 +28,24 @@ class TestChallengeAndFeedback:
             title="Python Lists",
             content="Python lists are ordered, mutable collections. Common operations include slicing, appending, and more.",
             prerequisites=[],
-            difficulty_level=1
+            difficulty_level=1,
         )
 
         # Configure mock to simulate challenge response
-        model_service.send_message = AsyncMock(return_value=AIResponse(
-            content="What will be the output of the following Python code?\n\n```python\nmy_list = [1, 2, 3, 4, 5]\nmy_list[1:3] = [10, 20]\nprint(my_list)\n```\n\nA) [1, 10, 20, 4, 5]\nB) [1, 10, 20, 3, 4, 5]\nC) [10, 20, 4, 5]\nD) [1, 2, 10, 20, 4, 5]",
-            model="gpt-4o",
-            usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
-            timestamp="2023-01-01T00:00:00"
-        ))
+        model_service.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="What will be the output of the following Python code?\n\n```python\nmy_list = [1, 2, 3, 4, 5]\nmy_list[1:3] = [10, 20]\nprint(my_list)\n```\n\nA) [1, 10, 20, 4, 5]\nB) [1, 10, 20, 3, 4, 5]\nC) [10, 20, 4, 5]\nD) [1, 2, 10, 20, 4, 5]",
+                model="gpt-4o",
+                usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
+                timestamp="2023-01-01T00:00:00",
+            )
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
 
         # Create context as a dictionary to match interface
-        context = {
-            "challenge_type": "multiple-choice",
-            "difficulty": "medium"
-        }
+        context = {"challenge_type": "multiple-choice", "difficulty": "medium"}
 
         # Test challenge generation by using the catalyst agent directly
         challenge_data = await catalyst_agent.generate_challenge(concept, context)
@@ -67,32 +68,31 @@ class TestChallengeAndFeedback:
                 "A": "[1, 10, 20, 4, 5]",
                 "B": "[1, 10, 20, 3, 4, 5]",
                 "C": "[10, 20, 4, 5]",
-                "D": "[1, 2, 10, 20, 4, 5]"
-            }
+                "D": "[1, 2, 10, 20, 4, 5]",
+            },
         )
 
         # Configure mock to simulate feedback for correct answer
-        model_service.send_message = AsyncMock(return_value=AIResponse(
-            content="Excellent! You chose correctly.\n\n" \
-                      "The answer is A) [1, 10, 20, 4, 5]\n\n" \
-                      "In Python, list slicing with assignment replaces the specified slice with the new elements. " \
-                      "The slice [1:3] refers to elements at indices 1 and 2 (values 2 and 3). " \
-                      "These are replaced with [10, 20], resulting in [1, 10, 20, 4, 5].\n\n" \
-                      "The length of the replacement doesn't need to match the length of the slice being replaced, " \
-                      "which makes list slicing assignment very flexible!",
-            model="gpt-4o",
-            usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
-            timestamp="2023-01-01T00:00:00"
-        ))
+        model_service.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="Excellent! You chose correctly.\n\n"
+                "The answer is A) [1, 10, 20, 4, 5]\n\n"
+                "In Python, list slicing with assignment replaces the specified slice with the new elements. "
+                "The slice [1:3] refers to elements at indices 1 and 2 (values 2 and 3). "
+                "These are replaced with [10, 20], resulting in [1, 10, 20, 4, 5].\n\n"
+                "The length of the replacement doesn't need to match the length of the slice being replaced, "
+                "which makes list slicing assignment very flexible!",
+                model="gpt-4o",
+                usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
+                timestamp="2023-01-01T00:00:00",
+            )
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
 
         # Create context as dictionary to match interface
-        context = {
-            "provider": "openai",
-            "model": "gpt-4o"
-        }
+        context = {"provider": "openai", "model": "gpt-4o"}
 
         # Test answer evaluation (correct) - using the catalyst agent's method
         feedback = await catalyst_agent.evaluate_answer("A", "A", context)
@@ -117,31 +117,30 @@ class TestChallengeAndFeedback:
                 "A": "[1, 10, 20, 4, 5]",
                 "B": "[1, 10, 20, 3, 4, 5]",
                 "C": "[10, 20, 4, 5]",
-                "D": "[1, 2, 10, 20, 4, 5]"
-            }
+                "D": "[1, 2, 10, 20, 4, 5]",
+            },
         )
 
         # Configure mock to simulate feedback for incorrect answer
-        model_service.send_message = AsyncMock(return_value=AIResponse(
-            content="Not quite. Let's take a closer look.\n\n" \
-                      "The correct answer is A) [1, 10, 20, 4, 5], not B.\n\n" \
-                      "In Python, when you assign to a slice like my_list[1:3] = [10, 20], you're replacing " \
-                      "the elements at indices 1 and 2 (which are 2 and 3) with the new elements [10, 20]. " \
-                      "This doesn't add new elements but replaces the existing ones in that range.\n\n" \
-                      "Let's try another similar example to reinforce this concept!",
-            model="gpt-4o",
-            usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
-            timestamp="2023-01-01T00:00:00"
-        ))
+        model_service.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="Not quite. Let's take a closer look.\n\n"
+                "The correct answer is A) [1, 10, 20, 4, 5], not B.\n\n"
+                "In Python, when you assign to a slice like my_list[1:3] = [10, 20], you're replacing "
+                "the elements at indices 1 and 2 (which are 2 and 3) with the new elements [10, 20]. "
+                "This doesn't add new elements but replaces the existing ones in that range.\n\n"
+                "Let's try another similar example to reinforce this concept!",
+                model="gpt-4o",
+                usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
+                timestamp="2023-01-01T00:00:00",
+            )
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
 
         # Create context as dictionary to match interface
-        context = {
-            "provider": "openai",
-            "model": "gpt-4o"
-        }
+        context = {"provider": "openai", "model": "gpt-4o"}
 
         # Test answer evaluation (incorrect) - using the catalyst agent's method
         feedback = await catalyst_agent.evaluate_answer("B", "A", context)  # user answered B, correct is A
@@ -162,20 +161,14 @@ class TestChallengeAndFeedback:
             challenge_type="multiple_choice",
             challenge_text="Challenge content",
             expected_answer="A",
-            options={"A": "Option A", "B": "Option B"}
+            options={"A": "Option A", "B": "Option B"},
         )
 
         # Mock database manager's add_challenge_response method
         db_manager.add_challenge_response = AsyncMock()
 
         # Add challenge response to database
-        await db_manager.add_challenge_response(
-            "test-session-1",
-            "test-challenge-1",
-            "A",
-            True,
-            "Feedback content"
-        )
+        await db_manager.add_challenge_response("test-session-1", "test-challenge-1", "A", True, "Feedback content")
 
         # Verify the add_challenge_response method was called correctly
         db_manager.add_challenge_response.assert_called_once()
@@ -195,26 +188,25 @@ class TestChallengeAndFeedback:
             title="JavaScript Closures",
             content="Closures are functions bundled with their lexical environment.",
             prerequisites=[],
-            difficulty_level=1
+            difficulty_level=1,
         )
 
         # Configure mock to simulate an open-ended challenge
-        model_service.send_message = AsyncMock(return_value=AIResponse(
-            content="Explain what a closure is in JavaScript and provide a practical example of how it can be used. "
-                    "Make sure to explain the concept clearly and show the benefits of using closures.",
-            model="gpt-4o",
-            usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
-            timestamp="2023-01-01T00:00:00"
-        ))
+        model_service.send_message = AsyncMock(
+            return_value=AIResponse(
+                content="Explain what a closure is in JavaScript and provide a practical example of how it can be used. "
+                "Make sure to explain the concept clearly and show the benefits of using closures.",
+                model="gpt-4o",
+                usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
+                timestamp="2023-01-01T00:00:00",
+            )
+        )
 
         # Initialize Catalyst Agent
         catalyst_agent = CatalystAgentImpl(model_service)
 
         # Create context as a dictionary to match interface
-        context = {
-            "challenge_type": "open-ended",
-            "difficulty": "medium"
-        }
+        context = {"challenge_type": "open-ended", "difficulty": "medium"}
 
         # Test generating a challenge using the catalyst agent directly
         challenge_data = await catalyst_agent.generate_challenge(concept, context)

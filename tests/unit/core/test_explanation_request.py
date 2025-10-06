@@ -1,15 +1,18 @@
 """
 Unit tests for Requesting an Explanation (Story 3) functionality
 """
-import sys
+
 import os
-import pytest
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.data.models.concept import Concept
 
 # Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 
 class TestExplanationRequest:
@@ -24,7 +27,7 @@ class TestExplanationRequest:
             "It's like a Russian nesting doll - each call works on a smaller version of the same problem.",
             source_path="test.md",
             parent_id=None,
-            depth=1
+            depth=1,
         )
 
         # Mock knowledge navigator to return the concept
@@ -32,14 +35,14 @@ class TestExplanationRequest:
 
         # Configure mock to simulate explanation response
         model_service_mock.generate_response.return_value = {
-            'content': "I'd be happy to help you understand recursion in Python!\n\n" \
-                      "Recursion is a programming technique where a function calls itself to solve a problem. " \
-                      "It's like a Russian nesting doll - each call works on a smaller version of the same problem.\n\n" \
-                      "Let's look at a classic example - calculating factorial:\n\n" \
-                      "```python\ndef factorial(n):\n    if n == 0 or n == 1:\n        return 1\n    else:\n        return n * factorial(n-1)\n```\n\n" \
-                      "Every recursive function has two key parts:\n\n" \
-                      "1. Base case: The condition that stops the recursion (n == 0 or n == 1)\n" \
-                      "2. Recursive case: Where the function calls itself with a smaller problem (n * factorial(n-1))"
+            "content": "I'd be happy to help you understand recursion in Python!\n\n"
+            "Recursion is a programming technique where a function calls itself to solve a problem. "
+            "It's like a Russian nesting doll - each call works on a smaller version of the same problem.\n\n"
+            "Let's look at a classic example - calculating factorial:\n\n"
+            "```python\ndef factorial(n):\n    if n == 0 or n == 1:\n        return 1\n    else:\n        return n * factorial(n-1)\n```\n\n"
+            "Every recursive function has two key parts:\n\n"
+            "1. Base case: The condition that stops the recursion (n == 0 or n == 1)\n"
+            "2. Recursive case: Where the function calls itself with a smaller problem (n * factorial(n-1))"
         }
 
         # Initialize Catalyst Agent
@@ -67,7 +70,7 @@ class TestExplanationRequest:
             "insert(), remove(), pop(), and more.",
             source_path="python-notes.md",
             parent_id=None,
-            depth=1
+            depth=1,
         )
 
         # Mock knowledge navigator to return the concept
@@ -75,7 +78,7 @@ class TestExplanationRequest:
 
         # Configure mock to simulate response grounded in concept content
         model_service_mock.generate_response.return_value = {
-            'content': "Python lists are ordered, mutable collections of items. They are defined by square brackets [] and "
+            "content": "Python lists are ordered, mutable collections of items. They are defined by square brackets [] and "
             "can contain items of different types. Some common operations you can perform on lists include:\n\n"
             "- append(): Add an item to the end of the list\n"
             "- extend(): Add multiple items to the end of the list\n"
@@ -129,9 +132,9 @@ class TestExplanationRequest:
         """Test that explanations have a consistent format with code examples when appropriate"""
         # Configure mock to simulate explanation with code example
         model_service_mock.generate_response.return_value = {
-            'content': "In Python, a dictionary is a collection of key-value pairs. Here's how you can create and use one:\n\n" \
-                      "```python\n# Create a dictionary\nperson = {'name': 'John', 'age': 30, 'city': 'New York'}\n\n# Access values\nprint(person['name'])  # Output: John\n\n# Add or update a key-value pair\nperson['job'] = 'Developer'\n\n# Remove a key-value pair\ndel person['age']\n```\n\n" \
-                      "Dictionaries are mutable, unordered (in Python 3.6 and earlier), and allow fast lookups based on keys."
+            "content": "In Python, a dictionary is a collection of key-value pairs. Here's how you can create and use one:\n\n"
+            "```python\n# Create a dictionary\nperson = {'name': 'John', 'age': 30, 'city': 'New York'}\n\n# Access values\nprint(person['name'])  # Output: John\n\n# Add or update a key-value pair\nperson['job'] = 'Developer'\n\n# Remove a key-value pair\ndel person['age']\n```\n\n"
+            "Dictionaries are mutable, unordered (in Python 3.6 and earlier), and allow fast lookups based on keys."
         }
 
         # Initialize Catalyst Agent
@@ -154,9 +157,9 @@ class TestExplanationRequest:
 
         # Configure mock to simulate response for non-existent concept
         model_service_mock.generate_response.return_value = {
-            'content': "I don't see any specific materials about quantum computing in your notes. " \
-                      "Would you like me to explain it based on my general knowledge, or would you prefer to " \
-                      "add materials about quantum computing to your learning space first?"
+            "content": "I don't see any specific materials about quantum computing in your notes. "
+            "Would you like me to explain it based on my general knowledge, or would you prefer to "
+            "add materials about quantum computing to your learning space first?"
         }
 
         # Initialize Catalyst Agent

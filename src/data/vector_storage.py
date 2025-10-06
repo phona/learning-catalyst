@@ -1,6 +1,7 @@
 """
 Vector storage implementation with SQLite
 """
+
 import os
 import sqlite3
 from datetime import datetime
@@ -31,7 +32,8 @@ class VectorStorage:
             pass
 
         # Create content_chunks table with embeddings
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS content_chunks (
             id TEXT PRIMARY KEY,
             concept_id TEXT REFERENCES concepts(id),
@@ -40,10 +42,12 @@ class VectorStorage:
             embedding_model TEXT,
             chunk_index INTEGER
         )
-        """)
+        """
+        )
 
         # Create conversation history table with embeddings
-        cursor.execute("""
+        cursor.execute(
+            """
         CREATE TABLE IF NOT EXISTS conversation_history (
             id TEXT PRIMARY KEY,
             user_id TEXT REFERENCES user_profiles(id),
@@ -53,7 +57,8 @@ class VectorStorage:
             timestamp TEXT,
             context_tags TEXT
         )
-        """)
+        """
+        )
 
         # Create indexes for vector search performance
         # Note: SQLite-VSS provides specific functions for vector similarity
@@ -70,25 +75,34 @@ class VectorStorage:
         vector_binary = np.array(vector, dtype=np.float32).tobytes()
 
         if table == "concepts":
-            cursor.execute("""
+            cursor.execute(
+                """
             UPDATE concepts
             SET content_embedding = ?, embedding_model = ?
             WHERE id = ?
-            """, (vector_binary, model, record_id))
+            """,
+                (vector_binary, model, record_id),
+            )
         elif table == "content_chunks":
             # Implementation for content_chunks table
-            cursor.execute("""
+            cursor.execute(
+                """
             INSERT OR REPLACE INTO content_chunks
             (id, concept_id, chunk_text, chunk_embedding, embedding_model, chunk_index)
             VALUES (?, ?, ?, ?, ?, ?)
-            """, (record_id, "", "", vector_binary, model, 0))
+            """,
+                (record_id, "", "", vector_binary, model, 0),
+            )
         elif table == "conversation_history":
             # Implementation for conversation_history table
-            cursor.execute("""
+            cursor.execute(
+                """
             INSERT OR REPLACE INTO conversation_history
             (id, user_id, conversation_embedding, conversation_text, embedding_model, timestamp, context_tags)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (record_id, "", vector_binary, "", model, datetime.now().isoformat(), ""))
+            """,
+                (record_id, "", vector_binary, "", model, datetime.now().isoformat(), ""),
+            )
         else:
             raise ValueError(f"Unknown table: {table}")
 
