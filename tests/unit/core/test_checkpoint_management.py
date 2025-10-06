@@ -67,7 +67,7 @@ class TestCheckpointManagement:
         db_manager_mock.get_conversation_history = AsyncMock(return_value=mock_conversations)
 
         # Save a checkpoint
-        checkpoint_id = await checkpoint_manager.save_checkpoint(session, "Understanding Python Lists and Recursion", db_manager_mock)
+        checkpoint_id = await checkpoint_manager.create_checkpoint(session, "Understanding Python Lists and Recursion", db_manager_mock)
 
         # Verify the checkpoint was saved
         assert checkpoint_id is not None
@@ -162,7 +162,7 @@ class TestCheckpointManagement:
 
         # Save a checkpoint with a specific name
         checkpoint_name = "Chapter 4 Review"
-        checkpoint_id = await checkpoint_manager.save_checkpoint(session, checkpoint_name, db_manager_mock)
+        checkpoint_id = await checkpoint_manager.create_checkpoint(session, checkpoint_name, db_manager_mock)
 
         # Mock the _load_checkpoints method to return the newly saved checkpoint
         # This is a simplification - in reality, we would check the actual file
@@ -213,7 +213,7 @@ class TestCheckpointManagement:
         checkpoints_dir = Path(temp_workspace) / '.learningspace' / 'checkpoints'
 
         # Save a checkpoint
-        checkpoint_id = await checkpoint_manager.save_checkpoint(session, "Test Checkpoint", db_manager_mock)
+        checkpoint_id = await checkpoint_manager.create_checkpoint(session, "Test Checkpoint", db_manager_mock)
 
         # Verify the checkpoint file exists in the correct location
         checkpoint_file = checkpoints_dir / f"{checkpoint_id}.json"

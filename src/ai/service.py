@@ -215,7 +215,7 @@ class OpenAIEmbeddingModel(EmbeddingModel):
                 embeddings=embeddings,
                 model=self._model_id,
                 provider=self._provider.name,
-                token_usage=token_usage
+                usage=token_usage or {}
             )
 
         except Exception as e:
@@ -224,7 +224,7 @@ class OpenAIEmbeddingModel(EmbeddingModel):
                 embeddings=[],
                 model=self._model_id,
                 provider=self._provider.name,
-                token_usage=None,
+                usage={},
                 error=str(e)
             )
 
@@ -526,7 +526,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
                 embeddings=[],
                 model="unknown",
                 provider="unknown",
-                token_usage=None,
+                usage={},
                 error="No embedding model configured"
             )
 
@@ -545,7 +545,7 @@ class ModelAbstractionService(ModelAbstractionLayer):
                 results=[],
                 model="unknown",
                 provider="unknown",
-                token_usage=None,
+                usage={},
                 error="No rerank model configured"
             )
 
@@ -660,5 +660,5 @@ class ModelAbstractionService(ModelAbstractionLayer):
         if not provider:
             return False
 
-        credentials = Credentials(api_key=api_key)
+        credentials = Credentials(provider=provider_name, api_key=api_key)
         return await provider.validate_credentials(provider_name, credentials)

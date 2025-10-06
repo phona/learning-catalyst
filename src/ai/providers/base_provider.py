@@ -109,6 +109,7 @@ class BaseChatModel(ChatModel):
         return AIResponse(
             content=result["choices"][0]["message"]["content"],
             model=self._model_id,
+            provider=self._provider.name,
             usage=self._extract_usage(result),
             timestamp=datetime.now().isoformat()
         )
@@ -152,6 +153,7 @@ class BaseEmbeddingModel(EmbeddingModel):
         return EmbeddingResponse(
             embeddings=[item["embedding"] for item in result["data"]],
             model=self._model_id,
+            provider=self._provider.name,
             usage=self._extract_usage(result)
         )
 
@@ -212,5 +214,7 @@ Return a JSON array with objects containing "document" (the original text) and "
 
         return RerankResponse(
             results=results,
-            model=self._model_id
+            model=self._model_id,
+            provider=self._provider.name,
+            usage={"total_tokens": 0}
         )

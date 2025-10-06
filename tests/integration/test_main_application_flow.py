@@ -81,7 +81,7 @@ class TestCompleteLearningWorkflow:
 
         # 5. Simulate AI service being used for onboarding
         # In a real scenario, these would be called during the actual onboarding process
-        await ai_service_mock.generate_welcome_message()
+        await ai_service_mock.generate_response()
         await ai_service_mock.suggest_initial_topics()
 
         # 6. Verify AI service was used for onboarding
@@ -182,7 +182,7 @@ class TestCompleteLearningWorkflow:
 
         # 1. Save a checkpoint
         checkpoint_name = 'Recursion Basics'
-        checkpoint_id = await checkpoint_manager.save_checkpoint(session, checkpoint_name, db_manager_mock)
+        checkpoint_id = await checkpoint_manager.create_checkpoint(session, checkpoint_name, db_manager_mock)
 
         # 2. Verify checkpoint was saved
         assert checkpoint_id is not None

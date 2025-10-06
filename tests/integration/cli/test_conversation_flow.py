@@ -154,7 +154,7 @@ class TestCLIConversationFlow:
 
         # 1. Test /checkpoint save command
         checkpoint_name = 'Recursion Basics'
-        checkpoint_id = await checkpoint_manager.save_checkpoint(session, checkpoint_name, db_manager_mock)
+        checkpoint_id = await checkpoint_manager.create_checkpoint(session, checkpoint_name, db_manager_mock)
 
         # 2. Verify checkpoint was saved
         assert checkpoint_id is not None

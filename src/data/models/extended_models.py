@@ -92,13 +92,18 @@ class Credentials:
 class EmbeddingResponse:
     embeddings: List[List[float]]
     model: str
+    provider: str
     usage: Dict[str, int]  # tokens used
+    error: Optional[str] = None
 
 
 @dataclass
 class RerankResponse:
     results: List[Dict[str, Any]]  # with document and relevance score
     model: str
+    provider: str
+    usage: Dict[str, int]  # tokens used
+    error: Optional[str] = None
 
 
 @dataclass

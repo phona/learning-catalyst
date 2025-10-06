@@ -67,7 +67,7 @@ class TestSessionResumption:
         catalyst_agent = CatalystAgentImpl(model_service)
 
         # Test welcome back message generation
-        welcome_message = await catalyst_agent.generate_welcome_message(is_first_time_user=False)
+        welcome_message = await catalyst_agent.generate_response(is_first_time_user=False)
 
         # Verify the response contains the welcome back message
         assert "Welcome back" in welcome_message
@@ -144,7 +144,7 @@ class TestSessionResumption:
         catalyst_agent = CatalystAgentImpl(model_service_mock)
 
         # Test context-aware suggestion
-        suggestion = await catalyst_agent.provide_resumption_suggestion("JavaScript closures", "We were discussing closures and I provided an example")
+        suggestion = await catalyst_agent.generate_response("JavaScript closures", "We were discussing closures and I provided an example")
 
         # Verify the response contains context-aware suggestions
         assert "JavaScript closures" in suggestion
@@ -166,7 +166,7 @@ class TestSessionResumption:
 
         # If no checkpoints, generate first-time user message
         if len(checkpoints) == 0:
-            message = await catalyst_agent_mock.generate_welcome_message(is_first_time_user=True)
+            message = await catalyst_agent_mock.generate_response(is_first_time_user=True)
 
         # Verify correct message was generated
         assert "Welcome to Learning Catalyst" in message
