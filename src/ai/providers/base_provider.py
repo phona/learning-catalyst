@@ -2,12 +2,14 @@
 Base provider implementation to reduce code duplication
 """
 
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import httpx
 
+from src.ai.abstraction import ChatModel, EmbeddingModel, Model, ModelProvider, RerankModel
 from src.data.models.extended_models import AIResponse, Credentials, EmbeddingResponse, Message, RerankResponse
-from src.ai.abstraction import ModelProvider, ChatModel, EmbeddingModel, RerankModel, Model
+
 from .utils import make_http_request
 
 
@@ -18,10 +20,9 @@ class BaseProvider(ModelProvider):
         self.api_key = api_key
         self.base_url = base_url
 
-    @property
-    def name(self) -> str:
-        """Get the name of the provider - to be implemented by subclasses"""
-        raise NotImplementedError("Subclasses must implement the name property")
+    # Class attributes to be overridden by subclasses
+    name: str = ""
+    description: str = ""
 
     async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
         """Validate API credentials"""
@@ -31,31 +32,56 @@ class BaseProvider(ModelProvider):
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{credentials.base_url or self.base_url}/models", headers=headers)
                 return response.status_code == 200
-        except Exception:
+        except (httpx.RequestError, httpx.TimeoutException):
             return False
 
-    async def list_available_models(self) -> List[Model]:
-        """Get list of available models"""
-        headers = self._get_headers()
+    async def list_available_models(self) -> Dict[str, List[Model]]:
+        """
+        Get dynamic list of available model instances for this provider, grouped by model type.
+        This makes an API call to get the actual available models from the provider.
+        Returns Model instances grouped by type (chat, embedding, rerank).
+        Returns empty dict if provider doesn't have a models API or if the call fails.
+        """
+        # Initialize model groups with proper type annotations
+        models_by_type: Dict[str, List[Model]] = {"chat": [], "embedding": [], "rerank": []}
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{self.base_url}/models", headers=headers)
-            response.raise_for_status()
-            data = response.json()
+        # If no base_url, return empty dict (provider doesn't have models API)
+        if not self.base_url:
+            return models_by_type
 
-            models = []
-            for model_data in data["data"]:
-                model_id = model_data["id"]
-                model = self._create_model_instance(model_id)
-                if model:
-                    models.append(model)
+        try:
+            headers = self._get_headers()
 
-            return models
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.base_url}/models", headers=headers)
+                response.raise_for_status()
+                data = response.json()
+
+                for model_data in data["data"]:
+                    model_id = model_data["id"]
+                    model = self.create_model_instance(model_id)
+                    if model:
+                        # Group models by type
+                        if isinstance(model, ChatModel):
+                            models_by_type["chat"].append(model)
+                        elif isinstance(model, EmbeddingModel):
+                            models_by_type["embedding"].append(model)
+                        elif isinstance(model, RerankModel):
+                            models_by_type["rerank"].append(model)
+
+                return models_by_type
+        except (httpx.RequestError, httpx.TimeoutException, KeyError, ValueError):
+            # Return empty dict if API call fails or data is malformed
+            return models_by_type
 
     async def _make_request(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Helper method to make HTTP requests to API"""
         headers = self._get_headers()
         return await make_http_request(self.base_url, endpoint, headers, payload)
+
+    async def make_request(self, endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Public method to make HTTP requests to API"""
+        return await self._make_request(endpoint, payload)
 
     def _get_headers(self, credentials: Optional[Credentials] = None) -> Dict[str, str]:
         """Get headers for API requests - to be implemented by subclasses"""
@@ -67,9 +93,9 @@ class BaseProvider(ModelProvider):
 
         return headers
 
-    def _create_model_instance(self, model_id: str) -> Optional[Model]:
+    def create_model_instance(self, model_id: str) -> Optional[Model]:
         """Create appropriate model instance based on model type - to be implemented by subclasses"""
-        raise NotImplementedError("Subclasses must implement _create_model_instance")
+        raise NotImplementedError("Subclasses must implement create_model_instance")
 
 
 class BaseChatModel(ChatModel):
@@ -92,7 +118,7 @@ class BaseChatModel(ChatModel):
 
         payload = {"model": self._model_id, "messages": message_dicts, "temperature": temperature}
 
-        result = await self._provider._make_request("chat/completions", payload)
+        result = await self._provider.make_request("chat/completions", payload)  # type: ignore
 
         return AIResponse(
             content=result["choices"][0]["message"]["content"],
@@ -129,9 +155,9 @@ class BaseEmbeddingModel(EmbeddingModel):
         payload = {"model": self._model_id, "input": texts}
 
         if dimensions:
-            payload["dimensions"] = dimensions
+            payload["dimensions"] = str(dimensions)
 
-        result = await self._provider._make_request("embeddings", payload)
+        result = await self._provider.make_request("embeddings", payload)  # type: ignore
 
         return EmbeddingResponse(
             embeddings=[item["embedding"] for item in result["data"]],
@@ -165,12 +191,10 @@ class BaseRerankModel(RerankModel):
     async def rerank(self, query: str, documents: List[str], top_k: int = 10) -> RerankResponse:
         """Rerank documents using chat completions"""
         # For now, return a simple ranking based on document order
-        results = []
+        results: List[Dict[str, Any]] = []
         for i, doc in enumerate(documents[:top_k]):
             # Simple relevance scoring based on position (placeholder)
             relevance_score = 1.0 - (i * 0.1)
             results.append({"document": doc, "relevance_score": max(0.0, relevance_score), "index": i})
 
-        return RerankResponse(
-            results=results, model=self._model_id, provider=self._provider.name, usage={"total_tokens": 0}
-        )
+        return RerankResponse(results=results, model=self._model_id, provider=self._provider.name, usage={"total_tokens": 0})

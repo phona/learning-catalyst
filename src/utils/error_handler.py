@@ -2,11 +2,12 @@
 Centralized error handling utilities for Learning Catalyst
 """
 
+import asyncio
 import logging
 import traceback
-from typing import Any, Dict, Optional, Callable
 from functools import wraps
 from pathlib import Path
+from typing import Any, Callable, Dict, Optional
 
 # Configure logging
 logging.basicConfig(
@@ -31,31 +32,21 @@ class LearningCatalystError(Exception):
 class ConfigurationError(LearningCatalystError):
     """Raised when there are configuration issues"""
 
-    pass
-
 
 class APIError(LearningCatalystError):
     """Raised when API calls fail"""
-
-    pass
 
 
 class DatabaseError(LearningCatalystError):
     """Raised when database operations fail"""
 
-    pass
-
 
 class ValidationError(LearningCatalystError):
     """Raised when input validation fails"""
 
-    pass
-
 
 class FileOperationError(LearningCatalystError):
     """Raised when file operations fail"""
-
-    pass
 
 
 def handle_errors(
@@ -89,16 +80,14 @@ def handle_errors(
                     "traceback": traceback.format_exc(),
                 }
 
-                logger.log(log_level, f"Error in {func.__name__}: {str(e)}", extra={"context": error_context})
+                logger.log(log_level, "Error in %s: %s", func.__name__, str(e), extra={"context": error_context})
 
                 if reraise:
                     raise
 
                 # Convert to appropriate LearningCatalystError if needed
                 if not isinstance(e, LearningCatalystError):
-                    _catalyst_error = LearningCatalystError(
-                        message=str(e), error_code=type(e).__name__, context=error_context
-                    )
+                    LearningCatalystError(message=str(e), error_code=type(e).__name__, context=error_context)
                     return default_return
 
                 return default_return
@@ -117,27 +106,22 @@ def handle_errors(
                     "traceback": traceback.format_exc(),
                 }
 
-                logger.log(log_level, f"Error in async {func.__name__}: {str(e)}", extra={"context": error_context})
+                logger.log(log_level, "Error in async %s: %s", func.__name__, str(e), extra={"context": error_context})
 
                 if reraise:
                     raise
 
                 # Convert to appropriate LearningCatalystError if needed
                 if not isinstance(e, LearningCatalystError):
-                    _catalyst_error = LearningCatalystError(
-                        message=str(e), error_code=type(e).__name__, context=error_context
-                    )
+                    LearningCatalystError(message=str(e), error_code=type(e).__name__, context=error_context)
                     return default_return
 
                 return default_return
 
         # Return appropriate wrapper based on whether function is async
-        import asyncio
-
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
-        else:
-            return wrapper
+        return wrapper
 
     return decorator
 

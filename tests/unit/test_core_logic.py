@@ -6,11 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.challenge_engine import ChallengeEngineImpl
-from src.core.checkpoint_manager import CheckpointManagerImpl
 from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
-from src.core.system_commands_handler import SystemCommandsHandlerImpl
 from src.data.models.concept import Concept
 from src.data.models.extended_models import UserProgress
 
@@ -188,6 +185,7 @@ class TestChallengeEngine:
     def temp_workspace_path(self):
         """Create a temporary workspace path"""
         import tempfile
+
         return tempfile.mkdtemp()
 
     @pytest.fixture

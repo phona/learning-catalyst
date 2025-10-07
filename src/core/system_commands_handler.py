@@ -2,16 +2,22 @@
 System Commands Handler implementation
 """
 
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
+from src.core.interfaces.system import SystemCommandsHandler
 from src.data.database_manager import DatabaseManager
 from src.data.models.extended_models import KnowledgeMap
 from src.utils.preferences_manager import PreferencesManager
 
-from . import SystemCommandsHandler
-
 
 class SystemCommandsHandlerImpl(SystemCommandsHandler):
+    """Implementation of the SystemCommandsHandler interface.
+
+    Provides concrete implementations for system commands like listing models,
+    getting token usage, and managing preferences.
+    """
+
     def __init__(self, preferences_manager: PreferencesManager, db_manager: DatabaseManager, model_service):
         self.preferences_manager = preferences_manager
         self.db_manager = db_manager
@@ -24,7 +30,7 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
 
         # Example implementation - in reality, you'd check which providers are configured
         # and call their respective list_available_models methods
-        providers_to_check = ["openai", "anthropic", "chatglm", "siliconflow", "deepseek"]
+        providers_to_check = ["chatglm", "siliconflow", "deepseek", "openai-compatible"]
 
         for provider in providers_to_check:
             try:
@@ -40,8 +46,6 @@ class SystemCommandsHandlerImpl(SystemCommandsHandler):
     async def get_token_usage(self, period_days: int = 30) -> Dict[str, Any]:
         """Get token usage summary for specified period"""
         # Calculate date range
-        from datetime import datetime, timedelta
-
         end_date = datetime.now().date().isoformat()
         start_date = (datetime.now() - timedelta(days=period_days)).date().isoformat()
 

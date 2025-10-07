@@ -2,7 +2,6 @@
 Integration tests for the CommandPalette with the main application
 """
 
-import os
 import tempfile
 import unittest
 
@@ -12,7 +11,6 @@ from src.data.models.extended_models import Message
 
 
 class TestCommandPaletteIntegration(unittest.TestCase):
-
     def setUp(self):
         """Set up test fixtures"""
         self.cli_interface = CLIInterfaceImpl()

@@ -1,24 +1,20 @@
-import asyncio
 import os
 import sys
-import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
-
-# Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 from src.ai.service import ModelAbstractionService as AIService
 from src.cli.command_palette import CommandPalette
 from src.cli.interface import CLIInterfaceImpl
-from src.cli.main import app
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.checkpoint_manager import CheckpointManagerImpl
 from src.data.models.concept import Concept
 from src.utils.preferences_manager import PreferencesManager
 from src.utils.workspace_manager import WorkspaceManager
+
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 
 # Mock the Session class since it doesn't exist yet
@@ -59,13 +55,11 @@ class TestCLIConversationFlow:
 
         # Create mock objects
         db_manager_mock = AsyncMock()
-        vector_storage_mock = AsyncMock()
+        AsyncMock()
 
         # Mock AI service to provide responses
         ai_service_mock = AsyncMock(spec=AIService)
-        ai_service_mock.generate_response = AsyncMock(
-            return_value="Python variables are containers for storing data values."
-        )
+        ai_service_mock.generate_response = AsyncMock(return_value="Python variables are containers for storing data values.")
         ai_service_mock.extract_concepts = AsyncMock(
             return_value=[{"id": "python-variables", "name": "Python Variables", "relevance": 0.9}]
         )
@@ -180,7 +174,7 @@ class TestCLIConversationFlow:
         """Test the complete flow of CLI command execution"""
         # Initialize managers
         workspace_manager = WorkspaceManager(str(temp_workspace))
-        prefs_manager = PreferencesManager(str(temp_workspace))
+        PreferencesManager(str(temp_workspace))
         await workspace_manager.initialize_workspace()
 
         # Mock the session-related methods on workspace_manager
@@ -200,12 +194,10 @@ class TestCLIConversationFlow:
 
         # Mock AI service to provide responses
         ai_service_mock = AsyncMock(spec=AIService)
-        ai_service_mock.generate_response = AsyncMock(
-            return_value="Python lists are ordered, mutable collections of items."
-        )
+        ai_service_mock.generate_response = AsyncMock(return_value="Python lists are ordered, mutable collections of items.")
 
         # Initialize Catalyst Agent
-        catalyst_agent = CatalystAgentImpl(ai_service_mock)
+        CatalystAgentImpl(ai_service_mock)
 
         # 1. Test command execution for non-slash input
         user_input = "Explain Python lists"
@@ -281,7 +273,7 @@ class TestCLIConversationFlow:
         workspace_manager.create_new_session = AsyncMock(return_value=mock_session)
 
         # Create mock objects
-        db_manager_mock = AsyncMock()
+        AsyncMock()
 
         # Mock AI service to sometimes fail
         ai_service_mock = AsyncMock(spec=AIService)

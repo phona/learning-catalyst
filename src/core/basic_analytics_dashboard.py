@@ -5,13 +5,19 @@ Basic implementation of AnalyticsDashboard
 from datetime import datetime, timedelta
 from typing import Dict, List
 
+from src.core.interfaces.analytics import AnalyticsDashboard
 from src.data.database_manager import DatabaseManager
 from src.data.models.extended_models import AnalyticsExport, ProgressReport, TimePeriod, TrendData
 
-from .analytics_dashboard import AnalyticsDashboard
-
 
 class BasicAnalyticsDashboard(AnalyticsDashboard):
+    """Basic implementation of the AnalyticsDashboard interface.
+
+    Provides fundamental analytics functionality including progress reports,
+    weak area identification, trend data generation, and analytics export.
+    Uses the database manager to store and retrieve analytics data.
+    """
+
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
 

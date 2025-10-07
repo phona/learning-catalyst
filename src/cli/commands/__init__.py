@@ -1,7 +1,13 @@
 """
-Commands package for Learning Catalyst CLI
+Unified command system for Learning Catalyst CLI
 """
 
-from . import knowledge_map, models, preference, tokens
+from .base import BaseCommand, CommandInfo, CommandResult
+from .registry import CommandRegistry
 
-__all__ = ["models", "tokens", "knowledge_map", "preference"]
+__all__ = [
+    "BaseCommand",
+    "CommandInfo",
+    "CommandResult",
+    "CommandRegistry",
+]

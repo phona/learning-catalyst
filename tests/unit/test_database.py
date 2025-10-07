@@ -3,13 +3,11 @@ Unit tests for database layer
 """
 
 import sqlite3
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
-from src.data.models.user_profile import UserProfile
 from src.data.vector_storage import VectorStorage
 
 
@@ -131,10 +129,10 @@ class TestVectorStorage:
         db_path = temp_workspace / ".learningspace" / "data.db"
 
         # Create database manager first to ensure tables exist
-        db_manager = DatabaseManager(str(db_path))
+        DatabaseManager(str(db_path))
 
         # Initialize vector storage
-        vector_storage = VectorStorage(str(db_path))
+        VectorStorage(str(db_path))
 
         # Check that vector-related tables exist
         conn = sqlite3.connect(str(db_path))

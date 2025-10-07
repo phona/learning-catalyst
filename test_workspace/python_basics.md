@@ -2,66 +2,70 @@
 
 ## Variables and Data Types
 
-In Python, variables are created when you assign a value to them.
+In Python, variables are containers for storing data values. Unlike other programming languages, Python has no command for declaring a variable. A variable is created the moment you first assign a value to it.
 
+### Example:
 ```python
 x = 5
-y = "Hello"
+y = "Hello, World!"
 ```
 
-Python has several built-in data types:
-- Integer: `int`
-- Floating point: `float`
-- String: `str`
-- Boolean: `bool`
+### Data Types:
+- **Text Type**: str
+- **Numeric Types**: int, float, complex
+- **Sequence Types**: list, tuple, range
+- **Mapping Type**: dict
+- **Set Types**: set, frozenset
+- **Boolean Type**: bool
+- **Binary Types**: bytes, bytearray, memoryview
 
-## Functions
+## Control Flow
 
-Functions in Python are defined using the `def` keyword:
-
+### If Statements
 ```python
-def greet(name):
-    return f"Hello, {name}!"
+if x > 0:
+    print("Positive")
+elif x < 0:
+    print("Negative")
+else:
+    print("Zero")
 ```
 
-## Classes
-
-Python supports object-oriented programming with classes:
-
+### Loops
 ```python
-class Person:
-    def __init__(self, name, age):
-        self.name = name
-        self.age = age
-
-    def introduce(self):
-        return f"My name is {self.name} and I am {self.age} years old."
-```
-
-## Loops
-
-Python supports both `for` and `while` loops:
-
-```python
-# For loop
 for i in range(5):
     print(i)
 
-# While loop
-count = 0
-while count < 5:
-    print(count)
-    count += 1
+while x > 0:
+    print(x)
+    x -= 1
 ```
 
-## Conditionals
+## Functions
 
-Conditional statements are used to perform different computations based on whether a condition is true or false:
+Functions are defined using the `def` keyword:
 
 ```python
-age = 18
-if age >= 18:
-    print("You are an adult.")
-else:
-    print("You are a minor.")
+def my_function():
+    print("Hello from a function")
+
+def my_function_with_args(name):
+    print(f"Hello, {name}!")
+
+return_value = my_function_with_args("Alice")
+```
+
+## Lists and Dictionaries
+
+### Lists
+```python
+my_list = [1, 2, 3, 4, 5]
+my_list.append(6)
+my_list[0] = 0
+```
+
+### Dictionaries
+```python
+my_dict = {"name": "Alice", "age": 25}
+my_dict["city"] = "New York"
 ```

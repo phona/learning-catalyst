@@ -10,7 +10,6 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -37,7 +36,7 @@ class AICommunicationTester:
                 line = self.process.stdout.readline()
                 if line:
                     self.output_queue.put(line.strip())
-            except:
+            except Exception:
                 break
 
     def start_application(self):
@@ -155,12 +154,12 @@ class TestAICommunication:
         assert ai_response, "AI response not found"
 
         # Verify the response contains relevant content about decorators
-        has_content = any(
+        # Note: This might fail if AI is not properly configured, which is expected
+        any(
             "decorator" in line.lower() or "function" in line.lower() or "wrapper" in line.lower()
             for line in explanation_output
             if "AI Tutor:" in line
         )
-        # Note: This might fail if AI is not properly configured, which is expected
 
     def test_ai_challenge_generation(self, ai_tester):
         """Test AI challenge generation"""
@@ -175,12 +174,12 @@ class TestAICommunication:
         assert ai_response, "AI response not found"
 
         # Verify the response contains challenge-related content
-        has_challenge = any(
+        # Note: This might fail if AI is not properly configured, which is expected
+        any(
             "challenge" in line.lower() or "question" in line.lower() or "?" in line
             for line in challenge_output
             if "AI Tutor:" in line
         )
-        # Note: This might fail if AI is not properly configured, which is expected
 
     def test_ai_followup_conversation(self, ai_tester):
         """Test AI follow-up conversation"""
@@ -199,12 +198,12 @@ class TestAICommunication:
         assert ai_response, "AI response not found"
 
         # Verify the response maintains context and provides an example
-        has_context = any(
+        # Note: This might fail if AI is not properly configured, which is expected
+        any(
             "class" in line.lower() and ("example" in line.lower() or "__init__" in line or "def " in line)
             for line in followup_output
             if "AI Tutor:" in line
         )
-        # Note: This might fail if AI is not properly configured, which is expected
 
     def test_concept_based_learning(self, ai_tester):
         """Test concept-based learning with local markdown files"""
@@ -234,7 +233,7 @@ class TestAICommunication:
         assert knowledge_map_output, "No knowledge map output received"
 
         # Check if knowledge map is displayed
-        map_found = any("Knowledge Map" in line or "Relationships" in line for line in knowledge_map_output)
+        any("Knowledge Map" in line or "Relationships" in line for line in knowledge_map_output)
         # This is a soft check as the knowledge map might not always be available
 
     def test_session_persistence(self, ai_tester):

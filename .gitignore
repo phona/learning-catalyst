@@ -29,6 +29,10 @@ venv/
 env/
 ENV/
 
+# Poetry
+poetry.lock
+.venv/
+
 # IDEs
 .vscode/
 .idea/
@@ -49,3 +53,5 @@ config/
 **/.learningspace/
 .testenv
 **/.catalyst/
+.mypy_cache
+.pytest_cache

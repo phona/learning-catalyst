@@ -2,23 +2,20 @@
 Integration tests for Knowledge Graph Implementation (KNOW-R3) - Mocked version since the actual implementation isn't found
 """
 
-import asyncio
 import os
 import sys
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-# Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-
 from src.ai.service import ModelAbstractionService as AIService
-from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
-from src.data.vector_storage import VectorStorage
+
 # Relationship model and KnowledgeGraph don't exist - we'll mock them
 from src.utils.workspace_manager import WorkspaceManager
+
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 
 # Mock the KnowledgeGraph class since it doesn't exist yet
@@ -178,9 +175,7 @@ class TestKnowledgeGraphIntegration:
         assert db_manager_mock.save_relationship.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_knowledge_graph_with_conversation_context(
-        self, temp_workspace, db_manager_mock, vector_storage_mock
-    ):
+    async def test_knowledge_graph_with_conversation_context(self, temp_workspace, db_manager_mock, vector_storage_mock):
         """Test knowledge graph integration with conversation context"""
         # Initialize components
         workspace_manager = WorkspaceManager(str(temp_workspace))
@@ -205,7 +200,9 @@ class TestKnowledgeGraphIntegration:
             {"speaker": "user", "message": "Can you explain object-oriented programming in Python?"},
             {
                 "speaker": "ai",
-                "message": "Object-oriented programming (OOP) in Python uses classes and objects. A class is a blueprint for creating objects, and an object is an instance of a class. Python supports inheritance, polymorphism, and encapsulation.",
+                "message": "Object-oriented programming (OOP) in Python uses classes and objects. "
+                "A class is a blueprint for creating objects, and an object is an instance of a class. "
+                "Python supports inheritance, polymorphism, and encapsulation.",
             },
         ]
 
@@ -314,17 +311,13 @@ class TestKnowledgeGraphIntegration:
         )
 
         # Find similar concepts to provide context for the AI response
-        similar_concepts = await knowledge_graph.find_similar_concepts(
-            followup_question, vector_storage_mock, db_manager_mock
-        )
+        await knowledge_graph.find_similar_concepts(followup_question, vector_storage_mock, db_manager_mock)
 
         # Verify vector search was used
         vector_storage_mock.search_similar_concepts.assert_called_once_with(followup_question, top_k=5)
 
     @pytest.mark.asyncio
-    async def test_knowledge_graph_persistence_and_session_resumption(
-        self, temp_workspace, db_manager_mock, vector_storage_mock
-    ):
+    async def test_knowledge_graph_persistence_and_session_resumption(self, temp_workspace, db_manager_mock, vector_storage_mock):
         """Test knowledge graph persistence across sessions"""
         # Initialize components
         workspace_manager = WorkspaceManager(str(temp_workspace))

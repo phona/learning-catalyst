@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from src.cli.formatting import CLIFormatter
+from src.utils.formatting import CLIFormatter
 
 
 @dataclass
@@ -227,7 +227,7 @@ class StateManager:
 
     async def list_checkpoints(self) -> List[Checkpoint]:
         """List available checkpoints for user"""
-        checkpoints = []
+        checkpoints: List[Checkpoint] = []
 
         for checkpoint_file in self.checkpoints_dir.glob("*.json"):
             try:
@@ -280,7 +280,7 @@ class StateManager:
 
     async def get_state_info(self) -> Dict[str, Any]:
         """Get information about the current state and checkpoints"""
-        info = {
+        info: Dict[str, Any] = {
             "state_file_exists": self.state_file.exists(),
             "state_file_size": 0,
             "state_file_modified": None,

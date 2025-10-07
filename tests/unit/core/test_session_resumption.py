@@ -4,16 +4,13 @@ Unit tests for Seamless Session Resumption (Story 2)
 
 import os
 import sys
-import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.core.catalyst_agent import CatalystAgentImpl
+
 # Add project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
-from src.core.catalyst_agent import CatalystAgentImpl
-from src.core.checkpoint_manager import CheckpointManagerImpl
 
 
 # Mock the Session class since it doesn't exist yet

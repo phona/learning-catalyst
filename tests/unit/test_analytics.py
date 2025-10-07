@@ -3,12 +3,10 @@ Unit tests for analytics components
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
-from src.core.basic_assessment_engine import BasicAssessmentEngine
 from src.core.export_service import ExportService
 from src.core.token_usage_analytics import TokenUsageAnalytics
 from src.core.trend_analyzer import TrendAnalyzer

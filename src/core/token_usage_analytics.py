@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 from src.data.database_manager import DatabaseManager
+from src.utils.db_utils import execute_query
 
 
 class TokenUsageAnalytics:
@@ -32,40 +33,16 @@ class TokenUsageAnalytics:
         """Retrieve detailed token usage records from the database"""
         # This would be implemented with actual database queries
         # For now, we'll simulate the data
-        conn = self.db_manager.db_path
-        import sqlite3
-
-        conn = sqlite3.connect(conn)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
+        query = """
             SELECT model_name, provider, input_tokens, output_tokens, total_tokens, timestamp, context
             FROM token_usage
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             ORDER BY timestamp DESC
-        """,
-            (user_id, start_date, end_date),
-        )
+        """
 
-        rows = cursor.fetchall()
-        conn.close()
+        results = execute_query(self.db_manager.db_path, query, (user_id, start_date, end_date), fetch_all=True)
 
-        usage_records = []
-        for row in rows:
-            usage_records.append(
-                {
-                    "model_name": row[0],
-                    "provider": row[1],
-                    "input_tokens": row[2],
-                    "output_tokens": row[3],
-                    "total_tokens": row[4],
-                    "timestamp": row[5],
-                    "context": row[6],
-                }
-            )
-
-        return usage_records
+        return results or []
 
     def _calculate_summary_statistics(self, usage_records: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Calculate summary statistics from usage records"""
@@ -108,8 +85,10 @@ class TokenUsageAnalytics:
         """Calculate cost estimate based on token usage and provider rates"""
         # Example rates (these would come from provider APIs in a real implementation)
         provider_rates = {
-            "openai": {"input": 0.01, "output": 0.03},  # per 1K tokens
-            "anthropic": {"input": 0.008, "output": 0.024},  # per 1K tokens
+            "deepseek": {"input": 0.001, "output": 0.002},  # per 1K tokens
+            "siliconflow": {"input": 0.005, "output": 0.015},  # per 1K tokens
+            "chatglm": {"input": 0.008, "output": 0.024},  # per 1K tokens
+            "openai-compatible": {"input": 0.0, "output": 0.0},  # free for openai-compatible models
         }
 
         total_cost = 0.0
@@ -131,14 +110,7 @@ class TokenUsageAnalytics:
         start_str = start_date.isoformat()
         end_str = end_date.isoformat()
 
-        conn = self.db_manager.db_path
-        import sqlite3
-
-        conn = sqlite3.connect(conn)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
+        query = """
             SELECT provider,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -147,20 +119,17 @@ class TokenUsageAnalytics:
             FROM token_usage
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             GROUP BY provider
-        """,
-            (user_id, start_str, end_str),
-        )
+        """
 
-        rows = cursor.fetchall()
-        conn.close()
+        results = execute_query(self.db_manager.db_path, query, (user_id, start_str, end_str), fetch_all=True)
 
         provider_comparison = {}
-        for row in rows:
-            provider_comparison[row[0]] = {
-                "input_tokens": row[1],
-                "output_tokens": row[2],
-                "total_tokens": row[3],
-                "request_count": row[4],
+        for row in results or []:
+            provider_comparison[row["provider"]] = {
+                "input_tokens": row["total_input"],
+                "output_tokens": row["total_output"],
+                "total_tokens": row["total"],
+                "request_count": row["request_count"],
             }
 
         return provider_comparison
@@ -173,14 +142,7 @@ class TokenUsageAnalytics:
         start_str = start_date.isoformat()
         end_str = end_date.isoformat()
 
-        conn = self.db_manager.db_path
-        import sqlite3
-
-        conn = sqlite3.connect(conn)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
+        query = """
             SELECT model_name,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -190,20 +152,17 @@ class TokenUsageAnalytics:
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             GROUP BY model_name
             ORDER BY total DESC
-        """,
-            (user_id, start_str, end_str),
-        )
+        """
 
-        rows = cursor.fetchall()
-        conn.close()
+        results = execute_query(self.db_manager.db_path, query, (user_id, start_str, end_str), fetch_all=True)
 
         model_comparison = {}
-        for row in rows:
-            model_comparison[row[0]] = {
-                "input_tokens": row[1],
-                "output_tokens": row[2],
-                "total_tokens": row[3],
-                "request_count": row[4],
+        for row in results or []:
+            model_comparison[row["model_name"]] = {
+                "input_tokens": row["total_input"],
+                "output_tokens": row["total_output"],
+                "total_tokens": row["total"],
+                "request_count": row["request_count"],
             }
 
         return model_comparison
@@ -216,14 +175,7 @@ class TokenUsageAnalytics:
         start_str = start_date.isoformat()
         end_str = end_date.isoformat()
 
-        conn = self.db_manager.db_path
-        import sqlite3
-
-        conn = sqlite3.connect(conn)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
+        query = """
             SELECT context,
                    SUM(input_tokens) as total_input,
                    SUM(output_tokens) as total_output,
@@ -232,20 +184,17 @@ class TokenUsageAnalytics:
             FROM token_usage
             WHERE user_id = ? AND timestamp BETWEEN ? AND ?
             GROUP BY context
-        """,
-            (user_id, start_str, end_str),
-        )
+        """
 
-        rows = cursor.fetchall()
-        conn.close()
+        results = execute_query(self.db_manager.db_path, query, (user_id, start_str, end_str), fetch_all=True)
 
         context_analysis = {}
-        for row in rows:
-            context_analysis[row[0]] = {
-                "input_tokens": row[1],
-                "output_tokens": row[2],
-                "total_tokens": row[3],
-                "usage_count": row[4],
+        for row in results or []:
+            context_analysis[row["context"]] = {
+                "input_tokens": row["total_input"],
+                "output_tokens": row["total_output"],
+                "total_tokens": row["total"],
+                "usage_count": row["usage_count"],
             }
 
         return context_analysis

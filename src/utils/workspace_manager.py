@@ -3,10 +3,13 @@ Workspace manager implementation
 """
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 
 class WorkspaceManager:
+    """Manages workspace directories and initialization for Learning Catalyst."""
+
     def __init__(self, workspace_path: str):
         self.workspace_path = Path(workspace_path)
         self.catalyst_path = self.workspace_path / ".catalyst"
@@ -38,8 +41,10 @@ class WorkspaceManager:
                     "version": "1.0.0",
                     "created_at": self._get_current_timestamp(),
                     "ai_providers": {
-                        "openai": {"enabled": False, "api_key": "", "default_model": "gpt-4"},
-                        "anthropic": {"enabled": False, "api_key": "", "default_model": "claude-3-5-sonnet-20240620"},
+                        "deepseek": {"enabled": False, "api_key": "", "default_model": "deepseek-chat"},
+                        "siliconflow": {"enabled": False, "api_key": "", "default_model": "deepseek-ai/DeepSeek-V3"},
+                        "chatglm": {"enabled": False, "api_key": "", "default_model": "glm-4"},
+                        "openai-compatible": {"enabled": False, "base_url": "", "default_model": "llama3"},
                     },
                 }
                 with open(config_path, "w", encoding="utf-8") as f:
@@ -62,8 +67,6 @@ class WorkspaceManager:
 
     def _get_current_timestamp(self) -> str:
         """Get current timestamp in ISO format"""
-        from datetime import datetime
-
         return datetime.now().isoformat()
 
     def get_database_path(self) -> Path:

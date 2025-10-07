@@ -30,7 +30,7 @@ class Phase1Tester:
                 line = self.process.stdout.readline()
                 if line:
                     self.output_queue.put(line.strip())
-            except:
+            except Exception:
                 break
 
     def start_application(self):
@@ -160,7 +160,7 @@ class TestPhase1Stories:
         resumption_output = phase1_tester.send_command("", 3)
         assert resumption_output, "No resumption output received"
 
-        welcome_back = any("Welcome back" in line for line in resumption_output)
+        any("Welcome back" in line for line in resumption_output)
         # This might not always be present, so we don't assert it
 
     def test_story3_explanation_request(self, phase1_tester):
@@ -270,8 +270,8 @@ class TestPhase1Stories:
         assert startup_output, "No startup output received"
 
         # Check for suggestions
-        suggestions_found = any("Suggestions for you" in line or "Tip:" in line for line in startup_output)
         # This might not always be present, so we don't assert it
+        any("Suggestions for you" in line or "Tip:" in line for line in startup_output)
 
     def test_command_palette(self, phase1_tester):
         """Test Command Palette Input"""
@@ -292,5 +292,5 @@ class TestPhase1Stories:
         assert partial_output, "No partial command output received"
 
         # Check for suggestions
-        suggestions_found = any("concepts" in line.lower() or "config" in line.lower() for line in partial_output)
+        any("concepts" in line.lower() or "config" in line.lower() for line in partial_output)
         # This might not always be present, so we don't assert it

@@ -3,12 +3,16 @@ Catalyst Agent implementation
 Implements the conversational interface and intent interpretation as per the architecture document
 """
 
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from src.data.models.concept import Concept
 from src.data.models.extended_models import Message, UserProgress
 
-from . import CatalystAgent
+if TYPE_CHECKING:
+    from src.ai.service import ModelAbstractionService
+    from .knowledge_navigator import SQLiteKnowledgeNavigator
+
+from src.core.interfaces.base import CatalystAgent
 
 
 class IntentClassification:
@@ -37,7 +41,16 @@ class ConversationContext:
 
 
 class CatalystAgentImpl(CatalystAgent):
-    def __init__(self, model_service, knowledge_navigator=None):
+    """Implementation of the CatalystAgent interface.
+
+    Provides AI-powered conversational interface for the Learning Catalyst application.
+    Handles intent interpretation, response generation, and learning guidance
+    using the configured AI model service and knowledge navigator.
+    """
+
+    def __init__(
+        self, model_service: "ModelAbstractionService", knowledge_navigator: Optional["SQLiteKnowledgeNavigator"] = None
+    ):
         self.model_service = model_service
         self.knowledge_navigator = knowledge_navigator
 
@@ -85,10 +98,7 @@ class CatalystAgentImpl(CatalystAgent):
 
         # Check for concept query
         # Look for keywords that suggest the user is asking about a specific topic
-        if any(
-            keyword in user_input_lower
-            for keyword in ["explain", "what is", "what's", "how does", "describe", "define"]
-        ):
+        if any(keyword in user_input_lower for keyword in ["explain", "what is", "what's", "how does", "describe", "define"]):
             # Try to extract concept from user input
             # This is a simplified implementation - in a real system, you'd have more sophisticated NLP
             return IntentClassification(
@@ -98,9 +108,7 @@ class CatalystAgentImpl(CatalystAgent):
         # Default to general conversation
         return IntentClassification(intent_type="general_conversation")
 
-    async def generate_response(
-        self, user_input: str, intent: IntentClassification, context: ConversationContext
-    ) -> str:
+    async def generate_response(self, user_input: str, intent: IntentClassification, context: ConversationContext) -> str:
         """Generate appropriate response based on user input and intent"""
         if intent.intent_type == "query":
             # If we have a specific concept in mind
@@ -115,7 +123,8 @@ class CatalystAgentImpl(CatalystAgent):
             messages = [
                 Message(
                     role="system",
-                    content="You are an AI tutor helping the student learn. Respond to their query using your knowledge and any available context.",
+                    content="You are an AI tutor helping the student learn. Respond to their query "
+                    "using your knowledge and any available context.",
                 ),
                 Message(role="user", content=f"Student query: {user_input}"),
             ]
@@ -141,7 +150,8 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are a helpful AI tutor guiding the student through their learning journey. Maintain a supportive, educational tone.",
+                content="You are a helpful AI tutor guiding the student through their learning journey. "
+                "Maintain a supportive, educational tone.",
             ),
             Message(role="user", content=f"Student message: {user_input}"),
         ]
@@ -157,11 +167,14 @@ class CatalystAgentImpl(CatalystAgent):
             messages = [
                 Message(
                     role="system",
-                    content="You are a helpful AI tutor welcoming back a returning student. Provide a warm welcome and suggest what they might want to do next in their learning journey.",
+                    content="You are a helpful AI tutor welcoming back a returning student. Provide a "
+                    "warm welcome and suggest what they might want to do next in their learning journey.",
                 ),
                 Message(
                     role="user",
-                    content=f"The student has returned to continue their learning. Their last activity was related to concept: {context.current_concept.title if context.current_concept else 'unknown'}. Suggest a specific action they can take next.",
+                    content=f"The student has returned to continue their learning. Their last activity was "
+                    f"related to concept: {context.current_concept.title if context.current_concept else 'unknown'}. "
+                    f"Suggest a specific action they can take next.",
                 ),
             ]
         else:
@@ -169,11 +182,13 @@ class CatalystAgentImpl(CatalystAgent):
             messages = [
                 Message(
                     role="system",
-                    content="You are a helpful AI tutor welcoming a new student. Provide a warm welcome and suggest a specific first topic or action based on what you know about their learning goals.",
+                    content="You are a helpful AI tutor welcoming a new student. Provide a warm welcome and "
+                    "suggest a specific first topic or action based on what you know about their learning goals.",
                 ),
                 Message(
                     role="user",
-                    content=f"The student is new and just started learning. Based on their profile: {context.user_profile}. Suggest a specific first topic or action.",
+                    content=f"The student is new and just started learning. Based on their profile: {context.user_profile}. "
+                    f"Suggest a specific first topic or action.",
                 ),
             ]
 
@@ -200,11 +215,13 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator helping students understand concepts. Provide a clear, comprehensive explanation.",
+                content="You are an expert educator helping students understand concepts. Provide a clear, "
+                "comprehensive explanation.",
             ),
             Message(
                 role="user",
-                content=f"Explain the concept: {concept.title}\n\nContent: {concept.content}\n\nTarget audience: {learning_level}",
+                content=f"Explain the concept: {concept.title}\n\nContent: {concept.content}\n\n"
+                f"Target audience: {learning_level}",
             ),
         ]
 
@@ -217,11 +234,14 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator creating challenges to test understanding of concepts. Create a challenge with clear instructions.",
+                content="You are an expert educator creating challenges to test understanding of concepts. "
+                "Create a challenge with clear instructions.",
             ),
             Message(
                 role="user",
-                content=f"Create a challenge for the concept: {concept.title}\n\nContent: {concept.content}\n\nChallenge type: {context.get('challenge_type', 'multiple-choice')}\n\nDifficulty: {context.get('difficulty', 'medium')}",
+                content=f"Create a challenge for the concept: {concept.title}\n\nContent: {concept.content}\n\n"
+                f"Challenge type: {context.get('challenge_type', 'multiple-choice')}\n\n"
+                f"Difficulty: {context.get('difficulty', 'medium')}",
             ),
         ]
 
@@ -247,7 +267,8 @@ class CatalystAgentImpl(CatalystAgent):
             ),
             Message(
                 role="user",
-                content=f"Evaluate this answer: '{answer}' for the expected response: '{expected}'. Provide feedback and a score (0-1).",
+                content=f"Evaluate this answer: '{answer}' for the expected response: '{expected}'. "
+                f"Provide feedback and a score (0-1).",
             ),
         ]
 
@@ -258,9 +279,7 @@ class CatalystAgentImpl(CatalystAgent):
         feedback_content = response.content.lower()
         is_correct = True  # Default assumption
         # If the feedback contains words indicating incorrectness, mark as false
-        if any(
-            phrase in feedback_content for phrase in ["incorrect", "not correct", "not quite", "wrong", "not accurate"]
-        ):
+        if any(phrase in feedback_content for phrase in ["incorrect", "not correct", "not quite", "wrong", "not accurate"]):
             is_correct = False
         # If feedback clearly confirms correctness, mark as true (reinforcing the default)
         elif any(phrase in feedback_content for phrase in ["correct", "that's right", "excellent", "right on"]):
@@ -277,11 +296,14 @@ class CatalystAgentImpl(CatalystAgent):
         messages = [
             Message(
                 role="system",
-                content="You are an expert educator suggesting the next concepts for a student based on their profile and progress.",
+                content="You are an expert educator suggesting the next concepts for a student based on "
+                "their profile and progress.",
             ),
             Message(
                 role="user",
-                content=f"Student profile: {profile}\n\nStudent progress: {progress}\n\nSuggest 3-5 concepts for the student to learn next, considering their learning style, strengths, and weaknesses.",
+                content=f"Student profile: {profile}\n\nStudent progress: {progress}\n\n"
+                f"Suggest 3-5 concepts for the student to learn next, considering their "
+                f"learning style, strengths, and weaknesses.",
             ),
         ]
 
@@ -292,9 +314,9 @@ class CatalystAgentImpl(CatalystAgent):
         # For now, return an empty list
         return []
 
-    async def track_token_usage(
+    async def track_token_usage(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, model_name: str, provider: str, token_counts: Dict[str, int], user_id: str, context: str
-    ):  # pylint: disable=too-many-arguments,too-many-positional-arguments
+    ) -> None:
         """Track token usage for analytics
 
         Args:
@@ -305,8 +327,9 @@ class CatalystAgentImpl(CatalystAgent):
             context: Context of the usage
         """
         # Extract token counts for potential use
-        _input_tokens = token_counts.get("input_tokens", 0)
-        _output_tokens = token_counts.get("output_tokens", 0)
+        input_tokens = token_counts.get("input_tokens", 0)
+        output_tokens = token_counts.get("output_tokens", 0)
         # This would typically call a method on the database manager
         # to store the token usage information
-        pass
+        # For now, we just extract the values to avoid unused variable warnings
+        _ = (input_tokens, output_tokens)

@@ -7,24 +7,23 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from src.cli.formatting import CLIFormatter
-
 
 class PreferencesManager:
-    def __init__(self, workspace_path: str):
-        self.workspace_path = Path(workspace_path)
-        self.preferences_path = self.workspace_path / ".catalyst" / "preferences.json"
+    """Manages user preferences with key-value support similar to npm config."""
+
+    def __init__(self, workspace_path: str) -> None:
+        self.workspace_path: Path = Path(workspace_path)
+        self.preferences_path: Path = self.workspace_path / ".catalyst" / "preferences.json"
         self.preferences_path.parent.mkdir(exist_ok=True)
-        self.formatter = CLIFormatter()
 
         # Initialize with default preferences if file doesn't exist
         if not self.preferences_path.exists():
             self._init_default_preferences()
         else:
             with open(self.preferences_path, "r", encoding="utf-8") as f:
-                self.preferences = json.load(f)
+                self.preferences: Dict[str, Any] = json.load(f)
 
-    def _init_default_preferences(self):
+    def _init_default_preferences(self) -> None:
         """Initialize preferences with default values"""
         default_prefs = {
             "ui": {"theme": "dark", "font_size": 12, "show_line_numbers": True},
@@ -52,11 +51,9 @@ class PreferencesManager:
                     "anthropic": {
                         "api_key": "",
                         "base_url": "",
-                        "models": {
-                            "chat": ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]
-                        },
+                        "models": {"chat": ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"]},
                     },
-                    "local": {
+                    "openai-compatible": {
                         "api_key": "",
                         "base_url": "http://localhost:8000",
                         "models": {"chat": ["llama3", "mistral", "phi3"]},
@@ -73,7 +70,7 @@ class PreferencesManager:
         with open(self.preferences_path, "w", encoding="utf-8") as f:
             json.dump(default_prefs, f, indent=2)
 
-        self.preferences = default_prefs
+        self.preferences: Dict[str, Any] = default_prefs
 
     def list_preferences(self) -> Dict[str, Any]:
         """List all current user preferences"""
@@ -100,10 +97,8 @@ class PreferencesManager:
             with open(self.preferences_path, "w", encoding="utf-8") as f:
                 json.dump(self.preferences, f, indent=2)
 
-            self.formatter.format_success(f"Preference '{key}' set successfully")
             return True
-        except (KeyError, TypeError, ValueError) as e:
-            self.formatter.format_error(f"Error setting preference: {str(e)}")
+        except (KeyError, TypeError, ValueError):
             return False
 
     def get_preference(self, key: str) -> Any:
@@ -120,8 +115,7 @@ class PreferencesManager:
                     return None
 
             return current
-        except (KeyError, TypeError, ValueError) as e:
-            self.formatter.format_error(f"Error getting preference: {str(e)}")
+        except (KeyError, TypeError, ValueError):
             return None
 
     # AI Provider Configuration Methods
@@ -159,15 +153,17 @@ class PreferencesManager:
             return models_config[model_type]
 
         # If no specific type requested, return all models
-        all_models = []
+        all_models: List[str] = []
         for type_models in models_config.values():
-            all_models.extend(type_models)
+            if isinstance(type_models, list):
+                for model in type_models:
+                    all_models.append(str(model))
 
         return all_models
 
     def get_default_provider(self) -> str:
         """Get the default AI provider"""
-        return self.get_preference("ai.default_provider") or "openai"
+        return self.get_preference("ai.default_provider") or "deepseek"
 
     def set_default_provider(self, provider_name: str) -> bool:
         """Set the default AI provider"""
@@ -265,9 +261,9 @@ class PreferencesManager:
 
     # Configuration Validation
 
-    def validate_configuration(self) -> Dict[str, Any]:
+    def validate_configuration(self) -> Dict[str, List[str]]:
         """Validate the current configuration and return any issues"""
-        issues = {"errors": [], "warnings": [], "suggestions": []}
+        issues: Dict[str, List[str]] = {"errors": [], "warnings": [], "suggestions": []}
 
         # Check AI provider configuration
         default_provider = self.get_default_provider()
@@ -283,9 +279,7 @@ class PreferencesManager:
         default_model = self.get_default_model()
         provider_models = self.get_provider_models(default_provider)
         if default_model not in provider_models:
-            issues["errors"].append(
-                f"Default model '{default_model}' is not available for provider '{default_provider}'"
-            )
+            issues["errors"].append(f"Default model '{default_model}' is not available for provider '{default_provider}'")
 
         # Check temperature range
         temperature = self.get_ai_temperature()
@@ -322,10 +316,8 @@ class PreferencesManager:
             with open(export_path, "w", encoding="utf-8") as f:
                 json.dump(self.preferences, f, indent=2)
 
-            self.formatter.format_success(f"Configuration exported to {file_path}")
             return True
-        except (IOError, PermissionError) as e:
-            self.formatter.format_error(f"Failed to export configuration: {str(e)}")
+        except (IOError, PermissionError):
             return False
 
     def import_configuration(self, file_path: str) -> bool:
@@ -333,7 +325,6 @@ class PreferencesManager:
         try:
             import_path = Path(file_path)
             if not import_path.exists():
-                self.formatter.format_error(f"Configuration file not found: {file_path}")
                 return False
 
             with open(import_path, "r", encoding="utf-8") as f:
@@ -346,8 +337,6 @@ class PreferencesManager:
             with open(self.preferences_path, "w", encoding="utf-8") as f:
                 json.dump(self.preferences, f, indent=2)
 
-            self.formatter.format_success(f"Configuration imported from {file_path}")
             return True
-        except (IOError, PermissionError, json.JSONDecodeError) as e:
-            self.formatter.format_error(f"Failed to import configuration: {str(e)}")
+        except (IOError, PermissionError, json.JSONDecodeError):
             return False

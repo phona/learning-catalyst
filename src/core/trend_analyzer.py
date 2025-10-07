@@ -141,16 +141,12 @@ class TrendAnalyzer:
 
         # Generate recommendations based on trends
         if insights["accuracy_trend"] == "declining":
-            insights["recommendations"].append(
-                "Focus on reviewing previously learned concepts to strengthen understanding."
-            )
+            insights["recommendations"].append("Focus on reviewing previously learned concepts to strengthen understanding.")
         elif insights["accuracy_trend"] == "improving":
             insights["recommendations"].append("Keep up the good work! Your accuracy is improving.")
 
         if insights["completion_trend"] == "declining":
-            insights["recommendations"].append(
-                "Try to maintain a consistent learning schedule to improve completion rates."
-            )
+            insights["recommendations"].append("Try to maintain a consistent learning schedule to improve completion rates.")
         elif insights["completion_trend"] == "improving":
             insights["recommendations"].append("Your consistency in completing challenges is improving.")
 

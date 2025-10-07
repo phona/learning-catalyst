@@ -3,20 +3,21 @@ Database manager implementation with SQLite
 """
 
 import json
+import shutil
 import sqlite3
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional
 
-from src.cli.formatting import CLIFormatter
 from .models.concept import Concept
 from .models.user_profile import UserProfile
 
 
 class DatabaseManager:
+    """Manages SQLite database operations for the Learning Catalyst application."""
+
     def __init__(self, db_path: str):
         self.db_path = db_path
-        self.formatter = CLIFormatter()
         self._init_db()
         self._check_and_migrate()
 
@@ -189,12 +190,8 @@ class DatabaseManager:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_token_usage_timestamp ON token_usage(timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON user_progress(user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_user_progress_concept_id ON user_progress(concept_id)")
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_concept_relationships_source ON concept_relationships(source_concept_id)"
-        )
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_concept_relationships_target ON concept_relationships(target_concept_id)"
-        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_concept_relationships_source ON concept_relationships(source_concept_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_concept_relationships_target ON concept_relationships(target_concept_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_learning_sessions_user_id ON learning_sessions(user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_notes_concept_id ON notes(concept_id)")
@@ -265,9 +262,9 @@ class DatabaseManager:
                         (version, datetime.now().isoformat(), description),
                     )
 
-                    self.formatter.format_success(f"Applied database migration to version {version}: {description}")
-                except Exception as e:
-                    self.formatter.format_error(f"Failed to apply migration to version {version}: {str(e)}")
+                    print(f"Applied database migration to version {version}: {description}")
+                except sqlite3.Error as e:
+                    print(f"Failed to apply migration to version {version}: {str(e)}")
                     conn.rollback()
                     conn.close()
                     raise
@@ -280,7 +277,7 @@ class DatabaseManager:
         # Check if columns already exist before adding them
         cursor.execute("PRAGMA table_info(concepts)")
         columns = [row[1] for row in cursor.fetchall()]
-        
+
         if "tags" not in columns:
             cursor.execute("ALTER TABLE concepts ADD COLUMN tags TEXT")
         if "created_at" not in columns:
@@ -323,7 +320,7 @@ class DatabaseManager:
         # Check if column already exists before adding it
         cursor.execute("PRAGMA table_info(token_usage)")
         columns = [row[1] for row in cursor.fetchall()]
-        
+
         if "cost" not in columns:
             cursor.execute("ALTER TABLE token_usage ADD COLUMN cost REAL")
 
@@ -342,12 +339,8 @@ class DatabaseManager:
         """
         )
 
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_concept_relationships_source ON concept_relationships(source_concept_id)"
-        )
-        cursor.execute(
-            "CREATE INDEX IF NOT EXISTS idx_concept_relationships_target ON concept_relationships(target_concept_id)"
-        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_concept_relationships_source ON concept_relationships(source_concept_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_concept_relationships_target ON concept_relationships(target_concept_id)")
 
     def _migrate_v6(self, cursor):
         """Migration to add learning_sessions table"""
@@ -625,9 +618,7 @@ class DatabaseManager:
         conn.close()
 
         if row:
-            return Concept(
-                id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4]
-            )
+            return Concept(id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4])
         return None
 
     def get_all_concepts(self) -> List[Concept]:
@@ -642,9 +633,7 @@ class DatabaseManager:
         concepts = []
         for row in rows:
             concepts.append(
-                Concept(
-                    id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4]
-                )
+                Concept(id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4])
             )
         return concepts
 
@@ -660,9 +649,7 @@ class DatabaseManager:
         concepts = []
         for row in rows:
             concepts.append(
-                Concept(
-                    id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4]
-                )
+                Concept(id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4])
             )
         return concepts
 
@@ -691,9 +678,7 @@ class DatabaseManager:
         concepts = []
         for row in rows:
             concepts.append(
-                Concept(
-                    id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4]
-                )
+                Concept(id=row[0], title=row[1], content=row[2], prerequisites=json.loads(row[3]), difficulty_level=row[4])
             )
         return concepts
 
@@ -809,9 +794,7 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def get_concept_relationships(
-        self, concept_id: str, relationship_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def get_concept_relationships(self, concept_id: str, relationship_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Retrieve relationships for a concept"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -1363,8 +1346,7 @@ class DatabaseManager:
         conn.close()
 
         return [
-            {"id": row[0], "user_id": row[1], "state_data": row[2], "created_at": row[3], "description": row[4]}
-            for row in rows
+            {"id": row[0], "user_id": row[1], "state_data": row[2], "created_at": row[3], "description": row[4]} for row in rows
         ]
 
     def delete_checkpoint(self, checkpoint_id: str) -> bool:
@@ -1383,13 +1365,11 @@ class DatabaseManager:
     def backup_database(self, backup_path: str) -> bool:
         """Create a backup of the database"""
         try:
-            import shutil
-
             shutil.copy2(self.db_path, backup_path)
-            self.formatter.format_success(f"Database backed up to {backup_path}")
+            print(f"Database backed up to {backup_path}")
             return True
         except Exception as e:
-            self.formatter.format_error(f"Failed to backup database: {str(e)}")
+            print(f"Failed to backup database: {str(e)}")
             return False
 
     def get_database_stats(self) -> Dict[str, Any]:
@@ -1441,8 +1421,8 @@ class DatabaseManager:
             conn.commit()
             conn.close()
 
-            self.formatter.format_success("Database vacuumed successfully")
+            print("Database vacuumed successfully")
             return True
         except Exception as e:
-            self.formatter.format_error(f"Failed to vacuum database: {str(e)}")
+            print(f"Failed to vacuum database: {str(e)}")
             return False

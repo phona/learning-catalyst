@@ -4,15 +4,20 @@ Handles concept extraction, relationship building, validation, and summarization
 """
 
 import hashlib
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from src.data.models.concept import Concept
+from src.utils.markdown_parser import MarkdownParser, extract_all_concepts
+
+if TYPE_CHECKING:
+    from src.ai.service import ModelAbstractionService
+    from src.data.database_manager import DatabaseManager
 
 
 class ConceptBuilder:
     """Handles building and managing concepts from various sources"""
 
-    def __init__(self, db_manager=None, model_service=None):
+    def __init__(self, db_manager: Optional["DatabaseManager"] = None, model_service: Optional["ModelAbstractionService"] = None):
         self.db_manager = db_manager
         self.model_service = model_service
         self.concepts = []
@@ -134,9 +139,6 @@ class ConceptBuilder:
             "reference": ["documentation", "api", "specification"],
         }
 
-        # Create a mapping from concept ID to concept
-        concept_map = {c["id"]: c for c in concepts}
-
         # Check for keyword-based relationships
         for concept in concepts:
             title_lower = concept["title"].lower()
@@ -178,9 +180,6 @@ class ConceptBuilder:
             "builds on",
             "assumes",
         ]
-
-        # Create a mapping from concept ID to concept
-        concept_map = {c["id"]: c for c in concepts}
 
         # Check for prerequisite indicators in content
         for concept in concepts:
@@ -271,7 +270,7 @@ class ConceptBuilder:
         hash_data = f"{concept['title']}:{concept['content'][:100]}"
         return hashlib.md5(hash_data.encode()).hexdigest()
 
-    async def summarize_concepts(self, concepts: List[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    async def summarize_concepts(self, concepts: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
         """
         Generate summaries for concepts
 
@@ -406,8 +405,6 @@ class ConceptBuilder:
 
     def extract_concepts_from_markdown(self, file_path: str, granularity: str) -> List[Dict[str, Any]]:
         """Extract concepts from a Markdown file based on specified granularity"""
-        from src.utils.markdown_parser import MarkdownParser
-
         # Map granularity to extraction mode
         extraction_mode = "headers"  # Default
         if granularity == "summaries":
@@ -420,8 +417,6 @@ class ConceptBuilder:
 
     def extract_concepts_from_directory(self, dir_path: str, granularity: str) -> List[Dict[str, Any]]:
         """Extract concepts from all Markdown files in a directory"""
-        from src.utils.markdown_parser import extract_all_concepts
-
         return extract_all_concepts(dir_path, granularity)
 
     def save_concepts_to_db(self) -> None:

@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict
 
+from src.core.checkpoint_manager import CheckpointManagerImpl
 from src.data.database_manager import DatabaseManager
 from src.data.models.extended_models import AnalyticsExport
 
@@ -19,9 +20,7 @@ class ExportService:
         self.reports_dir = self.workspace_path / ".catalyst" / "reports"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
-    def export_analytics(
-        self, user_id: str, export_format: str = "json", report_type: str = "progress"
-    ) -> AnalyticsExport:
+    def export_analytics(self, user_id: str, export_format: str = "json", report_type: str = "progress") -> AnalyticsExport:
         """Export analytics data in the specified format"""
         # Generate analytics data based on the report type
         if report_type == "progress":
@@ -181,8 +180,6 @@ class ExportService:
 
     def export_user_checkpoint(self, checkpoint_id: str, export_format: str = "json") -> str:
         """Export a specific checkpoint in the specified format"""
-        from ..core.checkpoint_manager import CheckpointManagerImpl
-
         # Create a checkpoint manager and load the checkpoint
         checkpoint_mgr = CheckpointManagerImpl(self.workspace_path)
         checkpoint_data = checkpoint_mgr.load_checkpoint(checkpoint_id)

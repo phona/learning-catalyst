@@ -2,21 +2,18 @@
 Unit tests for Knowledge Graph Implementation (KNOW-R3) - Mocked version since the actual implementation isn't found
 """
 
-import asyncio
 import os
 import sys
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-# Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
-
 # Relationship model doesn't exist - we'll mock it
 # KnowledgeGraph doesn't exist - we'll mock it
-from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
+
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 
 # Mock the KnowledgeGraph class since it doesn't exist yet
@@ -102,7 +99,8 @@ class TestKnowledgeGraph:
         kg = KnowledgeGraph(str(temp_workspace))
 
         # Create concepts and relationship
-        concept1 = Concept(
+        # Create concepts (not used directly, just for context)
+        Concept(
             id="python-lists",
             name="Python Lists",
             description="Ordered, mutable collections",
@@ -110,7 +108,7 @@ class TestKnowledgeGraph:
             session_id="test-session-1",
         )
 
-        concept2 = Concept(
+        Concept(
             id="python-iterables",
             name="Python Iterables",
             description="Objects that can be iterated over",
@@ -179,9 +177,7 @@ class TestKnowledgeGraph:
                 session_id="test-session-1",
             ),
             Concept(id="python-lists", name="Python Lists", description="", relevance=0.9, session_id="test-session-1"),
-            Concept(
-                id="python-tuples", name="Python Tuples", description="", relevance=0.8, session_id="test-session-1"
-            ),
+            Concept(id="python-tuples", name="Python Tuples", description="", relevance=0.8, session_id="test-session-1"),
         ]
 
         relationships = [
@@ -242,8 +238,9 @@ class TestKnowledgeGraph:
         kg = KnowledgeGraph(str(temp_workspace))
 
         # Create concepts and multiple relationship types
-        concept1 = Concept(id="python", name="Python", description="", relevance=1.0, session_id="test-session-1")
-        concept2 = Concept(id="django", name="Django", description="", relevance=0.8, session_id="test-session-1")
+        # Create concepts (not used directly, just for context)
+        Concept(id="python", name="Python", description="", relevance=1.0, session_id="test-session-1")
+        Concept(id="django", name="Django", description="", relevance=0.8, session_id="test-session-1")
 
         relationships = [
             Relationship(
@@ -367,9 +364,7 @@ class TestKnowledgeGraph:
         assert "python-scope" in neighbor_ids
 
     @pytest.mark.asyncio
-    async def test_knowledge_graph_integration_with_vector_search(
-        self, temp_workspace, db_manager_mock, vector_storage_mock
-    ):
+    async def test_knowledge_graph_integration_with_vector_search(self, temp_workspace, db_manager_mock, vector_storage_mock):
         """Test integration between knowledge graph and vector storage for semantic search"""
         # Initialize knowledge graph
         kg = KnowledgeGraph(str(temp_workspace))

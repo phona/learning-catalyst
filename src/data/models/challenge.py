@@ -8,6 +8,8 @@ from typing import Any, Dict
 
 @dataclass
 class Challenge:
+    """Represents a learning challenge with its content and expected answer."""
+
     id: str
     concept_id: str
     challenge_type: str

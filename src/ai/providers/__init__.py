@@ -2,40 +2,35 @@
 AI Provider implementations
 """
 
-from .openai_provider import OpenAIProvider, OpenAIChatModel, OpenAIEmbeddingModel, OpenAIRerankModel
-from .chatglm_provider import ChatGLMProvider, ChatGLMChatModel, ChatGLMEmbeddingModel, ChatGLMRerankModel
-from .deepseek_provider import DeepSeekProvider, DeepSeekChatModel, DeepSeekEmbeddingModel, DeepSeekRerankModel
-from .siliconflow_provider import (
-    SiliconFlowProvider,
-    SiliconFlowChatModel,
-    SiliconFlowEmbeddingModel,
-    SiliconFlowRerankModel,
+from .chatglm_provider import ChatGLMChatModel, ChatGLMEmbeddingModel, ChatGLMProvider, ChatGLMRerankModel
+from .deepseek_provider import DeepSeekChatModel, DeepSeekEmbeddingModel, DeepSeekProvider, DeepSeekRerankModel
+from .openai_compatible_provider import (
+    OpenAICompatibleChatModel,
+    OpenAICompatibleEmbeddingModel,
+    OpenAICompatibleModelProvider,
+    OpenAICompatibleRerankModel,
 )
-from .local_provider import LocalModelProvider, LocalChatModel, LocalEmbeddingModel, LocalRerankModel
+from .siliconflow_provider import SiliconFlowChatModel, SiliconFlowEmbeddingModel, SiliconFlowProvider, SiliconFlowRerankModel
 
 __all__ = [
     # Providers
-    "OpenAIProvider",
     "ChatGLMProvider",
     "DeepSeekProvider",
     "SiliconFlowProvider",
-    "LocalModelProvider",
+    "OpenAICompatibleModelProvider",
     # Chat Models
-    "OpenAIChatModel",
     "ChatGLMChatModel",
     "DeepSeekChatModel",
     "SiliconFlowChatModel",
-    "LocalChatModel",
+    "OpenAICompatibleChatModel",
     # Embedding Models
-    "OpenAIEmbeddingModel",
     "ChatGLMEmbeddingModel",
     "DeepSeekEmbeddingModel",
     "SiliconFlowEmbeddingModel",
-    "LocalEmbeddingModel",
+    "OpenAICompatibleEmbeddingModel",
     # Rerank Models
-    "OpenAIRerankModel",
     "ChatGLMRerankModel",
     "DeepSeekRerankModel",
     "SiliconFlowRerankModel",
-    "LocalRerankModel",
+    "OpenAICompatibleRerankModel",
 ]

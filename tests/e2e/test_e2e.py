@@ -2,9 +2,6 @@
 End-to-end tests for Learning Catalyst project
 """
 
-import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,7 +16,6 @@ from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.core.system_commands_handler import SystemCommandsHandlerImpl
 from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
-from src.data.models.user_profile import UserProfile
 from src.utils.preferences_manager import PreferencesManager
 from src.utils.workspace_manager import WorkspaceManager
 
@@ -37,7 +33,7 @@ class TestEndToEnd:
         model_service.providers["openai"] = AsyncMock()
         model_service.providers["anthropic"] = AsyncMock()
 
-        workspace_mgr = WorkspaceManager(temp_workspace)
+        WorkspaceManager(temp_workspace)
         prefs_mgr = PreferencesManager(str(temp_workspace))
         knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
         catalyst_agent = CatalystAgentImpl(model_service)
@@ -117,9 +113,7 @@ class TestEndToEnd:
 
         # Step 7: Evaluate the answer
         evaluation_response = MagicMock()
-        evaluation_response.content = (
-            "The answer is correct. Machine learning does enable computers to learn from data."
-        )
+        evaluation_response.content = "The answer is correct. Machine learning does enable computers to learn from data."
         model_service.send_message.return_value = evaluation_response
 
         evaluation = await catalyst_agent.evaluate_answer(user_answer, challenge["challenge_text"], explanation_context)
@@ -196,9 +190,9 @@ class TestEndToEnd:
         prefs_mgr = PreferencesManager(str(temp_workspace))
         knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
         catalyst_agent = CatalystAgentImpl(model_service)
-        challenge_engine = ChallengeEngineImpl(catalyst_agent)
+        ChallengeEngineImpl(catalyst_agent)
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
-        system_commands = SystemCommandsHandlerImpl(prefs_mgr, db_manager, model_service)
+        SystemCommandsHandlerImpl(prefs_mgr, db_manager, model_service)
         analytics_dashboard = BasicAnalyticsDashboard(db_manager)
         assessment_engine = BasicAssessmentEngine(db_manager)
 
@@ -235,8 +229,8 @@ class TestEndToEnd:
         model_service.send_message = AsyncMock(return_value=mock_response("Mocked response"))
 
         # Session 1: Learn concept 1
-        explanation1 = await catalyst_agent.generate_explanation(concept1, {})
-        challenge1 = await catalyst_agent.generate_challenge(concept1, {})
+        await catalyst_agent.generate_explanation(concept1, {})
+        await catalyst_agent.generate_challenge(concept1, {})
 
         # Mark concept1 as completed
         from src.data.models.extended_models import UserProgress
@@ -245,16 +239,16 @@ class TestEndToEnd:
         knowledge_navigator.update_progress(concept1.id, progress1)
 
         # Session 2: Learn concept 2 (after concept 1 is done)
-        explanation2 = await catalyst_agent.generate_explanation(concept2, {})
-        challenge2 = await catalyst_agent.generate_challenge(concept2, {})
+        await catalyst_agent.generate_explanation(concept2, {})
+        await catalyst_agent.generate_challenge(concept2, {})
 
         # Mark concept2 as completed
         progress2 = UserProgress(concept_id=concept2.id, completed=True, score=0.75)
         knowledge_navigator.update_progress(concept2.id, progress2)
 
         # Session 3: Learn concept 3
-        explanation3 = await catalyst_agent.generate_explanation(concept3, {})
-        challenge3 = await catalyst_agent.generate_challenge(concept3, {})
+        await catalyst_agent.generate_explanation(concept3, {})
+        await catalyst_agent.generate_challenge(concept3, {})
 
         # Mark concept3 as completed
         progress3 = UserProgress(concept_id=concept3.id, completed=True, score=0.65)
@@ -297,7 +291,7 @@ class TestEndToEnd:
         model_service.providers["anthropic"] = AsyncMock()
 
         prefs_mgr = PreferencesManager(str(temp_workspace))
-        knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
+        SQLiteKnowledgeNavigator(str(db_path))
         catalyst_agent = CatalystAgentImpl(model_service)
         system_commands = SystemCommandsHandlerImpl(prefs_mgr, db_manager, model_service)
         analytics_dashboard = BasicAnalyticsDashboard(db_manager)
@@ -341,7 +335,7 @@ class TestEndToEnd:
         assert len(explanation) > 0
 
         # Step 5: Generate a challenge based on preferences
-        challenge = await catalyst_agent.generate_challenge(complex_concept, user_context)
+        await catalyst_agent.generate_challenge(complex_concept, user_context)
         # The challenge should be appropriate for the difficulty level
 
         # Step 6: Generate an analytics report that respects user preferences

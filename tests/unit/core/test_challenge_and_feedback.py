@@ -4,23 +4,24 @@ Unit tests for Requesting a Challenge (Story 4) and Getting Feedback (Story 5)
 
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.core.catalyst_agent import CatalystAgentImpl
 from src.data.models.challenge import Challenge
 from src.data.models.concept import Concept
 from src.data.models.extended_models import AIResponse
 
 # Add project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
-from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext
-from src.core.challenge_engine import ChallengeEngineImpl
 
 
 class TestChallengeAndFeedback:
+    """Test cases for challenge generation and feedback functionality"""
+
     @pytest.mark.asyncio
-    async def test_challenge_generation(self, model_service, knowledge_navigator):
+    async def test_challenge_generation(self, model_service: MagicMock, knowledge_navigator: MagicMock):
         """Test that the system can generate relevant challenges for concepts"""
         # Mock concept data
         concept = Concept(
@@ -34,8 +35,11 @@ class TestChallengeAndFeedback:
         # Configure mock to simulate challenge response
         model_service.send_message = AsyncMock(
             return_value=AIResponse(
-                content="What will be the output of the following Python code?\n\n```python\nmy_list = [1, 2, 3, 4, 5]\nmy_list[1:3] = [10, 20]\nprint(my_list)\n```\n\nA) [1, 10, 20, 4, 5]\nB) [1, 10, 20, 3, 4, 5]\nC) [10, 20, 4, 5]\nD) [1, 2, 10, 20, 4, 5]",
+                content="What will be the output of the following Python code?\n\n```python\n"
+                "my_list = [1, 2, 3, 4, 5]\nmy_list[1:3] = [10, 20]\nprint(my_list)\n```\n\n"
+                "A) [1, 10, 20, 4, 5]\nB) [1, 10, 20, 3, 4, 5]\nC) [10, 20, 4, 5]\nD) [1, 2, 10, 20, 4, 5]",
                 model="gpt-4o",
+                provider="openai",
                 usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
                 timestamp="2023-01-01T00:00:00",
             )
@@ -55,10 +59,11 @@ class TestChallengeAndFeedback:
         assert "A)" in challenge_data["challenge_text"] and "B)" in challenge_data["challenge_text"]
 
     @pytest.mark.asyncio
-    async def test_answer_evaluation_correct(self, model_service):
+    async def test_answer_evaluation_correct(self, model_service: MagicMock):
         """Test that the system correctly evaluates a correct answer"""
         # Create a sample challenge
-        challenge = Challenge(
+        # Create a sample challenge (not used directly, just for context)
+        Challenge(
             id="test-challenge-1",
             concept_id="python-lists",
             challenge_type="multiple_choice",
@@ -83,6 +88,7 @@ class TestChallengeAndFeedback:
                 "The length of the replacement doesn't need to match the length of the slice being replaced, "
                 "which makes list slicing assignment very flexible!",
                 model="gpt-4o",
+                provider="openai",
                 usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
                 timestamp="2023-01-01T00:00:00",
             )
@@ -104,10 +110,11 @@ class TestChallengeAndFeedback:
         assert feedback["correctness"] is True  # Changed to is True instead of == True for clarity
 
     @pytest.mark.asyncio
-    async def test_answer_evaluation_incorrect(self, model_service):
+    async def test_answer_evaluation_incorrect(self, model_service: MagicMock):
         """Test that the system correctly evaluates an incorrect answer and provides constructive feedback"""
         # Create a sample challenge
-        challenge = Challenge(
+        # Create a sample challenge (not used directly, just for context)
+        Challenge(
             id="test-challenge-1",
             concept_id="python-lists",
             challenge_type="multiple_choice",
@@ -131,6 +138,7 @@ class TestChallengeAndFeedback:
                 "This doesn't add new elements but replaces the existing ones in that range.\n\n"
                 "Let's try another similar example to reinforce this concept!",
                 model="gpt-4o",
+                provider="openai",
                 usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
                 timestamp="2023-01-01T00:00:00",
             )
@@ -152,10 +160,11 @@ class TestChallengeAndFeedback:
         assert feedback["correctness"] is False
 
     @pytest.mark.asyncio
-    async def test_challenge_response_storage(self, db_manager):
+    async def test_challenge_response_storage(self, db_manager: MagicMock):
         """Test that challenge responses are properly stored in the database"""
         # Create a sample challenge and response
-        challenge = Challenge(
+        # Create a sample challenge (not used directly, just for context)
+        Challenge(
             id="test-challenge-1",
             concept_id="python-lists",
             challenge_type="multiple_choice",
@@ -172,7 +181,7 @@ class TestChallengeAndFeedback:
 
         # Verify the add_challenge_response method was called correctly
         db_manager.add_challenge_response.assert_called_once()
-        args, kwargs = db_manager.add_challenge_response.call_args
+        args, _ = db_manager.add_challenge_response.call_args
         assert args[0] == "test-session-1"
         assert args[1] == "test-challenge-1"
         assert args[2] == "A"
@@ -180,7 +189,7 @@ class TestChallengeAndFeedback:
         assert args[4] == "Feedback content"
 
     @pytest.mark.asyncio
-    async def test_variety_of_challenge_types(self, model_service):
+    async def test_variety_of_challenge_types(self, model_service: MagicMock):
         """Test that the system can generate different types of challenges"""
         # Create concept with correct attributes
         concept = Concept(
@@ -197,6 +206,7 @@ class TestChallengeAndFeedback:
                 content="Explain what a closure is in JavaScript and provide a practical example of how it can be used. "
                 "Make sure to explain the concept clearly and show the benefits of using closures.",
                 model="gpt-4o",
+                provider="openai",
                 usage={"input_tokens": 50, "output_tokens": 100, "total_tokens": 150},
                 timestamp="2023-01-01T00:00:00",
             )

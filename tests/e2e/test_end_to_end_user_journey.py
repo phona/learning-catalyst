@@ -2,7 +2,6 @@
 End-to-end tests for the complete user journey in Learning Catalyst.
 """
 
-import os
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
@@ -162,7 +161,7 @@ Sets are unordered collections of unique items.
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
 
-                            app = LearningCatalystApp(temp_workspace)
+                            LearningCatalystApp(temp_workspace)
 
                             # Step 2: User sees the welcome message
                             welcome_message = await startup_guide_instance.generate_startup_message(
@@ -266,7 +265,7 @@ Sets are unordered collections of unique items.
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
 
-                            app = LearningCatalystApp(temp_workspace)
+                            LearningCatalystApp(temp_workspace)
 
                             # Step 2: User sees the welcome back message
                             welcome_message = await startup_guide_instance.generate_startup_message(
@@ -358,7 +357,7 @@ Sets are unordered collections of unique items.
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
 
-                            app = LearningCatalystApp(temp_workspace)
+                            LearningCatalystApp(temp_workspace)
 
                             # Step 2: User learns about variables and creates a checkpoint
                             command_palette_instance.execute_command("/explain Variables and Data Types")
@@ -423,7 +422,7 @@ Sets are unordered collections of unique items.
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
 
-                            app = LearningCatalystApp(temp_workspace)
+                            LearningCatalystApp(temp_workspace)
 
                             # Step 2: User tries to get an explanation but encounters an error
                             command_palette_instance.execute_command("/explain Variables and Data Types")
@@ -481,7 +480,7 @@ Sets are unordered collections of unique items.
                             # Import and initialize the main application
                             from src.cli.main import LearningCatalystApp
 
-                            app = LearningCatalystApp(temp_workspace)
+                            LearningCatalystApp(temp_workspace)
 
                             # Step 2: User checks token usage
                             command_palette_instance.execute_command("/tokens")

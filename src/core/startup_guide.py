@@ -6,9 +6,9 @@ Provides context-aware suggestions and guidance during application startup
 import os
 from typing import Any, Dict, List
 
-from src.data.models.concept import Concept
 from src.core.knowledge_navigator import KnowledgeNavigator
 from src.core.state_manager import StateManager
+from src.data.models.concept import Concept
 
 
 class StartupGuide:

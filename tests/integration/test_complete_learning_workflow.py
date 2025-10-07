@@ -2,23 +2,19 @@
 Integration tests for the complete learning workflow.
 """
 
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from src.ai.service import ModelAbstractionService
 from src.cli.command_palette import CommandPalette
-from src.cli.interface import CLIInterface
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.core.startup_guide import StartupGuide
 from src.core.state_manager import StateManager
 from src.data.models.concept import Concept
-from src.data.models.extended_models import Message
 
 
 class TestCompleteLearningWorkflow:
@@ -151,9 +147,7 @@ Control flow statements allow you to control the execution order of your code.
         assert "is_correct" in evaluation
 
     @pytest.mark.asyncio
-    async def test_session_persistence_and_resumption(
-        self, temp_workspace, state_manager, knowledge_navigator, startup_guide
-    ):
+    async def test_session_persistence_and_resumption(self, temp_workspace, state_manager, knowledge_navigator, startup_guide):
         """Test session persistence and resumption functionality."""
 
         # Step 1: Create and save a session state
@@ -253,7 +247,7 @@ Control flow statements allow you to control the execution order of your code.
         """Test the complete concept learning flow."""
 
         # Step 1: Load content
-        knowledge_map = await knowledge_navigator.load_content(workspace_path=temp_workspace, extraction_mode="headers")
+        await knowledge_navigator.load_content(workspace_path=temp_workspace, extraction_mode="headers")
         concepts = await knowledge_navigator.get_available_concepts()
 
         # Step 2: Select a concept to learn
@@ -294,9 +288,7 @@ Control flow statements allow you to control the execution order of your code.
         catalyst_agent = CatalystAgentImpl(mock_model_service, knowledge_navigator)
 
         # Create a test concept
-        concept = Concept(
-            id="test-concept", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=2
-        )
+        concept = Concept(id="test-concept", title="Test Concept", content="Test content", prerequisites=[], difficulty_level=2)
 
         # Simulate user performance history
         user_profile = {
@@ -307,9 +299,7 @@ Control flow statements allow you to control the execution order of your code.
         }
 
         # Generate challenge with adaptive difficulty
-        challenge = await catalyst_agent.generate_challenge(
-            concept, {"difficulty": "adaptive", "user_profile": user_profile}
-        )
+        challenge = await catalyst_agent.generate_challenge(concept, {"difficulty": "adaptive", "user_profile": user_profile})
 
         # Verify challenge was generated
         assert challenge is not None

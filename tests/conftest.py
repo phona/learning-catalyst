@@ -2,15 +2,12 @@
 Pytest configuration and fixtures for Learning Catalyst tests
 """
 
-import os
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-# Configure pytest-asyncio
-pytest_plugins = ('pytest_asyncio',)
 from src.ai.service import ModelAbstractionService
 from src.core.basic_analytics_dashboard import BasicAnalyticsDashboard
 from src.core.basic_assessment_engine import BasicAssessmentEngine
@@ -23,6 +20,9 @@ from src.data.database_manager import DatabaseManager
 from src.data.vector_storage import VectorStorage
 from src.utils.preferences_manager import PreferencesManager
 from src.utils.workspace_manager import WorkspaceManager
+
+# Configure pytest-asyncio
+pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest.fixture
@@ -68,7 +68,7 @@ def model_service():
     model_service.providers["chatglm"] = AsyncMock()
     model_service.providers["siliconflow"] = AsyncMock()
     model_service.providers["deepseek"] = AsyncMock()
-    model_service.providers["local"] = AsyncMock()
+    model_service.providers["openai-compatible"] = AsyncMock()
     model_service.providers["embedding"] = AsyncMock()
     model_service.providers["rerank"] = AsyncMock()
     return model_service

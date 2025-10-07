@@ -5,16 +5,13 @@ This test file verifies that users can actually communicate with AI in the app,
 not just receive fixed response messages.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from src.ai.abstraction import ModelAbstractionLayer
 # Import the components we need to test
 from src.ai.service import ModelAbstractionService
-from src.core.catalyst_agent import (CatalystAgentImpl, ConversationContext,
-                                     IntentClassification)
+from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext, IntentClassification
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
@@ -125,9 +122,7 @@ class TestRealAICommunication:
         # Verify the challenge is meaningful
         assert challenge is not None, "Challenge should be generated"
         assert "challenge_text" in challenge, "Challenge should have text"
-        assert (
-            sample_concept.title.lower() in challenge["challenge_text"].lower()
-        ), "Challenge should mention the concept"
+        assert sample_concept.title.lower() in challenge["challenge_text"].lower(), "Challenge should mention the concept"
         assert len(challenge["challenge_text"]) > 20, "Challenge should be substantial"
 
     @pytest.mark.asyncio

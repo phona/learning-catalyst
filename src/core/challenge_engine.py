@@ -4,14 +4,19 @@ Challenge Engine implementation
 
 import json
 import random
-from typing import Any, Dict, List
 from enum import Enum
+from typing import TYPE_CHECKING, Any, Dict, List
+
+from rich.prompt import Prompt
 
 from src.ai.service import ModelAbstractionService
-from src.cli.formatting import CLIFormatter
+from src.core.interfaces.system import ChallengeEngine
 from src.data.models.concept import Concept
 from src.data.models.extended_models import Message
-from . import ChallengeEngine
+from src.utils.formatting import CLIFormatter
+
+if TYPE_CHECKING:
+    from src.core.catalyst_agent import CatalystAgentImpl
 
 
 class ChallengeType(Enum):
@@ -34,7 +39,9 @@ class DifficultyLevel(Enum):
 
 
 class ChallengeEngineImpl(ChallengeEngine):
-    def __init__(self, catalyst_agent, model_service: ModelAbstractionService, workspace_path: str):
+    """Implementation of the Challenge Engine for generating and managing learning challenges."""
+
+    def __init__(self, catalyst_agent: "CatalystAgentImpl", model_service: ModelAbstractionService, workspace_path: str):
         self.catalyst_agent = catalyst_agent
         self.model_service = model_service
         self.workspace_path = workspace_path
@@ -61,14 +68,15 @@ class ChallengeEngineImpl(ChallengeEngine):
 
         # Generate challenge prompt
         challenge_prompt = self._create_challenge_prompt(
-            concept=concept, challenge_type=challenge_type, difficulty=difficulty, context=context
+            concept=concept, challenge_type=challenge_type, difficulty=difficulty, _context=context
         )
 
         # Use the model service to generate the challenge
         messages = [
             Message(
                 role="system",
-                content="You are an expert educational content creator specializing in creating challenging and engaging learning exercises.",
+                content="You are an expert educational content creator specializing in creating "
+                "challenging and engaging learning exercises.",
             ),
             Message(role="user", content=challenge_prompt),
         ]
@@ -76,9 +84,7 @@ class ChallengeEngineImpl(ChallengeEngine):
         response = await self.model_service.send_message(messages, temperature=0.7)
 
         # Parse the response to extract challenge data
-        challenge_data = self._parse_challenge_response(
-            response.content, challenge_type=challenge_type, concept=concept
-        )
+        challenge_data = self._parse_challenge_response(response.content, _challenge_type=challenge_type, concept=concept)
 
         # Add metadata to the challenge
         challenge_data.update(
@@ -129,15 +135,14 @@ class ChallengeEngineImpl(ChallengeEngine):
             try:
                 if isinstance(requested_difficulty, int):
                     return DifficultyLevel(requested_difficulty)
-                elif isinstance(requested_difficulty, str):
-                    # Map string to enum
-                    difficulty_map = {
-                        "beginner": DifficultyLevel.BEGINNER,
-                        "intermediate": DifficultyLevel.INTERMEDIATE,
-                        "advanced": DifficultyLevel.ADVANCED,
-                        "expert": DifficultyLevel.EXPERT,
-                    }
-                    return difficulty_map.get(requested_difficulty.lower(), self.current_difficulty)
+                # Map string to enum
+                difficulty_map = {
+                    "beginner": DifficultyLevel.BEGINNER,
+                    "intermediate": DifficultyLevel.INTERMEDIATE,
+                    "advanced": DifficultyLevel.ADVANCED,
+                    "expert": DifficultyLevel.EXPERT,
+                }
+                return difficulty_map.get(requested_difficulty.lower(), self.current_difficulty)
             except (ValueError, KeyError):
                 pass
 
@@ -158,22 +163,27 @@ class ChallengeEngineImpl(ChallengeEngine):
         return self.current_difficulty
 
     def _create_challenge_prompt(
-        self, concept: Concept, challenge_type: ChallengeType, difficulty: DifficultyLevel, context: Dict[str, Any]
+        self, concept: Concept, challenge_type: ChallengeType, difficulty: DifficultyLevel, _context: Dict[str, Any]
     ) -> str:
         """Create a prompt for generating a challenge"""
         difficulty_descriptions = {
-            DifficultyLevel.BEGINNER: "basic, foundational questions that test simple recall and understanding",
-            DifficultyLevel.INTERMEDIATE: "questions that require application of concepts and some analysis",
-            DifficultyLevel.ADVANCED: "complex questions that require deep analysis, synthesis, and evaluation",
-            DifficultyLevel.EXPERT: "challenging questions that require creative thinking, problem-solving, and mastery of the subject",
+            DifficultyLevel.BEGINNER: "basic, foundational questions that test simple recall " "and understanding",
+            DifficultyLevel.INTERMEDIATE: "questions that require application of concepts " "and some analysis",
+            DifficultyLevel.ADVANCED: "complex questions that require deep analysis, synthesis, " "and evaluation",
+            DifficultyLevel.EXPERT: "challenging questions that require creative thinking, "
+            "problem-solving, and mastery of the subject",
         }
 
         challenge_type_instructions = {
-            ChallengeType.MULTIPLE_CHOICE: "Create a multiple-choice question with 4 options (A, B, C, D). Clearly indicate which option is correct.",
-            ChallengeType.SHORT_ANSWER: "Create a short-answer question that requires a brief response (1-2 sentences). Provide a sample answer that captures the key points.",
-            ChallengeType.CODE_COMPLETION: "Create a code completion challenge where the user needs to fill in missing parts of a code snippet. Provide the complete solution.",
-            ChallengeType.TRUE_FALSE: "Create a true/false question. Clearly indicate whether the statement is true or false.",
-            ChallengeType.FILL_IN_BLANK: "Create a fill-in-the-blank question with 1-3 blanks. Provide the complete answer with all blanks filled in.",
+            ChallengeType.MULTIPLE_CHOICE: "Create a multiple-choice question with 4 options (A, B, C, D). "
+            "Clearly indicate which option is correct.",
+            ChallengeType.SHORT_ANSWER: "Create a short-answer question that requires a brief response "
+            "(1-2 sentences). Provide a sample answer that captures the key points.",
+            ChallengeType.CODE_COMPLETION: "Create a code completion challenge where the user needs to "
+            "fill in missing parts of a code snippet. Provide the complete solution.",
+            ChallengeType.TRUE_FALSE: "Create a true/false question. Clearly indicate whether the " "statement is true or false.",
+            ChallengeType.FILL_IN_BLANK: "Create a fill-in-the-blank question with 1-3 blanks. "
+            "Provide the complete answer with all blanks filled in.",
         }
 
         prompt = f"""
@@ -200,9 +210,7 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
 
         return prompt
 
-    def _parse_challenge_response(
-        self, response: str, challenge_type: ChallengeType, concept: Concept
-    ) -> Dict[str, Any]:
+    def _parse_challenge_response(self, response: str, _challenge_type: ChallengeType, concept: Concept) -> Dict[str, Any]:
         """Parse the model response to extract challenge data"""
         try:
             # Try to extract JSON from the response
@@ -224,13 +232,13 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
                     challenge_data["explanation"] = "No explanation provided"
 
                 return challenge_data
-            else:
-                # If no JSON found, create a basic challenge
-                return {
-                    "challenge_text": response,
-                    "correct_answer": "Answer not provided",
-                    "explanation": "No explanation provided",
-                }
+
+            # If no JSON found, create a basic challenge
+            return {
+                "challenge_text": response,
+                "correct_answer": "Answer not provided",
+                "explanation": "No explanation provided",
+            }
 
         except json.JSONDecodeError:
             # If JSON parsing fails, create a basic challenge
@@ -262,8 +270,6 @@ Ensure the challenge is relevant to the concept and appropriate for the specifie
         """Collect answer from user"""
         # In a real implementation, this might have a timeout or be part of a GUI
         try:
-            from rich.prompt import Prompt
-
             answer = Prompt.ask("\nYour answer")
             return answer
         except (EOFError, KeyboardInterrupt):

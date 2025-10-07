@@ -6,19 +6,32 @@ import pytest
 
 from src.data.models.challenge import Challenge
 from src.data.models.concept import Concept
-from src.data.models.extended_models import (AIResponse, AnalysisResult,
-                                             AnalyticsExport, ApplicationState,
-                                             ChallengeResult, Checkpoint,
-                                             CompetencyProfile, Context,
-                                             Credentials, EmbeddingResponse,
-                                             Evaluation, InteractionHistory,
-                                             KnowledgeMap, Message, ModelInfo,
-                                             ProgressReport,
-                                             ProviderCapabilities,
-                                             Recommendations, RerankResponse,
-                                             TimePeriod, TokenUsageSummary,
-                                             TrendData, UserAnswer,
-                                             UserProgress)
+from src.data.models.extended_models import (
+    AIResponse,
+    AnalysisResult,
+    AnalyticsExport,
+    ApplicationState,
+    ChallengeResult,
+    Checkpoint,
+    CompetencyProfile,
+    Context,
+    Credentials,
+    EmbeddingResponse,
+    Evaluation,
+    InteractionHistory,
+    KnowledgeMap,
+    Message,
+    ModelInfo,
+    ProgressReport,
+    ProviderCapabilities,
+    Recommendations,
+    RerankResponse,
+    TimePeriod,
+    TokenUsageSummary,
+    TrendData,
+    UserAnswer,
+    UserProgress,
+)
 from src.data.models.token_usage import TokenUsage
 from src.data.models.user_profile import UserProfile
 
@@ -105,9 +118,7 @@ class TestTokenUsage:
 
 class TestExtendedModels:
     def test_knowledge_map_creation(self):
-        km = KnowledgeMap(
-            concepts=[{"id": "c1", "title": "Concept 1"}], relationships=[{"source": "c1", "target": "c2"}]
-        )
+        km = KnowledgeMap(concepts=[{"id": "c1", "title": "Concept 1"}], relationships=[{"source": "c1", "target": "c2"}])
         assert len(km.concepts) == 1
         assert len(km.relationships) == 1
 
@@ -223,7 +234,7 @@ class TestExtendedModels:
             results=[{"document": "doc1", "relevance_score": 0.9}],
             model="rerank-model",
             provider="openai",
-            usage={"input_tokens": 50, "output_tokens": 10}
+            usage={"input_tokens": 50, "output_tokens": 10},
         )
         assert rr.results == [{"document": "doc1", "relevance_score": 0.9}]
         assert rr.model == "rerank-model"
@@ -305,9 +316,7 @@ class TestExtendedModels:
         assert td.period == tp
 
     def test_analytics_export_creation(self):
-        ae = AnalyticsExport(
-            report_type="progress", content="test content", format="json", timestamp="2023-01-01T00:00:00"
-        )
+        ae = AnalyticsExport(report_type="progress", content="test content", format="json", timestamp="2023-01-01T00:00:00")
         assert ae.report_type == "progress"
         assert ae.content == "test content"
         assert ae.format == "json"
@@ -322,9 +331,7 @@ class TestExtendedModels:
         assert ih.timestamp == "2023-01-01T00:00:00"
 
     def test_analysis_result_creation(self):
-        ar = AnalysisResult(
-            metric="accuracy", value=0.85, interpretation="Good performance", timestamp="2023-01-01T00:00:00"
-        )
+        ar = AnalysisResult(metric="accuracy", value=0.85, interpretation="Good performance", timestamp="2023-01-01T00:00:00")
         assert ar.metric == "accuracy"
         assert ar.value == 0.85
         assert ar.interpretation == "Good performance"

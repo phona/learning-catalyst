@@ -2,9 +2,6 @@
 Integration tests for Learning Catalyst project
 """
 
-import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,7 +15,6 @@ from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
 from src.core.system_commands_handler import SystemCommandsHandlerImpl
 from src.data.database_manager import DatabaseManager
 from src.data.models.concept import Concept
-from src.data.models.user_profile import UserProfile
 from src.utils.preferences_manager import PreferencesManager
 from src.utils.workspace_manager import WorkspaceManager
 
@@ -163,7 +159,7 @@ class TestIntegration:
         prefs_mgr = PreferencesManager(str(temp_workspace))
         knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
         catalyst_agent = CatalystAgentImpl(model_service)
-        challenge_engine = ChallengeEngineImpl(catalyst_agent)
+        ChallengeEngineImpl(catalyst_agent)
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
         system_commands_handler = SystemCommandsHandlerImpl(prefs_mgr, db_manager, model_service)
         analytics_dashboard = BasicAnalyticsDashboard(db_manager)
@@ -251,9 +247,7 @@ class TestIntegration:
 
         # Initialize analytics components
         analytics_dashboard = BasicAnalyticsDashboard(db_manager)
-        token_analytics = type(
-            "TokenUsageAnalytics", (), {"__init__": lambda self, db: setattr(self, "db_manager", db)}
-        )()
+        token_analytics = type("TokenUsageAnalytics", (), {"__init__": lambda self, db: setattr(self, "db_manager", db)})()
         token_analytics.db_manager = db_manager  # Manual initialization for test
 
         # Test that analytics can access the database data

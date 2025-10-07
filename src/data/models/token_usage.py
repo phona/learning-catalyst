@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 @dataclass  # pylint: disable=too-many-instance-attributes
 class TokenUsage:
+    """Represents token usage for a specific AI model interaction."""
+
     id: str
     model_name: str
     provider: str

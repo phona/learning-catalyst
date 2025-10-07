@@ -5,16 +5,15 @@ Unit tests for First-Time User Experience (Story 1) functionality
 import os
 import sys
 import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-# Add project root to Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
-
 from src.core.catalyst_agent import CatalystAgentImpl
 from src.data.models.concept import Concept
+
+# Add project root to Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
 
 class TestFirstTimeUserExperience:
@@ -122,8 +121,7 @@ class TestFirstTimeUserExperience:
         # Verify the response contains model setup guidance
         assert "set up your ai model" in explanation.lower()
         assert "openai" in explanation
-        assert "anthropic" in explanation
-        assert "local" in explanation
+        assert "openai-compatible" in explanation
 
     @pytest.mark.asyncio
     async def test_initial_topic_suggestion(self, model_service, knowledge_navigator):
@@ -163,7 +161,7 @@ class TestFirstTimeUserExperience:
         )
 
         # Initialize Catalyst Agent
-        catalyst_agent = CatalystAgentImpl(model_service)
+        CatalystAgentImpl(model_service)
 
         # Test initial topic suggestion
         # Since there's no specific suggest_initial_topic method, we'll test concept retrieval
@@ -245,7 +243,7 @@ class TestFirstTimeUserExperience:
         # Since there's no suggest_initial_topic method in CatalystAgent, we'll test that
         # we can get concepts and suggest to the AI to generate a topic suggestion
         # Configure the model service mock to return a proper AI response
-        from src.data.models.extended_models import AIResponse, Message
+        from src.data.models.extended_models import AIResponse
 
         # Mock the send_message method to return the expected content
         model_service.send_message = AsyncMock(
@@ -262,7 +260,7 @@ class TestFirstTimeUserExperience:
         )
 
         # Initialize Catalyst Agent
-        catalyst_agent = CatalystAgentImpl(model_service)
+        CatalystAgentImpl(model_service)
 
         # Retrieve available concepts
         available_concepts = await knowledge_navigator.get_available_concepts()
@@ -277,7 +275,8 @@ class TestFirstTimeUserExperience:
         # asking for topic suggestions based on the available concepts
         from src.core.catalyst_agent import ConversationContext
 
-        context = ConversationContext(
+        # Create a conversation context (not used directly, just for context)
+        ConversationContext(
             user_profile={"ai_config": {"default_provider": "openai", "default_model": "gpt-4o"}},
             current_concept=None,
             conversation_history=[],
@@ -292,7 +291,6 @@ class TestFirstTimeUserExperience:
     async def test_workspace_scanning_for_learning_materials(self, knowledge_navigator):
         """Test that the system scans the workspace for available learning materials"""
         # Mock knowledge navigator to simulate workspace scanning
-        mock_markdown_files = ["python_basics.md", "javascript_intro.md", "data_structures.md"]
         knowledge_navigator.load_content = AsyncMock()
 
         # Simulate loading content from workspace

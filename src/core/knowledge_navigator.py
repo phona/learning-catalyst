@@ -6,13 +6,20 @@ import json
 import sqlite3
 from typing import Any, Dict, List, Optional
 
+from src.core.interfaces.base import KnowledgeNavigator
 from src.data.models.concept import Concept
 from src.data.models.extended_models import KnowledgeMap, UserProgress
-
-from . import KnowledgeNavigator
+from src.utils.markdown_parser import MarkdownParser, extract_all_concepts
 
 
 class SQLiteKnowledgeNavigator(KnowledgeNavigator):
+    """SQLite implementation of the KnowledgeNavigator interface.
+
+    Manages concepts and their relationships using a SQLite database.
+    Provides functionality to load content from markdown files and
+    retrieve concepts with their learning paths.
+    """
+
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._init_db()
@@ -42,8 +49,6 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         self, file_path: str = "", workspace_path: Optional[str] = None, extraction_mode: str = "headers"
     ) -> KnowledgeMap:
         # Implementation to load markdown content into knowledge map
-        from src.utils.markdown_parser import MarkdownParser
-
         parser = MarkdownParser(extraction_mode)
 
         concepts = []
@@ -52,8 +57,6 @@ class SQLiteKnowledgeNavigator(KnowledgeNavigator):
         # If workspace_path is provided, scan all markdown files in workspace
         if workspace_path:
             try:
-                from src.utils.markdown_parser import extract_all_concepts
-
                 concepts_data = extract_all_concepts(workspace_path, extraction_mode)
 
                 # Convert to the format expected by the system

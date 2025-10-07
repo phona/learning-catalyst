@@ -7,25 +7,39 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from . import CheckpointManager
+from src.core.interfaces.system import CheckpointManager
 
 
 class CheckpointManagerImpl(CheckpointManager):
+    """Implementation of the CheckpointManager interface.
+
+    Manages application state checkpoints, allowing users to save and restore
+    specific points in their learning journey. Provides functionality to create,
+    load, list, and delete checkpoints.
+    """
+
     def __init__(self, workspace_path: str):
         self.workspace_path = Path(workspace_path)
         self.checkpoints_dir = self.workspace_path / ".catalyst" / "checkpoints"
         self.checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
-    async def create_checkpoint(self, state: Dict[str, Any]) -> str:
-        """Create a checkpoint from current application state"""
-        checkpoint_id = f"checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(str(state)) % 10000:04d}"
+    async def save_checkpoint(self, checkpoint_id: str, state_data: Dict[str, Any]) -> bool:
+        """Save application state checkpoint"""
         checkpoint_path = self.checkpoints_dir / f"{checkpoint_id}.json"
 
-        checkpoint_data = {"id": checkpoint_id, "created_at": datetime.now().isoformat(), "state": state}
+        checkpoint_data = {"id": checkpoint_id, "created_at": datetime.now().isoformat(), "state": state_data}
 
-        with open(checkpoint_path, "w", encoding="utf-8") as f:
-            json.dump(checkpoint_data, f, indent=2)
+        try:
+            with open(checkpoint_path, "w", encoding="utf-8") as f:
+                json.dump(checkpoint_data, f, indent=2)
+            return True
+        except (IOError, OSError):
+            return False
 
+    async def create_checkpoint(self, state: Dict[str, Any]) -> str:
+        """Create a checkpoint from current application state (legacy method)"""
+        checkpoint_id = f"checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{hash(str(state)) % 10000:04d}"
+        await self.save_checkpoint(checkpoint_id, state)
         return checkpoint_id
 
     async def load_checkpoint(self, checkpoint_id: str) -> Dict[str, Any]:
@@ -58,3 +72,15 @@ class CheckpointManagerImpl(CheckpointManager):
         # Sort by creation time, newest first
         checkpoints.sort(key=lambda x: x["created_at"], reverse=True)
         return checkpoints
+
+    async def delete_checkpoint(self, checkpoint_id: str) -> bool:
+        """Delete a checkpoint"""
+        checkpoint_path = self.checkpoints_dir / f"{checkpoint_id}.json"
+
+        try:
+            if checkpoint_path.exists():
+                checkpoint_path.unlink()
+                return True
+            return False
+        except (IOError, OSError):
+            return False

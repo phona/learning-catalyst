@@ -4,15 +4,15 @@ Unit tests for Manual State Checkpointing (Story 7) functionality
 
 import os
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
+from src.core.checkpoint_manager import CheckpointManagerImpl
+
 # Add project root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
-from src.core.checkpoint_manager import CheckpointManagerImpl
 
 
 # Mock the Session class since it doesn't exist yet
@@ -37,7 +37,7 @@ class Conversation:
 
 class TestCheckpointManagement:
     @pytest.mark.asyncio
-    async def test_checkpoint_saving(self, temp_workspace, db_manager_mock):
+    async def test_checkpoint_saving(self, temp_workspace, db_manager):
         """Test that checkpoints can be saved successfully"""
         # Initialize Checkpoint Manager
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
@@ -48,7 +48,6 @@ class TestCheckpointManagement:
             workspace_path=str(temp_workspace),
             current_concept_id="python-lists",
             start_time="2023-05-10 14:00:00",
-            last_active_time="2023-05-10 14:30:00",
         )
 
         # Mock database manager to return conversation history
@@ -56,31 +55,48 @@ class TestCheckpointManagement:
             Conversation(
                 id="conv-1",
                 session_id="test-session-1",
-                speaker="user",
-                message="Can you explain Python lists?",
+                role="user",
+                content="Can you explain Python lists?",
                 timestamp="2023-05-10 14:01:00",
             ),
             Conversation(
                 id="conv-2",
                 session_id="test-session-1",
-                speaker="ai",
-                message="Python lists are ordered, mutable collections of items...",
+                role="ai",
+                content="Python lists are ordered, mutable collections of items...",
                 timestamp="2023-05-10 14:01:30",
             ),
         ]
-        db_manager_mock.get_conversation_history = AsyncMock(return_value=mock_conversations)
+        db_manager.get_conversation_history = AsyncMock(return_value=mock_conversations)
 
         # Save a checkpoint
-        checkpoint_id = await checkpoint_manager.create_checkpoint(
-            session, "Understanding Python Lists and Recursion", db_manager_mock
-        )
+        state = {
+            "session": {
+                "id": session.id,
+                "workspace_path": session.workspace_path,
+                "current_concept_id": session.current_concept_id,
+                "start_time": session.start_time,
+            },
+            "conversations": [
+                {
+                    "id": conv.id,
+                    "session_id": conv.session_id,
+                    "role": conv.role,
+                    "content": conv.content,
+                    "timestamp": conv.timestamp,
+                }
+                for conv in mock_conversations
+            ],
+            "current_topic": "Understanding Python Lists and Recursion",
+        }
+        checkpoint_id = await checkpoint_manager.create_checkpoint(state)
 
         # Verify the checkpoint was saved
         assert checkpoint_id is not None
         assert isinstance(checkpoint_id, str)
 
-        # Verify the get_conversation_history method was called
-        db_manager_mock.get_conversation_history.assert_called_once_with("test-session-1")
+        # Note: The new checkpoint API doesn't call get_conversation_history
+        # as it receives the state directly
 
     @pytest.mark.asyncio
     async def test_checkpoint_listing(self, temp_workspace):
@@ -88,28 +104,22 @@ class TestCheckpointManagement:
         # Initialize Checkpoint Manager
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
 
-        # Create mock checkpoints
-        checkpoint_data = [
-            {"id": "checkpoint-1", "name": "Chapter 1 Review", "timestamp": "2023-05-10 14:30:00", "session_data": {}},
-            {
-                "id": "checkpoint-2",
-                "name": "Understanding Python Lists",
-                "timestamp": "2023-05-11 10:15:00",
-                "session_data": {},
-            },
-        ]
+        # Create some test checkpoints
+        state1 = {"session": {"id": "session-1"}, "current_topic": "Chapter 1 Review"}
+        state2 = {"session": {"id": "session-2"}, "current_topic": "Understanding Python Lists"}
 
-        # Mock the _load_checkpoints method to return our mock data
-        with patch.object(checkpoint_manager, "_load_checkpoints", return_value=checkpoint_data):
-            # List checkpoints
-            checkpoints = await checkpoint_manager.list_checkpoints()
+        checkpoint_id1 = await checkpoint_manager.create_checkpoint(state1)
+        checkpoint_id2 = await checkpoint_manager.create_checkpoint(state2)
 
-            # Verify the checkpoints are listed correctly
-            assert len(checkpoints) == 2
-            assert checkpoints[0]["name"] == "Chapter 1 Review"
-            assert checkpoints[1]["name"] == "Understanding Python Lists"
-            assert checkpoints[0]["timestamp"] == "2023-05-10 14:30:00"
-            assert checkpoints[1]["timestamp"] == "2023-05-11 10:15:00"
+        # List checkpoints
+        checkpoints = await checkpoint_manager.list_checkpoints()
+
+        # Verify the checkpoints are listed correctly
+        assert len(checkpoints) == 2
+        assert checkpoints[0]["id"] == checkpoint_id2  # Most recent first
+        assert checkpoints[1]["id"] == checkpoint_id1
+        assert "created_at" in checkpoints[0]
+        assert "created_at" in checkpoints[1]
 
     @pytest.mark.asyncio
     async def test_checkpoint_loading(self, temp_workspace):
@@ -117,34 +127,26 @@ class TestCheckpointManagement:
         # Initialize Checkpoint Manager
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
 
-        # Create a mock checkpoint with session data
-        checkpoint_data = [
-            {
-                "id": "checkpoint-1",
-                "name": "Understanding Python Lists",
-                "timestamp": "2023-05-10 14:30:00",
-                "session_data": {
-                    "id": "test-session-1",
-                    "workspace_path": str(temp_workspace),
-                    "current_concept_id": "python-lists",
-                    "start_time": "2023-05-10 14:00:00",
-                    "last_active_time": "2023-05-10 14:30:00",
-                },
-            }
-        ]
+        # Create a checkpoint with session data
+        session_data = {
+            "id": "test-session-1",
+            "workspace_path": str(temp_workspace),
+            "current_concept_id": "python-lists",
+            "start_time": "2023-05-10 14:00:00",
+        }
 
-        # Mock the _load_checkpoints method to return our mock data
-        with patch.object(checkpoint_manager, "_load_checkpoints", return_value=checkpoint_data):
-            # Load the checkpoint
-            loaded_session = await checkpoint_manager.load_checkpoint("checkpoint-1")
+        checkpoint_id = await checkpoint_manager.create_checkpoint(session_data)
 
-            # Verify the session was loaded correctly
-            assert loaded_session.id == "test-session-1"
-            assert loaded_session.workspace_path == str(temp_workspace)
-            assert loaded_session.current_concept_id == "python-lists"
+        # Load the checkpoint
+        loaded_session = await checkpoint_manager.load_checkpoint(checkpoint_id)
+
+        # Verify the session was loaded correctly
+        assert loaded_session["id"] == "test-session-1"
+        assert loaded_session["workspace_path"] == str(temp_workspace)
+        assert loaded_session["current_concept_id"] == "python-lists"
 
     @pytest.mark.asyncio
-    async def test_named_checkpoint_saving(self, temp_workspace, db_manager_mock):
+    async def test_named_checkpoint_saving(self, temp_workspace, db_manager):
         """Test that named checkpoints are saved with the specified name"""
         # Initialize Checkpoint Manager
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
@@ -155,35 +157,29 @@ class TestCheckpointManagement:
             workspace_path=str(temp_workspace),
             current_concept_id="python-lists",
             start_time="2023-05-10 14:00:00",
-            last_active_time="2023-05-10 14:30:00",
         )
 
         # Mock database manager to return empty conversation history
-        db_manager_mock.get_conversation_history = AsyncMock(return_value=[])
+        db_manager.get_conversation_history = AsyncMock(return_value=[])
 
-        # Save a checkpoint with a specific name
+        # Save a checkpoint with a specific name (included in state)
         checkpoint_name = "Chapter 4 Review"
-        checkpoint_id = await checkpoint_manager.create_checkpoint(session, checkpoint_name, db_manager_mock)
+        state = {
+            "session": {
+                "id": session.id,
+                "workspace_path": session.workspace_path,
+                "current_concept_id": session.current_concept_id,
+                "start_time": session.start_time,
+            },
+            "checkpoint_name": checkpoint_name,
+            "description": "Checkpoint for chapter 4 review",
+        }
+        checkpoint_id = await checkpoint_manager.create_checkpoint(state)
 
-        # Mock the _load_checkpoints method to return the newly saved checkpoint
-        # This is a simplification - in reality, we would check the actual file
-        with patch.object(
-            checkpoint_manager,
-            "_load_checkpoints",
-            return_value=[
-                {
-                    "id": checkpoint_id,
-                    "name": checkpoint_name,
-                    "timestamp": "2023-05-10 14:30:00",
-                    "session_data": session.to_dict(),
-                }
-            ],
-        ):
-
-            # Verify the checkpoint has the correct name
-            checkpoints = await checkpoint_manager.list_checkpoints()
-            assert len(checkpoints) == 1
-            assert checkpoints[0]["name"] == checkpoint_name
+        # Verify the checkpoint was created and has the correct data
+        loaded_state = await checkpoint_manager.load_checkpoint(checkpoint_id)
+        assert loaded_state["checkpoint_name"] == checkpoint_name
+        assert loaded_state["description"] == "Checkpoint for chapter 4 review"
 
     @pytest.mark.asyncio
     async def test_invalid_checkpoint_loading(self, temp_workspace):
@@ -191,15 +187,12 @@ class TestCheckpointManagement:
         # Initialize Checkpoint Manager
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
 
-        # Mock the _load_checkpoints method to return empty list
-        with patch.object(checkpoint_manager, "_load_checkpoints", return_value=[]):
-
-            # Attempt to load a non-existent checkpoint
-            with pytest.raises(ValueError):
-                await checkpoint_manager.load_checkpoint("non-existent-checkpoint")
+        # Attempt to load a non-existent checkpoint
+        with pytest.raises(FileNotFoundError):
+            await checkpoint_manager.load_checkpoint("non-existent-checkpoint")
 
     @pytest.mark.asyncio
-    async def test_checkpoint_storage_format(self, temp_workspace, db_manager_mock):
+    async def test_checkpoint_storage_format(self, temp_workspace, db_manager):
         """Test that checkpoints are stored in the correct format and location"""
         # Initialize Checkpoint Manager
         checkpoint_manager = CheckpointManagerImpl(str(temp_workspace))
@@ -210,17 +203,25 @@ class TestCheckpointManagement:
             workspace_path=str(temp_workspace),
             current_concept_id="python-lists",
             start_time="2023-05-10 14:00:00",
-            last_active_time="2023-05-10 14:30:00",
         )
 
         # Mock database manager to return empty conversation history
-        db_manager_mock.get_conversation_history = AsyncMock(return_value=[])
+        db_manager.get_conversation_history = AsyncMock(return_value=[])
 
         # Get the expected checkpoint directory
-        checkpoints_dir = Path(temp_workspace) / ".learningspace" / "checkpoints"
+        checkpoints_dir = Path(temp_workspace) / ".catalyst" / "checkpoints"
 
         # Save a checkpoint
-        checkpoint_id = await checkpoint_manager.create_checkpoint(session, "Test Checkpoint", db_manager_mock)
+        state = {
+            "session": {
+                "id": session.id,
+                "workspace_path": session.workspace_path,
+                "current_concept_id": session.current_concept_id,
+                "start_time": session.start_time,
+            },
+            "test_checkpoint": True,
+        }
+        checkpoint_id = await checkpoint_manager.create_checkpoint(state)
 
         # Verify the checkpoint file exists in the correct location
         checkpoint_file = checkpoints_dir / f"{checkpoint_id}.json"
@@ -234,8 +235,7 @@ class TestCheckpointManagement:
 
         # Verify the checkpoint data has all required fields
         assert "id" in checkpoint_data
-        assert "name" in checkpoint_data
-        assert "timestamp" in checkpoint_data
-        assert "session_data" in checkpoint_data
-        assert checkpoint_data["name"] == "Test Checkpoint"
-        assert checkpoint_data["session_data"]["id"] == "test-session-1"
+        assert "created_at" in checkpoint_data
+        assert "state" in checkpoint_data
+        assert checkpoint_data["state"]["test_checkpoint"] is True
+        assert checkpoint_data["state"]["session"]["id"] == "test-session-1"

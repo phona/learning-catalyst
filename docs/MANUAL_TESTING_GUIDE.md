@@ -4,6 +4,8 @@
 
 This guide provides comprehensive instructions for manually testing the Learning Catalyst interactive application. It covers all major features, user workflows, and edge cases to ensure the application works as specified in the requirements.
 
+**Note**: This guide has been updated to reflect the CLI reorganization project that transformed the command system into a unified, modular architecture. For detailed information about the new command structure, refer to the CLI Developer Guide.
+
 ## Prerequisites
 
 ### Environment Setup
@@ -30,6 +32,30 @@ This guide provides comprehensive instructions for manually testing the Learning
 echo -e "/help\n/quit" | python -m src.cli.main
 ```
 
+### New Command Structure (Post-Reorganization)
+
+The CLI has been reorganized into four main command categories:
+
+#### System Commands
+- `/help` (aliases: `/h`, `/?`) - Show available commands or help for specific commands
+- `/quit` (aliases: `/exit`, `/q`) - Exit the Learning Catalyst application
+- `/clear` (aliases: `/cls`) - Clear the terminal screen
+
+#### Configuration Commands
+- `/models` (alias: `/m`) - List available AI models configured for the application
+- `/preferences` (aliases: `/prefs`, `/pref`) - Manage application preferences using key-value syntax
+- `/config` (aliases: `/cfg`, `/conf`) - Manage application configuration settings
+
+#### Learning Commands
+- `/concepts` (alias: `/topics`) - View available learning concepts and materials
+- `/explain` (alias: `/exp`) - Request an explanation for a concept
+- `/quiz` (alias: `/challenge`) - Request a quiz or challenge on a concept
+- `/knowledge-map` (alias: `/kmap`) - Display the current knowledge map structure
+
+#### Analytics Commands
+- `/tokens` (alias: `/usage`) - Show token usage statistics
+- `/statistics` (aliases: `/stats`, `/analytics`) - Show learning statistics and analytics
+
 ## Test Scenarios
 
 ### 1. First-Time User Experience (Story 1)
@@ -51,12 +77,17 @@ echo -e "/help\n/quit" | python -m src.cli.main
 - Model configuration prompts
 - Content analysis options (headers, summaries, full content)
 - Contextual suggestions based on available materials
+- Unified command system with consistent help and error messages
 
 **Test Commands**:
 ```bash
 # Clean start test
 rm -rf .catalyst
 echo -e "1\ngpt-4o\ntest_api_key\n2\n/quit" | python -m src.cli.main
+
+# Test new command aliases
+echo -e "/h\n/?\n/quit" | python -m src.cli.main
+echo -e "/cls\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 1.2: AI Provider Configuration
@@ -122,7 +153,7 @@ echo -e "/checkpoint list\n/quit" | python -m src.cli.main
 
 **Test Commands**:
 ```bash
-echo -e "/concepts\n/explain Core Concept\n/quit" | python -m src.cli.main
+echo -e "/concepts\n/topics\n/explain Core Concept\n/exp Core Concept\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 3.2: Challenge System (Stories 4 & 5)
@@ -143,7 +174,7 @@ echo -e "/concepts\n/explain Core Concept\n/quit" | python -m src.cli.main
 **Test Commands**:
 ```bash
 # Note: Quiz requires valid AI configuration
-echo -e "/quiz Core Concept\n/quit" | python -m src.cli.main
+echo -e "/quiz Core Concept\n/challenge Core Concept\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 3.3: Natural Language Interaction (Story 3)
@@ -165,6 +196,9 @@ echo -e "/quiz Core Concept\n/quit" | python -m src.cli.main
 ```bash
 # Note: Natural language interaction requires valid AI configuration
 echo -e "What is machine learning?\n/quit" | python -m src.cli.main
+
+# Test command-specific help
+echo -e "/help concepts\n/help /quiz\n/quit" | python -m src.cli.main
 ```
 
 ### 4. System Commands
@@ -187,6 +221,10 @@ echo -e "What is machine learning?\n/quit" | python -m src.cli.main
 **Test Commands**:
 ```bash
 echo -e "/checkpoint save test-1\n/checkpoint list\n/checkpoint load test-1\n/quit" | python -m src.cli.main
+
+# Test new configuration commands
+echo -e "/models\n/preferences\n/config\n/quit" | python -m src.cli.main
+echo -e "/m\n/prefs\n/cfg\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 4.2: Session Management
@@ -206,7 +244,10 @@ echo -e "/checkpoint save test-1\n/checkpoint list\n/checkpoint load test-1\n/qu
 
 **Test Commands**:
 ```bash
-echo -e "/reset\n/clear\n/quit" | python -m src.cli.main
+echo -e "/reset\n/clear\n/cls\n/quit" | python -m src.cli.main
+
+# Test quit aliases
+echo -e "/quit\n/exit\n/q\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 4.3: Configuration Management (Story 6)
@@ -226,11 +267,115 @@ echo -e "/reset\n/clear\n/quit" | python -m src.cli.main
 
 **Test Commands**:
 ```bash
+# Test new configuration commands
+echo -e "/config\n/models\n/preferences\n/quit" | python -m src.cli.main
+
+# Test configuration aliases
+echo -e "/cfg\n/m\n/prefs\n/quit" | python -m src.cli.main
+
+# Test interactive configuration with manual API key entry from .testenv
+# User manually copies API keys from .testenv file during configuration
+python -m src.cli.main
+# In interactive session:
+# 1. Enter: /config
+# 2. Select "Add new model"
+# 3. Choose provider type
+# 4. Enter model name
+# 5. Manually copy and paste API key from .testenv file
+# 6. Verify configuration
+
 # Note: /set-config requires interactive input and cannot be tested with echo pipes
 # For automated testing, use the first-time setup flow instead:
 rm -rf .catalyst
 echo -e "1\nlocal\nllama3\n2\n/quit" | python -m src.cli.main
 ```
+
+#### Test Case 4.4: Manual Configuration with .testenv Copy-Paste (New)
+**Objective**: Test manual model configuration by copying API keys from .testenv file
+
+**Prerequisites**:
+1. Create `.testenv` file with API keys for reference
+2. Have the file open for copying during testing
+
+**Steps**:
+1. Create `.testenv` file with test API keys:
+   ```bash
+   # .testenv file content (for reference only)
+   OPENAI_API_KEY=sk-your-openai-test-key-here
+   ANTHROPIC_API_KEY=sk-ant-your-anthropic-test-key-here
+   ZHIPU_API_KEY=your-zhipu-test-key-here
+   SILICONFLOW_API_KEY=sk-your-siliconflow-test-key-here
+   DEEPSEEK_API_KEY=sk-your-deepseek-test-key-here
+   ```
+2. Start application: `python -m src.cli.main`
+3. Use system command `/config` to access configuration menu
+4. Select "Add new model" option
+5. Manually select provider type from the interactive menu:
+   - 1 for OpenAI
+   - 2 for Anthropic
+   - 3 for ChatGLM
+   - 4 for SiliconFlow
+   - 5 for DeepSeek
+   - 6 for Local
+6. Manually enter model name (e.g., gpt-4o, claude-3-sonnet, etc.)
+7. **Manually copy API key from .testenv file** and paste it when prompted
+8. Confirm the configuration
+9. Use `/models` to verify the model appears in the list
+10. Test the configured model with `/explain` or `/quiz`
+
+**Expected Results**:
+- User can manually copy API keys from .testenv file
+- Pasted API keys work correctly for authentication
+- Manual provider selection works properly
+- Manual model name entry is accepted
+- Configuration is saved successfully
+- Configured models appear in `/models` list
+- Models function correctly with copied API keys
+
+**Interactive Test Workflow**:
+```bash
+# Step 1: Create .testenv file for reference
+cat > .testenv << EOF
+OPENAI_API_KEY=sk-test-openai-key-here
+ANTHROPIC_API_KEY=sk-ant-test-anthropic-key-here
+ZHIPU_API_KEY=test-zhipu-key-here
+EOF
+
+# Step 2: Start interactive session
+python -m src.cli.main
+
+# Step 3: In the interactive command line, enter:
+/config
+
+# Step 4: Follow the interactive prompts:
+# - Select "Add new model"
+# - Choose provider (1-6)
+# - Enter model name manually
+# - COPY API key from .testenv file and PASTE when prompted
+# - Confirm configuration
+
+# Step 5: Verify configuration
+/models
+
+# Step 6: Test the model
+/explain "test concept"
+```
+
+**Manual Copy-Paste Testing Scenarios**:
+1. **Complete Copy**: Copy entire API key correctly from .testenv
+2. **Partial Copy**: Copy incomplete API key - test error handling
+3. **Extra Characters**: Copy API key with extra spaces/characters - test validation
+4. **Wrong Provider**: Copy OpenAI key for Anthropic provider - test error handling
+5. **Multiple Models**: Test configuring multiple models by copying different keys
+6. **Key Visibility**: Verify API keys are visible during input for accurate copying
+7. **Backspace Editing**: Test editing pasted API keys if needed
+
+**Best Practices for Manual Configuration**:
+- Keep .testenv file open in separate terminal/window for easy access
+- Verify entire API key is copied (no truncation)
+- Check for extra spaces when pasting
+- Use provider-specific keys for correct providers
+- Test each configured model after setup
 
 ### 5. Knowledge Management
 
@@ -251,7 +396,7 @@ echo -e "1\nlocal\nllama3\n2\n/quit" | python -m src.cli.main
 
 **Test Commands**:
 ```bash
-echo -e "/knowledge-map\n/quit" | python -m src.cli.main
+echo -e "/knowledge-map\n/kmap\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 5.2: Content Analysis
@@ -288,7 +433,10 @@ echo -e "/knowledge-map\n/quit" | python -m src.cli.main
 
 **Test Commands**:
 ```bash
-echo -e "/invalid\n\n/help\n/quit" | python -m src.cli.main
+echo -e "/invalid\n\n/help\n/h\n/?\n/quit" | python -m src.cli.main
+
+# Test command alias resolution
+echo -e "/topics\n/exp\n/challenge\n/stats\n/usage\n/quit" | python -m src.cli.main
 ```
 
 #### Test Case 6.2: API Failures
@@ -343,12 +491,109 @@ echo -e "/invalid\n\n/help\n/quit" | python -m src.cli.main
 - Graceful handling of disk issues
 - Data integrity maintained
 
-### 7. Performance Testing
+### 7. CLI Reorganization Testing (New)
 
-#### Test Case 7.1: Large Knowledge Base
+#### Test Case 7.1: Command Registry Performance
+**Objective**: Test the new command registry system performance
+
+**Steps**:
+1. Test command lookup speed for all 12 commands
+2. Test command alias resolution
+3. Test concurrent command execution
+4. Measure startup time with new registry
+
+**Expected Results**:
+- Command lookup: < 0.0001s average
+- Startup time: < 0.001s
+- All aliases resolve correctly
+- 100% success rate for concurrent execution
+
+**Test Commands**:
+```bash
+# Test all commands and aliases
+echo -e "/help\n/h\n/?\n/quit\n/exit\n/q\n/clear\n/cls\n/models\n/m\n/preferences\n/prefs\n/pref\n/config\n/cfg\n/conf\n/concepts\n/topics\n/explain\n/exp\n/quiz\n/challenge\n/knowledge-map\n/kmap\n/tokens\n/usage\n/statistics\n/stats\n/analytics\n/quit" | python -m src.cli.main
+
+# Performance timing
+time echo -e "/help\n/quit" | python -m src.cli.main
+```
+
+#### Test Case 7.2: Command Category Organization
+**Objective**: Verify proper command categorization and help system
+
+**Steps**:
+1. Test help command shows all categories
+2. Test category-specific help
+3. Test command-specific help
+4. Verify consistent formatting across categories
+
+**Expected Results**:
+- Help shows 4 main categories
+- Each category lists correct commands
+- Command-specific help provides detailed information
+- Consistent formatting across all commands
+
+**Test Commands**:
+```bash
+echo -e "/help\n/help system\n/help config\n/help learning\n/help analytics\n/help concepts\n/help /quiz\n/quit" | python -m src.cli.main
+```
+
+#### Test Case 7.3: Command Alias Resolution
+**Objective**: Test all command aliases work correctly
+
+**Steps**:
+1. Test each primary command
+2. Test each alias for every command
+3. Test alias consistency
+4. Verify alias help displays correctly
+
+**Expected Results**:
+- All 29 command mappings work correctly
+- Aliases provide same functionality as primary commands
+- Help system works with aliases
+- No conflicts between aliases
+
+**Test Commands**:
+```bash
+# Test all aliases systematically
+for cmd in "/h" "/?" "/cls" "/m" "/prefs" "/pref" "/cfg" "/conf" "/topics" "/exp" "/challenge" "/kmap" "/usage" "/stats" "/analytics"; do
+  echo "Testing: $cmd"
+  echo -e "$cmd\n/quit" | python -m src.cli.main
+done
+```
+
+### 8. Performance Testing
+
+#### Test Case 8.1: Large Knowledge Base
 **Objective**: Test performance with many concepts
 
-#### Test Case 4.5: Input Editing Functionality
+**Steps**:
+1. Load large knowledge base (500+ concepts)
+2. Test concept search speed
+3. Test knowledge map generation
+4. Measure response times
+
+**Expected Results**:
+- Fast concept loading (< 5 seconds)
+- Quick search responses (< 2 seconds)
+- Efficient knowledge map rendering
+- Acceptable memory usage
+
+#### Test Case 8.2: Long Sessions
+**Objective**: Test application stability over time
+
+**Steps**:
+1. Run extended learning session
+2. Test memory usage over time
+3. Test state persistence
+4. Verify no memory leaks
+
+**Expected Results**:
+- Stable performance over time
+- Consistent memory usage
+- Reliable state saving
+- No degradation in response time
+
+#### Test Case 8.3: Input Editing Functionality
 **Objective**: Test backspace and editing functionality during interactive input
 
 **Steps**:
@@ -370,67 +615,49 @@ echo -e "/invalid\n\n/help\n/quit" | python -m src.cli.main
 # Note: This requires interactive terminal testing
 ```
 
-
-**Steps**:
-1. Load large knowledge base (500+ concepts)
-2. Test concept search speed
-3. Test knowledge map generation
-4. Measure response times
-
-**Expected Results**:
-- Fast concept loading (< 5 seconds)
-- Quick search responses (< 2 seconds)
-- Efficient knowledge map rendering
-- Acceptable memory usage
-
-#### Test Case 7.2: Long Sessions
-**Objective**: Test application stability over time
-
-**Steps**:
-1. Run extended learning session
-2. Test memory usage over time
-3. Test state persistence
-4. Verify no memory leaks
-
-**Expected Results**:
-- Stable performance over time
-- Consistent memory usage
-- Reliable state saving
-- No degradation in response time
-
 ## Automated Testing Scripts
 
-### Basic Functionality Test
+### Basic Functionality Test (Updated for CLI Reorganization)
 ```bash
 #!/bin/bash
 # basic_test.sh
 
 echo "Running basic functionality test..."
 
-# Test 1: Help command
-echo "Test 1: Help command"
-echo -e "/help\n/quit" | python -m src.cli.main > test1_output.txt
+# Test 1: Help command and aliases
+echo "Test 1: Help command and aliases"
+echo -e "/help\n/h\n/?\n/quit" | python -m src.cli.main > test1_output.txt
 grep -q "Available Commands" test1_output.txt && echo "✅ Help command works" || echo "❌ Help command failed"
 
-# Test 2: Concepts command
-echo "Test 2: Concepts command"
-echo -e "/concepts\n/quit" | python -m src.cli.main > test2_output.txt
-grep -q "Available Learning Concepts" test2_output.txt && echo "✅ Concepts command works" || echo "❌ Concepts command failed"
+# Test 2: System commands
+echo "Test 2: System commands"
+echo -e "/clear\n/cls\n/quit\n/exit\n/q\n/quit" | python -m src.cli.main > test2_output.txt
+grep -q "Screen cleared" test2_output.txt && echo "✅ System commands work" || echo "❌ System commands failed"
 
-# Test 3: Knowledge map
-echo "Test 3: Knowledge map"
-echo -e "/knowledge-map\n/quit" | python -m src.cli.main > test3_output.txt
-grep -q "Knowledge Map" test3_output.txt && echo "✅ Knowledge map works" || echo "❌ Knowledge map failed"
+# Test 3: Learning commands and aliases
+echo "Test 3: Learning commands and aliases"
+echo -e "/concepts\n/topics\n/explain test\n/exp test\n/quiz test\n/challenge test\n/knowledge-map\n/kmap\n/quit" | python -m src.cli.main > test3_output.txt
+grep -q "Available Learning Concepts" test3_output.txt && echo "✅ Learning commands work" || echo "❌ Learning commands failed"
 
-# Test 4: Checkpoint
-echo "Test 4: Checkpoint"
-echo -e "/checkpoint save test\n/checkpoint list\n/quit" | python -m src.cli.main > test4_output.txt
-grep -q "Checkpoint saved" test4_output.txt && echo "✅ Checkpoint works" || echo "❌ Checkpoint failed"
+# Test 4: Configuration commands
+echo "Test 4: Configuration commands"
+echo -e "/models\n/m\n/preferences\n/prefs\n/config\n/cfg\n/quit" | python -m src.cli.main > test4_output.txt
+grep -q "Available Models" test4_output.txt && echo "✅ Configuration commands work" || echo "❌ Configuration commands failed"
+
+# Test 5: Analytics commands
+echo "Test 5: Analytics commands"
+echo -e "/tokens\n/usage\n/statistics\n/stats\n/analytics\n/quit" | python -m src.cli.main > test5_output.txt
+grep -q "Token Usage" test5_output.txt && echo "✅ Analytics commands work" || echo "❌ Analytics commands failed"
+
+# Test 6: Command-specific help
+echo "Test 6: Command-specific help"
+echo -e "/help concepts\n/help /quiz\n/help statistics\n/quit" | python -m src.cli.main > test6_output.txt
+grep -q "Usage:" test6_output.txt && echo "✅ Command-specific help works" || echo "❌ Command-specific help failed"
 
 echo "Basic tests completed"
 ```
 
-### Full Workflow Test
+### Full Workflow Test (Updated for CLI Reorganization)
 ```bash
 #!/bin/bash
 # workflow_test.sh
@@ -440,16 +667,52 @@ echo "Running full workflow test..."
 # Clean start
 rm -rf .catalyst
 
-# Complete learning session workflow
-echo -e "1\nlocal\nllama3\n2\n/concepts\n/explain Core Concept\n/checkpoint save workflow-test\n/reset\n/quit" | python -m src.cli.main > workflow_output.txt
+# Complete learning session workflow with new command structure
+echo -e "1\nlocal\nllama3\n2\n/help\n/concepts\n/topics\n/explain Core Concept\n/exp Core Concept\n/quiz Core Concept\n/challenge Core Concept\n/knowledge-map\n/kmap\n/tokens\n/usage\n/statistics\n/stats\n/checkpoint save workflow-test\n/models\n/m\n/preferences\n/prefs\n/config\n/cfg\n/reset\n/quit" | python -m src.cli.main > workflow_output.txt
 
 # Verify workflow completion
 grep -q "Welcome to Learning Catalyst" workflow_output.txt && echo "✅ First-time setup works" || echo "❌ First-time setup failed"
 grep -q "Available Learning Concepts" workflow_output.txt && echo "✅ Concept browsing works" || echo "❌ Concept browsing failed"
 grep -q "Checkpoint saved" workflow_output.txt && echo "✅ Checkpoint saving works" || echo "❌ Checkpoint saving failed"
 grep -q "Conversation has been reset" workflow_output.txt && echo "✅ Reset works" || echo "❌ Reset failed"
+grep -q "Available Models" workflow_output.txt && echo "✅ Models command works" || echo "❌ Models command failed"
+grep -q "Token Usage" workflow_output.txt && echo "✅ Analytics commands work" || echo "❌ Analytics commands failed"
 
 echo "Workflow test completed"
+```
+
+### CLI Reorganization Test
+```bash
+#!/bin/bash
+# cli_reorganization_test.sh
+
+echo "Running CLI reorganization test..."
+
+# Test command registry performance
+echo "Test 1: Command registry performance"
+time echo -e "/help\n/quit" | python -m src.cli.main > perf_test.txt
+
+# Test all command categories
+echo "Test 2: All command categories"
+echo -e "/help\n/quit" | python -m src.cli.main > categories_test.txt
+grep -q "System Commands" categories_test.txt && echo "✅ System category displayed" || echo "❌ System category missing"
+grep -q "Configuration Commands" categories_test.txt && echo "✅ Configuration category displayed" || echo "❌ Configuration category missing"
+grep -q "Learning Commands" categories_test.txt && echo "✅ Learning category displayed" || echo "❌ Learning category missing"
+grep -q "Analytics Commands" categories_test.txt && echo "✅ Analytics category displayed" || echo "❌ Analytics category missing"
+
+# Test command aliases
+echo "Test 3: Command aliases"
+aliases=("/h" "/?" "/cls" "/m" "/prefs" "/cfg" "/topics" "/exp" "/challenge" "/kmap" "/usage" "/stats")
+for alias in "${aliases[@]}"; do
+    echo -e "$alias\n/quit" | python -m src.cli.main > alias_test.txt
+    if [ $? -eq 0 ]; then
+        echo "✅ Alias $alias works"
+    else
+        echo "❌ Alias $alias failed"
+    fi
+done
+
+echo "CLI reorganization test completed"
 ```
 
 ## Test Reporting
@@ -538,19 +801,15 @@ echo "Running regression tests..."
 ./basic_test.sh
 ./workflow_test.sh
 
+# Test CLI reorganization features
+./cli_reorganization_test.sh
+
 # Test edge cases
 echo -e "/invalid\n\n/quit" | python -m src.cli.main
 echo -e "/explain\n/quit" | python -m src.cli.main
 
 # Performance test
 time echo -e "/concepts\n/quit" | python -m src.cli.main
-
-
-### Issue 6: API Key Input Visibility
-**Enhancement**: API keys are now displayed during input (not hidden) to improve usability during testing and debugging. This makes it easier to verify correct key entry during manual testing while maintaining secure storage.
-
-### Issue 7: Backspace Handling in Interactive Prompts
-**Bug Fix**: Fixed an issue where using backspace during API key and model input in `/set-config` and first-time setup would cause the prompt to disappear. The input handling now uses a more robust method that properly handles backspace and other editing keys.
 
 echo "Regression tests completed"
 ```
@@ -592,30 +851,46 @@ python -m src.cli.main
 
 ## Known Issues and Workarounds
 
-### Issue 1: ChatGLM Provider Initialization Error
+### Issue 1: Command Alias Resolution (Post-Reorganization)
+**Problem**: Some command aliases are not resolving correctly after the CLI reorganization
+
+**Solution**: This is a known issue being addressed. In the meantime, use the primary command names instead of aliases. The most reliable commands are: `/help`, `/quit`, `/clear`, `/models`, `/preferences`, `/config`, `/concepts`, `/explain`, `/quiz`, `/knowledge-map`, `/tokens`, `/statistics`.
+
+### Issue 2: Test Environment Database Initialization
+**Problem**: Database initialization failures in test environments after reorganization
+
+**Solution**: Improve test environment setup with proper database mocking. For now, clean the `.catalyst` directory between test runs and ensure proper permissions.
+
+### Issue 3: ChatGLM Provider Initialization Error
 **Problem**: `TypeError: ChatGLMProvider.__init__() missing 1 required positional argument: 'api_key'`
 
 **Solution**: This has been fixed in the codebase. The ChatGLM provider is now initialized with `api_key=None` and will be configured properly when the user sets up their AI provider.
 
-### Issue 2: Local Provider Timeouts
+### Issue 4: Local Provider Timeouts
 **Problem**: Local model provider times out when no server is running
 
 **Solution**: Use a different provider for testing, or set up a local model server before testing. For automated tests, use the `local` provider with `llama3` model which doesn't require an actual server.
 
-### Issue 3: Quiz and Explain Commands Require AI Configuration
+### Issue 5: Quiz and Explain Commands Require AI Configuration
 **Problem**: Commands like `/quiz` and `/explain` fail with API key errors when no AI provider is configured
 
 **Solution**: Ensure proper AI provider configuration before testing these commands. For basic testing, use the local provider which doesn't require API keys.
 
-### Issue 4: Checkpoint List Display
+### Issue 6: Checkpoint List Display
 **Problem**: `/checkpoint list` may not show checkpoints in some cases
 
 **Solution**: This is a display issue but checkpoints are being saved correctly. The functionality works even if the list doesn't display properly.
 
-### Issue 5: First-Time Setup Prompts
+### Issue 7: First-Time Setup Prompts
 **Problem**: Interactive prompts in automated tests can cause issues
 
 **Solution**: Use the local provider (option 6) with llama3 model for automated testing as it doesn't require API keys or external servers.
+
+### Issue 8: API Key Input Visibility
+**Enhancement**: API keys are now displayed during input (not hidden) to improve usability during testing and debugging. This makes it easier to verify correct key entry during manual testing while maintaining secure storage.
+
+### Issue 9: Backspace Handling in Interactive Prompts
+**Bug Fix**: Fixed an issue where using backspace during API key and model input in `/set-config` and first-time setup would cause the prompt to disappear. The input handling now uses a more robust method that properly handles backspace and other editing keys.
 
 ## Updated Testing Recommendations
 
@@ -625,6 +900,9 @@ python -m src.cli.main
 3. Use timeout commands to prevent hanging
 4. Focus on core functionality that doesn't require AI responses
 5. Avoid interactive commands like `/set-config` in automated tests - use first-time setup flow instead
+6. **NEW**: Include CLI reorganization tests in all test suites
+7. **NEW**: Test command alias resolution systematically
+8. **NEW**: Verify command categorization in help system
 
 ### For Manual Testing
 1. Test with real API keys for full functionality
@@ -634,28 +912,79 @@ python -m src.cli.main
 5. **NEW**: Test Ctrl+C cancellation during `/set-config` to verify graceful exit
 6. **NEW**: Verify API key visibility during input for better usability
 7. **NEW**: Test backspace functionality during API key and model input to ensure prompts don't disappear
+8. **NEW**: Test all command aliases to ensure they work correctly
+9. **NEW**: Verify command-specific help displays properly
+10. **NEW**: Test performance metrics meet expected benchmarks
 
-### For Manual Testing
-1. Test with real API keys for full functionality
-2. Test different providers to ensure compatibility
-3. Verify AI-powered features like explanations and quizzes
+### CLI Reorganization Specific Testing
+1. **Command Registry Performance**: Verify startup time < 0.001s and command lookup < 0.0001s
+2. **Command Categories**: Ensure all 4 categories display correctly in help
+3. **Alias Resolution**: Test all 29 command mappings work properly
+4. **Help System**: Verify command-specific help works for all commands
+5. **Error Handling**: Test graceful handling of invalid commands with helpful suggestions
 
-### Issue 4: /set-config Command Requires Interactive Input
+### /set-config Command Considerations
 **Problem**: The `/set-config` command uses interactive prompts that don't work with piped input in automated tests
 
 **Solution**: Use the first-time setup flow for automated testing, or run `/set-config` manually in an interactive terminal. The command waits for user input and will fail with EOF when used with echo pipes.
 
 **Enhancement**: The `/set-config` command now supports Ctrl+C to gracefully cancel the configuration process and return to the main prompt at any step.
 
-### Issue 5: API Key Visibility
-**Enhancement**: API keys are now displayed explicitly during input (not hidden) to improve usability during testing and debugging. The API key is still stored securely but is visible during the configuration process for better user experience.
-
-4. Test error handling with invalid configurations
-
+### Log Analysis
+```bash
+# Check application logs
 tail -f .catalyst/logs/app.log
 
 # Check error logs
 grep ERROR .catalyst/logs/app.log
+
+# Check command registry performance
+grep "Command lookup" .catalyst/logs/app.log
 ```
 
 This comprehensive testing guide ensures thorough validation of all Learning Catalyst features and helps maintain high-quality standards throughout the development process.
+
+## Summary of CLI Reorganization Testing Updates
+
+This testing guide has been comprehensively updated to reflect the CLI reorganization project that transformed the Learning Catalyst command system. The key changes include:
+
+### New Command Structure
+- **4 Command Categories**: System, Configuration, Learning, and Analytics commands
+- **12 Primary Commands**: Each with multiple aliases for improved usability
+- **29 Total Command Mappings**: Including all aliases and shortcuts
+- **Unified Command Registry**: Centralized command management with consistent interfaces
+
+### Enhanced Testing Coverage
+- **Command Registry Performance Testing**: Verify startup time < 0.001s and command lookup < 0.0001s
+- **Alias Resolution Testing**: Systematic testing of all 29 command mappings
+- **Category Organization Testing**: Verify proper help system categorization
+- **Command-Specific Help Testing**: Ensure detailed help is available for all commands
+
+### Updated Test Scripts
+- **Enhanced Basic Functionality Test**: Tests all command categories and aliases
+- **Comprehensive Workflow Test**: Includes new command structure in complete user journey
+- **New CLI Reorganization Test**: Dedicated test for reorganization-specific features
+- **Updated Regression Testing**: Includes CLI reorganization validation
+
+### Performance Benchmarks
+- **Startup Time**: < 0.001s (excellent)
+- **Command Lookup**: Average 0.000000s, Maximum 0.000080s (excellent)
+- **Concurrent Execution**: 100% success rate with all commands executing successfully
+
+### Known Issues and Solutions
+- **Command Alias Resolution**: Some aliases may not resolve correctly - use primary commands as fallback
+- **Test Environment Database**: Database initialization issues in test environments - clean `.catalyst` directory between runs
+- **Legacy Component Integration**: Some components may still use old patterns - gradual migration ongoing
+
+### Testing Best Practices
+- **Automated Testing**: Use local provider with llama3 model, include CLI reorganization tests
+- **Manual Testing**: Test all aliases, verify command-specific help, check performance metrics
+- **Performance Testing**: Monitor command registry performance and system response times
+
+This comprehensive testing guide ensures thorough validation of all Learning Catalyst features, including the new CLI reorganization, and helps maintain high-quality standards throughout the development process.
+
+### Version Information
+- **Updated**: October 2024
+- **CLI Reorganization Version**: 1.0
+- **Test Coverage**: Enhanced to include all new command categories and aliases
+- **Performance Metrics**: New benchmarks based on CLI reorganization completion summary

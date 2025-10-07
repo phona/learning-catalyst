@@ -1,0 +1,94 @@
+[[tool.poetry.source]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
+priority = "primary"
+
+[project]
+name = "learning-catalyst"
+version = "0.1.0"
+description = "An AI-driven interactive learning game"
+authors = [
+    {name = "Learning Catalyst Team", email = "team@learningcatalyst.org"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+keywords = ["education", "ai", "learning", "interactive"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "typer>=0.9.0",
+    "httpx>=0.25.0",
+    "rich>=10.0.0",
+    "openai>=2.1.0",
+    "requests (>=2.32.5,<3.0.0)"
+]
+
+[project.urls]
+Homepage = "https://github.com/learning-catalyst/learning-catalyst"
+Repository = "https://github.com/learning-catalyst/learning-catalyst"
+
+[project.scripts]
+learning-catalyst = "src.cli.main:app"
+
+[tool.poetry]
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.0.0"
+pytest-asyncio = "^0.24.0"
+black = "^23.0.0"
+flake8 = "^6.0.0"
+pyright = "^1.1.0"
+autoflake = "^2.0.0"
+pylint = "^3.0.0"
+isort = "^5.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 130
+target-version = ['py38']
+
+[tool.isort]
+profile = "black"
+line_length = 130
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.pylint.format]
+max-line-length = "130"
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/node_modules", "**/__pycache__", "**/.*", "**/venv", "**/.venv", "build", "dist"]
+defineConstant = { DEBUG = true }
+stubPath = "src/stubs"
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.10"
+typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

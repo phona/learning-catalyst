@@ -5,13 +5,19 @@ Basic implementation of AssessmentEngine
 from datetime import datetime
 from typing import Any, Dict
 
+from src.core.interfaces.analytics import AssessmentEngine
 from src.data.database_manager import DatabaseManager
 from src.data.models.extended_models import CompetencyProfile, Recommendations
 
-from .assessment_engine import AssessmentEngine
-
 
 class BasicAssessmentEngine(AssessmentEngine):
+    """Basic implementation of the AssessmentEngine interface.
+
+    Provides fundamental assessment functionality including performance analysis,
+    competency profile updates, adaptive difficulty determination, and
+    learning recommendations based on user performance data.
+    """
+
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
 

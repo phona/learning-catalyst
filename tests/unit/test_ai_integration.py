@@ -10,8 +10,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from src.ai.service import ModelAbstractionService
-from src.core.catalyst_agent import (CatalystAgentImpl, ConversationContext,
-                                     IntentClassification)
+from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext, IntentClassification
 from src.core.challenge_engine import ChallengeEngineImpl
 from src.data.models.concept import Concept
 from src.data.models.extended_models import AIResponse, Message
@@ -224,5 +223,4 @@ class TestAIIntegration:
 
         # Verify it has default providers
         assert "openai" in service.providers, "Should have OpenAI provider"
-        assert "anthropic" in service.providers, "Should have Anthropic provider"
-        assert "local" in service.providers, "Should have Local provider"
+        assert "openai-compatible" in service.providers, "Should have OpenAI Compatible provider"

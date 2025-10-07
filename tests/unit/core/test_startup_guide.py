@@ -91,9 +91,7 @@ class TestStartupGuide:
         assert "first time" in message.lower()
 
     @pytest.mark.asyncio
-    async def test_get_returning_user_message_with_state(
-        self, startup_guide, mock_state_manager, mock_knowledge_navigator
-    ):
+    async def test_get_returning_user_message_with_state(self, startup_guide, mock_state_manager, mock_knowledge_navigator):
         """Test returning user message with previous state."""
         # Arrange
         mock_state = ApplicationState(

@@ -88,7 +88,7 @@ The CLI provides a rich command-line interface with:
 
 2. Run the application:
    ```bash
-   python -m src.cli.main start-learning
+   python -m src.cli.main
    ```
 
 3. Follow the setup prompts to configure your AI provider

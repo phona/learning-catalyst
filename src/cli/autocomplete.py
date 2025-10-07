@@ -3,7 +3,9 @@ Autocomplete functionality for Learning Catalyst CLI
 Provides command and concept autocompletion
 """
 
+import atexit
 import os
+import readline
 from typing import List, Optional
 
 from src.cli.command_palette import CommandPalette
@@ -17,6 +19,8 @@ class AutoCompleter:
         self.command_palette = command_palette
         self.workspace_path = workspace_path
         self.knowledge_navigator = None
+        self._completions: List[str] = []
+        self._completion_index: int = 0
         self._init_knowledge_navigator()
 
     def _init_knowledge_navigator(self) -> None:
@@ -25,7 +29,7 @@ class AutoCompleter:
             learningspace_path = os.path.join(self.workspace_path, ".catalyst")
             db_path = os.path.join(learningspace_path, "data.db")
             self.knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-        except Exception:
+        except (OSError, ImportError):
             # If we can't initialize the knowledge navigator, we'll continue without it
             self.knowledge_navigator = None
 
@@ -40,11 +44,6 @@ class AutoCompleter:
         Returns:
             The next completion or None if no more completions
         """
-        # Store completions between calls
-        if not hasattr(self, "_completions"):
-            self._completions = []
-            self._completion_index = 0
-
         # If state is 0, we're starting a new completion
         if state == 0:
             self._completions = self._get_matching_completions(text)
@@ -60,7 +59,7 @@ class AutoCompleter:
 
     def _get_matching_completions(self, text: str) -> List[str]:
         """Get all matching completions for the given text"""
-        completions = []
+        completions: List[str] = []
 
         # If text starts with /, we're completing a command
         if text.startswith("/"):
@@ -75,7 +74,7 @@ class AutoCompleter:
 
     def _get_command_completions(self, text: str) -> List[str]:
         """Get command completions for the given text"""
-        completions = []
+        completions: List[str] = []
 
         # Get command suggestions from the command palette
         command_suggestions = self.command_palette.get_autocomplete_suggestions(text)
@@ -85,7 +84,7 @@ class AutoCompleter:
 
     def _get_concept_completions(self, text: str) -> List[str]:
         """Get concept completions for the given text"""
-        completions = []
+        completions: List[str] = []
 
         # Get concept suggestions from the command palette
         context = {"workspace_path": self.workspace_path}
@@ -97,8 +96,6 @@ class AutoCompleter:
     def setup_readline_completion(self) -> None:
         """Set up readline completion for the CLI"""
         try:
-            import readline
-
             # Set up the completer function
             readline.set_completer(self.get_completions)
 
@@ -111,8 +108,6 @@ class AutoCompleter:
                 readline.read_history_file(history_file)
 
             # Set up history saving on exit
-            import atexit
-
             atexit.register(readline.write_history_file, history_file)
 
         except ImportError:

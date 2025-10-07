@@ -3,26 +3,13 @@ Model Abstraction Service implementation
 Provides a unified interface for interacting with different AI providers
 """
 
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+# Import providers dynamically to avoid import issues
+import importlib
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from src.ai.abstraction import (
-    ChatModel,
-    ConfiguredModels,
-    EmbeddingModel,
-    ModelAbstractionLayer,
-    ModelProvider,
-    Model,
-)
-from src.data.models.extended_models import (
-    AIResponse,
-    Credentials,
-    EmbeddingResponse,
-    Message,
-    RerankResponse,
-)
-
-if TYPE_CHECKING:
-    pass
+from src.ai.abstraction import ConfiguredModels, Model, ModelAbstractionLayer, ModelProvider
+from src.data.models.extended_models import AIResponse, Credentials, EmbeddingResponse, Message, RerankResponse
 
 
 class BaseModelProvider(ModelProvider):
@@ -32,21 +19,17 @@ class BaseModelProvider(ModelProvider):
         self._name = name
         self._models: Dict[str, Any] = {}
 
-    @property
-    def name(self) -> str:
-        return self._name
-
     async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
         """Validate API credentials for a provider"""
         # Base implementation always returns True
         # Concrete providers should override this
         return True
 
-    async def list_available_models(self) -> List["Model"]:
-        """Get list of available models for a provider"""
-        # Base implementation returns empty list
+    async def list_available_models(self) -> Dict[str, List["Model"]]:
+        """Get list of available models for a provider, grouped by type"""
+        # Base implementation returns empty dict
         # Concrete providers should override this
-        return []
+        return {"chat": [], "embedding": [], "rerank": []}
 
     def register_model(self, model_id: str, model: "Model") -> None:
         """Register a model with this provider"""
@@ -57,428 +40,95 @@ class BaseModelProvider(ModelProvider):
         return self._models.get(model_id)
 
 
-class OpenAIProvider(BaseModelProvider):
-    """OpenAI provider implementation"""
-
-    def __init__(self):
-        super().__init__("openai")
-        self._api_key: Optional[str] = None
-
-    async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
-        """Validate OpenAI API credentials"""
-        try:
-            import openai
-
-            # Create client with API key
-            client = openai.OpenAI(api_key=credentials.api_key)
-
-            # Make a simple API call to validate
-            await client.chat.completions.create(
-                model="gpt-3.5-turbo", messages=[{"role": "user", "content": "Hello"}], max_tokens=5
-            )
-
-            # If we get here, the API key is valid
-            self._api_key = credentials.api_key
-            return True
-
-        except Exception:
-            return False
-
-    async def list_available_models(self) -> List["Model"]:
-        """Get list of available OpenAI models"""
-        models = []
-
-        # Chat models
-        models.append(OpenAIChatModel("gpt-4", self))
-        models.append(OpenAIChatModel("gpt-4-turbo", self))
-        models.append(OpenAIChatModel("gpt-3.5-turbo", self))
-
-        # Embedding models
-        models.append(OpenAIEmbeddingModel("text-embedding-ada-002", self))
-
-        return models
-
-
-class OpenAIChatModel(ChatModel):
-    """OpenAI chat model implementation"""
-
-    def __init__(self, model_id: str, provider: OpenAIProvider):
-        self._model_id = model_id
-        self._provider = provider
-
-    async def get_provider(self) -> ModelProvider:
-        return self._provider
-
-    async def get_id(self) -> str:
-        return self._model_id
-
-    async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
-        """Send message to OpenAI and get response"""
-        try:
-            import openai
-
-            # Create client with API key
-            client = openai.OpenAI(api_key=self._provider._api_key)
-
-            # Convert messages to OpenAI format
-            openai_messages = []
-            for msg in messages:
-                openai_messages.append({"role": msg.role, "content": msg.content})
-
-            # Make API call
-            response = await client.chat.completions.create(
-                model=self._model_id, messages=openai_messages, temperature=temperature
-            )
-
-            # Extract response content
-            content = response.choices[0].message.content
-
-            # Extract token usage if available
-            token_usage = None
-            if hasattr(response, "usage") and response.usage:
-                token_usage = {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens,
-                }
-
-            from datetime import datetime
-
-            return AIResponse(
-                content=content,
-                model=self._model_id,
-                provider=self._provider.name,
-                usage=token_usage or {},
-                timestamp=datetime.now().isoformat(),
-            )
-
-        except Exception as e:
-            # Return error response
-            from datetime import datetime
-
-            return AIResponse(
-                content=f"Error: {str(e)}",
-                model=self._model_id,
-                provider=self._provider.name,
-                usage={},
-                timestamp=datetime.now().isoformat(),
-            )
-
-
-class OpenAIEmbeddingModel(EmbeddingModel):
-    """OpenAI embedding model implementation"""
-
-    def __init__(self, model_id: str, provider: OpenAIProvider):
-        self._model_id = model_id
-        self._provider = provider
-
-    async def get_provider(self) -> ModelProvider:
-        return self._provider
-
-    async def get_id(self) -> str:
-        return self._model_id
-
-    async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
-        """Get embeddings for texts using OpenAI"""
-        try:
-            import openai
-
-            # Create client with API key
-            client = openai.OpenAI(api_key=self._provider._api_key)
-
-            # Make API call
-            response = await client.embeddings.create(model=self._model_id, input=texts)
-
-            # Extract embeddings
-            embeddings = []
-            for item in response.data:
-                embeddings.append(item.embedding)
-
-            # Extract token usage if available
-            token_usage = None
-            if hasattr(response, "usage") and response.usage:
-                token_usage = {
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "total_tokens": response.usage.total_tokens,
-                }
-
-            return EmbeddingResponse(
-                embeddings=embeddings, model=self._model_id, provider=self._provider.name, usage=token_usage or {}
-            )
-
-        except Exception as e:
-            # Return error response
-            return EmbeddingResponse(
-                embeddings=[], model=self._model_id, provider=self._provider.name, usage={}, error=str(e)
-            )
-
-
-class AnthropicProvider(BaseModelProvider):
-    """Anthropic provider implementation"""
-
-    def __init__(self):
-        super().__init__("anthropic")
-        self._api_key: Optional[str] = None
-
-    async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
-        """Validate Anthropic API credentials"""
-        try:
-            import anthropic
-
-            # Set API key
-            client = anthropic.Anthropic(api_key=credentials.api_key)
-
-            # Make a simple API call to validate
-            await client.messages.create(
-                model="claude-3-haiku-20240307", max_tokens=10, messages=[{"role": "user", "content": "Hello"}]
-            )
-
-            # If we get here, the API key is valid
-            self._api_key = credentials.api_key
-            return True
-
-        except Exception:
-            return False
-
-    async def list_available_models(self) -> List["Model"]:
-        """Get list of available Anthropic models"""
-        models = []
-
-        # Chat models
-        models.append(AnthropicChatModel("claude-3-opus-20240229", self))
-        models.append(AnthropicChatModel("claude-3-sonnet-20240229", self))
-        models.append(AnthropicChatModel("claude-3-haiku-20240307", self))
-
-        return models
-
-
-class AnthropicChatModel(ChatModel):
-    """Anthropic chat model implementation"""
-
-    def __init__(self, model_id: str, provider: AnthropicProvider):
-        self._model_id = model_id
-        self._provider = provider
-
-    async def get_provider(self) -> ModelProvider:
-        return self._provider
-
-    async def get_id(self) -> str:
-        return self._model_id
-
-    async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
-        """Send message to Anthropic and get response"""
-        try:
-            import anthropic
-
-            # Set API key
-            client = anthropic.Anthropic(api_key=self._provider._api_key)
-
-            # Convert messages to Anthropic format
-            # Anthropic requires the first message to be from user
-            # and alternates between user and assistant
-            anthropic_messages = []
-            for msg in messages:
-                if msg.role == "user":
-                    anthropic_messages.append({"role": "user", "content": msg.content})
-                elif msg.role == "assistant":
-                    anthropic_messages.append({"role": "assistant", "content": msg.content})
-                # Skip system messages for now
-
-            # Make API call
-            response = await client.messages.create(
-                model=self._model_id,
-                max_tokens=1000,  # Default max tokens
-                temperature=temperature,
-                messages=anthropic_messages,
-            )
-
-            # Extract response content
-            content = response.content[0].text
-
-            from datetime import datetime
-
-            return AIResponse(
-                content=content,
-                model=self._model_id,
-                provider=self._provider.name,
-                usage={},
-                timestamp=datetime.now().isoformat(),
-            )
-
-        except Exception as e:
-            # Return error response
-            from datetime import datetime
-
-            return AIResponse(
-                content=f"Error: {str(e)}",
-                model=self._model_id,
-                provider=self._provider.name,
-                usage={},
-                timestamp=datetime.now().isoformat(),
-            )
-
-
-class LocalProvider(BaseModelProvider):
-    """Local model provider implementation"""
-
-    def __init__(self):
-        super().__init__("local")
-        self._base_url: Optional[str] = None
-
-    async def validate_credentials(self, provider: str, credentials: Credentials) -> bool:
-        """Validate local model server credentials"""
-        try:
-            import requests
-
-            # Set base URL
-            self._base_url = credentials.base_url
-
-            # Make a simple API call to validate
-            response = requests.post(
-                f"{self._base_url}/v1/chat/completions",
-                json={"model": "test", "messages": [{"role": "user", "content": "Hello"}], "max_tokens": 5},
-                timeout=5,
-            )
-
-            # If we get a valid response, the server is accessible
-            return response.status_code == 200
-
-        except Exception:
-            return False
-
-    async def list_available_models(self) -> List["Model"]:
-        """Get list of available local models"""
-        models = []
-
-        # Chat models
-        models.append(LocalChatModel("llama3", self))
-        models.append(LocalChatModel("mistral", self))
-        models.append(LocalChatModel("phi3", self))
-
-        return models
-
-
-class LocalChatModel(ChatModel):
-    """Local chat model implementation"""
-
-    def __init__(self, model_id: str, provider: LocalProvider):
-        self._model_id = model_id
-        self._provider = provider
-
-    async def get_provider(self) -> ModelProvider:
-        return self._provider
-
-    async def get_id(self) -> str:
-        return self._model_id
-
-    async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
-        """Send message to local model and get response"""
-        try:
-            import requests
-
-            # Convert messages to OpenAI-compatible format
-            openai_messages = []
-            for msg in messages:
-                openai_messages.append({"role": msg.role, "content": msg.content})
-
-            # Make API call
-            response = requests.post(
-                f"{self._provider._base_url}/v1/chat/completions",
-                json={"model": self._model_id, "messages": openai_messages, "temperature": temperature},
-                timeout=30,
-            )
-
-            # Parse response
-            if response.status_code == 200:
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-
-                # Extract token usage if available
-                token_usage = None
-                if "usage" in data:
-                    token_usage = {
-                        "prompt_tokens": data["usage"].get("prompt_tokens", 0),
-                        "completion_tokens": data["usage"].get("completion_tokens", 0),
-                        "total_tokens": data["usage"].get("total_tokens", 0),
-                    }
-
-                from datetime import datetime
-
-                return AIResponse(
-                    content=content,
-                    model=self._model_id,
-                    provider=self._provider.name,
-                    usage=token_usage or {},
-                    timestamp=datetime.now().isoformat(),
-                )
-            else:
-                # Return error response
-                from datetime import datetime
-
-                return AIResponse(
-                    content=f"Error: HTTP {response.status_code}",
-                    model=self._model_id,
-                    provider=self._provider.name,
-                    usage={},
-                    timestamp=datetime.now().isoformat(),
-                )
-
-        except Exception as e:
-            # Return error response
-            from datetime import datetime
-
-            return AIResponse(
-                content=f"Error: {str(e)}",
-                model=self._model_id,
-                provider=self._provider.name,
-                usage={},
-                timestamp=datetime.now().isoformat(),
-            )
-
-
 class ModelAbstractionService(ModelAbstractionLayer):
     """Service implementation for the Model Abstraction Layer"""
 
+    # Class method that returns ModelProvider classes
+    @classmethod
+    def get_provider_classes(cls) -> Dict[str, type]:
+        """Get all available provider classes using their name properties"""
+
+        provider_modules = [
+            ("src.ai.providers.deepseek_provider", "DeepSeekProvider"),
+            ("src.ai.providers.siliconflow_provider", "SiliconFlowProvider"),
+            ("src.ai.providers.openai_compatible_provider", "OpenAICompatibleModelProvider"),
+            ("src.ai.providers.chatglm_provider", "ChatGLMProvider"),
+        ]
+
+        result: Dict[str, type] = {}
+        for module_name, class_name in provider_modules:
+            try:
+                module = importlib.import_module(module_name)
+                provider_class = getattr(module, class_name)
+                provider_name = getattr(provider_class, "name", class_name)
+                result[provider_name] = provider_class
+            except (ImportError, AttributeError):
+                # Skip providers that can't be imported
+                continue
+
+        return result
+
+    @classmethod
+    def get_provider_class_descriptions(cls) -> Dict[str, str]:
+        """Get descriptions for all available provider classes"""
+        provider_classes = cls.get_provider_classes()
+        descriptions: Dict[str, str] = {}
+        for provider_name, provider_class in provider_classes.items():
+            descriptions[provider_name] = getattr(provider_class, "description", "No description available")
+        return descriptions
+
+    @staticmethod
+    def get_provider_class(provider_name: str) -> type:
+        """Get a specific provider class by name"""
+        provider_classes = ModelAbstractionService.get_provider_classes()
+        if provider_name not in provider_classes:
+            raise ValueError(f"Unknown provider: {provider_name}")
+        return provider_classes[provider_name]
+
     def __init__(self):
         self._providers: Dict[str, ModelProvider] = {}
-        self._configured_models: ConfiguredModels = ConfiguredModels(
-            chat_model=None, embedding_model=None, rerank_model=None
-        )
-
-        # Register default providers
-        self._register_default_providers()
+        self._configured_models: ConfiguredModels = ConfiguredModels(chat_model=None, embedding_model=None, rerank_model=None)
 
     @property
     def providers(self) -> Dict[str, ModelProvider]:
-        """Get all registered providers"""
+        """Get all registered provider instances"""
         return self._providers
-
-    def _register_default_providers(self) -> None:
-        """Register default model providers"""
-        self.register_provider(OpenAIProvider())
-        self.register_provider(AnthropicProvider())
-        self.register_provider(LocalProvider())
-        # Register ChatGLM provider with None API key (will be set later)
-        from src.ai.providers.chatglm_provider import ChatGLMProvider
-        self.register_provider(ChatGLMProvider(api_key=None))
 
     def register_provider(self, provider: ModelProvider) -> None:
         """Register a model provider"""
-        self._providers[provider.name] = provider
+        self._providers[provider.__class__.name] = provider
 
     def get_provider(self, name: str) -> Optional[ModelProvider]:
         """Get a provider by name"""
         return self._providers.get(name)
 
+    def get_available_providers(self) -> List[str]:
+        """Get list of available provider names"""
+        return list(self._providers.keys())
+
+    def get_provider_descriptions(self) -> Dict[str, str]:
+        """Get descriptions for all available providers"""
+        descriptions: Dict[str, str] = {}
+        for provider_name, provider in self._providers.items():
+            descriptions[provider_name] = getattr(provider.__class__, "description", "No description available")
+        return descriptions
+
     async def send_message(self, messages: List[Message], temperature: float = 0.7) -> AIResponse:
         """Send message to LLM provider and get response"""
         if not self._configured_models.chat_model:
-            # Try to set a default chat model
-            await self.set_chat_model()
+            # No chat model configured - user must set one explicitly
+
+            return AIResponse(
+                content=(
+                    "Error: No chat model configured. Please set a chat model using " "set_chat_model(provider_name, model_id)"
+                ),
+                model="unknown",
+                provider="unknown",
+                usage={},
+                timestamp=datetime.now().isoformat(),
+            )
 
         if not self._configured_models.chat_model:
-            from datetime import datetime
-
             return AIResponse(
                 content="Error: No chat model configured",
                 model="unknown",
@@ -492,8 +142,17 @@ class ModelAbstractionService(ModelAbstractionLayer):
     async def get_embeddings(self, texts: List[str], dimensions: Optional[int] = None) -> EmbeddingResponse:
         """Get embeddings for texts using specified provider and model"""
         if not self._configured_models.embedding_model:
-            # Try to set a default embedding model
-            await self.set_embedding_model()
+            # No embedding model configured - user must set one explicitly
+            return EmbeddingResponse(
+                embeddings=[],
+                model="unknown",
+                provider="unknown",
+                usage={},
+                error=(
+                    "No embedding model configured. Please set an embedding model using "
+                    "set_embedding_model(provider_name, model_id)"
+                ),
+            )
 
         if not self._configured_models.embedding_model:
             return EmbeddingResponse(
@@ -505,85 +164,96 @@ class ModelAbstractionService(ModelAbstractionLayer):
     async def rerank(self, query: str, documents: List[str], top_k: int = 10) -> RerankResponse:
         """Rerank documents based on query relevance"""
         if not self._configured_models.rerank_model:
-            # Try to set a default rerank model
-            await self.set_rerank_model()
+            # No rerank model configured - user must set one explicitly
+            return RerankResponse(
+                results=[],
+                model="unknown",
+                provider="unknown",
+                usage={},
+                error=(
+                    "No rerank model configured. Please set a rerank model using " "set_rerank_model(provider_name, model_id)"
+                ),
+            )
 
         if not self._configured_models.rerank_model:
-            return RerankResponse(
-                results=[], model="unknown", provider="unknown", usage={}, error="No rerank model configured"
-            )
+            return RerankResponse(results=[], model="unknown", provider="unknown", usage={}, error="No rerank model configured")
 
         return await self._configured_models.rerank_model.rerank(query, documents, top_k)
 
-    async def set_chat_model(self, provider_name: str = None, model_id: str = None) -> None:
+    async def set_chat_model(self, provider_name: str, model_id: str) -> None:
         """Set the chat model to use"""
-        if provider_name is None:
-            # Use default provider
-            provider_name = "openai"
+        if not provider_name:
+            raise ValueError("Provider name is required")
 
-        if model_id is None:
-            # Use default model for provider
-            if provider_name == "openai":
-                model_id = "gpt-3.5-turbo"
-            elif provider_name == "anthropic":
-                model_id = "claude-3-haiku-20240307"
-            elif provider_name == "local":
-                model_id = "llama3"
+        if not model_id:
+            raise ValueError("Model ID is required")
 
         provider = self.get_provider(provider_name)
         if not provider:
             raise ValueError(f"Unknown provider: {provider_name}")
 
-        # Get available models
-        models = await provider.list_available_models()
-
-        # Find the requested model
-        for model in models:
-            if isinstance(model, ChatModel) and await model.get_id() == model_id:
+        # Create model instance dynamically since users choose their own models
+        if hasattr(provider, "_create_model_instance"):
+            model = provider.create_model_instance(model_id)
+            if model:
                 self._configured_models = ConfiguredModels(
-                    chat_model=model,
+                    chat_model=model,  # type: ignore - we know this is a ChatModel
                     embedding_model=self._configured_models.embedding_model,
                     rerank_model=self._configured_models.rerank_model,
                 )
                 return
 
-        raise ValueError(f"Unknown model: {model_id} for provider: {provider_name}")
+        raise ValueError(f"Unable to create model: {model_id} for provider: {provider_name}")
 
-    async def set_embedding_model(self, provider_name: str = None, model_id: str = None) -> None:
+    async def set_embedding_model(self, provider_name: str, model_id: str) -> None:
         """Set the embedding model to use"""
-        if provider_name is None:
-            # Use default provider
-            provider_name = "openai"
+        if not provider_name:
+            raise ValueError("Provider name is required")
 
-        if model_id is None:
-            # Use default model for provider
-            if provider_name == "openai":
-                model_id = "text-embedding-ada-002"
+        if not model_id:
+            raise ValueError("Model ID is required")
 
         provider = self.get_provider(provider_name)
         if not provider:
             raise ValueError(f"Unknown provider: {provider_name}")
 
-        # Get available models
-        models = await provider.list_available_models()
-
-        # Find the requested model
-        for model in models:
-            if isinstance(model, EmbeddingModel) and await model.get_id() == model_id:
+        # Create model instance dynamically since users choose their own models
+        if hasattr(provider, "_create_model_instance"):
+            model = provider.create_model_instance(model_id)
+            if model:
                 self._configured_models = ConfiguredModels(
                     chat_model=self._configured_models.chat_model,
-                    embedding_model=model,
+                    embedding_model=model,  # type: ignore - we know this is an EmbeddingModel
                     rerank_model=self._configured_models.rerank_model,
                 )
                 return
 
-        raise ValueError(f"Unknown model: {model_id} for provider: {provider_name}")
+        raise ValueError(f"Unable to create model: {model_id} for provider: {provider_name}")
 
-    async def set_rerank_model(self, provider_name: str = None, model_id: str = None) -> None:
+    async def set_rerank_model(self, provider_name: str, model_id: str) -> None:
         """Set the rerank model to use"""
-        # For now, we don't have any rerank models implemented
-        # This is a placeholder for future implementation
-        pass
+        if not provider_name:
+            raise ValueError("Provider name is required")
+
+        if not model_id:
+            raise ValueError("Model ID is required")
+
+        provider = self.get_provider(provider_name)
+        if not provider:
+            raise ValueError(f"Unknown provider: {provider_name}")
+
+        # Create model instance dynamically since users choose their own models
+        if hasattr(provider, "_create_model_instance"):
+            model = provider.create_model_instance(model_id)
+            if model:
+                self._configured_models = ConfiguredModels(
+                    chat_model=self._configured_models.chat_model,
+                    embedding_model=self._configured_models.embedding_model,
+                    rerank_model=model,  # type: ignore - we know this is a RerankModel
+                )
+                return
+
+        raise ValueError(f"Unable to create model: {model_id} for provider: {provider_name}")
 
     def inused_models(self) -> ConfiguredModels:
         """Get currently in-use models"""
@@ -595,26 +265,28 @@ class ModelAbstractionService(ModelAbstractionLayer):
         Each provider maps to a list of its models.
         models include chat, embedding, and rerank models.
         """
-        result = {}
+        result: Dict[str, List[Model]] = {}
 
-        for provider_name, provider in self._providers.items():
+        # Since we can't use await in a non-async method, we'll use a simplified approach
+        # that only checks if models are configured, not their providers
+        for provider_name in self._providers:
             # Get all models for this provider
-            models = []
+            models: List[Model] = []
 
             # Add chat models
-            if self._configured_models.chat_model and self._configured_models.chat_model.get_provider() == provider:
-                models.append(self._configured_models.chat_model)
+            chat_model = self._configured_models.chat_model
+            if chat_model:
+                models.append(chat_model)
 
             # Add embedding models
-            if (
-                self._configured_models.embedding_model
-                and self._configured_models.embedding_model.get_provider() == provider
-            ):
-                models.append(self._configured_models.embedding_model)
+            embedding_model = self._configured_models.embedding_model
+            if embedding_model:
+                models.append(embedding_model)
 
             # Add rerank models
-            if self._configured_models.rerank_model and self._configured_models.rerank_model.get_provider() == provider:
-                models.append(self._configured_models.rerank_model)
+            rerank_model = self._configured_models.rerank_model
+            if rerank_model:
+                models.append(rerank_model)
 
             if models:
                 result[provider_name] = models
@@ -635,9 +307,9 @@ class ModelAbstractionService(ModelAbstractionLayer):
         provider = self.get_provider(provider_name)
         if not provider:
             return False
-        
+
         # Update the API key for the provider
-        if hasattr(provider, 'api_key'):
-            provider.api_key = api_key
+        if hasattr(provider, "_api_key"):
+            setattr(provider, "_api_key", api_key)  # type: ignore
             return True
         return False

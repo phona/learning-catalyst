@@ -2,7 +2,6 @@
 Unit tests for the concept builder module.
 """
 
-from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -123,9 +122,7 @@ class TestConceptBuilder:
         granularity = "headers"
 
         with patch("src.core.concept_builder.extract_all_concepts") as mock_extract:
-            mock_extract.return_value = [
-                {"id": "concept-1", "title": "Test Concept 1", "content": "Test content 1", "level": 1}
-            ]
+            mock_extract.return_value = [{"id": "concept-1", "title": "Test Concept 1", "content": "Test content 1", "level": 1}]
 
             # Act
             concepts = await concept_builder.extract_concepts_from_directory(dir_path, granularity)
@@ -150,12 +147,8 @@ class TestConceptBuilder:
         """Test building relationships with concepts."""
         # Arrange
         concept_builder.concepts = [
-            Concept(
-                id="concept-1", title="Parent Concept", content="Parent content", prerequisites=[], difficulty_level=1
-            ),
-            Concept(
-                id="concept-2", title="Child Concept", content="Child content", prerequisites=[], difficulty_level=2
-            ),
+            Concept(id="concept-1", title="Parent Concept", content="Parent content", prerequisites=[], difficulty_level=1),
+            Concept(id="concept-2", title="Child Concept", content="Child content", prerequisites=[], difficulty_level=2),
         ]
 
         # Act
@@ -242,12 +235,8 @@ class TestConceptBuilder:
         """Test detecting duplicates when none exist."""
         # Arrange
         concept_builder.concepts = [
-            Concept(
-                id="concept-1", title="Test Concept 1", content="Test content 1", prerequisites=[], difficulty_level=1
-            ),
-            Concept(
-                id="concept-2", title="Test Concept 2", content="Test content 2", prerequisites=[], difficulty_level=1
-            ),
+            Concept(id="concept-1", title="Test Concept 1", content="Test content 1", prerequisites=[], difficulty_level=1),
+            Concept(id="concept-2", title="Test Concept 2", content="Test content 2", prerequisites=[], difficulty_level=1),
         ]
 
         # Act

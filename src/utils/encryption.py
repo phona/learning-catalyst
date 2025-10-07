@@ -3,15 +3,26 @@ Encryption utilities for securing sensitive data like API keys
 """
 
 import base64
-import os
 import json
+import os
 from pathlib import Path
-from typing import Dict, Any, Optional
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.backends import default_backend
-from src.utils.error_handler import handle_errors, FileOperationError, ConfigurationError
+from typing import Any, Dict, List, Optional
+
+try:
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+    _cryptography_available = True
+except ImportError:
+    # Fallback for when cryptography is not available
+    Fernet = None  # type: ignore
+    hashes = None  # type: ignore
+    PBKDF2HMAC = None  # type: ignore
+    default_backend = None  # type: ignore
+    _cryptography_available = False
+from src.utils.error_handler import ConfigurationError, FileOperationError, handle_errors
 
 
 class EncryptionManager:
@@ -31,6 +42,9 @@ class EncryptionManager:
 
     def _init_encryption_key(self) -> None:
         """Initialize or load encryption key"""
+        if not _cryptography_available:
+            raise ConfigurationError("Cryptography library is not available")
+
         try:
             if self.key_file.exists() and self.salt_file.exists():
                 # Load existing key and salt
@@ -41,7 +55,7 @@ class EncryptionManager:
             else:
                 # Generate new key and salt
                 self.salt = os.urandom(16)
-                self.key = Fernet.generate_key()
+                self.key = Fernet.generate_key()  # type: ignore
 
                 # Save key and salt
                 with open(self.key_file, "wb") as f:
@@ -53,15 +67,22 @@ class EncryptionManager:
                 os.chmod(self.key_file, 0o600)
                 os.chmod(self.salt_file, 0o600)
 
-            self.cipher = Fernet(self.key)
+            self.cipher = Fernet(self.key)  # type: ignore
 
-        except Exception as e:
-            raise ConfigurationError("Failed to initialize encryption", original_error=e)
+        except (OSError, ValueError, RuntimeError, ImportError) as e:
+            raise ConfigurationError("Failed to initialize encryption") from e
 
     def derive_key_from_password(self, password: str) -> bytes:
         """Derive encryption key from user password"""
+        if not _cryptography_available:
+            raise ConfigurationError("Cryptography library is not available")
+
         kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(), length=32, salt=self.salt, iterations=100000, backend=default_backend()
+            algorithm=hashes.SHA256(),  # type: ignore
+            length=32,
+            salt=self.salt,
+            iterations=100000,
+            backend=default_backend(),  # type: ignore
         )
         return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
@@ -71,11 +92,14 @@ class EncryptionManager:
         if not data:
             raise ValueError("Data to encrypt cannot be empty")
 
+        if not _cryptography_available:
+            raise ConfigurationError("Cryptography library is not available")
+
         try:
-            encrypted_data = self.cipher.encrypt(data.encode())
+            encrypted_data = self.cipher.encrypt(data.encode())  # type: ignore
             return base64.urlsafe_b64encode(encrypted_data).decode()
-        except Exception as e:
-            raise FileOperationError("Failed to encrypt data", original_error=e)
+        except (ValueError, RuntimeError, TypeError) as e:
+            raise FileOperationError("Failed to encrypt data") from e
 
     @handle_errors(reraise=True)
     def decrypt(self, encrypted_data: str) -> str:
@@ -83,12 +107,15 @@ class EncryptionManager:
         if not encrypted_data:
             raise ValueError("Encrypted data cannot be empty")
 
+        if not _cryptography_available:
+            raise ConfigurationError("Cryptography library is not available")
+
         try:
             decoded_data = base64.urlsafe_b64decode(encrypted_data.encode())
-            decrypted_data = self.cipher.decrypt(decoded_data)
+            decrypted_data = self.cipher.decrypt(decoded_data)  # type: ignore
             return decrypted_data.decode()
-        except Exception as e:
-            raise FileOperationError("Failed to decrypt data", original_error=e)
+        except (ValueError, RuntimeError, TypeError, base64.binascii.Error) as e:
+            raise FileOperationError("Failed to decrypt data") from e
 
     @handle_errors(reraise=True)
     def encrypt_dict(self, data: Dict[str, Any]) -> str:
@@ -99,8 +126,8 @@ class EncryptionManager:
         try:
             json_str = json.dumps(data)
             return self.encrypt(json_str)
-        except Exception as e:
-            raise FileOperationError("Failed to encrypt dictionary", original_error=e)
+        except (ValueError, RuntimeError, TypeError, json.JSONEncodeError) as e:
+            raise FileOperationError("Failed to encrypt dictionary") from e
 
     @handle_errors(reraise=True)
     def decrypt_dict(self, encrypted_data: str) -> Dict[str, Any]:
@@ -111,8 +138,8 @@ class EncryptionManager:
         try:
             json_str = self.decrypt(encrypted_data)
             return json.loads(json_str)
-        except Exception as e:
-            raise FileOperationError("Failed to decrypt dictionary", original_error=e)
+        except (ValueError, RuntimeError, TypeError, json.JSONDecodeError) as e:
+            raise FileOperationError("Failed to decrypt dictionary") from e
 
     def rotate_key(self) -> None:
         """Rotate encryption key and re-encrypt sensitive files"""
@@ -140,7 +167,7 @@ class SecureConfigManager:
     def _init_config(self) -> None:
         """Initialize secure configuration file"""
         if not self.config_file.exists():
-            with open(self.config_file, "w") as f:
+            with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump({}, f)
             os.chmod(self.config_file, 0o600)
 
@@ -165,8 +192,8 @@ class SecureConfigManager:
             # Save config
             self._save_config(config)
 
-        except Exception as e:
-            raise FileOperationError(f"Failed to store API key for {provider}", original_error=e)
+        except (ValueError, RuntimeError, OSError) as e:
+            raise FileOperationError(f"Failed to store API key for {provider}") from e
 
     @handle_errors(default_return=None)
     def get_api_key(self, provider: str) -> Optional[str]:
@@ -184,8 +211,8 @@ class SecureConfigManager:
             encrypted_key = api_keys[provider]
             return self.encryption_manager.decrypt(encrypted_key)
 
-        except Exception as e:
-            raise FileOperationError(f"Failed to retrieve API key for {provider}", original_error=e)
+        except (ValueError, RuntimeError, KeyError) as e:
+            raise FileOperationError(f"Failed to retrieve API key for {provider}") from e
 
     @handle_errors(reraise=True)
     def delete_api_key(self, provider: str) -> bool:
@@ -205,8 +232,8 @@ class SecureConfigManager:
 
             return False
 
-        except Exception as e:
-            raise FileOperationError(f"Failed to delete API key for {provider}", original_error=e)
+        except (ValueError, RuntimeError, OSError) as e:
+            raise FileOperationError(f"Failed to delete API key for {provider}") from e
 
     @handle_errors(reraise=True)
     def set_secure_value(self, key: str, value: str) -> None:
@@ -226,8 +253,8 @@ class SecureConfigManager:
             config["secure_values"][key] = encrypted_value
             self._save_config(config)
 
-        except Exception as e:
-            raise FileOperationError(f"Failed to store secure value for {key}", original_error=e)
+        except (ValueError, RuntimeError, OSError) as e:
+            raise FileOperationError(f"Failed to store secure value for {key}") from e
 
     @handle_errors(default_return=None)
     def get_secure_value(self, key: str) -> Optional[str]:
@@ -245,32 +272,32 @@ class SecureConfigManager:
             encrypted_value = secure_values[key]
             return self.encryption_manager.decrypt(encrypted_value)
 
-        except Exception as e:
-            raise FileOperationError(f"Failed to retrieve secure value for {key}", original_error=e)
+        except (ValueError, RuntimeError, KeyError) as e:
+            raise FileOperationError(f"Failed to retrieve secure value for {key}") from e
 
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from file"""
         try:
-            with open(self.config_file, "r") as f:
+            with open(self.config_file, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            raise FileOperationError("Failed to load secure configuration", original_error=e)
+            raise FileOperationError("Failed to load secure configuration") from e
 
     def _save_config(self, config: Dict[str, Any]) -> None:
         """Save configuration to file"""
         try:
-            with open(self.config_file, "w") as f:
+            with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
-        except Exception as e:
-            raise FileOperationError("Failed to save secure configuration", original_error=e)
+        except (OSError, ValueError, TypeError) as e:
+            raise FileOperationError("Failed to save secure configuration") from e
 
-    def list_providers_with_keys(self) -> list:
+    def list_providers_with_keys(self) -> List[str]:
         """List providers that have stored API keys"""
         try:
             config = self._load_config()
             api_keys = config.get("api_keys", {})
             return list(api_keys.keys())
-        except Exception:
+        except (OSError, ValueError, KeyError):
             return []
 
 

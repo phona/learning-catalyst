@@ -44,7 +44,7 @@ class Phase1Tester:
                 line = self.process.stdout.readline()
                 if line:
                     self.output_queue.put(line.strip())
-            except:
+            except Exception:
                 break
 
     def start_application(self):
@@ -103,7 +103,7 @@ class Phase1Tester:
                     break
 
             return output
-        except Exception as e:
+        except Exception:
             return []
 
     def cleanup(self):
@@ -271,8 +271,8 @@ class TestPhase1Features:
         assert startup_output, "No startup output received"
 
         # Check for tips or suggestions
-        tips_found = any("Tip:" in line for line in startup_output)
         # Tips might not always be present, so this is a soft check
+        any("Tip:" in line for line in startup_output)
 
     def test_command_palette(self, phase1_tester):
         """Test Command Palette Input"""

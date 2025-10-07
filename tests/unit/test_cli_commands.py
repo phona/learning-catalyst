@@ -3,9 +3,7 @@ Unit tests for CLI commands
 """
 
 import os
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -113,7 +111,7 @@ def test_preference_list_command(temp_workspace):
     # Initialize with default preferences
     from src.utils.preferences_manager import PreferencesManager
 
-    prefs_mgr = PreferencesManager(str(temp_workspace))
+    PreferencesManager(str(temp_workspace))
 
     try:
         # Run the preference list command
@@ -544,7 +542,6 @@ def test_slash_help_command(temp_workspace):
 
 def test_slash_config_command(temp_workspace):
     """Test the /set-config slash command in the interactive session"""
-    from src.utils.preferences_manager import PreferencesManager
 
     # Change to the temporary workspace directory
     original_cwd = os.getcwd()
@@ -577,7 +574,6 @@ def test_slash_config_command(temp_workspace):
 
 def test_slash_set_config_command(temp_workspace):
     """Test the /set-config slash command functionality"""
-    from src.utils.preferences_manager import PreferencesManager
 
     # Change to the temporary workspace directory
     original_cwd = os.getcwd()

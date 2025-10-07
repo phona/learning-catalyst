@@ -42,7 +42,7 @@ async def test_with_zhipu_models():
         db_manager = DatabaseManager(str(db_path))
 
         # Initialize preferences
-        preferences_mgr = PreferencesManager(str(workspace_path))
+        PreferencesManager(str(workspace_path))
 
         # Configure Zhipu AI model settings
         # NOTE: In a real implementation, you would set these via environment variables or local config
@@ -62,7 +62,7 @@ async def test_with_zhipu_models():
         # Initialize components
         knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
         catalyst_agent = CatalystAgentImpl(model_service)
-        challenge_engine = ChallengeEngineImpl(catalyst_agent)
+        ChallengeEngineImpl(catalyst_agent)
 
         # Create sample learning content to test
         sample_concept = Concept(
