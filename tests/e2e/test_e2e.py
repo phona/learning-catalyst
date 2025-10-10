@@ -25,7 +25,7 @@ class TestEndToEnd:
     async def test_complete_learning_session_e2e(self, temp_workspace):
         """Test a complete end-to-end learning session"""
         # Initialize all components
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         model_service = ModelAbstractionService()
 
@@ -179,7 +179,7 @@ class TestEndToEnd:
     async def test_multiple_learning_sessions_e2e(self, temp_workspace):
         """Test multiple learning sessions with progression"""
         # Initialize components
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         model_service = ModelAbstractionService()
 
@@ -282,7 +282,7 @@ class TestEndToEnd:
     async def test_user_preferences_workflow_e2e(self, temp_workspace):
         """Test end-to-end workflow with user preferences affecting behavior"""
         # Initialize components
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         model_service = ModelAbstractionService()
 
@@ -355,7 +355,7 @@ class TestEndToEnd:
     async def test_token_usage_and_cost_tracking_e2e(self, temp_workspace):
         """Test end-to-end token usage and cost tracking"""
         # Initialize components
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         model_service = ModelAbstractionService()
 

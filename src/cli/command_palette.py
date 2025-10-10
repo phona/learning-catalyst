@@ -95,21 +95,25 @@ class CommandPalette:
         self.registry.register_command(TokensCommand())
         self.registry.register_command(StatisticsCommand())
 
-    def register_command(
+    def register_command(self, metadata: CommandMetadata) -> None:
+        """Register a new command (delegates to registry)"""
+        command = SimpleCommand(metadata)
+        self.registry.register_command(command)
+
+    def register_command_with_params(
         self,
         name: str,
-        description: str,
-        aliases: List[str],
         handler: Callable[..., Any],
+        description: str = "",
+        aliases: Optional[List[str]] = None,
         usage: str = "",
         category: str = "General",
     ) -> None:
-        """Register a new command (delegates to registry)"""
-
-        # Register the command
+        """Register a new command with individual parameters (convenience method)"""
+        if aliases is None:
+            aliases = []
         metadata = CommandMetadata(name, description, aliases, handler, usage, category)
-        command = SimpleCommand(metadata)
-        self.registry.register_command(command)
+        self.register_command(metadata)
 
     def execute_command(self, command_input: str, context: Optional[Dict[str, Any]] = None) -> bool:
         """

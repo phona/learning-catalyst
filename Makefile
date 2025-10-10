@@ -1,4 +1,4 @@
-.PHONY: lint format pylint help install-dev
+.PHONY: lint format help install-dev
 
 # Default paths if not provided
 DEFAULT_PATHS = src tests
@@ -22,14 +22,12 @@ lint: ## Run all linting tools (paths can be provided after command, e.g., make 
 		isort $(DEFAULT_PATHS); \
 		black $(DEFAULT_PATHS); \
 		flake8 $(DEFAULT_PATHS); \
-		pylint $(DEFAULT_PATHS); \
 		pyright $(DEFAULT_PATHS); \
 	else \
 		autoflake --in-place --remove-all-unused-imports --remove-unused-variables --recursive $(filter-out $@,$(MAKECMDGOALS)); \
 		isort $(filter-out $@,$(MAKECMDGOALS)); \
 		black $(filter-out $@,$(MAKECMDGOALS)); \
 		flake8 $(filter-out $@,$(MAKECMDGOALS)); \
-		pylint $(filter-out $@,$(MAKECMDGOALS)); \
 		pyright $(filter-out $@,$(MAKECMDGOALS)); \
 	fi
 
@@ -58,11 +56,11 @@ check-pylint: ## Check code with pylint only (paths can be provided after comman
 		pylint $(filter-out $@,$(MAKECMDGOALS)); \
 	fi
 
-pylint: ## Run pylint only (paths can be provided after command)
+check-pyright: ## Run pyright only (paths can be provided after command)
 	@if [ -z "$(filter-out $@,$(MAKECMDGOALS))" ]; then \
-		pylint $(DEFAULT_PATHS); \
+		pyright $(DEFAULT_PATHS); \
 	else \
-		pylint $(filter-out $@,$(MAKECMDGOALS)); \
+		pyright $(filter-out $@,$(MAKECMDGOALS)); \
 	fi
 
 check-black: ## Check code formatting with black only (paths can be provided after command)

@@ -14,7 +14,7 @@ from src.data.vector_storage import VectorStorage
 class TestDatabaseManager:
     def test_database_manager_initialization(self, temp_workspace):
         """Test database manager initialization"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
 
         assert db_manager.db_path == str(db_path)
@@ -126,7 +126,7 @@ class TestDatabaseManager:
 class TestVectorStorage:
     def test_vector_storage_initialization(self, temp_workspace):
         """Test vector storage initialization"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
 
         # Create database manager first to ensure tables exist
         DatabaseManager(str(db_path))
@@ -150,7 +150,7 @@ class TestVectorStorage:
 
     def test_store_and_get_embedding(self, temp_workspace):
         """Test storing and retrieving embeddings"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
 
         # Initialize database and vector storage
         db_manager = DatabaseManager(str(db_path))
@@ -185,7 +185,7 @@ class TestVectorStorage:
 
     def test_store_embedding_invalid_table(self, temp_workspace):
         """Test storing embedding with invalid table name"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         vector_storage = VectorStorage(str(db_path))
 
         with pytest.raises(ValueError):
@@ -193,7 +193,7 @@ class TestVectorStorage:
 
     def test_find_similar_by_embedding(self, temp_workspace):
         """Test finding similar items by embedding"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         vector_storage = VectorStorage(str(db_path))
 
         # This test is limited since we don't have SQLite-VSS in the test environment

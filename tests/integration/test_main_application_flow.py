@@ -61,7 +61,7 @@ class TestCompleteLearningWorkflow:
 
         # 1. Workspace is already initialized by the temp_workspace fixture
         # Just verify it exists
-        assert (Path(temp_workspace) / ".learningspace").exists()
+        assert (Path(temp_workspace) / ".catalys").exists()
 
         # 3. Configure preferences
         prefs_manager.set_preference("ai.default_provider", "openai")

@@ -36,19 +36,19 @@ def help_command(args: List[str], context: Dict[str, Any]) -> CommandResult:
                 message = Message(content=help_text, role="assistant")
                 cli_interface.display_message(message)
             return CommandResult(success=True, message="")
-        else:
-            error_msg = f"Unknown command: {command_name}"
-            if cli_interface:
-                cli_interface.display_error(error_msg)
-            return CommandResult(success=False, message=error_msg, error=f"Command '{command_name}' not found")
-    else:
-        # Show general help
-        help_text = command_registry.get_help_text()
-        # Display the help message directly
+
+        error_msg = f"Unknown command: {command_name}"
         if cli_interface:
-            message = Message(content=help_text, role="assistant")
-            cli_interface.display_message(message)
-        return CommandResult(success=True, message="")
+            cli_interface.display_error(error_msg)
+        return CommandResult(success=False, message=error_msg, error=f"Command '{command_name}' not found")
+
+    # Show general help
+    help_text = command_registry.get_help_text()
+    # Display the help message directly
+    if cli_interface:
+        message = Message(content=help_text, role="assistant")
+        cli_interface.display_message(message)
+    return CommandResult(success=True, message="")
 
 
 class HelpCommand(BaseCommand):

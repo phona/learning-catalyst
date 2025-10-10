@@ -12,14 +12,14 @@ from src.cli.commands.base import BaseCommand, CommandCategory, CommandDecorator
         name="clear", description="Clear the terminal screen", aliases=["cls"], category=CommandCategory.SYSTEM, usage="/clear"
     )
 )
-def clear_command(args: List[str], context: Dict[str, Any]) -> CommandResult:
+def clear_command(_args: List[str], context: Dict[str, Any]) -> CommandResult:
     """Handle the clear command"""
     cli_interface = context.get("cli_interface")
     if cli_interface:
         cli_interface.clear_screen()
         return CommandResult(success=True, message="Screen cleared")
-    else:
-        return CommandResult(success=False, message="CLI interface not available", error="Missing cli_interface in context")
+
+    return CommandResult(success=False, message="CLI interface not available", error="Missing cli_interface in context")
 
 
 class ClearCommand(BaseCommand):

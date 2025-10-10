@@ -22,8 +22,8 @@ def test_start_learning_command(temp_workspace):
     os.chdir(str(temp_workspace))
 
     try:
-        # Create the .learningspace directory first
-        learningspace_path = temp_workspace / ".learningspace"
+        # Create the .catalys directory first
+        learningspace_path = temp_workspace / ".catalys"
         learningspace_path.mkdir(exist_ok=True)
 
         # Set up preferences to avoid the interactive setup
@@ -104,8 +104,8 @@ def test_preference_list_command(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory and preferences file
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory and preferences file
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     # Initialize with default preferences
@@ -132,8 +132,8 @@ def test_preference_set_command(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -157,8 +157,8 @@ def test_preference_set_command_missing_args(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -177,8 +177,8 @@ def test_preference_invalid_action(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -243,8 +243,8 @@ def test_checkpoint_list_empty_workspace(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -264,8 +264,8 @@ def test_checkpoint_save_without_description(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -290,8 +290,8 @@ def test_checkpoint_save_with_description(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -316,8 +316,8 @@ def test_checkpoint_save_missing_name(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -337,8 +337,8 @@ def test_checkpoint_load_valid_id(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -374,8 +374,8 @@ def test_checkpoint_load_invalid_id(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -395,8 +395,8 @@ def test_checkpoint_load_missing_id(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -416,8 +416,8 @@ def test_checkpoint_list_with_existing_checkpoints(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -442,8 +442,8 @@ def test_checkpoint_invalid_action(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -473,8 +473,8 @@ def test_main_cli_integration(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -523,8 +523,8 @@ def test_slash_help_command(temp_workspace):
     original_cwd = os.getcwd()
     os.chdir(str(temp_workspace))
 
-    # Create the .learningspace directory
-    learningspace_path = temp_workspace / ".learningspace"
+    # Create the .catalys directory
+    learningspace_path = temp_workspace / ".catalys"
     learningspace_path.mkdir(exist_ok=True)
 
     try:
@@ -548,8 +548,8 @@ def test_slash_config_command(temp_workspace):
     os.chdir(str(temp_workspace))
 
     try:
-        # Create the .learningspace directory first
-        learningspace_path = temp_workspace / ".learningspace"
+        # Create the .catalys directory first
+        learningspace_path = temp_workspace / ".catalys"
         learningspace_path.mkdir(exist_ok=True)
 
         # Mock both input and Prompt.ask for the full flow
@@ -580,8 +580,8 @@ def test_slash_set_config_command(temp_workspace):
     os.chdir(str(temp_workspace))
 
     try:
-        # Create the .learningspace directory first
-        learningspace_path = temp_workspace / ".learningspace"
+        # Create the .catalys directory first
+        learningspace_path = temp_workspace / ".catalys"
         learningspace_path.mkdir(exist_ok=True)
 
         # Mock both input and Prompt.ask for the full flow

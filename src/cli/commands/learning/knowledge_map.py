@@ -3,10 +3,11 @@ Knowledge Map command implementation - Unified version
 """
 
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from src.cli.commands.base import BaseCommand, CommandCategory, CommandInfo, CommandResult
 from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
+from src.data.models.concept import Concept
 
 
 class KnowledgeMapCommand(BaseCommand):
@@ -98,7 +99,7 @@ class KnowledgeMapCommand(BaseCommand):
                 return args[i + 1]
         return None
 
-    def _find_best_match(self, search_term: str, concepts: List) -> Any:
+    def _find_best_match(self, search_term: str, concepts: List[Concept]) -> Optional[Concept]:
         """Find the best matching concept for the search term"""
         search_lower = search_term.lower()
 
@@ -134,7 +135,7 @@ class KnowledgeMapCommand(BaseCommand):
 
         return best_match if best_score > 0.3 else None  # Minimum threshold
 
-    def _get_concept_and_related(self, target_concept: Any, concepts: List) -> List:
+    def _get_concept_and_related(self, target_concept: Any, concepts: List[Concept]) -> List[Concept]:
         """Get the target concept and its related concepts"""
         related_ids = set()
         related_ids.add(str(target_concept.id))
@@ -152,7 +153,7 @@ class KnowledgeMapCommand(BaseCommand):
         # Filter concepts
         return [c for c in concepts if str(c.id) in related_ids]
 
-    def _generate_tree_map(self, concepts: List) -> str:
+    def _generate_tree_map(self, concepts: List[Concept]) -> str:
         """Generate a tree-style knowledge map"""
         content = "🗺️  Knowledge Map:\n\n"
 
@@ -184,7 +185,7 @@ class KnowledgeMapCommand(BaseCommand):
 
         return content
 
-    def _generate_list_map(self, concepts: List) -> str:
+    def _generate_list_map(self, concepts: List[Concept]) -> str:
         """Generate a list-style knowledge map"""
         content = "🗺️  Knowledge Map:\n\n"
         content += "📚 Concepts:\n"
@@ -229,7 +230,7 @@ class KnowledgeMapCommand(BaseCommand):
 
         return content
 
-    def _organize_by_level(self, concepts: List) -> Dict[int, List]:
+    def _organize_by_level(self, concepts: List[Concept]) -> Dict[int, List[Concept]]:
         """Organize concepts by their level based on prerequisites"""
         levels = {0: []}  # Level 0 for concepts with no prerequisites
 

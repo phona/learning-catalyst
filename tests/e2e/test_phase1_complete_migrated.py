@@ -36,7 +36,7 @@ class Phase1Tester:
     def start_application(self):
         """Start the Learning Catalyst application"""
         # Clean up any existing state
-        learningspace_path = os.path.join(self.test_dir, ".learningspace")
+        learningspace_path = os.path.join(self.test_dir, ".catalys")
         catalyst_path = os.path.join(self.test_dir, ".catalyst")
 
         if os.path.exists(learningspace_path):

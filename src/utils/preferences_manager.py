@@ -156,7 +156,7 @@ class PreferencesManager:
         all_models: List[str] = []
         for type_models in models_config.values():
             if isinstance(type_models, list):
-                for model in type_models:
+                for model in type_models:  # type: ignore
                     all_models.append(str(model))
 
         return all_models
@@ -283,7 +283,7 @@ class PreferencesManager:
 
         # Check temperature range
         temperature = self.get_ai_temperature()
-        if not (0.0 <= temperature <= 2.0):
+        if not 0.0 <= temperature <= 2.0:
             issues["errors"].append(f"Temperature {temperature} is outside valid range (0.0-2.0)")
 
         # Check max context tokens
@@ -293,7 +293,7 @@ class PreferencesManager:
 
         # Check learning difficulty
         difficulty = self.get_learning_difficulty()
-        if not (1 <= difficulty <= 10):
+        if not 1 <= difficulty <= 10:
             issues["errors"].append(f"Difficulty level {difficulty} is outside valid range (1-10)")
 
         # Check daily goal

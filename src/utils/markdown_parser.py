@@ -58,7 +58,7 @@ class MarkdownParser:
         Extract headers from markdown content
         """
         header_pattern = r"^(#{1,6})\s+(.+)$"
-        headers = []
+        headers: List[Dict[str, Any]] = []
 
         for line_num, line in enumerate(content.split("\n")):
             match = re.match(header_pattern, line.strip())
@@ -72,7 +72,7 @@ class MarkdownParser:
         Extract code blocks from markdown content
         """
         code_block_pattern = r"```(\w*)\n(.*?)```"
-        code_blocks = []
+        code_blocks: List[Dict[str, Any]] = []
 
         for match in re.finditer(code_block_pattern, content, re.DOTALL):
             code_blocks.append({"language": match.group(1), "content": match.group(2).strip()})
@@ -84,7 +84,7 @@ class MarkdownParser:
         Extract content sections based on headers
         """
         lines = content.split("\n")
-        sections = []
+        sections: List[Dict[str, Any]] = []
 
         if not headers:
             # If no headers, return the entire content as one section
@@ -111,7 +111,7 @@ class MarkdownParser:
         Find and return concepts from a markdown file based on the extraction mode
         """
         parsed_content = self.parse_file(file_path)
-        concepts = []
+        concepts: List[Dict[str, Any]] = []
 
         if self.extraction_mode == "headers":
             concepts = self._extract_header_concepts(parsed_content, file_path)
@@ -155,7 +155,7 @@ class MarkdownParser:
 
     def _extract_section_concepts(self, parsed_content: Dict[str, Any], file_path: str) -> List[Dict[str, Any]]:
         """Extract concepts based on sections with more context"""
-        concepts = []
+        concepts: List[Dict[str, Any]] = []
         for i, section in enumerate(parsed_content["sections"]):
             if section["content"].strip():
                 # Include some context from previous section if available
@@ -182,7 +182,7 @@ class MarkdownParser:
 
     def _extract_paragraph_concepts(self, parsed_content: Dict[str, Any], file_path: str) -> List[Dict[str, Any]]:
         """Extract concepts based on paragraphs"""
-        concepts = []
+        concepts: List[Dict[str, Any]] = []
         full_content = parsed_content["full_content"]
         paragraphs = re.split(r"\n\s*\n", full_content)
 
@@ -216,7 +216,7 @@ class MarkdownParser:
 
     def _extract_code_block_concepts(self, parsed_content: Dict[str, Any], file_path: str) -> List[Dict[str, Any]]:
         """Extract code blocks as concepts"""
-        concepts = []
+        concepts: List[Dict[str, Any]] = []
         for i, code_block in enumerate(parsed_content["code_blocks"]):
             # Find the nearest header to use as title
             title = f"Code Example {i+1}"
@@ -277,7 +277,7 @@ def extract_all_concepts(workspace_path: str, extraction_mode: str = "headers") 
         List of extracted concepts
     """
     parser = MarkdownParser(extraction_mode)
-    all_concepts = []
+    all_concepts: List[Dict[str, Any]] = []
 
     markdown_files = scan_workspace_for_markdown(workspace_path)
 

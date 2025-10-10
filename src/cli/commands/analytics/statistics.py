@@ -152,7 +152,7 @@ class StatisticsCommand(BaseCommand):
         self, token_usage: Dict[str, Any], concept_stats: Dict[str, Any], activity_stats: Dict[str, Any]
     ) -> List[str]:
         """Generate personalized recommendations based on statistics"""
-        recommendations = []
+        recommendations: List[str] = []
 
         # Token usage recommendations
         total_tokens = token_usage.get("total_tokens", 0)

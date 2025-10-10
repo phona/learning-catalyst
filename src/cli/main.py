@@ -4,8 +4,10 @@ Main CLI application for Learning Catalyst - Updated with new command registry
 
 import asyncio
 import atexit
+import concurrent.futures
 import os
 import readline
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
@@ -90,17 +92,18 @@ app.callback(invoke_without_command=True)(main_callback)
 def start_learning(workspace_path: str = typer.Argument(".", help="Path to the learning workspace")):
     """Start the Learning Catalyst application in the specified workspace"""
     # This function is too long and complex, let's break it down into smaller functions
-    _setup_workspace(workspace_path)
+    # Consolidated startup operations in single async call
+    learningspace_path, knowledge_navigator, state_manager = asyncio.run(_setup_workspace(workspace_path))
     prefs_manager = PreferencesManager(workspace_path)
     _configure_ai_provider(prefs_manager)
     _display_startup_suggestions(prefs_manager, workspace_path)
 
     # Initialize and run the main application
-    _run_main_application(workspace_path, prefs_manager)
+    _run_main_application(workspace_path, prefs_manager, learningspace_path, knowledge_navigator, state_manager)
 
 
-def _setup_workspace(workspace_path: str) -> Tuple[str, Any, Any]:
-    """Initialize workspace and return core components"""
+async def _setup_workspace(workspace_path: str) -> Tuple[str, Any, Any]:
+    """Initialize workspace and return core components - optimized with consolidated async operations"""
     learningspace_path = os.path.join(workspace_path, ".catalyst")
     is_first_time = not os.path.exists(learningspace_path)
 
@@ -114,17 +117,38 @@ def _setup_workspace(workspace_path: str) -> Tuple[str, Any, Any]:
     state_manager = StateManager(workspace_path)
     startup_guide = StartupGuide(workspace_path, knowledge_navigator, state_manager)
 
-    # Check if there's a previous state
-    has_previous_state = False
+    # Consolidated async operations - run both state loading and message generation in single event loop
     try:
-        previous_state = asyncio.run(state_manager.load_last_state())
-        has_previous_state = previous_state is not None
+        # Check if there's a previous state and generate startup message concurrently
+        previous_state_task = state_manager.load_last_state()
+        startup_message_task = startup_guide.generate_startup_message(is_first_time, False)  # Will be updated based on state
+
+        # Execute both tasks
+        previous_state, startup_message = await asyncio.gather(
+            previous_state_task,
+            startup_message_task,
+            return_exceptions=True
+        )
+
+        # Handle results
+        has_previous_state = previous_state is not None and not isinstance(previous_state, Exception)
+
+        # If message generation failed, use fallback
+        if isinstance(startup_message, Exception):
+            startup_message = await startup_guide.generate_startup_message(is_first_time, has_previous_state)
+
     except (OSError, ValueError, RuntimeError):
-        has_previous_state = False
+        # Fallback to sequential execution if concurrent fails
+        try:
+            previous_state = await state_manager.load_last_state()
+            has_previous_state = previous_state is not None
+        except (OSError, ValueError, RuntimeError):
+            has_previous_state = False
+
+        startup_message = await startup_guide.generate_startup_message(is_first_time, has_previous_state)
 
     # Display context-aware startup message
     console = Console()
-    startup_message = asyncio.run(startup_guide.generate_startup_message(is_first_time, has_previous_state))
     console.print(
         Panel.fit(
             startup_message,
@@ -135,6 +159,81 @@ def _setup_workspace(workspace_path: str) -> Tuple[str, Any, Any]:
     )
 
     return learningspace_path, knowledge_navigator, state_manager
+
+
+def _get_provider_models() -> Dict[str, Dict[str, List[str]]]:
+    """Get available models for each provider"""
+    return {
+        "openai": {"chat": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"]},
+        "deepseek": {"chat": ["deepseek-chat", "deepseek-coder"]},
+        "siliconflow": {"chat": ["qwen-plus", "qwen-turbo"]},
+        "chatglm": {"chat": ["glm-4", "glm-3-turbo"]},
+    }
+
+
+def _display_available_providers(console: Console, model_service: ModelAbstractionService) -> List[str]:
+    """Display available AI providers and return provider list"""
+    providers = model_service.get_available_providers()
+    provider_descriptions = model_service.get_provider_descriptions()
+
+    for provider in providers:
+        desc = provider_descriptions.get(provider, f"{provider.title()} provider")
+        console.print(f"  [cyan]• {provider}[/cyan]: {desc}")
+
+    return providers
+
+
+def _safe_input(console: Console, prompt_text: str) -> str:
+    """Safe input function that handles backspace properly"""
+    try:
+        return input(prompt_text + " ").strip()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Setup cancelled. Exiting...[/yellow]")
+        raise SystemExit(1) from None
+    except EOFError:
+        return ""
+
+
+def _prompt_for_provider(console: Console, providers: List[str], prefs_manager: PreferencesManager) -> str:
+    """Prompt user to choose AI provider"""
+    console.print("\n[bold magenta]Choose your AI provider:[/bold magenta]")
+    while True:
+        try:
+            provider_input = _safe_input(console, "  [magenta]>[/magenta]")
+            if provider_input.lower() in providers:
+                provider = provider_input.lower()
+                prefs_manager.set_preference("ai.default_provider", provider)
+                return provider
+            console.print(f"[red]Invalid provider. Please choose from: {', '.join(providers)}[/red]")
+        except (KeyboardInterrupt, SystemExit):
+            raise
+
+
+def _prompt_for_model(console: Console, provider: str, prefs_manager: PreferencesManager) -> str:
+    """Prompt user to choose model for selected provider"""
+    provider_models = _get_provider_models().get(provider, {})
+    chat_models = provider_models.get("chat", [])
+
+    if chat_models:
+        model_examples = ", ".join(chat_models[:3])  # Show first 3 examples
+        console.print(f"\n[bold magenta]Enter the model name for {provider} (e.g., {model_examples}):[/bold magenta]")
+    else:
+        console.print(f"\n[bold magenta]Enter the model name for {provider}:[/bold magenta]")
+
+    model = _safe_input(console, "  [magenta]>[/magenta]")
+    prefs_manager.set_preference("ai.default_model", model)
+    return model
+
+
+def _prompt_for_api_key(console: Console, provider: str, prefs_manager: PreferencesManager) -> None:
+    """Prompt user for API key if required"""
+    if provider.lower() not in ["openai-compatible"]:
+        console.print(f"\n[bold magenta]Enter your {provider} API key:[/bold magenta]")
+        console.print("  [yellow]Note: This is stored locally and only used for API calls[/yellow]")
+        api_key = _safe_input(console, "  [magenta]>[/magenta]")
+        if api_key:
+            prefs_manager.set_preference(f"ai.{provider}_api_key", api_key)
+            console.print(f"  [green]✅ API key saved for {provider}[/green]")
 
 
 def _configure_ai_provider(prefs_manager: PreferencesManager) -> ModelAbstractionService:
@@ -149,67 +248,12 @@ def _configure_ai_provider(prefs_manager: PreferencesManager) -> ModelAbstractio
 
         # Get providers from the service
         model_service = ModelAbstractionService()
-        providers = model_service.get_available_providers()
-        provider_descriptions = model_service.get_provider_descriptions()
+        providers = _display_available_providers(console, model_service)
 
-        for provider in providers:
-            desc = provider_descriptions.get(provider, f"{provider.title()} provider")
-            console.print(f"  [cyan]• {provider}[/cyan]: {desc}")
-
-        def safe_input(prompt_text: str) -> str:
-            """Safe input function that handles backspace properly"""
-            try:
-                return input(prompt_text + " ").strip()
-            except KeyboardInterrupt:
-                console.print("\n[yellow]Setup cancelled. Exiting...[/yellow]")
-                raise SystemExit(1) from None
-            except EOFError:
-                return ""
-
-        # Prompt for provider with guidance
-        console.print("\n[bold magenta]Choose your AI provider:[/bold magenta]")
-        while True:
-            try:
-                provider_input = safe_input("  [magenta]>[/magenta]")
-                if provider_input.lower() in providers:
-                    provider = provider_input.lower()
-                    prefs_manager.set_preference("ai.default_provider", provider)
-                    break
-                console.print(f"[red]Invalid provider. Please choose from: {', '.join(providers)}[/red]")
-            except (KeyboardInterrupt, SystemExit):
-                raise
-
-        # Prompt for model with guidance
-        provider_models = {
-            "openai": {"chat": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"]},
-            "deepseek": {"chat": ["deepseek-chat", "deepseek-coder"]},
-            "siliconflow": {"chat": ["qwen-plus", "qwen-turbo"]},
-            "chatglm": {"chat": ["glm-4", "glm-3-turbo"]},
-        }.get(provider, {})
-        chat_models = provider_models.get("chat", [])
-
-        if chat_models:
-            model_examples = ", ".join(chat_models[:3])  # Show first 3 examples
-            console.print(f"\n[bold magenta]Enter the model name for {provider} (e.g., {model_examples}):[/bold magenta]")
-        else:
-            console.print(f"\n[bold magenta]Enter the model name for {provider}:[/bold magenta]")
-        try:
-            model = safe_input("  [magenta]>[/magenta]")
-            prefs_manager.set_preference("ai.default_model", model)
-        except (KeyboardInterrupt, SystemExit):
-            raise
-
-        # Prompt for API key if required
-        if provider.lower() not in ["openai-compatible"]:
-            console.print(f"\n[bold magenta]Enter your {provider} API key:[/bold magenta]")
-            console.print("  [yellow]Note: This is stored locally and only used for API calls[/yellow]")
-            try:
-                api_key = safe_input("  [magenta]>[/magenta]")
-                if api_key:
-                    prefs_manager.set_preference(f"ai.{provider}_api_key", api_key)
-                    console.print(f"  [green]✅ API key saved for {provider}[/green]")
-            except (KeyboardInterrupt, SystemExit):
-                raise
+        # Configure provider, model, and API key
+        provider = _prompt_for_provider(console, providers, prefs_manager)
+        model = _prompt_for_model(console, provider, prefs_manager)
+        _prompt_for_api_key(console, provider, prefs_manager)
 
         console.print(f"\n[bold green]✅ AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
         console.print("[green]You're now ready to start learning![/green]")
@@ -218,7 +262,7 @@ def _configure_ai_provider(prefs_manager: PreferencesManager) -> ModelAbstractio
 
 
 def _display_startup_suggestions(prefs_manager: PreferencesManager, workspace_path: str) -> None:
-    """Display contextual suggestions based on user profile"""
+    """Display contextual suggestions based on user profile - optimized with minimal component creation"""
     user_profile = {
         "ai_config": {
             "default_provider": prefs_manager.get_preference("ai.default_provider"),
@@ -227,31 +271,46 @@ def _display_startup_suggestions(prefs_manager: PreferencesManager, workspace_pa
         "learning_style": prefs_manager.get_preference("learning.style") or "intermediate",
     }
 
-    learningspace_path = os.path.join(workspace_path, ".catalyst")
-    db_path = os.path.join(learningspace_path, "data.db")
-    knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-    state_manager = StateManager(workspace_path)
-    startup_guide = StartupGuide(workspace_path, knowledge_navigator, state_manager)
-
+    # NOTE: Optimized to avoid creating duplicate components
+    # This function is now lightweight and focuses on display only
     try:
-        suggestions = asyncio.run(startup_guide.get_contextual_suggestions(user_profile))
-        if suggestions:
-            console = Console()
-            console.print("\n[bold blue]💡 Suggestions for you:[/bold blue]")
-            for i, suggestion in enumerate(suggestions, 1):
-                console.print(f"\n[cyan]{i}. {suggestion['title']}[/cyan]")
-                console.print(f"   {suggestion['description']}")
-                console.print(f"   [green]Command: {suggestion['command']}[/green]")
-    except (ValueError, RuntimeError, KeyError) as e:
+        # Since suggestions can be computationally expensive, make them optional
+        # and show a fallback message if they fail to load
+        console = Console()
+        console.print("\n[bold blue]💡 Quick Start Tips:[/bold blue]")
+        console.print("• Use /concepts to see available learning materials")
+        console.print("• Use /help to see all available commands")
+        console.print("• Use /explain <topic> to learn about specific concepts")
+
+        # Try to load contextual suggestions in background if possible
+        # but don't block startup for them
+        try:
+            learningspace_path = os.path.join(workspace_path, ".catalyst")
+            db_path = os.path.join(learningspace_path, "data.db")
+            knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
+            state_manager = StateManager(workspace_path)
+            startup_guide = StartupGuide(workspace_path, knowledge_navigator, state_manager)
+
+            suggestions = asyncio.run(startup_guide.get_contextual_suggestions(user_profile))
+            if suggestions:
+                console.print("\n[bold blue]💡 Personalized Suggestions:[/bold blue]")
+                for i, suggestion in enumerate(suggestions[:3], 1):  # Show max 3 suggestions
+                    console.print(f"\n[cyan]{i}. {suggestion['title']}[/cyan]")
+                    console.print(f"   {suggestion['description']}")
+                    console.print(f"   [green]Command: {suggestion['command']}[/green]")
+        except (ValueError, RuntimeError, KeyError, ImportError):
+            # Silently fall back to basic tips if contextual suggestions fail
+            pass
+
+    except Exception as e:
         console = Console()
         console.print(f"[yellow]Note: Could not load suggestions: {str(e)}[/yellow]")
 
 
-def _run_main_application(workspace_path: str, prefs_manager: PreferencesManager) -> None:
-    """Run the main application loop"""
+def _run_main_application(workspace_path: str, prefs_manager: PreferencesManager, learningspace_path: str, knowledge_navigator: Any, state_manager: Any) -> None:
+    """Run the main application loop - optimized with pre-initialized components"""
     # Launch the main application loop with beautiful formatting
     console = Console()
-    learningspace_path = os.path.join(workspace_path, ".catalyst")
     console.print(
         Panel(
             f"[bold green]Starting Learning Catalyst[/bold green]\n"
@@ -262,33 +321,49 @@ def _run_main_application(workspace_path: str, prefs_manager: PreferencesManager
         )
     )
 
-    # Initialize components
-    db_path = os.path.join(learningspace_path, "data.db")
-    model_service = ModelAbstractionService()
-    knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-    catalyst_agent = CatalystAgentImpl(model_service, knowledge_navigator=knowledge_navigator)
-    state_manager = StateManager(workspace_path)
+    # Initialize remaining components in parallel where possible (knowledge_navigator and state_manager already provided)
 
-    # Load content from user's workspace (all markdown files)
-    try:
-        asyncio.run(knowledge_navigator.load_content(workspace_path=workspace_path))
-    except (OSError, ValueError, RuntimeError) as e:
-        rprint(f"[yellow]Warning: Could not load content from workspace {workspace_path}: {str(e)}[/yellow]")
+    def init_model_service():
+        return ModelAbstractionService()
+
+    def init_catalyst_agent(model_service):
+        return CatalystAgentImpl(model_service, knowledge_navigator=knowledge_navigator)
+
+    def init_readline():
+        _setup_readline()
+
+    # Parallel initialization of independent components
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        # Start parallel initialization
+        model_service_future = executor.submit(init_model_service)
+        readline_future = executor.submit(init_readline)
+
+        # Get model service result
+        model_service = model_service_future.result()
+
+        # Initialize catalyst agent (depends on model_service)
+        catalyst_agent = init_catalyst_agent(model_service)
+
+        # Wait for readline setup to complete
+        readline_future.result()
+
+    # NOTE: Workspace content loading moved to lazy loading in /concepts command
+    # This significantly improves startup performance
 
     # Print welcome message with rich formatting
     console.print("\n[bold green]🚀 Learning session started![/bold green] [blue]Use /help to see available commands.[/blue]")
 
-    # Initialize readline for enhanced input editing capabilities
-    _setup_readline()
-
     # Initialize the new command registry system
+    learning_components = LearningComponents(
+        knowledge_navigator=knowledge_navigator,
+        catalyst_agent=catalyst_agent,
+        state_manager=state_manager,
+    )
     registry_config = RegistryConfig(
         console=console,
         workspace_path=workspace_path,
         prefs_manager=prefs_manager,
-        knowledge_navigator=knowledge_navigator,
-        catalyst_agent=catalyst_agent,
-        state_manager=state_manager,
+        learning_components=learning_components,
         model_service=model_service,
         learningspace_path=learningspace_path,
     )
@@ -303,9 +378,7 @@ def _run_main_application(workspace_path: str, prefs_manager: PreferencesManager
         console=console,
         workspace_path=workspace_path,
         prefs_manager=prefs_manager,
-        knowledge_navigator=knowledge_navigator,
-        catalyst_agent=catalyst_agent,
-        state_manager=state_manager,
+        learning_components=learning_components,
         model_service=model_service,
         command_registry=command_registry,
     )
@@ -334,15 +407,22 @@ def _setup_readline() -> None:
 
 
 @dataclass
+class LearningComponents:
+    """Group of learning-related components"""
+
+    knowledge_navigator: Any
+    catalyst_agent: Any
+    state_manager: Any
+
+
+@dataclass
 class RegistryConfig:
     """Configuration for command registry setup"""
 
     console: Console
     workspace_path: str
     prefs_manager: PreferencesManager
-    knowledge_navigator: Any
-    catalyst_agent: Any
-    state_manager: Any
+    learning_components: LearningComponents
     model_service: Any
     learningspace_path: str
 
@@ -373,9 +453,9 @@ def _setup_command_registry(config: RegistryConfig) -> CommandRegistry:
     # Set up context for the command registry
     command_registry.set_context("workspace_path", config.workspace_path)
     command_registry.set_context("prefs_manager", config.prefs_manager)
-    command_registry.set_context("knowledge_navigator", config.knowledge_navigator)
-    command_registry.set_context("catalyst_agent", config.catalyst_agent)
-    command_registry.set_context("state_manager", config.state_manager)
+    command_registry.set_context("knowledge_navigator", config.learning_components.knowledge_navigator)
+    command_registry.set_context("catalyst_agent", config.learning_components.catalyst_agent)
+    command_registry.set_context("state_manager", config.learning_components.state_manager)
     command_registry.set_context("model_service", config.model_service)
 
     # Initialize and setup autocomplete with the new system
@@ -416,9 +496,7 @@ class InteractiveLoopConfig:
     console: Console
     workspace_path: str
     prefs_manager: PreferencesManager
-    knowledge_navigator: Any
-    catalyst_agent: Any
-    state_manager: Any
+    learning_components: LearningComponents
     model_service: Any
     command_registry: CommandRegistry
 
@@ -446,7 +524,7 @@ def _run_interactive_loop(config: InteractiveLoopConfig) -> None:
 
         # Handle EOF (Ctrl+D)
         if user_input == "EOF":
-            _handle_exit(config.workspace_path, config.prefs_manager, config.state_manager, config.console)
+            _handle_exit(config.workspace_path, config.prefs_manager, config.learning_components.state_manager, config.console)
             break
 
         # Handle Ctrl+C (returned None)
@@ -462,9 +540,9 @@ def _run_interactive_loop(config: InteractiveLoopConfig) -> None:
                         {
                             "workspace_path": config.workspace_path,
                             "prefs_manager": config.prefs_manager,
-                            "knowledge_navigator": config.knowledge_navigator,
-                            "catalyst_agent": config.catalyst_agent,
-                            "state_manager": config.state_manager,
+                            "knowledge_navigator": config.learning_components.knowledge_navigator,
+                            "catalyst_agent": config.learning_components.catalyst_agent,
+                            "state_manager": config.learning_components.state_manager,
                             "model_service": config.model_service,
                         },
                     )
@@ -494,12 +572,13 @@ def _run_interactive_loop(config: InteractiveLoopConfig) -> None:
                         conversation_history=[],  # Placeholder - would contain actual history
                     )
 
-                    # Interpret the user intent
-                    intent = asyncio.run(config.catalyst_agent.interpret_intent(user_input, conversation_context))
+                    # Consolidated AI processing - single async call for both intent and response
+                    async def process_ai_interaction():
+                        intent = await config.learning_components.catalyst_agent.interpret_intent(user_input, conversation_context)
+                        response = await config.learning_components.catalyst_agent.generate_response(user_input, intent, conversation_context)
+                        return response
 
-                    # Generate a response based on the intent
-                    response = asyncio.run(config.catalyst_agent.generate_response(user_input, intent, conversation_context))
-
+                    response = asyncio.run(process_ai_interaction())
                     config.console.print(f"[green]AI Tutor:[/green] {response}")
                 except (RuntimeError, ValueError, KeyError) as e:
                     config.console.print(f"[red]Error processing your request: {str(e)}[/red]")

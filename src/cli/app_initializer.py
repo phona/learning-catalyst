@@ -237,9 +237,8 @@ This appears to be your first time using Learning Catalyst. Let's get you set up
 """
                 self.console.print(welcome_msg)
                 return False
-            else:
-                # For returning users, just display standard welcome
-                welcome_msg = """
+            # For returning users, just display standard welcome
+            welcome_msg = """
 🎓 Welcome to Learning Catalyst! 🚀
 
 Ready to continue your learning journey?
@@ -251,8 +250,8 @@ Ready to continue your learning journey?
 
 What would you like to do today?
 """
-                self.console.print(welcome_msg)
-                return False  # Simplified for now
+            self.console.print(welcome_msg)
+            return False  # Simplified for now
         except (ValueError, RuntimeError) as e:
             log_error(f"Failed to display startup message: {e}")
             return False

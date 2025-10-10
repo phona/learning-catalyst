@@ -129,7 +129,7 @@ class ExplainCommand(BaseCommand):
     def _get_similar_concepts(self, search_term: str, concepts: List[Any], limit: int = 5) -> List[str]:
         """Get concept suggestions based on similarity"""
         search_lower = search_term.lower()
-        suggestions = []
+        suggestions: List[str] = []
 
         for concept in concepts:
             title_lower = concept.title.lower()
@@ -151,7 +151,7 @@ class ExplainCommand(BaseCommand):
 
     def _get_related_concepts(self, target_concept: Any, concepts: List[Any], limit: int = 3) -> List[str]:
         """Get related concepts based on prerequisites or content similarity"""
-        related = []
+        related: List[str] = []
 
         # Check prerequisites
         if hasattr(target_concept, "prerequisites") and target_concept.prerequisites:

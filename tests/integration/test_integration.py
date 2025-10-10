@@ -30,7 +30,7 @@ class TestIntegration:
         prefs_mgr = PreferencesManager(str(temp_workspace))
 
         # Verify preferences file exists in the correct location
-        expected_prefs_path = temp_workspace / ".learningspace" / "preferences.json"
+        expected_prefs_path = temp_workspace / ".catalys" / "preferences.json"
         assert expected_prefs_path.exists()
 
         # Test setting and getting preferences
@@ -40,7 +40,7 @@ class TestIntegration:
 
     def test_database_and_knowledge_navigator_integration(self, temp_workspace):
         """Test integration between database manager and knowledge navigator"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         knowledge_navigator = SQLiteKnowledgeNavigator(str(db_path))
 
@@ -72,7 +72,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_preferences_and_system_commands_integration(self, temp_workspace):
         """Test integration between preferences manager and system commands handler"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         model_service = ModelAbstractionService()
 
@@ -148,7 +148,7 @@ class TestIntegration:
     async def test_complete_learning_flow_integration(self, temp_workspace):
         """Test a complete learning flow integration"""
         # Set up all components
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
         model_service = ModelAbstractionService()
 
@@ -232,7 +232,7 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_analytics_and_database_integration(self, temp_workspace):
         """Test integration between analytics components and database"""
-        db_path = temp_workspace / ".learningspace" / "data.db"
+        db_path = temp_workspace / ".catalys" / "data.db"
         db_manager = DatabaseManager(str(db_path))
 
         # Insert some test token usage data

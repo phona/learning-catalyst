@@ -40,7 +40,7 @@ class TestPhase1Features:
     def test_first_time_user_experience(self, test_environment):
         """Test Story 1: First-Time User Onboarding"""
         # Clean up any existing state
-        learningspace_path = os.path.join(test_environment, ".learningspace")
+        learningspace_path = os.path.join(test_environment, ".catalys")
         catalyst_path = os.path.join(test_environment, ".catalyst")
 
         if os.path.exists(learningspace_path):

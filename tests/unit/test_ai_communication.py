@@ -45,7 +45,7 @@ class AICommunicationTester:
         self.setup_test_environment()
 
         # Clean up any existing state in test directory
-        learningspace_path = os.path.join(self.test_dir, ".learningspace")
+        learningspace_path = os.path.join(self.test_dir, ".catalys")
         catalyst_path = os.path.join(self.test_dir, ".catalyst")
 
         if os.path.exists(learningspace_path):

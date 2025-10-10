@@ -16,7 +16,7 @@ class TestWorkspaceManager:
         workspace_mgr = WorkspaceManager(temp_workspace)
 
         assert workspace_mgr.workspace_path == temp_workspace
-        assert workspace_mgr.learningspace_path == temp_workspace / ".learningspace"
+        assert workspace_mgr.learningspace_path == temp_workspace / ".catalys"
 
     def test_workspace_exists(self, temp_workspace):
         """Test checking if workspace exists"""
@@ -33,7 +33,7 @@ class TestWorkspaceManager:
     def test_initialize_workspace(self, temp_workspace):
         """Test initializing a workspace"""
         # Remove the learningspace directory that conftest created
-        learningspace_dir = temp_workspace / ".learningspace"
+        learningspace_dir = temp_workspace / ".catalys"
         if learningspace_dir.exists():
             import shutil
 
@@ -55,11 +55,11 @@ class TestWorkspaceManager:
         """Test getting various paths"""
         workspace_mgr = WorkspaceManager(temp_workspace)
 
-        assert workspace_mgr.get_database_path() == temp_workspace / ".learningspace" / "data.db"
-        assert workspace_mgr.get_checkpoints_path() == temp_workspace / ".learningspace" / "checkpoints"
-        assert workspace_mgr.get_content_chunks_path() == temp_workspace / ".learningspace" / "content_chunks"
-        assert workspace_mgr.get_reports_path() == temp_workspace / ".learningspace" / "reports"
-        assert workspace_mgr.get_logs_path() == temp_workspace / ".learningspace" / "logs"
+        assert workspace_mgr.get_database_path() == temp_workspace / ".catalys" / "data.db"
+        assert workspace_mgr.get_checkpoints_path() == temp_workspace / ".catalys" / "checkpoints"
+        assert workspace_mgr.get_content_chunks_path() == temp_workspace / ".catalys" / "content_chunks"
+        assert workspace_mgr.get_reports_path() == temp_workspace / ".catalys" / "reports"
+        assert workspace_mgr.get_logs_path() == temp_workspace / ".catalys" / "logs"
 
 
 class TestPreferencesManager:
@@ -164,7 +164,7 @@ class TestPreferencesManager:
     def test_invalid_json_file_handling(self, temp_workspace):
         """Test handling of invalid JSON in preferences file"""
         # Create a temporary preferences file with invalid JSON
-        learningspace_path = temp_workspace / ".learningspace"
+        learningspace_path = temp_workspace / ".catalys"
         learningspace_path.mkdir(exist_ok=True)
         prefs_file = learningspace_path / "preferences.json"
 

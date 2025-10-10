@@ -454,7 +454,7 @@ class ConceptBuilder:
     def detect_duplicate_concepts(self) -> List[List[Dict[str, Any]]]:
         """Identify and group duplicate concepts"""
         seen_hashes = {}
-        duplicates = []
+        duplicates: List[List[Any]] = []
 
         for concept in self.concepts:
             concept_hash = self._create_concept_hash(concept)

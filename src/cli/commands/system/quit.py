@@ -16,7 +16,7 @@ from src.cli.commands.base import BaseCommand, CommandCategory, CommandDecorator
         usage="/quit",
     )
 )
-def quit_command(args: List[str], context: Dict[str, Any]) -> CommandResult:
+def quit_command(_args: List[str], _context: Dict[str, Any]) -> CommandResult:
     """Handle the quit command"""
     return CommandResult(success=True, message="Goodbye! Thanks for using Learning Catalyst! 👋", data={"exit": True})
 
@@ -33,5 +33,5 @@ class QuitCommand(BaseCommand):
             usage="/quit",
         )
 
-    async def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
-        return quit_command(args, context)
+    async def execute(self, _args: List[str], _context: Dict[str, Any]) -> CommandResult:
+        return quit_command(_args, _context)
