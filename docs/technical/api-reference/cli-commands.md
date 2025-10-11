@@ -1,15 +1,35 @@
-# CLI Commands API
+# CLI Commands API Reference
 
 ---
-title: Learning Catalyst CLI Commands API
-description: Complete command-line interface specification with parameters and examples
+title: Learning Catalyst CLI Commands API Reference
+description: Complete command-line interface specification with parameters, examples, and implementation details
 version: 1.0.0
-last_updated: 2025-10-08
+last_updated: 2025-10-10
+difficulty: "Intermediate"
+estimated_time: "30 minutes"
 ---
 
 ## Overview
 
-This document provides a comprehensive reference for all Learning Catalyst CLI commands, including syntax, parameters, response formats, and usage examples. The CLI follows a consistent pattern with slash-prefixed commands and supports tab completion, help system, and interactive features.
+This document provides a comprehensive reference for all Learning Catalyst CLI commands, including syntax, parameters, response formats, usage examples, and implementation details. The CLI follows a consistent pattern with slash-prefixed commands and supports tab completion, help system, and interactive features.
+
+### Architectural Context
+
+The CLI commands API implements the **User Interface Layer** of the Learning Catalyst 5-layer architecture. These commands serve as the primary interface between users and the system's learning intelligence, knowledge management, and AI integration components.
+
+For detailed architectural patterns and design principles, see:
+- **[CLI Architecture](../system-architecture/cli-architecture.md)**: Complete CLI design patterns and session management
+- **[AI Integration Architecture](../system-architecture/ai-integration.md)**: Multi-agent orchestration supporting CLI commands
+- **[Data Layer Architecture](../system-architecture/data-layer.md)**: Data persistence patterns for CLI operations
+
+### Command Architecture Alignment
+
+The CLI commands are designed according to the architectural principles defined in the system architecture:
+
+- **Command-Centric Architecture**: All user interactions follow consistent command patterns
+- **Session Management Architecture**: Persistent session state across command executions
+- **User Interaction Architecture**: Responsive interface with immediate feedback and progress indication
+- **Integration Architecture**: Seamless integration between CLI commands and AI processing systems
 
 ## Command Architecture
 
@@ -22,11 +42,12 @@ All CLI commands follow this structure:
 
 ### Command Categories
 
-1. **Navigation & Discovery**: Help, concepts, status
-2. **Configuration**: Provider setup, model management, preferences
-3. **Learning & Analytics**: Tokens, statistics, knowledge mapping
-4. **Session Management**: Reset, checkpoints, quit
-5. **System Operations**: Diagnostic, optimization, maintenance
+1. **Navigation & Discovery**: Help, knowledge-map
+2. **Configuration**: Provider setup
+3. **Learning & Analytics**: Tokens, statistics
+4. **System Operations**: Clear, quit
+5. **Session Management**: Checkpoint
+6. **Context Management**: context, compress, wait, verbose
 
 ## Core Commands
 
@@ -52,12 +73,17 @@ Learning Catalyst > /help
   │ Command            │ Description                                │
   ├────────────────────┼────────────────────────────────────────────┤
   │ /help              │ Show this help message                   │
-  │ /concepts          │ Show available learning concepts           │
-  │ /config            │ Manage AI configuration                   │
-  │ /models            │ List and switch between AI models         │
+  │ /clear             │ Clear the terminal screen                 │
+  │ /quit              │ Exit the application                      │
+  │ /config            │ Manage AI configuration                  │
+  │ /knowledge-map     │ Visualize knowledge connections           │
   │ /tokens            │ View token usage statistics               │
-  │ /reset             │ Reset the learning session                │
-  │ /quit              │ Exit the application                       │
+  │ /statistics        │ Display learning analytics                │
+  │ /checkpoint        │ Save and restore learning progress         │
+  │ /context           │ Show conversation context                 │
+  │ /compress          │ Compress conversation context             │
+  │ /wait              │ Set request delay for rate limiting       │
+  │ /verbose           │ Toggle debug mode                         │
   └────────────────────┴────────────────────────────────────────────┘
 
 # Get help for specific command
@@ -66,12 +92,8 @@ Learning Catalyst > /help config
   Usage: /config [subcommand] [arguments]
 
   Subcommands:
-    show           - Show current configuration
     provider       - Manage AI providers
     model          - Manage AI models
-    save           - Save current configuration
-    load           - Load saved configuration
-    reset          - Reset to defaults
 ```
 
 **Response Format:**
@@ -93,30 +115,32 @@ Learning Catalyst > /help config
 
 ### Configuration Commands
 
-#### `/config show`
-Display current AI configuration.
+#### `/config`
+Manage AI configuration and provider settings.
 
 **Syntax:**
 ```bash
-/config show
+/config [subcommand] [arguments]
 ```
 
 **Examples:**
 ```bash
-Learning Catalyst > /config show
-📋 Current Configuration:
-  AI Provider: OpenAI
-  Model: gpt-4
-  API Status: Connected
-  Temperature: 0.7
-  Max Tokens: 2000
+Learning Catalyst > /config
+🔧 AI Configuration Management:
+  Current Provider: OpenAI
+  Current Model: gpt-4
+  Status: Connected
 
-  Provider Details:
-    OpenAI:
-      - Model: gpt-4
-      - Endpoint: https://api.openai.com/v1
-      - Status: Connected
-      - Rate Limit: 4,999 tokens/min remaining
+  Use arrow keys to navigate, Enter to select
+  ┌─────────────────────────────────────────────┐
+  │ [1] Provider Configuration                  │
+  │ [2] Model Selection                         │
+  │ [3] API Settings                            │
+  │ [4] Save Configuration                      │
+  │ [5] Load Configuration                      │
+  │                                             │
+  │ [q] Quit                                   │
+  └─────────────────────────────────────────────┘
 ```
 
 **Response Format:**
@@ -124,68 +148,43 @@ Learning Catalyst > /config show
 {
   "success": true,
   "data": {
-    "command": "config show",
+    "command": "config",
+    "action": "show_interface",
     "configuration": {
-      "ai": {
-        "provider": "openai",
-        "model": "gpt-4",
-        "temperature": 0.7,
-        "max_tokens": 2000
-      },
-      "providers": {
-        "openai": {
-          "status": "connected",
-          "models": ["gpt-4", "gpt-3.5-turbo"],
-          "rate_limit": {
-            "remaining": 4999,
-            "limit": 5000
-          }
-        }
-      }
+      "current_provider": "openai",
+      "current_model": "gpt-4",
+      "status": "connected"
     }
   }
 }
 ```
 
-#### `/config provider`
-Manage AI provider configuration.
+
+#### `/knowledge-map`
+Visualize knowledge connections and track learning progress.
 
 **Syntax:**
 ```bash
-/config provider [provider_name] [api_key] [options]
-/config provider list
-/config provider test [provider_name]
+/knowledge-map
 ```
-
-**Parameters:**
-- `provider_name`: Name of the AI provider (openai, anthropic, deepseek, etc.)
-- `api_key`: API key for the provider
-- `options`: Additional provider-specific options
 
 **Examples:**
 ```bash
-# Configure OpenAI provider
-Learning Catalyst > /config provider openai
-🔧 OpenAI Provider Configuration:
-  Enter your OpenAI API key: sk-xxxxxxxxxxxxxxxxxxxxxxxx
-  Base URL (optional): https://api.openai.com/v1
-  Timeout (seconds) [30]: 30
-✅ OpenAI provider configured successfully
+# Show knowledge map and learning progress
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map:
+┌─────────────────────────────────────────────────────────────┐
+│ 📚 Python Programming (65% mastery)                        │
+│ ├─ 🐍 Basic Syntax (85%) ──► 📦 Data Structures (45%)       │
+│ ├─ 🔧 Functions & Modules (70%) ──► 🎯 OOP Concepts (30%)  │
+│ └─ 🌐 Web Development (20%) ──► 📊 APIs & Databases (15%)   │
+│                                                             │
+│ 🤖 Machine Learning (35% mastery)                           │
+│ ├─ 📈 Linear Algebra (25%) ──► 🧠 Neural Networks (10%)     │
+│ └─ 📊 Data Analysis (40%) ──► 🔍 ML Pipelines (5%)          │
+└─────────────────────────────────────────────────────────────┘
 
-# List all providers
-Learning Catalyst > /config provider list
-📊 Configured Providers:
-  ✅ OpenAI (gpt-4, gpt-3.5-turbo)
-  ✅ Deepseek (deepseek-chat, deepseek-coder)
-  ❌ Anthropic (Not configured)
-  ❌ SiliconFlow (Not configured)
-
-# Test provider connection
-Learning Catalyst > /config provider test openai
-✅ OpenAI API connection successful!
-  Available models: gpt-4, gpt-3.5-turbo
-  Response time: 1.2s
-  Rate limit: 4,999/5,000 tokens
+💡 Suggested next: Complete Data Structures basics before advancing
 ```
 
 **Response Format:**
@@ -193,197 +192,39 @@ Learning Catalyst > /config provider test openai
 {
   "success": true,
   "data": {
-    "command": "config provider",
-    "provider": "openai",
-    "status": "configured",
-    "models": ["gpt-4", "gpt-3.5-turbo"],
-    "connection_test": {
-      "status": "success",
-      "response_time": 1.2,
-      "rate_limit": {
-        "remaining": 4999,
-        "limit": 5000
+    "command": "knowledge-map",
+    "action": "show_overview",
+    "knowledge_domains": [
+      {
+        "name": "Python Programming",
+        "mastery_percentage": 0.65,
+        "total_concepts": 24,
+        "completed_concepts": 16,
+        "connections": ["Data Structures", "OOP Concepts", "Web Development"]
       }
-    }
-  }
-}
-```
-
-#### `/config model`
-Manage AI model selection and switching.
-
-**Syntax:**
-```bash
-/config model use [model_name]
-/config model list
-/config model switch [provider_name]
-/config model info [model_name]
-```
-
-**Parameters:**
-- `model_name`: Name of the model to use
-- `provider_name`: Provider to switch to
-
-**Examples:**
-```bash
-# List available models
-Learning Catalyst > /config model list
-📋 Available Models:
-  OpenAI:
-    • gpt-4 (8K context, $0.03/1K input, $0.06/1K output)
-    • gpt-3.5-turbo (4K context, $0.0015/1K input, $0.002/1K output)
-
-  Deepseek:
-    • deepseek-chat (32K context, $0.14/1K input, $0.28/1K output)
-    • deepseek-coder (32K context, $0.14/1K input, $0.28/1K output)
-
-# Switch to specific model
-Learning Catalyst > /config model use gpt-4
-🤖 Model switched to: gpt-4
-  Context window: 8,192 tokens
-  Cost per 1K tokens: $0.03 (input) / $0.06 (output)
-  Provider: OpenAI
-
-# Interactive model selection
-Learning Catalyst > /config model switch
-🔄 Model Selection Dialog
-┌─ Select Model Type ───────────────────────────────────────┐
-│                                                            │
-│  [c]hat Models     • gpt-4, deepseek, Qwen2, llama3        │
-│  [e]mbedding Models • text-embedding-3-large, bge-large    │
-│  [r]erank Models    • bge-reranker, cross-encoder          │
-│                                                            │
-│  Current: chat  |  Press key or [Enter] for all types         │
-│  [q]uit                                               [?]Help│
-└────────────────────────────────────────────────────────────┘
-```
-
-**Response Format:**
-```json
-{
-  "success": true,
-  "data": {
-    "command": "config model",
-    "action": "use",
-    "model": {
-      "name": "gpt-4",
-      "provider": "openai",
-      "context_window": 8192,
-      "pricing": {
-        "input_per_1k": 0.03,
-        "output_per_1k": 0.06
+    ],
+    "suggestions": [
+      {
+        "type": "next_concept",
+        "name": "Data Structures basics",
+        "reason": "Strong foundation for advanced topics"
       }
-    }
+    ]
   }
 }
 ```
 
 ### Learning Commands
 
-#### `/concepts`
-Browse and interact with available learning concepts.
+The Learning Catalyst focuses on natural learning interactions rather than structured concept browsing. Users learn through direct conversation with the AI, asking questions naturally and receiving personalized explanations.
 
-**Syntax:**
-```bash
-/concepts
-/concepts search [query]
-/concepts detail [concept_id]
-/concepts list [category]
-```
+**Natural Learning Approach:**
+Instead of using commands to browse concepts, users interact naturally:
+- **Ask questions directly**: "Explain neural networks" or "How do Python decorators work?"
+- **Request practice**: "Test me on data structures" or "Give me exercises about React"
+- **Follow curiosity**: "Why is recursion useful?" or "Show me examples of closures"
 
-**Parameters:**
-- `query`: Search query to find concepts
-- `concept_id`: ID of specific concept to view
-- `category`: Category to filter concepts by
-
-**Examples:**
-```bash
-# Show available concepts
-Learning Catalyst > /concepts
-📚 Available Learning Concepts:
-  📊 Computer Science (25 concepts)
-    • Data Structures (12 concepts)
-    • Algorithms (8 concepts)
-    • System Design (5 concepts)
-
-  🐍 Python Programming (18 concepts)
-    • Basic Syntax (6 concepts)
-    • Advanced Topics (7 concepts)
-    • Best Practices (5 concepts)
-
-  🌐 Web Development (15 concepts)
-    • HTML/CSS (5 concepts)
-    • JavaScript (7 concepts)
-    • Frameworks (3 concepts)
-
-# Search for specific concepts
-Learning Catalyst > /concepts search recursion
-🔍 Search Results for "recursion":
-  1. Recursion Fundamentals
-     Difficulty: ⭐⭐⭐☆☆ (3/5)
-     Est. Time: 45 minutes
-     Prerequisites: Functions, Stack Data Structure
-
-  2. Recursive Algorithms
-     Difficulty: ⭐⭐⭐⭐☆ (4/5)
-     Est. Time: 60 minutes
-     Prerequisites: Recursion Fundamentals, Algorithm Analysis
-
-# Get detailed concept information
-Learning Catalyst > /concepts detail recursion-fundamentals
-📖 Concept: Recursion Fundamentals
-📊 Difficulty: ⭐⭐⭐☆☆ (3/5)
-⏱️ Estimated Time: 45 minutes
-
-🎯 Learning Objectives:
-  • Understand the concept of recursion
-  • Identify recursive vs. iterative solutions
-  • Implement basic recursive functions
-  • Analyze recursion complexity
-
-📋 Prerequisites:
-  • Functions and parameters
-  • Stack data structure basics
-  • Basic algorithm analysis
-
-📚 Content Overview:
-  1. What is Recursion?
-  2. Base Cases and Recursive Cases
-  3. Stack Frames and Call Stack
-  4. Common Recursive Patterns
-  5. When to Use Recursion
-
-📈 Your Progress:
-  • Mastery Level: 65%
-  • Last Practiced: 2 days ago
-  • Quiz Average: 78%
-```
-
-**Response Format:**
-```json
-{
-  "success": true,
-  "data": {
-    "command": "concepts",
-    "action": "list",
-    "concepts": [
-      {
-        "id": "recursion-fundamentals",
-        "title": "Recursion Fundamentals",
-        "category": "computer-science",
-        "difficulty": 3,
-        "estimated_time": 45,
-        "prerequisites": ["functions", "stack-basics"],
-        "user_progress": {
-          "mastery_level": 0.65,
-          "last_practiced": "2025-10-06T10:30:00Z",
-          "quiz_average": 0.78
-        }
-      }
-    ]
-  }
-}
-```
+The `/knowledge-map` command provides visual learning progress tracking while maintaining the natural conversation flow.
 
 #### `/tokens`
 View token usage statistics and costs.
@@ -417,7 +258,7 @@ Learning Catalyst > /tokens
 
   Usage by Context:
     • Explanations: 45% (7,055 tokens)
-    • Quizzes: 30% (4,703 tokens)
+    • Learning: 30% (4,703 tokens)
     • Chat: 25% (3,918 tokens)
 
 # Detailed usage for specific model
@@ -427,7 +268,7 @@ Learning Catalyst > /tokens detailed gpt-4
 │ Timestamp           │ Input Tokens │ Output Tokens │ Context      │
 ├─────────────────────┼──────────────┼───────────────┼──────────────┤
 │ 2025-10-08 10:30:22 │ 450          │ 280           │ explanation  │
-│ 2025-10-08 09:15:47 │ 320          │ 195           │ challenge    │
+│ 2025-10-08 09:15:47 │ 320          │ 195           │ learning     │
 │ 2025-10-08 08:45:12 │ 180          │ 120           │ chat        │
 └─────────────────────┴──────────────┴───────────────┴──────────────┘
 
@@ -472,7 +313,7 @@ Learning Catalyst > /tokens export json
       },
       "by_context": {
         "explanation": 7055,
-        "quiz": 4703,
+        "learning": 4703,
         "chat": 3918
       }
     }
@@ -480,47 +321,57 @@ Learning Catalyst > /tokens export json
 }
 ```
 
-### Session Management Commands
-
-#### `/reset`
-Reset the current learning session.
+#### `/statistics`
+Display comprehensive learning and usage analytics.
 
 **Syntax:**
 ```bash
-/reset [options]
+/statistics
+/statistics detailed
+/statistics export [format]
 ```
 
 **Parameters:**
-- `options`: Reset options (--hard, --soft, --conversation-only)
+- `detailed`: Show detailed analytics breakdown
+- `format`: Export format (json, csv)
 
 **Examples:**
 ```bash
-# Soft reset (clear conversation, keep configuration)
-Learning Catalyst > /reset
-🔄 Session reset.
-  ✓ Conversation history cleared
-  ✓ Current topic cleared
-  ✓ Short-term memory reset
-  Configuration remains unchanged
-  You can continue learning with your current settings.
+# Show statistics overview
+Learning Catalyst > /statistics
+📊 Learning Statistics:
+  Session Duration: 45 minutes
+  Total Interactions: 23
+  Learning Efficiency: 78%
 
-# Hard reset (clear everything)
-Learning Catalyst > /reset --hard
-🔄 Hard reset completed.
-  ✓ All session data cleared
-  ✓ Conversation history removed
-  ✓ Learning progress reset
-  ✓ Cache cleared
-  ✓ Checkpoints preserved
-  System restored to default state.
+  Topic Breakdown:
+    • React Hooks: 12 interactions (52%)
+    • Python Basics: 8 interactions (35%)
+    • ML Concepts: 3 interactions (13%)
 
-# Conversation-only reset
-Learning Catalyst > /reset --conversation-only
-🔄 Conversation reset.
-  ✓ Conversation history cleared
-  ✓ Current context reset
-  ✓ AI memory cleared
-  Learning progress and configuration preserved
+  Progress Indicators:
+    • Concepts Mastered: 5
+    • In Progress: 3
+    • Ready to Review: 2
+
+# Detailed statistics
+Learning Catalyst > /statistics detailed
+📈 Detailed Analytics Report:
+
+Learning Patterns:
+  Peak Learning Time: 2:00 PM - 4:00 PM
+  Average Session Length: 32 minutes
+  Retention Rate: 85%
+
+Performance Metrics:
+  Question Response Accuracy: 92%
+  Concept Application Rate: 78%
+  Knowledge Transfer Success: 71%
+
+Usage Analytics:
+  Most Active Topics: React Hooks, Python Basics
+  Learning Velocity: 2.3 concepts per session
+  Review Frequency: Every 3.2 days
 ```
 
 **Response Format:**
@@ -528,39 +379,51 @@ Learning Catalyst > /reset --conversation-only
 {
   "success": true,
   "data": {
-    "command": "reset",
-    "reset_type": "soft",
-    "cleared_items": [
-      "conversation_history",
-      "current_topic",
-      "short_term_memory"
+    "command": "statistics",
+    "action": "show_overview",
+    "session_stats": {
+      "duration_minutes": 45,
+      "total_interactions": 23,
+      "learning_efficiency": 0.78
+    },
+    "topic_breakdown": [
+      {
+        "topic": "React Hooks",
+        "interactions": 12,
+        "percentage": 0.52
+      },
+      {
+        "topic": "Python Basics",
+        "interactions": 8,
+        "percentage": 0.35
+      }
     ],
-    "preserved_items": [
-      "configuration",
-      "user_progress",
-      "checkpoints"
-    ]
+    "progress_indicators": {
+      "concepts_mastered": 5,
+      "in_progress": 3,
+      "ready_to_review": 2
+    }
   }
 }
 ```
 
+### Session Management Commands
+
 #### `/checkpoint`
-Manage session checkpoints for saving and restoring state.
+Save and restore learning progress checkpoints.
 
 **Syntax:**
 ```bash
 /checkpoint save [name]
 /checkpoint load [name]
-/checkpoint list
-/checkpoint delete [name]
 ```
 
 **Parameters:**
-- `name`: Name for the checkpoint
+- `name`: Name for the checkpoint (optional, auto-generated if not provided)
 
 **Examples:**
 ```bash
-# Save current session as checkpoint
+# Save checkpoint with custom name
 Learning Catalyst > /checkpoint save react-hooks-progress
 ✅ Checkpoint saved: react-hooks-progress
   • Session state: Saved
@@ -569,20 +432,13 @@ Learning Catalyst > /checkpoint save react-hooks-progress
   • Learning progress: 67% complete
   • Timestamp: 2025-10-08T10:30:00Z
 
-# List available checkpoints
-Learning Catalyst > /checkpoint list
-📋 Available Checkpoints:
-  1. react-hooks-progress
-     Created: 2025-10-08 10:30:00Z
-     Size: 2.3MB
-     Messages: 23
-     Topic: React Hooks
-
-  2. python-data-structures
-     Created: 2025-10-07 15:45:00Z
-     Size: 1.8MB
-     Messages: 18
-     Topic: Python Data Structures
+# Auto-save checkpoint with timestamp
+Learning Catalyst > /checkpoint save
+✅ Checkpoint saved: react-hooks_2025-10-09_143022
+  • Session state: Saved
+  • Conversation history: 23 messages
+  • Current topic: React Hooks
+  • Learning progress: 67% complete
 
 # Load checkpoint
 Learning Catalyst > /checkpoint load react-hooks-progress
@@ -592,10 +448,6 @@ Learning Catalyst > /checkpoint load react-hooks-progress
   ✓ Current topic: React Hooks
   ✓ Learning progress: 67% complete
   ✓ Context: useState, useEffect patterns
-
-# Delete checkpoint
-Learning Catalyst > /checkpoint delete python-data-structures
-✅ Checkpoint deleted: python-data-structures
 ```
 
 **Response Format:**
@@ -617,57 +469,32 @@ Learning Catalyst > /checkpoint delete python-data-structures
 }
 ```
 
-### System Commands
+### Context Management Commands
 
-#### `/status`
-Display system status and health information.
+#### `/context`
+Display current conversation context and session information.
 
 **Syntax:**
 ```bash
-/status [--detailed]
+/context
 ```
-
-**Parameters:**
-- `--detailed`: Show detailed system information
 
 **Examples:**
 ```bash
-# Basic status
-Learning Catalyst > /status
-= System Status:
-  Installation: ✓ OK
-  Configuration: ✓ Configured
-  AI Providers: ✓ Connected
-  Memory: ✓ 245MB used (512MB available)
-  Last Error: None
+Learning Catalyst > /context
+📋 Current Context:
+  Session ID: sess_abc123def
+  Duration: 45 minutes
+  Messages: 12
 
-# Detailed status
-Learning Catalyst > /status --detailed
-= Detailed System Status:
+  Current Topic: React Hooks
+  - useState: Explained (15 min ago)
+  - useEffect: In progress
+  - Custom hooks: Not covered
 
-  Application:
-    Version: 1.0.0
-    Uptime: 2h 34m
-    Memory Usage: 245MB / 512MB
-    Cache Hit Rate: 87%
-
-  AI Configuration:
-    Active Provider: OpenAI
-    Active Model: gpt-4
-    Provider Status: Connected
-    Model Availability: All models available
-
-  Database:
-    Status: Connected
-    Size: 15.6MB
-    Records: 2,345
-    Last Backup: 2025-10-08 09:00:00Z
-
-  Session:
-    Session ID: sess_abc123
-    Duration: 45m
-    Messages: 12
-    Current Topic: React Hooks
+  AI Provider: OpenAI (gpt-4)
+  Model Context: 6,234 / 8,192 tokens used
+  Last Activity: 2 minutes ago
 ```
 
 **Response Format:**
@@ -675,37 +502,171 @@ Learning Catalyst > /status --detailed
 {
   "success": true,
   "data": {
-    "command": "status",
-    "system_info": {
-      "application": {
-        "version": "1.0.0",
-        "uptime": 9240,
-        "memory_usage": {
-          "used": 245,
-          "available": 512,
-          "percentage": 0.48
-        },
-        "cache_hit_rate": 0.87
-      },
-      "ai_configuration": {
-        "active_provider": "openai",
-        "active_model": "gpt-4",
-        "provider_status": "connected",
-        "model_availability": "all_available"
-      },
-      "database": {
-        "status": "connected",
-        "size_bytes": 16357888,
-        "record_count": 2345,
-        "last_backup": "2025-10-08T09:00:00Z"
-      },
-      "session": {
-        "session_id": "sess_abc123",
-        "duration_minutes": 45,
-        "message_count": 12,
-        "current_topic": "React Hooks"
-      }
+    "command": "context",
+    "session_info": {
+      "session_id": "sess_abc123def",
+      "duration_minutes": 45,
+      "message_count": 12,
+      "current_topic": "React Hooks"
+    },
+    "context_usage": {
+      "tokens_used": 6234,
+      "tokens_available": 8192,
+      "percentage_used": 0.76
+    },
+    "learning_progress": {
+      "useState": "completed",
+      "useEffect": "in_progress",
+      "custom_hooks": "not_started"
     }
+  }
+}
+```
+
+#### `/compress`
+Compress conversation context to save tokens while preserving important information.
+
+**Syntax:**
+```bash
+/compress
+```
+
+**Examples:**
+```bash
+Learning Catalyst > /compress
+🗜️ Compressing conversation context...
+  Original messages: 12
+  Compressed to: 5 summary points
+  Tokens saved: 2,341 (29% reduction)
+
+✅ Context compressed successfully
+Key concepts preserved:
+  • React useState hook basics
+  • useEffect dependency array rules
+  • Custom hook creation patterns
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "data": {
+    "command": "compress",
+    "compression_result": {
+      "original_messages": 12,
+      "compressed_summaries": 5,
+      "tokens_saved": 2341,
+      "compression_percentage": 0.29
+    },
+    "preserved_concepts": [
+      "React useState hook basics",
+      "useEffect dependency array rules",
+      "Custom hook creation patterns"
+    ]
+  }
+}
+```
+
+#### `/wait`
+Set delay between API requests for rate limiting.
+
+**Syntax:**
+```bash
+/wait [seconds]
+```
+
+**Parameters:**
+- `seconds`: Number of seconds to wait between requests
+
+**Examples:**
+```bash
+Learning Catalyst > /wait 60
+⏱️ Rate limiting: 60 second delay between requests
+✅ Request delay configured
+
+Learning Catalyst > /wait
+Current delay: 60 seconds between requests
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "data": {
+    "command": "wait",
+    "delay_seconds": 60,
+    "message": "Rate limiting configured"
+  }
+}
+```
+
+#### `/verbose`
+Toggle debug mode for detailed output.
+
+**Syntax:**
+```bash
+/verbose [on|off]
+```
+
+**Parameters:**
+- `on|off`: Enable or disable verbose mode
+
+**Examples:**
+```bash
+Learning Catalyst > /verbose on
+🔍 Verbose mode enabled
+  - API request details will be shown
+  - Token usage will be displayed
+  - Response times will be tracked
+
+Learning Catalyst > /verbose off
+🔍 Verbose mode disabled
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "data": {
+    "command": "verbose",
+    "verbose_enabled": true,
+    "features": ["api_requests", "token_usage", "response_times"]
+  }
+}
+```
+
+### System Commands
+
+#### `/clear`
+Clear the terminal screen for a clean workspace.
+
+**Syntax:**
+```bash
+/clear [--preserve] [--reset]
+```
+
+**Parameters:**
+- `--preserve`: Clear screen but keep recent command history visible
+- `--reset`: Full terminal state reset (use if display issues occur)
+
+**Examples:**
+```bash
+Learning Catalyst > /clear
+[Screen clears, showing only fresh prompt]
+Learning Catalyst >
+
+Learning Catalyst > /clear --preserve
+[Screen clears but last few commands remain visible]
+```
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "data": {
+    "command": "clear",
+    "action": "clear_screen",
+    "preserve_history": false
   }
 }
 ```
@@ -1036,10 +997,29 @@ Learning Catalyst > /config provider openai
 
 ## Related Documentation
 
-- **[Configuration API](configuration-api.md)**: Configuration management details
-- **[Provider Interface](provider-interfaces.md)**: AI provider integration
-- **[Implementation Guides](../implementation-guides/)**: Development and setup
-- **[Examples](../../examples/)**: Practical usage examples
+### System Architecture Integration
+- **[CLI Architecture](../system-architecture/cli-architecture.md)**: Command-line interface design patterns and session management
+- **[AI Integration Architecture](../system-architecture/ai-integration.md)**: Multi-agent orchestration with Microsoft AutoGen
+- **[Data Layer Architecture](../system-architecture/data-layer.md)**: Data storage and management patterns
+- **[System Architecture Overview](../system-architecture/)**: Complete 5-layer architecture overview
+
+### API Reference Documentation
+- **[Configuration API](configuration-api.md)**: Configuration management and settings architecture
+- **[Provider Interface](provider-interfaces.md)**: AI provider integration and extension architecture
+- **[Data Models](data-models.md)**: Data structure specifications for CLI operations
+- **[AI Toolcalls API](toolcalls-api.md)**: Complete API specification for AI function calling tools
+
+### Implementation and Usage
+- **[Implementation Guides](../implementation-guides/)**: CLI development and setup instructions
+- **[Configuration Commands](../../commands/configuration.md)**: Complete CLI command reference
+- **[Examples](../../examples/)**: Practical CLI usage examples and workflows
+
+### Architectural Alignment
+This CLI Commands API directly implements the architectural patterns described in the system architecture documentation:
+- **User Interface Layer**: Commands implement the primary user interaction interface
+- **Session Management**: Commands maintain persistent state across CLI sessions
+- **AI Integration**: Commands trigger multi-agent workflows and tool orchestration
+- **Data Persistence**: Commands interface with the data layer for storage and retrieval
 
 ---
 

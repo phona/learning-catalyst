@@ -31,7 +31,7 @@ Display help information about available commands, categories, or specific comma
 ```bash
 /help                    # General help and overview
 /help learning           # Help for learning commands
-/help /quiz              # Detailed help for quiz command
+/help /concepts          # Detailed help for concepts command
 /help --all              # List all commands with brief descriptions
 ```
 
@@ -52,9 +52,12 @@ SYSTEM COMMANDS:
 
 LEARNING COMMANDS:
   /concepts, /topics     Browse available learning concepts
-  /explain, /exp         Get detailed explanations
-  /quiz, /challenge      Take quizzes and challenges
+  /suggest, /recommend   Get AI-driven learning suggestions
   /knowledge-map, /kmap  Show knowledge structure visualization
+
+For explanations and practice questions, simply ask naturally:
+  "Can you explain neural networks?"
+  "Can you test me on Python concepts?"
 
 Use '/help [command]' for detailed command help.
 ```
@@ -130,7 +133,7 @@ Clear the terminal screen to provide a clean workspace.
 /help analytics          # Check analytics commands
 
 # Need detailed command help?
-/help /quiz              # Get quiz command details
+/help /concepts          # Get concepts command details
 /help /config            # Configuration help
 ```
 

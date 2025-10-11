@@ -9,7 +9,65 @@ last_updated: 2025-10-07
 
 ## Overview
 
-This guide covers common workflows and everyday scenarios for using Learning Catalyst CLI. Each example shows practical applications and command sequences you can use immediately.
+This guide covers common workflows and everyday scenarios for using Learning Catalyst CLI. Each example shows practical applications of conversational interactions with the AI-powered learning assistant.
+
+## 🔧 Technical Context: How Learning Catalyst Workflows Work
+
+### Session Management System
+
+Learning Catalyst maintains persistent learning sessions that track your progress and context:
+
+#### Session Architecture
+- **Session State**: Tracks conversation history, learning progress, and user preferences
+- **Context Management**: Maintains relevant context for AI responses across sessions
+- **Progress Tracking**: Records completed topics, quiz results, and learning milestones
+- **Persistence**: Sessions are saved automatically and can be resumed later
+
+#### Command Processing Pipeline
+```python
+# Behind the scenes: How commands are processed
+class CommandProcessor:
+    async def process_command(self, command: str, context: SessionContext) -> Response:
+        # 1. Parse and validate command
+        parsed = self.parser.parse(command)
+
+        # 2. Load relevant context and history
+        context = await self.context_manager.load_context(parsed, context)
+
+        # 3. Execute command logic
+        result = await self.executor.execute(parsed, context)
+
+        # 4. Update session state and progress
+        await self.session_manager.update_state(result)
+
+        return result
+```
+
+#### Learning Engine
+- **Knowledge Graph**: Maps concepts and relationships for intelligent recommendations
+- **Progress Assessment**: Evaluates understanding through quizzes and interactions
+- **Adaptive Learning**: Adjusts difficulty and content based on performance
+- **Content Organization**: Structures learning materials for optimal retention
+
+### User Interaction Flow
+
+#### Input Processing
+1. **Natural Language Understanding**: Analyzes user's conversational input to determine learning intent
+2. **Context Analysis**: Maintains conversation history and learning context across interactions
+3. **Intent Classification**: Identifies whether user wants explanations, practice problems, or general discussion
+4. **AI Model Selection**: Routes request to appropriate AI model for optimal response
+
+#### Response Generation
+1. **AI-Powered Analysis**: Processes user request using advanced language models
+2. **Knowledge Retrieval**: Accesses relevant information from training data and knowledge bases
+3. **Contextual Response**: Generates personalized responses based on conversation history
+4. **Learning Progress Tracking**: Updates user's learning journey and concept mastery
+
+**Want to understand the technical implementation?**
+- 📖 **[CLI Architecture](../technical/system-architecture/cli-architecture.md)** - Command processing system
+- 🔧 **[Implementation Guides](../technical/guides/)** - Feature development tutorials
+- 🏗️ **[System Architecture](../technical/system-architecture/)** - Complete system design
+- 🧠 **[AI Integration](../technical/system-architecture/ai-integration.md)** - How AI responses are generated
 
 ## Workflow 0: Guided Startup Experience
 
@@ -58,8 +116,30 @@ You're all ready to start learning!
 💡 Now, what would you like to learn about today?
 
 Learning Catalyst > what are Python Decorators
-🧠 Python decorators are functions that modify other functions...
-[Detailed explanation with examples]
+🧠 Python decorators are functions that modify other functions without changing their source code. They allow you to wrap another function to extend its behavior.
+
+Here's a simple example:
+
+```python
+def timer_decorator(func):
+    import time
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start} seconds")
+        return result
+    return wrapper
+
+@timer_decorator
+def slow_function():
+    time.sleep(1)
+    return "Done"
+
+# When you call slow_function(), it will automatically measure execution time
+```
+
+Would you like me to explain how decorators work in more detail or show you more practical examples?
 ```
 
 **Custom Provider Example:**
@@ -121,7 +201,7 @@ Great to see you again! Here's where you left off:
 
 💡 Suggestions:
 • Continue where you left off by asking about Python Decorators
-• Test your knowledge by requesting a quiz on Python Decorators
+• Test your knowledge by requesting practice questions on Python Decorators
 • Explore new concepts by asking what topics are available
 • Change your AI configuration with /config if needed
 
@@ -132,26 +212,30 @@ Ready to continue your learning journey?
    Pick up where you left off with Python Decorators
 
 2. Test your knowledge
-   Take a quiz to reinforce your learning
+   Ask for practice questions to reinforce your learning
 
 3. Explore: Python Functions
    Discover something new with Python Functions
 
-4. Practice with challenges
-   Apply what you've learned with interactive challenges
+4. Practice with examples
+   Apply what you've learned with practical coding examples
 
 5. Change configuration
    Switch AI models or providers with /config
 
-Learning Catalyst > what are Python Decorators
-🧠 [Resumes with detailed explanation of Python Decorators]
+Learning Catalyst > can we continue with Python Decorators?
+🧠 Absolutely! Let's continue where we left off. We were discussing how decorators work...
+[AI resumes with detailed explanation of Python Decorators, building on previous context]
 
-Learning Catalyst > continue with where we left off
-📚 [Picks up previous conversation context]
+Learning Catalyst > can you give me some practice questions about decorators?
+🎯 Practice Questions: Python Decorators
+Here are some questions to test your understanding:
 
-Learning Catalyst > test me on Python Decorators
-🎯 Quiz: Python Decorators
-[Generates quiz questions based on previous learning context]
+1. How would you create a decorator that logs function calls?
+2. Can you explain what happens when you stack multiple decorators?
+3. How do decorators handle function arguments and return values?
+
+Try answering these, and I'll provide feedback and explanations!
 ```
 
 #### Standard Welcome Experience
@@ -180,11 +264,36 @@ Learning Catalyst > what can I learn?
 
 Learning Catalyst > tell me about React
 🧠 React - A JavaScript Library for User Interfaces:
-[Comprehensive explanation with practical examples]
+React is a popular JavaScript library for building user interfaces, particularly web applications. Here are the key concepts:
 
-Learning Catalyst > test me on React basics
-🎯 Quiz: React Fundamentals
-[Interactive quiz session with immediate feedback]
+**Core Features:**
+- **Components**: Reusable UI building blocks
+- **Virtual DOM**: Efficient updates to the actual DOM
+- **State Management**: Handling data that changes over time
+- **Props**: Passing data between components
+
+**Simple Example:**
+```jsx
+function Welcome(props) {
+  return <h1>Hello, {props.name}!</h1>;
+}
+
+function App() {
+  return <Welcome name="World" />;
+}
+```
+
+Would you like me to explain any of these concepts in more detail or show you how to get started with a React project?
+
+Learning Catalyst > can you test me on React basics?
+🎯 Practice Questions: React Fundamentals
+Here are some questions to test your understanding:
+
+1. What's the difference between state and props in React?
+2. How does the Virtual DOM improve performance?
+3. What is a React component and how do you create one?
+
+Try answering these, and I'll provide feedback and explanations!
 ```
 
 #### Context-Aware Suggestion System
@@ -196,27 +305,37 @@ The startup guide continuously analyzes your context and provides personalized s
 Learning Catalyst > [AI finishes explaining a concept]
 
 💡 AI-Powered Follow-up Suggestions:
-Would you like to test your understanding of React Hooks?
+Based on your interest in React Hooks, would you like to test your understanding?
 
 💡 You can:
-• Take a quiz by saying "test me on React Hooks"
+• Ask for practice questions by saying "test me on React Hooks"
 • Ask follow-up questions
 • Explore related concepts
 
 What would you like to do next?
 
-Learning Catalyst > yes, quiz me
-🎯 [Generates contextual quiz based on just-learned concept]
+Learning Catalyst > yes, test me on React Hooks
+🎯 Practice Questions: React Hooks
+Here are some questions about React Hooks:
+
+1. What problem do Hooks solve in React?
+2. How does useState work and when would you use it?
+3. What's the difference between useEffect and componentDidMount?
+
+Try answering these, and I'll provide detailed feedback!
 
 # Alternative responses to suggestions
 Learning Catalyst > no thanks, let's move on
-No problem. Shall we move on, or is there anything else you'd like to review?
+No problem. What would you like to explore next? We could look at other React features or move to a different topic entirely.
 
 Learning Catalyst > tell me more about related concepts
 🔗 Related Concepts to React Hooks:
-• React Context API
-• State Management Patterns
-• Component Lifecycle
+• React Context API - For passing data through the component tree
+• State Management Patterns - Redux, MobX, and other state solutions
+• Component Lifecycle - Traditional class component lifecycle methods
+• Custom Hooks - Building your own reusable hooks
+
+Would you like me to explain any of these related topics?
 ```
 
 This guided startup experience ensures that every user—whether first-time or returning—gets immediate value and clear direction for their learning journey. The system adapts to your context, learning history, and preferences to provide a truly personalized onboarding experience.
@@ -233,11 +352,27 @@ This guided startup experience ensures that every user—whether first-time or r
 # Start your learning session (see Workflow 0 for startup experience)
 $> learning-catalyst
 
-# Check yesterday's progress
-Learning Catalyst > /statistics --days=1
+# Check current token usage
+Learning Catalyst > /tokens
+
+# Configure your learning preferences
+Learning Catalyst > /config daily-limit 5000
+✅ Daily token limit set to 5,000 tokens
+
+Learning Catalyst > /config cost-alert 0.50
+✅ Cost alert set to $0.50
+
+# Check current configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4
+  Daily Limit: 5,000 tokens
+  Cost Alert: $0.50
+  Status: ✓ Connected
 
 # Continue where you left off with interactive knowledge exploration
-Learning Catalyst > /knowledge-map --progress
+Learning Catalyst > /knowledge-map
 🗺️ Your Interactive Learning Space:
 ┌─ Computer Science ─────────────────────────────────────┐
 │  [✅] Basic Programming (Mastered)                     │
@@ -307,25 +442,64 @@ Learning Catalyst > /quit
 
 **Example Session**:
 ```bash
-Learning Catalyst > /statistics --days=1
-📊 Yesterday's Learning:
-  Time spent: 45 minutes
-  Concepts learned: 3
-  Quizzes taken: 2
-  Accuracy: 85%
+Learning Catalyst > /tokens
+📊 Token Usage Statistics:
+  Current Session: 1,234 tokens
+  Daily Usage: 2,456 tokens
+  Cost: $0.12 today
+
+# Configure response settings for better learning
+Learning Catalyst > /config response-length concise
+✅ Response length set to concise
+
+Learning Catalyst > /config response-style conversational
+✅ Response style set to conversational
+
+# Switch to a different provider for cost efficiency
+Learning Catalyst > /config provider deepseek
+🔧 Deepseek Provider Configuration:
+  Enter your Deepseek API key: [your-api-key]
+✅ Deepseek provider configured
+
+Learning Catalyst > /config model deepseek-chat
+✅ Model set to: deepseek-chat
 
 Learning Catalyst > what is Python Decorators
-🧠 Python decorators are functions that modify other functions...
-[Detailed explanation with examples]
+🧠 Python decorators are functions that modify other functions without changing their source code. They allow you to wrap another function to extend its behavior.
 
-Learning Catalyst > give me some questions to test me the understanding of Python Decorators
-🎯 Quiz: Python Decorators
-Question 1: What is a decorator?
-Your answer: A function that modifies another function
-✅ Correct!
+Here's a simple example:
+
+```python
+def timer_decorator(func):
+    import time
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start} seconds")
+        return result
+    return wrapper
+
+@timer_decorator
+def slow_function():
+    time.sleep(1)
+    return "Done"
+```
+
+Would you like me to explain how decorators work in more detail?
+
+Learning Catalyst > can you test me on Python Decorators?
+🎯 Practice Questions: Python Decorators
+Here are some questions to test your understanding:
+
+1. How would you create a decorator that logs function calls?
+2. Can you explain what happens when you stack multiple decorators?
+3. How do decorators handle function arguments and return values?
+
+Try answering these, and I'll provide feedback and explanations!
 
 Learning Catalyst > /quit
-💾 Session saved: 3 concepts learned, 2 quizzes completed (saves by default)
+💾 Session saved: 3 concepts learned, 2 practice sessions completed (saves by default)
 ```
 
 ## Workflow 2: Topic-Specific Deep Dive
@@ -357,10 +531,19 @@ Learning Catalyst > can you explain supervised learning in detail?
 
 # Test your understanding as you learn
 Learning Catalyst > give me some questions to test my understanding of supervised learning
-🎯 Quiz: Supervised Learning
-Question 1: What is the main difference between classification and regression?
-Your answer: Classification predicts categories, regression predicts continuous values
-✅ Correct!
+🎯 Practice Questions: Supervised Learning
+Here are some questions to test your understanding:
+
+1. What is the main difference between classification and regression?
+2. Can you give an example of a real-world classification problem?
+3. How would you evaluate the performance of a regression model?
+
+Try answering these, and I'll provide feedback and explanations!
+
+Learning Catalyst > classification predicts categories, regression predicts continuous values
+✅ Excellent answer! That's exactly right. Classification is about predicting discrete categories (like spam vs not spam), while regression predicts continuous values (like house prices).
+
+Would you like to try the other questions?
 
 # Continue building knowledge progressively
 Learning Catalyst > now let's learn about unsupervised learning
@@ -1059,13 +1242,13 @@ Would you like me to:
 - (s)ummarize complex relationships?
 - (g)enerate research questions for investigation?"
 
-# Export interactive research findings
-Learning Catalyst > export my quantum computing research knowledge map with relationships
-🗺️ Interactive Research Knowledge Exported:
-- quantum_computing_research.md (complete map with connections)
-- concept_relationships.graph (network diagram data)
-- research_gaps.analysis (AI-generated gap report)
-- next_steps.plan (prioritized research roadmap)
+# Save current research progress
+Learning Catalyst > /checkpoint save quantum-computing-research
+✅ Checkpoint saved: quantum-computing-research
+
+# View knowledge structure
+Learning Catalyst > /knowledge-map
+🗺️ Your current knowledge structure is displayed showing quantum computing concepts and relationships
 ```
 
 ### Literature Review Workflow
@@ -2551,9 +2734,12 @@ Choose format [1/2/3/4]: 1
 }
 ```
 
-#### Generate specialized reports for different purposes
-Learning Catalyst > create a progress report I can share with my mentor
-📋 Mentor Progress Report Generated:
+#### Save progress for sharing with mentor
+Learning Catalyst > /checkpoint save mentor-progress-review
+✅ Checkpoint saved: mentor-progress-review
+
+Learning Catalyst > can you summarize my React progress for my mentor?
+📋 Progress Summary for Mentor:
 
 **Learning Progress Report - October 2024**
 **Student: Alex Johnson**

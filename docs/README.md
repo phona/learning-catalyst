@@ -18,23 +18,22 @@ This directory contains comprehensive documentation for Learning Catalyst, an AI
 
 - [Installation Guide](installation/) - Install and set up Learning Catalyst CLI
 - [Quick Start](installation/quick-start.md) - Get started in 5 minutes
-- [First Session](installation/first-session.md) - Your first learning session
 
 ### 📋 [Command Reference](commands/)
 *Complete command-line interface documentation*
 
 - [System Commands](commands/system.md) - Help, quit, clear screen
 - [Configuration Commands](commands/configuration.md) - Models, preferences, config
-- [Learning Commands](commands/learning.md) - Concepts, explain, quiz, knowledge map
+- [Learning Commands](commands/learning.md) - Knowledge map and natural learning
+- [Session Commands](commands/session.md) - Save and restore learning progress
 - [Analytics Commands](commands/analytics.md) - Tokens, statistics, usage tracking
+- [Context Commands](commands/context.md) - Context management and debug commands
 
 ### ⚙️ [Configuration](configuration/)
 *CLI configuration and customization*
 
-- [Basic Configuration](configuration/basic.md) - Essential settings
-- [AI Provider Setup](configuration/ai-providers.md) - Configure AI models
-- [Preferences](configuration/preferences.md) - Customize your experience
-- [Advanced Configuration](configuration/advanced.md) - Power user settings
+- [Configuration Guide](configuration/README.md) - Essential settings and setup
+- [Command Configuration](commands/configuration.md) - Configure using CLI commands
 
 ### 💡 [Usage Examples](examples/)
 *Practical CLI examples and tutorials*
@@ -42,23 +41,34 @@ This directory contains comprehensive documentation for Learning Catalyst, an AI
 - [Examples Overview](examples/README.md) - Guide to all examples
 - [Basic Workflows](examples/basic-workflows.md) - Everyday learning scenarios
 - [Integration Examples](examples/integration.md) - AI provider setup and configuration
+- [Advanced Usage](examples/advanced.md) - Power user techniques and optimization
 - [Troubleshooting](examples/troubleshooting.md) - Common issues and solutions
+
+### 🛠️ [Technical Documentation](technical/)
+*In-depth technical guides and implementation details*
+
+- [Technical Overview](technical/README.md) - System architecture and design
+- [Implementation Guides](technical/implementation-guides/) - Step-by-step development tutorials
+- [Technical Workflows](technical/workflows/) - Development and deployment procedures
+- [API Reference](technical/api-reference/) - Complete API documentation
+- [System Architecture](technical/system-architecture/) - System design and architecture patterns
+- [Performance Optimization](technical/performance-optimization/) - Performance tuning and optimization
+
+### 🗺️ Learning Path Guide
+*Structured learning paths for different user types*
+
+- **New Users**: Start with [Quick Start](installation/quick-start.md), then [Basic Workflows](examples/basic-workflows.md)
+- **Power Users**: Learn [Session Management](commands/session.md) and [Context Commands](commands/context.md)
+- **Developers**: See [Development Setup](development/README.md) for extending the CLI
+- **System Administrators**: Check [Technical Overview](technical/README.md) for deployment
+- **AI Integrators**: Explore [Configuration Commands](commands/configuration.md) for provider setup
 
 ### 👨‍💻 [Development](development/)
 *CLI development and contribution*
 
-- [Development Setup](development/setup.md) - Set up development environment
+- [Development Overview](development/README.md) - Set up development environment
 - [CLI Development](development/cli-development.md) - CLI command development
 - [Testing Guide](development/testing/) - CLI testing procedures
-- [Contributing](development/contributing.md) - How to contribute
-
-### 📁 [Project Documentation](project/)
-*Project planning and management*
-
-- [Requirements](project/requirements.md) - Project requirements
-- [User Stories](project/user-stories.md) - User stories and use cases
-- [Development Plan](project/development-plan.md) - Roadmap and milestones
-- [Changelog](project/changelog.md) - Version history and changes
 
 ## Quick Start
 
@@ -80,14 +90,27 @@ python -m src.cli.main
 # Start a learning session
 learning-catalyst
 
-# Available commands
+# Essential commands
 /help                    # Show available commands
-/concepts               # Browse learning topics
-/explain [topic]        # Get explanations
-/quiz [topic]           # Take a quiz
-/progress               # View learning progress
+/quit                    # Exit the application
+/clear                   # Clear the terminal screen
+
+# Learning and interaction
+/knowledge-map          # Visualize knowledge connections
+# Natural learning: just ask questions directly!
+# "Explain machine learning" or "Test me on Python lists"
+
+# Configuration
+/config                 # Manage AI providers and settings
 /tokens                 # Check token usage
-/quit                   # Exit the application
+
+# Session management
+/checkpoint save [name] # Save current learning session
+/checkpoint load [name] # Restore a saved session
+
+# Context management
+/context                # Show current conversation context
+/compress               # Compress context to save tokens
 ```
 
 ## CLI Features
@@ -96,10 +119,11 @@ learning-catalyst
 - **Native CLI Experience**: Built specifically for command-line users
 - **Rich Terminal Interface**: Colored output, progress indicators, and formatting
 - **Keyboard Shortcuts**: Efficient navigation and command completion
-- **Session Management**: Save and resume learning sessions
+- **Session Management**: Save and resume learning sessions with `/checkpoint`
+- **Context Management**: Optimize AI interactions with `/context` and `/compress`
 
 ### 🤖 AI-Powered Learning
-- **Natural Language Interaction**: Talk to your AI tutor in plain English
+- **Natural Language Interaction**: Talk to your AI tutor in plain English - no commands needed!
 - **Contextual Responses**: AI understands your learning materials and history
 - **Adaptive Difficulty**: Challenges adapt to your skill level
 - **Multi-Provider Support**: Works with OpenAI, Deepseek, SiliconFlow, ChatGLM, and local models
@@ -115,6 +139,7 @@ learning-catalyst
 - **Lazy Loading**: Content loads only when needed
 - **Caching System**: Intelligent caching for improved performance
 - **Resource Efficient**: Low memory and CPU usage
+- **Token Optimization**: Context compression and management to reduce API costs
 
 ## Command Categories
 
@@ -126,49 +151,63 @@ Essential system operations:
 
 ### Configuration Commands
 Manage your CLI setup:
-- `/models` - List and manage AI models
-- `/preferences` - Set user preferences
-- `/config` - Configure application settings
+- `/config` - Configure AI providers and application settings
+- `/config provider` - Switch between AI providers
+- `/config model` - Switch between AI models
 
 ### Learning Commands
 Core learning functionality:
-- `/concepts` - Browse available learning concepts
-- `/explain` - Get detailed explanations
-- `/quiz` - Take quizzes and challenges
-- `/knowledge-map` - Visualize knowledge structure
+- `/knowledge-map` - Visualize knowledge connections and progress
+- **Natural Learning**: Ask questions directly without commands - "Explain neural networks" or "Test me on Python"
+
+### Session Commands
+Save and restore learning progress:
+- `/checkpoint save [name]` - Save current session state
+- `/checkpoint load [name]` - Restore a saved session
 
 ### Analytics Commands
 Track your progress:
-- `/tokens` - Monitor API token usage
-- `/statistics` - View learning statistics
-- `/progress` - Track learning progress
+- `/tokens` - Monitor API token usage and costs
+
+### Context Commands
+Manage conversation context and system behavior:
+- `/context` - Show current conversation context
+- `/compress` - Compress conversation context to save tokens
+- `/wait [seconds]` - Set delay between API requests
+- `/verbose [on/off]` - Toggle debug mode
 
 ## Key Workflows
 
 ### Start Learning
 ```bash
-# Launch and explore topics
+# Launch and start learning naturally
 learning-catalyst
-/concepts
-/explain "machine learning basics"
+/knowledge-map      # See your learning progress
+# Or just ask: "Explain machine learning basics"
 ```
 
-### Practice & Test
+### Save & Resume Learning
 ```bash
-# Take a quiz on a topic
-/quiz "python data structures"
-# View your progress
-/progress
+# Save your current session
+/checkpoint save python-basics
+# Resume later
+/checkpoint load python-basics
 ```
 
 ### Configuration
 ```bash
 # Set up AI provider
 /config
-# View available models
-/models
-# Set preferences
-/preferences learning.difficulty=intermediate
+/config provider openai
+/config model
+```
+
+### Context Management
+```bash
+# Check conversation context
+/context
+# Save tokens by compressing context
+/compress
 ```
 
 ## Navigation Guide
@@ -180,15 +219,16 @@ learning-catalyst
 4. [Basic Workflows](examples/basic-workflows.md) - See practical examples
 
 ### For Power Users
-1. [Advanced Configuration](configuration/advanced.md) - Customize your setup
-2. [Integration Examples](examples/integration.md) - CLI with other tools
-3. [Development Guide](development/) - Contribute to the project
+1. [Session Commands](commands/session.md) - Save and restore learning progress
+2. [Context Commands](commands/context.md) - Advanced context management
+3. [Integration Examples](examples/integration.md) - CLI with other tools
+4. [Advanced Usage](examples/advanced.md) - Power user techniques
 
 ### For Developers
-1. [Development Setup](development/setup.md) - Set up development environment
+1. [Development Overview](development/README.md) - Set up development environment
 2. [CLI Development](development/cli-development.md) - Understand CLI architecture
 3. [Testing Guide](development/testing/) - Testing procedures
-4. [Contributing](development/contributing.md) - How to contribute
+4. [Technical Documentation](technical/) - System architecture and implementation
 
 ## Getting Help
 
@@ -208,8 +248,8 @@ learning-catalyst
 /help
 
 # Command-specific help
-/help concepts
-/help /quiz
+/help knowledge-map
+/help checkpoint
 
 # List all commands
 /help --all

@@ -1,259 +1,137 @@
-# CLI Command Reference
+# Interactive Shell Commands Reference
 
 ---
-title: Learning Catalyst CLI Command Reference
-description: Complete command-line interface reference for Learning Catalyst
+title: Learning Catalyst Interactive Shell Commands
+description: Available commands in the Learning Catalyst interactive shell
 version: 1.0.0
-last_updated: 2025-10-07
+last_updated: 2025-10-08
 ---
 
 ## Overview
 
-Learning Catalyst provides a comprehensive command-line interface with 12 primary commands organized into 4 categories. All commands use slash (`/`) prefix and support aliases for quick access.
+Learning Catalyst provides an interactive shell with slash-based commands for learning, configuration, and system operations. All commands use the `/` prefix and are designed for intuitive interaction during learning sessions.
 
-## Command Categories
+### 🎯 Available Commands
 
-### 🔧 [System Commands](system.md)
-Essential system operations and navigation
-- `/help` - Show help and available commands
-- `/quit` - Exit the Learning Catalyst application
-- `/clear` - Clear the terminal screen
+**✅ Working Commands:**
+- **🚀 Learning**: `/knowledge-map` - Visualize knowledge connections and progress
+- **🧠 Natural Learning**: Ask questions directly without commands - "Explain neural networks" or "Test me on Python"
+- **⚙️ Configuration**: `/config` - Manage AI providers and settings
+- **📊 Analytics**: `/tokens` - Track usage and costs
+- **🔧 System**: `/help`, `/quit`, `/clear` - Essential shell operations
+- **💾 Session**: `/checkpoint` - Save and restore learning progress
+- **🧩 Context**: `/context`, `/compress`, `/wait`, `/verbose` - Context management commands
 
-### ⚙️ [Configuration Commands](configuration.md)
-Manage application configuration and settings
-- `/models` - List and manage AI models
-- `/preferences` - Set and manage user preferences
-- `/config` - Configure application settings
+**🔗 See Examples:**
+- [Basic Workflows](../examples/basic-workflows.md) - Commands in action
+- [Configuration Examples](../examples/integration.md) - Setup and configuration
 
-### 📚 [Learning Commands](learning.md)
-Core learning functionality and content interaction
-- `/concepts` - Browse available learning concepts
-- `/explain` - Get detailed explanations for concepts
-- `/quiz` - Take quizzes and challenges
-- `/knowledge-map` - Visualize knowledge structure
+## Available Commands
 
-### 📊 [Analytics Commands](analytics.md)
-Track progress and monitor usage
-- `/tokens` - Monitor API token usage
-- `/statistics` - View learning statistics and analytics
+### 🔧 System Commands
+Essential shell operations
+- `/help` - ✅ Show available commands and usage
+- `/quit` - ✅ Exit the interactive shell
+- `/clear` - ✅ Clear the terminal screen
 
-## Quick Reference
+### ⚙️ Configuration Commands
+Manage AI providers and application settings
+- `/config` - ✅ Interactive configuration management
+- `/config provider` - ✅ Switch between AI providers
+- `/config provider [name]` - ✅ Setup a new AI provider
+- `/config provider [name] show` - ✅ Show provider details
+- `/config model` - ✅ Switch between AI models
 
-| Category | Command | Aliases | Description |
-|----------|---------|---------|-------------|
-| **System** | `/help` | `/h`, `/?` | Show help and available commands |
-| **System** | `/quit` | `/exit`, `/q` | Exit the application |
-| **System** | `/clear` | `/cls` | Clear terminal screen |
-| **Config** | `/models` | `/m` | List available AI models |
-| **Config** | `/preferences` | `/prefs`, `/pref` | Manage preferences |
-| **Config** | `/config` | `/cfg`, `/conf` | Configure settings |
-| **Learning** | `/concepts` | `/topics` | Browse learning concepts |
-| **Learning** | `/explain` | `/exp` | Get explanations |
-| **Learning** | `/quiz` | `/challenge` | Take quizzes |
-| **Learning** | `/knowledge-map` | `/kmap` | Show knowledge map |
-| **Analytics** | `/tokens` | `/usage` | Check token usage |
-| **Analytics** | `/statistics` | `/stats`, `/analytics` | View statistics |
+### 📚 Learning Commands
+Explore and interact with learning content
+- `/knowledge-map` - ✅ Visualize knowledge connections and track progress
 
-## Command Usage Patterns
+**🧠 Natural Learning (No Commands Needed):**
+Just ask questions naturally in the shell:
+- **Explanations**: "Explain neural networks" or "How do decorators work?"
+- **Practice**: "Test me on Python lists" or "Give me questions about React"
+- **Learning**: Focus on natural conversation with the AI for personalized learning
 
-### Basic Command Syntax
+### 💾 Session Commands
+Save and restore learning progress
+- `/checkpoint save [name]` - ✅ Save current session state (auto-names if no name provided)
+- `/checkpoint load [name]` - ✅ Restore a saved session
+
+### 📊 Analytics Commands
+Track usage and learning progress
+- `/tokens` - ✅ Show API token usage and costs
+
+### 🧩 Context Commands
+Manage conversation context and system behavior
+- `/context` - ✅ Show current conversation context
+- `/compress` - ✅ Compress conversation context to save tokens
+- `/wait [seconds]` - ✅ Set delay between API requests (rate limiting)
+- `/verbose [on/off]` - ✅ Toggle debug mode for detailed output
+
+## Command Summary
+
+| Command | What It Does | Example Usage |
+|---------|--------------|---------------|
+| **System Commands** |
+| `/help` | Show all available commands | `/help` |
+| `/quit` | Exit the shell | `/quit` |
+| `/clear` | Clear screen | `/clear` |
+| **Configuration** |
+| `/config` | Show current settings | `/config` |
+| `/config provider` | Switch AI provider | `/config provider` |
+| `/config model` | Switch AI model | `/config model` |
+| **Learning** |
+| `/knowledge-map` | See connections & progress | `/knowledge-map` |
+| **Natural Learning** |
+| *(no command)* | Ask questions directly | `Explain machine learning` |
+| **Session** |
+| `/checkpoint save [name]` | Save progress | `/checkpoint save python-basics` |
+| `/checkpoint save` | Auto-save with timestamp | `/checkpoint save` (creates: `react-hooks_2025-10-09_143022`) |
+| `/checkpoint load [name]` | Restore progress | `/checkpoint load python-basics` |
+| **Analytics** |
+| `/tokens` | Check usage | `/tokens` |
+| **Context** |
+| `/context` | Show conversation context | `/context` |
+| `/compress` | Compress context to save tokens | `/compress` |
+| `/wait 60` | Set 60-second delay between requests | `/wait 60` |
+| `/verbose on` | Enable debug mode | `/verbose on` |
+
+## Getting Started
+
+### First Time Setup
 ```bash
-/COMMAND [ARGUMENTS] [OPTIONS]
-```
-
-### Help Commands
-```bash
-/help                    # Show general help
-/help [category]         # Show help for a category
-/help [command]          # Show help for specific command
-/help /quiz              # Show help for quiz command
-```
-
-### Configuration Commands
-```bash
-/config                  # Interactive configuration
-/models                  # List available models
-/preferences key=value   # Set preference
-```
-
-### Learning Commands
-```bash
-/concepts                # List all concepts
-/concepts [topic]        # Filter concepts by topic
-/explain [concept]       # Explain a concept
-/quiz [topic]            # Quiz on a topic
-```
-
-### Analytics Commands
-```bash
-/tokens                  # Show token usage
-/statistics              # Show learning statistics
-/statistics --days=7     # Stats for last 7 days
-```
-
-## Command Features
-
-### Auto-completion
-Most commands support tab completion for:
-- Command names
-- Concept names
-- File paths
-- Configuration options
-
-### Command History
-- Use arrow keys to navigate command history
-- History persists across sessions
-- Search history with Ctrl+R
-
-### Interactive vs Non-interactive
-- **Interactive**: `/config`, `/preferences` (with prompts)
-- **Non-interactive**: `/help`, `/quit`, `/clear`
-- **Mixed**: `/quiz`, `/explain` (can be used both ways)
-
-### Output Formatting
-Commands use rich terminal formatting:
-- **Colors**: Different colors for different types of information
-- **Tables**: Structured data in table format
-- **Progress bars**: For long-running operations
-- **Syntax highlighting**: For code examples
-
-## Error Handling
-
-### Common Error Messages
-```
-Unknown command: /invalid
-Did you mean: /help?
-
-Command requires an argument
-Usage: /explain [concept]
-
-AI provider not configured
-Use /config to set up an AI provider
-```
-
-### Error Recovery
-- Commands provide suggestions for similar commands
-- Error messages include usage examples
-- Graceful handling of missing configuration
-- Automatic fallback to local functionality when possible
-
-## Performance Tips
-
-### Fast Commands (< 0.1s)
-- `/help` - Instant help display
-- `/quit` - Immediate exit
-- `/clear` - Instant screen clear
-- `/models` - Quick model listing
-
-### Medium Commands (0.1-2s)
-- `/concepts` - Concept listing (cached)
-- `/tokens` - Usage statistics
-- `/statistics` - Learning analytics
-
-### Slow Commands (2-10s)
-- `/explain` - AI-generated explanations
-- `/quiz` - AI-generated questions
-- `/knowledge-map` - Complex visualization
-
-### Optimization Tips
-1. **Use caching**: `/concepts` results are cached
-2. **Be specific**: Use `/explain [concept]` instead of general queries
-3. **Configure local models**: Faster than cloud APIs
-4. **Use aliases**: Shorter commands are faster to type
-
-## Advanced Usage
-
-### Command Chaining
-```bash
-# Set up and start learning
-/config && /concepts && /explain "machine learning"
-```
-
-### Command Aliases in Scripts
-```bash
-# Use short aliases for automation
-echo -e "/h\n/concepts\n/q" | learning-catalyst
-```
-
-### Environment Variables
-```bash
-# Set default preferences
-export LEARNING_CATALYST_MODEL="gpt-4"
-export LEARNING_CATALYST_DIFFICULTY="intermediate"
+# Start Learning Catalyst
 learning-catalyst
+
+# Configure AI provider (first time only)
+/config provider openai
+/config model
+# Select a model from the interactive dialog
+
+# Start learning
+/knowledge-map      # See your learning progress
+# Or ask naturally: "What can I learn about?"
 ```
 
-## Integration Examples
-
-### Shell Integration
+### Basic Usage
 ```bash
-# Add to bash completion
-complete -W "help quit clear concepts explain quiz" learning-catalyst
+# Ask questions directly (no commands needed)
+Explain machine learning
+How do Python decorators work?
 
-# Create custom shortcuts
-alias lc='learning-catalyst'
-alias lc-concepts='echo "/concepts" | learning-catalyst'
+# Use commands for specific actions
+/help              # See all commands
+/clear             # Clear screen
+/tokens            # Check usage
+/quit              # Exit shell
 ```
-
-### Script Integration
-```bash
-#!/bin/bash
-# Daily learning routine
-echo "Starting daily learning session..."
-learning-catalyst << EOF
-/statistics
-/quiz python
-/quit
-EOF
-```
-
-### Cron Integration
-```bash
-# Daily learning reminder
-0 9 * * * echo "/statistics" | learning-catalyst
-```
-
-## Troubleshooting
-
-### Command Not Working
-1. Check command spelling: `/help` for available commands
-2. Verify AI configuration: `/config`
-3. Check internet connection for AI commands
-4. Review error messages for specific issues
-
-### Performance Issues
-1. Use `/statistics` to check token usage
-2. Consider local models for faster responses
-3. Clear cache if needed (removes `.catalyst/cache`)
-4. Check system resources
-
-### Configuration Problems
-1. Use `/config` to verify setup
-2. Check API key validity
-3. Test with different providers
-4. Reset configuration if needed
-
-## Migration from Previous Versions
-
-If you're upgrading from an older version:
-
-### Changed Commands
-- Old: `/list-concepts` → New: `/concepts`
-- Old: `/ask` → New: `/explain`
-- Old: `/test` → New: `/quiz`
-- Old: `/analytics` → New: `/statistics`
-
-### New Features
-- Command aliases for faster access
-- Better error messages and suggestions
-- Improved performance with caching
-- Rich terminal formatting
-
-### Breaking Changes
-- All commands now use `/` prefix
-- Some command names have changed
-- Configuration format has been updated
 
 ---
 
-*For detailed information about each command, see the specific command category pages listed above.*
+*For detailed information about each command, see the specific command category pages:*
+- *[System Commands](system.md)* - Help, quit, and clear operations
+- *[Configuration Commands](configuration.md)* - AI provider and model setup
+- *[Learning Commands](learning.md)* - Knowledge mapping and natural learning
+- *[Session Commands](session.md)* - Save and restore learning progress
+- *[Analytics Commands](analytics.md)* - Usage tracking and costs
+- *[Context Commands](context.md)* - Context management and debug commands

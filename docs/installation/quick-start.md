@@ -303,7 +303,7 @@ Learning Catalyst > /quit
 
 Once you're comfortable with the basics:
 
-1. **Read the [First Session Guide](first-session.md)** - Detailed walkthrough
+1. **Read the [Basic Workflows Guide](../examples/basic-workflows.md)** - Detailed walkthrough
 2. **Explore [Command Reference](../commands/)** - Learn all commands
 3. **Check [Configuration Guide](../configuration/)** - Customize your setup
 4. **Try [Usage Examples](../examples/)** - See practical examples
@@ -319,4 +319,4 @@ Once you're comfortable with the basics:
 
 **Congratulations on completing the Quick Start!** You're now ready to use Learning Catalyst CLI for effective learning. 🚀
 
-*For more detailed information, see the [Complete Installation Guide](README.md) or [First Session Guide](first-session.md).*
+*For more detailed information, see the [Complete Installation Guide](README.md) or [Basic Workflows Guide](../examples/basic-workflows.md).*

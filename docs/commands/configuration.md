@@ -11,481 +11,641 @@ last_updated: 2025-10-07
 
 Configuration commands allow you to manage AI providers, set preferences, and customize the Learning Catalyst CLI experience to match your learning style and technical requirements.
 
+**✅ Current Status:**
+- ✅ `/config` - **Fully Implemented** - Configuration management with essential subcommands validated in examples
+
 ## Available Commands
 
-### `/models` - List and Manage AI Models
+### `/config` - Comprehensive Configuration Management
 
-Display available AI models and manage model configurations.
-
-**Aliases**: `/m`
-
-**Syntax**:
-```bash
-/models                        # List all available models
-/models --provider [name]      # Filter by provider
-/models --refresh             # Refresh model list
-/models --details             # Show detailed model information
-```
-
-**Examples**:
-```bash
-/models                       # Show all configured models
-/models --provider openai      # Show OpenAI models only
-/models --details             # Include model capabilities
-/models --refresh            # Re-sync with provider APIs
-```
-
-**Output Features**:
-- **Provider Information**: Shows which provider hosts each model
-- **Model Capabilities**: Context length, speed, cost information
-- **Current Selection**: Indicates active model
-- **Status Indicators**: Online/offline status
-
-**Sample Output**:
-```
-🤖 Available AI Models
-
-OPENAI (Online)
-├── ✅ gpt-4o (Current)        - Fast, highly capable
-│   Context: 128k tokens • Speed: Fast • Cost: $$
-├── gpt-4o-mini               - Fast, cost-effective
-│   Context: 128k tokens • Speed: Very Fast • Cost: $
-└── gpt-4-turbo               - Advanced reasoning
-    Context: 128k tokens • Speed: Medium • Cost: $$$
-
-ANTHROPIC (Online)
-├── claude-3-sonnet           - Balanced performance
-│   Context: 200k tokens • Speed: Fast • Cost: $$
-└── claude-3-haiku            - Fast, efficient
-    Context: 200k tokens • Speed: Very Fast • Cost: $
-
-LOCAL (Offline)
-└── llama3 (Available)        - Privacy-focused
-    Context: 8k tokens • Speed: Medium • Cost: Free
-
-Current model: gpt-4o (OpenAI)
-Use /config to change model or provider.
-```
-
-### `/preferences` - Manage User Preferences
-
-Set and manage user preferences using key-value syntax.
-
-**Aliases**: `/prefs`, `/pref`
-
-**Syntax**:
-```bash
-/preferences                                    # Show all preferences
-/preferences [category]                         # Show category preferences
-/preferences [key]=[value]                      # Set a preference
-/preferences [key]                              # Show specific preference
-/preferences --reset [key]                      # Reset preference to default
-/preferences --export                          # Export preferences to file
-```
-
-**Examples**:
-```bash
-/preferences                                    # Show all preferences
-/preferences learning                          # Show learning preferences
-/preferences learning.difficulty=intermediate   # Set difficulty level
-/preferences display.theme=dark                # Set theme
-/preferences --reset learning.difficulty       # Reset to default
-/preferences --export > my-prefs.yaml          # Export preferences
-```
-
-**Preference Categories**:
-
-#### Learning Preferences
-```bash
-preferences.learning.difficulty=beginner|intermediate|advanced|expert
-preferences.learning.session_length=30          # Session length in minutes
-preferences.learning.adaptive=true|false        # Adaptive difficulty
-preferences.learning.quiz_frequency=3           # Quiz every N concepts
-preferences.learning.auto_save=true|false       # Auto-save session
-```
-
-#### Display Preferences
-```bash
-preferences.display.theme=dark|light|auto       # Color theme
-preferences.display.progress=true|false         # Show progress indicators
-preferences.display.verbosity=minimal|normal|detailed
-preferences.display.timestamps=true|false       # Show timestamps
-preferences.display.unicode_symbols=true|false # Use Unicode symbols
-```
-
-#### Performance Preferences
-```bash
-preferences.performance.caching=true|false      # Enable caching
-preferences.performance.cache_size_mb=100       # Cache size limit
-preferences.performance.parallel=true|false     # Parallel processing
-preferences.performance.timeout=30              # Request timeout (seconds)
-```
-
-**Sample Output**:
-```
-⚙️ User Preferences
-
-LEARNING SETTINGS:
-├── Difficulty: intermediate
-├── Session Length: 30 minutes
-├── Adaptive Learning: enabled
-├── Quiz Frequency: every 3 concepts
-└── Auto-Save: enabled
-
-DISPLAY SETTINGS:
-├── Theme: dark (auto-detect)
-├── Progress Indicators: enabled
-├── Verbosity: normal
-├── Timestamps: enabled
-└── Unicode Symbols: enabled
-
-PERFORMANCE SETTINGS:
-├── Caching: enabled
-├── Cache Size: 100 MB
-├── Parallel Processing: enabled
-└── Timeout: 30 seconds
-
-Use /preferences [key]=[value] to change settings.
-Examples:
-  /preferences learning.difficulty=advanced
-  /preferences display.theme=light
-  /preferences performance.cache_size_mb=200
-```
-
-### `/config` - Configure Application Settings
-
-Manage application configuration, AI providers, and system settings.
+Manage application configuration, AI providers, models, and system settings. This is the primary command for all configuration operations.
 
 **Aliases**: `/cfg`, `/conf`
 
-**Syntax**:
+## Configuration Subcommands
+
+### Basic Configuration Operations
+
 ```bash
-/config                        # Interactive configuration menu
-/config --show                 # Show current configuration
-/config --provider [name]      # Switch AI provider
-/config --model [name]         # Switch model
-/config --reset                # Reset all configuration
-/config --wizard               # Run configuration wizard
-/config --validate             # Validate configuration
+/config                        # Show current configuration
+/config provider               # Show interactive dialog with all configured providers
+                               # Displays current provider and allows selection
+/config model                  # Show interactive dialog with all configured models
+                               # Displays current model and allows selection
+/config provider openai        # Setup/configure OpenAI provider
+/config model embedding-model --type embedding  # Set a model as embedding-model, type: chat, embed, rerank
+                                                # embed and rerank can't change after setup
 ```
 
-**Examples**:
+### AI Provider Management
+
 ```bash
-/config                        # Interactive menu
-/config --show                 # Show current config
-/config --provider openai      # Switch to OpenAI
-/config --model gpt-4o         # Switch to gpt-4o
-/config --wizard               # Re-run setup wizard
-/config --validate             # Check configuration
+/config provider               # Show interactive dialog with all configured providers
+                               # Displays current provider and allows selection
+/config provider [name]        # Setup/configure a new AI provider
+/config provider [name] show   # Show detailed information about specific provider
+                               # Includes connection status, available models, and configuration
+/config provider [name] remove # Remove a configured provider
+                               # Requires confirmation and prevents removal of active provider
 ```
 
-**Interactive Configuration Menu**:
-```
-🔧 Configuration Menu
+**Real Examples from Current Implementation:**
+```bash
+/config provider               # Interactive provider selection dialog
+                               # Shows list of configured providers with current one marked
+                               # User can select a different provider from the list
+                               # After selection, user must choose a model from that provider
 
-1) AI Provider Setup
-2) Model Selection
-3) Workspace Settings
-4) Learning Preferences
-5) Display Settings
-6) Performance Settings
-7) Advanced Options
-8) Export/Import Configuration
-9) Reset Configuration
-0) Exit
-
-Select option (0-9): _
+/config provider openai        # Setup/configure OpenAI provider
+/config provider openai show   # Show OpenAI provider details (includes connection status)
+/config provider deepseek      # Setup/configure Deepseek provider
+/config provider deepseek show # Show Deepseek provider details (includes connection status)
 ```
 
-**Configuration Areas**:
+**Provider Removal Examples:**
+```bash
+/config provider siliconflow remove
+# ⚠️ Remove Provider Confirmation:
+#   Are you sure you want to remove 'siliconflow' provider?
+#   This will delete all stored credentials and configurations.
+#   Type 'yes' to confirm: yes
+# ✅ Provider 'siliconflow' removed successfully
 
-#### AI Provider Setup
-- Add/remove AI providers
-- Configure API keys
-- Set provider-specific settings
-- Test provider connections
+/config provider deepseek remove
+# ❌ Cannot Remove Active Provider:
+#   'deepseek' is currently active. Please switch to another provider first.
+#   Use '/config provider' to select a different provider.
 
-#### Model Selection
-- Choose primary model
-- Set fallback models
-- Configure model parameters
-- Test model performance
+/config provider non-existent remove
+# ❌ Provider Not Found:
+#   Provider 'non-existent' is not configured.
+#   Use '/config provider' to see available providers.
+```
 
-#### Workspace Settings
-- Set workspace directory
-- Configure content analysis
-- Set file type preferences
-- Configure ignore patterns
+**Provider Selection Workflow:**
+```bash
+/config provider
+# Opens interactive dialog showing:
+# 📊 Available AI Providers:
+# ✅ deepseek (current)    - Models: deepseek-chat, deepseek-coder
+# ✅ openai                - Models: gpt-4, gpt-4o, gpt-4o-mini
+# ✅ anthropic             - Models: claude-3-sonnet, claude-3-haiku
+
+# User selects a provider → System shows available models for that provider
+# User must select a model to complete the provider switch
+```
+
+**Provider Information Display:**
+```bash
+/config provider deepseek show
+# 📊 Deepseek Provider Details:
+# Provider: deepseek
+# Status: ✅ Configured and Connected
+# API Base URL: https://api.deepseek.com
+# Models Available:
+#   • deepseek-chat (chat)
+#   • deepseek-coder (chat)
+# Current Model: deepseek-chat
+# Connection Test: ✅ Passed (2025-10-08 14:30:15)
+
+/config provider openai show
+# 📊 OpenAI Provider Details:
+# Provider: openai
+# Status: ✅ Configured and Connected
+# API Base URL: https://api.openai.com
+# Models Available:
+#   • gpt-4 (chat)
+#   • gpt-4o (chat)
+#   • gpt-4o-mini (chat)
+#   • text-embedding-3-small (embedding)
+# Current Model: gpt-4o
+# Connection Test: ✅ Passed (2025-10-08 13:45:22)
+```
+
+### Model Management
+
+```bash
+/config model                          # Show interactive dialog with all configured models
+                                      # Displays current model and allows selection
+/config model [name] remove            # Remove a specific model from configuration
+                                      # Requires confirmation and prevents removal of active model
+/config model [name] remove --force    # Force remove a model (bypass some safety checks)
+```
+
+**Real Examples from Current Implementation:**
+```bash
+/config model                          # Interactive model selection dialog
+                                      # Shows list of available models with current one marked
+                                      # User can select a different model from the list
+```
+
+**Model Removal Examples:**
+```bash
+/config model gpt-4o-mini remove
+# ⚠️ Remove Model Confirmation:
+#   Are you sure you want to remove 'gpt-4o-mini' model?
+#   This will remove the model from your available models list.
+#   Type 'yes' to confirm: yes
+# ✅ Model 'gpt-4o-mini' removed successfully
+
+/config model deepseek-chat remove
+# ❌ Cannot Remove Active Model:
+#   'deepseek-chat' is currently active. Please switch to another model first.
+#   Use '/config model' to select a different model.
+
+/config model claude-3-haiku remove --force
+# ⚠️ Force Remove Model Confirmation:
+#   WARNING: Force removing 'claude-3-haiku' model!
+#   This may affect provider configuration and cannot be undone.
+#   Type 'FORCE' to confirm: FORCE
+# ✅ Model 'claude-3-haiku' force removed successfully
+
+/config model non-existent remove
+# ❌ Model Not Found:
+#   Model 'non-existent' is not configured.
+#   Use '/config model' to see available models.
+```
+
+**Model Selection Workflow:**
+```bash
+/config model
+# Opens interactive dialog showing:
+# 🤖 Available Models (deepseek provider):
+# ✅ deepseek-chat (current)
+# ✅ deepseek-coder
+
+# Or if multiple providers:
+# 🤖 Available Models:
+# ✅ deepseek-chat (current)     - Provider: deepseek
+# ✅ gpt-4                        - Provider: openai
+# ✅ claude-3-sonnet              - Provider: anthropic
+# ✅ gpt-4o-mini                  - Provider: openai
+
+# User selects a model → System switches to that model immediately
+```
+
+### Rate Management
+
+```bash
+/config daily-limit [number]   # Set daily token limit
+/config cost-alert [amount]    # Set cost alert threshold
+/config rate-limit [number]    # Set requests per minute rate limit
+```
+
+**Default Values:**
+- Daily token limit: `50,000` tokens
+- Cost alert: `$10.00` per day
+- Rate limit: `60` requests per minute
+
+**Real Examples from Current Implementation:**
+```bash
+/config daily-limit 10000      # Set daily token limit to 10,000
+/config cost-alert 5.00        # Set cost alert to $5.00 per day
+/config rate-limit 30          # Set rate limit to 30 requests per minute
+```
+
+### Response and Context Settings
+
+```bash
+/config max-tokens [number]     # Set maximum response tokens
+/config context-size [size]    # Set context window size
+/config response-length [level] # Set response length preference
+```
+
+**Default Values:**
+- Maximum response tokens: `4,096` tokens
+- Context window size: `8,192` tokens
+- Response length: `medium` (options: short, medium, long, detailed)
+
+### Network and Advanced Settings
+
+```bash
+/config proxy                   # Configure proxy settings
+/config endpoint [provider]     # Set custom API endpoint
+```
+
+**Proxy Configuration:**
+```bash
+/config proxy
+# Interactive proxy setup dialog:
+# 🔧 Proxy Configuration:
+#   Enable proxy? (y/n): y
+#   Proxy host: proxy.company.com
+#   Proxy port: 8080
+#   Username (optional):
+#   Password (optional):
+#   Proxy type: HTTP (options: HTTP, HTTPS, SOCKS5)
+```
+
+**Custom API Endpoints:**
+```bash
+/config endpoint openai https://api.custom-openai.com/v1
+# Set custom endpoint for OpenAI-compatible API
+
+/config endpoint deepseek https://internal-deepseek.company.com/api
+# Set custom endpoint for internal Deepseek instance
+
+/config endpoint custom https://api.local-ai.com/v1
+# Set custom endpoint for local AI models
+```
+
+**Advanced Network Options:**
+```bash
+/config timeout 30              # Set request timeout to 30 seconds
+/config retries 3               # Set number of retry attempts
+/config verify-ssl false        # Disable SSL verification (for testing)
+```
+
+### Autocomplete Features
+
+```bash
+/config autocomplete enable     # Enable autocomplete
+/config autocomplete disable suggestions  # Disable suggestions
+/config autocomplete mode      # Set autocomplete mode
+```
+
+**Autocomplete Modes:**
+```bash
+/config autocomplete mode
+# Interactive dialog showing:
+# 🔧 Autocomplete Configuration:
+#   1. commands    - Complete command names
+#   2. topics      - Suggest learning topics
+#   3. full        - Both commands and topics
+#   4. minimal     - Basic command completion only
+```
+
+**Usage Examples:**
+```bash
+/config autocomplete enable
+# Output: ✅ Autocomplete enabled - Mode: full
+
+/config autocomplete disable suggestions
+# Output: ⚠️ Autocomplete disabled - Use '/config autocomplete enable' to re-enable
+
+/config autocomplete mode commands
+# Output: ✅ Autocomplete set to commands mode
+```
+
+**How Autocomplete Works:**
+- **Commands Mode**: Completes `/config`, `/explain`, `/quiz` etc.
+- **Topics Mode**: Suggests subjects like "python", "machine learning", "algorithms"
+- **Full Mode**: Combines both commands and topics
+- **Minimal Mode**: Basic command completion only
+
+💡 **Tip**: Use Tab key while typing to trigger autocomplete suggestions
+
+### Custom System Prompts
+
+```bash
+/config system-prompt              # get current system prompt
+/config system-prompt <new-prompt> # set system prompt
+/config system-prompt --reset      # reset system prompt
+```
+
+**System Prompt Examples:**
+
+**Default System Prompt:**
+```bash
+/config system-prompt
+# Output: "You are Learning Catalyst, an AI assistant focused on helping users learn and understand complex topics through interactive dialogue."
+```
+
+**Custom Learning Style Prompt:**
+```bash
+/config system-prompt "You are an expert tutor who explains concepts using analogies, real-world examples, and step-by-step breakdowns. Always check for understanding before proceeding."
+```
+
+**Technical Documentation Style:**
+```bash
+/config system-prompt "You are a technical documentation expert. Provide clear, concise explanations with code examples, and highlight best practices and common pitfalls."
+```
+
+**Creative Problem-Solving Style:**
+```bash
+/config system-prompt "You are a creative problem-solving coach. Help users think through challenges by asking guiding questions and exploring multiple approaches."
+```
+
+**Reset to Default:**
+```bash
+/config system-prompt --reset
+# Resets to the original Learning Catalyst system prompt
+```
+
+## Configuration File Location
+
+Learning Catalyst stores configuration in:
+- **Location**: `./.catalyst/config.json`
+- **Logs**: `./.catalyst/logs/`
+
+### Manual Configuration
+
+You can manually edit the configuration file:
+
+```json
+{
+  "provider": "deepseek",
+  "model": "deepseek-chat",
+  "api_key": "sk-your-api-key-here",
+  "settings": {
+    "daily_limit": 50000,
+    "cost_alert": 10.0,
+    "rate_limit": 60,
+    "max_tokens": 4096,
+    "context_size": 8192,
+    "response_length": "medium"
+  },
+  "providers": {
+    "deepseek": {
+      "api_key": "sk-deepseek-key",
+      "base_url": "https://api.deepseek.com",
+      "models": ["deepseek-chat", "deepseek-coder"]
+    }
+  }
+}
+```
+
+⚠️ **Warning**: Manual editing requires application restart to take effect. Use `/config` commands for immediate changes.
+
+## Usage Examples
+
+### Basic Provider Setup
+```bash
+# Configure OpenAI provider
+/config provider deepseek
+🔧 Deepseek Provider Configuration:
+  Enter your Deepseek API key: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# View provider details (includes connection status)
+/config provider deepseek show
+✅ Deepseek Provider Details:
+  Status: Configured and Connected
+  Models: deepseek-chat, deepseek-coder
+  Connection Test: Passed
+
+/config model
+# Interactive model selection dialog - select deepseek-chat
+🤖 Model set to: deepseek-chat
+
+# show config status
+/config
+= Current Configuration:
+  Provider: deepseek
+  Model: deepseek-chat
+  API Key: ✓ Valid
+  Status: ✓ Connected
+```
+
+### Multiple Provider Setup
+```bash
+# Add Deepseek provider
+Learning Catalyst > /config provider siliconflow
+🔧 SiliconFlow API key: sk-xxxxxxxxxxxxxxxxxxxxxxxx
+
+# Add custom provider
+/config provider custom groq
+🔧 Config provider groq:
+  Enter API base URL: https://api.groq.com/openai/v1
+  Enter API key: gsk_xxxxxxxxxxxxxxxxxxxxxxxxx
+
+# View current configuration (shows providers)
+/config
+```
+
+### Provider Cleanup
+```bash
+# Switch to primary provider before cleanup
+/config provider openai
+/config model gpt-4o
+
+# Remove unused providers
+/config provider siliconflow remove
+# ⚠️ Remove Provider Confirmation:
+#   Are you sure you want to remove 'siliconflow' provider?
+#   Type 'yes' to confirm: yes
+# ✅ Provider 'siliconflow' removed successfully
+
+/config provider groq remove
+# ⚠️ Remove Provider Confirmation:
+#   Are you sure you want to remove 'groq' provider?
+#   Type 'yes' to confirm: yes
+# ✅ Provider 'groq' removed successfully
+```
+
+### Model Management
+```bash
+# Interactive model selection
+/config model
+
+# Select model from interactive dialog
+# (system shows available models with current one marked)
+```
+
+### Model Cleanup
+```bash
+# Switch to preferred model before cleanup
+/config model gpt-4o
+
+# Remove unused models
+/config model gpt-4o-mini remove
+# ⚠️ Remove Model Confirmation:
+#   Are you sure you want to remove 'gpt-4o-mini' model?
+#   Type 'yes' to confirm: yes
+# ✅ Model 'gpt-4o-mini' removed successfully
+
+# Force remove problematic model (emergency use only)
+/config model broken-model remove --force
+# ⚠️ Force Remove Model Confirmation:
+#   WARNING: Force removing 'broken-model' model!
+#   Type 'FORCE' to confirm: FORCE
+# ✅ Model 'broken-model' force removed successfully
+```
+
+### Usage Management
+```bash
+# Set daily limits
+/config daily-limit 10000
+/config cost-alert 5.00
+
+# Set rate limits
+/config rate-limit 30
+```
 
 ## Usage Patterns
 
 ### Initial Setup
 ```bash
-# First-time configuration
+# Check current configuration
 /config
 
-# Follow the wizard prompts:
-# 1. Choose AI provider
-# 2. Enter API credentials
-# 3. Select preferred model
-# 4. Set workspace location
-# 5. Configure basic preferences
+# Set up AI provider and model
+/config provider openai
+/config model
+# Interactive dialog shows available models - select gpt-4
 ```
 
 ### Daily Configuration
 ```bash
 # Check current setup
-/config --show
-
-# Quick preference changes
-/preferences learning.difficulty=advanced
-/preferences display.theme=light
+/config
 
 # Switch providers if needed
-/config --provider anthropic
+/config provider anthropic
+/config model
+# Interactive dialog shows available models - select claude-3-sonnet
 ```
 
 ### Performance Tuning
 ```bash
-# Check available models
-/models --details
+# Check current settings
+/config model
 
 # Optimize for speed
-/preferences performance.caching=true
-/preferences performance.parallel=true
-/config --model gpt-4o-mini
+/config model
+# Interactive dialog shows available models - select gpt-4o-mini
 
 # Optimize for quality
-/config --model gpt-4o
-/preferences learning.difficulty=expert
+/config model
+# Interactive dialog shows available models - select gpt-4o
 ```
 
-## Advanced Configuration
+## Configuration Examples
 
-### Multiple AI Providers
+### Basic Configuration
 
-Set up primary and backup providers:
+The current implementation supports simple configuration management:
 
 ```bash
-# Configure primary provider
-/config --provider openai
-/config --model gpt-4o
-
-# Add backup provider
-/config
-# Choose "Add new provider"
-# Select: anthropic
-# Enter: claude-3-sonnet
-# Set as: backup
+# Configure AI provider and model
+/config provider openai
+/config model
+# Interactive dialog shows available models - select gpt-4o
 ```
 
-### Custom Model Parameters
-
-Fine-tune model behavior:
-
-```bash
-# Adjust creativity (temperature)
-/preferences openai.temperature=0.7
-
-# Set response length
-/preferences openai.max_tokens=2000
-
-# Configure retry behavior
-/preferences performance.retry_attempts=3
-```
-
-### Workspace Profiles
-
-Create different configurations for different workspaces:
-
-```bash
-# Create learning profile
-/preferences workspace.profile=learning
-/preferences learning.difficulty=intermediate
-
-# Create work profile
-/preferences workspace.profile=work
-/preferences learning.difficulty=advanced
-/preferences session.length=15
-```
+**Note**: Use `/config` to see current configuration status.
 
 ## Error Handling
 
-### Common Issues
+### Common Configuration Errors
 
-**API Key Invalid**:
-```
-❌ API key validation failed for OpenAI
-Please check your API key or provider setup.
+**API Connection Issues:**
+```bash
+# Error: "Failed to connect to provider"
+/config provider openai show
+# Check status and connection details
 
-Solutions:
-1. Verify API key: /config --provider openai
-2. Test connection: /config --validate
-3. Use backup provider: /config --provider anthropic
-```
-
-**Model Not Available**:
-```
-⚠️ Model 'gpt-4' not available with current provider
-Available models: gpt-4o, gpt-4o-mini, gpt-3.5-turbo
-
-Solutions:
-1. Switch model: /config --model gpt-4o
-2. Change provider: /config --provider anthropic
-3. Update model list: /models --refresh
+# Solution: Reconfigure API key
+/config provider openai
+🔧 OpenAI Provider Configuration:
+  Enter your OpenAI API key: sk-new-valid-key
 ```
 
-**Configuration Corrupted**:
-```
-❌ Configuration file contains errors
-Line 15: Invalid YAML syntax
+**Model Selection Issues:**
+```bash
+# Error: "Model not available for current provider"
+/config model gpt-4
+# Model might not be available for your current provider
 
-Solutions:
-1. Auto-fix: /config --validate --auto-fix
-2. Reset to defaults: /config --reset
-3. Restore from backup: /config --import backup-config.yaml
+# Solution: Check available models first
+/config provider openai show
+# View all available models, then select valid one
+```
+
+**Rate Limit Errors:**
+```bash
+# Error: "Rate limit exceeded"
+/config rate-limit 30  # Reduce rate limit
+/config daily-limit 5000  # Reduce daily limit
+```
+
+**Provider Removal Errors:**
+```bash
+# Error: "Cannot remove active provider"
+/config provider deepseek remove
+# ❌ Cannot remove active provider 'deepseek'
+# Solution: Switch to another provider first
+/config provider openai  # Switch to openai provider
+/config provider deepseek remove  # Now can remove deepseek
+
+# Error: "Cannot remove last provider"
+/config provider openai remove
+# ❌ Cannot remove last configured provider
+# Solution: Add another provider first
+/config provider anthropic  # Add new provider
+/config provider openai remove  # Now can remove openai
+```
+
+**Model Removal Errors:**
+```bash
+# Error: "Cannot remove active model"
+/config model gpt-4 remove
+# ❌ Cannot remove active model 'gpt-4'
+# Solution: Switch to another model first
+/config model gpt-4o-mini  # Switch to different model
+/config model gpt-4 remove  # Now can remove gpt-4
+
+# Error: "Model not found in configuration"
+/config model invalid-model remove
+# ❌ Model 'invalid-model' not found
+# Solution: Check available models first
+/config model  # Show available models
 ```
 
 ### Recovery Strategies
 
-1. **Validate Configuration**: Use `/config --validate` to check for issues
-2. **Use Backup Models**: Configure multiple providers for redundancy
-3. **Reset Preferences**: Use `/preferences --reset-all` for clean state
-4. **Export Before Changes**: Always export configuration before major changes
+1. **Check Configuration**: Use `/config` to review current settings
+2. **Test Provider Connection**: Use `/config provider [name] show` to verify status
+3. **Reset to Defaults**: Delete `./.catalyst/config.json` and restart
+4. **Use Basic Operations**: Stick to `provider|model` operations
+5. **Document Changes**: Keep track of configuration changes for rollback
 
-## Performance Considerations
+### Safety Best Practices for Removal
 
-### Command Response Times
-- `/models`: < 1s (cached), 2-5s (refresh)
-- `/preferences`: < 0.5s (instant)
-- `/config`: 1-2s (show), 5-10s (interactive)
+**⚠️ Before Removing Providers:**
+- Always switch to another provider first
+- Ensure you have at least 2 providers configured
+- Test the new provider connection before removing the old one
+- Keep API keys backed up in a secure location
 
-### Resource Usage
-- **Configuration**: Minimal memory usage
-- **Model List**: Cached for faster access
-- **Validation**: Quick unless testing provider connections
+**⚠️ Before Removing Models:**
+- Switch to a different model first
+- Verify the alternative model works for your use case
+- Consider keeping backup models for different tasks (chat vs coding)
+- Document model-specific settings or prompts
 
-### Optimization Tips
-1. **Cache Model Lists**: Models are cached to avoid repeated API calls
-2. **Validate Offline**: Use `/config --validate --offline` for quick checks
-3. **Export Settings**: Backup configuration to avoid reconfiguration
+**🔒 Safety Features:**
+- **Active Protection**: Cannot remove currently active provider/model
+- **Last Provider Protection**: Cannot remove the last configured provider
+- **Confirmation Dialogs**: All removals require explicit confirmation
+- **Force Option**: `--force` flag for emergency removals (use with caution)
 
-## Integration Examples
-
-### Script Configuration
+**💡 Recommended Workflow:**
 ```bash
-#!/bin/bash
-# setup-learning-env.sh
+# Before removal - verify setup
+/config                    # Check current configuration
+/config provider show      # Verify all providers working
 
-echo "Setting up learning environment..."
+# Safe provider removal
+/config provider new-provider      # Switch to different provider
+/config provider old-provider remove  # Now safe to remove
 
-# Configure for learning session
-learning-catalyst << EOF
-/config --provider openai
-/config --model gpt-4o
-/preferences learning.difficulty=intermediate
-/preferences display.theme=dark
-/preferences learning.session_length=45
-/quit
-EOF
-
-echo "Learning environment configured!"
+# Safe model removal
+/config model alternative-model      # Switch to different model
+/config model unwanted-model remove  # Now safe to remove
 ```
 
-### Provider Switching
+### Configuration Reset
+
+If configuration becomes corrupted:
+
 ```bash
-# Switch to fast model for quick questions
-learning-catalyst << EOF
-/config --model gpt-4o-mini
-/explain "quick concept"
-/quit
-EOF
+# Option 1: Manual reset
+rm ./.catalyst/config.json
+# Restart application - will create fresh config
 
-# Switch to powerful model for deep learning
-learning-catalyst << EOF
-/config --model gpt-4o
-/explain --detailed "complex topic"
-/quit
-EOF
+# Option 2: Provider-specific reset
+/config provider openai
+# Reconfigure from scratch
 ```
-
-### Configuration Backup
-```bash
-# Backup current configuration
-learning-catalyst << EOF > backup-$(date +%Y%m%d).yaml
-/config --export
-/quit
-EOF
-
-# Restore configuration
-learning-catalyst --config backup-20241007.yaml
-```
-
-## Best Practices
-
-### Security
-1. **Use Environment Variables**: Store API keys in environment variables
-2. **Limit File Permissions**: Restrict access to configuration files
-3. **Regular Key Rotation**: Update API keys regularly
-4. **Use HTTPS**: Ensure all API communications use HTTPS
-
-### Performance
-1. **Choose Appropriate Models**: Balance speed and quality
-2. **Enable Caching**: Improve response times with caching
-3. **Set Timeouts**: Prevent hanging on slow providers
-4. **Monitor Usage**: Track token usage and costs
-
-### Usability
-1. **Document Customization**: Keep notes on custom configurations
-2. **Test Changes**: Validate configuration after changes
-3. **Backup Regularly**: Export configuration before major changes
-4. **Use Profiles**: Create configurations for different use cases
-
-## Troubleshooting
-
-### Configuration Issues
-```bash
-# Check syntax
-/config --validate
-
-# Reset specific area
-/preferences --reset learning
-
-# Full reset
-/config --reset
-
-# Import backup
-/config --import backup.yaml
-```
-
-### Provider Problems
-```bash
-# Test connection
-/config --test-connection
-
-# Refresh model list
-/models --refresh
-
-# Switch provider
-/config --provider backup
-
-# Use offline mode
-/config --provider local
-```
-
-### Performance Issues
-```bash
-# Check cache status
-/preferences performance.caching
-
-# Clear cache
-/config --clear-cache
-
-# Optimize settings
-/preferences performance.parallel=true
-/preferences performance.timeout=60
-```
-
----
 
 *See [Command Reference Overview](README.md) for complete command listing and [Configuration Guide](../configuration/) for detailed setup instructions.*

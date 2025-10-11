@@ -4,205 +4,109 @@
 title: Learning Commands Reference
 description: Core learning functionality and content interaction commands for Learning Catalyst CLI
 version: 1.0.0
-last_updated: 2025-10-07
+last_updated: 2025-10-09
 ---
 
 ## Overview
 
 Learning commands provide the core functionality for interacting with educational content, taking quizzes, and managing your learning journey. These commands leverage AI to provide personalized learning experiences.
 
+### ✅ Current Status: **Documented Commands Working and Validated**
+- **✅ `/knowledge-map`**: Fully functional with visualization
+
+### 📝 Natural Learning Interactions
+**Explanations and Practice Questions**: These are handled through natural conversation with the AI rather than CLI commands:
+- Simply ask questions like "Can you explain [topic]?" or "Can you test me on [concept]?"
+- The AI provides detailed explanations and practice questions based on your requests
+- No special commands needed - just talk naturally with the AI!
+
+### 🔗 See Real Examples
+- **Knowledge Mapping**: [Basic Workflows - Knowledge Assessment](../examples/basic-workflows.md#workflow-5-interview-preparation-workflow)
+
+## Quick Reference
+
+**Essential Commands**:
+```bash
+/knowledge-map                   # Interactive knowledge map (simple view)
+/knowledge-map [topic]          # Focused view on specific topic
+/knowledge-map --verbose        # Detailed view with progress and relationships
+```
+
+**Interactive Navigation**:
+- **Arrow Keys**: Navigate concepts
+- **Enter**: Dive into concept details and relationships
+- **(e)xplain**: Get AI explanation of selected concept
+- **(a)sk AI**: Personalized learning guidance
+- **(v)erbose**: Toggle simple/detailed views
+- **(q)uit**: Exit knowledge map
+
+**Natural Learning** (no commands needed):
+- "Explain [concept]" - Get detailed explanations
+- "Test me on [topic]" - Practice questions
+- "Continue learning [concept]" - Resume where you left off
+
+**Learning Workflow**:
+```bash
+/knowledge-map                   # See all concepts and status
+[Navigate to concept] → Enter    # Explore relationships
+"Explain [concept]"              # Learn naturally
+"Test me on [concept]"           # Practice understanding
+/checkpoint save                 # Save progress
+/knowledge-map                   # Check updated status
+```
+
 ## Available Commands
-
-### `/concepts` - Browse Learning Concepts
-
-Display and navigate through available learning concepts extracted from your workspace materials.
-
-**Aliases**: `/topics`
-
-**Syntax**:
-```bash
-/concepts                        # List all available concepts
-/concepts [topic]               # Filter concepts by topic
-/concepts --refresh             # Refresh concept cache
-/concepts --search [keyword]    # Search concepts by keyword
-/concepts --difficulty [level]  # Filter by difficulty level
-```
-
-**Examples**:
-```bash
-/concepts                       # Show all concepts
-/concepts machine learning      # Concepts related to ML
-/concepts --search python       # Search for python concepts
-/concepts --difficulty beginner # Show beginner concepts
-/concepts --refresh            # Re-scan workspace for concepts
-```
-
-**Output Features**:
-- **Categorized Display**: Concepts organized by topic
-- **Difficulty Levels**: Visual indicators for concept difficulty
-- **Progress Tracking**: Shows mastery status for each concept
-- **Interactive Selection**: Numbered list for easy selection
-
-**Sample Output**:
-```
-📚 Available Learning Concepts (156 total)
-
-MACHINE LEARNING (42 concepts)
-  1.  🟢 Neural Networks              [Mastered]
-  2.  🟡 Deep Learning               [Learning]
-  3.  🔴 Supervised Learning         [Not Started]
-  4.  🟡 Decision Trees              [In Progress]
-
-PYTHON PROGRAMMING (38 concepts)
-  5.  🟢 List Comprehensions         [Mastered]
-  6.  🟡 Decorators                  [Learning]
-  7.  🔴 Generators                  [Not Started]
-
-DATA STRUCTURES (29 concepts)
-  8.  🟢 Arrays and Lists            [Mastered]
-  9.  🟡 Binary Trees                [Learning]
-
-Select a concept number (1-50) for details, or use /explain [concept]
-```
-
-### `/explain` - Get Detailed Explanations
-
-Request AI-generated explanations for specific concepts, topics, or questions.
-
-**Aliases**: `/exp`
-
-**Syntax**:
-```bash
-/explain [concept]                # Explain a specific concept
-/explain "question"               # Ask a question
-/explain --depth [level] [topic]  # Set explanation depth
-/explain --example [concept]      # Include practical examples
-```
-
-**Examples**:
-```bash
-/explain neural networks         # Explain neural networks
-/explain "How does backpropagation work?"  # Ask specific question
-/explain --depth detailed python decorators  # Detailed explanation
-/explain --example recursion     # Include code examples
-```
-
-**Features**:
-- **Context-Aware**: Uses your learning materials as context
-- **Adaptive Depth**: Adjusts explanation detail based on your level
-- **Interactive Follow-up**: Ask follow-up questions
-- **Code Examples**: Include practical code examples when relevant
-
-**Sample Output**:
-```
-🧠 Explanation: Neural Networks
-
-Neural networks are computing systems inspired by biological neural networks...
-
-📖 Key Concepts:
-• Neurons: Basic processing units
-• Layers: Input, hidden, and output layers
-• Weights: Connection strengths between neurons
-• Activation Functions: Non-linear transformations
-
-💡 Simple Example:
-```python
-import numpy as np
-
-# Simple neural network neuron
-def neuron(inputs, weights, bias):
-    return np.dot(inputs, weights) + bias
-```
-
-❓ Ask follow-up questions:
-• "How does backpropagation work?"
-• "What are activation functions?"
-• "Show me a complete example"
-
-Type your follow-up question or /done to finish.
-```
-
-### `/quiz` - Take Quizzes and Challenges
-
-Generate and complete AI-powered quizzes on specific topics to test your knowledge.
-
-**Aliases**: `/challenge`
-
-**Syntax**:
-```bash
-/quiz                            # General quiz
-/quiz [topic]                   # Quiz on specific topic
-/quiz --difficulty [level]       # Set difficulty level
-/quiz --count [number]           # Number of questions
-/quiz --type [type]              # Quiz type (multiple-choice, short-answer)
-```
-
-**Examples**:
-```bash
-/quiz                           # General knowledge quiz
-/quiz python data structures    # Topic-specific quiz
-/quiz --difficulty intermediate  # Intermediate difficulty
-/quiz --count 5                 # 5 questions only
-/quiz --type multiple-choice    # Multiple choice format
-```
-
-**Features**:
-- **Adaptive Difficulty**: Questions adapt to your skill level
-- **Instant Feedback**: Immediate feedback on answers
-- **Detailed Explanations**: Learn from both correct and incorrect answers
-- **Progress Tracking**: Track quiz performance over time
-
-**Sample Output**:
-```
-🎯 Quiz: Python Data Structures (5 questions)
-
-Question 1/5:
-What is the time complexity of adding an element to the end of a Python list?
-
-A) O(1) - Constant time
-B) O(n) - Linear time
-C) O(log n) - Logarithmic time
-D) O(n²) - Quadratic time
-
-Your answer (A-D): a
-
-✅ Correct! Lists in Python use dynamic arrays, and appending is amortized O(1).
-
-📚 Explanation: Python lists are implemented as dynamic arrays. When there's
-space at the end, appending is O(1). When the array is full, it's resized,
-which is O(n), but this happens infrequently, making the amortized
-complexity O(1).
-
-Press Enter for next question, or /quit to exit quiz.
-```
 
 ### `/knowledge-map` - Visualize Knowledge Structure
 
 Display an interactive visualization of your knowledge structure and concept relationships.
 
+**✅ Status**: **Available**
 **Aliases**: `/kmap`
 
 **Syntax**:
 ```bash
-/knowledge-map                   # Show full knowledge map
-/knowledge-map [topic]          # Map for specific topic
-/knowledge-map --progress        # Include progress indicators
-/knowledge-map --dependencies    # Show concept dependencies
+/knowledge-map                   # Interactive map (simple view - essential information only)
+/knowledge-map [topic]          # Focused view on specific topic
+/knowledge-map --verbose        # Interactive map (detailed view - shows all information)
 ```
 
 **Examples**:
 ```bash
-/knowledge-map                   # Full knowledge map
-/knowledge-map python            # Python knowledge map
-/knowledge-map --progress        # With progress indicators
-/knowledge-map --dependencies    # Show learning paths
+/knowledge-map                   # Simple interactive view
+/knowledge-map python            # Python domain focused view (simple)
+/knowledge-map --verbose        # Detailed interactive view with full information
 ```
+
 
 **Features**:
 - **Interactive Navigation**: Browse concepts and relationships
 - **Progress Visualization**: See your learning progress
 - **Dependency Graph**: Understand concept prerequisites
 - **Learning Paths**: Suggested learning sequences
+- **Simple vs Detailed Views**: Choose information density
+
+## Interactive Navigation & Views
+
+The knowledge map provides interactive navigation with two verbosity levels:
+
+**Interactive Controls**:
+- **Arrow Keys** (↑↓←→): Navigate between concepts and domains
+- **Enter**: Zoom into selected concept for detailed view
+- **(e)xplain**: Get AI explanation of the selected concept
+- **(a)sk AI**: Get personalized learning guidance and recommendations
+- **(v)erbose**: Toggle between simple and detailed views
+- **(q)uit**: Exit interactive map and return to shell
+
+**View Modes**:
+- **Simple View** (default): Essential information only - concept names, basic status, and immediate progress
+- **Verbose View** (--verbose flag): Complete information including detailed dependencies, time spent, practice results, and AI insights
+
+**Visual Status Indicators**:
+- **✅ [Mastered]**: Concept completed and tested
+- **🔄 [In Progress]**: Currently being learned (shows percentage)
+- **⏳ [Available]**: Ready to learn (prerequisites met)
+- **🔒 [Locked]**: Prerequisites not yet completed
 
 **Sample Output**:
 ```
@@ -210,216 +114,457 @@ Display an interactive visualization of your knowledge structure and concept rel
 
 📊 Progress Overview: 42% complete (18/43 concepts mastered)
 
-CORE CONCEPTS:
-├── 🟢 Mathematics Foundations
-│   ├── 🟢 Linear Algebra [Mastered]
-│   ├── 🟢 Calculus [Mastered]
-│   └── 🟡 Probability [In Progress]
-├── 🟡 Machine Learning Basics
-│   ├── 🟢 Supervised Learning [Mastered]
-│   ├── 🟡 Unsupervised Learning [In Progress]
-│   └── 🔴 Reinforcement Learning [Not Started]
-└── 🔴 Advanced Topics
-    ├── 🔴 Deep Learning [Not Started]
-    ├── 🔴 Computer Vision [Not Started]
-    └── 🔴 Natural Language Processing [Not Started]
+┌─ Machine Learning Domain ──────────────────────────────┐
+│                                                        │
+│  [✅] Fundamentals (Mastered)                          │
+│  │   ├── Mathematical Foundations                     │
+│  │   └── ML Concepts & Terminology                    │
+│                                                        │
+│  [✅] Supervised Learning (Mastered)                   │
+│  │   ├── Classification Algorithms                     │
+│  │   └── Regression Algorithms                         │
+│                                                        │
+│  [✅] Unsupervised Learning (Good)                     │
+│  │   ├── Clustering Methods                            │
+│  │   └── Dimensionality Reduction                     │
+│                                                        │
+│  [🔄] Neural Networks (65% Complete)                  │
+│  │   ├── ✅ Basic Concepts                             │
+│  │   ├── 🔄 Backpropagation (In Progress)             │
+│  │   └── ⏳ Advanced Architectures                     │
+│                                                        │
+│  [⏳] Deep Learning (Locked - Requires Neural Networks)│
+│  │   ├── CNNs                                         │
+│  │   ├── RNNs                                         │
+│  │   └── Transformers                                 │
+│                                                        │
+│  [⏳] Specialized Topics (Locked)                      │
+│      ├── Reinforcement Learning                        │
+│      ├── NLP                                          │
+│      └── Computer Vision                              │
+└────────────────────────────────────────────────────────┘
+ 
+Navigation: ↑↓←→ Move | Enter: Zoom In | (f)ilter | (e)xplain | (a)sk AI | (q)uit
 
-🎯 Recommended Learning Path:
-1. Complete Probability foundations
-2. Start Unsupervised Learning
-3. Explore Deep Learning basics
+Learning Catalyst > [Navigates to Neural Networks]
+🔍 Neural Networks Deep Dive:
+┌─ Neural Networks Module ───────────────────────────────┐
+│  [✅] Basic Concepts (Completed 3 days ago)            │
+│     ├── Perceptrons ✅                                │
+│     ├── Activation Functions ✅                       │
+│     └── Network Architecture ✅                       │
+│                                                        │
+│  [🔄] Backpropagation (Currently 45% Complete)        │
+│     ├── ✅ Gradient Concept                           │
+│     ├── 🔄 Chain Rule Application (Learning)          │
+│     └── ⏳ Implementation Practice                     │
+│                                                        │
+│  [⏳] Advanced Architectures (Requirements Met)        │
+│     ├── Convolutional Neural Networks (CNNs)          │
+│     ├── Recurrent Neural Networks (RNNs)              │
+│     └── Transformer Models                            │
+│                                                        │
+│  AI Insight: "You're making great progress!           │
+│  Focus on mastering backpropagation to unlock         │
+│  advanced architectures. I recommend practicing       │
+│  with gradient descent implementation."               │
+└────────────────────────────────────────────────────────┘
+Current: Backpropagation | (c)ontinue | (p)ractice | (e)xplain | (b)ack
 
-Use /concepts to explore specific areas, or /quiz to test your knowledge.
+# Challenge yourself with comprehensive assessment from the map
+Learning Catalyst > [Selects (a)sk AI from main ML map]
+🤖 AI Learning Path Advisor:
+"Based on your ML progress:
+📊 Overall Mastery: 72% (Advanced Beginner → Intermediate)
+🎯 Optimal Learning Path:
+  1. Complete Neural Networks (35% remaining)
+  2. Unlock Deep Learning architectures
+  3. Specialize in NLP or Computer Vision
+
+🚀 Recommended Next Actions:
+- Finish backpropagation implementation
+- Practice with PyTorch/TensorFlow basics
+- Start CNN fundamentals
+
+Would you like me to:
+- (c)reate a personalized study plan?
+- (g)enerate targeted practice problems?
+- (s)uggest projects for your current level?"
 ```
+
+### Simple vs Verbose View Examples
+
+**Simple View (Default)**:
+```bash
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map: Python Programming
+├─ [✅] Basic Syntax
+├─ [🔄] Functions (65%)
+├─ [⏳] Decorators
+└─ [🔒] Classes (Requires Functions)
+
+Navigation: ↑↓←→ Move | Enter: Details | (v)erbose | (q)uit
+```
+
+**Verbose View (--verbose flag)**:
+```bash
+Learning Catalyst > /knowledge-map --verbose
+🗺️ Knowledge Map: Python Programming
+📊 Overall Progress: 45% complete (9/20 concepts)
+⏱️ Total Learning Time: 12h 35m
+
+├─ [✅] Basic Syntax (Mastered 5 days ago)
+│   ✅ Variables & Data Types (2h 15m, 95% quiz score)
+│   ✅ Control Flow (1h 45m, 88% quiz score)
+│   ✅ Functions & Scope (3h 20m, 92% quiz score)
+
+├─ [🔄] Functions (65% complete, started 2 days ago)
+│   ✅ Function Definition (1h 10m)
+│   🔄 Parameters & Arguments (45m, in progress)
+│   ⏳ Lambda Functions
+│   ⏳ Decorators (Requires: Parameters & Arguments)
+
+├─ [⏳] Decorators (Available - prerequisites met)
+│   💡 AI Insight: "Ready to learn decorators! This is an advanced
+│   topic that will enhance your function understanding significantly."
+
+└─ [🔒] Classes (Locked - Requires Functions 100%)
+   🚫 Prerequisite: Functions module must be completed first
+
+Navigation: ↑↓←→ Move | Enter: Details | (e)xplain | (a)sk AI | (v)erbose | (q)uit
+```
+
+**Concept Relationships and Navigation**:
+```bash
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map: Web Development
+
+┌─ Frontend Development ─────────────────────────────────┐
+│  [✅] HTML (Foundation)                                  │
+│  [✅] CSS (Requires: HTML)                              │
+│  [🔄] JavaScript (Requires: HTML, CSS)                  │
+│  [⏳] React (Requires: JavaScript 80%)                   │
+└─────────────────────────────────────────────────────────┘
+
+# User navigates to JavaScript and presses Enter
+Learning Catalyst > [Navigate to JavaScript → Enter]
+🔍 JavaScript Concept Details:
+┌─ JavaScript Module ────────────────────────────────────┐
+│  Status: 🔄 In Progress (65% complete)                 │
+│  Prerequisites: ✅ HTML, ✅ CSS                         │
+│  Enables: React, Node.js, Async Programming            │
+│                                                        │
+│  Sub-concepts:                                         │
+│  ├── ✅ Basic Syntax                                    │
+│  ├── 🔄 DOM Manipulation (Learning)                     │
+│  ├── ⏳ Async Programming                               │
+│  └── ⏳ ES6+ Features                                  │
+└────────────────────────────────────────────────────────┘
+
+🔗 Relationships to Other Concepts:
+┌─ Dependencies (What you need first) ──────────────────┐
+│  ✅ HTML - Completed 5 days ago                        │
+│  ✅ CSS - Completed 3 days ago                         │
+└─────────────────────────────────────────────────────────┘
+
+┌─ Enables (What this unlocks) ───────────────────────────┐
+│  ⏳ React - Available once JavaScript reaches 80%      │
+│  ⏳ Node.js - Available once Async Programming done    │
+│  ⏳ Advanced Frontend - Requires ES6+ Features         │
+└─────────────────────────────────────────────────────────┘
+
+┌─ Related Concepts (Similar or helpful) ─────────────────┐
+│  ⏳ TypeScript (Optional enhancement)                  │
+│  ⏳ WebAssembly (Advanced topic)                        │
+│  ✅ JSON (Already learned - helps with data handling)   │
+└─────────────────────────────────────────────────────────┘
+
+Navigation: (c)heck sub-concepts | (r)elationships | (e)xplain | (b)ack | (q)uit
+
+# User presses (c)heck to explore DOM Manipulation
+Learning Catalyst > [Press (c)heck → Navigate to DOM Manipulation]
+🔍 DOM Manipulation Sub-concept:
+┌─ DOM Manipulation ─────────────────────────────────────┐
+│  Status: 🔄 Currently Learning (45% complete)           │
+│  Progress: ✅ Basic selectors, 🔄 Event handling         │
+│                                                        │
+│  🔗 Relationships:                                     │
+│  • Depends on: JavaScript Basic Syntax ✅               │
+│  • Enables: React Components, Interactive Web Apps      │
+│  • Related to: CSS Selectors (helps with element access)│
+│                                                        │
+│  💡 AI Insight: "Great progress! Focus on event        │
+│  handling to unlock React component interactions."     │
+└────────────────────────────────────────────────────────┘
+
+Actions: (c)ontinue learning | (p)ractice | (e)xplain more | (b)ack
+```
+
+### Natural Learning: Explanations and Practice Questions
+
+**How to Get Explanations:**
+Simply ask questions naturally! The AI provides detailed explanations based on your requests.
+
+```bash
+# Natural ways to ask for explanations:
+Learning Catalyst > Can you explain neural networks?
+Learning Catalyst > How do Python decorators work?
+Learning Catalyst > Explain machine learning like I'm 10 years old
+Learning Catalyst > Give me a practical example of recursion
+Learning Catalyst > Can you break down how sorting algorithms work step by step?
+```
+
+**How to Get Practice Questions:**
+Just ask for them naturally! The AI generates practice questions to test your understanding.
+
+```bash
+# Natural ways to ask for practice questions:
+Learning Catalyst > Can you test me on Python decorators?
+Learning Catalyst > Give me some practice questions about recursion
+Learning Catalyst > Can you quiz me on machine learning concepts?
+Learning Catalyst > Test my understanding of React hooks
+Learning Catalyst > Ask me questions to see if I understand algorithms
+```
+
+
 
 ## Usage Patterns
 
 ### Learning Workflow
 ```bash
 # Start a learning session
-/concepts                      # Browse available topics
-/explain neural networks      # Learn about a concept
-/quiz neural networks         # Test your understanding
+# Ask naturally: "Can you explain neural networks?"      # Learn about a concept
+# Ask naturally: "Can you test me on neural networks?"   # Test your understanding
 /knowledge-map               # See your progress
 ```
 
 ### Targeted Learning
 ```bash
 # Focus on specific topic
-/concepts python             # Find python concepts
-/explain decorators          # Learn about decorators
-/quiz decorators             # Test yourself
+# Ask naturally: "How do decorators work?"           # Learn about decorators
+# Ask naturally: "Can you test me on decorators?"   # Test yourself
 ```
 
 ### Progress Tracking
 ```bash
 # Check your progress
-/knowledge-map --progress    # See overall progress
-/statistics                 # Detailed statistics
+/knowledge-map               # See overall progress and status
+/knowledge-map --verbose     # Detailed progress with time spent and scores
 ```
 
-## Advanced Features
+## Command Features
 
-### Context-Aware Learning
-Learning commands use your workspace content to provide relevant examples:
-- Analyzes your local Markdown files
-- Incorporates your code examples
-- References your existing knowledge base
-
-### Adaptive Difficulty
-The system adapts to your skill level:
-- Tracks your performance across quizzes
-- Adjusts question difficulty automatically
-- Provides appropriate explanation depth
-
-### Multi-Modal Learning
-Supports different learning styles:
-- Visual knowledge maps
-- Text-based explanations
-- Interactive quizzes
-- Code examples and exercises
-
-## Performance Considerations
-
-### Caching System
-- `/concepts` results are cached for faster access
-- Cache automatically updates when workspace changes
-- Use `--refresh` flag to force cache update
-
-### Response Times
-- **Local operations**: `/concepts`, `/knowledge-map` (< 2s)
-- **AI-powered**: `/explain`, `/quiz` (2-10s depending on complexity)
-- **Cached responses**: Nearly instant on repeat queries
-
-### Resource Usage
-- **Memory**: Moderate for knowledge maps, minimal for other commands
-- **Network**: Required for AI commands (`/explain`, `/quiz`)
-- **CPU**: Low for most operations
-
-## Error Handling
-
-### Common Issues
-
-**No Concepts Found**:
-```
-No learning concepts found in workspace.
-Add Markdown files with educational content, or use --refresh to rescan.
-```
-
-**AI Provider Not Configured**:
-```
-AI provider not configured for explanations and quizzes.
-Use /config to set up an AI provider, or try local learning materials.
-```
-
-**Quiz Generation Failed**:
-```
-Unable to generate quiz questions for this topic.
-Try a different topic or check your AI provider configuration.
-```
-
-### Recovery Strategies
-
-1. **No Content**: Add Markdown files to your workspace
-2. **AI Issues**: Configure AI provider or use local content
-3. **Network Problems**: Try again later or use cached content
-4. **Permission Issues**: Check file permissions for workspace
-
-## Integration Examples
-
-### Learning Scripts
-```bash
-#!/bin/bash
-# Daily learning routine
-learning-catalyst << EOF
-/concepts machine learning
-/explain neural networks
-/quiz neural networks
-/knowledge-map --progress
-/quit --save
-EOF
-```
-
-### Topic-Specific Sessions
-```bash
-#!/bin/bash
-# Python deep dive
-learning-catalyst << EOF
-/concepts python
-/explain --depth detailed decorators
-/quiz --difficulty intermediate decorators
-/explain --example generators
-/quit --save
-EOF
-```
+### Content Discovery
+- Automatically discovers concepts from your workspace Markdown files
+- Organizes content into learning domains
+- Shows concept relationships and prerequisites
 
 ### Progress Tracking
+- Visual status indicators for each concept
+- Learning progress percentages
+- Prerequisites and unlock requirements
+
+### Interactive Exploration
+- Navigate between concepts and sub-concepts
+- View relationships between different topics
+- Access detailed information about each learning area
+
+## Interactive Learning Path Examples
+
+### Status-Driven Learning Workflow
+
 ```bash
-# Weekly progress check
-echo "/knowledge-map --progress" | learning-catalyst
-echo "/statistics --days=7" | learning-catalyst
+# Step 1: Overview and Planning
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map: React Development
+├─ [✅] JavaScript Basics
+├─ [🔄] React Components (In Progress - 70%)
+├─ [⏳] State Management (Available - requires React Components 80%)
+└─ [🔒] Advanced Patterns (Requires State Management)
+
+# Step 2: Focus on In-Progress Concept
+Learning Catalyst > [Navigate to React Components → Enter]
+🔍 React Components Details:
+┌─ React Components Module ───────────────────────────────┐
+│  Status: 🔄 In Progress (70% complete)                  │
+│  Current Focus: Props and State Handling                │
+│                                                        │
+│  🔗 Relationships:                                     │
+│  • Enables: State Management, Advanced Patterns         │
+│  • Related to: JavaScript Functions ✅                   │
+│                                                        │
+│  💡 AI Insight: "You're close to mastery! Focus on      │
+│  state handling to unlock advanced patterns."           │
+└────────────────────────────────────────────────────────┘
+
+# Step 3: Targeted Learning
+Learning Catalyst > Can you help me complete the remaining 30% of React Components?
+🧠 Let's focus on the remaining areas: State Handling, Lifecycle Methods,
+and Component Composition. These are crucial for unlocking State Management...
+
+# Step 4: Practice and Verification
+Learning Catalyst > Can you test me on React Components?
+🧠 Here are some practice questions for React Components...
+[Interactive quiz session]
+
+# Step 5: Check Updated Progress
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map: React Development
+├─ [✅] JavaScript Basics
+├─ [✅] React Components (Mastered just now!)
+├─ [⏳] State Management (Now Available!)
+└─ [🔒] Advanced Patterns (Requires State Management)
 ```
 
-## Best Practices
+### Prerequisite-Based Learning Planning
 
-### Effective Learning
-1. **Start Broad**: Use `/concepts` to discover topics
-2. **Go Deep**: Use `/explain --depth detailed` for thorough understanding
-3. **Test Knowledge**: Regular use of `/quiz` to reinforce learning
-4. **Track Progress**: Use `/knowledge-map` to monitor advancement
-
-### Content Organization
-1. **Structured Workspace**: Organize learning materials logically
-2. **Descriptive Filenames**: Use clear, descriptive filenames
-3. **Hierarchical Structure**: Group related concepts together
-4. **Regular Updates**: Keep content current and relevant
-
-### Quiz Strategy
-1. **Start Easy**: Begin with easier difficulty levels
-2. **Build Up**: Gradually increase difficulty
-3. **Review Mistakes**: Learn from incorrect answers
-4. **Regular Practice**: Consistent quiz practice improves retention
-
-## Troubleshooting
-
-### Content Issues
 ```bash
-# Concepts not appearing
-/concepts --refresh           # Rescan workspace
-# Or check file permissions
-ls -la *.md                  # Verify file access
+# Identify Learning Goals
+Learning Catalyst > /knowledge-map --verbose
+🗺️ Knowledge Map: Machine Learning
+├─ [🔄] Neural Networks (45% complete)
+├─ [🔒] Deep Learning (Requires Neural Networks 80%)
+├─ [🔒] Computer Vision (Requires Deep Learning)
+
+# Plan Learning Path
+Learning Catalyst > [Navigate to Deep Learning → Enter]
+🔍 Deep Learning Concept Details:
+┌─ Deep Learning Module ──────────────────────────────────┐
+│  Status: 🔒 Locked                                       │
+│  Prerequisite: Neural Networks (need 35% more)          │
+│                                                        │
+│  📋 To Unlock Deep Learning:                            │
+│  • Complete Backpropagation (20% remaining)             │
+│  • Master Weight Initialization (New)                   │
+│  • Practice Implementation Exercises (15% remaining)    │
+│                                                        │
+│  💡 AI Recommendation: "Focus on Backpropagation first,  │
+│  then practice with simple neural network implementation."│
+└────────────────────────────────────────────────────────┘
+
+# Execute Learning Plan
+Learning Catalyst > Let's complete Backpropagation
+🧠 Backpropagation is the cornerstone of neural network training...
+[Detailed learning session with examples]
+
+# Save Progress
+Learning Catalyst > /checkpoint save
+✅ Checkpoint saved: backpropagation-focus_2025-10-09_143022
+
+# Continue Learning
+Learning Catalyst > /knowledge-map
+🗺️ Neural Networks now shows: 🔄 60% complete
 ```
 
-### AI Response Issues
+### Multi-Domain Learning Integration
+
 ```bash
-# Slow or no responses
-/config                      # Check AI provider
-# Or try local content
-/explain --local [concept]   # Use cached explanations
+# Discover Cross-Topic Relationships
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map: Full Stack Development
+
+┌─ Frontend Domain ─────────────────────────────────────┐
+│  [🔄] React (75% complete)                            │
+│  🔗 Related to: Component Architecture (Backend)       │
+│                                                        │
+├─ Backend Domain ──────────────────────────────────────┐
+│  [⏳] Component Architecture (Available)              │
+│  🔗 Related to: React Patterns (Frontend) ✅           │
+│                                                        │
+└─ Shared Concepts ─────────────────────────────────────┐
+│  [✅] REST APIs                                       │
+│  [✅] Data Structures                                 │
+│  🔗 Used in: Both Frontend and Backend                │
+└────────────────────────────────────────────────────────┘
+
+# Explore Relationships
+Learning Catalyst > [Navigate to React → Check Relationships]
+🔗 React Relationships:
+• Enables: Advanced UI Patterns, State Management
+• Related to: Component Architecture (Backend concept)
+• Benefits from: Data Structures, REST APIs (Both mastered)
+
+# Integrated Learning
+Learning Catalyst > How can my React knowledge help with backend Component Architecture?
+🧠 Great question! Your React component understanding directly applies...
+[Cross-domain learning session]
+
+# Update Cross-Domain Progress
+Learning Catalyst > /checkpoint save react-backend-connection_2025-10-09_143045
+✅ Checkpoint saved: react-backend-connection_2025-10-09_143045
 ```
 
-### Display Issues
+
+## Workspace Content Discovery
+
+The knowledge map automatically discovers and organizes learning content from your workspace:
+
+### Content Discovery Process
+
+**Empty Workspace**:
 ```bash
-# Knowledge map not displaying
-/knowledge-map --simple      # Use text-based version
-# Or check terminal compatibility
-/clear && /knowledge-map     # Clear screen first
+Learning Catalyst > /knowledge-map
+⚠️ No learning content found in workspace
+💡 Add Markdown files with educational content to enable knowledge mapping
+🔍 Looking for: *.md files with learning concepts
+
+# Solution: Add content files
+Learning Catalyst > echo "# Python Basics\n\n## Variables\nPython variables are..." > python-basics.md
+Learning Catalyst > echo "# React Components\n\n## Functional Components\n..." > react-guide.md
+
+# Retry knowledge mapping
+Learning Catalyst > /knowledge-map
+🗺️ Knowledge Map: Workspace Content
+✅ Discovered 2 domains with 8 concepts from 2 files
+├─ [⏳] Python Programming (6 concepts)
+└─ [⏳] React Development (2 concepts)
 ```
 
-## Version History
+**Structured Content Discovery**:
+```bash
+# Organized workspace with multiple files
+Learning Catalyst > /knowledge-map --verbose
+🗺️ Knowledge Map: Full Stack Development
+📊 Workspace Analysis: 12 files, 35 concepts discovered
 
-### Version 1.0.0
-- Added caching system for `/concepts`
-- Improved adaptive difficulty for quizzes
-- Enhanced knowledge map visualization
-- Added command aliases (`/topics`, `/exp`, `/challenge`, `/kmap`)
-- Better error handling and recovery
+┌─ Frontend Development ─────────────────────────────────┐
+│  Source: react-guide.md, css-tutorial.md, html-basics.md │
+│  Concepts: 12 total, 3 mastered                           │
+│  [✅] HTML Basics (from html-basics.md)                   │
+│  [🔄] CSS Fundamentals (from css-tutorial.md)             │
+│  [⏳] React Components (from react-guide.md)              │
+└─────────────────────────────────────────────────────────┘
 
-### Previous Versions
-- Basic learning command functionality
-- Simple quiz generation
-- Static knowledge mapping
+┌─ Backend Development ──────────────────────────────────┐
+│  Source: nodejs-guide.md, express-tutorial.md           │
+│  Concepts: 8 total, 0 mastered                           │
+│  [⏳] Node.js Fundamentals (from nodejs-guide.md)        │
+│  [⏳] Express.js (from express-tutorial.md)              │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Content Quality and Structure**:
+```bash
+# Well-structured content gets better concept extraction
+Learning Catalyst > /knowledge-map --verbose
+🗺️ Knowledge Map: Python Programming
+📝 Content Quality Analysis: 8/10 files well-structured
+
+✅ High-Quality Sources:
+│  ├── python-basics.md (Clear headings, code examples)
+│  ├── algorithms.md (Structured with difficulty levels)
+│  └── design-patterns.md (Practical examples included)
+
+⚠️ Needs Improvement:
+│  ├── notes.txt (Unstructured, needs Markdown format)
+│  └── random-ideas.md (Missing clear concept organization)
+
+💡 Recommendations:
+   • Convert .txt files to Markdown format
+   • Add clear headings (##, ###) for concept structure
+   • Include code examples and practice problems
+```
 
 ---
 
-*See [Command Reference Overview](README.md) for complete command listing and [CLI Main Documentation](../README.md) for general usage information.*
+*See [Command Reference Overview](README.md) for complete command listing, [Session Commands](session.md) for checkpoint management, and [CLI Main Documentation](../README.md) for general usage information.*

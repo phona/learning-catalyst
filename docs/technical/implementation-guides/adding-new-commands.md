@@ -1,15 +1,17 @@
-# Adding New Commands
+# Adding New Commands Implementation Guide
 
 ---
-title: Learning Catalyst Command Development Guide
-description: Step-by-step guide for creating new CLI commands with examples and best practices
+title: Adding New Commands Implementation Guide
+description: Step-by-step guide for creating new CLI commands with examples, best practices, and testing strategies
 version: 1.0.0
-last_updated: 2025-10-08
+last_updated: 2025-10-09
+difficulty: "Intermediate"
+estimated_time: "45 minutes"
 ---
 
 ## Overview
 
-This guide provides comprehensive instructions for adding new commands to Learning Catalyst's CLI interface. It covers command structure, argument parsing, response formatting, integration patterns, and testing strategies.
+This guide provides comprehensive instructions for adding new commands to Learning Catalyst's CLI interface. It covers command structure, argument parsing, response formatting, integration patterns, and testing strategies with practical examples and implementation details.
 
 ## Command Architecture Overview
 

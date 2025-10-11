@@ -1,8 +1,8 @@
-# Interactive Features Implementation Guide
+# Interactive Features Guide
 
 ---
-title: Building Interactive Learning Features
-description: Guide to implementing rich terminal interfaces, knowledge maps, and interactive learning experiences
+title: Building Rich Terminal Interfaces and Knowledge Maps
+description: Guide to implementing interactive CLI features, knowledge visualization, and engaging learning experiences
 version: 2.0.0
 last_updated: 2025-10-08
 ---
@@ -11,7 +11,229 @@ last_updated: 2025-10-08
 
 This guide covers the implementation of interactive features that make Learning Catalyst engaging and effective. These features transform the CLI from a simple question-answer tool into a rich, interactive learning environment with visual knowledge maps, adaptive assessments, and personalized guidance.
 
-## Interactive Knowledge Maps
+**Perfect for**: UI/UX developers, frontend developers, interactive feature developers
+
+**Key Features:**
+- Rich terminal interface development with modern libraries
+- Interactive knowledge map visualization and navigation
+- Progress indicators and real-time feedback systems
+- User experience patterns for CLI applications
+- Practical examples with real command outputs
+
+## 📚 Table of Contents
+
+1. [Getting Started with Interactive Features](#getting-started-with-interactive-features)
+2. [Rich Terminal Interface Basics](#rich-terminal-interface-basics)
+3. [Interactive Knowledge Maps](#interactive-knowledge-maps)
+4. [Progress Visualization](#progress-visualization)
+5. [User Input Handling](#user-input-handling)
+6. [Real-time Feedback Systems](#real-time-feedback-systems)
+7. [Advanced Interactive Patterns](#advanced-interactive-patterns)
+8. [Testing Interactive Features](#testing-interactive-features)
+
+## 🚀 Getting Started with Interactive Features
+
+### Interactive Feature Development Scenarios
+
+**Scenario 1: Creating an Interactive Progress Bar**
+
+```bash
+# User interaction example:
+Learning Catalyst > /learn python
+📚 **Starting Python Learning Journey**
+
+🎯 Loading your learning profile...
+███████████████████████████████████████ 100% Complete!
+
+✅ Ready! Found 3 concepts in progress, 2 mastered
+# *Validation*: [Basic Workflows - Daily Learning](../examples/basic-workflows.md#workflow-1-daily-learning-routine)
+```
+
+**Implementation Steps:**
+```python
+# Step 1: Basic progress indicator
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
+with Progress(
+    SpinnerColumn(),
+    TextColumn("[progress.description]{task.description}"),
+) as progress:
+    task = progress.add_task("Loading learning profile...", total=100)
+
+    # Simulate loading
+    for i in range(100):
+        progress.update(task, advance=1)
+        time.sleep(0.01)
+
+# Step 2: Add to your command
+class LearnCommand(BaseCommand):
+    async def execute(self, args: List[str], context: Dict[str, Any]) -> CommandResult:
+        # Show loading progress
+        await self._show_loading_progress("Loading learning profile...")
+
+        # Continue with learning logic
+        return CommandResult(success=True, data={})
+# *User Experience*: Working in daily learning examples
+```
+
+**Scenario 2: Building an Interactive Menu**
+
+```bash
+# User interaction example:
+Learning Catalyst > /knowledge-map
+🗺️ **Interactive Knowledge Map**
+
+? Select a topic to explore:
+❯ Python Programming
+  Data Structures
+  Algorithms
+  Web Development
+  Machine Learning
+
+[↑↓ Move] [Enter Select] [q Quit] [? Help]
+# *Validation*: [Advanced Workflows - Knowledge Map](../examples/advanced.md#workflow-2-advanced-session-management)
+```
+
+**Implementation Pattern:**
+```python
+from rich.prompt import Prompt, IntPrompt, Confirm
+from rich.console import Console
+
+class InteractiveMenu:
+    def __init__(self):
+# *Working Implementation*: See KnowledgeMapCommand in src/cli/commands/learning/knowledge_map.py
+        self.console = Console()
+
+    def show_topic_selector(self, topics: List[str]) -> str:
+        """Display interactive topic selection menu"""
+
+        self.console.print("🗺️ **Interactive Knowledge Map**", style="bold blue")
+        self.console.print("")
+
+        # Create interactive selection
+        choice = Prompt.ask(
+            "? Select a topic to explore",
+            choices=topics,
+            default=topics[0],
+            show_choices=True
+        )
+
+        return choice
+```
+
+### Setting Up Your Interactive Development Environment
+
+```bash
+# Install required dependencies for rich interfaces
+pip install rich textual
+
+# Test your rich terminal capabilities
+python -c "
+from rich.console import Console
+from rich.panel import Panel
+console = Console()
+console.print(Panel('Hello, Rich Terminal!', title='Test'))
+"
+
+# Verify color support in your terminal
+python -c "
+from rich.console import Console
+console = Console()
+console.print('[bold red]Red[/bold red] [bold green]Green[/bold green] [bold blue]Blue[/bold blue]')
+"
+```
+
+## 🎨 Rich Terminal Interface Basics
+
+### Core Rich Library Components
+
+**Rich Console and Formatting:**
+```python
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+class RichInterface:
+    def __init__(self):
+        self.console = Console()
+
+    def show_welcome_message(self, user_name: str) -> None:
+        """Display formatted welcome message"""
+
+        welcome_text = Text()
+        welcome_text.append("🎓 Welcome back, ", style="bold")
+        welcome_text.append(user_name, style="bold blue")
+        welcome_text.append("! 🚀", style="bold")
+
+        panel = Panel(
+            welcome_text,
+            title="Learning Catalyst",
+            border_style="green",
+            padding=(1, 2)
+        )
+
+        self.console.print(panel)
+        self.console.print("")
+```
+
+**Tables for Structured Data:**
+```python
+from rich.table import Table
+
+def display_progress_table(self, progress_data: List[Dict[str, Any]]) -> None:
+    """Display learning progress in a formatted table"""
+
+    table = Table(title="📊 Learning Progress", show_header=True, header_style="bold magenta")
+    table.add_column("Concept", style="cyan", no_wrap=True)
+    table.add_column("Status", justify="center")
+    table.add_column("Progress", justify="center")
+    table.add_column("Last Studied", justify="right")
+
+    for item in progress_data:
+        status = "✅" if item['completed'] else "🔄" if item['in_progress'] else "⏳"
+        progress_bar = self._create_mini_progress_bar(item['progress'])
+
+        table.add_row(
+            item['concept'],
+            status,
+            progress_bar,
+            item['last_studied']
+        )
+
+    self.console.print(table)
+```
+
+### Rich Layouts for Complex Interfaces
+
+```python
+from rich.layout import Layout
+from rich.align import Align
+
+def create_dashboard_layout(self) -> Layout:
+    """Create a multi-panel dashboard layout"""
+
+    layout = Layout()
+
+    # Define layout structure
+    layout.split_column(
+        Layout(name="header", size=3),
+        Layout(name="main", ratio=1),
+        Layout(name="footer", size=3)
+    )
+
+    layout["main"].split_row(
+        Layout(name="knowledge_map", ratio=2),
+        Layout(name="progress_panel", ratio=1)
+    )
+
+    # Add content to panels
+    layout["header"].update(Align.center("🎓 Learning Dashboard", style="bold blue"))
+    layout["footer"].update(Align.center("[dim]Press '?' for help | 'q' to quit[/dim]"))
+
+    return layout
+```
+
+## 🗺️ Interactive Knowledge Maps
 
 ### User Examples Reference
 
@@ -1207,4 +1429,990 @@ class TestInteractiveKnowledgeMap:
 - Verify accessibility and usability
 - Test performance with large knowledge graphs
 
-This implementation guide provides the foundation for creating rich, interactive learning experiences that engage users and adapt to their individual learning needs. The combination of visual knowledge maps, adaptive assessments, and AI-powered personalization creates a comprehensive learning environment that goes far beyond traditional CLI applications.
+## Guided Startup Experience
+
+### User Onboarding System
+
+```python
+# src/core/onboarding_manager.py
+
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass
+from enum import Enum
+import asyncio
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Prompt, Confirm
+
+class UserType(Enum):
+    FIRST_TIME = "first_time"
+    RETURNING = "returning"
+    STANDARD = "standard"
+
+@dataclass
+class OnboardingContext:
+    user_id: str
+    user_type: UserType
+    last_session: Optional[Dict[str, Any]]
+    configuration_status: str
+    learning_progress: Dict[str, Any]
+    ai_provider_configured: bool
+
+class OnboardingManager:
+    """Manages user onboarding and guided startup experience"""
+
+    def __init__(self, session_manager, config_manager, ai_service, console: Console):
+        self.session_manager = session_manager
+        self.config_manager = config_manager
+        self.ai_service = ai_service
+        self.console = console
+
+    async def run_guided_startup(self, user_id: str) -> OnboardingContext:
+        """Run the guided startup experience based on user type"""
+        # Determine user type and context
+        context = await self._analyze_user_context(user_id)
+
+        # Display appropriate welcome experience
+        if context.user_type == UserType.FIRST_TIME:
+            await self._first_time_onboarding(context)
+        elif context.user_type == UserType.RETURNING:
+            await self._returning_user_welcome(context)
+        else:
+            await self._standard_welcome(context)
+
+        return context
+
+    async def _analyze_user_context(self, user_id: str) -> OnboardingContext:
+        """Analyze user context to determine appropriate onboarding flow"""
+        # Check if user exists
+        user_exists = await self.session_manager.user_exists(user_id)
+
+        if not user_exists:
+            return OnboardingContext(
+                user_id=user_id,
+                user_type=UserType.FIRST_TIME,
+                last_session=None,
+                configuration_status="not_configured",
+                learning_progress={},
+                ai_provider_configured=False
+            )
+
+        # Get user session data
+        last_session = await self.session_manager.get_last_session(user_id)
+        config_status = await self.config_manager.get_configuration_status(user_id)
+
+        # Determine user type
+        if not last_session or not last_session.get('completed_topics'):
+            user_type = UserType.RETURNING
+        else:
+            user_type = UserType.STANDARD
+
+        return OnboardingContext(
+            user_id=user_id,
+            user_type=user_type,
+            last_session=last_session,
+            configuration_status=config_status,
+            learning_progress=last_session.get('learning_progress', {}),
+            ai_provider_configured=await self.config_manager.is_ai_configured()
+        )
+
+    async def _first_time_onboarding(self, context: OnboardingContext) -> None:
+        """Guide first-time users through initial setup"""
+        # Welcome message
+        welcome_panel = Panel(
+            "🎓 Welcome to Learning Catalyst! 🚀\n\n"
+            "This appears to be your first time using Learning Catalyst. "
+            "Let's get you set up with an AI provider so you can start learning!",
+            title="Welcome!",
+            border_style="green",
+            padding=(1, 2)
+        )
+        self.console.print(welcome_panel)
+
+        # Check if AI provider is configured
+        if not context.ai_provider_configured:
+            await self._setup_ai_provider(context)
+        else:
+            self.console.print("✅ AI provider already configured!", style="green")
+
+        # Show getting started guide
+        await self._show_getting_started_guide()
+
+    async def _setup_ai_provider(self, context: OnboardingContext) -> None:
+        """Interactive AI provider setup for first-time users"""
+        self.console.print("\n🔧 **AI Provider Setup**", style="bold blue")
+
+        # Provider selection
+        provider_table = Table(title="Choose your AI provider")
+        provider_table.add_column("Option", style="cyan")
+        provider_table.add_column("Provider", style="white")
+        provider_table.add_column("Models", style="dim")
+
+        providers = [
+            ("1", "openai", "GPT models (GPT-4, GPT-3.5-turbo)"),
+            ("2", "deepseek", "Cost-effective models (deepseek-chat, deepseek-coder)"),
+            ("3", "siliconflow", "Multiple Chinese models (Qwen2, Baichuan, ChatGLM)"),
+            ("4", "chatglm", "Chinese language models (ChatGLM3, ChatGLM4)"),
+            ("5", "custom", "Your own OpenAI-compatible API endpoint")
+        ]
+
+        for option, provider, models in providers:
+            provider_table.add_row(option, provider, models)
+
+        self.console.print(provider_table)
+
+        # Get user choice
+        choice = Prompt.ask("Select provider (1-5)", choices=["1", "2", "3", "4", "5"])
+
+        # Configure selected provider
+        if choice == "5":
+            await self._setup_custom_provider()
+        else:
+            provider_name = providers[int(choice) - 1][1]
+            await self._setup_standard_provider(provider_name)
+
+    async def _setup_standard_provider(self, provider_name: str) -> None:
+        """Setup standard AI provider"""
+        self.console.print(f"\n🤖 **{provider_name.title()} Configuration**", style="bold blue")
+
+        # Get API key
+        api_key = Prompt.ask(f"Enter your {provider_name.title()} API key", password=True)
+
+        # Test connection
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Testing API connection...", total=None)
+
+            try:
+                # Test the API connection
+                test_result = await self.config_manager.test_provider(provider_name, api_key)
+                progress.update(task, description="✅ Success!")
+
+                if test_result['success']:
+                    # Fetch available models
+                    progress.update(task, description="Fetching available models...")
+                    models = await self.config_manager.get_available_models(provider_name, api_key)
+
+                    # Display model selection
+                    await self._show_model_selection(provider_name, models, api_key)
+                else:
+                    self.console.print(f"❌ Failed to connect to {provider_name}: {test_result['error']}", style="red")
+
+            except Exception as e:
+                progress.update(task, description=f"❌ Error: {str(e)}")
+                self.console.print(f"❌ Configuration failed: {str(e)}", style="red")
+
+    async def _setup_custom_provider(self) -> None:
+        """Setup custom AI provider"""
+        self.console.print("\n🚀 **Custom Provider Configuration**", style="bold blue")
+
+        # Get custom provider details
+        provider_name = Prompt.ask("Enter provider name")
+        base_url = Prompt.ask("Enter API base URL")
+        api_key = Prompt.ask("Enter API key", password=True, default="")
+
+        # Test custom provider
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Testing custom provider connection...", total=None)
+
+            try:
+                test_result = await self.config_manager.test_custom_provider(
+                    provider_name, base_url, api_key
+                )
+
+                if test_result['success']:
+                    progress.update(task, description="✅ Success!")
+
+                    # Fetch available models
+                    models = test_result.get('models', [])
+                    await self._show_model_selection_for_custom(provider_name, models, base_url, api_key)
+                else:
+                    self.console.print(f"❌ Failed to connect to custom provider: {test_result['error']}", style="red")
+
+            except Exception as e:
+                progress.update(task, description=f"❌ Error: {str(e)}")
+                self.console.print(f"❌ Configuration failed: {str(e)}", style="red")
+
+    async def _show_model_selection(self, provider_name: str, models: List[Dict[str, Any]], api_key: str) -> None:
+        """Show model selection interface"""
+        self.console.print(f"\n✅ Fetching available models from {provider_name.title()}...", style="green")
+
+        model_table = Table(title="Available models")
+        model_table.add_column("Option", style="cyan")
+        model_table.add_column("Model", style="white")
+        model_table.add_column("Context", style="dim")
+        model_table.add_column("Cost", style="yellow")
+
+        for i, model in enumerate(models[:5], 1):  # Show first 5 models
+            model_table.add_row(
+                str(i),
+                model['name'],
+                f"{model.get('context_window', 'N/A')} context",
+                f"${model.get('cost_per_1k', 'N/A')}/1K"
+            )
+
+        self.console.print(model_table)
+
+        choice = Prompt.ask(
+            "Select model (1-5) or enter custom model name",
+            default="1"
+        )
+
+        if choice.isdigit() and int(choice) <= len(models):
+            selected_model = models[int(choice) - 1]['name']
+        else:
+            selected_model = choice
+
+        # Save configuration
+        await self.config_manager.save_configuration({
+            'provider': provider_name,
+            'model': selected_model,
+            'api_key': api_key
+        })
+
+        self.console.print(
+            f"\n🎉 Configuration complete! I've set up {selected_model} as your default model.",
+            style="green bold"
+        )
+        self.console.print("You're all ready to start learning!", style="green")
+
+    async def _returning_user_welcome(self, context: OnboardingContext) -> None:
+        """Welcome returning users with context-aware suggestions"""
+        self.console.print("🎓 Welcome back to Learning Catalyst! 🚀", style="bold green")
+
+        if context.last_session:
+            last_activity = context.last_session.get('last_activity', {})
+            last_concept = last_activity.get('concept', 'Unknown')
+            last_date = last_activity.get('date', 'Unknown')
+
+            # Show progress summary
+            progress_panel = Panel(
+                f"Great to see you again! Here's where you left off:\n\n"
+                f"📚 Your Learning Progress:\n"
+                f"• {context.learning_progress.get('total_concepts', 0)} concepts available for learning\n\n"
+                f"🔍 Last Activity:\n"
+                f"• Last accessed: {last_date}\n"
+                f"• Last concept: {last_concept}",
+                title="Welcome Back!",
+                border_style="blue",
+                padding=(1, 2)
+            )
+            self.console.print(progress_panel)
+
+            # Generate AI-powered suggestions
+            await self._generate_context_suggestions(context)
+
+    async def _generate_context_suggestions(self, context: OnboardingContext) -> None:
+        """Generate AI-powered suggestions based on user context"""
+        try:
+            suggestion_prompt = f"""
+            Based on the user's learning context, provide personalized suggestions:
+
+            Last concept studied: {context.last_session.get('last_activity', {}).get('concept', 'Unknown')}
+            Progress: {context.learning_progress.get('completion_percentage', 0)}% complete
+            Recent concepts: {', '.join(context.learning_progress.get('recent_concepts', []))}
+            Weak areas: {', '.join(context.learning_progress.get('weak_areas', []))}
+
+            Provide 4 specific, actionable suggestions in this format:
+            1. [Action type]: [Specific suggestion] - [Brief rationale]
+            2. [Action type]: [Specific suggestion] - [Brief rationale]
+            3. [Action type]: [Specific suggestion] - [Brief rationale]
+            4. [Action type]: [Specific suggestion] - [Brief rationale]
+
+            Action types: Continue learning, Test knowledge, Explore new, Practice challenges, Change configuration
+            """
+
+            suggestions = await self.ai_service.generate_response(suggestion_prompt)
+
+            suggestions_panel = Panel(
+                f"💡 Suggestions:\n{suggestions}",
+                title="AI-Powered Suggestions",
+                border_style="yellow",
+                padding=(1, 2)
+            )
+            self.console.print(suggestions_panel)
+
+        except Exception as e:
+            # Fallback suggestions
+            fallback_suggestions = """
+            💡 Suggestions for you:
+            1. Continue learning: Pick up where you left off
+            2. Test your knowledge: Take a quiz to reinforce learning
+            3. Explore new: Discover related concepts
+            4. Practice challenges: Apply what you've learned
+            """
+
+            suggestions_panel = Panel(
+                fallback_suggestions,
+                title="Suggestions",
+                border_style="yellow",
+                padding=(1, 2)
+            )
+            self.console.print(suggestions_panel)
+
+    async def _standard_welcome(self, context: OnboardingContext) -> None:
+        """Standard welcome for regular users"""
+        self.console.print("🎓 Welcome to Learning Catalyst! 🚀", style="bold green")
+
+        quick_actions_panel = Panel(
+            "Ready to continue your learning journey?\n\n"
+            "💡 Quick Actions:\n"
+            "• View available concepts by asking \"what can I learn?\"\n"
+            "• Get help with commands: /help\n"
+            "• Check your configuration: /config",
+            title="Quick Start",
+            border_style="cyan",
+            padding=(1, 2)
+        )
+        self.console.print(quick_actions_panel)
+
+    async def _show_getting_started_guide(self) -> None:
+        """Show getting started guide for first-time users"""
+        guide_panel = Panel(
+            "💡 Now, what would you like to learn about today?\n\n"
+            "Try asking me about:\n"
+            "• \"What is Python?\" - Learn programming fundamentals\n"
+            "• \"Explain machine learning\" - Explore AI concepts\n"
+            "• \"Teach me about web development\" - Start building websites\n"
+            "• \"What can I learn?\" - See all available topics\n\n"
+            "Or use commands like:\n"
+            "• /help - See all available commands\n"
+            "• /knowledge-map - Visualize your learning journey\n"
+            "• /quiz - Test your knowledge",
+            title="Getting Started",
+            border_style="green",
+            padding=(1, 2)
+        )
+        self.console.print(guide_panel)
+```
+
+## Context-Aware Suggestion System
+
+### AI-Powered Follow-up Suggestions
+
+```python
+# src/core/suggestion_engine.py
+
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass
+from enum import Enum
+import asyncio
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+class SuggestionType(Enum):
+    CONTINUE_LEARNING = "continue_learning"
+    TEST_KNOWLEDGE = "test_knowledge"
+    EXPLORE_RELATED = "explore_related"
+    PRACTICE_CHALLENGES = "practice_challenges"
+    CONFIGURE_SYSTEM = "configure_system"
+
+@dataclass
+class Suggestion:
+    type: SuggestionType
+    title: str
+    description: str
+    confidence: float
+    context: Dict[str, Any]
+
+class ContextAwareSuggestionEngine:
+    """Generates intelligent suggestions based on user context and interactions"""
+
+    def __init__(self, ai_service, knowledge_graph, user_profile_manager, console: Console):
+        self.ai_service = ai_service
+        self.knowledge_graph = knowledge_graph
+        self.user_profile_manager = user_profile_manager
+        self.console = console
+        self.suggestion_history = []
+
+    async def generate_suggestions(
+        self,
+        user_context: Dict[str, Any],
+        interaction_context: Optional[Dict[str, Any]] = None
+    ) -> List[Suggestion]:
+        """Generate context-aware suggestions for the user"""
+        suggestions = []
+
+        # Analyze current context
+        context_analysis = await self._analyze_current_context(user_context, interaction_context)
+
+        # Generate different types of suggestions
+        suggestions.extend(await self._generate_continue_learning_suggestions(context_analysis))
+        suggestions.extend(await self._generate_test_knowledge_suggestions(context_analysis))
+        suggestions.extend(await self._generate_explore_related_suggestions(context_analysis))
+        suggestions.extend(await self._generate_practice_suggestions(context_analysis))
+
+        # Sort by confidence and relevance
+        suggestions.sort(key=lambda x: x.confidence, reverse=True)
+
+        # Return top suggestions
+        return suggestions[:4]
+
+    async def _analyze_current_context(
+        self,
+        user_context: Dict[str, Any],
+        interaction_context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Analyze the current context for suggestion generation"""
+        analysis = {
+            'current_concept': user_context.get('current_concept'),
+            'recent_concepts': user_context.get('recent_concepts', []),
+            'mastered_concepts': user_context.get('mastered_concepts', []),
+            'weak_areas': user_context.get('weak_areas', []),
+            'learning_style': user_context.get('learning_style', 'visual'),
+            'skill_level': user_context.get('skill_level', 'intermediate'),
+            'session_duration': user_context.get('session_duration', 0),
+            'recent_performance': user_context.get('recent_performance', {}),
+            'interaction_type': interaction_context.get('type') if interaction_context else None,
+            'completion_status': interaction_context.get('completion_status') if interaction_context else None
+        }
+
+        return analysis
+
+    async def _generate_continue_learning_suggestions(
+        self,
+        context_analysis: Dict[str, Any]
+    ) -> List[Suggestion]:
+        """Generate suggestions for continuing learning"""
+        suggestions = []
+
+        current_concept = context_analysis['current_concept']
+        if current_concept:
+            # Check if concept was just completed
+            if context_analysis.get('completion_status') == 'completed':
+                # Suggest next logical concept
+                next_concepts = await self.knowledge_graph.get_next_concepts(
+                    current_concept,
+                    context_analysis['mastered_concepts']
+                )
+
+                if next_concepts:
+                    suggestions.append(Suggestion(
+                        type=SuggestionType.CONTINUE_LEARNING,
+                        title=f"Continue with {next_concepts[0]}",
+                        description=f"Build on what you just learned by exploring {next_concepts[0]}",
+                        confidence=0.9,
+                        context={'next_concept': next_concepts[0]}
+                    ))
+
+            # Check if concept is in progress
+            elif context_analysis.get('completion_status') == 'in_progress':
+                suggestions.append(Suggestion(
+                    type=SuggestionType.CONTINUE_LEARNING,
+                    title=f"Continue learning {current_concept}",
+                    description=f"Pick up where you left off with {current_concept}",
+                    confidence=0.8,
+                    context={'continue_concept': current_concept}
+                ))
+
+        return suggestions
+
+    async def _generate_test_knowledge_suggestions(
+        self,
+        context_analysis: Dict[str, Any]
+    ) -> List[Suggestion]:
+        """Generate suggestions for testing knowledge"""
+        suggestions = []
+
+        # Suggest quiz on recently completed concepts
+        recent_concepts = context_analysis['recent_concepts'][-3:]  # Last 3 concepts
+        if recent_concepts:
+            test_concept = recent_concepts[-1]  # Most recent
+            suggestions.append(Suggestion(
+                type=SuggestionType.TEST_KNOWLEDGE,
+                title=f"Test your understanding of {test_concept}",
+                description=f"Take a quick quiz to reinforce your learning of {test_concept}",
+                confidence=0.75,
+                context={'test_concept': test_concept}
+            ))
+
+        # Suggest quiz on weak areas
+        weak_areas = context_analysis['weak_areas']
+        if weak_areas:
+            weak_area = weak_areas[0]  # Most problematic area
+            suggestions.append(Suggestion(
+                type=SuggestionType.TEST_KNOWLEDGE,
+                title=f"Practice {weak_area} fundamentals",
+                description=f"Strengthen your understanding of {weak_area} with targeted practice",
+                confidence=0.7,
+                context={'test_concept': weak_area}
+            ))
+
+        return suggestions
+
+    async def _generate_explore_related_suggestions(
+        self,
+        context_analysis: Dict[str, Any]
+    ) -> List[Suggestion]:
+        """Generate suggestions for exploring related concepts"""
+        suggestions = []
+
+        current_concept = context_analysis['current_concept']
+        if current_concept:
+            # Get related concepts
+            related_concepts = await self.knowledge_graph.get_related_concepts(
+                current_concept,
+                max_depth=2,
+                exclude_mastered=context_analysis['mastered_concepts']
+            )
+
+            if related_concepts:
+                related_concept = related_concepts[0]
+                suggestions.append(Suggestion(
+                    type=SuggestionType.EXPLORE_RELATED,
+                    title=f"Explore {related_concept}",
+                    description=f"Discover how {related_concept} connects to what you're learning",
+                    confidence=0.6,
+                    context={'explore_concept': related_concept}
+                ))
+
+        return suggestions
+
+    async def _generate_practice_suggestions(
+        self,
+        context_analysis: Dict[str, Any]
+    ) -> List[Suggestion]:
+        """Generate suggestions for practice challenges"""
+        suggestions = []
+
+        # Suggest practice for concepts that need reinforcement
+        if context_analysis['recent_performance'].get('accuracy', 1.0) < 0.8:
+            current_concept = context_analysis['current_concept']
+            if current_concept:
+                suggestions.append(Suggestion(
+                    type=SuggestionType.PRACTICE_CHALLENGES,
+                    title=f"Practice {current_concept} challenges",
+                    description=f"Apply your knowledge with hands-on {current_concept} exercises",
+                    confidence=0.65,
+                    context={'practice_concept': current_concept}
+                ))
+
+        return suggestions
+
+    async def display_suggestions(
+        self,
+        suggestions: List[Suggestion],
+        context: Dict[str, Any]
+    ) -> None:
+        """Display suggestions to the user in an interactive format"""
+        if not suggestions:
+            return
+
+        # Create suggestion panel
+        suggestion_text = "💡 **AI-Powered Follow-up Suggestions:**\n\n"
+
+        for i, suggestion in enumerate(suggestions, 1):
+            suggestion_text += f"{i}. **{suggestion.title}**\n"
+            suggestion_text += f"   {suggestion.description}\n\n"
+
+        suggestion_text += "💡 **You can:**\n"
+        suggestion_text += "• Say 'yes' to accept the first suggestion\n"
+        suggestion_text += "• Choose a number (1-4) for specific suggestions\n"
+        suggestion_text += "• Say 'no thanks' to skip suggestions\n"
+        suggestion_text += "• Ask 'tell me more about [suggestion]' for details"
+
+        suggestion_panel = Panel(
+            suggestion_text,
+            title="Personalized Suggestions",
+            border_style="cyan",
+            padding=(1, 2)
+        )
+        self.console.print(suggestion_panel)
+
+    async def handle_suggestion_response(
+        self,
+        response: str,
+        suggestions: List[Suggestion],
+        user_context: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Handle user response to suggestions"""
+        response = response.strip().lower()
+
+        # Handle positive responses
+        if response in ['yes', 'y', 'sure', 'okay']:
+            if suggestions:
+                selected_suggestion = suggestions[0]
+                return await self._execute_suggestion(selected_suggestion, user_context)
+
+        # Handle numbered selection
+        elif response.isdigit():
+            selection = int(response)
+            if 1 <= selection <= len(suggestions):
+                selected_suggestion = suggestions[selection - 1]
+                return await self._execute_suggestion(selected_suggestion, user_context)
+
+        # Handle "tell me more" responses
+        elif response.startswith('tell me more'):
+            concept = response.replace('tell me more about', '').strip()
+            if concept:
+                for suggestion in suggestions:
+                    if concept.lower() in suggestion.title.lower():
+                        return await self._provide_suggestion_details(suggestion, user_context)
+
+        # Handle negative responses
+        elif response in ['no', 'no thanks', 'skip']:
+            return {'action': 'skip_suggestions'}
+
+        return None
+
+    async def _execute_suggestion(
+        self,
+        suggestion: Suggestion,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Execute the selected suggestion"""
+        if suggestion.type == SuggestionType.CONTINUE_LEARNING:
+            next_concept = suggestion.context.get('next_concept') or suggestion.context.get('continue_concept')
+            if next_concept:
+                return {
+                    'action': 'start_learning',
+                    'concept': next_concept,
+                    'context': 'continuation'
+                }
+
+        elif suggestion.type == SuggestionType.TEST_KNOWLEDGE:
+            test_concept = suggestion.context.get('test_concept')
+            if test_concept:
+                return {
+                    'action': 'start_quiz',
+                    'concept': test_concept,
+                    'difficulty': 'adaptive'
+                }
+
+        elif suggestion.type == SuggestionType.EXPLORE_RELATED:
+            explore_concept = suggestion.context.get('explore_concept')
+            if explore_concept:
+                return {
+                    'action': 'explain_concept',
+                    'concept': explore_concept,
+                    'context': 'exploration'
+                }
+
+        elif suggestion.type == SuggestionType.PRACTICE_CHALLENGES:
+            practice_concept = suggestion.context.get('practice_concept')
+            if practice_concept:
+                return {
+                    'action': 'practice_exercises',
+                    'concept': practice_concept,
+                    'difficulty': 'intermediate'
+                }
+
+        return {'action': 'unknown'}
+
+    async def _provide_suggestion_details(
+        self,
+        suggestion: Suggestion,
+        user_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Provide more details about a suggestion"""
+        try:
+            details_prompt = f"""
+            Provide more details about this learning suggestion:
+
+            Suggestion: {suggestion.title}
+            Description: {suggestion.description}
+            User Context: {user_context.get('current_concept', 'General learning')}
+            Skill Level: {user_context.get('skill_level', 'intermediate')}
+
+            Explain what this suggestion involves and why it's beneficial for the user's learning journey.
+            Keep it concise (2-3 sentences) and encouraging.
+            """
+
+            details = await self.ai_service.generate_response(details_prompt)
+
+            return {
+                'action': 'show_details',
+                'suggestion': suggestion,
+                'details': details
+            }
+
+        except Exception as e:
+            return {
+                'action': 'show_details',
+                'suggestion': suggestion,
+                'details': f"This suggestion helps you {suggestion.description.lower()}"
+            }
+```
+
+## Enhanced Session Management
+
+### Persistent Learning Sessions
+
+```python
+# src/core/session_manager.py
+
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta
+import json
+import asyncio
+from pathlib import Path
+
+@dataclass
+class LearningSession:
+    id: str
+    user_id: str
+    start_time: datetime
+    end_time: Optional[datetime]
+    concepts_explored: List[str]
+    concepts_completed: List[str]
+    quizzes_taken: List[Dict[str, Any]]
+    interactions: List[Dict[str, Any]]
+    learning_progress: Dict[str, Any]
+    session_state: Dict[str, Any]
+
+@dataclass
+class SessionMetrics:
+    total_time: timedelta
+    concepts_count: int
+    completion_rate: float
+    quiz_accuracy: float
+    engagement_score: float
+
+class SessionManager:
+    """Manages persistent learning sessions with context tracking"""
+
+    def __init__(self, storage_path: str = "data/sessions"):
+        self.storage_path = Path(storage_path)
+        self.storage_path.mkdir(parents=True, exist_ok=True)
+        self.active_sessions = {}
+
+    async def create_session(self, user_id: str) -> str:
+        """Create a new learning session"""
+        session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{user_id}"
+
+        session = LearningSession(
+            id=session_id,
+            user_id=user_id,
+            start_time=datetime.now(),
+            end_time=None,
+            concepts_explored=[],
+            concepts_completed=[],
+            quizzes_taken=[],
+            interactions=[],
+            learning_progress={},
+            session_state={}
+        )
+
+        self.active_sessions[session_id] = session
+        await self._save_session(session)
+
+        return session_id
+
+    async def get_active_session(self, user_id: str) -> Optional[LearningSession]:
+        """Get the current active session for a user"""
+        user_sessions = [
+            session for session in self.active_sessions.values()
+            if session.user_id == user_id and session.end_time is None
+        ]
+
+        return user_sessions[0] if user_sessions else None
+
+    async def update_session(
+        self,
+        session_id: str,
+        interaction_type: str,
+        data: Dict[str, Any]
+    ) -> None:
+        """Update session with new interaction data"""
+        if session_id not in self.active_sessions:
+            return
+
+        session = self.active_sessions[session_id]
+
+        # Add interaction
+        interaction = {
+            'timestamp': datetime.now().isoformat(),
+            'type': interaction_type,
+            'data': data
+        }
+        session.interactions.append(interaction)
+
+        # Update concepts
+        if interaction_type == 'concept_explored':
+            concept = data.get('concept')
+            if concept and concept not in session.concepts_explored:
+                session.concepts_explored.append(concept)
+
+        elif interaction_type == 'concept_completed':
+            concept = data.get('concept')
+            if concept and concept not in session.concepts_completed:
+                session.concepts_completed.append(concept)
+
+        elif interaction_type == 'quiz_completed':
+            session.quizzes_taken.append(data)
+
+        # Update learning progress
+        await self._update_learning_progress(session, interaction_type, data)
+
+        # Save session
+        await self._save_session(session)
+
+    async def end_session(self, session_id: str) -> SessionMetrics:
+        """End a session and calculate metrics"""
+        if session_id not in self.active_sessions:
+            return SessionMetrics(timedelta(0), 0, 0.0, 0.0, 0.0)
+
+        session = self.active_sessions[session_id]
+        session.end_time = datetime.now()
+
+        # Calculate metrics
+        metrics = await self._calculate_session_metrics(session)
+
+        # Save final session state
+        await self._save_session(session)
+
+        # Remove from active sessions
+        del self.active_sessions[session_id]
+
+        return metrics
+
+    async def get_user_history(
+        self,
+        user_id: str,
+        days: int = 30
+    ) -> List[LearningSession]:
+        """Get user's session history"""
+        cutoff_date = datetime.now() - timedelta(days=days)
+        user_sessions = []
+
+        # Load sessions from storage
+        session_files = list(self.storage_path.glob(f"{user_id}_session_*.json"))
+
+        for file_path in session_files:
+            try:
+                session_data = json.loads(file_path.read_text())
+                session = self._deserialize_session(session_data)
+
+                if session.start_time >= cutoff_date:
+                    user_sessions.append(session)
+
+            except Exception as e:
+                print(f"Error loading session {file_path}: {e}")
+
+        # Sort by start time
+        user_sessions.sort(key=lambda x: x.start_time, reverse=True)
+        return user_sessions
+
+    async def _update_learning_progress(
+        self,
+        session: LearningSession,
+        interaction_type: str,
+        data: Dict[str, Any]
+    ) -> None:
+        """Update learning progress based on interaction"""
+        progress = session.learning_progress
+
+        if interaction_type == 'concept_completed':
+            concept = data.get('concept')
+            if concept:
+                if 'completed_concepts' not in progress:
+                    progress['completed_concepts'] = []
+                if concept not in progress['completed_concepts']:
+                    progress['completed_concepts'].append(concept)
+
+        elif interaction_type == 'quiz_completed':
+            accuracy = data.get('accuracy', 0.0)
+            if 'quiz_scores' not in progress:
+                progress['quiz_scores'] = []
+            progress['quiz_scores'].append(accuracy)
+
+        # Update completion percentage
+        total_concepts = len(session.concepts_explored)
+        completed_concepts = len(session.concepts_completed)
+        if total_concepts > 0:
+            progress['completion_percentage'] = (completed_concepts / total_concepts) * 100
+
+        # Calculate average quiz accuracy
+        if 'quiz_scores' in progress and progress['quiz_scores']:
+            progress['average_quiz_accuracy'] = sum(progress['quiz_scores']) / len(progress['quiz_scores'])
+
+    async def _calculate_session_metrics(self, session: LearningSession) -> SessionMetrics:
+        """Calculate session metrics"""
+        total_time = session.end_time - session.start_time if session.end_time else datetime.now() - session.start_time
+
+        concepts_count = len(session.concepts_explored)
+        completion_rate = (len(session.concepts_completed) / concepts_count * 100) if concepts_count > 0 else 0
+
+        # Calculate quiz accuracy
+        quiz_accuracy = 0.0
+        if session.quizzes_taken:
+            total_accuracy = sum(q.get('accuracy', 0) for q in session.quizzes_taken)
+            quiz_accuracy = total_accuracy / len(session.quizzes_taken)
+
+        # Calculate engagement score
+        engagement_score = await self._calculate_engagement_score(session)
+
+        return SessionMetrics(
+            total_time=total_time,
+            concepts_count=concepts_count,
+            completion_rate=completion_rate,
+            quiz_accuracy=quiz_accuracy,
+            engagement_score=engagement_score
+        )
+
+    async def _calculate_engagement_score(self, session: LearningSession) -> float:
+        """Calculate engagement score based on interaction patterns"""
+        score = 0.0
+
+        # Base score for having interactions
+        if session.interactions:
+            score += 0.2
+
+        # Concept exploration score
+        if session.concepts_explored:
+            score += min(0.3, len(session.concepts_explored) * 0.1)
+
+        # Completion score
+        if session.concepts_completed:
+            completion_ratio = len(session.concepts_completed) / len(session.concepts_explored) if session.concepts_explored else 0
+            score += completion_ratio * 0.3
+
+        # Quiz participation score
+        if session.quizzes_taken:
+            score += min(0.2, len(session.quizzes_taken) * 0.05)
+
+        return min(score, 1.0)
+
+    async def _save_session(self, session: LearningSession) -> None:
+        """Save session to storage"""
+        session_file = self.storage_path / f"{session.user_id}_{session.id}.json"
+
+        session_data = asdict(session)
+        # Convert datetime objects to strings for JSON serialization
+        session_data['start_time'] = session.start_time.isoformat()
+        if session.end_time:
+            session_data['end_time'] = session.end_time.isoformat()
+
+        session_file.write_text(json.dumps(session_data, indent=2))
+
+    def _deserialize_session(self, session_data: Dict[str, Any]) -> LearningSession:
+        """Deserialize session data from JSON"""
+        # Convert string timestamps back to datetime objects
+        session_data['start_time'] = datetime.fromisoformat(session_data['start_time'])
+        if session_data.get('end_time'):
+            session_data['end_time'] = datetime.fromisoformat(session_data['end_time'])
+
+        return LearningSession(**session_data)
+```
+
+This enhanced Interactive Features Guide now includes the missing patterns from the examples directory:
+
+1. **Guided Startup Experience** - Complete onboarding system for first-time and returning users
+2. **Context-Aware Suggestion System** - AI-powered follow-up suggestions based on user context
+3. **Enhanced Session Management** - Persistent learning sessions with comprehensive tracking
+4. **Interactive Provider Setup** - Rich configuration interfaces for AI providers
+
+These additions complete the Interactive Features Guide with all the user-facing interactive patterns shown in the examples directory.
+
+This implementation guide provides the foundation for creating rich, interactive learning experiences that engage users and adapt to their individual learning needs. The combination of visual knowledge maps, adaptive assessments, guided onboarding, and AI-powered personalization creates a comprehensive learning environment that goes far beyond traditional CLI applications.

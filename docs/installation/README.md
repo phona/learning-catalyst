@@ -448,7 +448,7 @@ python -m src.cli.main --timeout 30
 After successful installation:
 
 1. **Read the [Quick Start Guide](quick-start.md)** - Learn basics in 5 minutes
-2. **Check [First Session Guide](first-session.md)** - Walk through your first learning session
+2. **Check [Basic Workflows Guide](../examples/basic-workflows.md)** - Walk through your first learning session
 3. **Explore [Command Reference](../commands/)** - Learn about all available commands
 4. **Set up [Configuration](../configuration/)** - Customize your experience
 5. **Try [Usage Examples](../examples/)** - See practical examples

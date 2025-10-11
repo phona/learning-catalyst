@@ -16,23 +16,78 @@ This guide covers common issues, error messages, and solutions for Learning Cata
 ### Start Here: Basic Health Check
 
 ```bash
-# Run comprehensive diagnostic
-$> learning-catalyst --diagnostic
-= Learning Catalyst Diagnostic Tool
-Checking system requirements... ✓
-Checking configuration... ✓
-Testing AI providers... ✗
-Checking memory usage... ✓
-Verifying installation... ✓
+# Check current configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: deepseek
+  Model: deepseek-chat
+  Status: ✓ Connected
 
 # Quick status check
-Learning Catalyst > /status
-= System Status:
-  Installation: ✓ OK
-  Configuration: ✗ AI provider needed
-  Memory: ✓ 245MB used (512MB available)
-  Last Error: None
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: deepseek
+  Model: deepseek-chat
+  API Key: ✓ Valid
+  Status: ✓ Connected
 ```
+
+## 🔧 Technical Context: How Troubleshooting Works
+
+### Diagnostic System Architecture
+
+Learning Catalyst includes a comprehensive diagnostic system that checks multiple layers of the application:
+
+#### System Checks
+- **Python Version**: Ensures Python 3.9+ is available
+- **Dependencies**: Verifies all required packages are installed
+- **Memory Usage**: Monitors available system resources
+- **File Permissions**: Checks read/write access to required directories
+
+#### Configuration Validation
+- **Provider Settings**: Validates API keys and connection endpoints
+- **Model Availability**: Tests access to configured AI models
+- **Database Connectivity**: Ensures data storage is accessible
+- **Security Settings**: Verifies secure credential storage
+
+#### Health Monitoring
+```python
+# Behind the scenes: Diagnostic check structure
+class DiagnosticCheck:
+    def __init__(self, name: str, critical: bool = False):
+        self.name = name
+        self.critical = critical
+        self.status = "pending"
+        self.details = []
+
+    async def run(self) -> DiagnosticResult:
+        # Implementation of specific diagnostic
+        pass
+```
+
+### Error Classification System
+
+Learning Catalyst categorizes errors into distinct types for easier troubleshooting:
+
+#### Configuration Errors
+- **Missing API Keys**: Provider authentication issues
+- **Invalid Models**: Requested model not available
+- **Network Issues**: Connectivity problems with providers
+
+#### Runtime Errors
+- **Memory Issues**: Insufficient system resources
+- **Timeout Errors**: Requests taking too long
+- **Parsing Errors**: Invalid responses from providers
+
+#### System Errors
+- **Installation Problems**: Missing or corrupted files
+- **Permission Issues**: File access problems
+- **Database Errors**: Data storage failures
+
+**Want to understand the technical troubleshooting system?**
+- 📖 **[Testing & Debugging Workflow](../technical/workflows/testing-debugging.md)** - Systematic debugging approaches
+- 🔧 **[Debugging Techniques Guide](../technical/guides/debugging-techniques.md)** - Advanced debugging methods
+- 🏗️ **[System Architecture](../technical/system-architecture/)** - Understanding system components
 
 ## Installation Issues
 
@@ -126,15 +181,16 @@ pip install -e .
 
 ```bash
 # 1. Verify API key format
-Learning Catalyst > /config apikey openai
-= Enter OpenAI API key: sk-xxxxxxxxxxxxxxxxxxxxxxxx
+Learning Catalyst > /config provider openai
+= OpenAI Provider Configuration:
+  Enter your OpenAI API key: sk-xxxxxxxxxxxxxxxxxxxxxxxx
 # Should start with "sk-" for OpenAI
 
-# 2. Test API key
-Learning Catalyst > /config test
-> Testing API connection...
-✗ OpenAI: Invalid API key
-✓ Deepseek: Connected
+# 2. Test API key with a simple question
+Learning Catalyst > Hello, can you help me?
+🧠 Hello! I'd be happy to help you learn. What topic would you like to explore?
+
+# If this works, the API key is valid
 
 # 3. Check API key source
 # Go to provider dashboard:
@@ -176,16 +232,14 @@ curl -I https://api.openai.com/v1/models
 echo $http_proxy
 echo $https_proxy
 
-# 5. Configure proxy if needed
-Learning Catalyst > /config proxy
-< Proxy Configuration:
-  HTTP Proxy: http://proxy.company.com:8080
-  HTTPS Proxy: https://proxy.company.com:8080
+# 5. Proxy configuration is handled at system level
+# Configure environment variables if needed:
+export HTTP_PROXY=http://proxy.company.com:8080
+export HTTPS_PROXY=https://proxy.company.com:8080
 
-# 6. Try alternative endpoint
-Learning Catalyst > /config endpoint openai
-= OpenAI Endpoint:
-  Custom endpoint (optional): https://api.openai.com
+# 6. Restart application after proxy configuration
+Learning Catalyst > /quit
+# Then restart with new proxy settings
 ```
 
 ### Issue: Model Not Available
@@ -195,31 +249,40 @@ Learning Catalyst > /config endpoint openai
 **Solutions**:
 
 ```bash
-# 1. List available models
-Learning Catalyst > /models list
-= Available Models:
-  OpenAI:
-    ✗ gpt-4 (Not available)
-    ✓ gpt-3.5-turbo
-    ✓ gpt-4-turbo-preview
+# 1. Check current configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4
+  API Key: ✓ Valid
+  Endpoint: https://api.openai.com
 
-# 2. Check model availability
-Learning Catalyst > /models check gpt-4
-= Model Availability Check:
-  gpt-4: Not available in your region/account
+# 2. Test AI provider with simple question
+Learning Catalyst > Hello, can you help me with a quick question?
+🧠 [If AI responds, connection is working]
 
-# 3. Switch to available model
-Learning Catalyst > /config model gpt-3.5-turbo
-> Model switched to: gpt-3.5-turbo
+# If no response or error, the provider may not be available
 
-# 4. Check account permissions
-# Visit provider dashboard to verify:
-# - Account is active
-# - Model access is enabled
-# - Usage limits not exceeded
+# 3. Switch to available provider
+Learning Catalyst > /config provider deepseek
+= Deepseek Provider Configuration:
+  Enter your Deepseek API key: [your-api-key]
 
-# 5. Upgrade account if needed
-# Some models require higher-tier accounts
+# 4. Select available model
+Learning Catalyst > /config model
+🤖 Available Models (deepseek provider):
+  ✅ deepseek-chat
+  ✅ deepseek-coder
+[User selects deepseek-chat from the list]
+🤖 Model set to: deepseek-chat
+
+# 5. Verify configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: deepseek
+  Model: deepseek-chat
+  API Key: ✓ Valid
+  Endpoint: https://api.deepseek.com
 ```
 
 ## Performance Issues
@@ -231,34 +294,16 @@ Learning Catalyst > /config model gpt-3.5-turbo
 **Solutions**:
 
 ```bash
-# 1. Check performance metrics
-Learning Catalyst > /performance
-= Performance Metrics:
-  Average Response Time: 12.3 seconds
-  Token Usage: 2,345 tokens
-  Network Latency: 1.2 seconds
+# 1. Use simpler models for basic queries
+Learning Catalyst > /config model
+🤖 Available Models (openai provider):
+  ✅ gpt-4
+  ✅ gpt-3.5-turbo
+[User selects gpt-3.5-turbo from the list]
+🤖 Model set to: gpt-3.5-turbo
 
-# 2. Optimize for speed
-Learning Catalyst > /config optimize speed
-✓ Speed Optimization:
-  - Switched to faster model
-  - Reduced context window
-  - Enabled caching
-
-# 3. Check network connection
-Learning Catalyst > /network test
-< Network Test:
-  DNS Resolution: ✓ 23ms
-  Connection to API: ✓ 1.1s
-  Download Speed: ✓ 45 Mbps
-
-# 4. Reduce response length
-Learning Catalyst > /config max-tokens 1000
-= Max response tokens set to: 1000
-
-# 5. Use simpler models for basic queries
-Learning Catalyst > /config model gpt-3.5-turbo
-> Using faster model for quick responses
+# 2. Ask for more concise responses
+Learning Catalyst > can you explain this briefly?
 ```
 
 ### Issue: High Memory Usage
@@ -268,31 +313,9 @@ Learning Catalyst > /config model gpt-3.5-turbo
 **Solutions**:
 
 ```bash
-# 1. Check memory usage
-Learning Catalyst > /memory
-= Memory Usage:
-  Current: 623MB
-  Peak: 789MB
-  Cache: 234MB
-
-# 2. Clear cache
-Learning Catalyst > /cache clear
-=✓ Cache cleared: 234MB freed
-
-# 3. Reduce cache size
-Learning Catalyst > /config cache-size 50
-= Cache size limited to: 50MB
-
-# 4. Enable memory optimization
-Learning Catalyst > /config optimize memory
->✓ Memory Optimization:
-  - Reduced conversation history
-  - Compressed cached responses
-  - Enabled garbage collection
-
-# 5. Restart application
-Learning Catalyst > /restart
-=✓ Restarting to free memory...
+# 1. Restart application to free memory
+Learning Catalyst > /quit
+# Restart application to resolve memory issues
 ```
 
 ## Configuration Issues
@@ -304,29 +327,181 @@ Learning Catalyst > /restart
 **Solutions**:
 
 ```bash
-# 1. Check configuration file
-Learning Catalyst > /config file
-= Configuration file: ~/.learning-catalyst/config.json
-ls -la ~/.learning-catalyst/
-# Should see config.json file
+# 1. Check current configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4
+  Status: ✓ Connected
 
-# 2. Test save functionality
-Learning Catalyst > /config save test
-=✓ Test configuration saved
-Learning Catalyst > /config load test
-=✓ Test configuration loaded
+# 2. Check daily limit and cost alert settings
+Learning Catalyst > /config daily-limit
+✅ Current daily limit: 5,000 tokens
 
-# 3. Check file permissions
-ls -la ~/.learning-catalyst/config.json
-# Should be readable/writable
+Learning Catalyst > /config cost-alert
+✅ Current cost alert: $0.50
 
-# 4. Fix permissions if needed
-chmod 644 ~/.learning-catalyst/config.json
+# 3. Reset configuration settings
+Learning Catalyst > /config daily-limit 10000
+✅ Daily limit updated to 10,000 tokens
 
-# 5. Recreate config directory
-rm -rf ~/.learning-catalyst/
-Learning Catalyst > /config init
-=✓ Configuration directory created
+Learning Catalyst > /config cost-alert 1.00
+✅ Cost alert updated to $1.00
+
+# 4. If settings are not saving, restart the application
+```
+
+### Issue: Advanced Configuration Problems
+
+**Symptom**: Configuration subcommands not working as expected
+
+**Solutions**:
+
+```bash
+# 1. Test provider-specific configuration
+Learning Catalyst > /config provider openai show
+📋 OpenAI Provider Configuration:
+  Status: ✅ Connected
+  Models: gpt-4, gpt-3.5-turbo, gpt-4-turbo
+  Daily Limit: 5,000 tokens
+  Cost Alert: $0.50
+
+# 2. Test model removal
+Learning Catalyst > /config model gpt-3.5-turbo remove
+✅ Model gpt-3.5-turbo removed from OpenAI provider
+
+# 3. Test provider testing functionality
+Learning Catalyst > /config provider openai test
+🔄 Testing OpenAI provider connection...
+✅ Connection test successful
+  Response time: 1.2 seconds
+  Model availability: 2 models available
+
+# 4. Check response configuration
+Learning Catalyst > /config response-length
+✅ Current response length: concise
+
+Learning Catalyst > /config response-style
+✅ Current response style: conversational
+
+# 5. Reset response settings if needed
+Learning Catalyst > /config response-length detailed
+✅ Response length set to detailed
+
+Learning Catalyst > /config response-style technical
+✅ Response style set to technical
+```
+
+### Issue: Knowledge Map Display Problems
+
+**Symptom**: Knowledge map not showing or displaying incorrectly
+
+**Solutions**:
+
+```bash
+# 1. Test knowledge map functionality
+Learning Catalyst > /knowledge-map
+🗺️ Your Interactive Learning Space:
+┌─ Computer Science ─────────────────────────────────────┐
+│  [✅] Basic Programming (Mastered)                     │
+│  [🔄] Data Structures (75% Complete)                  │
+│  │   ├── [✅] Arrays & Strings                          │
+│  │   ├── [✅] Linked Lists                             │
+│  │   └── [🔄] Trees & Graphs (In Progress)             │
+│  [⏳] Algorithms (Not Started)                        │
+│     └── prerequisites: Data Structures                │
+└───────────────────────────────────────────────────────┘
+Navigation: ↑↓←→ Move | Enter: Zoom In | (e)xplain | (a)sk AI | (q)uit
+
+# 2. If knowledge map is empty, check if there's learning data
+Learning Catalyst > /tokens
+📊 Token Usage Statistics:
+  Current Session: 1,234 tokens
+  Daily Usage: 2,456 tokens
+
+# 3. Start a learning topic to populate knowledge map
+Learning Catalyst > I want to learn Python programming
+🧠 [AI response about Python programming]
+
+# 4. Check knowledge map again
+Learning Catalyst > /knowledge-map
+🗺️ Your Interactive Learning Space:
+┌─ Programming & Development ───────────────────────────┐
+│  [🔄] Python Programming (In Progress)                │
+│  │   ├── [⏳] Variables and Data Types                 │
+│  │   ├── [⏳] Control Flow                            │
+│  │   └── [⏳] Functions                               │
+│  [⏳] Web Development (Not Started)                   │
+│     └── prerequisites: Python Programming              │
+└──────────────────────────────────────────────────────────┘
+
+# 5. Test knowledge map navigation
+Learning Catalyst > [Navigate using arrow keys and Enter]
+🔍 Zooming into Python Programming...
+┌─ Python Programming Module ────────────────────────────┐
+│  [⏳] Variables and Data Types (Currently Learning)     │
+│     ├── Concept: Storing and manipulating data         │
+│     ├── Difficulty: ⭐⭐☆☆☆ (2/5)                       │
+│     ├── Prerequisites: None                            │
+│     └── Leads to: Control Flow                        │
+│                                                        │
+│  [⏳] Control Flow (Next Topic)                       │
+│     ├── Concept: Conditional logic and loops          │
+│     ├── Difficulty: ⭐⭐☆☆☆ (2/5)                       │
+│     ├── Prerequisites: Variables and Data Types        │
+│     └── Leads to: Functions                           │
+└─────────────────────────────────────────────────────────┘
+Current: Variables and Data Types | (l)earn | (e)xplain | (p)ractice | (b)ack
+
+# 6. Test AI interaction from knowledge map
+Learning Catalyst > [Selects (e)xplain from Variables and Data Types]
+🧠 Variables and Data Types - Interactive Explanation:
+[Detailed explanation with examples and interactive elements]
+
+# 7. If knowledge map is still not working, check context
+Learning Catalyst > /context
+= Context Usage:
+  Current: 1,200 tokens
+  Maximum: 8,192 tokens
+  Available: 6,992 tokens
+```
+
+### Issue: Knowledge Map Performance Problems
+
+**Symptom**: Knowledge map running slowly or freezing
+
+**Solutions**:
+
+```bash
+# 1. Check context usage
+Learning Catalyst > /context
+= Context Usage:
+  Current: 7,500 tokens
+  Maximum: 8,192 tokens
+  Available: 692 tokens
+
+# 2. Compress conversation to improve performance
+Learning Catalyst > /compress
+✅ Conversation compressed to key points
+- Key concepts preserved: Python basics, variables, functions
+- Examples saved: Code snippets, practice problems
+- Memory freed: 3,200 tokens
+
+# 3. Test knowledge map performance
+Learning Catalyst > /knowledge-map
+🗺️ Your Interactive Learning Space:
+[Optimized knowledge map display with faster loading]
+
+# 4. Check memory usage
+Learning Catalyst > /context
+= Context Usage:
+  Current: 4,300 tokens
+  Maximum: 8,192 tokens
+  Available: 3,892 tokens
+
+# 5. If performance is still poor, restart application
+Learning Catalyst > /quit
+# Restart application to clear memory and improve performance
 ```
 
 ### Issue: Invalid Configuration Format
@@ -336,32 +511,14 @@ Learning Catalyst > /config init
 **Solutions**:
 
 ```bash
-# 1. Validate configuration
-Learning Catalyst > /config validate
-✗ Configuration error: Invalid JSON at line 23
+# Check configuration and restart if needed
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4
+  Status: ✓ Connected
 
-# 2. Reset to defaults
-Learning Catalyst > /config reset
-=✓ Resetting to default configuration...
-
-# 3. Manually edit configuration
-Learning Catalyst > /config edit
-= Opening configuration in default editor...
-# Fix JSON syntax errors
-
-# 4. Backup and restore
-Learning Catalyst > /config backup config-backup.json
-=✓ Configuration backed up
-Learning Catalyst > /config restore config-backup.json
-=✓ Configuration restored
-
-# 5. Reconfigure from scratch
-Learning Catalyst > /config wizard
->✓ Configuration Wizard:
-  Step 1: Choose AI provider
-  Step 2: Enter API key
-  Step 3: Select model
-  Step 4: Set preferences
+# If configuration is corrupted, restart the application
 ```
 
 ## Command Issues
@@ -376,26 +533,19 @@ Learning Catalyst > /config wizard
 # 1. List available commands
 Learning Catalyst > /help
 =✓ Available Commands:
-  /help, /quit, /clear, /config, /models...
+  /help, /quit, /clear, /config, /tokens, /checkpoint, /context, /compress, /wait, /verbose
 
 # 2. Check command spelling
-Learning Catalyst > /help config
-=✓ /config - Manage configuration
-  Usage: /config [subcommand]
+Learning Catalyst > /help
+=✓ Available Commands:
+  /help, /quit, /clear, /config, /tokens, /checkpoint, /context, /compress, /wait, /verbose
 
-# 3. Use command completion
-Learning Catalyst > /conf[Tab]
-# Should autocomplete to /config
-
-# 4. Check command context
-Learning Catalyst > /help --all
-=✓ All Commands (including hidden):
-  /debug, /verbose, /experimental...
-
-# 5. Search for similar commands
-Learning Catalyst > /help search model
-= Commands matching "model":
-  /models, /config model, /help model
+# 3. Check current configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4
+  Status: ✓ Connected
 ```
 
 ### Issue: Command Arguments Not Working
@@ -405,29 +555,23 @@ Learning Catalyst > /help search model
 **Solutions**:
 
 ```bash
-# 1. Check command syntax
-Learning Catalyst > /config --help
-=✓ /config Usage:
-  /config [show|save|load|provider|model...]
-
-# 2. Use proper argument format
+# 1. Use proper argument format
 # Wrong: /config provider=openai
 # Right: /config provider openai
 
-# 3. Test with simple commands
-Learning Catalyst > /config show
-✓ Works
+# 2. Test with simple commands
 Learning Catalyst > /config provider openai
 ✓ Works
 
-# 4. Check for special characters
+# 3. Check for special characters
 # Avoid spaces, quotes in arguments
 # Use: /config model gpt-3.5-turbo
 # Not: /config model "gpt-3.5-turbo"
 
-# 5. Use interactive mode
+# 4. Use interactive mode
 Learning Catalyst > /config provider
-= Enter provider name: openai
+🔧 Provider Configuration:
+  Enter provider name: openai
 ```
 
 ## Error Messages
@@ -453,12 +597,16 @@ Learning Catalyst > /wait 60
 # Visit provider dashboard to increase limits
 
 # 4. Use more efficient model
-Learning Catalyst > /config model gpt-3.5-turbo
-> Switched to cost-effective model
+Learning Catalyst > /config model
+🤖 Available Models (openai provider):
+  ✅ gpt-4
+  ✅ gpt-3.5-turbo
+[User selects gpt-3.5-turbo from the list]
+🤖 Model set to: gpt-3.5-turbo
 
-# 5. Reduce request frequency
-Learning Catalyst > /config rate-limit 30
-✓ Rate limit: 30 requests per minute
+# 5. Wait between requests to avoid rate limits
+Learning Catalyst > /wait 30
+✓ Waiting 30 seconds before next request...
 ```
 
 ### Context Length Error
@@ -479,13 +627,16 @@ Learning Catalyst > /context
 Learning Catalyst > /clear
 =✓ Conversation history cleared
 
-# 3. Reduce context window
-Learning Catalyst > /config context-size 4000
-= Context size limited to: 4000 tokens
+# 3. Compress conversation to free up context
+Learning Catalyst > /compress
+✓ Conversation compressed to key points
 
-# 4. Use model with larger context
-Learning Catalyst > /config model gpt-4-turbo
-> Switched to model with 128K context
+# 4. Use different model if available
+Learning Catalyst > /config model
+🤖 Available Models (openai provider):
+  ✅ gpt-4
+  ✅ gpt-3.5-turbo
+[Select appropriate model from the list]
 
 # 5. Summarize and compress
 Learning Catalyst > /compress
@@ -512,11 +663,8 @@ python -m src.cli.main
 **Issue**: Windows path separators
 
 ```cmd
-# Use forward slashes in config
-/config file C:/Users/User/.learning-catalyst/config.json
-
-# Or escape backslashes
-/config file C:\\Users\\User\\.learning-catalyst\\config.json
+# Configuration is stored in workspace
+# No manual file path management needed
 ```
 
 ### macOS-Specific Issues
@@ -550,6 +698,137 @@ source venv/bin/activate
 pip install -e .
 ```
 
+## AI Conversation Issues
+
+### Issue: AI Doesn't Understand My Request
+
+**Symptom**: AI provides irrelevant or confused responses to natural language questions
+
+**Solutions**:
+
+```bash
+# 1. Be more specific in your request
+Instead of: "tell me about programming"
+Try: "can you explain Python variables with examples for beginners?"
+
+# 2. Check if the context is clear
+Learning Catalyst > can you explain React Hooks?
+🤖 I notice this is your first question about React. Would you like me to:
+- Start with basic React concepts first?
+- Jump directly to Hooks?
+- Ask about your current React knowledge level?
+
+# 3. Provide context about your learning level
+Learning Catalyst > I'm a beginner programmer, can you explain what variables are in simple terms?
+🧠 Absolutely! Let me explain variables in the simplest way possible...
+
+# 4. Break down complex questions
+Instead of: "explain machine learning"
+Try: "what is machine learning?" followed by "can you give me a simple example?"
+```
+
+### Issue: AI Responses Are Too Generic
+
+**Symptom**: AI gives very general or textbook-like answers without practical examples
+
+**Solutions**:
+
+```bash
+# 1. Ask for specific examples
+Learning Catalyst > can you show me a practical example of using decorators in a web application?
+🧠 Here's how you might use decorators in a Flask web application...
+
+# 2. Request different difficulty levels
+Learning Catalyst > explain recursion like I'm 10 years old
+Learning Catalyst > explain recursion for computer science students
+Learning Catalyst > explain recursion at an expert level
+
+# 3. Ask for analogies and real-world comparisons
+Learning Catalyst > can you compare database indexes to something in everyday life?
+🧠 Think of database indexes like the index at the back of a book...
+
+# 4. Request step-by-step explanations
+Learning Catalyst > break down how a sorting algorithm works step by step
+📝 Let me walk through bubble sort step by step...
+```
+
+### Issue: AI Loses Context of Conversation
+
+**Symptom**: AI doesn't remember previous parts of the conversation or seems confused
+
+**Solutions**:
+
+```bash
+# 1. Reference previous parts explicitly
+Learning Catalyst > going back to what we discussed about Python decorators, can you show me how to stack them?
+🧠 Yes! Building on our decorator discussion...
+
+# 2. Use transition phrases
+Learning Catalyst > now that we've covered variables, let's move on to functions. How do they relate?
+🔗 Great question! Functions and variables work together...
+
+# 3. Check if context is getting too long
+Learning Catalyst > /context
+= Context Usage:
+  Current: 6,500 tokens
+  Maximum: 8,192 tokens
+  Available: 1,692 tokens
+
+# 4. Clear context if needed and restart topic
+Learning Catalyst > /clear
+=✓ Conversation history cleared
+Learning Catalyst > let's continue our discussion about React Hooks, specifically useState
+```
+
+### Issue: AI Gives Incorrect or Outdated Information
+
+**Symptom**: AI responses contain factual errors or outdated information
+
+**Solutions**:
+
+```bash
+# 1. Ask for current information
+Learning Catalyst > what's the current version of React and what are the latest features?
+📊 As of 2024, React 18 is the current version with these features...
+
+# 2. Request verification
+Learning Catalyst > can you double-check that information about Python decorators?
+✅ Let me verify: Yes, that information is correct for Python 3.9+
+
+# 3. Ask for multiple perspectives
+Learning Catalyst > what are different ways to solve this problem?
+🔧 Here are three different approaches...
+
+# 4. Cross-reference with official documentation
+Learning Catalyst > according to the official Python documentation, how do decorators work?
+📖 According to PEP 318 and the Python docs...
+```
+
+### Issue: AI Responses Are Too Long or Too Short
+
+**Symptom**: AI gives either overly detailed explanations or very brief answers
+
+**Solutions**:
+
+```bash
+# 1. Specify desired length
+Learning Catalyst > explain microservices in about 3-4 sentences
+Learning Catalyst > give me a detailed explanation of blockchain with examples
+
+# 2. Ask for summaries or deep dives
+Learning Catalyst > can you summarize that in one sentence?
+Learning Catalyst > can you go deeper into that topic?
+
+# 3. Request specific format
+Learning Catalyst > explain this using bullet points
+Learning Catalyst > give me a code example for this concept
+Learning Catalyst > explain this using an analogy
+
+# 4. Ask for specific response length
+Learning Catalyst > can you explain this in about 3 sentences?
+Learning Catalyst > can you give me a detailed explanation with examples?
+```
+
 ## Getting Additional Help
 
 ### Built-in Help System
@@ -558,13 +837,10 @@ pip install -e .
 # General help
 Learning Catalyst > /help
 
-# Command-specific help
-Learning Catalyst > /help config
-Learning Catalyst > /help models
-
-# Troubleshooting help
-Learning Catalyst > /help troubleshooting
-Learning Catalyst > /help errors
+# General help shows all available commands
+Learning Catalyst > /help
+=✓ Available Commands:
+  /help, /quit, /clear, /config, /tokens, /checkpoint, /context, /compress, /wait, /verbose
 
 # Verbose mode for debugging
 Learning Catalyst > /verbose on
@@ -576,78 +852,65 @@ Learning Catalyst > [any command]
 ### Diagnostic Commands
 
 ```bash
-# Full system diagnostic
-Learning Catalyst > /diagnostic --full
-= Full Diagnostic Report:
-  System: Linux 5.15.0
-  Python: 3.9.7
-  Memory: 8GB total, 2GB used
-  Network: Connected
-  Providers: OpenAI ✗, Deepseek ✓, SiliconFlow ✗
-  Configuration: Valid
-  Last Error: None
+# Check current configuration
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4o
+  Status: ✓ Connected
 
-# Network diagnostic
-Learning Catalyst > /diagnostic --network
-< Network Diagnostic:
-  DNS: ✓ Working
-  Internet: ✓ Connected
-  API Endpoints: ✓ All reachable
-  Latency: 1.2s average
+# Configuration check
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4o
+  API Key: ✓ Valid
+  Endpoint: https://api.openai.com
+  Status: ✓ Connected
 
-# Configuration diagnostic
-Learning Catalyst > /diagnostic --config
-✓ Configuration Diagnostic:
-  Config File: ✓ Exists and readable
-  API Keys: ✓ Valid format
-  Settings: ✓ Valid JSON
-  Permissions: ✓ Read/write OK
+# Test specific provider with a question
+Learning Catalyst > Hello, can you help me?
+🧠 [If AI responds, the provider is working correctly]
 ```
 
 ### Report Issues
 
 ```bash
-# Generate bug report
-Learning Catalyst > /bug-report
-= Bug Report Generated:
-  Version: 1.0.0
-  System: Linux x86_64
-  Python: 3.9.7
-  Error: [Error details]
-  Configuration: [Config details]
-  Recent Commands: [Command history]
+# Show current configuration for support
+Learning Catalyst > /config
+= Current Configuration:
+  Provider: openai
+  Model: gpt-4o
+  API Key: ✓ Valid
+  Endpoint: https://api.openai.com
 
-# Export diagnostic data
-Learning Catalyst > /export-diagnostic diagnostic.json
-=✓ Diagnostic data exported to diagnostic.json
+# Copy configuration details for support requests
 ```
 
 ## Quick Fix Checklist
 
 ### Before Seeking Help
-- [ ] Run `/diagnostic --full`
+- [ ] Check `/config` to verify current configuration
 - [ ] Check internet connection
 - [ ] Verify API keys are correct
 - [ ] Try restarting the application
-- [ ] Check configuration file exists
 - [ ] Test with a different AI provider
 
 ### Common Quick Fixes
 1. **API not working**: `/config provider <provider>` → re-enter API key
-2. **Slow responses**: `/config optimize speed`
-3. **Memory issues**: `/cache clear`
-4. **Command not found**: Use `python -m src.cli.main`
-5. **Configuration lost**: `/config save`
+2. **Memory issues**: Restart application with `/quit`
+3. **Command not found**: Use `python -m src.cli.main`
+4. **Configuration issues**: Restart application to reset settings
 
 ### Emergency Reset
 ```bash
-# Complete reset to defaults
-Learning Catalyst > /reset --all
-=✓ Complete reset:
-  ✓ Configuration reset
-  ✓ Cache cleared
-  ✓ History cleared
-  ✓ Settings restored to defaults
+# Clear conversation history
+Learning Catalyst > /clear
+=✓ Conversation history cleared
+
+# For configuration issues, restart the application
+Learning Catalyst > /quit
+# Then restart to reset settings
 ```
 
 ---
