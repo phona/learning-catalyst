@@ -280,6 +280,60 @@ graph TD
 
 ---
 
+## 🔗 Relationships
+
+### Dependencies & Integration Points
+
+**Upstream Dependencies**:
+- **CLI Module**: Data access requests from command processing and session management
+- **Configuration Module**: Data storage settings, database configurations, and cache parameters
+
+**Downstream Dependencies**:
+- **All Modules**: Data persistence and retrieval services for system-wide operations
+- **Session Management Module**: Session state storage and checkpoint data management
+- **Provider Integration Module**: Provider credentials storage and performance metrics persistence
+
+**Peer Dependencies**:
+- **Analytics Engine Module**: Usage pattern analysis and performance optimization
+- **Knowledge Management System**: Knowledge graph persistence and semantic search indexing
+
+### Communication Patterns
+
+**Synchronous Communication**:
+- **Data Operations**: All Modules → Repository Layer for real-time data access
+- **Transaction Management**: Repository Layer → Transaction Coordination for atomic operations
+- **Configuration Updates**: Configuration Module → Data Storage for setting persistence
+
+**Asynchronous Communication**:
+- **Background Processing**: Repository Layer → Cache Storage for performance optimization
+- **Analytics Collection**: Data Storage → Analytics Engine for usage pattern analysis
+- **Maintenance Operations**: Repository Layer → Physical Storage for cleanup and optimization
+
+**Data Flow Patterns**:
+- **Request Flow**: CLI Commands → Repository Abstraction → Query Orchestration → Physical Storage
+- **Response Flow**: Physical Storage → Transaction Coordination → Repository Abstraction → CLI Response
+- **Cache Flow**: Request Processing → Cache Check → Storage Access → Cache Update → Response
+
+### Evolution & Extension Points
+
+**Storage Evolution**:
+- **Multi-Database Support**: Extension beyond SQLite to PostgreSQL, MySQL, and NoSQL databases
+- **Distributed Storage**: Support for clustered storage and data partitioning
+- **Cloud Storage Integration**: Optional cloud storage providers for backup and synchronization
+- **Advanced Caching**: Redis integration and distributed caching strategies
+
+**Repository Evolution**:
+- **Graph Database Support**: Neo4j and other graph databases for knowledge graph storage
+- **Time-Series Databases**: Specialized storage for analytics and temporal data
+- **Full-Text Search Integration**: Elasticsearch and other search engines for content discovery
+- **Data Warehousing**: Analytical data storage for business intelligence
+
+**Integration Evolution**:
+- **Streaming Data Integration**: Real-time data streams and event sourcing patterns
+- **API-First Architecture**: RESTful data access interfaces and microservice integration
+- **Data Virtualization**: Virtual data layers and federated query processing
+- **Advanced Analytics**: Machine learning model integration and predictive analytics
+
 ## Related Documentation
 
 - **[CLI Architecture](cli-architecture.md)**: Command-line interface design and integration
@@ -288,6 +342,6 @@ graph TD
 
 ---
 
-*Last updated: October 10, 2025*
+*Last updated: October 12, 2025*
 *Version: 1.0.0*
 *Category: System Architecture*

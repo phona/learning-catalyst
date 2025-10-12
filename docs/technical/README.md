@@ -4,7 +4,7 @@
 title: Learning Catalyst Technical Documentation
 description: Implementation details, system architecture, and development guidance
 version: 1.0.0
-last_updated: 2025-10-09
+last_updated: 2025-10-12
 ---
 
 ## Overview
@@ -27,46 +27,23 @@ Each section is self-contained and serves its specific audience without cross-re
 **Core system design and architectural patterns**
 
 Perfect for: Understanding how Learning Catalyst works internally
-- CLI architecture and command processing
-- Data layer and storage systems
-- AI integration and provider abstraction
-- Security architecture and patterns
+- **[CLI Architecture](system-architecture/cli-architecture.md)**: Command processing and user interaction patterns
+- **[Data Layer](system-architecture/data-layer.md)**: Storage systems and data management patterns
+- **[AI Integration](system-architecture/ai-integration.md)**: Multi-agent orchestration and provider abstraction
+- **[Knowledge Management System](system-architecture/knowledge-management-system.md)**: Learning intelligence and content discovery
+- **[Session Management](system-architecture/session-management.md)**: State persistence and checkpointing
+- **[Provider Integration](system-architecture/provider-integration.md)**: AI provider management and model discovery
 
 ### 🔌 API Reference
 **Complete API documentation and technical specifications**
 
 Perfect for: Developers integrating with Learning Catalyst systems
-- CLI commands API with complete specifications
-- Configuration management APIs
-- Provider interface specifications
-- Data models and schemas
-
-### 🗺️ Architecture to API Mapping
-**Comprehensive mapping between system architecture and API implementations**
-
-Perfect for: Understanding the relationship between architectural design and API specifications
-- 5-layer architecture to API reference mapping
-- Architectural concept to API implementation mapping
-- Cross-cutting concerns and integration patterns
-- Usage guidelines for developers and architects
-
-### 🛠️ Implementation Guides
-**Step-by-step development and implementation instructions**
-
-Perfect for: Developers building and extending Learning Catalyst
-- Development environment setup
-- Command development patterns
-- Testing strategies and frameworks
-- Performance optimization techniques
-
-### ⚡ Performance Optimization
-**System performance tuning and optimization strategies**
-
-Perfect for: System administrators and performance engineers
-- Memory management and optimization
-- API performance and caching strategies
-- Performance monitoring and analytics
-- Resource utilization optimization
+- **[CLI Commands API](api-reference/cli-commands.md)**: Interactive commands and complete specifications
+- **[Configuration API](api-reference/configuration-api.md)**: Settings management and provider configuration
+- **[Provider Interface](api-reference/provider-interfaces.md)**: AI provider integration and extension
+- **[AI Toolcalls API](api-reference/toolcalls-api.md)**: Function calling and tool orchestration
+- **[Data Models](api-reference/data-models.md)**: Entity definitions and validation rules
+- **[Knowledge Management](api-reference/knowledge-management.md)**: Abstract interfaces for knowledge operations
 
 ## Getting Started
 
@@ -74,97 +51,96 @@ Perfect for: System administrators and performance engineers
 
 **Goal**: Set up development environment and start contributing
 
-1. **Development Environment Setup**
-   - Prerequisites and system requirements
-   - Environment configuration and dependencies
-   - Database setup and initialization
-   - AI provider configuration
+1. **System Architecture Understanding**
+   - Review [System Architecture Overview](system-architecture/README.md) for 5-layer design
+   - Study [CLI Architecture](system-architecture/cli-architecture.md) for command processing
+   - Understand [Data Layer](system-architecture/data-layer.md) patterns and storage systems
 
-2. **Understanding the Architecture**
-   - Review system architecture documentation
-   - Study CLI command processing flow
-   - Understand data management patterns
+2. **API Integration Fundamentals**
+   - Study [CLI Commands API](api-reference/cli-commands.md) for interactive patterns
+   - Review [Configuration API](api-reference/configuration-api.md) for system setup
+   - Understand [Provider Interface](api-reference/provider-interfaces.md) for AI integration
 
 3. **First Implementation**
-   - Follow command development guides
-   - Implement and test new features
-   - Use testing strategies for quality assurance
+   - Use [Data Models](api-reference/data-models.md) for entity understanding
+   - Apply [AI Toolcalls API](api-reference/toolcalls-api.md) for function integration
+   - Reference [Knowledge Management](api-reference/knowledge-management.md) for advanced patterns
 
 ### For System Administrators
 
 **Goal**: Deploy and maintain Learning Catalyst systems
 
 1. **System Architecture Review**
-   - Understand component relationships
-   - Review security architecture
-   - Study performance considerations
+   - Understand component relationships from [System Architecture Overview](system-architecture/README.md)
+   - Review security architecture in [AI Integration](system-architecture/ai-integration.md)
+   - Study performance considerations in [Session Management](system-architecture/session-management.md)
 
-2. **Deployment Planning**
-   - Review API specifications
-   - Plan integration strategies
-   - Set up monitoring and optimization
+2. **Configuration and Deployment**
+   - Use [Configuration API](api-reference/configuration-api.md) for system setup
+   - Apply [Provider Interface](api-reference/provider-interfaces.md) for AI service integration
+   - Implement [Data Layer](system-architecture/data-layer.md) patterns for storage management
 
 3. **Operational Management**
-   - Use performance optimization guides
-   - Implement monitoring strategies
-   - Apply system tuning techniques
+   - Monitor using [CLI Commands API](api-reference/cli-commands.md) system operations
+   - Manage sessions through [Session Management](system-architecture/session-management.md)
+   - Apply knowledge system patterns from [Knowledge Management System](system-architecture/knowledge-management-system.md)
 
 ### For API Integrators
 
 **Goal**: Integrate Learning Catalyst with external systems
 
 1. **API Specification Review**
-   - Study complete API documentation
-   - Understand request/response formats
-   - Review integration patterns
+   - Study complete [API Reference Index](api-reference/README.md) for all available APIs
+   - Understand [CLI Commands API](api-reference/cli-commands.md) for user interactions
+   - Review [Provider Interface](api-reference/provider-interfaces.md) for AI service integration
 
 2. **Implementation Planning**
-   - Review system architecture for integration points
-   - Plan data management strategies
-   - Design error handling approaches
+   - Review system architecture from [System Architecture Overview](system-architecture/README.md)
+   - Plan data management using [Data Models](api-reference/data-models.md) and [Data Layer](system-architecture/data-layer.md)
+   - Design advanced workflows with [Knowledge Management](api-reference/knowledge-management.md)
 
 3. **Development and Testing**
-   - Follow implementation guides
-   - Use testing strategies for validation
-   - Apply performance optimization techniques
+   - Implement using [AI Toolcalls API](api-reference/toolcalls-api.md) for function calling
+   - Validate through [Configuration API](api-reference/configuration-api.md) testing workflows
+   - Apply integration patterns from [Provider Integration](system-architecture/provider-integration.md)
 
 ## Technical Workflows
 
-### Development Environment Setup
-**Complete environment setup and configuration**
+### System Architecture Analysis
+**Understanding core system design and component relationships**
 
-Essential steps for new developers:
-- System requirements and dependencies
-- Development tools and IDE setup
-- Database initialization and configuration
-- AI provider configuration and testing
+Essential patterns for all developers:
+- Review [System Architecture Overview](system-architecture/README.md) for 5-layer design principles
+- Study [CLI Architecture](system-architecture/cli-architecture.md) for user interaction patterns
+- Understand [AI Integration](system-architecture/ai-integration.md) for multi-agent orchestration
+- Analyze [Knowledge Management System](system-architecture/knowledge-management-system.md) for learning intelligence
 
-### Command Development
-**Building and extending CLI functionality**
+### API Integration Development
+**Building and extending system functionality through APIs**
 
 Core development patterns:
-- Command structure and implementation
-- Argument parsing and validation
-- Response formatting and error handling
-- Testing strategies for commands
+- Use [CLI Commands API](api-reference/cli-commands.md) for user interaction implementation
+- Apply [Configuration API](api-reference/configuration-api.md) for settings management
+- Implement [Provider Interface](api-reference/provider-interfaces.md) for AI service integration
+- Utilize [AI Toolcalls API](api-reference/toolcalls-api.md) for function calling capabilities
 
-### System Integration
-**Connecting Learning Catalyst with external systems**
+### Data Management Implementation
+**Implementing robust data handling and persistence**
+
+Data-focused workflows:
+- Apply [Data Models](api-reference/data-models.md) for entity definitions and validation
+- Implement [Data Layer](system-architecture/data-layer.md) patterns for storage management
+- Use [Session Management](system-architecture/session-management.md) for state persistence
+- Reference [Knowledge Management](api-reference/knowledge-management.md) for advanced data operations
+
+### System Integration and Extension
+**Connecting Learning Catalyst with external systems and services**
 
 Integration approaches:
-- API specification review and understanding
-- Data management and synchronization
-- Authentication and security patterns
-- Error handling and recovery strategies
-
-### Performance Optimization
-**System tuning and performance enhancement**
-
-Optimization techniques:
-- Memory management and resource utilization
-- API performance and caching strategies
-- Database optimization and query tuning
-- Monitoring and analytics implementation
+- Review [API Reference Index](api-reference/README.md) for complete integration capabilities
+- Apply [Provider Integration](system-architecture/provider-integration.md) for AI service connections
+- Use [Knowledge Management System](system-architecture/knowledge-management-system.md) for learning workflow integration
+- Implement security patterns from [AI Integration](system-architecture/ai-integration.md) for safe external interactions
 
 ## Document Standards
 
@@ -222,6 +198,6 @@ pip install -e .
 
 ---
 
-*Last updated: October 9, 2025*
+*Last updated: October 12, 2025*
 *Version: 1.0.0*
 *Category: Technical Documentation*

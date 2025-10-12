@@ -313,8 +313,63 @@ flowchart TD
 - **Memory Usage**: Active session memory consumption and cleanup efficiency
 - **Backup Status**: Automated backup success and restoration validation
 
+## 🔗 Relationships
+
+### Dependencies & Integration Points
+
+**Upstream Dependencies**:
+- **CLI Module**: Session commands, checkpoint operations, and user session initiation
+- **Configuration Module**: Session settings, retention policies, and checkpoint preferences
+- **Data Storage Module**: Database for session metadata and file system for checkpoint storage
+
+**Downstream Dependencies**:
+- **AI Integration Module**: Session context for agent conversations and learning continuity
+- **Learning Engine Module**: Learning progress tracking and personalized workflow management
+- **Knowledge Management System**: Knowledge context persistence and learning state integration
+
+**Peer Dependencies**:
+- **Analytics Engine Module**: Session interaction patterns and learning analytics
+- **Context Manager Module**: Context preservation and session state coordination
+
+### Communication Patterns
+
+**Synchronous Communication**:
+- **Session Operations**: CLI Module → Session Store for real-time session management
+- **Checkpoint Creation**: State Manager → Checkpoint Manager for atomic session persistence
+- **Context Retrieval**: AI Integration → Context Preservation for session continuity
+
+**Asynchronous Communication**:
+- **Background Cleanup**: Session Store → Recovery Manager for inactive session removal
+- **Analytics Processing**: State Manager → Analytics Engine for usage pattern analysis
+- **Auto-naming**: Context Preservation → Auto-naming Engine for intelligent checkpoint naming
+
+**Data Flow Patterns**:
+- **Session Creation**: CLI → Session Store → State Manager → Context Initialization
+- **Checkpoint Flow: State Manager → Checkpoint Manager → File Storage → Metadata Update**
+- **Restoration Flow**: CLI → Checkpoint Selection → State Reconstruction → Context Activation
+
+### Evolution & Extension Points
+
+**Session Evolution**:
+- **Multi-User Sessions**: Collaborative learning environments with shared state management
+- **Cross-Device Synchronization**: Session continuity across multiple devices and platforms
+- **Session Templates**: Pre-configured session structures for different learning scenarios
+- **Real-Time Collaboration**: Multi-user session sharing and interactive learning
+
+**Checkpoint Evolution**:
+- **Intelligent Checkpointing**: AI-driven checkpoint creation based on learning milestones
+- **Differential Checkpoints**: Incremental state changes for efficient storage and transfer
+- **Cloud Sync**: Optional cloud storage for checkpoint backup and cross-device access
+- **Checkpoint Analytics**: Analysis of checkpoint usage patterns and optimization opportunities
+
+**Context Management Evolution**:
+- **Advanced Context Compression**: Intelligent context reduction for efficient session storage
+- **Cross-Session Context**: Persistent learning context across multiple session instances
+- **Context Visualization**: Interactive tools for session context exploration and understanding
+- **Predictive Context Loading**: AI-driven context pre-loading based on learning patterns
+
 ---
 
-*Last updated: October 11, 2025*
+*Last updated: October 12, 2025*
 *Version: 1.0.0*
 *Category: System Architecture*

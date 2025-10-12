@@ -1,598 +1,968 @@
-# Provider Interface Architecture
+# Provider Interface API Reference
 
 ---
-title: Learning Catalyst Provider Interface Architecture
-description: Architectural design and patterns for AI provider definition and integration with system modules
-version: 1.1.0
-last_updated: 2025-10-10
+title: Learning Catalyst Provider Interface API Reference
+description: Python abstract classes and interfaces for AI provider integration and management
+version: 1.0.0
+last_updated: 2025-10-12
+difficulty: "Advanced"
+estimated_time: "60 minutes"
 ---
 
 ## Overview
 
-This document describes the architectural design of the provider interface layer in Learning Catalyst. The provider interface serves as an abstraction layer that enables seamless integration with multiple AI providers while maintaining consistent interactions with the CLI application. The architecture prioritizes extensibility, maintainability, and performance optimization for interactive learning sessions.
+This document provides comprehensive API reference for Learning Catalyst's provider interface system, defining Python abstract classes and interfaces for AI provider integration, model management, and provider lifecycle management. The interfaces enable seamless integration with multiple AI providers while maintaining consistent interactions within the CLI application.
 
-### Architectural Scope
-
-**Provider Definition:**
-The provider interface defines how AI providers are structured, registered, and managed within the Learning Catalyst system. It establishes contracts for:
-
-1. **Provider Integration**: How new AI providers are discovered, validated, and integrated
-2. **Model Abstraction**: Standardized interfaces for chat, embedding, and reranking models
-3. **Lifecycle Management**: Registration, discovery, configuration, and decommissioning of providers
-4. **Cross-Provider Coordination**: How multiple providers work together in multi-provider scenarios
-
-**Module Integration Patterns:**
-The provider architecture integrates with system modules through well-defined interfaces:
-
-- **Session Management**: Provider state isolation and cross-provider session persistence
-- **Authentication**: Secure credential management and provider-specific authentication
-- **Configuration**: Dynamic provider configuration and validation
-- **Performance**: Monitoring, optimization, and load balancing across providers
-- **Security**: Provider isolation, credential protection, and audit compliance
-
-## Architectural Principles
-
-### Abstraction Layer Design
-The provider interface follows a layered abstraction approach:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    CLI Application Layer                    │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐  │
-│  │  Interactive    │  │  Session        │  │  Learning     │  │
-│  │  Commands       │  │  Management     │  │  Workflows    │  │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                Provider Abstraction Layer                   │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐  │
-│  │  Model          │  │  Provider       │  │  Capability   │  │
-│  │  Interfaces     │  │  Management     │  │  Discovery    │  │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                  Provider Implementations                   │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐  │
-│  │  Built-in       │  │  Custom         │  │  Enterprise   │  │
-│  │  Providers      │  │  Providers      │  │  Providers    │  │
-│  │  (OpenAI,       │  │  (OpenAI-       │  │  (Gateway,    │  │
-│  │  DeepSeek,      │  │  Compatible)    │  │  Proxy,       │  │
-│  │  ChatGLM)       │  │  Groq,          │  │  Internal)    │  │
-│  └─────────────────┘  │  Together AI,   │  └──────────────┘  │
-│                       │  Local LLMs)    │                   │
-│                       └─────────────────┘                   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Core Architectural Principles
-
-#### 1. **Separation of Concerns**
-- **Interface Definition**: Abstract contracts define provider capabilities without implementation details
-- **Implementation Independence**: Provider implementations evolve independently of the CLI application
-- **Configuration Management**: Provider configuration separated from operational logic
-- **Credential Management**: Secure handling of authentication credentials abstracted from provider logic
-
-#### 2. **Extensibility**
-- **Plugin Architecture**: New providers can be added without modifying existing code
-- **Capability Discovery**: Dynamic discovery of provider capabilities and available models
-- **Interface Evolution**: Backward-compatible evolution of provider interfaces
-- **Configuration Flexibility**: Support for provider-specific configuration patterns
-
-#### 3. **Resilience**
-- **Fault Isolation**: Provider failures isolated from CLI application stability
-- **Graceful Degradation**: Fallback mechanisms for provider unavailability
-- **Circuit Breaker Patterns**: Protection against cascading failures
-- **Retry Logic**: Configurable retry strategies for transient failures
-
-#### 4. **Standardization Through Compatibility**
-- **OpenAI-Compatible Interface**: Custom providers adhere to OpenAI API specification as universal standard
-- **Consistent Request/Response Patterns**: Standardized interaction patterns across all provider types
-- **Dynamic Model Discovery**: Automatic model discovery through OpenAI-compatible endpoints
-- **Capability Abstraction**: Uniform capability interface regardless of underlying implementation
-
-#### 5. **Configuration-Driven Extensibility**
-- **Zero-Code Integration**: Custom providers integrated through configuration without code changes
-- **Dynamic Provider Registration**: Runtime discovery and registration of custom providers
-- **Flexible Authentication**: Support for various authentication methods through configuration
-- **Hot Configuration Updates**: Runtime configuration changes without service interruption
-
-#### 6. **Enterprise-Ready Integration**
-- **Gateway Integration**: Support for corporate API gateways and proxy services
-- **Multi-Tenant Architecture**: Isolation and resource management for multi-tenant environments
-- **Security Compliance**: Enterprise-grade security and compliance features
-- **Performance Monitoring**: Comprehensive monitoring and optimization for custom providers
+**For detailed architectural patterns and design principles, see the [Provider Integration Architecture](../system-architecture/provider-integration.md) document.**
 
 ## Provider Interface Architecture
 
-### Provider Abstraction Hierarchy
+### Core Provider Interfaces
 
-#### Model Provider Interface
-The `ModelProvider` interface defines the architectural contract for all AI providers:
+The provider system is built around a hierarchy of abstract classes that define contracts for AI providers, models, and management operations. All providers must implement these interfaces to ensure consistent behavior and seamless integration.
 
-**Core Provider Contract:**
+**Design Principles:**
+- **Abstract Base Classes**: All provider interfaces inherit from `abc.ABC` with clear method contracts
+- **Type Safety**: Comprehensive type hints using Python's `typing` module
+- **Async-First Design**: All operations are asynchronous to maintain CLI responsiveness
+- **Error Handling**: Structured exception hierarchy for different failure modes
+- **Configuration-Driven**: Provider behavior controlled through configuration objects
+
+## Core Provider Interfaces
+
+### Base Provider Interface
+
+The foundation of the provider system is the `AIProvider` abstract class that defines the contract for all AI providers:
+
 ```python
-class ModelProvider:
-    async def authenticate(self, credentials: Dict) -> bool
-    async def discover_models(self) -> List[ModelInfo]
-    async def create_model(self, model_type: ModelType, model_id: str) -> ModelInterface
-    async def health_check(self) -> ProviderHealthStatus
-    async def get_capabilities(self) -> ProviderCapabilities
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Any, Union
+from dataclasses import dataclass
+from enum import Enum
+import asyncio
+
+class ProviderStatus(Enum):
+    """Provider operational status"""
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+    MAINTENANCE = "maintenance"
+
+@dataclass
+class ProviderConfig:
+    """Configuration object for AI providers"""
+    name: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    timeout: int = 30
+    max_retries: int = 3
+    rate_limit: Optional[int] = None
+    custom_headers: Dict[str, str] = None
+    additional_config: Dict[str, Any] = None
+
+class AIProvider(ABC):
+    """Abstract base class for all AI providers"""
+
+    def __init__(self, config: ProviderConfig):
+        """Initialize provider with configuration"""
+        self.config = config
+        self._status = ProviderStatus.INACTIVE
+        self._models_cache: Optional[Dict[str, Any]] = None
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the provider name"""
+        pass
+
+    @property
+    @abstractmethod
+    def supported_model_types(self) -> List[str]:
+        """Return list of supported model types (chat, embedding, rerank)"""
+        pass
+
+    @abstractmethod
+    async def initialize(self) -> bool:
+        """
+        Initialize the provider and validate connectivity.
+
+        Returns:
+            bool: True if initialization successful, False otherwise
+
+        Raises:
+            ProviderInitializationError: If provider cannot be initialized
+            AuthenticationError: If authentication fails
+        """
+        pass
+
+    @abstractmethod
+    async def list_available_models(self) -> Dict[str, List[str]]:
+        """
+        Get list of available models for this provider.
+
+        Returns:
+            Dict with model types as keys and lists of model IDs as values:
+            {
+                "chat": ["model1", "model2"],
+                "embedding": ["model3"],
+                "rerank": ["model4"]
+            }
+
+        Raises:
+            ProviderConnectionError: If unable to connect to provider
+            AuthenticationError: If authentication fails
+        """
+        pass
+
+    @abstractmethod
+    async def create_model(self, model_id: str) -> 'AIModel':
+        """
+        Create a model instance for the specified model ID.
+
+        Args:
+            model_id: Unique identifier for the model
+
+        Returns:
+            AIModel instance
+
+        Raises:
+            ModelNotFoundError: If model_id is not available
+            ModelCreationError: If model cannot be created
+        """
+        pass
+
+    @abstractmethod
+    async def test_connection(self) -> bool:
+        """
+        Test connectivity to the provider.
+
+        Returns:
+            bool: True if connection successful, False otherwise
+        """
+        pass
+
+    async def get_status(self) -> ProviderStatus:
+        """Get current provider status"""
+        return self._status
+
+    async def shutdown(self) -> None:
+        """Shutdown provider and cleanup resources"""
+        self._status = ProviderStatus.INACTIVE
+        self._models_cache = None
 ```
 
-**Architectural Responsibilities:**
-- **Credential Validation**: Secure verification of provider authentication
-- **Capability Discovery**: Dynamic discovery of available models and capabilities
-- **Model Lifecycle**: Management of model instance creation and lifecycle
-- **Performance Monitoring**: Collection of performance metrics and usage statistics
-
-**Integration with Other Modules:**
-
-*Session Management Integration:*
-- **Session-Provider Isolation**: Each provider maintains independent state while supporting cross-provider session transfer
-- **Context Preservation**: Provider-agnostic context layer enables seamless switching between providers
-- **State Synchronization**: Learning state synchronized across provider boundaries during switches
-
-*Authentication Integration:*
-- **Credential Store Integration**: Secure storage and retrieval of provider credentials
-- **Multi-Provider Authentication**: Support for different authentication schemes across providers
-- **Session-Based Authentication**: Authentication state tied to user sessions with automatic refresh
-
-*Configuration Integration:*
-- **Dynamic Configuration**: Runtime provider configuration changes without service interruption
-- **Validation Pipeline**: Multi-stage validation of provider configuration against system requirements
-- **Environment Adaptation**: Provider configurations adapted for different deployment environments
-
-**Design Decisions:**
-- **Async-First Architecture**: All provider operations designed for asynchronous execution
-- **Model Type Segregation**: Clear separation between chat, embedding, and rerank model types
-- **Error Propagation**: Structured error handling with contextual information
-- **Resource Management**: Efficient resource utilization and connection management
-
-#### Model Interface Hierarchy
-
-##### Chat Model Architecture
-**Design Purpose**: Real-time conversational AI interactions for learning sessions
-
-**Architectural Characteristics:**
-- **Stateless Design**: Each interaction independent for scalability
-- **Context Management**: Efficient handling of conversation context within session
-- **Temperature Control**: Configurable response variability for different learning scenarios
-- **Usage Tracking**: Detailed token usage monitoring for cost management
-
-##### Embedding Model Architecture
-**Design Purpose**: Semantic understanding and knowledge mapping capabilities
-
-**Architectural Characteristics:**
-- **Batch Processing**: Optimized for processing multiple texts efficiently
-- **Dimensionality Control**: Configurable embedding dimensions for different use cases
-- **Caching Strategy**: Intelligent caching of frequently requested embeddings
-- **Vector Storage Integration**: Seamless integration with vector storage systems
-
-##### Rerank Model Architecture
-**Design Purpose**: Content ranking and relevance determination for learning materials
-
-**Architectural Characteristics:**
-- **Query-Document Matching**: Efficient relevance scoring algorithms
-- **Top-K Selection**: Configurable result set sizes for different scenarios
-- **Performance Optimization**: Fast ranking for interactive response times
-- **Fallback Strategies**: Graceful handling when reranking unavailable
-
-## Custom Provider Interface Architecture
-
-### OpenAI-Compatible Provider Interface
-
-The custom provider interface leverages the OpenAI API specification as a universal standard for provider integration.
-
-#### Interface Design Principles
-
-**Universal Compatibility:**
-- All custom providers implement OpenAI-compatible request/response formats
-- Standardized endpoint patterns for model discovery and interaction
-- Consistent error handling and response structure
-
-**Configuration-Driven Implementation:**
-- Provider behavior defined through configuration schemas
-- Dynamic endpoint and authentication setup
-- Runtime parameter validation and adjustment
-
-**Adapter Pattern Implementation:**
-- Request transformation from standard format to provider-specific format
-- Response transformation back to standard format
-- Error code normalization and handling
-
-#### Custom Provider Interface Hierarchy
-
-##### OpenAI-Compatible Model Provider Interface
-
-**Architectural Responsibilities:**
-- **Endpoint Management**: Dynamic configuration of API endpoints and base URLs
-- **Authentication Flexibility**: Support for multiple authentication schemes
-- **Model Discovery**: Automatic discovery through OpenAI-compatible `/models` endpoint
-- **Request Transformation**: Adaptation of standard requests to provider-specific formats
-
-**Interface Characteristics:**
-- **Schema Validation**: Validation of requests against OpenAI API schemas
-- **Error Mapping**: Transformation of provider-specific errors to standard format
-- **Capability Detection**: Automatic detection of supported model types and features
-- **Performance Monitoring**: Collection of performance metrics for custom providers
-
-##### Custom Provider Configuration Interface
-
-**Configuration Schema Design:**
-- **Provider Metadata**: Name, type, version, and capability information
-- **Endpoint Configuration**: Base URLs, custom headers, and connection parameters
-- **Authentication Configuration**: API keys, tokens, certificates, and custom auth methods
-- **Performance Configuration**: Timeouts, retry policies, and optimization settings
-
-**Dynamic Configuration Management:**
-- **Hot Reloading**: Runtime configuration updates without service interruption
-- **Validation Framework**: Comprehensive validation of configuration parameters
-- **Default Management**: Sensible defaults with provider-specific overrides
-- **Environment Integration**: Support for environment-specific configurations
-
-##### Custom Provider Registration Interface
-
-**Registration Architecture:**
-- **Configuration-Based Registration**: Providers registered through configuration files
-- **Runtime Discovery**: Dynamic discovery of provider capabilities and models
-- **Validation Pipeline**: Multi-stage validation of provider compatibility
-- **Lifecycle Management**: Complete provider lifecycle from registration to decommissioning
-
-**Registration Benefits:**
-- **Zero-Code Integration**: New providers added without code modifications
-- **Plugin Architecture**: Custom providers function as plugins within the system
-- **Isolation**: Provider failures isolated from core system functionality
-- **Scalability**: Support for unlimited custom provider implementations
-
-### Enterprise Provider Interface Architecture
-
-#### Gateway Integration Interface
-
-**Enterprise Gateway Support:**
-- **Corporate Proxy Integration**: Support for enterprise API gateways and proxy services
-- **Load Balancing**: Distribution of requests across multiple gateway endpoints
-- **Failover Management**: Automatic failover between gateway instances
-- **Security Integration**: Integration with enterprise security systems and authentication
-
-**Gateway Interface Characteristics:**
-- **Protocol Adaptation**: Support for various gateway protocols and formats
-- **Request Routing**: Intelligent routing based on provider capabilities and availability
-- **Performance Optimization**: Caching and optimization at gateway level
-- **Monitoring Integration**: Integration with enterprise monitoring and logging systems
-
-#### Multi-Tenant Provider Interface
-
-**Tenant Isolation Architecture:**
-- **Provider Isolation**: Complete isolation of provider instances per tenant
-- **Resource Management**: Tenant-specific resource allocation and quota management
-- **Configuration Separation**: Independent configuration management per tenant
-- **Security Boundaries**: Tenant-specific authentication and access control
-
-**Multi-Tenant Interface Benefits:**
-- **Scalability**: Efficient resource sharing while maintaining isolation
-- **Flexibility**: Tenant-specific customization of provider configurations
-- **Security**: Complete data and resource isolation between tenants
-- **Management**: Simplified management of multi-tenant provider deployments
-
-## Provider Management Architecture
-
-### Provider Lifecycle Management
-
-#### Provider Registration
-**Architectural Pattern**: Service Registry Pattern
-
-**Design Considerations:**
-- **Dynamic Registration**: Providers can be registered at runtime
-- **Metadata Management**: Rich provider metadata for capability discovery
-- **Version Compatibility**: Support for multiple provider versions
-- **Dependency Resolution**: Handling of provider-specific dependencies
-
-#### Custom Provider Registration
-
-**Custom Provider Registration Architecture:**
-- **Configuration-Based Discovery**: Custom providers discovered through configuration files and schemas
-- **Compatibility Validation**: Validation of OpenAI-compatible endpoints and capabilities
-- **Runtime Integration**: Seamless integration of custom providers into the provider ecosystem
-- **Plugin Architecture**: Custom providers function as self-contained plugins
-
-**Custom Registration Benefits:**
-- **Zero-Code Integration**: Custom providers added through configuration without code changes
-- **Hot Loading**: Runtime addition and removal of custom providers
-- **Validation Pipeline**: Comprehensive validation of custom provider compatibility
-- **Isolation Management**: Custom provider failures isolated from core system functionality
-
-#### Enterprise Provider Registration
-
-**Enterprise Registration Patterns:**
-- **Gateway Registration**: Registration of enterprise gateway endpoints and proxy services
-- **Multi-Tenant Support**: Tenant-specific provider registration and isolation
-- **Security Integration**: Integration with enterprise authentication and authorization systems
-- **Compliance Management**: Adherence to enterprise compliance and governance requirements
-
-#### Provider Configuration
-**Architectural Pattern**: Configuration Management Pattern
-
-**Design Considerations:**
-- **Hierarchical Configuration**: Multi-level configuration organization
-- **Environment Integration**: Support for environment-based configuration
-- **Security Focus**: Encrypted storage of sensitive configuration data
-- **Validation Framework**: Comprehensive configuration validation
-- **Hot Reloading**: Runtime configuration updates without service interruption
-
-#### Custom Provider Configuration
-
-**Custom Configuration Architecture:**
-- **Dynamic Schema Validation**: Configuration schemas validated against provider capabilities
-- **Endpoint Configuration**: Flexible configuration of API endpoints and base URLs
-- **Authentication Configuration**: Support for various authentication methods and custom headers
-- **Performance Configuration**: Configurable timeouts, retry policies, and optimization settings
-
-**Custom Configuration Benefits:**
-- **Provider Abstraction**: Configuration abstracts provider-specific implementation details
-- **Runtime Flexibility**: Dynamic configuration updates without service restart
-- **Validation Pipeline**: Multi-stage validation of configuration parameters
-- **Environment Adaptation**: Configuration adaptation for different deployment environments
-
-#### Enterprise Provider Configuration
-
-**Enterprise Configuration Patterns:**
-- **Gateway Configuration**: Configuration of enterprise gateway endpoints and routing rules
-- **Multi-Tenant Configuration**: Tenant-specific configuration management and isolation
-- **Security Configuration**: Integration with enterprise security systems and compliance requirements
-- **Monitoring Configuration**: Configuration of enterprise monitoring and logging integration
-
-#### Provider Discovery
-**Architectural Pattern**: Service Discovery Pattern
-
-**Design Considerations:**
-- **Capability Advertising**: Providers advertise their capabilities and models
-- **Health Monitoring**: Continuous health checks for provider availability
-- **Load Balancing**: Distribution of requests across provider instances
-- **Failover Management**: Automatic failover to alternative providers
-
-#### Custom Provider Discovery
-
-**Custom Discovery Architecture:**
-- **OpenAI-Compatible Discovery**: Automatic discovery through standardized `/models` endpoints
-- **Configuration-Based Discovery**: Discovery through provider configuration and metadata
-- **Capability Detection**: Automatic detection of supported model types and features
-- **Health Validation**: Continuous validation of custom provider availability and performance
-
-**Custom Discovery Benefits:**
-- **Zero-Configuration Integration**: Automatic discovery without manual intervention
-- **Standardized Interface**: Consistent discovery patterns across all custom providers
-- **Real-Time Updates**: Dynamic updates to provider capabilities and model availability
-- **Performance Monitoring**: Integration with performance monitoring and optimization systems
-
-#### Enterprise Provider Discovery
-
-**Enterprise Discovery Patterns:**
-- **Gateway Discovery**: Discovery of enterprise gateway endpoints and capabilities
-- **Multi-Tenant Discovery**: Tenant-specific provider discovery and isolation
-- **Security Discovery**: Integration with enterprise security and authentication systems
-- **Compliance Discovery**: Validation of compliance requirements and capabilities
-
-### Credential Management Architecture
-
-#### Credential Security Design
-**Security Principles:**
-- **Zero-Trust Architecture**: No implicit trust in credential validity
-- **Encrypted Storage**: All credentials encrypted at rest
-- **Memory Protection**: Secure memory handling for credential data
-- **Audit Trail**: Complete audit log of credential access and modifications
-
-#### Credential Validation
-**Architectural Approach:**
-- **Layered Validation**: Multiple validation stages for robust verification
-- **Provider-Specific Logic**: Adaptation to different provider authentication mechanisms
-- **Caching Strategy**: Balanced caching for performance vs. security
-- **Revocation Handling**: Immediate response to credential revocation
-
-#### Custom Provider Authentication
-
-**Custom Authentication Architecture:**
-- **Flexible Authentication Methods**: Support for API keys, bearer tokens, custom headers, and certificates
-- **Dynamic Authentication Configuration**: Runtime configuration of authentication methods per provider
-- **OpenAI-Compatible Authentication**: Standardized authentication patterns for OpenAI-compatible providers
-- **Custom Header Management**: Support for provider-specific headers and authentication tokens
-
-**Custom Authentication Benefits:**
-- **Provider Abstraction**: Authentication abstracted from provider-specific implementation details
-- **Security Isolation**: Custom provider authentication isolated from core system security
-- **Configuration Flexibility**: Dynamic authentication configuration without code changes
-- **Enterprise Integration**: Support for enterprise authentication and authorization systems
-
-#### Enterprise Provider Authentication
-
-**Enterprise Authentication Patterns:**
-- **Corporate Authentication Integration**: Integration with SAML, OAuth, and enterprise directory services
-- **Multi-Factor Authentication**: Support for enterprise MFA and security policies
-- **Certificate-Based Authentication**: Support for enterprise certificate authorities and PKI
-- **Gateway Authentication**: Authentication through enterprise API gateways and proxy services
-
-## Performance Architecture
-
-### Connection Management
-**Design Patterns:**
-- **Connection Pooling**: Efficient reuse of network connections
-- **Async I/O**: Non-blocking I/O operations for scalability
-- **Request Batching**: Grouping of multiple requests for efficiency
-- **Timeout Management**: Configurable timeouts for different operation types
-
-### Caching Architecture
-**Caching Strategy:**
-- **Multi-Level Caching**: Provider, model, and response level caching
-- **Cache Invalidation**: Intelligent cache invalidation strategies
-- **Memory Management**: Bounded memory usage for cache storage
-- **Performance Monitoring**: Cache hit/miss ratio tracking
-
-### Resource Optimization
-**Optimization Strategies:**
-- **Request Deduplication**: Elimination of duplicate requests
-- **Compression**: Data compression for network transfers
-- **Streaming**: Progressive response processing for large outputs
-- **Rate Limiting**: Protection against provider rate limits
-
-#### Custom Provider Performance Architecture
-
-**Custom Performance Monitoring:**
-- **Dynamic Endpoint Monitoring**: Real-time monitoring of custom provider endpoint performance
-- **Adaptive Optimization**: Performance optimization based on custom provider characteristics
-- **Connection Pool Management**: Optimized connection pooling for dynamic custom providers
-- **Response Time Analytics**: Detailed analytics of custom provider response times and performance
-
-**Custom Performance Benefits:**
-- **Real-Time Monitoring**: Continuous performance monitoring for custom providers
-- **Adaptive Optimization**: Automatic optimization based on usage patterns and performance metrics
-- **Resource Efficiency**: Efficient resource utilization for custom provider connections
-- **Performance Insights**: Detailed performance analytics and optimization recommendations
-
-#### Enterprise Performance Architecture
-
-**Enterprise Performance Patterns:**
-- **Gateway Performance Optimization**: Optimization of enterprise gateway performance and load balancing
-- **Multi-Tenant Resource Management**: Performance optimization for multi-tenant environments
-- **Enterprise Monitoring Integration**: Integration with enterprise monitoring and observability systems
-- **Compliance Performance Monitoring**: Performance monitoring with compliance and audit requirements
-
-## Integration Architecture Overview
-
-The provider interface architecture integrates with the broader Learning Catalyst system through well-defined integration patterns and architectural boundaries.
-
-### CLI Integration Patterns
-
-The provider architecture supports CLI-based configuration and management while maintaining clean separation between user interface and provider logic.
-
-**Architectural Integration Points:**
-- **Command Routing**: CLI commands interact with provider interfaces through abstraction layers
-- **Response Formatting**: Provider responses formatted consistently for CLI presentation
-- **Session Context**: Provider state managed independently of CLI session state
-- **Error Handling**: Provider errors translated into user-friendly CLI messages
-
-*For practical CLI usage examples and workflows, see [Integration Examples](../../examples/integration.md) and [Configuration Commands](../../commands/configuration.md).*
-
-## Multi-Provider Architecture
-
-The provider interface architecture supports multiple simultaneous provider configurations with intelligent selection, failover, and load balancing capabilities.
-
-### Provider Selection and Coordination
-
-**Architectural Patterns:**
-- **Provider Hierarchy**: Primary, secondary, and tertiary provider arrangements
-- **Capability-Based Selection**: Automatic provider selection based on task requirements
-- **Failover Management**: Seamless switching between providers during failures
-- **Load Distribution**: Intelligent request distribution across available providers
-
-### Multi-Provider Integration
-
-**System Integration Points:**
-- **Session Management**: Cross-provider session state preservation
-- **Context Transfer**: Learning context migration between providers
-- **Performance Optimization**: Dynamic provider selection based on performance metrics
-- **Cost Management**: Intelligent cost optimization through provider selection
-
-*For detailed multi-provider configuration examples and setup patterns, see [Advanced Examples](../../examples/advanced.md) and [Analytics Commands](../../commands/analytics.md).*
-
-## Error Handling and Resilience Architecture
-
-### Error Classification and Recovery
-
-The provider interface architecture includes comprehensive error handling and resilience patterns designed to maintain system stability across provider failures.
-
-**Error Categories:**
-- **Authentication Errors**: Credential and authentication failures
-- **Network Errors**: Connectivity and timeout problems
-- **Provider Errors**: Provider-specific service issues
-- **Configuration Errors**: Invalid or corrupted provider configurations
-- **Performance Errors**: Degraded performance or response quality
-
-**Resilience Patterns:**
-- **Automatic Retry**: Configurable retry logic for transient failures
-- **Provider Failover**: Automatic switching to backup providers
-- **Graceful Degradation**: Reduced functionality instead of complete failure
-- **Circuit Breaker**: Protection against cascading failures
-
-### Security Architecture
-
-**Security Boundaries:**
-- **Network Security**: Encrypted communication with providers
-- **Credential Security**: Encrypted storage and secure handling of authentication data
-- **Access Control**: Role-based access to provider capabilities
-- **Audit Security**: Comprehensive security event logging
-
-*For detailed troubleshooting procedures and diagnostic workflows, see [Troubleshooting Examples](../../examples/troubleshooting.md) and [System Commands](../../commands/system.md).*
-
-## Future Architecture Considerations
-
-### Scalability and Extensibility
-
-**Scalability Design:**
-- **Horizontal Scaling**: Support for multi-instance deployment
-- **Load Distribution**: Intelligent load distribution across providers
-- **Resource Management**: Dynamic resource allocation and management
-- **Performance Scaling**: Linear performance scaling with load
-
-**Extensibility Patterns:**
-- **Plugin Architecture**: Support for third-party provider plugins
-- **Interface Evolution**: Backward-compatible interface evolution
-- **Configuration Flexibility**: Support for emerging provider patterns
-- **Integration Standards**: Standardized integration patterns for new providers
-
-#### Custom Provider Evolution Roadmap
-
-**Future-Proof Architecture:**
-- **Universal Compatibility**: Expansion of OpenAI-compatible interface support for emerging providers
-- **Dynamic Interface Adaptation**: Automatic adaptation to new provider interfaces and capabilities
-- **Configuration Schema Evolution**: Evolution of configuration schemas to support new provider types
-- **Performance Optimization**: Continuous optimization of custom provider performance and resource utilization
-
-#### Enterprise Architecture Evolution
-
-**Enterprise Extensibility Patterns:**
-- **Gateway Integration Evolution**: Evolution of enterprise gateway integration patterns
-- **Multi-Tenant Scalability**: Scalability enhancements for multi-tenant environments
-- **Security Evolution**: Continuous evolution of security and compliance features
-- **Integration Standardization**: Standardization of enterprise integration patterns
-
-#### Emerging Standards Support
-
-**Standards Evolution Benefits:**
-- **Interoperability**: Enhanced interoperability between different provider types
-- **Vendor Neutrality**: Reduced vendor lock-in through standardized interfaces
-- **Compliance Assurance**: Assurance of compliance with emerging standards
-- **Future Compatibility**: Compatibility with future provider innovations and standards
+### Model Interface Hierarchy
+
+The model interface hierarchy provides specialized abstract classes for different types of AI models:
+
+```python
+from abc import ABC, abstractmethod
+from typing import List, Optional, Dict, Any, Union
+from dataclasses import dataclass
+from enum import Enum
+
+class ModelType(Enum):
+    """Supported model types"""
+    CHAT = "chat"
+    EMBEDDING = "embedding"
+    RERANK = "rerank"
+
+@dataclass
+class ModelCapabilities:
+    """Model capability description"""
+    supports_streaming: bool = False
+    supports_function_calling: bool = False
+    supports_vision: bool = False
+    max_tokens: Optional[int] = None
+    max_input_length: Optional[int] = None
+
+class AIModel(ABC):
+    """Abstract base class for all AI models"""
+
+    def __init__(self, model_id: str, provider: 'AIProvider'):
+        self.model_id = model_id
+        self.provider = provider
+        self._capabilities: Optional[ModelCapabilities] = None
+
+    @property
+    @abstractmethod
+    def model_type(self) -> ModelType:
+        """Return the model type"""
+        pass
+
+    @property
+    @abstractmethod
+    def capabilities(self) -> ModelCapabilities:
+        """Return model capabilities"""
+        pass
+
+    @abstractmethod
+    async def get_provider(self) -> 'AIProvider':
+        """Get the provider instance"""
+        pass
+
+    @abstractmethod
+    async def validate_model_access(self) -> bool:
+        """
+        Validate that the model is accessible and functional.
+
+        Returns:
+            bool: True if model is accessible, False otherwise
+        """
+        pass
+```
+
+#### Chat Model Interface
+
+```python
+from typing import List, Optional, Dict, Any, AsyncGenerator
+from dataclasses import dataclass
+
+@dataclass
+class Message:
+    """Message for chat interactions"""
+    role: str  # "user", "assistant", "system"
+    content: str
+    name: Optional[str] = None
+    function_call: Optional[Dict[str, Any]] = None
+
+@dataclass
+class ChatResponse:
+    """Response from chat model"""
+    content: str
+    finish_reason: str
+    usage: Dict[str, int]
+    model: str
+    timestamp: float
+
+class ChatModel(AIModel):
+    """Abstract base class for chat models"""
+
+    @property
+    def model_type(self) -> ModelType:
+        return ModelType.CHAT
+
+    @abstractmethod
+    async def send_message(
+        self,
+        messages: List[Message],
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        stream: bool = False
+    ) -> Union[ChatResponse, AsyncGenerator[ChatResponse, None]]:
+        """
+        Send messages to the chat model and get response.
+
+        Args:
+            messages: List of messages in conversation
+            temperature: Sampling temperature (0.0 to 2.0)
+            max_tokens: Maximum tokens to generate
+            stream: Whether to stream response
+
+        Returns:
+            ChatResponse or AsyncGenerator of ChatResponse if streaming
+
+        Raises:
+            ModelError: If model request fails
+            ValidationError: If input is invalid
+        """
+        pass
+
+    @abstractmethod
+    async def count_tokens(self, messages: List[Message]) -> int:
+        """
+        Count tokens in the provided messages.
+
+        Args:
+            messages: List of messages to count
+
+        Returns:
+            int: Number of tokens
+        """
+        pass
+```
+
+#### Embedding Model Interface
+
+```python
+import numpy as np
+from typing import List
+
+@dataclass
+class EmbeddingResponse:
+    """Response from embedding model"""
+    embeddings: List[List[float]]
+    usage: Dict[str, int]
+    model: str
+    dimensions: int
+
+class EmbeddingModel(AIModel):
+    """Abstract base class for embedding models"""
+
+    @property
+    def model_type(self) -> ModelType:
+        return ModelType.EMBEDDING
+
+    @abstractmethod
+    async def get_embeddings(
+        self,
+        texts: List[str],
+        dimensions: Optional[int] = None
+    ) -> EmbeddingResponse:
+        """
+        Get embeddings for the provided texts.
+
+        Args:
+            texts: List of texts to embed
+            dimensions: Optional embedding dimensions
+
+        Returns:
+            EmbeddingResponse with embedding vectors
+
+        Raises:
+            ModelError: If embedding generation fails
+            ValidationError: If input is invalid
+        """
+        pass
+
+    @abstractmethod
+    async def get_similarity(
+        self,
+        text1: str,
+        text2: str
+    ) -> float:
+        """
+        Get similarity score between two texts.
+
+        Args:
+            text1: First text
+            text2: Second text
+
+        Returns:
+            float: Similarity score (0.0 to 1.0)
+        """
+        pass
+```
+
+#### Rerank Model Interface
+
+```python
+@dataclass
+class RerankResult:
+    """Single rerank result"""
+    index: int
+    score: float
+    document: str
+
+@dataclass
+class RerankResponse:
+    """Response from rerank model"""
+    results: List[RerankResult]
+    model: str
+    usage: Dict[str, int]
+
+class RerankModel(AIModel):
+    """Abstract base class for rerank models"""
+
+    @property
+    def model_type(self) -> ModelType:
+        return ModelType.RERANK
+
+    @abstractmethod
+    async def rerank(
+        self,
+        query: str,
+        documents: List[str],
+        top_k: int = 10
+    ) -> RerankResponse:
+        """
+        Rerank documents based on query relevance.
+
+        Args:
+            query: Search query
+            documents: List of documents to rank
+            top_k: Number of top results to return
+
+        Returns:
+            RerankResponse with ranked results
+
+        Raises:
+            ModelError: If reranking fails
+            ValidationError: If input is invalid
+        """
+        pass
+```
+
+## Provider Management Interfaces
+
+### Provider Registry Interface
+
+```python
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Type
+import asyncio
+
+class ProviderRegistry(ABC):
+    """Abstract interface for provider registration and management"""
+
+    @abstractmethod
+    async def register_provider(
+        self,
+        provider_class: Type[AIProvider],
+        config: ProviderConfig
+    ) -> bool:
+        """
+        Register a new provider instance.
+
+        Args:
+            provider_class: Provider class to register
+            config: Provider configuration
+
+        Returns:
+            bool: True if registration successful
+
+        Raises:
+            ProviderRegistrationError: If registration fails
+        """
+        pass
+
+    @abstractmethod
+    async def unregister_provider(self, provider_name: str) -> bool:
+        """
+        Unregister a provider.
+
+        Args:
+            provider_name: Name of provider to unregister
+
+        Returns:
+            bool: True if unregistration successful
+        """
+        pass
+
+    @abstractmethod
+    async def get_provider(self, provider_name: str) -> Optional[AIProvider]:
+        """
+        Get registered provider by name.
+
+        Args:
+            provider_name: Name of provider
+
+        Returns:
+            AIProvider instance or None if not found
+        """
+        pass
+
+    @abstractmethod
+    async def list_providers(self) -> List[str]:
+        """
+        List all registered provider names.
+
+        Returns:
+            List of provider names
+        """
+        pass
+
+    @abstractmethod
+    async def get_active_provider(self) -> Optional[AIProvider]:
+        """
+        Get the currently active provider.
+
+        Returns:
+            Active AIProvider instance or None
+        """
+        pass
+
+    @abstractmethod
+    async def set_active_provider(self, provider_name: str) -> bool:
+        """
+        Set the active provider.
+
+        Args:
+            provider_name: Name of provider to activate
+
+        Returns:
+            bool: True if activation successful
+        """
+        pass
+```
+
+### Provider Manager Interface
+
+```python
+@dataclass
+class ProviderHealthStatus:
+    """Health status information for a provider"""
+    provider_name: str
+    is_healthy: bool
+    last_check: float
+    response_time: Optional[float]
+    error_message: Optional[str]
+
+class ProviderManager(ABC):
+    """Abstract interface for provider lifecycle management"""
+
+    @abstractmethod
+    async def initialize_provider(self, config: ProviderConfig) -> AIProvider:
+        """
+        Initialize and configure a provider.
+
+        Args:
+            config: Provider configuration
+
+        Returns:
+            Initialized AIProvider instance
+
+        Raises:
+            ProviderInitializationError: If initialization fails
+        """
+        pass
+
+    @abstractmethod
+    async def test_provider_health(self, provider: AIProvider) -> ProviderHealthStatus:
+        """
+        Test provider health and connectivity.
+
+        Args:
+            provider: Provider to test
+
+        Returns:
+            ProviderHealthStatus with health information
+        """
+        pass
+
+    @abstractmethod
+    async def get_provider_metrics(self, provider_name: str) -> Dict[str, Any]:
+        """
+        Get usage metrics for a provider.
+
+        Args:
+            provider_name: Name of provider
+
+        Returns:
+            Dictionary with metrics (requests, errors, latency, etc.)
+        """
+        pass
+
+    @abstractmethod
+    async def switch_provider(
+        self,
+        from_provider: str,
+        to_provider: str
+    ) -> bool:
+        """
+        Switch from one provider to another.
+
+        Args:
+            from_provider: Current provider name
+            to_provider: Target provider name
+
+        Returns:
+            bool: True if switch successful
+
+        Raises:
+            ProviderSwitchError: If switch fails
+        """
+        pass
+```
+
+## Exception Hierarchy
+
+```python
+class ProviderError(Exception):
+    """Base exception for all provider-related errors"""
+    pass
+
+class ProviderInitializationError(ProviderError):
+    """Raised when provider initialization fails"""
+    def __init__(self, provider_name: str, reason: str):
+        self.provider_name = provider_name
+        self.reason = reason
+        super().__init__(f"Failed to initialize provider '{provider_name}': {reason}")
+
+class AuthenticationError(ProviderError):
+    """Raised when authentication fails"""
+    def __init__(self, provider_name: str, details: str = ""):
+        self.provider_name = provider_name
+        self.details = details
+        super().__init__(f"Authentication failed for provider '{provider_name}': {details}")
+
+class ModelError(ProviderError):
+    """Base exception for model-related errors"""
+    pass
+
+class ModelNotFoundError(ModelError):
+    """Raised when requested model is not available"""
+    def __init__(self, model_id: str, provider_name: str):
+        self.model_id = model_id
+        self.provider_name = provider_name
+        super().__init__(f"Model '{model_id}' not found in provider '{provider_name}'")
+
+class ModelCreationError(ModelError):
+    """Raised when model creation fails"""
+    def __init__(self, model_id: str, reason: str):
+        self.model_id = model_id
+        self.reason = reason
+        super().__init__(f"Failed to create model '{model_id}': {reason}")
+
+class ProviderConnectionError(ProviderError):
+    """Raised when provider connection fails"""
+    def __init__(self, provider_name: str, details: str = ""):
+        self.provider_name = provider_name
+        self.details = details
+        super().__init__(f"Connection failed for provider '{provider_name}': {details}")
+
+class ProviderRegistrationError(ProviderError):
+    """Raised when provider registration fails"""
+    def __init__(self, provider_name: str, reason: str):
+        self.provider_name = provider_name
+        self.reason = reason
+        super().__init__(f"Failed to register provider '{provider_name}': {reason}")
+
+class ValidationError(ProviderError):
+    """Raised when input validation fails"""
+    def __init__(self, field: str, value: Any, reason: str):
+        self.field = field
+        self.value = value
+        self.reason = reason
+        super().__init__(f"Validation failed for field '{field}': {reason}")
+```
+
+## Usage Examples
+
+### Basic Provider Usage
+
+```python
+import asyncio
+from learning_catalyst.providers import OpenAIProvider, ProviderConfig
+
+async def example_provider_usage():
+    # Create provider configuration
+    config = ProviderConfig(
+        name="openai",
+        api_key="sk-your-api-key-here",
+        base_url="https://api.openai.com/v1",
+        timeout=30,
+        max_retries=3
+    )
+
+    # Initialize provider
+    provider = OpenAIProvider(config)
+
+    try:
+        # Initialize provider
+        success = await provider.initialize()
+        if not success:
+            print("Failed to initialize provider")
+            return
+
+        # List available models
+        models = await provider.list_available_models()
+        print(f"Available models: {models}")
+
+        # Create chat model
+        if models.get("chat"):
+            chat_model = await provider.create_model(models["chat"][0])
+
+            # Send message
+            messages = [
+                Message(role="user", content="Explain machine learning")
+            ]
+
+            response = await chat_model.send_message(messages, temperature=0.7)
+            print(f"Response: {response.content}")
+
+    except AuthenticationError as e:
+        print(f"Authentication failed: {e}")
+    except ProviderConnectionError as e:
+        print(f"Connection failed: {e}")
+    except ModelError as e:
+        print(f"Model error: {e}")
+    finally:
+        await provider.shutdown()
+
+# Run the example
+asyncio.run(example_provider_usage())
+```
+
+### Provider Management
+
+```python
+from learning_catalyst.providers import ProviderRegistry, ProviderManager
+
+async def example_provider_management():
+    # Initialize registry and manager
+    registry = ProviderRegistry()
+    manager = ProviderManager()
+
+    # Configure multiple providers
+    openai_config = ProviderConfig(
+        name="openai",
+        api_key="sk-openai-key"
+    )
+
+    deepseek_config = ProviderConfig(
+        name="deepseek",
+        api_key="sk-deepseek-key"
+    )
+
+    # Register providers
+    await registry.register_provider(OpenAIProvider, openai_config)
+    await registry.register_provider(DeepSeekProvider, deepseek_config)
+
+    # Test provider health
+    openai_provider = await registry.get_provider("openai")
+    health_status = await manager.test_provider_health(openai_provider)
+
+    if health_status.is_healthy:
+        print(f"OpenAI provider is healthy (response time: {health_status.response_time}ms)")
+    else:
+        print(f"OpenAI provider is unhealthy: {health_status.error_message}")
+
+    # Switch providers if needed
+    try:
+        await manager.switch_provider("openai", "deepseek")
+        print("Successfully switched to DeepSeek provider")
+    except ProviderSwitchError as e:
+        print(f"Failed to switch providers: {e}")
+```
+
+## Integration Patterns
+
+### CLI Integration
+
+```python
+from learning_catalyst.cli.commands import BaseCommand
+from learning_catalyst.providers import ProviderRegistry, ProviderConfig
+
+class ProviderCommand(BaseCommand):
+    """CLI command for provider management"""
+
+    def __init__(self):
+        self.registry = ProviderRegistry()
+
+    async def handle_config_provider(self, args):
+        """Handle /config provider command"""
+        if args.action == "list":
+            providers = await self.registry.list_providers()
+            for provider_name in providers:
+                provider = await self.registry.get_provider(provider_name)
+                status = await provider.get_status()
+                print(f"{provider_name}: {status.value}")
+
+        elif args.action == "switch":
+            success = await self.registry.set_active_provider(args.provider_name)
+            if success:
+                print(f"Switched to {args.provider_name}")
+            else:
+                print(f"Failed to switch to {args.provider_name}")
+
+        elif args.action == "add":
+            # Interactive provider setup
+            config = await self._interactive_provider_setup(args.provider_name)
+            provider_class = self._get_provider_class(args.provider_name)
+
+            try:
+                await self.registry.register_provider(provider_class, config)
+                print(f"Successfully added {args.provider_name}")
+            except ProviderRegistrationError as e:
+                print(f"Failed to add provider: {e}")
+```
+
+### Session Integration
+
+```python
+from learning_catalyst.session import SessionManager
+
+class ProviderAwareSessionManager(SessionManager):
+    """Session manager with provider integration"""
+
+    async def create_session_with_provider(
+        self,
+        provider_name: str,
+        model_id: str
+    ) -> 'Session':
+        """Create session with specific provider and model"""
+
+        # Get provider and model
+        provider = await self.provider_registry.get_provider(provider_name)
+        model = await provider.create_model(model_id)
+
+        # Create session
+        session = await self.create_session()
+        session.set_provider(provider)
+        session.set_model(model)
+
+        return session
+
+    async def handle_provider_failure(self, session: 'Session'):
+        """Handle provider failure during session"""
+
+        # Get current provider
+        current_provider = session.get_provider()
+
+        # Find alternative provider
+        providers = await self.provider_registry.list_providers()
+        for provider_name in providers:
+            if provider_name != current_provider.name:
+                provider = await self.provider_registry.get_provider(provider_name)
+                health = await self.provider_manager.test_provider_health(provider)
+
+                if health.is_healthy:
+                    # Switch to alternative provider
+                    await self.provider_manager.switch_provider(
+                        current_provider.name,
+                        provider_name
+                    )
+
+                    # Update session
+                    session.set_provider(provider)
+
+                    # Recreate model with same capabilities
+                    current_model = session.get_model()
+                    if current_model.model_type == ModelType.CHAT:
+                        new_model = await provider.create_model(
+                            await self._find_compatible_model(provider, "chat")
+                        )
+                        session.set_model(new_model)
+
+                    break
+```
+
+## Implementation Guidelines
+
+### Creating Custom Providers
+
+```python
+from learning_catalyst.providers import AIProvider, ProviderConfig, ChatModel
+from learning_catalyst.providers.types import ModelType, ModelCapabilities
+
+class CustomProvider(AIProvider):
+    """Example custom provider implementation"""
+
+    @property
+    def name(self) -> str:
+        return "custom-provider"
+
+    @property
+    def supported_model_types(self) -> List[str]:
+        return ["chat", "embedding"]
+
+    async def initialize(self) -> bool:
+        """Initialize custom provider"""
+        # Custom initialization logic
+        self._status = ProviderStatus.ACTIVE
+        return True
+
+    async def list_available_models(self) -> Dict[str, List[str]]:
+        """List available models"""
+        return {
+            "chat": ["custom-model-1", "custom-model-2"],
+            "embedding": ["custom-embedding-1"]
+        }
+
+    async def create_model(self, model_id: str) -> AIModel:
+        """Create model instance"""
+        if model_id.startswith("custom-model"):
+            return CustomChatModel(model_id, self)
+        elif model_id.startswith("custom-embedding"):
+            return CustomEmbeddingModel(model_id, self)
+        else:
+            raise ModelNotFoundError(model_id, self.name)
+
+    async def test_connection(self) -> bool:
+        """Test connectivity"""
+        # Custom connection test logic
+        return True
+
+class CustomChatModel(ChatModel):
+    """Custom chat model implementation"""
+
+    @property
+    def capabilities(self) -> ModelCapabilities:
+        return ModelCapabilities(
+            supports_streaming=True,
+            supports_function_calling=False,
+            max_tokens=4096
+        )
+
+    async def send_message(
+        self,
+        messages: List[Message],
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        stream: bool = False
+    ) -> Union[ChatResponse, AsyncGenerator[ChatResponse, None]]:
+        """Send message to custom model"""
+        # Custom API call implementation
+        pass
+```
+
+### Testing Provider Implementations
+
+```python
+import unittest
+from unittest.mock import AsyncMock, patch
+from learning_catalyst.providers import ProviderConfig
+
+class TestCustomProvider(unittest.TestCase):
+    """Test suite for custom provider"""
+
+    async def asyncSetUp(self):
+        self.config = ProviderConfig(
+            name="test-provider",
+            api_key="test-key"
+        )
+        self.provider = CustomProvider(self.config)
+
+    async def test_provider_initialization(self):
+        """Test provider initialization"""
+        success = await self.provider.initialize()
+        self.assertTrue(success)
+        self.assertEqual(await self.provider.get_status(), ProviderStatus.ACTIVE)
+
+    async def test_model_creation(self):
+        """Test model creation"""
+        await self.provider.initialize()
+
+        chat_model = await self.provider.create_model("custom-model-1")
+        self.assertIsInstance(chat_model, ChatModel)
+        self.assertEqual(chat_model.model_id, "custom-model-1")
+
+    async def test_invalid_model_creation(self):
+        """Test invalid model creation raises error"""
+        await self.provider.initialize()
+
+        with self.assertRaises(ModelNotFoundError):
+            await self.provider.create_model("invalid-model")
+```
 
 ## Related Documentation
 
-### Technical Architecture
-- **[System Architecture](../system-architecture/)**: Overall system architecture and design patterns
-- **[Data Models](data-models.md)**: Data model specifications and relationships
-- **[Configuration API](configuration-api.md)**: Configuration management architecture
-- **[CLI Commands API](cli-commands.md)**: Command-line interface specifications
+### System Architecture Integration
+- **[Provider Integration Architecture](../system-architecture/provider-integration.md)**: Complete provider architecture and integration patterns
 - **[AI Integration Architecture](../system-architecture/ai-integration.md)**: Multi-agent orchestration with Microsoft AutoGen
+- **[Data Layer Architecture](../system-architecture/data-layer.md)**: Data storage and management patterns
 
-### Implementation Guides
-- **[Provider Integration Guide](../implementation-guides/provider-integration.md)**: Custom provider implementation patterns
-- **[Session Management](../implementation-guides/session-management.md)**: Cross-provider session persistence
-- **[Testing Strategies](../implementation-guides/testing-strategies.md)**: Testing provider interfaces and integrations
+### API Reference Documentation
+- **[Configuration API](configuration-api.md)**: Configuration management and settings architecture
+- **[Data Models](data-models.md)**: Entity definitions, relationships, and validation constraints
+- **[CLI Commands API](cli-commands.md)**: Command-line interface specifications
+- **[Knowledge Management API](knowledge-management.md)**: Knowledge graph and learning systems API
 
-### Practical Implementation
-- **[Integration Examples](../../examples/integration.md)**: Complete AI provider setup workflows
-- **[Advanced Examples](../../examples/advanced.md)**: Multi-provider configurations and enterprise setups
-- **[Troubleshooting Examples](../../examples/troubleshooting.md)**: Common issues and diagnostic procedures
+### Implementation and Usage
+- **[Implementation Guides](../implementation-guides/)**: Provider development and setup instructions
+- **[Configuration Commands](../../commands/configuration.md)**: CLI command reference for provider management
+- **[Examples](../../examples/)**: Practical provider integration examples and workflows
 
-### User-Facing Commands
-- **[Commands Reference](../../commands/README.md)**: Complete interactive shell commands guide
-- **[Configuration Commands](../../commands/configuration.md)**: Provider setup and management
-- **[Analytics Commands](../../commands/analytics.md)**: Usage tracking and cost management
-- **[System Commands](../../commands/system.md)**: Diagnostic and troubleshooting commands
+### Architectural Alignment
+This Provider Interface API directly implements the architectural patterns described in the system architecture documentation:
+- **Provider Abstraction**: Consistent interfaces across all AI providers with seamless switching capabilities
+- **Configuration-Driven Design**: Provider behavior controlled through configuration objects
+- **CLI Integration**: Provider interfaces designed for command-line application integration
+- **Error Handling**: Structured exception hierarchy for robust error management
 
 ---
 
-*Last updated: October 10, 2025*
+*Last updated: October 12, 2025*
 *Version: 1.0.0*
-*Category: Provider Architecture*
+*Category: Provider Interface API Reference*
