@@ -50,6 +50,24 @@ class AIProvider(ABC):
         """
         pass
 
+    def create_chat_model(self, model_id: str) -> 'ChatModel':
+        """
+        Create a chat model instance for any model ID.
+
+        This allows users to use custom or experimental models
+        that may not be in the official model list.
+
+        Args:
+            model_id: The model identifier
+
+        Returns:
+            ChatModel instance for the specified model ID
+
+        Raises:
+            NotImplementedError: If provider doesn't support custom models
+        """
+        raise NotImplementedError("Custom model creation not supported by this provider")
+
 
 class AIModel(ABC):
     """Abstract base class for all AI models."""

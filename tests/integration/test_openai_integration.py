@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch, AsyncMock
 
 from src.cli.interface import CLIInterface
 from src.core.config import ConfigManager
+from src.core.exceptions import ModelNotFoundError
 
 
 class TestOpenAIIntegration:
@@ -116,7 +117,6 @@ class TestOpenAIIntegration:
             assert "configure an AI provider first" in output_messages[0]
 
     @pytest.mark.integration
-    @pytest.mark.phase1_2
     def test_interface_has_ai_attributes(self):
         """Test that interface has AI-related attributes."""
         config = ConfigManager()
@@ -126,3 +126,53 @@ class TestOpenAIIntegration:
         assert hasattr(interface, '_ai_model')
         assert hasattr(interface, '_initialize_ai')
         assert hasattr(interface, '_get_ai_response')
+
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_custom_model_initialization(self):
+        """Test that custom model initialization works when model not in available list."""
+        config = ConfigManager()
+        interface = CLIInterface(config)
+
+        # Mock configuration with custom model
+        config.set("ai.default_provider", "openai")
+        config.set("ai.providers.openai.api_key", "test-api-key")
+        config.set("ai.default_model", "gpt-4-custom")  # Custom model not in standard list
+
+        # Mock the AI provider to return empty model list
+        with patch('src.cli.interface.ModelFactory') as mock_factory:
+            mock_provider = Mock()
+            mock_provider.list_available_models = AsyncMock(return_value=Mock(
+                chat=[]  # Empty list - no standard models
+            ))
+            mock_provider.create_chat_model = Mock(return_value=Mock(model_id="gpt-4-custom"))
+            mock_factory.get_provider_instance = Mock(return_value=mock_provider)
+
+            result = await interface._initialize_ai()
+            assert result is True
+            assert interface._ai_model is not None
+            assert interface._ai_model.model_id == "gpt-4-custom"
+
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_custom_model_not_supported_error(self):
+        """Test proper error when provider doesn't support custom models."""
+        config = ConfigManager()
+        interface = CLIInterface(config)
+
+        # Mock configuration with custom model
+        config.set("ai.default_provider", "openai")
+        config.set("ai.providers.openai.api_key", "test-api-key")
+        config.set("ai.default_model", "gpt-4-custom")
+
+        # Mock provider that doesn't support custom models
+        with patch('src.cli.interface.ModelFactory') as mock_factory:
+            mock_provider = Mock()
+            mock_provider.list_available_models = AsyncMock(return_value=Mock(
+                chat=[]  # Empty list - no standard models
+            ))
+            mock_provider.create_chat_model = Mock(side_effect=NotImplementedError("Custom models not supported"))
+            mock_factory.get_provider_instance = Mock(return_value=mock_provider)
+
+            with pytest.raises(ModelNotFoundError):
+                await interface._initialize_ai()

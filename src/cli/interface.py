@@ -9,7 +9,10 @@ from typing import Optional, Callable, Dict, Any, List
 
 from ..core.config import ConfigManager
 from ..core.models import Message, ProviderConfig
-from ..core.exceptions import ProviderError, ValidationError
+from ..core.exceptions import (
+    ProviderError, ValidationError, AuthenticationError,
+    ModelNotFoundError, ProviderRegistrationError
+)
 from ..ai.factory import ModelFactory
 from .commands import CommandProcessor
 from .state import CLIState
@@ -215,43 +218,62 @@ class CLIInterface:
         self.output("Session ended.", "info")
 
     async def _initialize_ai(self) -> bool:
-        """Initialize AI provider from configuration."""
+        """
+        Initialize AI provider and model from configuration.
+
+        Supports custom model IDs - users can specify any model ID
+        and the system will attempt to use it exactly as specified.
+
+        Returns:
+            True if initialization successful
+
+        Raises:
+            ValidationError: If configuration is missing required fields
+            AuthenticationError: If API key is invalid
+            ProviderRegistrationError: If provider initialization fails
+            ModelNotFoundError: If specified model is not available
+        """
+        provider_name = self.config.get("ai.default_provider")
+        api_key = self.config.get(f"ai.providers.{provider_name}.api_key")
+        model_name = self.config.get("ai.default_model", "gpt-3.5-turbo")
+
+        # Configuration validation - raise specific errors
+        if not provider_name:
+            raise ValidationError("default_provider", None, "Provider name is required")
+        if not api_key:
+            raise AuthenticationError(provider_name, "API key is required")
+
+        # Provider initialization
+        config = ProviderConfig(name=provider_name, api_key=api_key)
+        self._ai_provider = ModelFactory.get_provider_instance(config)
+
+        if not self._ai_provider:
+            raise ProviderRegistrationError(provider_name, "Failed to create provider instance")
+
+        # Model discovery - first try available models
+        models = await self._ai_provider.list_available_models()
+        for model in models.chat:
+            if model.model_id == model_name:
+                self._ai_model = model
+                return True
+
+        # Model not found in available list - try custom model creation
+        # This enables experimental/custom model usage per architecture
         try:
-            provider_name = self.config.get("ai.default_provider")
-            api_key = self.config.get(f"ai.providers.{provider_name}.api_key")
-            model_name = self.config.get("ai.default_model", "gpt-3.5-turbo")
-
-            if not provider_name or not api_key:
-                return False
-
-            config = ProviderConfig(name=provider_name, api_key=api_key)
-            self._ai_provider = ModelFactory.get_provider_instance(config)
-
-            if not self._ai_provider:
-                return False
-
-            # Get available models and find the requested one
-            models = await self._ai_provider.list_available_models()
-            for model in models.chat:
-                if model.model_id == model_name:
-                    self._ai_model = model
-                    break
-
-            # Fallback to first available model
-            if not self._ai_model and models.chat:
-                self._ai_model = models.chat[0]
-
-            return self._ai_model is not None
-
-        except Exception:
-            return False
+            self._ai_model = self._ai_provider.create_chat_model(model_name)
+            return True
+        except NotImplementedError:
+            # Provider doesn't support custom models
+            raise ModelNotFoundError(model_name, provider_name)
 
     async def _get_ai_response(self, user_input: str) -> Dict[str, Any]:
         """Get AI response for user input."""
         if not self._ai_provider or not self._ai_model:
             # Try to initialize if not already done
-            if not await self._initialize_ai():
-                return {"success": False, "error": "AI provider not configured"}
+            try:
+                await self._initialize_ai()
+            except (ValidationError, AuthenticationError, ProviderRegistrationError, ModelNotFoundError) as e:
+                return {"success": False, "error": str(e)}
 
         try:
             messages = [

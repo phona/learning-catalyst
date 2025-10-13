@@ -305,6 +305,15 @@ class OpenAIProvider(AIProvider):
                 rerank=[]
             )
 
+    def create_chat_model(self, model_id: str) -> 'OpenAIChatModel':
+        """
+        Create a chat model instance for any model ID.
+
+        This allows users to use custom or experimental models
+        that may not be in the official model list.
+        """
+        return OpenAIChatModel(model_id, self)
+
     async def health_check(self) -> bool:
         """Check if OpenAI API is accessible."""
         try:
