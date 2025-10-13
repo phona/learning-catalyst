@@ -1,620 +1,181 @@
 """
-Main CLI application for Learning Catalyst - Updated with new command registry
+Main entry point for Learning Catalyst CLI application.
+
+Minimal Typer-based CLI interface that provides the application entry point
+and launches the interactive learning session.
 """
 
 import asyncio
-import atexit
-import concurrent.futures
-import os
-import readline
-import threading
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Dict, List, Tuple
+import sys
+from pathlib import Path
+from typing import Optional
 
 import typer
-from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
+from rich.text import Text
 
-from src.ai.service import ModelAbstractionService
-from src.cli.autocomplete import AutoCompleter
-
-# New command system imports
-from src.cli.command_palette import CommandPalette
-from src.cli.commands.analytics import StatisticsCommand, TokensCommand
-from src.cli.commands.config import ConfigCommand, ModelsCommand, PreferencesCommand
-from src.cli.commands.learning import ConceptsCommand, ExplainCommand, KnowledgeMapCommand, QuizCommand
-from src.cli.commands.registry import CommandRegistry
-from src.cli.commands.system import ClearCommand, HelpCommand, QuitCommand
-from src.cli.core.rich_interface import RichInterface
-
-# Core imports
-from src.core.catalyst_agent import CatalystAgentImpl, ConversationContext
-from src.core.knowledge_navigator import SQLiteKnowledgeNavigator
-from src.core.startup_guide import StartupGuide
-from src.core.state_manager import ApplicationState, StateManager
-from src.utils.preferences_manager import PreferencesManager
-
-app = typer.Typer()
+from ..core.config import ConfigManager
+from ..core.exceptions import ValidationError
+from .interface import CLIInterface
 
 
-# Create a simple adapter for the command palette interface
-class CommandPaletteAdapter:
-    """Adapter to bridge the new command registry with the old CommandPalette interface."""
+# Create main Typer app
+app = typer.Typer(
+    name="learning-catalyst",
+    help="🧠 An AI-driven interactive learning companion",
+    invoke_without_command=True,
+    rich_markup_mode="rich"
+)
 
-    def __init__(self, registry: "CommandRegistry"):
-        self.registry = registry
-
-    def execute_command(self, command_input: str):
-        """Execute a command through the registry."""
-        return self.registry.execute_command(command_input)
-
-    def get_autocomplete_suggestions(self, partial_input: str) -> List[str]:
-        """Get autocomplete suggestions for commands."""
-        # Get commands from registry
-        suggestions: List[str] = []
-        if partial_input.startswith("/"):
-            command_part = partial_input[1:].lower()
-            for cmd_name, _ in self.registry.commands.items():
-                if cmd_name.lower().startswith(command_part):
-                    suggestions.append(f"/{cmd_name}")
-        return suggestions
-
-    def get_concept_suggestions(self, _partial_input: str, _context: Dict[str, Any]) -> List[str]:
-        """Get concept suggestions (placeholder for new system)."""
-        # This would need to be implemented based on the new system
-        return []
-
-    def get_command_history(self) -> List[str]:
-        """Get command history from registry."""
-        return self.registry.get_command_history()
-
-    def add_to_history(self, command: str) -> None:
-        """Add a command to the registry history."""
-        self.registry.add_to_history(command)
+# Global console instance
+console = Console()
 
 
-def main_callback(ctx: typer.Context):
-    """Callback to handle when no command is provided"""
-    # If no command is provided, default to start-learning with current directory
-    if ctx.invoked_subcommand is None:
-        # Call start_learning with current directory
-        start_learning(".")
-        raise typer.Exit()
-
-
-# Add the callback to the app
-app.callback(invoke_without_command=True)(main_callback)
-
-
-@app.command()
-def start_learning(workspace_path: str = typer.Argument(".", help="Path to the learning workspace")):
-    """Start the Learning Catalyst application in the specified workspace"""
-    # This function is too long and complex, let's break it down into smaller functions
-    # Consolidated startup operations in single async call
-    learningspace_path, knowledge_navigator, state_manager = asyncio.run(_setup_workspace(workspace_path))
-    prefs_manager = PreferencesManager(workspace_path)
-    _configure_ai_provider(prefs_manager)
-    _display_startup_suggestions(prefs_manager, workspace_path)
-
-    # Initialize and run the main application
-    _run_main_application(workspace_path, prefs_manager, learningspace_path, knowledge_navigator, state_manager)
-
-
-async def _setup_workspace(workspace_path: str) -> Tuple[str, Any, Any]:
-    """Initialize workspace and return core components - optimized with consolidated async operations"""
-    learningspace_path = os.path.join(workspace_path, ".catalyst")
-    is_first_time = not os.path.exists(learningspace_path)
-
-    if is_first_time:
-        os.makedirs(learningspace_path)
-        rprint("[bold blue]Created new learning space at:[/bold blue] " + learningspace_path)
-
-    # Initialize core components
-    db_path = os.path.join(learningspace_path, "data.db")
-    knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-    state_manager = StateManager(workspace_path)
-    startup_guide = StartupGuide(workspace_path, knowledge_navigator, state_manager)
-
-    # Consolidated async operations - run both state loading and message generation in single event loop
-    try:
-        # Check if there's a previous state and generate startup message concurrently
-        previous_state_task = state_manager.load_last_state()
-        startup_message_task = startup_guide.generate_startup_message(is_first_time, False)  # Will be updated based on state
-
-        # Execute both tasks
-        previous_state, startup_message = await asyncio.gather(
-            previous_state_task,
-            startup_message_task,
-            return_exceptions=True
-        )
-
-        # Handle results
-        has_previous_state = previous_state is not None and not isinstance(previous_state, Exception)
-
-        # If message generation failed, use fallback
-        if isinstance(startup_message, Exception):
-            startup_message = await startup_guide.generate_startup_message(is_first_time, has_previous_state)
-
-    except (OSError, ValueError, RuntimeError):
-        # Fallback to sequential execution if concurrent fails
-        try:
-            previous_state = await state_manager.load_last_state()
-            has_previous_state = previous_state is not None
-        except (OSError, ValueError, RuntimeError):
-            has_previous_state = False
-
-        startup_message = await startup_guide.generate_startup_message(is_first_time, has_previous_state)
-
-    # Display context-aware startup message
-    console = Console()
-    console.print(
-        Panel.fit(
-            startup_message,
-            title="🎓 Learning Catalyst 🚀",
-            border_style="green" if is_first_time else "blue",
-            padding=(1, 2),
-        )
+@app.callback()
+def main(
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose output"
+    ),
+    config_dir: Optional[Path] = typer.Option(
+        None,
+        "--config-dir",
+        help="Custom configuration directory"
     )
+) -> None:
+    """
+    Learning Catalyst - AI-Powered Interactive Learning
 
-    return learningspace_path, knowledge_navigator, state_manager
+    Start your personalized learning journey with AI guidance.
+    """
+    if verbose:
+        console.print("🔧 Verbose mode enabled", style="dim")
 
-
-def _get_provider_models() -> Dict[str, Dict[str, List[str]]]:
-    """Get available models for each provider"""
-    return {
-        "openai": {"chat": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"]},
-        "deepseek": {"chat": ["deepseek-chat", "deepseek-coder"]},
-        "siliconflow": {"chat": ["qwen-plus", "qwen-turbo"]},
-        "chatglm": {"chat": ["glm-4", "glm-3-turbo"]},
-    }
-
-
-def _display_available_providers(console: Console, model_service: ModelAbstractionService) -> List[str]:
-    """Display available AI providers and return provider list"""
-    providers = model_service.get_available_providers()
-    provider_descriptions = model_service.get_provider_descriptions()
-
-    for provider in providers:
-        desc = provider_descriptions.get(provider, f"{provider.title()} provider")
-        console.print(f"  [cyan]• {provider}[/cyan]: {desc}")
-
-    return providers
-
-
-def _safe_input(console: Console, prompt_text: str) -> str:
-    """Safe input function that handles backspace properly"""
     try:
-        return input(prompt_text + " ").strip()
+        # Initialize configuration
+        config_manager = setup_configuration(config_dir, verbose)
+
+        # Start interactive mode
+        asyncio.run(run_interactive_mode(config_manager, verbose))
+
     except KeyboardInterrupt:
-        console.print("\n[yellow]Setup cancelled. Exiting...[/yellow]")
-        raise SystemExit(1) from None
-    except EOFError:
-        return ""
+        console.print("\n👋 Goodbye!", style="green")
+        sys.exit(0)
+    except ValidationError as e:
+        console.print(f"❌ Configuration error: {e.message}", style="red")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"❌ Unexpected error: {str(e)}", style="red")
+        if verbose:
+            console.print_exception()
+        sys.exit(1)
 
 
-def _prompt_for_provider(console: Console, providers: List[str], prefs_manager: PreferencesManager) -> str:
-    """Prompt user to choose AI provider"""
-    console.print("\n[bold magenta]Choose your AI provider:[/bold magenta]")
-    while True:
-        try:
-            provider_input = _safe_input(console, "  [magenta]>[/magenta]")
-            if provider_input.lower() in providers:
-                provider = provider_input.lower()
-                prefs_manager.set_preference("ai.default_provider", provider)
-                return provider
-            console.print(f"[red]Invalid provider. Please choose from: {', '.join(providers)}[/red]")
-        except (KeyboardInterrupt, SystemExit):
-            raise
+def setup_configuration(config_dir: Optional[Path], verbose: bool = False) -> ConfigManager:
+    """
+    Initialize and setup configuration manager.
 
+    Args:
+        config_dir: Custom configuration directory path
+        verbose: Enable verbose output
 
-def _prompt_for_model(console: Console, provider: str, prefs_manager: PreferencesManager) -> str:
-    """Prompt user to choose model for selected provider"""
-    provider_models = _get_provider_models().get(provider, {})
-    chat_models = provider_models.get("chat", [])
-
-    if chat_models:
-        model_examples = ", ".join(chat_models[:3])  # Show first 3 examples
-        console.print(f"\n[bold magenta]Enter the model name for {provider} (e.g., {model_examples}):[/bold magenta]")
-    else:
-        console.print(f"\n[bold magenta]Enter the model name for {provider}:[/bold magenta]")
-
-    model = _safe_input(console, "  [magenta]>[/magenta]")
-    prefs_manager.set_preference("ai.default_model", model)
-    return model
-
-
-def _prompt_for_api_key(console: Console, provider: str, prefs_manager: PreferencesManager) -> None:
-    """Prompt user for API key if required"""
-    if provider.lower() not in ["openai-compatible"]:
-        console.print(f"\n[bold magenta]Enter your {provider} API key:[/bold magenta]")
-        console.print("  [yellow]Note: This is stored locally and only used for API calls[/yellow]")
-        api_key = _safe_input(console, "  [magenta]>[/magenta]")
-        if api_key:
-            prefs_manager.set_preference(f"ai.{provider}_api_key", api_key)
-            console.print(f"  [green]✅ API key saved for {provider}[/green]")
-
-
-def _configure_ai_provider(prefs_manager: PreferencesManager) -> ModelAbstractionService:
-    """Configure AI provider if not already set up"""
-    default_provider = prefs_manager.get_preference("ai.default_provider")
-    default_model = prefs_manager.get_preference("ai.default_model")
-
-    if not default_provider or not default_model:
-        console = Console()
-        console.print("[bold yellow]Let's configure your AI provider to get started.[/bold yellow]")
-        console.print("\n[bold]Supported providers:[/bold]")
-
-        # Get providers from the service
-        model_service = ModelAbstractionService()
-        providers = _display_available_providers(console, model_service)
-
-        # Configure provider, model, and API key
-        provider = _prompt_for_provider(console, providers, prefs_manager)
-        model = _prompt_for_model(console, provider, prefs_manager)
-        _prompt_for_api_key(console, provider, prefs_manager)
-
-        console.print(f"\n[bold green]✅ AI configuration saved:[/bold green] [cyan]{provider} - {model}[/cyan]")
-        console.print("[green]You're now ready to start learning![/green]")
-
-    return ModelAbstractionService()
-
-
-def _display_startup_suggestions(prefs_manager: PreferencesManager, workspace_path: str) -> None:
-    """Display contextual suggestions based on user profile - optimized with minimal component creation"""
-    user_profile = {
-        "ai_config": {
-            "default_provider": prefs_manager.get_preference("ai.default_provider"),
-            "default_model": prefs_manager.get_preference("ai.default_model"),
-        },
-        "learning_style": prefs_manager.get_preference("learning.style") or "intermediate",
-    }
-
-    # NOTE: Optimized to avoid creating duplicate components
-    # This function is now lightweight and focuses on display only
+    Returns:
+        Initialized ConfigManager instance
+    """
     try:
-        # Since suggestions can be computationally expensive, make them optional
-        # and show a fallback message if they fail to load
-        console = Console()
-        console.print("\n[bold blue]💡 Quick Start Tips:[/bold blue]")
-        console.print("• Use /concepts to see available learning materials")
-        console.print("• Use /help to see all available commands")
-        console.print("• Use /explain <topic> to learn about specific concepts")
+        config_manager = ConfigManager(config_dir)
 
-        # Try to load contextual suggestions in background if possible
-        # but don't block startup for them
-        try:
-            learningspace_path = os.path.join(workspace_path, ".catalyst")
-            db_path = os.path.join(learningspace_path, "data.db")
-            knowledge_navigator = SQLiteKnowledgeNavigator(db_path)
-            state_manager = StateManager(workspace_path)
-            startup_guide = StartupGuide(workspace_path, knowledge_navigator, state_manager)
+        if verbose:
+            console.print(f"📁 Config directory: {config_manager.config_dir}", style="dim")
 
-            suggestions = asyncio.run(startup_guide.get_contextual_suggestions(user_profile))
-            if suggestions:
-                console.print("\n[bold blue]💡 Personalized Suggestions:[/bold blue]")
-                for i, suggestion in enumerate(suggestions[:3], 1):  # Show max 3 suggestions
-                    console.print(f"\n[cyan]{i}. {suggestion['title']}[/cyan]")
-                    console.print(f"   {suggestion['description']}")
-                    console.print(f"   [green]Command: {suggestion['command']}[/green]")
-        except (ValueError, RuntimeError, KeyError, ImportError):
-            # Silently fall back to basic tips if contextual suggestions fail
-            pass
+        # First-time setup message
+        if not config_manager.config_file.exists():
+            console.print(
+                Panel(
+                    Text("🎉 Welcome to Learning Catalyst!\n\n"
+                         "This appears to be your first time running the application.\n"
+                         "Configuration has been initialized with default settings.\n\n"
+                         "Use '/config' commands to customize your experience.",
+                         style="bold"),
+                    title="First Time Setup",
+                    border_style="green"
+                )
+            )
+
+        return config_manager
 
     except Exception as e:
-        console = Console()
-        console.print(f"[yellow]Note: Could not load suggestions: {str(e)}[/yellow]")
+        console.print(f"❌ Failed to setup configuration: {str(e)}", style="red")
+        raise
 
 
-def _run_main_application(workspace_path: str, prefs_manager: PreferencesManager, learningspace_path: str, knowledge_navigator: Any, state_manager: Any) -> None:
-    """Run the main application loop - optimized with pre-initialized components"""
-    # Launch the main application loop with beautiful formatting
-    console = Console()
+async def run_interactive_mode(config_manager: ConfigManager, verbose: bool = False) -> None:
+    """
+    Run the main interactive CLI mode.
+
+    Args:
+        config_manager: Initialized configuration manager
+        verbose: Enable verbose output
+    """
+    # Create and configure CLI interface
+    cli_interface = CLIInterface(config_manager)
+
+    # Setup Rich console handlers
+    cli_interface.set_output_handler("response", lambda msg: console.print(msg))
+    cli_interface.set_output_handler("error", lambda msg: console.print(f"❌ {msg}", style="red"))
+    cli_interface.set_output_handler("info", lambda msg: console.print(f"ℹ️  {msg}", style="dim blue"))
+
+    # Setup async input handler
+    async def get_input(prompt: str) -> str:
+        # Print styled prompt and get input
+        console.print(prompt, style="bold blue", end="")
+        return input()
+
+    cli_interface.set_input_handler(get_input)
+
+    # Display welcome message
+    display_welcome_message(config_manager, verbose)
+
+    # Run the interactive loop
+    await cli_interface.run_interactive_loop()
+
+
+def display_welcome_message(config_manager: ConfigManager, verbose: bool = False) -> None:
+    """
+    Display welcome message and basic information.
+
+    Args:
+        config_manager: Configuration manager instance
+        verbose: Enable verbose output
+    """
+    # Get current configuration
+    provider = config_manager.get("ai.default_provider", "Not configured")
+    model = config_manager.get("ai.default_model", "Not configured")
+
+    # Create welcome panel
+    welcome_text = Text.from_markup(
+        "🚀 Welcome to [bold green]Learning Catalyst[/bold green]!\n\n"
+        "Your AI-powered learning companion is ready.\n\n"
+        f"Provider: [dim]{provider}[/dim]\n"
+        f"Model: [dim]{model}[/dim]\n\n"
+        "Type '[bold]/help[/bold]' for available commands\n"
+        "Type '[bold]/quit[/bold]' or press Ctrl+C to exit"
+    )
+
     console.print(
         Panel(
-            f"[bold green]Starting Learning Catalyst[/bold green]\n"
-            f"[cyan]Workspace:[/cyan] {workspace_path}\n"
-            f"[cyan]Learningspace:[/cyan] {learningspace_path}",
-            title="[bold]🚀 Learning Catalyst[/bold]",
-            expand=False,
+            welcome_text,
+            title="Learning Catalyst",
+            border_style="blue",
+            padding=(1, 2)
         )
     )
 
-    # Initialize remaining components in parallel where possible (knowledge_navigator and state_manager already provided)
-
-    def init_model_service():
-        return ModelAbstractionService()
-
-    def init_catalyst_agent(model_service):
-        return CatalystAgentImpl(model_service, knowledge_navigator=knowledge_navigator)
-
-    def init_readline():
-        _setup_readline()
-
-    # Parallel initialization of independent components
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        # Start parallel initialization
-        model_service_future = executor.submit(init_model_service)
-        readline_future = executor.submit(init_readline)
-
-        # Get model service result
-        model_service = model_service_future.result()
-
-        # Initialize catalyst agent (depends on model_service)
-        catalyst_agent = init_catalyst_agent(model_service)
-
-        # Wait for readline setup to complete
-        readline_future.result()
-
-    # NOTE: Workspace content loading moved to lazy loading in /concepts command
-    # This significantly improves startup performance
-
-    # Print welcome message with rich formatting
-    console.print("\n[bold green]🚀 Learning session started![/bold green] [blue]Use /help to see available commands.[/blue]")
-
-    # Initialize the new command registry system
-    learning_components = LearningComponents(
-        knowledge_navigator=knowledge_navigator,
-        catalyst_agent=catalyst_agent,
-        state_manager=state_manager,
-    )
-    registry_config = RegistryConfig(
-        console=console,
-        workspace_path=workspace_path,
-        prefs_manager=prefs_manager,
-        learning_components=learning_components,
-        model_service=model_service,
-        learningspace_path=learningspace_path,
-    )
-    command_registry = _setup_command_registry(registry_config)
-
-    # Show initial guidance message
-    console.print("\n[bold blue]💡 Tip:[/bold blue] [cyan]Type /help to see all available commands[/cyan]")
-    console.print("[bold blue]💡 Tip:[/bold blue] [cyan]Start with /concepts to see available learning materials[/cyan]")
-
-    # Main interactive loop with the new command registry
-    interactive_config = InteractiveLoopConfig(
-        console=console,
-        workspace_path=workspace_path,
-        prefs_manager=prefs_manager,
-        learning_components=learning_components,
-        model_service=model_service,
-        command_registry=command_registry,
-    )
-    _run_interactive_loop(interactive_config)
-
-
-def _setup_readline() -> None:
-    """Configure readline for enhanced input editing"""
-    try:
-        # Try to enable readline features if available
-        if "libedit" in str(readline.__doc__):
-            readline.parse_and_bind("bind ^W ed-delete-prev-word")  # For libedit (macOS)
-            readline.parse_and_bind("bind ^U ed-kill-line")  # Clear line
-            # Configure arrow keys for history navigation
-            readline.parse_and_bind("bind ^[OA history-search-backward")  # Up arrow
-            readline.parse_and_bind("bind ^[OB history-search-forward")  # Down arrow
-        else:
-            readline.parse_and_bind("Control-w: unix-word-rubout")  # For GNU readline
-            readline.parse_and_bind("Control-u: unix-line-discard")  # Clear line
-            # Configure arrow keys for history navigation
-            readline.parse_and_bind("\\e[A: history-search-backward")  # Up arrow
-            readline.parse_and_bind("\\e[B: history-search-forward")  # Down arrow
-    except (ImportError, AttributeError):
-        # If readline is not available or has issues, continue without enhanced shortcuts
-        pass
-
-
-@dataclass
-class LearningComponents:
-    """Group of learning-related components"""
-
-    knowledge_navigator: Any
-    catalyst_agent: Any
-    state_manager: Any
-
-
-@dataclass
-class RegistryConfig:
-    """Configuration for command registry setup"""
-
-    console: Console
-    workspace_path: str
-    prefs_manager: PreferencesManager
-    learning_components: LearningComponents
-    model_service: Any
-    learningspace_path: str
-
-
-def _setup_command_registry(config: RegistryConfig) -> CommandRegistry:
-    """Set up the command registry with all commands"""
-    # Create CLI interface and command registry
-    cli_interface = RichInterface()
-    command_registry = CommandRegistry(cli_interface)
-
-    # Register all commands
-    command_registry.register_command(HelpCommand())
-    command_registry.register_command(QuitCommand())
-    command_registry.register_command(ClearCommand())
-
-    command_registry.register_command(ModelsCommand())
-    command_registry.register_command(PreferencesCommand())
-    command_registry.register_command(ConfigCommand())
-
-    command_registry.register_command(ConceptsCommand())
-    command_registry.register_command(ExplainCommand())
-    command_registry.register_command(QuizCommand())
-    command_registry.register_command(KnowledgeMapCommand())
-
-    command_registry.register_command(TokensCommand())
-    command_registry.register_command(StatisticsCommand())
-
-    # Set up context for the command registry
-    command_registry.set_context("workspace_path", config.workspace_path)
-    command_registry.set_context("prefs_manager", config.prefs_manager)
-    command_registry.set_context("knowledge_navigator", config.learning_components.knowledge_navigator)
-    command_registry.set_context("catalyst_agent", config.learning_components.catalyst_agent)
-    command_registry.set_context("state_manager", config.learning_components.state_manager)
-    command_registry.set_context("model_service", config.model_service)
-
-    # Initialize and setup autocomplete with the new system
-    try:
-        # Create a CommandPalette instance that wraps our registry
-        command_palette = CommandPalette(cli_interface)
-        command_palette.registry = command_registry  # Replace the default registry with ours
-
-        completer = AutoCompleter(command_palette, config.workspace_path)
-        completer.setup_readline_completion()
-    except (ImportError, RuntimeError, ValueError) as e:
-        # If autocomplete setup fails, continue without it
-        config.console.print(f"[yellow]Warning: Could not setup autocomplete: {str(e)}[/yellow]")
-
-    # Initialize readline history
-    history_file = os.path.join(config.learningspace_path, ".history")
-
-    try:
-        # Load previous command history
-        readline.read_history_file(history_file)
-    except FileNotFoundError:
-        # If history file doesn't exist, initialize with empty history
-        readline.write_history_file(history_file)
-
-    # Set history length
-    readline.set_history_length(1000)
-
-    # Register to save history at exit
-    atexit.register(readline.write_history_file, history_file)
-
-    return command_registry
-
-
-@dataclass
-class InteractiveLoopConfig:
-    """Configuration for interactive loop"""
-
-    console: Console
-    workspace_path: str
-    prefs_manager: PreferencesManager
-    learning_components: LearningComponents
-    model_service: Any
-    command_registry: CommandRegistry
-
-
-def _run_interactive_loop(config: InteractiveLoopConfig) -> None:
-    """Run the main interactive loop"""
-
-    # Custom input handler for the interactive loop with autocomplete support
-    def custom_input_handler():
-        try:
-            # Use a standard input with plain text prompt to ensure readline works properly
-            user_input = input("Learning Catalyst > ")
-            return user_input
-        except KeyboardInterrupt:
-            # For Ctrl+C, just return empty input to show a new prompt
-            config.console.print()  # Go to new line without extra text
-            return None
-        except EOFError:
-            # For Ctrl+D, return special value to indicate exit
-            return "EOF"
-
-    # Main interactive loop with the new command registry
-    while True:
-        user_input = custom_input_handler()
-
-        # Handle EOF (Ctrl+D)
-        if user_input == "EOF":
-            _handle_exit(config.workspace_path, config.prefs_manager, config.learning_components.state_manager, config.console)
-            break
-
-        # Handle Ctrl+C (returned None)
-        if user_input is None:
-            continue
-
-        # Handle commands through the new command registry
-        if user_input.startswith("/"):
-            try:
-                asyncio.run(
-                    config.command_registry.execute_command(
-                        user_input,
-                        {
-                            "workspace_path": config.workspace_path,
-                            "prefs_manager": config.prefs_manager,
-                            "knowledge_navigator": config.learning_components.knowledge_navigator,
-                            "catalyst_agent": config.learning_components.catalyst_agent,
-                            "state_manager": config.learning_components.state_manager,
-                            "model_service": config.model_service,
-                        },
-                    )
-                )
-                # The command registry already handles display, so we don't need to do anything here
-            except (RuntimeError, ValueError, KeyError) as e:
-                config.console.print(f"[red]Error executing command: {str(e)}[/red]")
-                config.console.print("[cyan]Type /help for available commands.[/cyan]")
-        else:
-            # Treat non-slash input as a concept request or general query for the AI
-            if user_input.strip() == "":
-                # If user just pressed enter with empty input, show helpful message
-                config.console.print("[bold blue]💡 Tip:[/bold blue] [cyan]Type a concept name or use /help for commands[/cyan]")
-            else:
-                # Process the user input with the Catalyst Agent
-                try:
-                    # Create a context for the conversation
-                    conversation_context = ConversationContext(
-                        user_profile={
-                            "ai_config": {
-                                "default_provider": config.prefs_manager.get_preference("ai.default_provider"),
-                                "default_model": config.prefs_manager.get_preference("ai.default_model"),
-                            },
-                            "learning_style": config.prefs_manager.get_preference("learning.style") or "intermediate",
-                        },
-                        current_concept=None,  # Will be determined based on context
-                        conversation_history=[],  # Placeholder - would contain actual history
-                    )
-
-                    # Consolidated AI processing - single async call for both intent and response
-                    async def process_ai_interaction():
-                        intent = await config.learning_components.catalyst_agent.interpret_intent(user_input, conversation_context)
-                        response = await config.learning_components.catalyst_agent.generate_response(user_input, intent, conversation_context)
-                        return response
-
-                    response = asyncio.run(process_ai_interaction())
-                    config.console.print(f"[green]AI Tutor:[/green] {response}")
-                except (RuntimeError, ValueError, KeyError) as e:
-                    config.console.print(f"[red]Error processing your request: {str(e)}[/red]")
-                    config.console.print(
-                        "[cyan]For now, please use slash commands like /concepts "
-                        "to see available topics or /help for commands.[/cyan]"
-                    )
-
-
-def _handle_exit(workspace_path: str, prefs_manager: PreferencesManager, state_manager: StateManager, console: Console) -> None:
-    """Handle application exit"""
-    try:
-        # Create an application state to save with current session data
-        current_state = ApplicationState(
-            user_profile={
-                "ai_config": {
-                    "default_provider": prefs_manager.get_preference("ai.default_provider"),
-                    "default_model": prefs_manager.get_preference("ai.default_model"),
-                },
-                "workspace_path": workspace_path,
-                "learning_style": prefs_manager.get_preference("learning.style") or "intermediate",
-            },
-            conversation_context={},  # This would contain conversation state
-            conversation_messages=[],  # This would contain chat history
-            current_state_metadata={
-                "last_access": str(datetime.now()),
-                "workspace_path": workspace_path,
-                "user_id": "default_user",
-            },
-        )
-        state_manager = StateManager(workspace_path)
-        asyncio.run(state_manager.save_current_state(current_state))
-    except (OSError, ValueError, RuntimeError) as e:
-        # If state saving fails, log the error but continue with exit
-        rprint(f"[red]Error saving state: {str(e)}[/red]")
-    console.print("\n\n[bold green]Thanks for using Learning Catalyst. Goodbye![/bold green] 👋")
+    if verbose:
+        console.print(f"🔧 Debug: Config loaded from {config_manager.config_file}", style="dim")
 
 
 if __name__ == "__main__":

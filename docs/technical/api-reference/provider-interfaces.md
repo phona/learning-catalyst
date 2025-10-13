@@ -11,7 +11,7 @@ estimated_time: "60 minutes"
 
 ## Overview
 
-This document provides comprehensive API reference for Learning Catalyst's provider interface system, defining Python abstract classes and interfaces for AI provider integration, model management, and provider lifecycle management. The interfaces enable seamless integration with multiple AI providers while maintaining consistent interactions within the CLI application.
+This document provides comprehensive API reference for Learning Catalyst's provider interface system, defining Python abstract classes and interfaces for AI provider integration and model discovery. The interfaces enable seamless integration with multiple AI providers while maintaining consistent interactions within the CLI application.
 
 **For detailed architectural patterns and design principles, see the [Provider Integration Architecture](../system-architecture/provider-integration.md) document.**
 
@@ -27,6 +27,7 @@ The provider system is built around a hierarchy of abstract classes that define 
 - **Async-First Design**: All operations are asynchronous to maintain CLI responsiveness
 - **Error Handling**: Structured exception hierarchy for different failure modes
 - **Configuration-Driven**: Provider behavior controlled through configuration objects
+- **Simplified Interface**: Focused on model discovery rather than lifecycle management
 
 ## Core Provider Interfaces
 
@@ -36,17 +37,12 @@ The foundation of the provider system is the `AIProvider` abstract class that de
 
 ```python
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, TypedDict
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 import asyncio
 
-class ProviderStatus(Enum):
-    """Provider operational status"""
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    ERROR = "error"
-    MAINTENANCE = "maintenance"
 
 @dataclass
 class ProviderConfig:
@@ -60,14 +56,18 @@ class ProviderConfig:
     custom_headers: Dict[str, str] = None
     additional_config: Dict[str, Any] = None
 
+class ModelList(TypedDict, total=False):
+    """TypedDict containing available models by type"""
+    chat: List['ChatModel']
+    embedding: List['EmbeddingModel']
+    rerank: List['RerankModel']
+
 class AIProvider(ABC):
     """Abstract base class for all AI providers"""
 
     def __init__(self, config: ProviderConfig):
         """Initialize provider with configuration"""
         self.config = config
-        self._status = ProviderStatus.INACTIVE
-        self._models_cache: Optional[Dict[str, Any]] = None
 
     @property
     @abstractmethod
@@ -75,37 +75,17 @@ class AIProvider(ABC):
         """Return the provider name"""
         pass
 
-    @property
     @abstractmethod
-    def supported_model_types(self) -> List[str]:
-        """Return list of supported model types (chat, embedding, rerank)"""
-        pass
-
-    @abstractmethod
-    async def initialize(self) -> bool:
+    async def list_available_models(self) -> ModelList:
         """
-        Initialize the provider and validate connectivity.
+        Get list of available model instances for this provider.
 
         Returns:
-            bool: True if initialization successful, False otherwise
-
-        Raises:
-            ProviderInitializationError: If provider cannot be initialized
-            AuthenticationError: If authentication fails
-        """
-        pass
-
-    @abstractmethod
-    async def list_available_models(self) -> Dict[str, List[str]]:
-        """
-        Get list of available models for this provider.
-
-        Returns:
-            Dict with model types as keys and lists of model IDs as values:
+            ModelList TypedDict with model instances organized by type:
             {
-                "chat": ["model1", "model2"],
-                "embedding": ["model3"],
-                "rerank": ["model4"]
+                "chat": [ChatModel(...), ChatModel(...)],
+                "embedding": [EmbeddingModel(...)],
+                "rerank": [RerankModel(...)]
             }
 
         Raises:
@@ -114,41 +94,7 @@ class AIProvider(ABC):
         """
         pass
 
-    @abstractmethod
-    async def create_model(self, model_id: str) -> 'AIModel':
-        """
-        Create a model instance for the specified model ID.
-
-        Args:
-            model_id: Unique identifier for the model
-
-        Returns:
-            AIModel instance
-
-        Raises:
-            ModelNotFoundError: If model_id is not available
-            ModelCreationError: If model cannot be created
-        """
-        pass
-
-    @abstractmethod
-    async def test_connection(self) -> bool:
-        """
-        Test connectivity to the provider.
-
-        Returns:
-            bool: True if connection successful, False otherwise
-        """
-        pass
-
-    async def get_status(self) -> ProviderStatus:
-        """Get current provider status"""
-        return self._status
-
-    async def shutdown(self) -> None:
-        """Shutdown provider and cleanup resources"""
-        self._status = ProviderStatus.INACTIVE
-        self._models_cache = None
+    
 ```
 
 ### Model Interface Hierarchy
@@ -167,14 +113,6 @@ class ModelType(Enum):
     EMBEDDING = "embedding"
     RERANK = "rerank"
 
-@dataclass
-class ModelCapabilities:
-    """Model capability description"""
-    supports_streaming: bool = False
-    supports_function_calling: bool = False
-    supports_vision: bool = False
-    max_tokens: Optional[int] = None
-    max_input_length: Optional[int] = None
 
 class AIModel(ABC):
     """Abstract base class for all AI models"""
@@ -182,34 +120,19 @@ class AIModel(ABC):
     def __init__(self, model_id: str, provider: 'AIProvider'):
         self.model_id = model_id
         self.provider = provider
-        self._capabilities: Optional[ModelCapabilities] = None
 
     @property
     @abstractmethod
-    def model_type(self) -> ModelType:
-        """Return the model type"""
+    def model_id(self) -> str:
+        """Return the model ID"""
         pass
 
-    @property
-    @abstractmethod
-    def capabilities(self) -> ModelCapabilities:
-        """Return model capabilities"""
-        pass
-
+    
     @abstractmethod
     async def get_provider(self) -> 'AIProvider':
         """Get the provider instance"""
         pass
 
-    @abstractmethod
-    async def validate_model_access(self) -> bool:
-        """
-        Validate that the model is accessible and functional.
-
-        Returns:
-            bool: True if model is accessible, False otherwise
-        """
-        pass
 ```
 
 #### Chat Model Interface
@@ -238,10 +161,6 @@ class ChatResponse:
 class ChatModel(AIModel):
     """Abstract base class for chat models"""
 
-    @property
-    def model_type(self) -> ModelType:
-        return ModelType.CHAT
-
     @abstractmethod
     async def send_message(
         self,
@@ -268,18 +187,6 @@ class ChatModel(AIModel):
         """
         pass
 
-    @abstractmethod
-    async def count_tokens(self, messages: List[Message]) -> int:
-        """
-        Count tokens in the provided messages.
-
-        Args:
-            messages: List of messages to count
-
-        Returns:
-            int: Number of tokens
-        """
-        pass
 ```
 
 #### Embedding Model Interface
@@ -298,10 +205,6 @@ class EmbeddingResponse:
 
 class EmbeddingModel(AIModel):
     """Abstract base class for embedding models"""
-
-    @property
-    def model_type(self) -> ModelType:
-        return ModelType.EMBEDDING
 
     @abstractmethod
     async def get_embeddings(
@@ -322,24 +225,6 @@ class EmbeddingModel(AIModel):
         Raises:
             ModelError: If embedding generation fails
             ValidationError: If input is invalid
-        """
-        pass
-
-    @abstractmethod
-    async def get_similarity(
-        self,
-        text1: str,
-        text2: str
-    ) -> float:
-        """
-        Get similarity score between two texts.
-
-        Args:
-            text1: First text
-            text2: Second text
-
-        Returns:
-            float: Similarity score (0.0 to 1.0)
         """
         pass
 ```
@@ -363,10 +248,6 @@ class RerankResponse:
 
 class RerankModel(AIModel):
     """Abstract base class for rerank models"""
-
-    @property
-    def model_type(self) -> ModelType:
-        return ModelType.RERANK
 
     @abstractmethod
     async def rerank(
@@ -393,13 +274,14 @@ class RerankModel(AIModel):
         pass
 ```
 
-## Provider Management Interfaces
+## Provider Management Interface
 
 ### Provider Registry Interface
 
 ```python
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Type
+from dataclasses import dataclass
 import asyncio
 
 class ProviderRegistry(ABC):
@@ -463,74 +345,6 @@ class ProviderRegistry(ABC):
         pass
 
     @abstractmethod
-    async def get_active_provider(self) -> Optional[AIProvider]:
-        """
-        Get the currently active provider.
-
-        Returns:
-            Active AIProvider instance or None
-        """
-        pass
-
-    @abstractmethod
-    async def set_active_provider(self, provider_name: str) -> bool:
-        """
-        Set the active provider.
-
-        Args:
-            provider_name: Name of provider to activate
-
-        Returns:
-            bool: True if activation successful
-        """
-        pass
-```
-
-### Provider Manager Interface
-
-```python
-@dataclass
-class ProviderHealthStatus:
-    """Health status information for a provider"""
-    provider_name: str
-    is_healthy: bool
-    last_check: float
-    response_time: Optional[float]
-    error_message: Optional[str]
-
-class ProviderManager(ABC):
-    """Abstract interface for provider lifecycle management"""
-
-    @abstractmethod
-    async def initialize_provider(self, config: ProviderConfig) -> AIProvider:
-        """
-        Initialize and configure a provider.
-
-        Args:
-            config: Provider configuration
-
-        Returns:
-            Initialized AIProvider instance
-
-        Raises:
-            ProviderInitializationError: If initialization fails
-        """
-        pass
-
-    @abstractmethod
-    async def test_provider_health(self, provider: AIProvider) -> ProviderHealthStatus:
-        """
-        Test provider health and connectivity.
-
-        Args:
-            provider: Provider to test
-
-        Returns:
-            ProviderHealthStatus with health information
-        """
-        pass
-
-    @abstractmethod
     async def get_provider_metrics(self, provider_name: str) -> Dict[str, Any]:
         """
         Get usage metrics for a provider.
@@ -572,13 +386,6 @@ class ProviderError(Exception):
     """Base exception for all provider-related errors"""
     pass
 
-class ProviderInitializationError(ProviderError):
-    """Raised when provider initialization fails"""
-    def __init__(self, provider_name: str, reason: str):
-        self.provider_name = provider_name
-        self.reason = reason
-        super().__init__(f"Failed to initialize provider '{provider_name}': {reason}")
-
 class AuthenticationError(ProviderError):
     """Raised when authentication fails"""
     def __init__(self, provider_name: str, details: str = ""):
@@ -597,12 +404,6 @@ class ModelNotFoundError(ModelError):
         self.provider_name = provider_name
         super().__init__(f"Model '{model_id}' not found in provider '{provider_name}'")
 
-class ModelCreationError(ModelError):
-    """Raised when model creation fails"""
-    def __init__(self, model_id: str, reason: str):
-        self.model_id = model_id
-        self.reason = reason
-        super().__init__(f"Failed to create model '{model_id}': {reason}")
 
 class ProviderConnectionError(ProviderError):
     """Raised when provider connection fails"""
@@ -625,6 +426,14 @@ class ValidationError(ProviderError):
         self.value = value
         self.reason = reason
         super().__init__(f"Validation failed for field '{field}': {reason}")
+
+class ProviderSwitchError(ProviderError):
+    """Raised when provider switching fails"""
+    def __init__(self, from_provider: str, to_provider: str, reason: str):
+        self.from_provider = from_provider
+        self.to_provider = to_provider
+        self.reason = reason
+        super().__init__(f"Failed to switch from '{from_provider}' to '{to_provider}': {reason}")
 ```
 
 ## Usage Examples
@@ -649,27 +458,15 @@ async def example_provider_usage():
     provider = OpenAIProvider(config)
 
     try:
-        # Initialize provider
-        success = await provider.initialize()
-        if not success:
-            print("Failed to initialize provider")
-            return
-
         # List available models
         models = await provider.list_available_models()
         print(f"Available models: {models}")
 
-        # Create chat model
+        # Access model instances directly by type
         if models.get("chat"):
-            chat_model = await provider.create_model(models["chat"][0])
-
-            # Send message
-            messages = [
-                Message(role="user", content="Explain machine learning")
-            ]
-
-            response = await chat_model.send_message(messages, temperature=0.7)
-            print(f"Response: {response.content}")
+            print(f"Chat models available: {len(models['chat'])} models")
+            for chat_model in models["chat"]:
+                print(f"  - {chat_model.model_id}")
 
     except AuthenticationError as e:
         print(f"Authentication failed: {e}")
@@ -677,8 +474,6 @@ async def example_provider_usage():
         print(f"Connection failed: {e}")
     except ModelError as e:
         print(f"Model error: {e}")
-    finally:
-        await provider.shutdown()
 
 # Run the example
 asyncio.run(example_provider_usage())
@@ -687,12 +482,11 @@ asyncio.run(example_provider_usage())
 ### Provider Management
 
 ```python
-from learning_catalyst.providers import ProviderRegistry, ProviderManager
+from learning_catalyst.providers import ProviderRegistry
 
 async def example_provider_management():
-    # Initialize registry and manager
+    # Initialize unified registry
     registry = ProviderRegistry()
-    manager = ProviderManager()
 
     # Configure multiple providers
     openai_config = ProviderConfig(
@@ -709,18 +503,9 @@ async def example_provider_management():
     await registry.register_provider(OpenAIProvider, openai_config)
     await registry.register_provider(DeepSeekProvider, deepseek_config)
 
-    # Test provider health
-    openai_provider = await registry.get_provider("openai")
-    health_status = await manager.test_provider_health(openai_provider)
-
-    if health_status.is_healthy:
-        print(f"OpenAI provider is healthy (response time: {health_status.response_time}ms)")
-    else:
-        print(f"OpenAI provider is unhealthy: {health_status.error_message}")
-
     # Switch providers if needed
     try:
-        await manager.switch_provider("openai", "deepseek")
+        await registry.switch_provider("openai", "deepseek")
         print("Successfully switched to DeepSeek provider")
     except ProviderSwitchError as e:
         print(f"Failed to switch providers: {e}")
@@ -746,15 +531,16 @@ class ProviderCommand(BaseCommand):
             providers = await self.registry.list_providers()
             for provider_name in providers:
                 provider = await self.registry.get_provider(provider_name)
-                status = await provider.get_status()
-                print(f"{provider_name}: {status.value}")
+                print(f"{provider_name}: Available")
 
         elif args.action == "switch":
-            success = await self.registry.set_active_provider(args.provider_name)
-            if success:
+            # Provider switching would be handled by a higher-level component
+            # This example shows the concept without implementing the actual switching logic
+            provider = await self.registry.get_provider(args.provider_name)
+            if provider:
                 print(f"Switched to {args.provider_name}")
             else:
-                print(f"Failed to switch to {args.provider_name}")
+                print(f"Provider {args.provider_name} not found")
 
         elif args.action == "add":
             # Interactive provider setup
@@ -783,9 +569,12 @@ class ProviderAwareSessionManager(SessionManager):
     ) -> 'Session':
         """Create session with specific provider and model"""
 
-        # Get provider and model
+        # Get provider
         provider = await self.provider_registry.get_provider(provider_name)
-        model = await provider.create_model(model_id)
+
+        # Note: Model instantiation would be handled by a factory or higher-level component
+        # This example assumes model creation is handled elsewhere
+        model = self._get_model_instance(provider, model_id)
 
         # Create session
         session = await self.create_session()
@@ -805,27 +594,26 @@ class ProviderAwareSessionManager(SessionManager):
         for provider_name in providers:
             if provider_name != current_provider.name:
                 provider = await self.provider_registry.get_provider(provider_name)
-                health = await self.provider_manager.test_provider_health(provider)
 
-                if health.is_healthy:
-                    # Switch to alternative provider
-                    await self.provider_manager.switch_provider(
-                        current_provider.name,
-                        provider_name
+                # Switch to alternative provider
+                await self.provider_registry.switch_provider(
+                    current_provider.name,
+                    provider_name
+                )
+
+                # Update session
+                session.set_provider(provider)
+
+                # Recreate model with same type
+                current_model = session.get_model()
+                if isinstance(current_model, ChatModel):
+                    new_model = self._get_model_instance(
+                        provider,
+                        await self._find_compatible_model(provider, "chat")
                     )
+                    session.set_model(new_model)
 
-                    # Update session
-                    session.set_provider(provider)
-
-                    # Recreate model with same capabilities
-                    current_model = session.get_model()
-                    if current_model.model_type == ModelType.CHAT:
-                        new_model = await provider.create_model(
-                            await self._find_compatible_model(provider, "chat")
-                        )
-                        session.set_model(new_model)
-
-                    break
+                break
 ```
 
 ## Implementation Guidelines
@@ -843,47 +631,22 @@ class CustomProvider(AIProvider):
     def name(self) -> str:
         return "custom-provider"
 
-    @property
-    def supported_model_types(self) -> List[str]:
-        return ["chat", "embedding"]
-
-    async def initialize(self) -> bool:
-        """Initialize custom provider"""
-        # Custom initialization logic
-        self._status = ProviderStatus.ACTIVE
-        return True
-
-    async def list_available_models(self) -> Dict[str, List[str]]:
+  
+    async def list_available_models(self) -> ModelList:
         """List available models"""
+        # Note: This would typically create actual model instances
+        # For documentation purposes, showing the structure
         return {
-            "chat": ["custom-model-1", "custom-model-2"],
-            "embedding": ["custom-embedding-1"]
+            "chat": [],  # Would contain [CustomChatModel("custom-model-1", self), ...]
+            "embedding": []  # Would contain [CustomEmbeddingModel("custom-embedding-1", self), ...]
         }
 
-    async def create_model(self, model_id: str) -> AIModel:
-        """Create model instance"""
-        if model_id.startswith("custom-model"):
-            return CustomChatModel(model_id, self)
-        elif model_id.startswith("custom-embedding"):
-            return CustomEmbeddingModel(model_id, self)
-        else:
-            raise ModelNotFoundError(model_id, self.name)
+    # Note: Model creation would be handled by a factory or higher-level component
+    # The provider's role is primarily to list available models
 
-    async def test_connection(self) -> bool:
-        """Test connectivity"""
-        # Custom connection test logic
-        return True
-
+    
 class CustomChatModel(ChatModel):
     """Custom chat model implementation"""
-
-    @property
-    def capabilities(self) -> ModelCapabilities:
-        return ModelCapabilities(
-            supports_streaming=True,
-            supports_function_calling=False,
-            max_tokens=4096
-        )
 
     async def send_message(
         self,
@@ -914,26 +677,21 @@ class TestCustomProvider(unittest.TestCase):
         )
         self.provider = CustomProvider(self.config)
 
-    async def test_provider_initialization(self):
-        """Test provider initialization"""
-        success = await self.provider.initialize()
-        self.assertTrue(success)
-        self.assertEqual(await self.provider.get_status(), ProviderStatus.ACTIVE)
+    async def test_model_listing(self):
+        """Test provider model listing"""
+        models = await self.provider.list_available_models()
 
-    async def test_model_creation(self):
-        """Test model creation"""
-        await self.provider.initialize()
+        # Verify chat models are listed
+        self.assertIn("chat", models)
+        self.assertIsInstance(models["chat"], list)
+        if models["chat"]:
+            self.assertIsInstance(models["chat"][0], ChatModel)
 
-        chat_model = await self.provider.create_model("custom-model-1")
-        self.assertIsInstance(chat_model, ChatModel)
-        self.assertEqual(chat_model.model_id, "custom-model-1")
-
-    async def test_invalid_model_creation(self):
-        """Test invalid model creation raises error"""
-        await self.provider.initialize()
-
-        with self.assertRaises(ModelNotFoundError):
-            await self.provider.create_model("invalid-model")
+        # Verify embedding models are listed
+        self.assertIn("embedding", models)
+        self.assertIsInstance(models["embedding"], list)
+        if models["embedding"]:
+            self.assertIsInstance(models["embedding"][0], EmbeddingModel)
 ```
 
 ## Related Documentation
@@ -960,6 +718,7 @@ This Provider Interface API directly implements the architectural patterns descr
 - **Configuration-Driven Design**: Provider behavior controlled through configuration objects
 - **CLI Integration**: Provider interfaces designed for command-line application integration
 - **Error Handling**: Structured exception hierarchy for robust error management
+- **Simplified Responsibility**: Providers focus on model discovery rather than lifecycle management
 
 ---
 

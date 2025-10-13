@@ -1,36 +1,32 @@
 """
-AI Provider implementations
+Concrete provider implementations for Learning Catalyst.
+
+This module contains provider implementations for various AI services.
 """
 
-from .chatglm_provider import ChatGLMChatModel, ChatGLMEmbeddingModel, ChatGLMProvider, ChatGLMRerankModel
-from .deepseek_provider import DeepSeekChatModel, DeepSeekEmbeddingModel, DeepSeekProvider, DeepSeekRerankModel
-from .openai_compatible_provider import (
-    OpenAICompatibleChatModel,
-    OpenAICompatibleEmbeddingModel,
-    OpenAICompatibleModelProvider,
-    OpenAICompatibleRerankModel,
+# Base classes and interfaces
+from .base import AIProvider, AIModel, ChatModel, EmbeddingModel, RerankModel
+
+# Built-in provider implementations
+from .openai_provider import OpenAIProvider
+from .deepseek_provider import DeepSeekProvider
+from .siliconflow_provider import SiliconFlowProvider
+from .chatglm_provider import ChatGLMProvider
+
+# Custom/OpenAI-compatible provider implementations
+from .openai_compatible import (
+    OpenAICompatibleProvider, CustomProviderFactory,
+    CustomChatModel, CustomEmbeddingModel
 )
-from .siliconflow_provider import SiliconFlowChatModel, SiliconFlowEmbeddingModel, SiliconFlowProvider, SiliconFlowRerankModel
 
 __all__ = [
-    # Providers
-    "ChatGLMProvider",
-    "DeepSeekProvider",
-    "SiliconFlowProvider",
-    "OpenAICompatibleModelProvider",
-    # Chat Models
-    "ChatGLMChatModel",
-    "DeepSeekChatModel",
-    "SiliconFlowChatModel",
-    "OpenAICompatibleChatModel",
-    # Embedding Models
-    "ChatGLMEmbeddingModel",
-    "DeepSeekEmbeddingModel",
-    "SiliconFlowEmbeddingModel",
-    "OpenAICompatibleEmbeddingModel",
-    # Rerank Models
-    "ChatGLMRerankModel",
-    "DeepSeekRerankModel",
-    "SiliconFlowRerankModel",
-    "OpenAICompatibleRerankModel",
+    # Base classes
+    'AIProvider', 'AIModel', 'ChatModel', 'EmbeddingModel', 'RerankModel',
+
+    # Built-in providers
+    'OpenAIProvider', 'DeepSeekProvider', 'SiliconFlowProvider', 'ChatGLMProvider',
+
+    # Custom providers
+    'OpenAICompatibleProvider', 'CustomProviderFactory',
+    'CustomChatModel', 'CustomEmbeddingModel'
 ]

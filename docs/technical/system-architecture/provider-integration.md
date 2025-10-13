@@ -20,7 +20,7 @@ estimated_time: "25 minutes"
 - Model discovery, cataloging, and lifecycle management
 - Authentication and credential management across providers
 - Dynamic provider switching and failover capabilities
-- Performance monitoring and health checking
+- Performance monitoring
 - Enterprise integration support for custom gateways
 
 **Role in System**: Serves as the foundational bridge between Learning Core modules and external AI services, enabling all AI-powered functionality through a consistent, reliable interface.
@@ -50,7 +50,6 @@ graph TB
 
     subgraph "Core Services Layer"
         Auth[Authentication Service<br/>🔐 Credential Management<br/>🛡️ Security Validation<br/>🏢 Enterprise SSO]
-        Health[Health Monitoring<br/>💓 Availability Checks<br/>📈 Performance Metrics<br/>⚠️ Alerting]
         Config[Configuration Service<br/>⚙️ Provider Settings<br/>🎛️ Runtime Changes<br/>💾 Persistent Storage]
     end
 
@@ -60,7 +59,6 @@ graph TB
     Interface --> BuiltIn
     Interface --> Custom
     Factory --> Auth
-    Factory --> Health
     Factory --> Config
 
     classDef interfaceLayer fill:#e1f5fe,stroke:#01579b,stroke-width:2px
@@ -71,7 +69,7 @@ graph TB
     class Manager,Registry interfaceLayer
     class Interface,Factory abstractionLayer
     class BuiltIn,Custom providerLayer
-    class Auth,Health,Config serviceLayer
+    class Auth,Config serviceLayer
 ```
 
 ### Core Architectural Components
@@ -181,14 +179,14 @@ The architecture enables integration with any OpenAI-compatible endpoint, includ
 
 ## 🔄 Provider Management
 
-The Provider Manager serves as the central orchestrator for all AI providers, handling dynamic registration, runtime switching, request routing, health monitoring, and resource management.
+The Provider Manager serves as the central orchestrator for all AI providers, handling dynamic registration, runtime switching, request routing, and resource management.
 
 **Core Capabilities:**
 - Multi-provider support with simultaneous management
 - Runtime switching without service interruption
 - Automatic failover and recovery mechanisms
 - Automatic model detection and cataloging
-- Performance tracking and availability monitoring
+- Performance tracking
 
 ## ⚙️ Configuration Architecture
 
@@ -219,7 +217,7 @@ The CLI provides provider configuration commands with interactive setup wizards,
 **Features:**
 - Interactive setup wizards for guided configuration
 - Real-time validation with immediate feedback
-- Status monitoring with live health information
+- Status monitoring with performance information
 - Modern terminal experience with clear visual feedback
 
 ## 🔧 Model Discovery Architecture
@@ -252,7 +250,7 @@ The system includes comprehensive performance monitoring with real-time metrics 
 - Real-time performance tracking of response times, success rates, and resource usage
 - Intelligent error handling with automatic retry mechanisms and provider failover
 - Predictive analytics for performance trends and capacity planning
-- Comprehensive diagnostics with health monitoring and troubleshooting guidance
+- Comprehensive diagnostics with performance monitoring and troubleshooting guidance
 
 ## 🔗 Integration References
 
@@ -287,7 +285,6 @@ The system includes comprehensive performance monitoring with real-time metrics 
 **Synchronous Communication**:
 - **Direct API Calls**: AI Integration Module → Provider Manager for real-time model inference
 - **Configuration Updates**: CLI Module → Provider Manager for provider settings changes
-- **Health Checks**: Provider Manager → Health Service for provider availability monitoring
 
 **Asynchronous Communication**:
 - **Performance Metrics**: Provider Manager → Data Storage Module for usage analytics
@@ -297,7 +294,6 @@ The system includes comprehensive performance monitoring with real-time metrics 
 **Data Flow Patterns**:
 - **Configuration Flow**: CLI → Configuration → Provider Manager → Provider Implementations
 - **Inference Flow**: AI Integration → Provider Manager → Selected Provider → Model Response
-- **Monitoring Flow**: Provider Manager → Health Service → Data Storage → Analytics
 
 ### Evolution & Extension Points
 
