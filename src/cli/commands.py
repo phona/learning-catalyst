@@ -126,9 +126,16 @@ class ConfigCommand(Command):
     def _show_all_config(self, config: ConfigManager) -> CommandResult:
         """Show all configuration sections."""
         all_config = config.get_all()
+
+        # Handle case where get_all returns non-dict
+        if not isinstance(all_config, dict):
+            return CommandResult(True, "⚙️ Configuration: No configuration data available")
+
         output = "⚙️ Configuration:\n"
 
         for section, values in all_config.items():
+            if not isinstance(values, dict):
+                continue
             output += f"\n{section.upper()}:\n"
             for key, value in values.items():
                 if "api_key" not in key.lower():  # Don't show API keys

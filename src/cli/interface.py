@@ -5,9 +5,12 @@ Simple interface for handling user interactions and command processing.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, List
 
 from ..core.config import ConfigManager
+from ..core.models import Message, ProviderConfig
+from ..core.exceptions import ProviderError, ValidationError
+from ..ai.factory import ModelFactory
 from .commands import CommandProcessor
 from .state import CLIState
 
@@ -27,6 +30,10 @@ class CLIInterface:
         self.state = CLIState()
         self._output_handlers: Dict[str, Callable] = {}
         self._input_handler: Optional[Callable] = None
+
+        # AI provider for Phase 1.2
+        self._ai_provider = None
+        self._ai_model = None
 
     def set_output_handler(self, output_type: str, handler: Callable) -> None:
         """
@@ -138,15 +145,22 @@ class CLIInterface:
         # Add to conversation history
         self.state.add_to_history("user", user_input)
 
-        # For Phase 1 MVP, provide a simple response indicating AI setup needed
-        self.output(
-            f"🧠 I understand you want to learn about: {user_input}\n\n"
-            "💡 To get AI-powered responses, please configure an AI provider first:\n"
-            "  • Use '/config provider openai' to set up OpenAI\n"
-            "  • Or '/config provider deepseek' for DeepSeek\n"
-            "  • Then ask me anything naturally!",
-            "response"
-        )
+        # Try to get AI response
+        response = await self._get_ai_response(user_input)
+
+        if response["success"]:
+            self.output(response["content"], "response")
+            self.state.add_to_history("assistant", response["content"])
+        else:
+            # Fallback to setup message if AI not configured
+            self.output(
+                f"🧠 I understand you want to learn about: {user_input}\n\n"
+                "💡 To get AI-powered responses, please configure an AI provider first:\n"
+                "  • Use '/config provider openai' to set up OpenAI\n"
+                "  • Or '/config provider deepseek' for DeepSeek\n"
+                "  • Then ask me anything naturally!",
+                "response"
+            )
 
     def get_session_info(self) -> Dict[str, Any]:
         """
@@ -199,3 +213,68 @@ class CLIInterface:
         """Stop the CLI session."""
         self.state.session_active = False
         self.output("Session ended.", "info")
+
+    async def _initialize_ai(self) -> bool:
+        """Initialize AI provider from configuration."""
+        try:
+            provider_name = self.config.get("ai.default_provider")
+            api_key = self.config.get(f"ai.providers.{provider_name}.api_key")
+            model_name = self.config.get("ai.default_model", "gpt-3.5-turbo")
+
+            if not provider_name or not api_key:
+                return False
+
+            config = ProviderConfig(name=provider_name, api_key=api_key)
+            self._ai_provider = ModelFactory.get_provider_instance(config)
+
+            if not self._ai_provider:
+                return False
+
+            # Get available models and find the requested one
+            models = await self._ai_provider.list_available_models()
+            for model in models.chat:
+                if model.model_id == model_name:
+                    self._ai_model = model
+                    break
+
+            # Fallback to first available model
+            if not self._ai_model and models.chat:
+                self._ai_model = models.chat[0]
+
+            return self._ai_model is not None
+
+        except Exception:
+            return False
+
+    async def _get_ai_response(self, user_input: str) -> Dict[str, Any]:
+        """Get AI response for user input."""
+        if not self._ai_provider or not self._ai_model:
+            # Try to initialize if not already done
+            if not await self._initialize_ai():
+                return {"success": False, "error": "AI provider not configured"}
+
+        try:
+            messages = [
+                Message(role="system", content="You are Learning Catalyst, an AI learning companion. Explain concepts clearly and provide helpful examples."),
+            ]
+
+            # Add conversation history for context
+            history = self.state.conversation_history[-6:]  # Keep last 6 messages
+            for msg in history:
+                messages.append(Message(role=msg["role"], content=msg["content"]))
+
+            messages.append(Message(role="user", content=user_input))
+
+            response = await self._ai_model.send_message(messages, temperature=0.7, max_tokens=800)
+
+            return {
+                "success": True,
+                "content": response.content,
+                "model": response.model,
+                "usage": response.usage
+            }
+
+        except (ProviderError, ValidationError) as e:
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            return {"success": False, "error": f"AI request failed: {str(e)}"}
