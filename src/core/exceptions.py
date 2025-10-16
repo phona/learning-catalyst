@@ -69,3 +69,40 @@ class ProviderSwitchError(ProviderError):
         self.to_provider = to_provider
         self.reason = reason
         super().__init__(f"Failed to switch from '{from_provider}' to '{to_provider}': {reason}")
+
+
+# Session-related exceptions
+class SessionError(Exception):
+    """Base exception for all session-related errors."""
+    pass
+
+
+class SessionNotFoundError(SessionError):
+    """Raised when a session is not found."""
+
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        super().__init__(f"Session '{session_id}' not found")
+
+
+class SessionExpiredError(SessionError):
+    """Raised when a session has expired."""
+
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        super().__init__(f"Session '{session_id}' has expired")
+
+
+class SessionCorruptionError(SessionError):
+    """Raised when session data is corrupted."""
+
+    def __init__(self, session_id: str, details: str = ""):
+        self.session_id = session_id
+        self.details = details
+        super().__init__(f"Session '{session_id}' data corrupted: {details}")
+
+
+# Database-related exceptions
+class DatabaseError(Exception):
+    """Base exception for all database-related errors."""
+    pass

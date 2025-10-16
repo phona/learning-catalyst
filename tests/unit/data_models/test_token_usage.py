@@ -261,7 +261,6 @@ class TestTokenUsageModel:
     def test_token_usage_time_period_filtering(self):
         """Test that token usage can be filtered by time periods."""
         from src.data.models.token_usage import TokenUsage
-        from datetime import datetime, timedelta
 
         now = datetime.now()
         yesterday = now - timedelta(days=1)

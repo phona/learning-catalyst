@@ -6,8 +6,6 @@ Minimal async implementation of SiliconFlow API integration.
 
 import asyncio
 from typing import List, Dict, Any, Optional
-import httpx
-from dataclasses import dataclass
 
 from ...core.models import (
     ProviderConfig, ModelList, Message, ChatResponse,
@@ -17,12 +15,16 @@ from ...core.exceptions import (
     ProviderError, AuthenticationError, ModelError,
     ProviderConnectionError, ValidationError
 )
+from ...core.logging import get_logger
 from ..models import AIModel, ChatModel, EmbeddingModel, RerankModel
 from .base import AIProvider
 
+# Import OpenAI library
+import openai
+
 
 class SiliconFlowChatModel(ChatModel):
-    """SiliconFlow chat model implementation."""
+    """SiliconFlow chat model implementation using OpenAI library."""
 
     def __init__(self, model_id: str, provider: 'SiliconFlowProvider'):
         super().__init__(model_id, provider)
@@ -38,63 +40,68 @@ class SiliconFlowChatModel(ChatModel):
         max_tokens: Optional[int] = None,
         stream: bool = False
     ):
-        """Send message to SiliconFlow chat model."""
+        """Send message to SiliconFlow model using OpenAI library."""
+        logger = get_logger("siliconflow_provider")
+
         if not 0.0 <= temperature <= 2.0:
             raise ValidationError("temperature", temperature, "must be between 0.0 and 2.0")
 
-        # Convert Message objects to SiliconFlow format
-        siliconflow_messages = []
+        logger.debug(f"Sending message to {self.model_id}: {len(messages)} messages")
+
+        # Convert Message objects to OpenAI format
+        openai_messages = []
         for msg in messages:
-            siliconflow_msg = {"role": msg.role, "content": msg.content}
+            openai_msg = {"role": msg.role, "content": msg.content}
             if msg.name:
-                siliconflow_msg["name"] = msg.name
+                openai_msg["name"] = msg.name
             if msg.function_call:
-                siliconflow_msg["function_call"] = msg.function_call
-            siliconflow_messages.append(siliconflow_msg)
-
-        payload = {
-            "model": self.model_id,
-            "messages": siliconflow_messages,
-            "temperature": temperature
-        }
-
-        if max_tokens:
-            payload["max_tokens"] = max_tokens
-        if stream:
-            payload["stream"] = True
+                openai_msg["function_call"] = msg.function_call
+            openai_messages.append(openai_msg)
 
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.provider.config.base_url}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.provider.config.api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=payload,
-                    timeout=self.provider.config.timeout
-                )
-                response.raise_for_status()
+            # Use the provider's client
+            client = self._provider._client
 
-                data = response.json()
+            # Prepare completion parameters
+            completion_params = {
+                "model": self.model_id,
+                "messages": openai_messages,
+                "temperature": temperature,
+                "stream": stream
+            }
 
-                return ChatResponse(
-                    content=data["choices"][0]["message"]["content"],
-                    finish_reason=data["choices"][0]["finish_reason"],
-                    usage=data.get("usage", {}),
-                    model=data["model"],
-                    timestamp=data["created"]
-                )
+            if max_tokens:
+                completion_params["max_tokens"] = max_tokens
 
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 401:
-                raise AuthenticationError("siliconflow", "Invalid API key")
-            elif e.response.status_code == 404:
-                raise ModelError(f"Model {self.model_id} not found")
+            if stream:
+                # Handle streaming response - return ChatResponse wrapper
+                response = await client.chat.completions.create(**completion_params)
+                return ChatResponse.from_stream(response)
             else:
-                raise ProviderConnectionError("siliconflow", f"HTTP {e.response.status_code}")
-        except httpx.RequestError as e:
-            raise ProviderConnectionError("siliconflow", str(e))
+                # Handle non-streaming response
+                response = await client.chat.completions.create(**completion_params)
+
+                logger.info(f"Response received from {self.model_id}")
+                return ChatResponse.from_complete(response)
+
+        except openai.AuthenticationError as e:
+            logger.error(f"Authentication failed for SiliconFlow: {e}")
+            raise AuthenticationError("siliconflow", "Invalid API key")
+        except openai.NotFoundError as e:
+            logger.error(f"Model not found: {self.model_id}")
+            raise ModelError(f"Model {self.model_id} not found")
+        except openai.RateLimitError as e:
+            logger.warning(f"Rate limit exceeded for SiliconFlow")
+            raise ProviderError("siliconflow", "Rate limit exceeded")
+        except openai.APIConnectionError as e:
+            logger.error(f"Connection error: {e}")
+            raise ProviderConnectionError("siliconflow", f"Connection error: {str(e)}")
+        except openai.APITimeoutError as e:
+            logger.error(f"Request timeout: {e}")
+            raise ProviderConnectionError("siliconflow", f"Request timeout: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error in SiliconFlow: {e}")
+            raise ProviderError("siliconflow", f"Unexpected error: {str(e)}")
 
 
 class SiliconFlowEmbeddingModel(EmbeddingModel):
@@ -112,77 +119,136 @@ class SiliconFlowEmbeddingModel(EmbeddingModel):
         texts: List[str],
         dimensions: Optional[int] = None
     ) -> EmbeddingResponse:
-        """Get embeddings from SiliconFlow."""
+        """Get embeddings from SiliconFlow using OpenAI library."""
+        logger = get_logger("siliconflow_provider")
+
         if not texts:
             raise ValidationError("texts", texts, "cannot be empty")
 
-        payload = {
-            "model": self.model_id,
-            "input": texts
-        }
-
-        if dimensions:
-            payload["dimensions"] = dimensions
-
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.provider.config.base_url}/embeddings",
-                    headers={
-                        "Authorization": f"Bearer {self.provider.config.api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=payload,
-                    timeout=self.provider.config.timeout
-                )
-                response.raise_for_status()
+            # Use the provider's client
+            client = self._provider._client
 
-                data = response.json()
+            # Prepare embedding parameters
+            embedding_params = {
+                "model": self.model_id,
+                "input": texts
+            }
 
-                return EmbeddingResponse(
-                    embeddings=[item["embedding"] for item in data["data"]],
-                    usage=data.get("usage", {}),
-                    model=data["model"],
-                    dimensions=len(data["data"][0]["embedding"])
-                )
+            if dimensions:
+                embedding_params["dimensions"] = dimensions
 
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 401:
-                raise AuthenticationError("siliconflow", "Invalid API key")
-            elif e.response.status_code == 404:
-                raise ModelError(f"Model {self.model_id} not found")
-            else:
-                raise ProviderConnectionError("siliconflow", f"HTTP {e.response.status_code}")
-        except httpx.RequestError as e:
-            raise ProviderConnectionError("siliconflow", str(e))
+            # Create embeddings
+            response = await client.embeddings.create(**embedding_params)
+
+            logger.info(f"Embeddings created for {len(texts)} texts using {self.model_id}")
+
+            return EmbeddingResponse(
+                embeddings=[item.embedding for item in response.data],
+                usage=response.usage.model_dump() if response.usage else {},
+                model=response.model,
+                dimensions=len(response.data[0].embedding)
+            )
+
+        except openai.AuthenticationError as e:
+            logger.error(f"Authentication failed for SiliconFlow embeddings: {e}")
+            raise AuthenticationError("siliconflow", "Invalid API key")
+        except openai.NotFoundError as e:
+            logger.error(f"Embedding model not found: {self.model_id}")
+            raise ModelError(f"Model {self.model_id} not found")
+        except openai.RateLimitError as e:
+            logger.warning(f"Rate limit exceeded for SiliconFlow embeddings")
+            raise ProviderError("siliconflow", "Rate limit exceeded")
+        except openai.APIConnectionError as e:
+            logger.error(f"Connection error: {e}")
+            raise ProviderConnectionError("siliconflow", f"Connection error: {str(e)}")
+        except openai.APITimeoutError as e:
+            logger.error(f"Request timeout: {e}")
+            raise ProviderConnectionError("siliconflow", f"Request timeout: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error in SiliconFlow embeddings: {e}")
+            raise ProviderError("siliconflow", f"Unexpected error: {str(e)}")
 
 
 class SiliconFlowProvider(AIProvider):
-    """SiliconFlow provider implementation."""
+    """SiliconFlow provider implementation using OpenAI library."""
 
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
+        self.logger = get_logger("siliconflow_provider")
+
         if not self.config.base_url:
             self.config.base_url = "https://api.siliconflow.cn/v1"
+
+        # Set default timeout if not configured
+        if not self.config.timeout:
+            self.config.timeout = 30.0
+
+        # Create OpenAI client once and reuse
+        self._client = openai.AsyncOpenAI(
+            api_key=self.config.api_key,
+            base_url=self.config.base_url,
+            timeout=self.config.timeout
+        )
+
+        self.logger.info(f"SiliconFlow provider initialized with base_url: {self.config.base_url}")
 
     @property
     def name(self) -> str:
         return "siliconflow"
 
-    async def list_available_models(self) -> ModelList:
-        """List available SiliconFlow models."""
-        # Common SiliconFlow models
-        chat_models = [
-            SiliconFlowChatModel("Qwen/Qwen2.5-7B-Instruct", self),
-            SiliconFlowChatModel("Qwen/Qwen2.5-14B-Instruct", self),
-            SiliconFlowChatModel("Qwen/Qwen2.5-32B-Instruct", self),
-            SiliconFlowChatModel("Qwen/Qwen2.5-72B-Instruct", self),
-        ]
+    def create_chat_model(self, model_id: str) -> SiliconFlowChatModel:
+        """
+        Create a chat model instance for any model ID.
 
-        embedding_models = [
-            SiliconFlowEmbeddingModel("BAAI/bge-large-en-v1.5", self),
-            SiliconFlowEmbeddingModel("BAAI/bge-large-zh-v1.5", self),
-        ]
+        Args:
+            model_id: The model identifier
+
+        Returns:
+            SiliconFlowChatModel instance
+        """
+        return SiliconFlowChatModel(model_id, self)
+
+    def create_embedding_model(self, model_id: str) -> SiliconFlowEmbeddingModel:
+        """
+        Create an embedding model instance for any model ID.
+
+        Args:
+            model_id: The model identifier
+
+        Returns:
+            SiliconFlowEmbeddingModel instance
+        """
+        return SiliconFlowEmbeddingModel(model_id, self)
+
+    async def list_available_models(self) -> ModelList:
+        """List available SiliconFlow models by fetching from the API."""
+        # Fetch models from API
+        models_list = await self._client.models.list()
+        models = models_list.data
+
+        # Filter and categorize models
+        chat_models = []
+        embedding_models = []
+
+        # Known model patterns for SiliconFlow
+        chat_patterns = ["Qwen", "chat", "instruct"]
+        embedding_patterns = ["bge", "embedding"]
+
+        for model in models:
+            model_id = model.id
+
+            # Check if it's a chat model
+            if any(pattern.lower() in model_id.lower() for pattern in chat_patterns):
+                chat_models.append(SiliconFlowChatModel(model_id, self))
+
+            # Check if it's an embedding model
+            elif any(pattern.lower() in model_id.lower() for pattern in embedding_patterns):
+                embedding_models.append(SiliconFlowEmbeddingModel(model_id, self))
+
+        # Sort by model name
+        chat_models.sort(key=lambda m: m.model_id, reverse=True)
+        embedding_models.sort(key=lambda m: m.model_id, reverse=True)
 
         return ModelList(
             chat=chat_models,
@@ -191,16 +257,10 @@ class SiliconFlowProvider(AIProvider):
         )
 
     async def health_check(self) -> bool:
-        """Check if SiliconFlow API is accessible."""
+        """Check if SiliconFlow API is accessible using OpenAI library."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.config.base_url}/models",
-                    headers={
-                        "Authorization": f"Bearer {self.config.api_key}"
-                    },
-                    timeout=10
-                )
-                return response.status_code == 200
+            # Test with a simple API call - try to list models
+            await self._client.models.list()
+            return True
         except:
             return False

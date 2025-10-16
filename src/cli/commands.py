@@ -2148,6 +2148,14 @@ class CommandProcessor(CommandGroup):
         if not command:
             suggestion = self._get_command_suggestion(args[0])
             if suggestion:
+                # Auto-execute the suggested command if it's a clear match
+                if suggestion.startswith("/"):
+                    suggested_cmd = suggestion[1:]  # Remove the slash
+                    command = self.get_subcommand(suggested_cmd)
+                    if command:
+                        # Auto-execute the matched command
+                        return await command.execute(args[1:], config, state)
+
                 return CommandResult(
                     False,
                     f"Unknown command: /{args[0]}. Did you mean: {suggestion}?"
@@ -2174,9 +2182,23 @@ class CommandProcessor(CommandGroup):
         if matches:
             return f"/{matches[0]}"
 
-        # Check for partial matches
+        # Check for partial matches and auto-execute if unambiguous
+        partial_matches = []
         for cmd in available_commands:
-            if cmd.startswith(command_name.lower()) or command_name.lower() in cmd:
+            if cmd.startswith(command_name.lower()):
+                partial_matches.append(cmd)
+
+        # If exactly one partial match, auto-execute it
+        if len(partial_matches) == 1:
+            return f"/{partial_matches[0]}"
+
+        # If multiple partial matches, still return the first suggestion
+        if partial_matches:
+            return f"/{partial_matches[0]}"
+
+        # Check for substring matches as fallback
+        for cmd in available_commands:
+            if command_name.lower() in cmd:
                 return f"/{cmd}"
 
         return None

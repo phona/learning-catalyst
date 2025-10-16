@@ -7,11 +7,12 @@ with basic validation and environment variable support.
 
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
 from .exceptions import ValidationError
+from .logging import get_logger
 
 
 @dataclass
@@ -54,14 +55,16 @@ class ConfigManager:
         Args:
             config_dir: Configuration directory path
         """
-        self.config_dir = config_dir or Path.home() / ".catalyst"
+        self.config_dir = config_dir or Path('.') / ".catalyst"
         self.config_file = self.config_dir / "config.json"
         self._config: Dict[str, Any] = {}
         self._defaults = ConfigDefaults()
+        self.logger = get_logger("config_manager")
 
         # Ensure config directory exists
         self.config_dir.mkdir(exist_ok=True)
 
+        self.logger.info(f"Loading config from: {self.config_file}")
         # Load configuration
         self.load_config()
 
@@ -74,43 +77,42 @@ class ConfigManager:
                 "default_model": self._defaults.DEFAULT_MODEL,
                 "temperature": self._defaults.TEMPERATURE,
                 "max_tokens": self._defaults.MAX_TOKENS,
-                "providers": {}
+                "providers": {},
             },
             "ui": {
                 "theme": self._defaults.THEME,
                 "show_token_usage": self._defaults.SHOW_TOKEN_USAGE,
                 "display_format": self._defaults.DISPLAY_FORMAT,
-                "session_duration": self._defaults.SESSION_DURATION
+                "session_duration": self._defaults.SESSION_DURATION,
             },
             "learning": {
                 "auto_save": self._defaults.AUTO_SAVE,
                 "session_timeout_minutes": self._defaults.SESSION_TIMEOUT_MINUTES,
-                "difficulty": self._defaults.DIFFICULTY
+                "difficulty": self._defaults.DIFFICULTY,
             },
             "privacy": {
                 "store_conversations": self._defaults.STORE_CONVERSATIONS,
-                "retention_days": self._defaults.RETENTION_DAYS
+                "retention_days": self._defaults.RETENTION_DAYS,
             },
-            "performance": {
-                "cache_size_mb": self._defaults.CACHE_SIZE_MB,
-                "enable_caching": self._defaults.ENABLE_CACHING
-            }
+            "performance": {"cache_size_mb": self._defaults.CACHE_SIZE_MB, "enable_caching": self._defaults.ENABLE_CACHING},
         }
 
         # Load from file if exists
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file, "r") as f:
                     file_config = json.load(f)
                     self._merge_config(self._config, file_config)
+                self.logger.debug("Config file loaded successfully")
             except (json.JSONDecodeError, IOError) as e:
-                print(f"Warning: Could not load config file: {e}")
+                self.logger.error(f"Could not load config file: {e}")
 
         # Override with environment variables
         self._load_env_overrides()
 
         # Validate configuration
         self.validate_config()
+        self.logger.debug("Configuration loaded and validated")
 
     def _merge_config(self, base: Dict[str, Any], override: Dict[str, Any]) -> None:
         """Recursively merge configuration dictionaries."""
@@ -154,36 +156,78 @@ class ConfigManager:
         """Validate configuration values."""
         errors = []
 
-        # AI configuration validation
-        ai_config = self._config["ai"]
-        if not (0.0 <= ai_config["temperature"] <= 2.0):
-            errors.append("AI temperature must be between 0.0 and 2.0")
-        if not (1 <= ai_config["max_tokens"] <= 32768):
-            errors.append("AI max_tokens must be between 1 and 32768")
+        # Validate AI configuration structure
+        ai_config = self._config.get("ai", {})
+        if not isinstance(ai_config, dict):
+            errors.append("AI configuration must be a dictionary")
+        else:
+            # Check for structural issues - provider configs at wrong level
+            misplaced_providers = []
+            for key, value in ai_config.items():
+                if key not in ["default_provider", "default_model", "temperature", "max_tokens", "providers"] and isinstance(
+                    value, dict
+                ):
+                    if "api_key" in value or "base_url" in value:
+                        misplaced_providers.append(key)
+
+            if misplaced_providers:
+                errors.append(
+                    f"Provider configurations found at wrong level: {', '.join(misplaced_providers)}. "
+                    f"Providers should be nested under 'ai.providers.provider_name', not directly under 'ai'."
+                )
+
+            # Validate providers section exists and is properly structured
+            if "providers" not in ai_config:
+                errors.append("AI configuration must contain a 'providers' section")
+            elif not isinstance(ai_config["providers"], dict):
+                errors.append("AI providers section must be a dictionary")
+
+            # Validate AI configuration values
+            if "temperature" in ai_config and not (0.0 <= ai_config["temperature"] <= 2.0):
+                errors.append("AI temperature must be between 0.0 and 2.0")
+            if "max_tokens" in ai_config and not (1 <= ai_config["max_tokens"] <= 32768):
+                errors.append("AI max_tokens must be between 1 and 32768")
 
         # UI configuration validation
-        ui_config = self._config["ui"]
-        if ui_config["theme"] not in ["light", "dark", "auto"]:
-            errors.append("UI theme must be one of: light, dark, auto")
-        if not (15 <= ui_config["session_duration"] <= 180):
-            errors.append("Session duration must be between 15 and 180 minutes")
+        ui_config = self._config.get("ui", {})
+        if not isinstance(ui_config, dict):
+            errors.append("UI configuration must be a dictionary")
+        else:
+            if "theme" in ui_config and ui_config["theme"] not in ["light", "dark", "auto"]:
+                errors.append("UI theme must be one of: light, dark, auto")
+            if "session_duration" in ui_config and not (15 <= ui_config["session_duration"] <= 180):
+                errors.append("Session duration must be between 15 and 180 minutes")
 
         # Learning configuration validation
-        learning_config = self._config["learning"]
-        if learning_config["difficulty"] not in ["beginner", "intermediate", "advanced", "adaptive"]:
-            errors.append("Difficulty must be one of: beginner, intermediate, advanced, adaptive")
-        if not (5 <= learning_config["session_timeout_minutes"] <= 480):
-            errors.append("Session timeout must be between 5 and 480 minutes")
+        learning_config = self._config.get("learning", {})
+        if not isinstance(learning_config, dict):
+            errors.append("Learning configuration must be a dictionary")
+        else:
+            if "difficulty" in learning_config and learning_config["difficulty"] not in [
+                "beginner",
+                "intermediate",
+                "advanced",
+                "adaptive",
+            ]:
+                errors.append("Difficulty must be one of: beginner, intermediate, advanced, adaptive")
+            if "session_timeout_minutes" in learning_config and not (5 <= learning_config["session_timeout_minutes"] <= 480):
+                errors.append("Session timeout must be between 5 and 480 minutes")
 
         # Privacy configuration validation
-        privacy_config = self._config["privacy"]
-        if not (1 <= privacy_config["retention_days"] <= 3650):
-            errors.append("Retention days must be between 1 and 3650")
+        privacy_config = self._config.get("privacy", {})
+        if not isinstance(privacy_config, dict):
+            errors.append("Privacy configuration must be a dictionary")
+        else:
+            if "retention_days" in privacy_config and not (1 <= privacy_config["retention_days"] <= 3650):
+                errors.append("Retention days must be between 1 and 3650")
 
         # Performance configuration validation
-        perf_config = self._config["performance"]
-        if not (10 <= perf_config["cache_size_mb"] <= 1024):
-            errors.append("Cache size must be between 10 and 1024 MB")
+        perf_config = self._config.get("performance", {})
+        if not isinstance(perf_config, dict):
+            errors.append("Performance configuration must be a dictionary")
+        else:
+            if "cache_size_mb" in perf_config and not (10 <= perf_config["cache_size_mb"] <= 1024):
+                errors.append("Cache size must be between 10 and 1024 MB")
 
         if errors:
             raise ValidationError("config", self._config, "; ".join(errors))
@@ -191,7 +235,7 @@ class ConfigManager:
     def save_config(self) -> None:
         """Save configuration to file."""
         try:
-            with open(self.config_file, 'w') as f:
+            with open(self.config_file, "w") as f:
                 json.dump(self._config, f, indent=2)
         except IOError as e:
             raise ValidationError("config_file", str(self.config_file), f"Could not save config: {e}")
@@ -207,7 +251,7 @@ class ConfigManager:
         Returns:
             Configuration value or default
         """
-        keys = key.split('.')
+        keys = key.split(".")
         value = self._config
 
         try:
@@ -225,7 +269,7 @@ class ConfigManager:
             key: Configuration key (e.g., "ai.temperature")
             value: Value to set
         """
-        keys = key.split('.')
+        keys = key.split(".")
         config = self._config
 
         # Navigate to the parent of the target key
@@ -298,7 +342,15 @@ class ConfigManager:
             self._config["ai"]["providers"] = {}
 
         self._config["ai"]["providers"][provider_name] = config
-        self.save_config()
+
+        # Validate and save
+        try:
+            self.validate_config()
+            self.save_config()
+        except ValidationError as e:
+            # Rollback
+            self.load_config()
+            raise e
 
     def get_provider_config(self, provider_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -328,3 +380,25 @@ class ConfigManager:
             self.save_config()
             return True
         return False
+
+    def get_configured_providers(self) -> List[str]:
+        """
+        Get list of configured provider names.
+
+        Returns:
+            List of provider names that have configuration
+        """
+        providers = self._config.get("ai", {}).get("providers", {})
+        return list(providers.keys())
+
+    def has_provider_config(self, provider_name: str) -> bool:
+        """
+        Check if a provider has configuration.
+
+        Args:
+            provider_name: Name of the provider
+
+        Returns:
+            True if provider has configuration, False otherwise
+        """
+        return provider_name in self._config.get("ai", {}).get("providers", {})

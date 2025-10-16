@@ -52,6 +52,12 @@ Just ask questions naturally in the shell:
 - **Practice**: "Test me on Python lists" or "Give me questions about React"
 - **Learning**: Focus on natural conversation with the AI for personalized learning
 
+**Enhanced Response Features:**
+- **📡 Real-time Streaming**: Watch responses appear progressively with live metrics
+- **🧠 ChatGLM Thinking**: See AI reasoning process with ChatGLM models
+- **📊 Performance Metrics**: Track word count, speed, and elapsed time
+- **⏹️ Cancellation Control**: Press Ctrl+C to cancel long responses at any time
+
 ### 💾 Session Commands
 Save and restore learning progress
 - `/checkpoint save [name]` - ✅ Save current session state (auto-names if no name provided)
@@ -118,6 +124,20 @@ learning-catalyst
 # Ask questions directly (no commands needed)
 Explain machine learning
 How do Python decorators work?
+
+# Enhanced response features (automatic)
+🤖 AI Response (provider:model)
+⚡ Streaming... 45 words | 12.3 w/s | 3.6s
+
+[Content appears progressively with real-time updates]
+
+✅ Response complete | 187 words | 15.2s
+📊 Response: 187 words (12.3 w/s) • ⏱️ 15.2s
+
+# ChatGLM thinking display (when using ChatGLM models)
+🧠 [AI reasoning process displayed in real-time]
+🤖 [Final response based on thinking process]
+📊 Response: 203 words (15.8 w/s) • Thinking: 124 words • ⏱️ 12.9s
 
 # Use commands for specific actions
 /help              # See all commands

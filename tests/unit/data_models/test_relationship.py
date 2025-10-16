@@ -7,7 +7,7 @@ graph traversal, and dependency management based on the API documentation.
 """
 
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from tests.test_helpers import (
     assert_valid_uuid,
@@ -317,7 +317,6 @@ class TestRelationshipModel:
     def test_relationship_strength_decay(self):
         """Test that relationship strength can decay over time."""
         from src.data.models.relationship import Relationship, RelationshipType
-        from datetime import datetime, timedelta
 
         # Create old relationship
         old_time = datetime.now() - timedelta(days=30)

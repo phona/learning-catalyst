@@ -4,6 +4,8 @@
 
 This implementation plan bridges the 76% gap between Learning Catalyst's architectural vision and current implementation. The plan follows a **progressive enhancement approach** that delivers a working Minimum Viable Product (MVP) in Phase 1, then systematically adds capabilities through 4 distinct phases over 12-16 weeks.
 
+**🔍 UX-Enhanced**: This plan incorporates comprehensive user experience testing findings that identified critical usability issues. **17 new tasks** have been added to Phase 1 to address AI interaction failures, command discovery problems, and error handling deficiencies, ensuring the MVP delivers high-quality user experience from day one.
+
 ## 📊 Current State Analysis
 
 **Assets We Have:**
@@ -98,6 +100,11 @@ gantt
 - [ ] Task 1.2.5: Add comprehensive error handling for API failures
 - [ ] Task 1.2.6: Create provider factory for easy instantiation
 - [ ] Task 1.2.7: Test OpenAI integration end-to-end
+- [ ] Task 1.2.8: **DEBUG AI INTERACTION FAILURES** - Investigate why natural language queries return "Technical Issue Encountered"
+- [ ] Task 1.2.9: **ADD SPECIFIC ERROR MESSAGES** - Replace generic error messages with specific failure reasons (API key invalid, model unavailable, network issues)
+- [ ] Task 1.2.10: **IMPLEMENT RETRY MECHANISMS** - Add exponential backoff retry logic for failed AI requests
+- [ ] Task 1.2.11: **ADD CONNECTION TESTING** - Implement pre-request connection health checks
+- [ ] Task 1.2.12: **ENHANCE ERROR RECOVERY** - Provide clear, actionable recovery steps specific to each error type
 
 **Success Criteria**:
 - [ ] Can list available OpenAI models
@@ -122,6 +129,10 @@ gantt
 - [ ] Task 1.3.5: Add command validation and error handling
 - [ ] Task 1.3.6: Integrate commands with CLI interface
 - [ ] Task 1.3.7: Test all CLI commands functionality
+- [ ] Task 1.3.8: **ADD INTELLIGENT COMMAND SUGGESTIONS** - Implement fuzzy command matching with suggestions for unknown commands
+- [ ] Task 1.3.9: **ENHANCE ERROR DISCOVERY** - Add "Did you mean?" suggestions with command descriptions and help links
+- [ ] Task 1.3.10: **REMOVE REDUNDANT WELCOME MESSAGES** - Clean up duplicate welcome messages to reduce cognitive load
+- [ ] Task 1.3.11: **ADD INTERACTIVE FEEDBACK** - Implement typing indicators and progress bars for better UX
 
 **Success Criteria**:
 - [ ] Users can have AI conversations via `/ai`
@@ -146,6 +157,10 @@ gantt
 - [ ] Task 1.4.4: Add session CLI commands (save/load/list)
 - [ ] Task 1.4.5: Integrate session management with AI conversation flow
 - [ ] Task 1.4.6: Test session persistence and recovery
+- [ ] Task 1.4.7: **ADD AUTO-SAVE INDICATORS** - Show visual feedback when session progress is saved automatically
+- [ ] Task 1.4.8: **IMPLEMENT SESSION CONTINUITY** - Add "Welcome back" messages and recent learning topics display
+- [ ] Task 1.4.9: **ADD CONTEXT RESTORATION** - Implement quick context restoration from previous sessions
+- [ ] Task 1.4.10: **SHOW PERSISTENCE STATUS** - Add indicators showing session state and save status
 
 **Success Criteria**:
 - [ ] Sessions can be created and saved
@@ -163,6 +178,10 @@ gantt
 - [ ] Task 1.5.3: Update documentation to match implemented features
 - [ ] Task 1.5.4: Create user onboarding guide
 - [ ] Task 1.5.5: Prepare MVP release and version tagging
+- [ ] Task 1.5.6: **ENHANCE CONTEXTUAL ERROR HELP** - Add specific troubleshooting steps with numbered action items
+- [ ] Task 1.5.7: **IMPLEMENT SUCCESS METRICS TRACKING** - Add tracking for first interaction success rate and command discovery time
+- [ ] Task 1.5.8: **CREATE COMPREHENSIVE ERROR RECOVERY** - Design error recovery workflows for all failure scenarios
+- [ ] Task 1.5.9: **ADD INTERACTIVE ONBOARDING** - Implement interactive tutorial mode with 5-minute guided tour
 
 **Success Criteria**:
 - [ ] All core functionality works without errors
@@ -483,10 +502,10 @@ gantt
 
 **Phase 1: MVP Foundation**
 - [x] Phase 1.1: Application Entry Point (6/6 tasks)
-- [ ] Phase 1.2: Basic OpenAI Integration (0/7 tasks)
-- [ ] Phase 1.3: Core CLI Commands (0/7 tasks)
-- [ ] Phase 1.4: Session Management (0/6 tasks)
-- [ ] Phase 1.5: MVP Testing & Release (0/5 tasks)
+- [ ] Phase 1.2: Basic OpenAI Integration (0/12 tasks)
+- [ ] Phase 1.3: Core CLI Commands (0/11 tasks)
+- [ ] Phase 1.4: Session Management (0/10 tasks)
+- [ ] Phase 1.5: MVP Testing & Release (0/9 tasks)
 
 **Phase 2: Core Learning Features**
 - [ ] Phase 2.1: Enhanced AI Integration (0/7 tasks)
@@ -629,5 +648,6 @@ By following this structured approach, Learning Catalyst can evolve from its cur
 ---
 
 *Last Updated: 2025-10-13*
-*Version: 1.0.0*
-*Total Tasks: 121 | Total Estimated Duration: 11-15 weeks*
+*Version: 1.1.0*
+*Total Tasks: 138 | Total Estimated Duration: 11-15 weeks*
+*UX-Enhanced: Added 17 new tasks based on user experience testing findings*

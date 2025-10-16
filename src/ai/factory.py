@@ -6,6 +6,7 @@ Creates model instances dynamically based on provider and model type.
 
 from typing import Dict, Type, List, Optional, Any
 from ..core.models import ProviderConfig, ModelList, ModelType
+from ..core.logging import get_logger
 from .models import AIModel, ChatModel, EmbeddingModel, RerankModel
 from ..core.exceptions import ModelError, ValidationError
 from .providers import OpenAIProvider, DeepSeekProvider, SiliconFlowProvider, ChatGLMProvider
@@ -46,11 +47,14 @@ class ModelFactory:
     @classmethod
     def get_provider_instance(cls, config: ProviderConfig):
         """Get a provider instance from configuration."""
+        logger = get_logger("model_factory")
         provider_name = config.name.lower()
 
         if provider_name not in cls._providers:
+            logger.error(f"Provider not registered: {config.name}")
             raise ModelError(f"Provider '{config.name}' not registered")
 
+        logger.info(f"Creating provider instance: {provider_name}")
         provider_class = cls._providers[provider_name]
         return provider_class(config)
 

@@ -60,14 +60,110 @@ class CommandProcessor:
 #### Response Generation
 1. **AI-Powered Analysis**: Processes user request using advanced language models
 2. **Knowledge Retrieval**: Accesses relevant information from training data and knowledge bases
-3. **Contextual Response**: Generates personalized responses based on conversation history
-4. **Learning Progress Tracking**: Updates user's learning journey and concept mastery
+3. **Real-time Streaming**: Delivers responses progressively with live updates
+4. **Thinking Display** (ChatGLM): Shows AI reasoning process for enhanced learning
+5. **Contextual Response**: Generates personalized responses based on conversation history
+6. **Learning Progress Tracking**: Updates user's learning journey and concept mastery
+
+#### Enhanced Response Features
+
+**Streaming Response Display:**
+```bash
+Learning Catalyst > Explain quantum computing basics
+🤖 AI Response (chatglm:glm-4)
+⚡ Streaming... 45 words | 12.3 w/s | 3.6s
+
+Quantum computing harnesses quantum mechanical phenomena...
+[Content appears progressively as it's generated]
+
+✅ Response complete | 187 words | 15.2s
+📊 Response: 187 words (12.3 w/s) • ⏱️ 15.2s
+```
+
+**ChatGLM Thinking Visualization:**
+```bash
+Learning Catalyst > Solve this step by step: 2x + 5 = 15
+🧠 [Thinking content displayed:
+     • Identify the equation type
+     • Plan isolation steps
+     • Show algebraic manipulation
+     • Verify the solution]
+🤖 AI Response (chatglm:glm-4)
+To solve 2x + 5 = 15:
+1. Subtract 5 from both sides: 2x = 10
+2. Divide by 2: x = 5
+📊 Response: 67 words (8.9 w/s) • Thinking: 34 words • ⏱️ 7.5s
+```
+
+**Advanced Response Features**
+
+**Enhanced Streaming Experience:**
+```bash
+# Progressive content display with real-time metrics
+Learning Catalyst > Explain how machine learning works
+🤖 AI Response (openai:gpt-4)
+⚡ Streaming... 23 words | 8.7 w/s | 2.6s
+
+Machine learning is a branch of artificial intelligence that enables systems...
+[Content appears progressively as it's generated with smooth animations]
+
+✅ Response complete | 342 words | 39.3s
+📊 Response: 342 words (8.7 w/s) • ⏱️ 39.3s
+```
+
+**ChatGLM Thinking Display:**
+```bash
+# Visual reasoning process (ChatGLM only)
+Learning Catalyst > Design a learning plan for web development
+🧠 [Thinking process displayed in real-time:
+     • Assess current skill level
+     • Plan learning progression
+     • Select appropriate technologies
+     • Create timeline with milestones
+     • Include practice projects]
+🤖 AI Response (chatglm:glm-4)
+Here's a comprehensive 6-month web development learning plan...
+📊 Response: 412 words (11.2 w/s) • Thinking: 156 words • ⏱️ 36.8s
+```
+
+**Cancellation and Control:**
+```bash
+# Cancel long responses at any time
+Learning Catalyst > Give me a comprehensive history of artificial intelligence
+🤖 AI Response (openai:gpt-4)
+⚡ Streaming... 156 words | 9.1 w/s | 17.1s
+
+The history of artificial intelligence begins in...
+[User presses Ctrl+C]
+⏹️ Response cancelled by user
+📊 Partial: 156 words (9.1 w/s) • ⏱️ 17.1s
+
+# Continue with new question
+Learning Catalyst > That was too long, just give me the key points
+🤖 AI Response (openai:gpt-4)
+⚡ Streaming... 67 words | 12.4 w/s | 5.4s
+
+Key points in AI history:
+- 1950s: Turing Test and early concepts
+- 1960s: Early AI programs like ELIZA
+...
+✅ Response complete | 178 words | 14.3s
+📊 Response: 178 words (12.4 w/s) • ⏱️ 14.3s
+```
+
+**Visual Design Features:**
+- **Clean Headers**: `🤖 AI Response (provider:model)` in blue
+- **Progress Indicators**: Real-time word count and speed metrics
+- **Split Lines**: Visual separation between responses for readability
+- **Performance Stats**: Words per second and elapsed time tracking
+- **Elegant Footers**: Completion status with final metrics
 
 **Want to understand the technical implementation?**
 - 📖 **[CLI Architecture](../technical/system-architecture/cli-architecture.md)** - Command processing system
 - 🔧 **[Implementation Guides](../technical/guides/)** - Feature development tutorials
 - 🏗️ **[System Architecture](../technical/system-architecture/)** - Complete system design
 - 🧠 **[AI Integration](../technical/system-architecture/ai-integration.md)** - How AI responses are generated
+- 📡 **[Streaming Implementation](../../STREAMING_IMPLEMENTATION.md)** - Real-time response display
 
 ## Workflow 0: Guided Startup Experience
 

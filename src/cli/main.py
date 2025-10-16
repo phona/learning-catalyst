@@ -6,6 +6,8 @@ and launches the interactive learning session.
 """
 
 import asyncio
+import os
+import signal
 import sys
 from pathlib import Path
 from typing import Optional
@@ -26,11 +28,35 @@ app = typer.Typer(
     name="learning-catalyst",
     help="🧠 An AI-driven interactive learning companion",
     invoke_without_command=True,
-    rich_markup_mode="rich",
+    rich_markup_mode=None,
 )
 
-# Global console instance
-console = Console()
+def create_rich_console() -> Console:
+    """Create Rich console with optimal configuration for ANSI handling."""
+    # Detect terminal capabilities
+    is_terminal = sys.stdout.isatty()
+    force_colors = os.getenv("FORCE_COLOR", "0") == "1" or os.getenv("CLICOLOR", "0") != "0"
+
+    # More conservative console configuration to avoid ANSI issues
+    console_config = {
+        "legacy_windows": False,
+        "force_terminal": is_terminal or force_colors,
+        "no_color": False,  # Keep color processing enabled
+        "width": None,
+        "file": None,
+        "color_system": "truecolor" if (is_terminal or force_colors) else None,  # Disable color system completely if no terminal
+        "force_interactive": False,  # Let prompt-toolkit handle interaction
+        "emoji": False,  # Disable emoji processing that can cause issues
+        "markup": True,  # Keep markup enabled
+        "highlight": False,  # Disable syntax highlighting to avoid ANSI issues
+        "soft_wrap": True,  # Enable soft wrapping for better text handling
+        "tab_size": 4,
+    }
+
+    return Console(**console_config)
+
+# Global console instance - configured for proper ANSI handling
+console = create_rich_console()
 
 
 def get_prompt_text(config_manager: ConfigManager) -> str:
@@ -61,10 +87,9 @@ def main(
         # Initialize configuration
         config_manager = setup_configuration(config_dir, verbose)
 
-        # Setup logging
-        log_file = Path(config_manager.config_dir) / "logs" / "learning_catalyst.log" if config_dir else None
-        if log_file:
-            log_file.parent.mkdir(parents=True, exist_ok=True)
+        # Setup logging - use .catalyst subdirectory within config dir
+        log_file = Path(config_manager.config_dir) / ".catalyst" / "logs" / "learning_catalyst.log"
+        log_file.parent.mkdir(parents=True, exist_ok=True)
         setup_logging(verbose=verbose, log_file=log_file)
 
         # Start interactive mode
@@ -131,59 +156,82 @@ def run_interactive_mode(config_manager: ConfigManager, verbose: bool = False) -
         config_manager: Initialized configuration manager
         verbose: Enable verbose output
     """
-    # Create and configure CLI interface
-    cli_interface = CLIInterface(config_manager)
+    # Create and configure CLI interface with shared console
+    cli_interface = CLIInterface(config_manager, console=console)
 
-    # Setup Rich console handlers
-    cli_interface.set_output_handler("response", lambda msg: console.print(msg))
-    cli_interface.set_output_handler("error", lambda msg: console.print(f"❌ {msg}", style="red"))
-    cli_interface.set_output_handler("info", lambda msg: console.print(f"ℹ️  {msg}", style="dim blue"))
+    # Setup Rich console handlers with safe ANSI processing for output only
+    cli_interface.set_output_handler("response", lambda msg: _safe_print(msg, style=""))
+    cli_interface.set_output_handler("error", lambda msg: _safe_print(f"❌ {msg}", style="red"))
+    cli_interface.set_output_handler("info", lambda msg: _safe_print(f"ℹ️  {msg}", style="dim blue"))
     cli_interface.set_output_handler("markdown", lambda msg: _render_markdown(msg))
     cli_interface.set_output_handler("rich_panel", lambda panel: console.print(panel))
 
-    # Setup enhanced input handler with command history
-    import readline
-    import atexit
-    from pathlib import Path
-
-    # Setup command history file
-    history_file = Path(config_manager.config_dir) / "history.txt"
-
-    def setup_readline():
-        """Setup readline for command history and navigation."""
-        try:
-            # Load history from file
-            if history_file.exists():
-                readline.read_history_file(str(history_file))
-
-            # Set history length
-            readline.set_history_length(1000)
-
-            # Save history on exit
-            atexit.register(lambda: readline.write_history_file(str(history_file)))
-
-        except ImportError:
-            # readline not available, fallback to basic input
-            pass
-
-    setup_readline()
-
-    def get_input(prompt: str) -> str:
-        try:
-            # Use dynamic prompt with context
-            prompt_text = get_prompt_text(config_manager)
-            user_input = input(prompt_text)
-            return user_input
-        except (KeyboardInterrupt, EOFError):
-            raise
-
-    cli_interface.set_input_handler(get_input)
+    # Note: CLI interface handles its own enhanced input with prompt-toolkit
+    # This enables tab completion and other enhanced features
 
     # Display welcome message
     display_welcome_message(config_manager, verbose)
 
+    # Setup enhanced signal handling for streaming cancellation
+    def signal_handler(signum, frame):
+        """Handle SIGINT for graceful streaming cancellation."""
+        console.print("\n⏹️ Received interrupt signal...", style="yellow")
+        # The CLI interface will handle the actual cancellation
+        cli_interface.cancel_streaming()
+
+    # Register signal handler for Ctrl+C
+    signal.signal(signal.SIGINT, signal_handler)
+
     # Run the interactive loop
-    asyncio.run(cli_interface.run_interactive_loop())
+    try:
+        asyncio.run(cli_interface.run_interactive_loop())
+    except KeyboardInterrupt:
+        console.print("\n👋 Goodbye!", style="green")
+    except Exception as e:
+        console.print(f"\n❌ Unexpected error: {str(e)}", style="red")
+        if verbose:
+            console.print_exception()
+        sys.exit(1)
+
+
+def _safe_print(content: str, style: str = "") -> None:
+    """Print content safely, handling ANSI escape sequences properly."""
+    import re
+    import sys
+
+    # Check if content contains actual ANSI escape sequences or malformed ones
+    has_ansi = re.search(r'\x1B\[[0-?]*[ -/]*[@-~]', content)
+    has_malformed = re.search(r'\?\[[0-9;]*m', content)
+
+    # Also check for common patterns that indicate ANSI issues
+    has_reset_pattern = re.search(r'\?\[0m', content)
+
+    if has_ansi or has_malformed or has_reset_pattern:
+        # Content has ANSI codes (proper or malformed), strip them completely
+        cleaned = content
+
+        # Fix malformed ANSI sequences - replace ?[ with proper escape first
+        cleaned = re.sub(r'\?\[', '\x1b[', cleaned)
+
+        # Remove ALL ANSI escape sequences (the fixed ones and original ones)
+        cleaned = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', cleaned)
+
+        # Remove any remaining malformed patterns
+        cleaned = re.sub(r'\?\[[0-9;]*m', '', cleaned)
+        cleaned = re.sub(r'\?\[[^\]]*\]', '', cleaned)
+
+        # Additional cleanup for complex mixed patterns
+        cleaned = re.sub(r'\?\[[^\]]*\?\[[^\]]*\]', '', cleaned)
+        cleaned = re.sub(r'\?\[[^\]]*\?\[[^\]]*\?\[[^\]]*\]', '', cleaned)
+
+        # Remove any remaining control characters
+        cleaned = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', cleaned)
+
+        # Print clean content without ANSI
+        print(cleaned, end='', flush=True)
+    else:
+        # Clean content, use Rich console for proper formatting
+        console.print(content, style=style)
 
 
 def _render_markdown(content: str) -> None:

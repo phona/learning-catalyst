@@ -18,6 +18,7 @@ estimated_time: "15 minutes"
 | [⚙️ Configuration API](configuration-api.md) | Settings management and provider configuration | Intermediate | 25 min | ✅ Complete |
 | [🤖 Provider Interface](provider-interfaces.md) | AI provider integration and extension | Advanced | 35 min | ✅ Complete |
 | [🔧 AI Toolcalls API](toolcalls-api.md) | Function calling and tool orchestration | Advanced | 40 min | ✅ Complete |
+| [🧠 ChatGLM Thinking API](chatglm-thinking-api.md) | ChatGLM reasoning display and thinking features | Intermediate | 20 min | ✅ Complete |
 
 ### Data & Knowledge APIs
 | API Reference | Primary Focus | Difficulty | Est. Time | Status |
@@ -148,6 +149,22 @@ This API reference documentation complements the [System Architecture](../system
 - Tool orchestration and execution workflows
 - Security patterns for safe tool execution
 - Performance optimization for interactive AI responses
+
+#### 🧠 [ChatGLM Thinking API](chatglm-thinking-api.md)
+**ChatGLM reasoning display and thinking features API**
+
+**Perfect for**: Learning-focused applications, educational developers, ChatGLM users
+- **Core Focus**: Thinking process visualization, reasoning display, performance metrics
+- **Key Components**: Thinking content extraction, streaming display, UI components
+- **Integration Points**: ChatGLM provider, streaming responses, CLI interface
+- **Real-world Usage**: Educational tools, learning analytics, reasoning visualization
+
+**Essential Features**:
+- Real-time thinking process display with ChatGLM models
+- Performance metrics tracking (word count, speed, timing)
+- Visual separation of thinking and response content
+- Progressive streaming with cancellation support
+- Integration with existing streaming infrastructure
 
 ### 📊 Data & Knowledge APIs
 
@@ -433,13 +450,13 @@ Our API documentation follows stringent quality standards to ensure consistency,
 
 ### API Capability Matrix
 
-| Capability | CLI Commands | Configuration | Provider | Data Models | Knowledge |
-|------------|--------------|---------------|----------|-------------|-----------|
-| **Session Management** | ✅ Primary | ⚙️ Settings | 🔄 Context | 📊 Entities | 🧠 State |
-| **Real-time Updates** | ✅ Live Display | ✅ Hot Reload | 🔄 Provider Switch | 📊 Validation | 🧠 Sync |
-| **Error Handling** | ✅ User-Friendly | ✅ Validation | ✅ Retry Logic | ✅ Constraints | ✅ Recovery |
-| **Security** | 🔒 Input Validation | 🔒 Encryption | 🔒 Auth | 🔒 Permissions | 🔒 Access Control |
-| **Performance** | ⚡ Interactive | ⚡ Caching | ⚡ Pooling | ⚡ Indexing | ⚡ Optimization |
+| Capability | CLI Commands | Configuration | Provider | Data Models | Knowledge | ChatGLM Thinking |
+|------------|--------------|---------------|----------|-------------|-----------|------------------|
+| **Session Management** | ✅ Primary | ⚙️ Settings | 🔄 Context | 📊 Entities | 🧠 State | 🧠 Reasoning |
+| **Real-time Updates** | ✅ Live Display | ✅ Hot Reload | 🔄 Provider Switch | 📊 Validation | 🧠 Sync | 🧠 Thinking Stream |
+| **Error Handling** | ✅ User-Friendly | ✅ Validation | ✅ Retry Logic | ✅ Constraints | ✅ Recovery | ✅ Fallback |
+| **Security** | 🔒 Input Validation | 🔒 Encryption | 🔒 Auth | 🔒 Permissions | 🔒 Access Control | 🔒 Content Filter |
+| **Performance** | ⚡ Interactive | ⚡ Caching | ⚡ Pooling | ⚡ Indexing | ⚡ Optimization | ⚡ Metrics Display |
 
 ### Integration Complexity Guide
 

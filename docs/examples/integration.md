@@ -233,9 +233,9 @@ Learning Catalyst > /config model
 
 ## Workflow 3: ChatGLM Provider Setup
 
-### Scenario: Configure Chinese AI Model
+### Scenario: Configure Chinese AI Model with Thinking Support
 
-**Perfect for**: Chinese language learning and bilingual content
+**Perfect for**: Chinese language learning, bilingual content, and reasoning visualization
 
 ```bash
 # Configure ChatGLM provider
@@ -246,23 +246,96 @@ Learning Catalyst > /config provider chatglm
 # Set ChatGLM model
 Learning Catalyst > /config model
 🤖 Available Models (chatglm provider):
-  ✅ chatglm3
-  ✅ chatglm4
-[User selects chatglm4 from the list]
-🤖 Model set to: chatglm4
+  ✅ glm-4
+  ✅ glm-4-plus
+  ✅ glm-4-flash
+  ✅ glm-4-air
+[User selects glm-4 from the list]
+🤖 Model set to: glm-4
 
-# Test Chinese capabilities
+# Test Chinese capabilities with thinking display
 Learning Catalyst > 请用中文解释什么是机器学习
-🧠 机器学习是人工智能的一个重要分支...
-[Chinese explanation of machine learning concepts]
+🧠 [Thinking content displayed in real-time with reasoning process]
+🤖 机器学习是人工智能的一个重要分支，它使计算机能够从数据中学习...
+📊 Response: 156 words (12.3 w/s) • Thinking: 89 words • ⏱️ 12.7s
 
-# Test bilingual capabilities
-Learning Catalyst > Now explain the same concept in English
-🧠 Machine learning is a branch of artificial intelligence...
-[English explanation with consistent content]
+# Test bilingual capabilities with reasoning
+Learning Catalyst > Now explain the same concept in English step by step
+🧠 [Detailed thinking process showing step-by-step reasoning]
+🤖 Machine learning is a branch of artificial intelligence that enables computers...
+📊 Response: 203 words (15.8 w/s) • Thinking: 124 words • ⏱️ 12.9s
+
+# Test complex problem-solving with visible thinking
+Learning Catalyst > Solve this step by step: A train travels 300km in 3 hours. If it increases speed by 50km/h, how long for the same distance?
+🧠 [Mathematical reasoning shown in thinking content]
+🤖 [Final answer with detailed explanation]
+📊 Response: 98 words (14.2 w/s) • Thinking: 67 words • ⏱️ 6.9s
 
 # Configuration is automatically saved
 ```
+
+### ChatGLM Thinking Features
+
+**Enhanced Learning with Visible Reasoning:**
+
+```bash
+# Complex conceptual learning
+Learning Catalyst > Explain quantum computing in simple terms
+🧠 [Shows internal reasoning process:
+     • Start with basic concepts
+     • Use analogies for complex ideas
+     • Structure explanation step-by-step
+     • Include real-world applications]
+🤖 [Clear, structured explanation based on thinking process]
+📊 Response: 187 words (13.1 w/s) • Thinking: 103 words • ⏱️ 14.3s
+
+# Code explanation with reasoning
+Learning Catalyst > Explain how decorators work in Python with examples
+🧠 [Programming reasoning shown:
+     • Define decorator concept
+     • Plan simple examples
+     • Show syntax breakdown
+     • Provide practical use cases]
+🤖 [Comprehensive code explanation with examples]
+📊 Response: 245 words (16.7 w/s) • Thinking: 134 words • ⏱️ 14.7s
+
+# Problem-solving approach
+Learning Catalyst > How would you approach learning a new programming language?
+🧠 [Learning strategy reasoning displayed]
+🤖 [Structured learning plan with specific steps]
+📊 Response: 178 words (12.9 w/s) • Thinking: 98 words • ⏱️ 13.8s
+```
+
+**ChatGLM Model Capabilities:**
+
+```bash
+# Test different GLM models for thinking capabilities
+Learning Catalyst > /config model
+🤖 Available Models (chatglm provider):
+  ✅ glm-4 (current) - Advanced reasoning
+  ✅ glm-4-plus - Enhanced capabilities
+  ✅ glm-4-flash - Fast responses
+  ✅ glm-4-air - Cost-effective
+
+# Switch to different model for comparison
+Learning Catalyst > /config model
+[User selects glm-4-plus]
+🤖 Model switched to: glm-4-plus
+
+# Compare thinking depth between models
+Learning Catalyst > Explain neural networks to a beginner
+🧠 [More detailed reasoning with glm-4-plus]
+🤖 [Enhanced explanation with better analogies]
+📊 Response: 267 words (18.2 w/s) • Thinking: 156 words • ⏱️ 14.6s
+```
+
+**Key Benefits of ChatGLM Thinking Support:**
+
+- **🧠 Visible Reasoning**: See the AI's step-by-step thinking process
+- **📊 Performance Metrics**: Track word count, speed, and thinking depth
+- **🎯 Learning Enhancement**: Understand how the AI approaches problems
+- **💭 Bilingual Thinking**: Reasoning displayed in both Chinese and English
+- **⚡ Real-time Display**: Watch reasoning unfold in real-time
 
 ## Workflow 4: SiliconFlow Provider Setup
 

@@ -114,7 +114,6 @@ class TestSessionModel:
     def test_session_auto_update_last_activity(self):
         """Test that session automatically updates last_activity on interaction."""
         from src.data.models.session import Session
-        from datetime import datetime
 
         start_time = datetime.now()
         session = Session(
@@ -198,7 +197,6 @@ class TestSessionModel:
     def test_session_duration_calculation(self):
         """Test that session can calculate duration."""
         from src.data.models.session import Session
-        from datetime import datetime, timedelta
 
         start_time = datetime.now()
         end_time = start_time + timedelta(minutes=45)
@@ -290,7 +288,6 @@ class TestSessionModel:
     def test_session_timeout_detection(self):
         """Test that session can detect timeout based on inactivity."""
         from src.data.models.session import Session
-        from datetime import datetime, timedelta
 
         # Create session with old activity
         old_time = datetime.now() - timedelta(hours=3)

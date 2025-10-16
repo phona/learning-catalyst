@@ -725,7 +725,7 @@ class TestAIIntegration:
         followup_stream_id = await ai_service.start_streaming_response_with_followup(
             prompt="Explain recursion",
             allow_followup=True,
-            followup_triggers["question", "clarification", "example"]
+            followup_triggers=["question", "clarification", "example"]
         )
 
         followup_chunks = []
