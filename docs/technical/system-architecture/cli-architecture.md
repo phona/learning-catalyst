@@ -2,191 +2,97 @@
 
 ---
 title: Learning Catalyst CLI Architecture
-description: Command-line interface architectural design, command processing patterns, and user interaction architecture
+description: Command-line interface architectural design and user interaction patterns
 version: 1.0.0
 last_updated: 2025-10-10
 difficulty: "Advanced"
-estimated_time: "45 minutes"
+estimated_time: "30 minutes"
 ---
 
 ## Overview
 
-This document covers the architectural design of Learning Catalyst's command-line interface, focusing on command processing, user interaction patterns, session management, and integration with the underlying AI system. The CLI provides a responsive, intuitive, and extensible command-line experience.
+Learning Catalyst's CLI implements a sophisticated command-line interface with panel-based navigation, session management, and seamless AI integration. The architecture prioritizes user experience through responsive interactions and intelligent command processing.
 
-## CLI Principles
+```mermaid
+graph TB
+    subgraph "CLI Architecture"
+        User[User Input] --> Prompt[Interactive Prompt]
 
-### Core Foundations
+        Prompt --> Commands[Command Processing]
+        Commands --> Panels[Panel System]
+        Commands --> AI[AI Integration]
+        Commands --> Session[Session Management]
 
-**Command-Centric Design**: Pattern-based commands with hierarchical structure, context-aware processing, and extensible system for new command types.
+        Panels --> Navigation[Panel Navigation]
+        Navigation --> UI[User Interface]
 
-**Session Management**: Persistent session state with context preservation, state synchronization, and robust recovery mechanisms.
+        AI --> Learning[Learning Engine]
+        Learning --> Data[Data Layer]
 
-**User Interaction**: Responsive interface with immediate feedback, intelligent command completion, comprehensive error handling, and accessible design.
+        Session --> State[State Persistence]
+        Session --> Context[Context Management]
 
-**Integration Architecture**: Seamless AI integration with efficient data flow, event-driven communication, and modular integration points.
+        UI --> Output[Response Display]
+        Output --> User
+    end
+
+    style User fill:#e1f5fe
+    style Prompt fill:#e8f5e8
+    style Commands fill:#fff3e0
+    style Panels fill:#f3e5f5
+    style AI fill:#fce4ec
+    style Session fill:#e0f2f1
+```
+
+## Core Principles
+
+- **Panel-Based Interface**: Always-active prompt with temporary command dialogs
+- **Session Persistence**: Continuous context across interactions and checkpoints
+- **Async Key Handling**: Responsive input with cross-platform support
+- **AI Integration**: Natural language processing with contextual awareness
 
 ## Command Processing
 
-### Command Palette Input System
+### Command Classification
 
-The CLI implements a sophisticated command palette with intelligent command discovery, autocomplete, and interactive navigation.
+Commands are processed through a hierarchical pipeline:
 
-#### Command Palette Design
-
-```mermaid
-graph TB
-    subgraph "Command Processing Architecture"
-        subgraph "Command Input Layer"
-            SC[System Commands<br/>/help, /quit<br/>/clear, /status]
-            LC[Learning Cmds<br/>/knowledge-map<br/>Natural Input]
-            CC[Config Cmds<br/>/config<br/>/tokens]
-        end
-
-        subgraph "Command Processing Engine"
-            CP[Command Parser<br/>& Validator]
-            RR[Route Resolver<br/>& Dispatcher]
-            CM[Context Mgr<br/>& Enricher]
-        end
-
-        subgraph "Command Execution Layer"
-            CH[Command Handler<br/>& Business Logic]
-            RG[Response<br/>Generator]
-            SU[State Update<br/>& Persistence]
-        end
-    end
-
-    SC --> CP
-    LC --> CP
-    CC --> CP
-    CP --> RR
-    RR --> CM
-    CM --> CH
-    CH --> RG
-    RG --> SU
-
-    style SC fill:#e1f5fe
-    style LC fill:#e1f5fe
-    style CC fill:#e1f5fe
-    style CP fill:#fff3e0
-    style RR fill:#fff3e0
-    style CM fill:#fff3e0
-    style CH fill:#e8f5e8
-    style RG fill:#e8f5e8
-    style SU fill:#e8f5e8
-```
-
-### Command Processing Pipeline
-
-#### **Input Processing**
-**Pattern Recognition**: Commands are classified into patterns:
-- **System Commands**: CLI management and system operations
-- **Learning Commands**: Educational and knowledge-related operations
-- **Configuration Commands**: System configuration and management
+**Command Types**:
+- **System Commands**: `/help`, `/quit`, `/clear` - CLI management
+- **Learning Commands**: `/knowledge-map`, natural queries - Educational operations
+- **Configuration Commands**: `/config`, `/tokens` - System management
 - **Natural Input**: Conversational AI interactions
 
-#### **Command Resolution**
-**Hierarchical Processing**: Commands processed through layers:
-1. **Syntax Validation**: Command structure and parameter validation
-2. **Semantic Analysis**: Command intent and context interpretation
-3. **Route Resolution**: Mapping commands to appropriate handlers
-4. **Context Enrichment**: Session and user context integration
+**Processing Pipeline**:
+1. **Syntax Validation** - Command structure and parameters
+2. **Semantic Analysis** - Intent and context interpretation
+3. **Route Resolution** - Map to appropriate handlers
+4. **Context Enrichment** - Session and user context integration
 
-#### **Execution Patterns**
-**Command Implementation**: Each command type follows specific patterns:
-- **Immutable Commands**: Read-only operations with no state changes
-- **Mutable Commands**: Operations that modify system state
-- **Interactive Commands**: Multi-step user interaction workflows
-- **Batch Commands**: Operations on multiple items or contexts
+**Execution Patterns**:
+- **Interactive Commands**: Multi-step workflows with user input
+- **Immediate Commands**: Single-action operations
+- **Batch Commands**: Operations on multiple items
 
 ## Session Management
 
-### Session State Design
+### Session Architecture
 
-The CLI implements sophisticated session management with persistent state across command executions.
+**Session Layers**:
+- **State Layer**: User context, conversation history, learning progress
+- **Persistence Layer**: Session storage, checkpoints, recovery mechanisms
+- **Lifecycle Manager**: Session initialization, transitions, cleanup
 
-#### Session Architecture
+**State Components**:
+- **User Context**: Identity, learning topics, preferences, patterns
+- **Checkpoint System**: Auto-saving, manual checkpoints, incremental updates
+- **Session Lifecycle**: Init → Active → Persist → Restore → Cleanup
 
-```mermaid
-graph TB
-    subgraph "Session Management Architecture"
-        subgraph "Session State Layer"
-            UC[User Context<br/>& Preferences]
-            CH[Conversation<br/>History]
-            LP[Learning<br/>Progress]
-        end
-
-        subgraph "Session Persistence Layer"
-            SS[Session Storage<br/>& Retrieval]
-            CM[Checkpoint Mgmt<br/>& Versioning]
-            RM[Recovery<br/>Mechanisms]
-        end
-
-        subgraph "Session Lifecycle Manager"
-            SI[Session Init<br/>& Validation]
-            ST[State Transitions<br/>& Persistence]
-            SE[Session End<br/>& Cleanup]
-        end
-    end
-
-    UC --> SS
-    CH --> SS
-    LP --> SS
-    SS --> CM
-    CM --> RM
-    RM --> SI
-    SI --> ST
-    ST --> SE
-
-    style UC fill:#f3e5f5
-    style CH fill:#f3e5f5
-    style LP fill:#f3e5f5
-    style SS fill:#fff3e0
-    style CM fill:#fff3e0
-    style RM fill:#fff3e0
-    style SI fill:#e1f5fe
-    style ST fill:#e1f5fe
-    style SE fill:#e1f5fe
-```
-
-### Session State Components
-
-#### **Context Management**
-**User Context Layer**: Maintains comprehensive user session context:
-- **Identity Context**: User identification and authentication state
-- **Learning Context**: Current learning topics, progress, and preferences
-- **Interaction Context**: Recent commands, conversation history, and patterns
-- **System Context**: Current configuration, active providers, and system state
-
-#### **State Persistence**
-**Checkpoint System**: Robust state persistence mechanisms:
-- **Automatic Checkpoints**: Periodic state saving during interactions
-- **Manual Checkpoints**: User-initiated state preservation
-- **Incremental Updates**: Efficient state change tracking and storage
-- **Recovery Mechanisms**: State restoration after interruptions
-
-#### **Session Lifecycle**
-**Lifecycle Management**: Comprehensive session lifecycle control:
-1. **Session Initialization**: Context establishment and validation
-2. **Active Session Management**: State maintenance and updates
-3. **Session Persistence**: Checkpoint creation and state storage
-4. **Session Restoration**: Recovery and state reconstruction
-5. **Session Termination**: Cleanup and resource deallocation
-
-### Command-to-Session Integration
-
-#### **Context-Aware Command Processing**
-**Session Integration**: Commands leverage session context for intelligent processing:
-- **Personalized Responses**: Commands adapt based on user learning history
-- **Context Preservation**: Command execution maintains conversation context
-- **State Synchronization**: Commands update session state appropriately
-- **Progress Tracking**: Session state tracks learning progress across commands
-
-#### **Session State in Command Workflows**
-**Command Workflows**: Session state enables sophisticated workflows:
-- **Multi-Command Operations**: Session state maintains context across command sequences
-- **Interactive Workflows**: Session state supports multi-step user interactions
-- **Learning Continuity**: Session state preserves learning context between sessions
-- **Progressive Disclosure**: Session state enables contextually relevant command suggestions
+**Command Integration**:
+- **Context-Aware Processing**: Commands adapt based on learning history
+- **State Synchronization**: Updates maintain conversation continuity
+- **Progress Tracking**: Learning progress maintained across commands
+- **Multi-Command Workflows**: Context preserved across command sequences
 
 ## User Interface
 
@@ -196,49 +102,28 @@ The CLI implements a comprehensive user interface with responsive, intuitive, an
 
 #### UI Components
 
-```mermaid
-graph TB
-    subgraph "User Interface Architecture"
-        subgraph "Display Rendering Layer"
-            CR[Conversation<br/>Renderer]
-            IE[Interactive<br/>Elements]
-            PS[Progress &<br/>Status Display]
-        end
-
-        subgraph "Interaction Handling Layer"
-            IP[Input Processing<br/>& Validation]
-            NM[Navigation<br/>Management]
-            CC[Command<br/>Completion]
-        end
-
-        subgraph "Response Architecture"
-            OF[Output Formatting<br/>& Styling]
-            EH[Error Handling<br/>& User Guidance]
-            AS[Accessibility<br/>Support]
-        end
-    end
-
-    CR --> IP
-    IE --> IP
-    PS --> IP
-    IP --> NM
-    NM --> CC
-    CC --> OF
-    OF --> EH
-    EH --> AS
-
-    style CR fill:#e1f5fe
-    style IE fill:#e1f5fe
-    style PS fill:#e1f5fe
-    style IP fill:#e8f5e8
-    style NM fill:#e8f5e8
-    style CC fill:#e8f5e8
-    style OF fill:#fff3e0
-    style EH fill:#fff3e0
-    style AS fill:#fff3e0
-```
+**Interface Architecture**:
+- **Display Layer**: Conversation rendering, interactive elements, progress indicators
+- **Interaction Layer**: Input validation, navigation management, command completion
+- **Response Layer**: Output formatting, error handling, accessibility support
 
 ### Interactive Elements
+
+#### **Panel-Based Interface System**
+**CLI Prompt Architecture**: The CLI implements an interactive command-line prompt system with temporary dialogs for specific commands, prioritizing simplicity and continuous interaction flow:
+
+- **Always-Active Prompt**: The main prompt is always ready for input like a shell (bash/zsh)
+- **Temporary Dialogs**: Commands show temporary interfaces that return to the prompt
+- **Dual Input Modes**: Natural language for AI + slash commands for system functions
+- **Consistent Return Path**: ESC or completion always returns to the prompt
+- **Shell-Like Behavior**: Familiar CLI patterns with enhanced AI capabilities
+
+**Panel Types**:
+1. **Conversation Prompt (Default)**: Interactive CLI prompt for commands and AI conversation
+2. **Configuration Dialog**: Interactive setup invoked by `/config` command (modal overlay)
+3. **Statistics View**: Show learning analytics when `/stats` command is used (temporary display)
+4. **Help Display**: Show command reference and help text (temporary output)
+5. **Checkpoint Interface**: Save/load session functionality via `/checkpoint` command (dialog)
 
 #### **Knowledge Map Interface**
 **Interactive Navigation**: Sophisticated navigation for knowledge exploration:
@@ -254,282 +139,114 @@ graph TB
 - **Contextual Help**: Provides relevant help information during command input
 - **Error Prevention**: Suggests corrections for common command mistakes
 
+#### **Async Key Input Integration**
+**Responsive Key Handling**: Integration with async key handling system for optimal responsiveness:
+- **Dual Mode Support**: Native terminal I/O and keyboard library integration
+- **Event Streaming**: Real-time key event processing with async generators
+- **Cross-Platform Compatibility**: Works across Windows, macOS, and Linux with automatic fallbacks
+- **Non-blocking Input**: Async key processing prevents UI blocking during operations
+
 ### Autocomplete Architecture
 
-The CLI implements a sophisticated autocomplete system with real-time, context-aware command suggestions. This architecture integrates with the command processing pipeline, session management, and user context for intelligent, responsive autocomplete functionality.
+**Context-Aware Suggestions**: Real-time command completion with session awareness and learning adaptation.
 
-#### Autocomplete Workflow Architecture
+**Processing Pipeline**:
+1. **Input Analysis**: Trigger detection, context parsing, intent recognition
+2. **Suggestion Generation**: Command matching, pattern recognition, historical context
+3. **Filtering & Ranking**: Relevance scoring, context filtering, learning adaptation
 
-```mermaid
-graph TB
-    subgraph "Autocomplete Processing Pipeline"
-        subgraph "Input Trigger Layer"
-            UI[User Input<br/>Capture]
-            TT[Typing Trigger<br/>Detection]
-            CC[Command Context<br/>Analysis]
-        end
+**Context Integration**:
+- **Session-Aware**: Learning context, progress-based suggestions, preference adaptation
+- **Pattern Recognition**: Hierarchical completion, parameter validation, syntax awareness
+- **Performance**: Incremental processing, caching, async responsiveness
 
-        subgraph "Suggestion Generation Engine"
-            CP[Command Pattern<br/>Matching]
-            HC[Historical Context<br/>Analysis]
-            SC[Session State<br/>Integration]
-            FT[Fuzzy Search<br/>Algorithm]
-        end
+**Input Analysis**: Trigger detection, context parsing, and intent recognition based on user typing patterns.
 
-        subgraph "Filtering & Ranking Layer"
-            CF[Context Filtering<br/>& Validation]
-            RF[Relevance Ranking<br/>Algorithm]
-            WF[Weighted Scoring<br/>System]
-        end
+**Suggestion Generation**: Multi-layered approach using command registry matching, pattern recognition, historical context, and session state.
 
-        subgraph "Display & Interaction"
-            SR[Suggestion Rendering<br/>& Display]
-            SE[Selection Event<br/>Handling]
-            AC[Auto-completion<br/>Execution]
-        end
-    end
+**Filtering & Ranking**: Intelligent scoring based on relevance, context matching, frequency, and adaptive learning patterns.
 
-    UI --> TT
-    TT --> CC
-    CC --> CP
-    CP --> HC
-    HC --> SC
-    SC --> FT
-    FT --> CF
-    CF --> RF
-    RF --> WF
-    WF --> SR
-    SR --> SE
-    SE --> AC
+**Progress Visualization**: Visual feedback for learning progress, command execution, system status, and user interactions.
 
-    style UI fill:#e1f5fe
-    style TT fill:#e1f5fe
-    style CC fill:#e1f5fe
-    style CP fill:#fff3e0
-    style HC fill:#fff3e0
-    style SC fill:#fff3e0
-    style FT fill:#fff3e0
-    style CF fill:#e8f5e8
-    style RF fill:#e8f5e8
-    style WF fill:#e8f5e8
-    style SR fill:#f3e5f5
-    style SE fill:#f3e5f5
-    style AC fill:#f3e5f5
-```
-
-#### Autocomplete Integration Architecture
-
-```mermaid
-graph TB
-    subgraph "Autocomplete Context Sources"
-        SM[Session Management<br/>User Context]
-        CH[Command History<br/>User Patterns]
-        CM[Command Registry<br/>Available Commands]
-        LP[Learning Progress<br/>Context]
-    end
-
-    subgraph "Autocomplete Processing"
-        AE[Autocomplete Engine<br/>Core Logic]
-        SG[Suggestion Generator<br/>Pattern Matching]
-        CF[Context Filter<br/>Relevance Scoring]
-    end
-
-    subgraph "Output & Feedback"
-        SD[Suggestion Display<br/>UI Rendering]
-        US[User Selection<br/>Event Capture]
-        FB[Feedback Loop<br/>Learning Update]
-    end
-
-    SM --> AE
-    CH --> AE
-    CM --> SG
-    LP --> CF
-
-    AE --> SG
-    SG --> CF
-    CF --> SD
-
-    SD --> US
-    US --> FB
-    FB --> AE
-
-    style SM fill:#e1f5fe
-    style CH fill:#e1f5fe
-    style CM fill:#e1f5fe
-    style LP fill:#e1f5fe
-    style AE fill:#fff3e0
-    style SG fill:#fff3e0
-    style CF fill:#fff3e0
-    style SD fill:#e8f5e8
-    style US fill:#e8f5e8
-    style FB fill:#e8f5e8
-```
-
-#### **Autocomplete Processing Pipeline**
-
-**Input Analysis**: The autocomplete system continuously monitors user input and triggers suggestion generation based on typing patterns:
-- **Trigger Detection**: Activates on specific keystrokes (Tab, partial commands)
-- **Context Parsing**: Analyzes current command context and cursor position
-- **Intent Recognition**: Identifies whether user is entering commands, arguments, or options
-
-**Suggestion Generation**: Multi-layered suggestion generation based on various context sources:
-- **Command Registry Matching**: Direct matching against available commands and subcommands
-- **Pattern-Based Completion**: Uses regex and pattern matching for command structures
-- **Historical Context**: Leverages user's command history and usage patterns
-- **Session Context**: Integrates current learning progress and active topics
-
-**Filtering & Ranking**: Intelligent filtering and ranking of suggestions:
-- **Relevance Scoring**: Ranks suggestions based on context match, frequency, and recency
-- **Context Filtering**: Removes irrelevant suggestions based on current state
-- **Learning Adaptation**: Adapts ranking based on user selection patterns over time
-
-#### **Autocomplete Context Integration**
-
-**Session-Aware Suggestions**: Autocomplete adapts based on current session state:
-- **Learning Context**: Suggests commands relevant to current learning topics
-- **Progress-Based Suggestions**: Recommends next logical commands based on learning progress
-- **Preference Adaptation**: Adjusts suggestions based on user's demonstrated preferences
-
-**Command Pattern Integration**: Autocomplete understands command structure and semantics:
-- **Hierarchical Completion**: Provides contextually appropriate subcommands and arguments
-- **Parameter Validation**: Suggests only valid parameters and options for current command
-- **Syntax Awareness**: Maintains awareness of command syntax and argument requirements
-
-**Real-Time Performance**: Optimized for responsive user experience:
-- **Incremental Processing**: Processes suggestions incrementally as user types
-- **Caching Strategy**: Caches frequently used suggestions for instant display
-- **Async Processing**: Handles complex suggestion generation asynchronously to maintain responsiveness
-
-#### **Progress Visualization**
-**Visual Progress Systems**: Comprehensive progress indication:
-- **Learning Progress**: Visual representation of learning advancement
-- **Command Progress**: Real-time feedback for long-running operations
-- **System Status**: Current system state and health indicators
-- **Interactive Feedback**: Responsive interface elements for user actions
-
-### Error Handling
-
-**Multi-layered error handling** approach with immediate feedback, graceful failure recovery, and intelligent user guidance through contextual help and error explanations.
+**Error Handling**: Multi-layered approach with immediate feedback, graceful recovery, and contextual user guidance.
 
 ## Command Integration
 
-### Command-to-System Integration Patterns
+### Command Integration Patterns
 
-The CLI implements sophisticated integration patterns connecting user commands with system components for seamless interaction.
+**Integration Flow**: CLI commands connect to system components through a structured pipeline:
 
-#### Command Integration Flow
-
-```mermaid
-graph TB
-    subgraph "Command Integration Architecture"
-        subgraph "Command Entry Point"
-            CI[CLI Input<br/>Capture]
-            CP[Command Parsing<br/>& Validation]
-            CX[Context<br/>Integration]
-        end
-
-        subgraph "System Integration Layer"
-            LE[Learning Engine<br/>Integration]
-            AI[AI Integration<br/>& Processing]
-            DL[Data Layer<br/>Integration]
-        end
-
-        subgraph "Response Processing Architecture"
-            RA[Response<br/>Aggregation]
-            SU[State Update<br/>& Persistence]
-            UR[User Display<br/>Rendering]
-        end
-    end
-
-    CI --> CP
-    CP --> CX
-    CX --> LE
-    LE --> AI
-    AI --> DL
-    DL --> RA
-    RA --> SU
-    SU --> UR
-
-    style CI fill:#e1f5fe
-    style CP fill:#e1f5fe
-    style CX fill:#e1f5fe
-    style LE fill:#f3e5f5
-    style AI fill:#f3e5f5
-    style DL fill:#f3e5f5
-    style RA fill:#e8f5e8
-    style SU fill:#e8f5e8
-    style UR fill:#e8f5e8
-```
+1. **Command Entry**: Input capture, parsing, and context integration
+2. **System Integration**: Learning engine, AI processing, and data layer access
+3. **Response Processing**: Result aggregation, state updates, and user display
 
 ### Command Category Integration
 
-#### **System Commands Integration**
-**Integration Pattern**: Direct system interaction with API calls, state management, and immediate feedback.
-**Examples**: `/help`, `/quit`, `/clear`, `/status`
+**Command Categories**:
+- **System Commands**: Direct system interaction (`/help`, `/quit`, `/clear`)
+- **Learning Commands**: Learning engine and AI integration (`/knowledge-map`, natural queries)
+- **Configuration Commands**: System configuration and provider management (`/config`, `/tokens`)
 
-#### **Learning Commands Integration**
-**Integration Pattern**: Learning engine and AI integration with context management and content processing.
-**Examples**: `/knowledge-map`, natural learning interactions
+**AI Integration**:
+- **Natural Language Processing**: Context building, provider communication, response processing
+- **Learning Workflows**: Progress tracking, analytics integration, adaptive learning
 
-#### **Configuration Commands Integration**
-**Integration Pattern**: System configuration and provider management with validation and persistence.
-**Examples**: `/config`, `/tokens`, provider management commands
+## Panel Navigation System
 
-### Command-to-AI Integration
+**Panel-Based Navigation**: Temporary dialog overlays that return to the always-active prompt:
 
-#### **Natural Language Processing Integration**
-**Integration Pattern**: Seamless AI provider integration with context building, provider communication, and response processing.
+**Core Principles**:
+- **Always-Active Prompt**: Shell-like continuous input readiness
+- **Temporary Dialogs**: Focused interfaces for specific commands
+- **Consistent Navigation**: Universal ESC/complete return path
+- **State Preservation**: Context maintained across panel transitions
+- **Async Key Integration**: Responsive cross-platform key handling
 
-#### **Learning Workflow Integration**
-**Integration Pattern**: AI response integration with learning workflows, progress tracking, and analytics processing.
+**Panel Management**:
+- **Lifecycle**: Activate → Navigate → Interact → Complete → Return
+- **Event Routing**: Context-aware key event distribution
+- **State Tracking**: Active panel, navigation history, context integration
+
+**Navigation Flow**:
+1. **Command to Panel**: Slash commands activate specialized interfaces
+2. **Panel Interaction**: Arrow keys, Enter, panel-specific controls
+3. **Panel to Prompt**: ESC or completion returns to conversation
+4. **State Restoration**: Previous context preserved and restored
 
 ## CLI Evolution
 
 ### Extensibility
 
-#### **Command Extension Patterns**
-**Plugin Architecture**: Extensible CLI with command registration, parameter handling, integration hooks, and automatic documentation.
+**Panel Extensions**: Plugin architecture with standardized registration, lifecycle management, and consistent navigation patterns. New panels integrate seamlessly while maintaining user experience.
 
-#### **UI Extension**
-**Interface Extensibility**: Modular UI components, customizable themes, accessibility extensions, and multi-language support.
+**UI Extensions**: Modular components, customizable themes, accessibility support, and multi-language capabilities built on consistent interaction patterns.
 
 ### Performance
 
-#### **Responsive Interaction & Scalability**
-**Performance Patterns**: Optimized user interaction with async processing, multi-level caching, resource management, and real-time progress feedback.
+**Responsive Interaction**: Async processing, multi-level caching, resource management, and real-time feedback for optimal user experience.
 
-## CLI Quality Attributes
+**Panel Optimization**: Non-blocking rendering, progressive loading, cancellation support, memory efficiency, and efficient lifecycle management.
 
-### Usability
-**User Experience Focus**: Intuitive navigation, contextual help, error recovery, and accessible design for diverse users.
+## Quality Attributes
 
-### Reliability
-**System Reliability**: Comprehensive error management, state consistency, session recovery, and graceful degradation.
+**Usability**: Intuitive navigation, contextual help, error recovery, and accessible design.
 
-### Maintainability
-**System Maintenance**: Modular design, consistent interfaces, comprehensive testing support, and integrated documentation.
+**Reliability**: Comprehensive error management, state consistency, session recovery, and graceful degradation.
 
-## CLI Success Patterns
+**Maintainability**: Modular design, consistent interfaces, comprehensive testing, and integrated documentation.
 
-### Success Stories
+## Success Patterns
 
-#### **Knowledge Map Command**
-Demonstrates successful CLI architecture through interactive navigation, context integration, visual feedback, and extensible design for knowledge exploration.
+**Key Examples**:
+- **Knowledge Map**: Interactive navigation with context integration and extensible design
+- **Configuration Management**: Hierarchical commands with validation and reliable state management
+- **Natural Learning**: Seamless AI integration with context building and progress tracking
 
-#### **Configuration Management**
-Shows architectural excellence with hierarchical commands, validation architecture, provider integration, and reliable state management.
-
-#### **Natural Learning Integration**
-Exemplifies seamless AI integration through sophisticated context building, response processing, session integration, and progress tracking.
-
-### Key Architectural Insights
-
-**Critical Learning Patterns**:
+**Architectural Insights**:
 - Pipeline architecture enables extensibility and maintainability
-- Context awareness enhances user experience
-- State persistence ensures continuity and sophisticated interactions
-- Well-designed abstractions enable system extensibility and loose coupling
-- Comprehensive error handling and performance optimization essential for reliability
+- Context awareness and state persistence enhance user experience
+- Well-designed abstractions enable system extensibility
+- Comprehensive error handling and performance optimization are essential
 
 ---
 
@@ -545,6 +262,7 @@ Exemplifies seamless AI integration through sophisticated context building, resp
 
 ### System Architecture Integration
 - **[System Architecture Overview](README.md)**: Complete system architecture and 5-layer design
+- **[Async Key Handling System](key_handling_system.md)**: Async key input with keyboard library integration
 - **[Data Layer Architecture](data-layer.md)**: Data storage and management patterns
 - **[AI Integration Architecture](ai-integration.md)**: AI provider integration and multi-agent orchestration
 - **[Knowledge Management System](knowledge-management-system.md)**: Knowledge graph and learning systems
@@ -556,6 +274,7 @@ Exemplifies seamless AI integration through sophisticated context building, resp
 - **[Data Models](../api-reference/data-models.md)**: Data structure specifications for CLI operations
 
 ### Implementation and Usage
+- **[Panel System Design](../../../panel_system_design.md)**: Complete panel system design specification
 - **[Implementation Guides](../implementation-guides/)**: Development setup and guidelines
 - **[Configuration Commands](../../commands/configuration.md)**: Complete CLI command reference
 

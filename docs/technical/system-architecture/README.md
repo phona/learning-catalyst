@@ -194,6 +194,9 @@ This system follows the **What-How-Relationship Framework**. Detailed documentat
 #### [CLI Architecture](cli-architecture.md)
 **What It Is**: Command-line interface module for user interaction, command processing, and session management.
 
+#### [Async Key Handling System](key_handling_system.md)
+**What It Is**: Async key input system with keyboard library integration for responsive CLI interactions.
+
 #### [Assessment UI Architecture](knowledge-management-system.md#assessment-components)
 **What It Is**: User interface module for assessment delivery and analytics visualization.
 
@@ -231,7 +234,8 @@ This system follows the **What-How-Relationship Framework**. Detailed documentat
 
 | Module Category | Module | Primary Responsibility | Key Dependencies |
 |----------------|--------|----------------------|------------------|
-| **Interface Layer** | [CLI Module](cli-architecture.md) | User interaction & command processing | Session Manager |
+| **Interface Layer** | [CLI Module](cli-architecture.md) | User interaction & command processing | Session Manager, Key Handler |
+| **Interface Layer** | [Async Key Handler](key_handling_system.md) | Async key input & keyboard library integration | CLI Module, Event Loop |
 | **Learning Intelligence** | [Learning Engine](knowledge-management-system.md#learning-engine-components) | Personalized learning orchestration | Knowledge Graph, Analytics |
 | **Learning Intelligence** | [Assessment Core](knowledge-management-system.md#assessment-components) | Adaptive testing & evaluation | Analytics, Learning Engine |
 | **Knowledge & Data** | [Knowledge Graph](knowledge-management-system.md) | Semantic knowledge management | Data Layer, AI Integration |

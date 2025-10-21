@@ -47,7 +47,9 @@ logs/
 
 # Local config files
 *.local
-config/
+node_modules/
+dist
+dist-electron
 
 # Learning space data
 **/.learningspace/
@@ -55,3 +57,4 @@ config/
 **/.catalyst/
 .mypy_cache
 .pytest_cache
+external/qdrant/storage/

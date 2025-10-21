@@ -43,6 +43,12 @@ class CommandProcessor:
         return result
 ```
 
+#### Key Input Handling System
+- **Async Key Processing**: Non-blocking keyboard input for responsive CLI interactions
+- **Dual Mode Support**: Native terminal I/O and keyboard library integration
+- **Event Streaming**: Real-time key event processing with async generators
+- **Cross-Platform**: Works across Windows, macOS, and Linux with automatic fallbacks
+
 #### Learning Engine
 - **Knowledge Graph**: Maps concepts and relationships for intelligent recommendations
 - **Progress Assessment**: Evaluates understanding through quizzes and interactions

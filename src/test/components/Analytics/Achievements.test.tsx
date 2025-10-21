@@ -1,0 +1,268 @@
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Achievements } from '../../../components/Analytics/Achievements';
+import { SimpleAnalyticsModule } from '../../../modules/analytics/simple-analytics';
+
+// Mock the SimpleAnalyticsModule
+vi.mock('../../../modules/analytics/simple-analytics', () => ({
+  SimpleAnalyticsModule: vi.fn().mockImplementation(() => ({
+    getAchievements: vi.fn(),
+    getStudyMetrics: vi.fn(),
+    getLearningTrends: vi.fn(),
+  })),
+}));
+
+describe('Achievements', () => {
+  let mockAnalytics: any;
+
+  beforeEach(() => {
+    mockAnalytics = new SimpleAnalyticsModule();
+    vi.clearAllMocks();
+  });
+
+  it('renders loading state initially', () => {
+    mockAnalytics.getAchievements.mockImplementation(() =>
+      new Promise(() => {})
+    );
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(screen.getByText('Loading achievements...')).toBeInTheDocument();
+  });
+
+  it('renders error state when analytics fails', async () => {
+    mockAnalytics.getAchievements.mockRejectedValue(new Error('Failed to load achievements'));
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('Error loading achievements: Failed to load achievements')).toBeInTheDocument();
+  });
+
+  it('renders achievements data when loaded successfully', async () => {
+    const mockAchievements = [
+      {
+        id: 'first_session',
+        title: 'First Steps',
+        description: 'Complete your first learning session',
+        category: 'time' as const,
+        requirement: { sessionsCompleted: 1 },
+        progress: 100,
+        icon: '🎯',
+        unlockedAt: new Date('2025-01-20'),
+      },
+      {
+        id: 'week_streak',
+        title: 'Week Warrior',
+        description: 'Study for 7 days in a row',
+        category: 'streaks' as const,
+        requirement: { streakDays: 7 },
+        progress: 50,
+        icon: '🔥',
+      },
+      {
+        id: 'time_master',
+        title: 'Time Master',
+        description: 'Study for 1000 minutes total',
+        category: 'time' as const,
+        requirement: { totalStudyTime: 1000 },
+        progress: 75,
+        icon: '⏰',
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('Achievements')).toBeInTheDocument();
+    expect(screen.getByText('1 / 3 unlocked')).toBeInTheDocument();
+    expect(screen.getByText('Overall Progress')).toBeInTheDocument();
+    expect(screen.getByText('100%')).toBeInTheDocument(); // Overall progress
+  });
+
+  it('renders unlocked achievements section when there are unlocked achievements', async () => {
+    const mockAchievements = [
+      {
+        id: 'first_session',
+        title: 'First Steps',
+        description: 'Complete your first learning session',
+        category: 'time' as const,
+        requirement: { sessionsCompleted: 1 },
+        progress: 100,
+        icon: '🎯',
+        unlockedAt: new Date('2025-01-20'),
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('🏆 Unlocked (1)')).toBeInTheDocument();
+    expect(screen.getByText('First Steps')).toBeInTheDocument();
+    expect(screen.getByText('Complete your first learning session')).toBeInTheDocument();
+    expect(screen.getByText('time')).toBeInTheDocument();
+    expect(screen.getByText('Jan 20, 2025')).toBeInTheDocument();
+  });
+
+  it('renders locked achievements section when there are locked achievements', async () => {
+    const mockAchievements = [
+      {
+        id: 'week_streak',
+        title: 'Week Warrior',
+        description: 'Study for 7 days in a row',
+        category: 'streaks' as const,
+        requirement: { streakDays: 7 },
+        progress: 50,
+        icon: '🔥',
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('🔒 In Progress (1)')).toBeInTheDocument();
+    expect(screen.getByText('Week Warrior')).toBeInTheDocument();
+    expect(screen.getByText('Study for 7 days in a row')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+  });
+
+  it('renders progress bar correctly', async () => {
+    const mockAchievements = [
+      {
+        id: 'week_streak',
+        title: 'Week Warrior',
+        description: 'Study for 7 days in a row',
+        category: 'streaks' as const,
+        requirement: { streakDays: 7 },
+        progress: 50,
+        icon: '🔥',
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('Progress')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+
+    // Check that the progress bar has the correct width
+    const progressBar = screen.getByRole('progressbar');
+    expect(progressBar).toHaveClass('bg-orange-500');
+  });
+
+  it('renders custom icons when provided', async () => {
+    const mockAchievements = [
+      {
+        id: 'custom_achievement',
+        title: 'Custom Achievement',
+        description: 'A custom achievement',
+        category: 'engagement' as const,
+        requirement: { customMetric: 100 },
+        progress: 75,
+        icon: '🌟',
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('🌟')).toBeInTheDocument();
+  });
+
+  it('renders default icons when no custom icon is provided', async () => {
+    const mockAchievements = [
+      {
+        id: 'achievement_without_icon',
+        title: 'No Icon Achievement',
+        description: 'An achievement without a custom icon',
+        category: 'concepts' as const,
+        requirement: { conceptsStudied: 10 },
+        progress: 25,
+        icon: '',
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('🏆')).toBeInTheDocument(); // Default trophy icon
+  });
+
+  it('shows no achievements message when there are no achievements', async () => {
+    mockAnalytics.getAchievements.mockResolvedValue([]);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('No achievements available')).toBeInTheDocument();
+    expect(screen.getByText('Start learning to unlock achievements')).toBeInTheDocument();
+  });
+
+  it('categorizes achievements correctly', async () => {
+    const mockAchievements = [
+      {
+        id: 'time_achievement',
+        title: 'Time Achievement',
+        category: 'time' as const,
+        requirement: { totalStudyTime: 100 },
+        progress: 50,
+        icon: '⏰',
+      },
+      {
+        id: 'concepts_achievement',
+        title: 'Concepts Achievement',
+        category: 'concepts' as const,
+        requirement: { conceptsStudied: 10 },
+        progress: 25,
+        icon: '🧠',
+      },
+      {
+        id: 'performance_achievement',
+        title: 'Performance Achievement',
+        category: 'performance' as const,
+        requirement: { accuracyRate: 95 },
+        progress: 80,
+        icon: '🎯',
+      },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('time')).toBeInTheDocument();
+    expect(screen.getByText('concepts')).toBeInTheDocument();
+    expect(screen.getByText('performance')).toBeInTheDocument();
+  });
+
+  it('applies className prop correctly', () => {
+    mockAnalytics.getAchievements.mockImplementation(() =>
+      new Promise(() => {})
+    );
+
+    const { container } = render(<Achievements analytics={mockAnalytics} className="custom-class" />);
+
+    expect(container.firstChild).toHaveClass('custom-class');
+  });
+
+  it('calculates overall progress correctly', async () => {
+    const mockAchievements = [
+      { id: '1', title: 'Achievement 1', category: 'time' as const, requirement: {}, progress: 50, icon: '' },
+      { id: '2', title: 'Achievement 2', category: 'concepts' as const, requirement: {}, progress: 100, icon: '' },
+      { id: '3', title: 'Achievement 3', category: 'streaks' as const, requirement: {}, progress: 75, icon: '' },
+      { id: '4', title: 'Achievement 4', category: 'performance' as const, requirement: {}, progress: 25, icon: '' },
+    ];
+
+    mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
+
+    render(<Achievements analytics={mockAnalytics} />);
+
+    expect(await screen.findByText('Overall Progress')).toBeInTheDocument();
+    expect(screen.getByText('62%')).toBeInTheDocument(); // Average of 50, 100, 75, 25
+  });
+});

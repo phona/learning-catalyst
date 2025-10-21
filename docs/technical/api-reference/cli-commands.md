@@ -999,6 +999,7 @@ Learning Catalyst > /config provider openai
 
 ### System Architecture Integration
 - **[CLI Architecture](../system-architecture/cli-architecture.md)**: Command-line interface design patterns and session management
+- **[Async Key Handling System](../system-architecture/key_handling_system.md)**: Async key input with keyboard library integration
 - **[AI Integration Architecture](../system-architecture/ai-integration.md)**: Multi-agent orchestration with Microsoft AutoGen
 - **[Data Layer Architecture](../system-architecture/data-layer.md)**: Data storage and management patterns
 - **[System Architecture Overview](../system-architecture/)**: Complete 5-layer architecture overview

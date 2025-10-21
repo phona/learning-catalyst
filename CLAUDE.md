@@ -7,59 +7,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Environment Setup
 ```bash
 # Install development dependencies
-make install-dev
-# or
-poetry install
+yarn install
 
-# Run the application
-python -m src.cli.main
+# Run the development server
+yarn dev
+
+# Build the application
+yarn build
 ```
 
 ### Code Quality & Linting
 ```bash
-# Run all linting and formatting (default paths: src tests)
-make lint
+# Run linting
+yarn lint
 
-# Format code only
-make format
-
-# Run specific linters
-make check-flake8
-make check-pyright
-make check-black
-make check-isort
-
-# Target specific files/directories
-make lint src/file.py
-make format src tests
+# Type checking
+yarn type-check
 ```
 
 ### Testing
 ```bash
-# Note: Test directory currently under reorganization (git status shows many deletions)
-# When tests are restored, use standard pytest commands:
-poetry run pytest
-poetry run pytest tests/unit/test_specific.py
-poetry run pytest -v
-poetry run pytest --cov=src
+# Run all tests
+yarn test
+
+# Run tests with UI
+yarn test:ui
+
+# Run tests with coverage
+yarn test:coverage
 ```
 
 ## Architecture Overview
 
-Learning Catalyst follows a **5-layer modular architecture** with clear separation of concerns:
+Learning Catalyst follows a **modern React-based desktop architecture** with clear separation of concerns:
 
 ### Core Architecture Layers
-1. **User Interface Layer** - CLI module with rich terminal interface
-2. **Learning Intelligence Layer** - Personalized learning orchestration and analytics
-3. **Knowledge Management Layer** - Knowledge graphs and semantic relationships
+1. **Presentation Layer** - React components with TypeScript and Tailwind CSS
+2. **State Management Layer** - Zustand for reactive state management
+3. **Service Layer** - API integration and business logic
 4. **AI Integration Layer** - Multi-provider AI abstraction and tool orchestration
-5. **Data Storage Layer** - Local-first storage with privacy by design
+5. **Data Storage Layer** - Local-first storage with Electron and Prisma
 
 ### Key Architectural Principles
-- **Module-First Design**: Each component is a well-defined architectural module
+- **Component-First Design**: Each UI element is a reusable React component
 - **Provider Abstraction**: Unified interface for multiple AI providers (OpenAI, ChatGLM, DeepSeek, SiliconFlow, local models)
 - **Local-First Approach**: User data remains primarily on local machines
-- **CLI-Centric Design**: All functionality accessible through interactive command-line interface
+- **Desktop-First Design**: Electron-based desktop application with web technologies
 
 ### Module Documentation Framework
 Every module follows the **What-How-Relationship Framework**:
@@ -69,12 +62,34 @@ Every module follows the **What-How-Relationship Framework**:
 
 ## Project Structure (Current State)
 
-**IMPORTANT**: The repository is currently undergoing major reorganization. Git status shows many files marked for deletion in the `src/` and `tests/` directories.
-
 ### Active Components
-- **Documentation**: Comprehensive docs in `docs/` directory with CLI commands, API references, and technical architecture
-- **Configuration**: Poetry-based setup with extensive linting configuration
-- **Makefile**: Well-defined development commands for linting and formatting
+- **Source Code**: React-based desktop application in `src/` directory
+- **Documentation**: Comprehensive docs in `docs/` directory with API references and technical architecture
+- **Test Suite**: Modern test infrastructure with Vitest and React Testing Library
+- **Configuration**: Electron + Vite + TypeScript setup with comprehensive tooling
+- **Build System**: Vite for bundling with Electron builder for distribution
+
+### Source Architecture
+```
+src/
+├── components/          # Reusable React components
+│   ├── ui/             # Base UI components
+│   ├── forms/          # Form components
+│   └── layout/         # Layout components
+├── pages/              # Page-level components
+├── hooks/              # Custom React hooks
+├── services/           # API integration and business logic
+│   ├── ai/            # AI provider services
+│   ├── api/           # External API integrations
+│   └── storage/       # Data persistence services
+├── stores/             # Zustand state management
+├── types/              # TypeScript type definitions
+├── utils/              # Utility functions
+├── main/               # Electron main process
+├── renderer/           # Electron renderer process
+├── App.tsx             # Main application component
+└── main.tsx           # Application entry point
+```
 
 ### Documentation Structure
 ```
@@ -88,93 +103,203 @@ docs/
     └── testing/        # Testing procedures
 ```
 
-## CLI Interface Design
+## Desktop Application Interface
 
-### Core Command Categories
-- **System Commands**: `/help`, `/quit`, `/clear`
-- **Configuration**: `/config`, `/config provider`, `/config model`
-- **Learning**: `/knowledge-map`, natural language queries
-- **Session Management**: `/checkpoint save [name]`, `/checkpoint load [name]`
-- **Analytics**: `/tokens`, `/statistics`
-- **Context Management**: `/context`, `/compress`, `/verbose`, `/wait`
+### Modern Desktop Features
+- **React-Based UI**: Modern, responsive interface with Tailwind CSS
+- **Real-Time Updates**: Live streaming responses with visual feedback
+- **Component Architecture**: Reusable React components with TypeScript
+- **State Management**: Zustand for efficient reactive state management
+- **Electron Integration**: Native desktop features and file system access
+- **Error Handling**: User-friendly error messages with actionable suggestions
+- **Hot Reload**: Fast development with Vite's hot module replacement
+- **Cross-Platform**: Windows, macOS, and Linux support
 
-### Response Format Standards
-All CLI responses follow structured patterns:
-```bash
-✅ Success: [Human-readable message]
-📊 [Output in CLI-friendly format]
-💡 [Suggestions or next steps]
-🔗 [Related commands or resources]
-```
+### Core Application Features
+- **AI Chat Interface**: Natural language conversations with multiple AI providers
+- **Knowledge Management**: Interactive knowledge graphs and learning paths
+- **Session Management**: Save and restore learning sessions
+- **Analytics Dashboard**: Learning progress and token usage statistics
+- **Settings Panel**: Configure AI providers and application preferences
+- **File Management**: Import/export learning data and configurations
+
+### User Experience Design
+- **Intuitive Navigation**: Clean, modern interface with logical flow
+- **Progress Indicators**: Visual feedback for AI responses and processing
+- **Responsive Design**: Adapts to different window sizes and screen resolutions
+- **Accessibility**: WCAG compliant interface with keyboard navigation
+- **Performance**: Optimized rendering and efficient state updates
 
 ## AI Provider Integration
 
 ### Supported Providers
 - OpenAI (GPT models)
-- ChatGLM (Zhipu AI)
+- ChatGLM (Zhipu AI) with thinking process support
 - DeepSeek
 - SiliconFlow
 - Local models (Ollama, Llama.cpp)
 
+### Advanced Provider Features
+- **ChatGLM Thinking Integration**: Real-time reasoning process visualization
+- **Custom Model ID Support**: Experimental and custom model usage
+- **Provider Switching**: Seamless switching without session interruption
+- **Streaming Support**: Real-time response streaming across providers
+- **Model Discovery**: Automatic model availability detection with timeout fallback
+
 ### Provider Architecture
 - **Abstraction Layer**: Unified `ModelAbstractionLayer` interface
+- **Factory Pattern**: `ModelFactory` for provider instantiation
 - **Configuration Management**: Interactive provider setup and switching
 - **Authentication**: Secure API key storage and management
 - **Error Handling**: Comprehensive retry logic and graceful failures
+- **Timeout Management**: Configurable timeouts for model discovery and requests
 
 ## Development Guidelines
 
 ### Code Style
 - **Line Length**: 130 characters
-- **Python Version**: 3.8+ (configured for 3.10)
-- **Formatting**: Black, isort, autoflake
-- **Linting**: flake8, pylint, pyright (strict mode)
-- **Type Checking**: Strict type checking enabled
+- **TypeScript**: Strict mode enabled with comprehensive type checking
+- **Formatting**: Prettier with consistent configuration
+- **Linting**: ESLint with React and TypeScript plugins
+- **Component Structure**: Functional components with hooks
+- **Import Organization**: Organized imports with consistent ordering
+- **Code Quality**: Comprehensive linting and type checking pipeline
 
-### Module Development
-When creating new modules:
-1. Define clear boundaries and responsibilities
-2. Follow the What-How-Relationship documentation framework
-3. Implement standardized interfaces
-4. Document dependencies and evolution paths
-5. Ensure compatibility with provider abstraction
+### Component Development
+When creating new components:
+1. Use functional components with TypeScript interfaces
+2. Implement proper prop types and default values
+3. Follow React best practices (hooks, memo, useCallback)
+4. Create reusable, composable components
+5. Document component props and usage examples
+
+### State Management
+- **Zustand**: Use for global application state
+- **Local State**: React useState for component-specific state
+- **Async State**: TanStack Query for server state management
+- **Forms**: React Hook Form for form state management
+- **Persistence**: Electron store for app configuration
 
 ### Configuration Management
-- Uses JSON schema validation for configuration files
-- Hierarchical configuration with precedence rules
-- Real-time configuration updates for active sessions
+- TypeScript configuration for type safety
+- Environment variables for sensitive data
+- Electron store for persistent settings
+- JSON schema validation for configuration files
 - Secure storage of API keys and sensitive data
 
 ## Testing Environment
 
 ### Test Configuration
-- **Framework**: pytest with asyncio support
-- **Coverage**: pytest-cov for coverage reporting
-- **Test Environment**: `.testenv` file for environment variables
-- **Current Status**: Test suite under reorganization
+- **Framework**: Vitest with React support
+- **Coverage**: Built-in Vitest coverage reporting
+- **Test Environment**: jsdom for React component testing
+- **Test Libraries**: React Testing Library, user-event for interaction testing
+- **Type Checking**: TypeScript integration for type-safe tests
+- **TDD Methodology**: Red-green-refactor cycle support
 
-### Test Structure (When Restored)
+### Test Structure
 ```
-tests/
-├── unit/           # Unit tests for individual modules
-├── integration/    # Integration tests across modules
-└── e2e/           # End-to-end workflow tests
+src/
+├── __tests__/           # Test files co-located with components
+│   ├── components/      # Component tests
+│   ├── hooks/          # Hook tests
+│   ├── services/       # Service tests
+│   └── utils/          # Utility function tests
+├── test/               # Additional test utilities and setup
+│   ├── setup.ts        # Test configuration
+│   └── mocks/          # Mock implementations
+└── test-utils/         # Custom test utilities
+```
+
+### Test Running Examples
+```bash
+# Run all tests
+yarn test
+
+# Run tests in watch mode
+yarn test:watch
+
+# Run tests with UI
+yarn test:ui
+
+# Run tests with coverage
+yarn test:coverage
+
+# Run specific test file
+yarn test src/components/__tests__/Button.test.tsx
 ```
 
 ## Key Files to Understand
 
-- **`pyproject.toml`**: Complete project configuration with development tools
-- **`Makefile`**: All development commands and linting workflows
-- **`docs/technical/system-architecture/README.md`**: Complete 5-layer architecture documentation
+### Core Implementation
+- **`src/main.tsx`**: Application entry point with React rendering
+- **`src/App.tsx`**: Main application component with routing and layout
+- **`src/main/index.ts`**: Electron main process configuration
+- **`package.json`**: Complete project configuration with dependencies and scripts
+- **`vite.config.ts`**: Vite bundler configuration for development and build
+- **`electron.vite.config.ts`**: Electron-specific build configuration
+
+### Configuration and Development
+- **`tsconfig.json`**: TypeScript compiler configuration
+- **`tailwind.config.js`**: Tailwind CSS configuration
+- **`eslint.config.js`**: ESLint configuration for React and TypeScript
+- **`vite.config.ts`**: Vite development server and build configuration
+
+### Documentation
+- **`docs/technical/system-architecture/README.md`**: Complete system architecture documentation
 - **`docs/technical/api-reference/README.md`**: API reference with maintaining philosophy
-- **`docs/README.md`**: Comprehensive CLI documentation and usage guide
+- **`docs/README.md`**: Comprehensive application documentation and usage guide
 
 ## Working with This Codebase
 
+### Development Workflow
 1. **Start with Documentation**: The `docs/` directory contains the most comprehensive and current information about the system
-2. **Use Make Commands**: All development workflows are standardized through the Makefile
-3. **Follow Module Architecture**: Understand the 5-layer architecture before making changes
-4. **CLI-First Development**: All functionality should be accessible through the CLI interface
-5. **Provider Abstraction**: Maintain compatibility with multiple AI providers when extending AI functionality
+2. **Use Yarn Commands**: All development workflows are standardized through yarn scripts
+3. **Run Tests Regularly**: Comprehensive test suite with Vitest and React Testing Library
+4. **Follow Component Architecture**: Understand the React component structure before making changes
 
-Note: This codebase is in active reorganization. Always check git status before assuming the existence of files in `src/` or `tests/` directories.
+### React Development
+5. **Component-First Development**: Build reusable, composable React components
+6. **TypeScript Integration**: Use strict TypeScript for type safety and better developer experience
+7. **State Management**: Use Zustand for global state, React hooks for local state
+8. **Error Boundaries**: Implement proper error handling with React error boundaries
+9. **Performance**: Use React.memo, useCallback, and useMemo for optimization
+10. **Responsive Design**: Build components that work across different screen sizes
+11. **Accessibility**: Follow WCAG guidelines and implement proper ARIA attributes
+
+### Best Practices
+9. **Type Safety**: Use strict TypeScript and proper type definitions
+10. **Configuration Management**: Use environment variables and Electron store for settings
+11. **Testing**: Write comprehensive tests with React Testing Library and follow TDD methodology
+12. **Documentation**: Update relevant documentation when adding new features
+
+### Professional Development Environment
+- **Yarn**: Package management and dependency resolution
+- **VSCode Integration**: TypeScript and React development environment with debugging support
+- **Hot Reload**: Fast development with Vite's hot module replacement
+- **Electron DevTools**: Debug and inspect Electron main and renderer processes
+
+## Missing Development Guidelines
+
+### AI Assistant Guidelines
+No `.cursorrules` or `.github/copilot-instructions.md` files found. Consider adding:
+
+- **Cursor Rules**: `.cursorrules` file for consistent AI-assisted development
+- **Coding Standards**: Specific guidelines for code generation and formatting
+- **Architecture Guidelines**: Rules for maintaining 5-layer architecture during AI-assisted development
+- **Testing Guidelines**: Instructions for generating comprehensive tests
+
+### Contributing Guidelines
+- **Contributing.md**: Missing contribution guidelines and pull request process
+- **Code Review Process**: Standards for reviewing and merging changes
+- **Release Process**: Guidelines for versioning and releases
+
+### CI/CD Configuration
+- **GitHub Actions**: No CI/CD configuration found for automated testing
+- **Quality Gates**: Missing automated code quality checks
+- **Deployment**: No automated deployment workflows
+
+### Debugging and Troubleshooting
+- **Debugging Guide**: Missing systematic debugging procedures
+- **Common Issues**: No troubleshooting guide for frequent problems
+- **Performance Analysis**: Missing performance optimization guidelines
