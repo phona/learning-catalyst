@@ -1,0 +1,42 @@
+# Qdrant Configuration for Learning Catalyst
+# This file contains configuration for the Qdrant vector database
+
+# Storage path for Qdrant data
+storage_path: ./data/qdrant
+
+# HTTP REST API bind address
+host: 127.0.0.1
+port: 6333
+
+# gRPC API bind address
+grpc:
+  host: 127.0.0.1
+  port: 6334
+
+# Web UI configuration
+ui:
+  host: 127.0.0.1
+  port: 6333
+  enabled: true
+
+# Service configuration
+service:
+  http_port: 6333
+  grpc_port: 6334
+  max_request_size_mb: 32
+
+# Performance settings
+performance:
+  max_search_threads: 4
+  max_optimization_threads: 2
+
+# Logging configuration
+log_level: INFO
+
+# Telemetry (disabled for privacy)
+telemetry_disabled: true
+
+# Snapshot settings
+snapshots:
+  snapshot_path: ./snapshots/qdrant
+  snapshots_interval: 0  # Disabled by default
