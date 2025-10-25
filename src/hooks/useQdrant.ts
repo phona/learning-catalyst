@@ -262,12 +262,47 @@ export function useQdrant(): UseQdrantReturn {
 
   // Auto-refresh status periodically
   useEffect(() => {
-    const interval = setInterval(async () => {
-      await getStatus();
-    }, 30000); // Check status every 30 seconds
+    let consecutiveErrors = 0;
+    const MAX_CONSECUTIVE_ERRORS = 3;
+    let intervalId: NodeJS.Timeout;
+    let currentInterval = 30000; // Start with 30 seconds
 
-    return () => clearInterval(interval);
-  }, [getStatus]);
+    const statusCheck = async () => {
+      try {
+        await getStatus();
+        consecutiveErrors = 0; // Reset error counter on success
+
+        // Reset to normal interval if we had errors before
+        if (currentInterval > 30000) {
+          currentInterval = 30000;
+          clearInterval(intervalId);
+          intervalId = setInterval(statusCheck, currentInterval);
+          console.log('Status check interval reset to 30 seconds');
+        }
+      } catch (error) {
+        consecutiveErrors++;
+        console.error(`Status check failed (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`, error);
+
+        // If too many consecutive errors, increase interval
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.warn('Too many consecutive status check failures, reducing check frequency');
+          clearInterval(intervalId);
+          currentInterval = 300000; // 5 minutes
+          intervalId = setInterval(statusCheck, currentInterval);
+          console.log(`Status check interval increased to ${currentInterval/1000} seconds`);
+        }
+      }
+    };
+
+    intervalId = setInterval(statusCheck, currentInterval);
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log('Status check interval cleared');
+      }
+    };
+  }, [getStatus]); // Include getStatus to ensure proper cleanup
 
   // Initial status check
   useEffect(() => {

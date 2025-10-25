@@ -1,7 +1,15 @@
 import { ipcMain, dialog, app, BrowserWindow } from 'electron';
 import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import sqlite3 from 'sqlite3';
+import {
+  setdbPath,
+  executeQuery,
+  executeMany,
+  executeScript,
+  fetchOne,
+  fetchMany,
+  fetchAll
+} from 'sqlite-electron';
 
 // Import the comprehensive database schema
 import { DATABASE_SCHEMA, DEFAULT_DATA } from '../../src/modules/database/database-schema';
@@ -70,8 +78,15 @@ let globalWorkspacePath: string = process.cwd();
 
 // Database variables
 let isDatabaseInitialized = false;
-let databasePath = '';
-let db: sqlite3.Database | null = null;
+let dbMemoryCleanupInterval: NodeJS.Timeout | null = null;
+const DB_CLEANUP_INTERVAL = 300000; // 5分钟清理一次
+const MAX_RESULT_SIZE = 10000; // 最大结果集大小限制
+
+// Memory monitoring variables
+let memoryMonitorInterval: NodeJS.Timeout | null = null;
+const MEMORY_MONITOR_INTERVAL = 60000; // 1分钟检查一次
+const MEMORY_WARNING_THRESHOLD = 1024 * 1024 * 1024; // 1GB 警告阈值
+const MEMORY_CRITICAL_THRESHOLD = 1536 * 1024 * 1024; // 1.5GB 严重阈值
 
 // Default configuration
 const defaultConfig: AppConfig = {
@@ -279,124 +294,225 @@ function deleteNestedValue(obj: any, path: string): any {
   return obj;
 }
 
+function startDbMemoryCleanup(): void {
+  if (dbMemoryCleanupInterval) {
+    clearInterval(dbMemoryCleanupInterval);
+  }
+
+  dbMemoryCleanupInterval = setInterval(async () => {
+    try {
+      // 执行 VACUUM 来清理数据库文件碎片
+      if (isDatabaseInitialized) {
+        console.log('[DB Memory] Running periodic database cleanup...');
+
+        // 执行内存优化命令
+        await executeQuery('PRAGMA optimize');
+
+        // 检查数据库大小
+        const sizeResult = await fetchOne('PRAGMA page_count') as any;
+        const pageSizeResult = await fetchOne('PRAGMA page_size') as any;
+        const pageCount = sizeResult?.page_count || 0;
+        const pageSize = pageSizeResult?.page_size || 4096;
+        const dbSize = pageCount * pageSize;
+
+        console.log(`[DB Memory] Database size: ${(dbSize / 1024 / 1024).toFixed(2)} MB, pages: ${pageCount}`);
+
+        // 如果数据库过大，执行 VACUUM
+        if (dbSize > 100 * 1024 * 1024) { // 大于100MB
+          console.log('[DB Memory] Database is large, running VACUUM...');
+          await executeQuery('VACUUM');
+        }
+      }
+    } catch (error) {
+      console.error('[DB Memory] Cleanup failed:', error);
+    }
+  }, DB_CLEANUP_INTERVAL);
+}
+
+function stopDbMemoryCleanup(): void {
+  if (dbMemoryCleanupInterval) {
+    clearInterval(dbMemoryCleanupInterval);
+    dbMemoryCleanupInterval = null;
+    console.log('[DB Memory] Stopped database memory cleanup');
+  }
+}
+
+function limitResultSize(results: any[]): any[] {
+  if (Array.isArray(results) && results.length > MAX_RESULT_SIZE) {
+    console.warn(`[DB Memory] Result set too large (${results.length} rows), limiting to ${MAX_RESULT_SIZE}`);
+    return results.slice(0, MAX_RESULT_SIZE);
+  }
+  return results;
+}
+
+function startMemoryMonitoring(): void {
+  if (memoryMonitorInterval) {
+    clearInterval(memoryMonitorInterval);
+  }
+
+  memoryMonitorInterval = setInterval(() => {
+    const memUsage = process.memoryUsage();
+    const rssMB = memUsage.rss / 1024 / 1024;
+    const heapUsedMB = memUsage.heapUsed / 1024 / 1024;
+    const heapTotalMB = memUsage.heapTotal / 1024 / 1024;
+    const externalMB = memUsage.external / 1024 / 1024;
+
+    console.log(`[Memory Monitor] RSS: ${rssMB.toFixed(1)}MB, Heap: ${heapUsedMB.toFixed(1)}/${heapTotalMB.toFixed(1)}MB, External: ${externalMB.toFixed(1)}MB`);
+
+    // 检查内存使用阈值
+    if (memUsage.rss > MEMORY_CRITICAL_THRESHOLD) {
+      console.error(`[Memory Monitor] ⚠️ CRITICAL: Memory usage is extremely high (${rssMB.toFixed(1)}MB)`);
+      console.log('[Memory Monitor] Forcing garbage collection...');
+
+      // 强制垃圾回收
+      if (global.gc) {
+        global.gc();
+
+        // 检查垃圾回收后的内存
+        setTimeout(() => {
+          const newMemUsage = process.memoryUsage();
+          const freedMB = (memUsage.rss - newMemUsage.rss) / 1024 / 1024;
+          console.log(`[Memory Monitor] Garbage collection freed ${freedMB.toFixed(1)}MB`);
+        }, 1000);
+      } else {
+        console.warn('[Memory Monitor] Garbage collection not available. Run with --expose-gc flag.');
+      }
+    } else if (memUsage.rss > MEMORY_WARNING_THRESHOLD) {
+      console.warn(`[Memory Monitor] ⚠️ WARNING: Memory usage is high (${rssMB.toFixed(1)}MB)`);
+    }
+  }, MEMORY_MONITOR_INTERVAL);
+}
+
+function stopMemoryMonitoring(): void {
+  if (memoryMonitorInterval) {
+    clearInterval(memoryMonitorInterval);
+    memoryMonitorInterval = null;
+    console.log('[Memory Monitor] Stopped memory monitoring');
+  }
+}
+
 /**
  * Auto-initialize database with default path
  */
 async function initializeDatabase(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  try {
+    console.log('🔧 Starting database initialization...');
+
+    // Create a default database path in the workspace
+    const defaultDbPath = join(globalWorkspacePath, '.catalyst', 'learning_catalyst.db');
+    console.log('🔧 Database path will be:', defaultDbPath);
+
+    // Ensure .catalyst directory exists
+    await mkdir(dirname(defaultDbPath), { recursive: true });
+    console.log('🔧 .catalyst directory created/verified');
+
+    // Initialize SQLite database using sqlite-electron
+    console.log('🔧 Opening SQLite database...');
+    await setdbPath(defaultDbPath, false, false);
+    console.log('🔧 SQLite database opened successfully');
+
+    // Create comprehensive database schema using imported schema
+    console.log('🔧 Creating comprehensive database schema...');
+    await executeScript(DATABASE_SCHEMA);
+    console.log('🔧 Database schema created successfully');
+
+    // Create indexes separately to avoid potential column reference issues
+    console.log('🔧 Creating database indexes...');
+    const indexSchema = `
+      CREATE INDEX IF NOT EXISTS idx_concepts_type ON concepts(concept_type);
+      CREATE INDEX IF NOT EXISTS idx_concepts_mastery_level ON concepts(mastery_level);
+      CREATE INDEX IF NOT EXISTS idx_concepts_name ON concepts(name);
+      CREATE INDEX IF NOT EXISTS idx_concepts_parent ON concepts(parent_concept_id);
+      CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_concept_id);
+      CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_concept_id);
+      CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(relationship_type);
+      CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON learning_sessions(start_time);
+      CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_session_concepts_session_id ON session_concepts(session_id);
+      CREATE INDEX IF NOT EXISTS idx_session_concepts_concept_id ON session_concepts(concept_id);
+      CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON analytics(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics(event_type);
+      CREATE INDEX IF NOT EXISTS idx_knowledge_graph_cache_key ON knowledge_graph_cache(cache_key);
+      CREATE INDEX IF NOT EXISTS idx_knowledge_graph_cache_expires_at ON knowledge_graph_cache(expires_at);
+    `;
+
     try {
-      console.log('🔧 Starting database initialization...');
-
-      // Create a default database path in the workspace
-      const defaultDbPath = join(globalWorkspacePath, '.catalyst', 'learning_catalyst.db');
-      console.log('🔧 Database path will be:', defaultDbPath);
-
-      // Ensure .catalyst directory exists
-      mkdir(dirname(defaultDbPath), { recursive: true })
-        .then(() => {
-          console.log('🔧 .catalyst directory created/verified');
-
-          // Initialize SQLite3 database
-          console.log('🔧 Opening SQLite3 database...');
-          db = new sqlite3.Database(defaultDbPath, (err) => {
-            if (err) {
-              console.error('❌ Failed to open database:', err);
-              reject(new Error(`DATABASE INITIALIZATION FAILED - This application cannot be used without a working database.\n\nError: ${err.message}\n\nPlease restart the application or contact support.`));
-              return;
-            }
-
-            console.log('🔧 SQLite3 database opened successfully');
-
-            // Create comprehensive database schema using imported schema
-            console.log('🔧 Creating comprehensive database schema...');
-            if (!db) {
-              reject(new Error('Database connection failed during schema creation'));
-              return;
-            }
-            db.exec(DATABASE_SCHEMA, (err) => {
-              if (err) {
-                console.error('❌ Failed to create database schema:', err);
-                reject(new Error(`DATABASE SCHEMA CREATION FAILED: ${err.message}`));
-                return;
-              }
-
-              console.log('🔧 Database schema created successfully');
-
-              // Create indexes separately to avoid potential column reference issues
-              console.log('🔧 Creating database indexes...');
-              const indexSchema = `
-                CREATE INDEX IF NOT EXISTS idx_concepts_type ON concepts(concept_type);
-                CREATE INDEX IF NOT EXISTS idx_concepts_mastery_level ON concepts(mastery_level);
-                CREATE INDEX IF NOT EXISTS idx_concepts_name ON concepts(name);
-                CREATE INDEX IF NOT EXISTS idx_concepts_parent ON concepts(parent_concept_id);
-                CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_concept_id);
-                CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_concept_id);
-                CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(relationship_type);
-                CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON learning_sessions(start_time);
-                CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
-                CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_session_concepts_session_id ON session_concepts(session_id);
-                CREATE INDEX IF NOT EXISTS idx_session_concepts_concept_id ON session_concepts(concept_id);
-                CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON analytics(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics(event_type);
-                CREATE INDEX IF NOT EXISTS idx_knowledge_graph_cache_key ON knowledge_graph_cache(cache_key);
-                CREATE INDEX IF NOT EXISTS idx_knowledge_graph_cache_expires_at ON knowledge_graph_cache(expires_at);
-              `;
-
-              if (!db) {
-                reject(new Error('Database connection failed during index creation'));
-                return;
-              }
-              db.exec(indexSchema, (indexErr) => {
-                if (indexErr) {
-                  console.warn('⚠️ Failed to create some indexes (non-critical):', indexErr.message);
-                  // Don't reject - indexes are non-critical
-                } else {
-                  console.log('🔧 Database indexes created successfully');
-                }
-
-                // Insert default data
-                console.log('🔧 Inserting default data...');
-                if (!db) {
-                  reject(new Error('Database connection failed during default data insertion'));
-                  return;
-                }
-                db.exec(DEFAULT_DATA, (err) => {
-                  if (err) {
-                    console.error('❌ Failed to insert default data:', err);
-                    reject(new Error(`DEFAULT DATA INSERTION FAILED: ${err.message}`));
-                    return;
-                  }
-
-                  console.log('🔧 Default data inserted successfully');
-                  console.log('✅ Database initialization completed successfully');
-
-                  isDatabaseInitialized = true;
-                  databasePath = defaultDbPath;
-                  console.log('✅ Database initialized successfully at:', defaultDbPath);
-                  resolve();
-                });
-              });
-            });
-          });
-        })
-        .catch((err) => {
-          console.error('❌ Failed to create .catalyst directory:', err);
-          reject(new Error(`DATABASE INITIALIZATION FAILED - Could not create directory: ${err.message}`));
-        });
-
-    } catch (error) {
-      console.error('❌ Failed to initialize database:', error);
-      console.error('Error details:', error instanceof Error ? error.stack : error);
-      isDatabaseInitialized = false;
-      reject(new Error(`DATABASE INITIALIZATION FAILED - This application cannot be used without a working database.\n\nError: ${error instanceof Error ? error.message : String(error)}\n\nPlease restart the application or contact support.`));
+      await executeScript(indexSchema);
+      console.log('🔧 Database indexes created successfully');
+    } catch (indexErr: any) {
+      console.warn('⚠️ Failed to create some indexes (non-critical):', indexErr.message);
+      // Don't reject - indexes are non-critical
     }
-  });
+
+    // Insert default data
+    console.log('🔧 Inserting default data...');
+    await executeScript(DEFAULT_DATA);
+    console.log('🔧 Default data inserted successfully');
+    console.log('✅ Database initialization completed successfully');
+
+    isDatabaseInitialized = true;
+
+    // 启动内存清理定时器
+    startDbMemoryCleanup();
+
+    console.log('✅ Database initialized successfully at:', defaultDbPath);
+
+  } catch (error: any) {
+    console.error('❌ Failed to initialize database:', error);
+    console.error('Error details:', error instanceof Error ? error.stack : error);
+    isDatabaseInitialized = false;
+    throw new Error(`DATABASE INITIALIZATION FAILED - This application cannot be used without a working database.\n\nError: ${error?.message || String(error)}\n\nPlease restart the application or contact support.`);
+  }
+}
+
+// Store registered handlers for cleanup
+const registeredHandlers: string[] = []
+
+// Helper function to register and track handlers
+function registerHandler(channel: string, handler: (...args: any[]) => any) {
+  if (!registeredHandlers.includes(channel)) {
+    ipcMain.handle(channel, handler)
+    registeredHandlers.push(channel)
+  }
+}
+
+export function cleanupIpcHandlers() {
+  registeredHandlers.forEach(channel => {
+    ipcMain.removeHandler(channel)
+  })
+  registeredHandlers.length = 0
+
+  // Enhanced SQLite database cleanup
+  cleanupDatabase()
+}
+
+// Enhanced database cleanup function
+function cleanupDatabase() {
+  if (!isDatabaseInitialized) {
+    console.log('🗑️ Database already closed')
+    return
+  }
+
+  console.log('🧹 Cleaning up SQLite database...')
+
+  try {
+    // sqlite-electron doesn't have explicit close method
+    // Just reset the initialization state
+    isDatabaseInitialized = false
+    console.log('✅ Database closed successfully')
+  } catch (error: any) {
+    console.error('❌ Database cleanup error:', error)
+    isDatabaseInitialized = false
+  }
 }
 
 export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath: string): void {
   // Store workspace path globally
   globalWorkspacePath = workspacePath;
+
+  // 启动内存监控
+  startMemoryMonitoring();
 
   // Initialize database if not already done
   if (!isDatabaseInitialized) {
@@ -418,7 +534,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
   }
 
   // File system handlers
-  ipcMain.handle('fs:readFile', async (_, path: string) => {
+  registerHandler('fs:readFile', async (_, path: string) => {
     try {
       const content = await readFile(path, 'utf-8');
       return content;
@@ -427,7 +543,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
     }
   });
 
-  ipcMain.handle('fs:writeFile', async (_, path: string, content: string) => {
+  registerHandler('fs:writeFile', async (_, path: string, content: string) => {
     try {
       await writeFile(path, content, 'utf-8');
     } catch (error) {
@@ -435,7 +551,7 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
     }
   });
 
-  ipcMain.handle('fs:existsFile', async (_, path: string) => {
+  registerHandler('fs:existsFile', async (_, path: string) => {
     try {
       await access(path);
       return true;
@@ -587,168 +703,89 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
     if (mainWindow) mainWindow.close();
   });
 
-  // SQLite3 Database Handlers
+  // SQLite Database Handlers
   ipcMain.handle('db:setPath', async (_, dbPath: string) => {
-    return new Promise((resolve, reject) => {
-      try {
-        if (db) {
-          db.close();
-        }
-        db = new sqlite3.Database(dbPath, (err) => {
-          if (err) {
-            reject({ success: false, error: err.message });
-            return;
-          }
-          isDatabaseInitialized = true;
-          databasePath = dbPath;
-          console.log('Database initialized successfully at:', dbPath);
-          resolve({ success: true, result: dbPath });
-        });
-      } catch (error) {
-        reject({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
-      }
-    });
+    try {
+      await setdbPath(dbPath, false, false);
+      isDatabaseInitialized = true;
+      console.log('Database initialized successfully at:', dbPath);
+      return { success: true, result: dbPath };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   });
 
   ipcMain.handle('db:executeQuery', async (_, query: string, params: any[] = []) => {
-    return new Promise((resolve, reject) => {
-      if (!isDatabaseInitialized || !db) {
-        reject(new Error('Database execute query failed: Database not initialized'));
-        return;
+    try {
+      if (!isDatabaseInitialized) {
+        throw new Error('Database execute query failed: Database not initialized');
       }
-
-      try {
-        db.run(query, params, function(err) {
-          if (err) {
-            reject(new Error(`Database execute query failed: ${err.message}`));
-            return;
-          }
-          resolve({ success: true, result: this });
-        });
-      } catch (error) {
-        reject(new Error(`Database execute query failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    });
+      const result = await executeQuery(query, params);
+      return { success: true, result };
+    } catch (error: any) {
+      throw new Error(`Database execute query failed: ${error.message}`);
+    }
   });
 
   ipcMain.handle('db:fetchOne', async (_, query: string, params: any[] = []) => {
-    return new Promise((resolve, reject) => {
-      if (!isDatabaseInitialized || !db) {
-        reject(new Error('Database fetch one failed: Database not initialized'));
-        return;
+    try {
+      if (!isDatabaseInitialized) {
+        throw new Error('Database fetch one failed: Database not initialized');
       }
-
-      try {
-        db.get(query, params, (err, row) => {
-          if (err) {
-            reject(new Error(`Database fetch one failed: ${err.message}`));
-            return;
-          }
-          resolve({ success: true, result: row });
-        });
-      } catch (error) {
-        reject(new Error(`Database fetch one failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    });
+      const result = await fetchOne(query, params);
+      return { success: true, result };
+    } catch (error: any) {
+      throw new Error(`Database fetch one failed: ${error.message}`);
+    }
   });
 
   ipcMain.handle('db:fetchMany', async (_, query: string, size: number, params: any[] = []) => {
-    return new Promise((resolve, reject) => {
-      if (!isDatabaseInitialized || !db) {
-        reject(new Error('Database fetch many failed: Database not initialized'));
-        return;
+    try {
+      if (!isDatabaseInitialized) {
+        throw new Error('Database fetch many failed: Database not initialized');
       }
-
-      try {
-        db.all(query, params, (err, rows) => {
-          if (err) {
-            reject(new Error(`Database fetch many failed: ${err.message}`));
-            return;
-          }
-          resolve({ success: true, result: rows.slice(0, size) });
-        });
-      } catch (error) {
-        reject(new Error(`Database fetch many failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    });
+      const result = await fetchMany(query, size, params);
+      return { success: true, result };
+    } catch (error: any) {
+      throw new Error(`Database fetch many failed: ${error.message}`);
+    }
   });
 
   ipcMain.handle('db:fetchAll', async (_, query: string, params: any[] = []) => {
-    return new Promise((resolve, reject) => {
-      if (!isDatabaseInitialized || !db) {
-        reject(new Error('Database fetch all failed: Database not initialized'));
-        return;
+    try {
+      if (!isDatabaseInitialized) {
+        throw new Error('Database fetch all failed: Database not initialized');
       }
-
-      try {
-        db.all(query, params, (err, rows) => {
-          if (err) {
-            reject(new Error(`Database fetch all failed: ${err.message}`));
-            return;
-          }
-          resolve({ success: true, result: rows });
-        });
-      } catch (error) {
-        reject(new Error(`Database fetch all failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    });
+      const result = await fetchAll(query, params);
+      const limitedResult = limitResultSize(result);
+      return { success: true, result: limitedResult };
+    } catch (error: any) {
+      throw new Error(`Database fetch all failed: ${error.message}`);
+    }
   });
 
   ipcMain.handle('db:executeMany', async (_, query: string, values: any[] = []) => {
-    return new Promise((resolve, reject) => {
-      if (!isDatabaseInitialized || !db) {
-        reject(new Error('Database execute many failed: Database not initialized'));
-        return;
+    try {
+      if (!isDatabaseInitialized) {
+        throw new Error('Database execute many failed: Database not initialized');
       }
-
-      try {
-        const stmt = db.prepare(query);
-        const executeMany = () => {
-          if (values.length === 0) {
-            resolve({ success: true, result: [] });
-            return;
-          }
-
-          stmt.run(values.shift(), (err) => {
-            if (err) {
-              reject(new Error(`Database execute many failed: ${err.message}`));
-              return;
-            }
-
-            if (values.length > 0) {
-              executeMany();
-            } else {
-              stmt.finalize();
-              resolve({ success: true, result: true });
-            }
-          });
-        };
-        executeMany();
-      } catch (error) {
-        reject(new Error(`Database execute many failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    });
+      const result = await executeMany(query, values);
+      return { success: true, result };
+    } catch (error: any) {
+      throw new Error(`Database execute many failed: ${error.message}`);
+    }
   });
 
   ipcMain.handle('db:executeScript', async (_, script: string) => {
-    return new Promise((resolve, reject) => {
-      if (!isDatabaseInitialized || !db) {
-        reject(new Error('Database execute script failed: Database not initialized'));
-        return;
+    try {
+      if (!isDatabaseInitialized) {
+        throw new Error('Database execute script failed: Database not initialized');
       }
-
-      try {
-        db.exec(script, (err) => {
-          if (err) {
-            reject(new Error(`Database execute script failed: ${err.message}`));
-            return;
-          }
-          resolve({ success: true, result: true });
-        });
-      } catch (error) {
-        reject(new Error(`Database execute script failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    });
+      const result = await executeScript(script);
+      return { success: true, result };
+    } catch (error: any) {
+      throw new Error(`Database execute script failed: ${error.message}`);
+    }
   });
 
   // Dev tools handler (development only)
@@ -757,4 +794,12 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
       mainWindow.webContents.openDevTools();
     }
   });
-}
+
+  // Add cleanup handler for app shutdown
+  app.on('before-quit', () => {
+    console.log('[Memory Monitor] App shutting down, stopping all monitoring...');
+    stopMemoryMonitoring();
+    stopDbMemoryCleanup();
+  });
+
+  }

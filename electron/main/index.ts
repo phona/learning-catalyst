@@ -1,8 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
-import { join } from 'node:path'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { setupIpcHandlers } from './ipc-handlers'
+import { setupIpcHandlers, cleanupIpcHandlers } from './ipc-handlers'
 import { createAppMenu } from './menu'
 import { getQdrantManager } from './qdrant-manager'
 
@@ -29,6 +28,8 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   : RENDERER_DIST
 
 let win: BrowserWindow | null = null
+let isShuttingDown = false
+
 const preload = path.join(__dirname, '../preload/index.mjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
@@ -47,32 +48,55 @@ async function createWindow(): Promise<void> {
       // Consider using contextBridge.exposeInMainWorld
       // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
       // contextIsolation: false,
+      // Enhanced memory optimization settings
+      backgroundThrottling: false,
+      offscreen: false,
+      // Reduce native memory footprint
+      enablePreferredSizeMode: false,
+      experimentalFeatures: false,
+      // Optimize for memory usage
+      spellcheck: false,
+      plugins: false,
+      // Control memory usage
+      webSecurity: true,
     },
-    // Fix GPU cache permission issues
+    // Fix GPU cache permission issues and memory optimization
     show: false,
+    backgroundColor: '#ffffff',
   })
 
   // Suppress DevTools warnings
-  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+  win.webContents.on('console-message', (event, _level, message, _line, _sourceId) => {
     // Ignore autofill-related DevTools errors that are common in Electron
     if (message.includes('Autofill.enable') || message.includes('Autofill.setAddresses')) {
       event.preventDefault()
     }
   })
 
+  // Add proper cleanup on window close
+  win.on('closed', () => {
+    win = null
+  })
+
+  // Enhanced native memory cleanup when window is closing
+  win.webContents.on('will-navigate', () => {
+    // Clear resources before navigation
+    if (win && win.webContents.session?.clearCache) {
+      win.webContents.session.clearCache()
+    }
+  })
+
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
-    win.webContents.openDevTools()
+    // Only open DevTools in development and not in production
+    if (process.env.NODE_ENV !== 'production') {
+      win.webContents.openDevTools()
+    }
     win.show() // Show window after loading
   } else {
     win.loadFile(indexHtml)
     win.show() // Show window after loading
   }
-
-  // Test actively push message to the Electron-Renderer
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', new Date().toLocaleString())
-  })
 
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -93,15 +117,44 @@ async function createWindow(): Promise<void> {
   win.setMenu(menu)
 }
 
+// Cleanup function to prevent memory leaks
+function cleanup() {
+  if (isShuttingDown) return
+  isShuttingDown = true
+
+  console.log('🧹 Cleaning up resources...')
+
+  // Clean up IPC handlers using the proper cleanup function
+  cleanupIpcHandlers()
+
+  // Remove the remaining open-win handler
+  ipcMain.removeHandler('open-win')
+
+  // Clean up Qdrant manager
+  const qdrantManager = getQdrantManager()
+  if (qdrantManager && typeof qdrantManager.shutdown === 'function') {
+    qdrantManager.shutdown()
+  }
+
+  console.log('✅ Cleanup completed')
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // Initialize Qdrant manager
+  console.log('🚀 Learning Catalyst starting...')
+
+  // Initialize Qdrant manager (explicitly initialize since we removed auto-initialization)
   const qdrantManager = getQdrantManager();
+  qdrantManager.initialize().catch(error => {
+    console.error('Failed to initialize Qdrant manager:', error);
+  });
 
   // Create the main window
   await createWindow();
+
+  console.log('✅ Learning Catalyst ready!')
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -109,6 +162,7 @@ app.whenReady().then(async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    cleanup()
     app.quit()
   }
 })
@@ -119,6 +173,16 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
+// Handle app before-quit for proper cleanup
+app.on('before-quit', () => {
+  cleanup()
+})
+
+// Handle app will-quit for final cleanup
+app.on('will-quit', () => {
+  cleanup()
+})
+
 // New window example arg: new windows url
 ipcMain.handle('open-win', (_, arg) => {
   const childWindow = new BrowserWindow({
@@ -127,6 +191,11 @@ ipcMain.handle('open-win', (_, arg) => {
       nodeIntegration: true,
       contextIsolation: false,
     },
+  })
+
+  // Clean up child window on close
+  childWindow.on('closed', () => {
+    childWindow.removeAllListeners()
   })
 
   if (VITE_DEV_SERVER_URL) {

@@ -16,6 +16,9 @@ interface ChatStore {
   inputText: string;
   error: string | null;
 
+  // Memory management
+  maxMessages: number;
+
   // UI state
   showThinking: boolean;
   autoScroll: boolean;
@@ -65,6 +68,9 @@ export const useChatStore = create<ChatStore>()(
       inputText: '',
       error: null,
 
+      // Memory management
+      maxMessages: 1000, // 限制最大消息数量
+
       // UI state
       showThinking: true,
       autoScroll: true,
@@ -77,7 +83,16 @@ export const useChatStore = create<ChatStore>()(
       setMessages: (messages) => set({ messages }, false, 'setMessages'),
 
       addMessage: (message) => set(
-        (state) => ({ messages: [...state.messages, message] }),
+        (state) => {
+          const newMessages = [...state.messages, message];
+          // 限制消息数量，移除最旧的消息
+          if (newMessages.length > state.maxMessages) {
+            const removed = newMessages.length - state.maxMessages;
+            console.warn(`[Chat Store] Limiting messages: removed ${removed} old messages to prevent memory leak`);
+            return { messages: newMessages.slice(-state.maxMessages) };
+          }
+          return { messages: newMessages };
+        },
         false,
         'addMessage'
       ),
@@ -109,20 +124,45 @@ export const useChatStore = create<ChatStore>()(
       appendStreamChunk: (chunk) => {
         const state = get();
 
+        // Prevent unlimited content accumulation (safety limit ~100KB)
+        const MAX_CONTENT_LENGTH = 100000;
+
         if (chunk.reasoning_content) {
-          set(
-            { thinkingContent: state.thinkingContent + chunk.reasoning_content },
-            false,
-            'appendThinkingChunk'
-          );
+          const newThinkingContent = state.thinkingContent + chunk.reasoning_content;
+          if (newThinkingContent.length > MAX_CONTENT_LENGTH) {
+            // Truncate from the beginning if over limit
+            const truncatedContent = newThinkingContent.slice(-MAX_CONTENT_LENGTH * 0.8);
+            set(
+              { thinkingContent: truncatedContent },
+              false,
+              'appendThinkingChunkTruncated'
+            );
+          } else {
+            set(
+              { thinkingContent: newThinkingContent },
+              false,
+              'appendThinkingChunk'
+            );
+          }
         }
 
         if (chunk.content) {
-          set(
-            { streamingContent: state.streamingContent + chunk.content },
-            false,
-            'appendContentChunk'
-          );
+          const newStreamingContent = state.streamingContent + chunk.content;
+          if (newStreamingContent.length > MAX_CONTENT_LENGTH) {
+            // Truncate from the beginning if over limit
+            const truncatedContent = newStreamingContent.slice(-MAX_CONTENT_LENGTH * 0.8);
+            set(
+              { streamingContent: truncatedContent },
+              false,
+              'appendContentChunkTruncated'
+            );
+          } else {
+            set(
+              { streamingContent: newStreamingContent },
+              false,
+              'appendContentChunk'
+            );
+          }
         }
       },
 
@@ -151,7 +191,14 @@ export const useChatStore = create<ChatStore>()(
       // UI actions
       setShowThinking: (show) => set({ showThinking: show }, false, 'setShowThinking'),
 
-      toggleThinking: () => set((state) => ({ showThinking: !state.showThinking }), false, 'toggleThinking'),
+      toggleThinking: () => {
+      console.log('toggleThinking called, current state:', get().showThinking);
+      set((state) => {
+        const newState = !state.showThinking;
+        console.log('toggleThinking setting to:', newState);
+        return { showThinking: newState };
+      }, false, 'toggleThinking');
+    },
 
       setAutoScroll: (autoScroll) => set({ autoScroll }, false, 'setAutoScroll'),
 
@@ -186,16 +233,37 @@ export const useChatStore = create<ChatStore>()(
         };
         addMessage(userMessage);
 
+        // Re-enable thinking for new message if provider supports it
+        const { config } = useConfigStore.getState();
+        const chatModelConfig = config?.ai?.model_types?.chat;
+        const apiKey = chatModelConfig?.api_keys?.[selectedProvider as keyof typeof chatModelConfig.api_keys];
+        const shouldShowThinking = config?.ai?.enable_thinking &&
+                                 (selectedProvider === 'chatglm' || apiKey);
+
+        if (shouldShowThinking) {
+          set({ showThinking: true }, false, 'enableThinkingForNewMessage');
+        }
+
         setLoading(true);
         resetStreaming();
 
         try {
-          // Get provider config
+          // Get provider config from new model type configuration
           const { config } = useConfigStore.getState();
-          const providerConfig = config?.ai?.providers[selectedProvider];
+          const chatModelConfig = config?.ai?.model_types?.chat;
 
-          if (!providerConfig) {
-            throw new Error(`No configuration found for provider: ${selectedProvider}`);
+          // Get API key from the new model type configuration
+          const apiKey = chatModelConfig?.api_keys?.[selectedProvider as keyof typeof chatModelConfig.api_keys];
+
+          // Create provider config object compatible with chat service
+          const providerConfig = apiKey ? {
+            api_key: apiKey,
+            base_url: chatModelConfig?.custom_provider_url || undefined,
+            provider: selectedProvider
+          } : null;
+
+          if (!providerConfig || !apiKey) {
+            throw new Error(`No configuration found for provider: ${selectedProvider}. Please configure the API key in Settings.`);
           }
 
           // Initialize provider if not already done
@@ -216,8 +284,10 @@ export const useChatStore = create<ChatStore>()(
             stream: true, // Always use streaming for better UX
           });
 
-          // Handle streaming response
-          if (response && 'Symbol' in response && typeof (response as any)[Symbol.asyncIterator] === 'function') {
+          // Check if response is an async generator
+          const isAsyncGenerator = response && typeof (response as any)[Symbol.asyncIterator] === 'function';
+
+          if (isAsyncGenerator) {
             let assistantContent = '';
             let thinkingContent = '';
 
@@ -258,6 +328,13 @@ export const useChatStore = create<ChatStore>()(
               tokens_used: undefined, // Will be populated by the actual implementation
             };
             addMessage(assistantMessage);
+
+            // Auto-hide thinking process when response is complete
+            const state = get();
+            if (state.showThinking && thinkingContent) {
+              // Only auto-hide if thinking content was actually shown
+              set({ showThinking: false }, false, 'autoHideThinking');
+            }
           } else {
             // Non-streaming response (fallback)
             const chatResponse = response as any;
@@ -275,6 +352,13 @@ export const useChatStore = create<ChatStore>()(
               } : undefined,
             };
             addMessage(assistantMessage);
+
+            // Auto-hide thinking process when response is complete (non-streaming)
+            const state = get();
+            if (state.showThinking && chatResponse.reasoning_content) {
+              // Only auto-hide if thinking content was actually present
+              set({ showThinking: false }, false, 'autoHideThinkingNonStreaming');
+            }
           }
         } catch (error) {
           console.error('Failed to send message:', error);

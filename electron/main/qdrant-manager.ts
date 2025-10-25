@@ -32,6 +32,9 @@ class MainProcessQdrantService {
   private config: any;
   private isStarting: boolean = false;
   private isReady: boolean = false;
+  private outputBuffer: string[] = [];
+  private maxOutputBufferSize = 1000; // 最大输出行数
+  private outputCleanupInterval: NodeJS.Timeout | null = null;
 
   constructor(config?: any) {
     this.config = {
@@ -52,12 +55,52 @@ class MainProcessQdrantService {
     });
   }
 
+  private handleOutput(data: Buffer, isError: boolean = false): void {
+    const output = data.toString().trim();
+    if (!output) return;
+
+    // 添加到缓冲区
+    this.outputBuffer.push(output);
+
+    // 限制缓冲区大小 - 移除旧的输出
+    if (this.outputBuffer.length > this.maxOutputBufferSize) {
+      const removed = this.outputBuffer.splice(0, this.outputBuffer.length - this.maxOutputBufferSize);
+      if (removed.length > 0) {
+        console.log(`[Qdrant Buffer] Cleaned ${removed.length} old output lines to prevent memory leak`);
+      }
+    }
+
+    // 只输出最近的日志，避免控制台被刷屏
+    if (this.outputBuffer.length % 100 === 0 || isError) {
+      const prefix = isError ? '[Qdrant ERROR]' : '[Qdrant INFO]';
+      console.log(`${prefix}: ${output} (buffer size: ${this.outputBuffer.length})`);
+    }
+  }
+
+  private startOutputCleanup(): void {
+    // 定期清理输出缓冲区
+    this.outputCleanupInterval = setInterval(() => {
+      if (this.outputBuffer.length > this.maxOutputBufferSize / 2) {
+        const removed = this.outputBuffer.splice(0, Math.floor(this.maxOutputBufferSize / 2));
+        console.log(`[Qdrant Buffer] Scheduled cleanup: removed ${removed.length} old lines`);
+      }
+    }, 60000); // 每分钟清理一次
+  }
+
+  private stopOutputCleanup(): void {
+    if (this.outputCleanupInterval) {
+      clearInterval(this.outputCleanupInterval);
+      this.outputCleanupInterval = null;
+    }
+  }
+
   async start(): Promise<void> {
     if (this.process || this.isStarting) {
       return;
     }
 
     this.isStarting = true;
+    this.outputBuffer = []; // 重置缓冲区
 
     try {
       const { spawn } = await import('child_process');
@@ -79,19 +122,24 @@ class MainProcessQdrantService {
         cwd: path.dirname(qdrantPath)
       });
 
-      this.process.stdout?.on('data', (data: any) => {
-        console.log(`Qdrant: ${data.toString().trim()}`);
+      // 使用新的输出处理方法
+      this.process.stdout?.on('data', (data: Buffer) => {
+        this.handleOutput(data, false);
       });
 
-      this.process.stderr?.on('data', (data: any) => {
-        console.error(`Qdrant error: ${data.toString().trim()}`);
+      this.process.stderr?.on('data', (data: Buffer) => {
+        this.handleOutput(data, true);
       });
 
       this.process.on('exit', (code: any) => {
         console.log(`Qdrant process exited with code ${code}`);
+        this.stopOutputCleanup(); // 停止清理定时器
         this.process = null;
         this.isReady = false;
       });
+
+      // 启动输出清理定时器
+      this.startOutputCleanup();
 
       await this.waitForReady();
       this.isReady = true;
@@ -112,22 +160,45 @@ class MainProcessQdrantService {
 
     return new Promise((resolve) => {
       if (this.process) {
-        this.process.on('exit', () => {
+        // 停止输出清理定时器
+        this.stopOutputCleanup();
+
+        // Remove ALL event listeners to prevent memory leaks
+        this.process.removeAllListeners('exit')
+        this.process.removeAllListeners('error')
+        this.process.removeAllListeners('close')
+        this.process.stdout?.removeAllListeners()
+        this.process.stderr?.removeAllListeners()
+
+        // 清理输出缓冲区
+        const bufferSize = this.outputBuffer.length;
+        this.outputBuffer = [];
+        if (bufferSize > 0) {
+          console.log(`[Qdrant Buffer] Cleared ${bufferSize} buffered output lines`);
+        }
+
+        // Add proper exit handler
+        this.process.once('exit', () => {
+          console.log('✅ Qdrant process exited')
           this.process = null;
           this.isReady = false;
+          this.isStarting = false;
           resolve();
         });
 
         this.process.kill('SIGTERM');
 
+        // Force kill after timeout if process doesn't exit
         setTimeout(() => {
           if (this.process) {
+            console.log('🔨 Force killing Qdrant process...')
             this.process.kill('SIGKILL');
             this.process = null;
             this.isReady = false;
+            this.isStarting = false;
             resolve();
           }
-        }, 5000);
+        }, 10000); // 10 second timeout
       } else {
         resolve();
       }
@@ -528,7 +599,7 @@ export class QdrantManager {
     this.qdrantService = new MainProcessQdrantService();
     this.knowledgeService = new MainProcessKnowledgeService(this.qdrantService);
     this.setupIpcHandlers();
-    this.setupAppEventHandlers();
+    // 移除自动初始化，由主应用控制初始化时机
   }
 
   /**
@@ -754,36 +825,6 @@ export class QdrantManager {
       }
     });
   }
-
-  /**
-   * Setup app event handlers
-   */
-  private setupAppEventHandlers(): void {
-    // Initialize when app is ready
-    app.whenReady().then(async () => {
-      // Initialize Qdrant after a short delay to ensure other services are ready
-      setTimeout(async () => {
-        try {
-          await this.initialize();
-        } catch (error) {
-          console.error('Failed to auto-initialize Qdrant:', error);
-        }
-      }, 3000);
-    });
-
-    // Shutdown when app is quitting
-    app.on('before-quit', async () => {
-      await this.shutdown();
-    });
-
-    // Handle window all closed (for cleanup on non-macOS platforms)
-    app.on('window-all-closed', async () => {
-      if (process.platform !== 'darwin') {
-        await this.shutdown();
-      }
-    });
-  }
-}
 
 // Singleton instance
 let qdrantManager: QdrantManager | null = null;
