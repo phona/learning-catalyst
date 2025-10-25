@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { setupIpcHandlers, cleanupIpcHandlers } from './ipc-handlers'
 import { createAppMenu } from './menu'
 import { getQdrantManager } from './qdrant-manager'
+// import { getMockQdrantManager } from './mock-qdrant-manager'
+// import { getMockDatabase } from './mock-database' // Using real SQLite now
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -118,7 +120,7 @@ async function createWindow(): Promise<void> {
 }
 
 // Cleanup function to prevent memory leaks
-function cleanup() {
+async function cleanup() {
   if (isShuttingDown) return
   isShuttingDown = true
 
@@ -136,7 +138,17 @@ function cleanup() {
     qdrantManager.shutdown()
   }
 
-  console.log('✅ Cleanup completed')
+  // Clean up static Qdrant resources
+  try {
+    const { QdrantManager } = await import('./qdrant-manager')
+    if (QdrantManager && typeof QdrantManager.cleanup === 'function') {
+      QdrantManager.cleanup()
+    }
+  } catch (error) {
+    console.warn('Failed to cleanup Qdrant static resources:', error)
+  }
+
+  // Cleanup completed
 }
 
 // This method will be called when Electron has finished
@@ -145,9 +157,9 @@ function cleanup() {
 app.whenReady().then(async () => {
   console.log('🚀 Learning Catalyst starting...')
 
-  // Initialize Qdrant manager (explicitly initialize since we removed auto-initialization)
+  // Initialize Qdrant service
   const qdrantManager = getQdrantManager();
-  qdrantManager.initialize().catch(error => {
+  qdrantManager.initialize().catch((error: any) => {
     console.error('Failed to initialize Qdrant manager:', error);
   });
 
@@ -160,9 +172,9 @@ app.whenReady().then(async () => {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
-    cleanup()
+    await cleanup()
     app.quit()
   }
 })
@@ -174,13 +186,13 @@ app.on('activate', () => {
 })
 
 // Handle app before-quit for proper cleanup
-app.on('before-quit', () => {
-  cleanup()
+app.on('before-quit', async () => {
+  await cleanup()
 })
 
 // Handle app will-quit for final cleanup
-app.on('will-quit', () => {
-  cleanup()
+app.on('will-quit', async () => {
+  await cleanup()
 })
 
 // New window example arg: new windows url

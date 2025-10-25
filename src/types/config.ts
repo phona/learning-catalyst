@@ -122,6 +122,14 @@ export interface ModelTypeConfig {
   default_provider: string;
   default_model: string;
   available_providers: string[];
+  custom_provider_url?: string; // For openai-compatible providers
+  api_keys: {
+    openai?: string;
+    chatglm?: string;
+    deepseek?: string;
+    siliconflow?: string;
+    'openai-compatible'?: string;
+  };
   settings: {
     temperature?: number;
     max_tokens?: number;

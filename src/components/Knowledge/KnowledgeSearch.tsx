@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { KnowledgeGraphModule, Concept } from '../../modules/knowledge-graph/knowledge-graph';
 
 interface KnowledgeSearchProps {
@@ -22,7 +22,22 @@ const KnowledgeSearchComponent: React.FC<KnowledgeSearchProps> = ({
   });
   const [showFilters, setShowFilters] = useState(false);
 
+  // Refs for cleanup and mounted state
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController>();
+
   const conceptTypes = ['topic', 'skill', 'fact', 'procedure', 'principle'];
+
+  useEffect(() => {
+    // Initialize mounted state
+    isMountedRef.current = true;
+    abortControllerRef.current = new AbortController();
+
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (query.trim()) {
@@ -37,8 +52,10 @@ const KnowledgeSearchComponent: React.FC<KnowledgeSearchProps> = ({
   }, [query, selectedFilters]);
 
   const performSearch = useCallback(async () => {
-    if (!query.trim()) {
-      setResults([]);
+    if (!query.trim() || !isMountedRef.current) {
+      if (isMountedRef.current) {
+        setResults([]);
+      }
       return;
     }
 
@@ -53,12 +70,20 @@ const KnowledgeSearchComponent: React.FC<KnowledgeSearchProps> = ({
       };
 
       const searchResults = await knowledgeGraph.searchConcepts(searchParams);
-      setResults(searchResults);
+
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setResults(searchResults);
+      }
     } catch (error) {
       console.error('Search failed:', error);
-      setResults([]);
+      if (isMountedRef.current) {
+        setResults([]);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [query, selectedFilters, knowledgeGraph]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
@@ -11,28 +11,21 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
+  PencilIcon,
+  XMarkIcon,
+  GlobeAltIcon,
   EyeIcon,
   EyeSlashIcon,
-  ServerIcon,
-  KeyIcon,
-  GlobeAltIcon,
-  ClockIcon,
-  LightBulbIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
-  ShieldCheckIcon,
-  CpuChipIcon,
-  BeakerIcon,
 } from '@heroicons/react/24/outline';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { configService } from '@/services/configService';
+import { modelFetchingService } from '@/services/modelFetchingService';
 import type {
   AppConfig,
-  ProviderConfig,
   ModelTypeConfig,
   ModelTestResult,
-  ModelValidationResult,
 } from '@/types/config';
+import type { ModelList } from '@/types/ai';
 
 interface ModelTypeSection {
   type: 'chat' | 'embedding' | 'rerank';
@@ -66,26 +59,115 @@ const modelTypes: ModelTypeSection[] = [
   },
 ];
 
+/**
+ * Simple debounce utility function with cleanup support
+ */
+function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): {
+  debounced: (...args: Parameters<T>) => void;
+  cancel: () => void;
+} {
+  let timeout: NodeJS.Timeout;
+  const debounced = (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+  const cancel = () => {
+    clearTimeout(timeout);
+  };
+  return { debounced, cancel };
+}
+
 export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
-  const [activeSection, setActiveSection] = useState<'providers' | 'models' | 'ui' | 'advanced'>('models');
+  const [activeSection, setActiveSection] = useState<'models' | 'ui' | 'advanced'>('models');
   const [expandedModelTypes, setExpandedModelTypes] = useState<Set<string>>(new Set(['chat']));
   const [testingModels, setTestingModels] = useState<Set<string>>(new Set());
   const [modelTestResults, setModelTestResults] = useState<Record<string, ModelTestResult>>({});
-  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [manualModelInput, setManualModelInput] = useState<Record<string, string>>({});
+  const [showManualInput, setShowManualInput] = useState<Record<string, boolean>>({});
+  const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+
+  // Remote models state
+  const [remoteModels, setRemoteModels] = useState<Record<string, ModelList>>({});
+  const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({});
+  const [fetchErrors, setFetchErrors] = useState<Record<string, string>>({});
 
   // Local state for configuration
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(null);
-  const [providerConfigs, setProviderConfigs] = useState<Record<string, ProviderConfig>>({});
   const [modelTypeConfigs, setModelTypeConfigs] = useState<Record<string, ModelTypeConfig>>({});
+
+  // Refs for cleanup
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const debouncedSaveRef = useRef<{ cancel: () => void }>();
+
+  // Debounced auto-save function
+  const debouncedSaveConfig = useMemo(
+    () => {
+      const { debounced, cancel } = debounce(async (config: AppConfig) => {
+        try {
+          await configService.saveConfig(config);
+          setConfig(config);
+          setSaveStatus('success');
+          saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+        } catch (error) {
+          console.error('Auto-save failed:', error);
+          setSaveStatus('error');
+          saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
+        }
+      }, 1000);
+      debouncedSaveRef.current = { cancel };
+      return debounced;
+    },
+    []
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debouncedSaveRef.current) {
+        debouncedSaveRef.current.cancel();
+      }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (config) {
+      // Ensure openai-compatible provider is available in all model types
+      const updatedModelTypes = { ...config.ai.model_types };
+      let hasUpdates = false;
+
+      Object.keys(updatedModelTypes).forEach(modelType => {
+        if (!updatedModelTypes[modelType as keyof typeof updatedModelTypes].available_providers.includes('openai-compatible')) {
+          updatedModelTypes[modelType as keyof typeof updatedModelTypes] = {
+            ...updatedModelTypes[modelType as keyof typeof updatedModelTypes],
+            available_providers: [...updatedModelTypes[modelType as keyof typeof updatedModelTypes].available_providers, 'openai-compatible']
+          };
+          hasUpdates = true;
+        }
+      });
+
       setLocalConfig({ ...config });
-      setProviderConfigs({ ...config.ai.providers });
-      setModelTypeConfigs({ ...config.ai.model_types });
+      setModelTypeConfigs(updatedModelTypes);
+
+      // Auto-save if we added the openai-compatible provider to existing config
+      if (hasUpdates) {
+        const updatedConfig = {
+          ...config,
+          ai: {
+            ...config.ai,
+            model_types: updatedModelTypes as any
+          }
+        };
+        configService.saveConfig(updatedConfig).catch(console.error);
+      }
     }
   }, [config]);
 
@@ -99,57 +181,77 @@ export const SettingsPanel: React.FC = () => {
       await configService.saveConfig(localConfig);
       setConfig(localConfig);
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error) {
       console.error('Failed to save configuration:', error);
       setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+      saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleProviderConfigChange = (providerName: string, updates: Partial<ProviderConfig>) => {
-    const updatedProviders = {
-      ...providerConfigs,
-      [providerName]: {
-        ...providerConfigs[providerName],
-        ...updates,
-      },
-    };
-    setProviderConfigs(updatedProviders);
-
-    if (localConfig) {
-      const updatedConfig = {
-        ...localConfig,
-        ai: {
-          ...localConfig.ai,
-          providers: updatedProviders,
-        },
-      };
-      setLocalConfig(updatedConfig);
-    }
-  };
-
+  
   const handleModelTypeConfigChange = (modelType: string, updates: Partial<ModelTypeConfig>) => {
+    let finalUpdates = { ...updates };
+
+    // Handle api_keys structure correctly
+    const currentConfig = modelTypeConfigs[modelType];
+
+    // If provider is being changed, clear the model and custom fields if switching away from openai-compatible
+    if (updates.default_provider && updates.default_provider !== currentConfig?.default_provider) {
+      finalUpdates.default_model = '';
+      if (updates.default_provider !== 'openai-compatible') {
+        finalUpdates.custom_provider_url = undefined;
+      }
+      // Removed auto-fetch - only manual refresh button will trigger fetching
+    }
+    if (updates.api_keys) {
+      finalUpdates.api_keys = {
+        ...currentConfig?.api_keys,
+        ...updates.api_keys
+      };
+      // Removed auto-fetch - only manual refresh button will trigger fetching
+    }
+
     const updatedModelTypes = {
       ...modelTypeConfigs,
       [modelType]: {
-        ...modelTypeConfigs[modelType],
-        ...updates,
+        ...currentConfig,
+        ...finalUpdates,
       },
     };
     setModelTypeConfigs(updatedModelTypes);
 
     if (localConfig) {
+      const modelTypeConfig = updatedModelTypes[modelType];
+
+      // Synchronize global AI config when chat model type is changed
+      let aiConfigUpdates = { ...localConfig.ai };
+      if (modelType === 'chat') {
+        aiConfigUpdates = {
+          ...aiConfigUpdates,
+          default_provider: modelTypeConfig?.default_provider || aiConfigUpdates.default_provider,
+          default_model: modelTypeConfig?.default_model || aiConfigUpdates.default_model,
+        };
+      }
+
       const updatedConfig = {
         ...localConfig,
         ai: {
-          ...localConfig.ai,
+          ...aiConfigUpdates,
           model_types: updatedModelTypes as any,
         },
       };
       setLocalConfig(updatedConfig);
+
+      // Auto-save to global config store with debouncing
+      debouncedSaveConfig(updatedConfig);
+    }
+
+    // Update manual input state if model was changed
+    if (updates.default_model) {
+      setManualModelInput(prev => ({ ...prev, [modelType]: updates.default_model || '' }));
     }
   };
 
@@ -183,8 +285,91 @@ export const SettingsPanel: React.FC = () => {
     });
   };
 
-  const toggleApiKeyVisibility = (providerName: string) => {
-    setShowApiKeys(prev => ({ ...prev, [providerName]: !prev[providerName] }));
+  
+  const toggleManualInput = (modelType: string) => {
+    const key = modelType;
+    setShowManualInput(prev => ({ ...prev, [key]: !prev[key] }));
+    if (!showManualInput[key]) {
+      // Initialize with current model value when opening
+      const config = modelTypeConfigs[modelType];
+      if (config) {
+        setManualModelInput(prev => ({ ...prev, [key]: config.default_model }));
+      }
+    }
+  };
+
+  const toggleApiKeyVisibility = (modelType: string) => {
+    setShowApiKeys(prev => ({ ...prev, [modelType]: !prev[modelType] }));
+  };
+
+  /**
+   * Fetch models from provider API
+   */
+  const fetchModelsFromProvider = useCallback(async (modelType: string) => {
+    const config = modelTypeConfigs[modelType];
+    if (!config || !config.default_provider) return;
+
+    // Validate API key exists and is non-empty
+    const apiKey = config.api_keys?.[config.default_provider as keyof typeof config.api_keys];
+    if (!apiKey || apiKey.trim() === '') {
+      alert(`Please enter an API key for ${config.default_provider} before fetching models.`);
+      return;
+    }
+
+    const cacheKey = `${config.default_provider}-${modelType}`;
+
+    setFetchingModels(prev => ({ ...prev, [cacheKey]: true }));
+    setFetchErrors(prev => ({ ...prev, [cacheKey]: '' }));
+
+    try {
+      const models = await modelFetchingService.fetchModels(config.default_provider, config);
+      setRemoteModels(prev => ({ ...prev, [cacheKey]: models }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch models';
+      setFetchErrors(prev => ({ ...prev, [cacheKey]: errorMessage }));
+
+      // Show user-friendly alert dialog
+      alert(`Failed to fetch models from ${config.default_provider}: ${errorMessage}`);
+      console.error(`Failed to fetch models for ${config.default_provider}:`, error);
+    } finally {
+      setFetchingModels(prev => ({ ...prev, [cacheKey]: false }));
+    }
+  }, [modelTypeConfigs]);
+
+  /**
+   * Get available models combining remote and fallback models
+   */
+  const getAvailableModels = useMemo(() => {
+    return (modelType: string): string[] => {
+      const config = modelTypeConfigs[modelType];
+      if (!config) return [];
+
+      const cacheKey = `${config.default_provider}-${modelType}`;
+
+      // Use remote models if available, otherwise fallback to hardcoded models
+      const remoteModelList = remoteModels[cacheKey];
+      if (remoteModelList) {
+        const modelListKey = modelType as keyof ModelList;
+        return remoteModelList[modelListKey]?.map(model => model.model_id) || [];
+      }
+
+      // Fallback to hardcoded models
+      const providerMapping = getProviderModelMapping();
+      return providerMapping[config.default_provider]?.[modelType] || [];
+    };
+  }, [modelTypeConfigs, remoteModels]);
+
+  const handleManualModelInput = (modelType: string, modelName: string) => {
+    handleModelTypeConfigChange(modelType, { default_model: modelName });
+    setManualModelInput(prev => ({ ...prev, [modelType]: modelName }));
+  };
+
+  const applyManualModel = (modelType: string) => {
+    const modelName = manualModelInput[modelType];
+    if (modelName && modelName.trim()) {
+      handleManualModelInput(modelType, modelName.trim());
+      toggleManualInput(modelType);
+    }
   };
 
   const getProviderModelMapping = () => {
@@ -229,10 +414,16 @@ export const SettingsPanel: React.FC = () => {
           </div>
           <div className="flex items-center space-x-3">
             {saveStatus === 'success' && (
-              <span className="text-sm text-green-600 dark:text-green-400">Configuration saved</span>
+              <span className="flex items-center space-x-1 text-sm text-green-600 dark:text-green-400">
+                <CheckCircleIcon className="w-4 h-4" />
+                <span>Saved</span>
+              </span>
             )}
             {saveStatus === 'error' && (
-              <span className="text-sm text-red-600 dark:text-red-400">Failed to save</span>
+              <span className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+                <XCircleIcon className="w-4 h-4" />
+                <span>Save failed</span>
+              </span>
             )}
             <button
               onClick={handleSaveConfig}
@@ -250,7 +441,6 @@ export const SettingsPanel: React.FC = () => {
         <nav className="flex space-x-8 px-6">
           {[
             { id: 'models', label: 'AI Models', icon: SparklesIcon },
-            { id: 'providers', label: 'Providers', icon: ServerIcon },
             { id: 'ui', label: 'Interface', icon: GlobeAltIcon },
             { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
           ].map(({ id, label, icon: Icon }) => (
@@ -317,7 +507,7 @@ export const SettingsPanel: React.FC = () => {
                             {/* Provider Selection */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Default Provider
+                                Provider
                               </label>
                               <select
                                 value={config.default_provider}
@@ -326,62 +516,200 @@ export const SettingsPanel: React.FC = () => {
                               >
                                 {config.available_providers.map(provider => (
                                   <option key={provider} value={provider}>
-                                    {provider.charAt(0).toUpperCase() + provider.slice(1)}
+                                    {provider === 'openai-compatible' ? 'OpenAI-Compatible' :
+                                     provider.charAt(0).toUpperCase() + provider.slice(1)}
                                   </option>
                                 ))}
                               </select>
+
+                              {/* Custom URL Input for OpenAI-Compatible Provider */}
+                              {config.default_provider === 'openai-compatible' && (
+                                <div className="mt-3">
+                                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    API Endpoint URL
+                                  </label>
+                                  <input
+                                    type="url"
+                                    value={config.custom_provider_url || ''}
+                                    onChange={(e) => handleModelTypeConfigChange(type, { custom_provider_url: e.target.value })}
+                                    placeholder="https://api.example.com/v1"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  />
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    Enter the base URL for your OpenAI-compatible API endpoint
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* API Key Input for All Providers */}
+                              <div className="mt-3">
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  {config.default_provider === 'openai-compatible' ? 'API Key' :
+                                   config.default_provider === 'openai' ? 'OpenAI API Key' :
+                                   config.default_provider === 'chatglm' ? 'ChatGLM API Key' :
+                                   config.default_provider === 'deepseek' ? 'DeepSeek API Key' :
+                                   config.default_provider === 'siliconflow' ? 'SiliconFlow API Key' :
+                                   'API Key'} <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type={showApiKeys[type] ? 'text' : 'password'}
+                                    value={config.api_keys?.[config.default_provider as keyof typeof config.api_keys] || ''}
+                                    onChange={(e) => handleModelTypeConfigChange(type, {
+                                      api_keys: {
+                                        ...config.api_keys,
+                                        [config.default_provider]: e.target.value
+                                      }
+                                    })}
+                                    placeholder="Enter your API key"
+                                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  />
+                                  <button
+                                    onClick={() => toggleApiKeyVisibility(type)}
+                                    className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                    title={showApiKeys[type] ? 'Hide API key' : 'Show API key'}
+                                  >
+                                    {showApiKeys[type] ? (
+                                      <EyeSlashIcon className="w-4 h-4" />
+                                    ) : (
+                                      <EyeIcon className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  API key is required for authentication
+                                </p>
+                              </div>
                             </div>
 
                             {/* Model Selection */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                Default Model
+                                Model
                               </label>
-                              <div className="space-y-2">
-                                {config.available_providers.map(provider => {
-                                  const availableModels = providerMapping[provider]?.[type] || [];
-                                  if (availableModels.length === 0) return null;
-
-                                  return (
-                                    <div key={provider} className="flex items-center space-x-2">
-                                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400 w-24">
-                                        {provider}:
-                                      </span>
-                                      <select
-                                        value={config.default_provider === provider ? config.default_model : ''}
-                                        onChange={(e) => {
-                                          if (e.target.value) {
-                                            handleModelTypeConfigChange(type, {
-                                              default_provider: provider,
-                                              default_model: e.target.value,
-                                            });
-                                          }
-                                        }}
-                                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                      >
-                                        <option value="">Select a model</option>
-                                        {availableModels.map(model => (
-                                          <option key={model} value={model}>
-                                            {model}
-                                          </option>
-                                        ))}
-                                      </select>
-                                      <button
-                                        onClick={() => testModel(provider, config.default_model, type as any)}
-                                        disabled={testingModels.has(`${provider}-${config.default_model}-${type}`)}
-                                        className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-                                        title="Test model"
-                                      >
-                                        {getStatusIcon(
-                                          modelTestResults[`${provider}-${config.default_model}-${type}`],
-                                          testingModels.has(`${provider}-${config.default_model}-${type}`)
-                                        )}
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                              {!showManualInput[type] ? (
+                                <div className="flex items-center space-x-2">
+                                  <select
+                                    value={config.default_model}
+                                    onChange={(e) => handleModelTypeConfigChange(type, { default_model: e.target.value })}
+                                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  >
+                                    <option value="">Select a model</option>
+                                    {/* Custom model first if it exists and not in available models */}
+                                    {config.default_model &&
+                                     !getAvailableModels(type).includes(config.default_model) && (
+                                      <option key="custom-model" value={config.default_model}>
+                                        {config.default_model} (Custom)
+                                      </option>
+                                    )}
+                                    {/* Available models from API or fallback */}
+                                    {getAvailableModels(type).map((model: string) => (
+                                      <option key={model} value={model}>
+                                        {model}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    onClick={() => toggleManualInput(type)}
+                                    className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                                    title="Enter model manually"
+                                  >
+                                    <PencilIcon className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => testModel(config.default_provider, config.default_model, type as any)}
+                                    disabled={testingModels.has(`${config.default_provider}-${config.default_model}-${type}`)}
+                                    className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                                    title="Test model"
+                                  >
+                                    {getStatusIcon(
+                                      modelTestResults[`${config.default_provider}-${config.default_model}-${type}`],
+                                      testingModels.has(`${config.default_provider}-${config.default_model}-${type}`)
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => fetchModelsFromProvider(type)}
+                                    disabled={fetchingModels[`${config.default_provider}-${type}`] || !config.api_keys?.[config.default_provider as keyof typeof config.api_keys]}
+                                    className="p-2 text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={config.api_keys?.[config.default_provider as keyof typeof config.api_keys] ? "Fetch latest models from API" : "Enter API key to fetch models"}
+                                  >
+                                    {fetchingModels[`${config.default_provider}-${type}`] ? (
+                                      <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <ArrowPathIcon className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="text"
+                                    value={manualModelInput[type] || ''}
+                                    onChange={(e) => setManualModelInput(prev => ({ ...prev, [type]: e.target.value }))}
+                                    placeholder="Enter model name manually"
+                                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        applyManualModel(type);
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => applyManualModel(type)}
+                                    className="p-2 text-green-600 hover:text-green-700 transition-colors"
+                                    title="Apply model"
+                                  >
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => toggleManualInput(type)}
+                                    className="p-2 text-red-600 hover:text-red-700 transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <XMarkIcon className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
+
+                            {/* Model Fetching Status */}
+                            {(() => {
+                              const cacheKey = `${config.default_provider}-${type}`;
+                              const isFetching = fetchingModels[cacheKey];
+                              const error = fetchErrors[cacheKey];
+                              const hasRemoteModels = remoteModels[cacheKey];
+                              const modelCount = getAvailableModels(type).length;
+
+                              return (
+                                <div className="mt-2 text-xs">
+                                  {isFetching && (
+                                    <div className="flex items-center space-x-1 text-blue-600">
+                                      <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                                      <span>Fetching models from {config.default_provider}...</span>
+                                    </div>
+                                  )}
+                                  {error && (
+                                    <div className="flex items-center space-x-1 text-red-600">
+                                      <ExclamationTriangleIcon className="w-3 h-3" />
+                                      <span>{error}</span>
+                                    </div>
+                                  )}
+                                  {hasRemoteModels && !isFetching && !error && (
+                                    <div className="flex items-center space-x-1 text-green-600">
+                                      <CheckCircleIcon className="w-3 h-3" />
+                                      <span>
+                                        {modelCount} models from {config.default_provider} API
+                                      </span>
+                                    </div>
+                                  )}
+                                  {!config.api_keys?.[config.default_provider as keyof typeof config.api_keys] && (
+                                    <div className="text-gray-500">
+                                      Enter API key to fetch latest models
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
 
                             {/* Model Settings */}
                             {type === 'chat' && (
@@ -427,7 +755,7 @@ export const SettingsPanel: React.FC = () => {
                               </label>
                               <div className="flex flex-wrap gap-2">
                                 {Object.entries(config.capabilities)
-                                  .filter(([key, value]) => value === true)
+                                  .filter(([, value]) => value === true)
                                   .map(([capability]) => (
                                     <span
                                       key={capability}
@@ -508,121 +836,7 @@ export const SettingsPanel: React.FC = () => {
             </div>
           )}
 
-          {/* Providers Section */}
-          {activeSection === 'providers' && (
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  AI Provider Configuration
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Configure API keys and settings for each AI provider. Make sure to have valid API keys for the providers you want to use.
-                </p>
-
-                <div className="space-y-6">
-                  {Object.entries(providerConfigs).map(([providerName, providerConfig]) => (
-                    <div key={providerName} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                          {providerName.charAt(0).toUpperCase() + providerName.slice(1)}
-                        </h3>
-                        <button
-                          onClick={() => handleProviderConfigChange(providerName, { enabled: !providerConfig.enabled })}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            providerConfig.enabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              providerConfig.enabled ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            API Key
-                          </label>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type={showApiKeys[providerName] ? 'text' : 'password'}
-                              value={providerConfig.api_key || ''}
-                              onChange={(e) => handleProviderConfigChange(providerName, { api_key: e.target.value })}
-                              placeholder="Enter your API key"
-                              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                            <button
-                              onClick={() => toggleApiKeyVisibility(providerName)}
-                              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            >
-                              {showApiKeys[providerName] ? (
-                                <EyeSlashIcon className="w-4 h-4" />
-                              ) : (
-                                <EyeIcon className="w-4 h-4" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        {providerConfig.base_url !== undefined && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Base URL
-                            </label>
-                            <input
-                              type="url"
-                              value={providerConfig.base_url || ''}
-                              onChange={(e) => handleProviderConfigChange(providerName, { base_url: e.target.value })}
-                              placeholder="https://api.example.com"
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Timeout (seconds)
-                            </label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="300"
-                              value={providerConfig.timeout || 30}
-                              onChange={(e) => handleProviderConfigChange(providerName, { timeout: parseInt(e.target.value) })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                              Max Retries
-                            </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="10"
-                              value={providerConfig.max_retries || 3}
-                              onChange={(e) => handleProviderConfigChange(providerName, { max_retries: parseInt(e.target.value) })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Add New Provider Button */}
-                  <button className="w-full py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-400 dark:hover:border-gray-500 transition-colors flex items-center justify-center space-x-2">
-                    <ServerIcon className="w-4 h-4" />
-                    <span>Add New Provider</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
+          
           {/* Interface Section */}
           {activeSection === 'ui' && (
             <div className="space-y-6">

@@ -88,6 +88,10 @@ const MEMORY_MONITOR_INTERVAL = 60000; // 1分钟检查一次
 const MEMORY_WARNING_THRESHOLD = 1024 * 1024 * 1024; // 1GB 警告阈值
 const MEMORY_CRITICAL_THRESHOLD = 1536 * 1024 * 1024; // 1.5GB 严重阈值
 
+// Service configuration flags
+const USE_MOCK_QDRANT = false;
+const USE_MOCK_SQLITE = false;
+
 // Default configuration
 const defaultConfig: AppConfig = {
   ai: {
@@ -515,7 +519,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
   startMemoryMonitoring();
 
   // Initialize database if not already done
-  if (!isDatabaseInitialized) {
+  if (!isDatabaseInitialized && !USE_MOCK_SQLITE) {
+    console.log('Initializing SQLite database...');
     initializeDatabase()
       .then(() => {
         console.log('✅ Database initialization completed successfully');
@@ -531,6 +536,8 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
           });
         }
       });
+  } else if (USE_MOCK_SQLITE) {
+    console.log('Using mock SQLite database');
   }
 
   // File system handlers
@@ -704,89 +711,93 @@ export function setupIpcHandlers(mainWindow: BrowserWindow | null, workspacePath
   });
 
   // SQLite Database Handlers
-  ipcMain.handle('db:setPath', async (_, dbPath: string) => {
-    try {
-      await setdbPath(dbPath, false, false);
-      isDatabaseInitialized = true;
-      console.log('Database initialized successfully at:', dbPath);
-      return { success: true, result: dbPath };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle('db:executeQuery', async (_, query: string, params: any[] = []) => {
-    try {
-      if (!isDatabaseInitialized) {
-        throw new Error('Database execute query failed: Database not initialized');
+  if (!USE_MOCK_SQLITE) {
+    ipcMain.handle('db:setPath', async (_, dbPath: string) => {
+      try {
+        await setdbPath(dbPath, false, false);
+        isDatabaseInitialized = true;
+        console.log('Database initialized successfully at:', dbPath);
+        return { success: true, result: dbPath };
+      } catch (error: any) {
+        return { success: false, error: error.message };
       }
-      const result = await executeQuery(query, params);
-      return { success: true, result };
-    } catch (error: any) {
-      throw new Error(`Database execute query failed: ${error.message}`);
-    }
-  });
+    });
 
-  ipcMain.handle('db:fetchOne', async (_, query: string, params: any[] = []) => {
-    try {
-      if (!isDatabaseInitialized) {
-        throw new Error('Database fetch one failed: Database not initialized');
+    ipcMain.handle('db:executeQuery', async (_, query: string, params: any[] = []) => {
+      try {
+        if (!isDatabaseInitialized) {
+          throw new Error('Database execute query failed: Database not initialized');
+        }
+        const result = await executeQuery(query, params);
+        return { success: true, result };
+      } catch (error: any) {
+        throw new Error(`Database execute query failed: ${error.message}`);
       }
-      const result = await fetchOne(query, params);
-      return { success: true, result };
-    } catch (error: any) {
-      throw new Error(`Database fetch one failed: ${error.message}`);
-    }
-  });
+    });
 
-  ipcMain.handle('db:fetchMany', async (_, query: string, size: number, params: any[] = []) => {
-    try {
-      if (!isDatabaseInitialized) {
-        throw new Error('Database fetch many failed: Database not initialized');
+    ipcMain.handle('db:fetchOne', async (_, query: string, params: any[] = []) => {
+      try {
+        if (!isDatabaseInitialized) {
+          throw new Error('Database fetch one failed: Database not initialized');
+        }
+        const result = await fetchOne(query, params);
+        return { success: true, result };
+      } catch (error: any) {
+        throw new Error(`Database fetch one failed: ${error.message}`);
       }
-      const result = await fetchMany(query, size, params);
-      return { success: true, result };
-    } catch (error: any) {
-      throw new Error(`Database fetch many failed: ${error.message}`);
-    }
-  });
+    });
 
-  ipcMain.handle('db:fetchAll', async (_, query: string, params: any[] = []) => {
-    try {
-      if (!isDatabaseInitialized) {
-        throw new Error('Database fetch all failed: Database not initialized');
+    ipcMain.handle('db:fetchMany', async (_, query: string, size: number, params: any[] = []) => {
+      try {
+        if (!isDatabaseInitialized) {
+          throw new Error('Database fetch many failed: Database not initialized');
+        }
+        const result = await fetchMany(query, size, params);
+        return { success: true, result };
+      } catch (error: any) {
+        throw new Error(`Database fetch many failed: ${error.message}`);
       }
-      const result = await fetchAll(query, params);
-      const limitedResult = limitResultSize(result);
-      return { success: true, result: limitedResult };
-    } catch (error: any) {
-      throw new Error(`Database fetch all failed: ${error.message}`);
-    }
-  });
+    });
 
-  ipcMain.handle('db:executeMany', async (_, query: string, values: any[] = []) => {
-    try {
-      if (!isDatabaseInitialized) {
-        throw new Error('Database execute many failed: Database not initialized');
+    ipcMain.handle('db:fetchAll', async (_, query: string, params: any[] = []) => {
+      try {
+        if (!isDatabaseInitialized) {
+          throw new Error('Database fetch all failed: Database not initialized');
+        }
+        const result = await fetchAll(query, params);
+        const limitedResult = limitResultSize(result);
+        return { success: true, result: limitedResult };
+      } catch (error: any) {
+        throw new Error(`Database fetch all failed: ${error.message}`);
       }
-      const result = await executeMany(query, values);
-      return { success: true, result };
-    } catch (error: any) {
-      throw new Error(`Database execute many failed: ${error.message}`);
-    }
-  });
+    });
 
-  ipcMain.handle('db:executeScript', async (_, script: string) => {
-    try {
-      if (!isDatabaseInitialized) {
-        throw new Error('Database execute script failed: Database not initialized');
+    ipcMain.handle('db:executeMany', async (_, query: string, values: any[] = []) => {
+      try {
+        if (!isDatabaseInitialized) {
+          throw new Error('Database execute many failed: Database not initialized');
+        }
+        const result = await executeMany(query, values);
+        return { success: true, result };
+      } catch (error: any) {
+        throw new Error(`Database execute many failed: ${error.message}`);
       }
-      const result = await executeScript(script);
-      return { success: true, result };
-    } catch (error: any) {
-      throw new Error(`Database execute script failed: ${error.message}`);
-    }
-  });
+    });
+
+    ipcMain.handle('db:executeScript', async (_, script: string) => {
+      try {
+        if (!isDatabaseInitialized) {
+          throw new Error('Database execute script failed: Database not initialized');
+        }
+        const result = await executeScript(script);
+        return { success: true, result };
+      } catch (error: any) {
+        throw new Error(`Database execute script failed: ${error.message}`);
+      }
+    });
+  } else {
+    console.log('Mock SQLite database handlers enabled');
+  }
 
   // Dev tools handler (development only)
   ipcMain.handle('dev:openDevTools', () => {

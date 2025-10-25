@@ -137,7 +137,7 @@ export const ChatArea: React.FC = () => {
                   message={message}
                   showThinking={showThinking && message === lastAssistantMessage}
                   onToggleThinking={toggleThinking}
-                  canToggleThinking={message.role === 'assistant' && !!message.thinking_content && selectedProvider === 'chatglm'}
+                  canToggleThinking={message.role === 'assistant' && !!message.thinking_content}
                 />
               ))}
 
@@ -148,7 +148,7 @@ export const ChatArea: React.FC = () => {
                   showThinking={showThinking}
                   isStreaming={true}
                   onToggleThinking={toggleThinking}
-                  canToggleThinking={selectedProvider === 'chatglm'}
+                  canToggleThinking={true}
                 />
               )}
             </div>

@@ -12,6 +12,20 @@ export const LearningDashboard: React.FC = () => {
 
   useEffect(() => {
     initializeAnalytics();
+
+    // Cleanup function to stop services on unmount
+    return () => {
+      // Store current values for cleanup
+      const currentAnalytics = analytics;
+      const currentDatabase = database;
+
+      if (currentAnalytics) {
+        currentAnalytics.stop().catch(console.error);
+      }
+      if (currentDatabase) {
+        currentDatabase.stop().catch(console.error);
+      }
+    };
   }, []);
 
   const initializeAnalytics = async () => {

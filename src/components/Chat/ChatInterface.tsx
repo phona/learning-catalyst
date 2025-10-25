@@ -20,8 +20,8 @@ export const ChatInterface: React.FC = () => {
     if (config) {
       setShowThinking(config.ai?.enable_thinking ?? true);
       setAutoScroll(config.ui?.auto_scroll ?? true);
-      setSelectedProvider(config.ai?.default_provider ?? 'openai');
-      setSelectedModel(config.ai?.default_model ?? 'gpt-3.5-turbo');
+      setSelectedProvider(config.ai?.model_types?.chat?.default_provider ?? config.ai?.default_provider ?? 'openai');
+      setSelectedModel(config.ai?.model_types?.chat?.default_model ?? config.ai?.default_model ?? 'gpt-3.5-turbo');
 
       // Create a default session if none exists
       setCurrentSession({
@@ -38,8 +38,8 @@ export const ChatInterface: React.FC = () => {
           pinned: false,
         },
         context: {
-          current_provider: config.ai?.default_provider ?? 'openai',
-          current_model: config.ai?.default_model ?? 'gpt-3.5-turbo',
+          current_provider: config.ai?.model_types?.chat?.default_provider ?? config.ai?.default_provider ?? 'openai',
+          current_model: config.ai?.model_types?.chat?.default_model ?? config.ai?.default_model ?? 'gpt-3.5-turbo',
           temperature: config.ai?.temperature ?? 0.7,
           max_tokens: config.ai?.max_tokens ?? 4096,
           enable_thinking: config.ai?.enable_thinking ?? true,

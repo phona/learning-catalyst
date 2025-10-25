@@ -54,90 +54,191 @@ export class ChatGLMProvider extends BaseAIProvider {
     this.validateMessages(messages);
     const finalOptions = this.validateOptions(options);
 
-    // TODO: Implement actual ChatGLM API integration
-    console.log('ChatGLM send message:', { messages, options: finalOptions });
+    if (!this.config.api_key) {
+      throw new Error('API key is required for ChatGLM');
+    }
 
-    if (finalOptions.stream) {
-      return this.mockStreamResponse();
-    } else {
-      return this.mockResponse();
+    const requestBody = {
+      model: finalOptions.model || 'glm-4',
+      messages: messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      })),
+      temperature: finalOptions.temperature ?? 0.7,
+      max_tokens: finalOptions.max_tokens ?? 4096,
+      stream: finalOptions.stream ?? true
+    };
+
+    console.log('ChatGLM API request:', { model: requestBody.model, messageCount: requestBody.messages.length });
+
+    try {
+      const response = await fetch(`${this.config.base_url}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.config.api_key}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`ChatGLM API error: ${response.status} - ${errorText}`);
+      }
+
+      if (finalOptions.stream) {
+        return this.handleStreamResponse(response);
+      } else {
+        const data = await response.json();
+        return this.handleNonStreamResponse(data);
+      }
+    } catch (error) {
+      console.error('ChatGLM API error:', error);
+      throw new Error(`ChatGLM API request failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   async listModels(): Promise<ModelList> {
-    // TODO: Implement actual model listing
-    return {
-      chat: [
-        {
-          model_id: 'glm-4',
-          name: 'GLM-4',
+    try {
+      if (!this.config.api_key) {
+        throw new Error('API key is required to list models');
+      }
+
+      const response = await fetch(`${this.config.base_url}/models`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.config.api_key}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`ChatGLM API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        chat: data.data?.map((model: any) => ({
+          model_id: model.id,
+          name: model.id,
           provider: this.name,
           type: ModelType.CHAT,
-          description: 'Latest GLM model',
-          supports_thinking: true,
-          max_tokens: 8192,
-        },
-        {
-          model_id: 'glm-4-air',
-          name: 'GLM-4 Air',
-          provider: this.name,
-          type: ModelType.CHAT,
-          description: 'Lighter GLM model',
-          supports_thinking: true,
-          max_tokens: 8192,
-        },
-      ],
-      embedding: [],
-      rerank: [],
-    };
+          description: model.object || 'ChatGLM model',
+          supports_thinking: model.id.includes('glm-4'),
+          max_tokens: model.max_tokens || 8192,
+        })) || [],
+        embedding: [],
+        rerank: [],
+      };
+    } catch (error) {
+      console.error('Failed to fetch ChatGLM models:', error);
+      // Fallback to known models
+      return {
+        chat: [
+          {
+            model_id: 'glm-4',
+            name: 'GLM-4',
+            provider: this.name,
+            type: ModelType.CHAT,
+            description: 'Latest GLM model with thinking support',
+            supports_thinking: true,
+            max_tokens: 8192,
+          },
+          {
+            model_id: 'glm-4-air',
+            name: 'GLM-4 Air',
+            provider: this.name,
+            type: ModelType.CHAT,
+            description: 'Lighter GLM model',
+            supports_thinking: true,
+            max_tokens: 8192,
+          },
+          {
+            model_id: 'glm-4-flash',
+            name: 'GLM-4 Flash',
+            provider: this.name,
+            type: ModelType.CHAT,
+            description: 'Fast GLM model',
+            supports_thinking: false,
+            max_tokens: 8192,
+          },
+        ],
+        embedding: [],
+        rerank: [],
+      };
+    }
   }
 
-  private async mockResponse(): Promise<ChatResponse> {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  private async *handleStreamResponse(response: Response): AsyncGenerator<StreamChunk> {
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('Response body is not available for streaming');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('data: ')) {
+            const data = trimmedLine.slice(6);
+
+            if (data === '[DONE]') {
+              yield this.createStreamChunk(undefined, undefined, true);
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const choice = parsed.choices?.[0];
+
+              if (choice?.delta?.content) {
+                yield this.createStreamChunk(choice.delta.content);
+              }
+
+              // ChatGLM might include thinking in the delta
+              if (choice?.delta?.reasoning_content) {
+                yield this.createStreamChunk(undefined, choice.delta.reasoning_content);
+              }
+
+              if (choice?.finish_reason === 'stop') {
+                yield this.createStreamChunk(undefined, undefined, true);
+              }
+            } catch (e) {
+              // Ignore parsing errors for malformed chunks
+              console.warn('Failed to parse streaming chunk:', data, e);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  private async handleNonStreamResponse(data: any): Promise<ChatResponse> {
+    const choice = data.choices?.[0];
+    if (!choice) {
+      throw new Error('Invalid response format from ChatGLM API');
+    }
 
     return this.createChatResponse(
-      'This is a placeholder response from ChatGLM. The actual implementation will connect to the ChatGLM API with thinking support.',
-      'glm-4',
-      {
-        prompt_tokens: 50,
-        completion_tokens: 30,
-        total_tokens: 80,
-      },
-      'This is the thinking process from ChatGLM.'
+      choice.message?.content || '',
+      data.model || 'glm-4',
+      data.usage ? {
+        prompt_tokens: data.usage.prompt_tokens || 0,
+        completion_tokens: data.usage.completion_tokens || 0,
+        total_tokens: data.usage.total_tokens || 0,
+      } : undefined,
+      choice.message?.reasoning_content
     );
-  }
-
-  private async *mockStreamResponse(): AsyncGenerator<StreamChunk> {
-    // Simulate thinking process
-    yield this.createStreamChunk(
-      undefined,
-      'Let me think about this question step by step...\n'
-    );
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    yield this.createStreamChunk(
-      undefined,
-      'First, I need to understand the core concepts involved.\n'
-    );
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    yield this.createStreamChunk(
-      undefined,
-      'Now I can formulate a comprehensive answer.\n'
-    );
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Start actual response
-    yield this.createStreamChunk('This is the beginning of my response. ');
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    yield this.createStreamChunk('I\'m thinking as I generate this content. ');
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    yield this.createStreamChunk('This demonstrates the streaming capability. ');
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    yield this.createStreamChunk('Response complete!');
-    yield this.createStreamChunk(undefined, undefined, true);
   }
 }

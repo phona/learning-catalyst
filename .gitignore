@@ -50,6 +50,7 @@ logs/
 node_modules/
 dist
 dist-electron
+release
 
 # Learning space data
 **/.learningspace/

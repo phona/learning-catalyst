@@ -211,7 +211,8 @@ export class ConfigService {
           chat: {
             default_provider: 'openai',
             default_model: 'gpt-3.5-turbo',
-            available_providers: ['openai', 'chatglm', 'deepseek', 'siliconflow'],
+            available_providers: ['openai', 'chatglm', 'deepseek', 'siliconflow', 'openai-compatible'],
+            api_keys: {},
             settings: {
               temperature: 0.7,
               max_tokens: 4096,
@@ -231,7 +232,8 @@ export class ConfigService {
           embedding: {
             default_provider: 'openai',
             default_model: 'text-embedding-3-small',
-            available_providers: ['openai', 'chatglm', 'siliconflow'],
+            available_providers: ['openai', 'chatglm', 'siliconflow', 'openai-compatible'],
+            api_keys: {},
             settings: {
               max_tokens: 8192
             },
@@ -247,7 +249,8 @@ export class ConfigService {
           rerank: {
             default_provider: 'siliconflow',
             default_model: 'BAAI/bge-reranker-v2-m3',
-            available_providers: ['siliconflow'],
+            available_providers: ['siliconflow', 'openai-compatible'],
+            api_keys: {},
             settings: {
               max_tokens: 512
             },
@@ -384,8 +387,51 @@ export class ConfigService {
    * Migrate configuration to latest version
    */
   private migrateConfig(config: any): AppConfig {
-    // TODO: Implement configuration migration logic
-    // For now, assume config is already in correct format
+    // Ensure the config has the latest structure
+    const defaultConfig = this.getDefaultConfig();
+
+    // Basic structure validation and migration
+    if (!config.ai) {
+      config.ai = defaultConfig.ai;
+    } else {
+      // Ensure model_types exist
+      if (!config.ai.model_types) {
+        config.ai.model_types = defaultConfig.ai.model_types;
+      } else {
+        // Ensure all default providers are available in all model types
+        ['chat', 'embedding', 'rerank'].forEach(modelType => {
+          if (config.ai.model_types[modelType as keyof typeof config.ai.model_types]) {
+            const availableProviders = config.ai.model_types[modelType as keyof typeof config.ai.model_types].available_providers || [];
+            const defaultProviders = defaultConfig.ai.model_types[modelType as keyof typeof defaultConfig.ai.model_types].available_providers;
+
+            // Add all missing default providers
+            defaultProviders.forEach((provider: string) => {
+              if (!availableProviders.includes(provider)) {
+                availableProviders.push(provider);
+              }
+            });
+
+            config.ai.model_types[modelType as keyof typeof config.ai.model_types].available_providers = availableProviders;
+
+            // Migrate old custom_api_key to new api_keys structure
+            if (config.ai.model_types[modelType].custom_api_key) {
+              if (!config.ai.model_types[modelType].api_keys) {
+                config.ai.model_types[modelType].api_keys = {};
+              }
+              // Migrate old API key to openai-compatible provider
+              config.ai.model_types[modelType].api_keys['openai-compatible'] = config.ai.model_types[modelType].custom_api_key;
+              delete config.ai.model_types[modelType].custom_api_key;
+            }
+
+            // Ensure api_keys object exists
+            if (!config.ai.model_types[modelType].api_keys) {
+              config.ai.model_types[modelType].api_keys = {};
+            }
+          }
+        });
+      }
+    }
+
     return config as AppConfig;
   }
 

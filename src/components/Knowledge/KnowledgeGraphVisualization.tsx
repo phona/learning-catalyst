@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { KnowledgeGraphModule, Concept, Relationship, ConceptPath } from '../../modules/knowledge-graph/knowledge-graph';
 
 interface KnowledgeGraphProps {
@@ -42,33 +42,89 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
 
+  // Refs for cleanup and mounted state
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController>();
+  const svgContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    // Create new abort controller for this component instance
+    abortControllerRef.current = new AbortController();
+    isMountedRef.current = true;
+
     loadKnowledgeGraph();
+
+    // Cleanup function
+    return () => {
+      isMountedRef.current = false;
+      abortControllerRef.current?.abort();
+      cleanupSVGElements();
+      resetState();
+    };
   }, [knowledgeGraph]);
 
+  // Cleanup SVG elements and event listeners
+  const cleanupSVGElements = () => {
+    if (svgContainerRef.current) {
+      const svgElement = svgContainerRef.current.querySelector('svg');
+      if (svgElement) {
+        // Remove all event listeners by cloning the node
+        const newSvg = svgElement.cloneNode(true);
+        svgElement.parentNode?.replaceChild(newSvg, svgElement);
+      }
+    }
+  };
+
+  // Reset all state to prevent memory leaks
+  const resetState = () => {
+    setConcepts([]);
+    setRelationships([]);
+    setNodes([]);
+    setEdges([]);
+    setSelectedConcept(null);
+    setSearchResults([]);
+    setLearningPath(null);
+    setPathStartConcept(null);
+    setNextConcepts([]);
+    setSearchQuery('');
+  };
+
   const loadKnowledgeGraph = async () => {
+    if (!isMountedRef.current) return;
+
     try {
       setLoading(true);
       setError(null);
 
       // Load concepts with limit to avoid performance issues
       const loadedConcepts = await knowledgeGraph.searchConcepts({ limit: 50 });
+      if (!isMountedRef.current || abortControllerRef.current?.signal.aborted) return;
+
       setConcepts(loadedConcepts);
 
       // Load relationships for these concepts
       const allRelationships: Relationship[] = [];
       for (const concept of loadedConcepts) {
+        if (!isMountedRef.current || abortControllerRef.current?.signal.aborted) break;
+
         const conceptRelationships = await knowledgeGraph.getRelationships(concept.id);
         allRelationships.push(...conceptRelationships);
       }
+
+      if (!isMountedRef.current || abortControllerRef.current?.signal.aborted) return;
+
       setRelationships(allRelationships);
 
       // Initialize simple layout
       initializeLayout(loadedConcepts, allRelationships);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load knowledge graph');
+      if (isMountedRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load knowledge graph');
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -114,6 +170,8 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
   };
 
   const handleSearch = async (query: string) => {
+    if (!isMountedRef.current) return;
+
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
@@ -125,14 +183,21 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
         query,
         limit: 10
       });
-      setSearchResults(results);
+
+      if (isMountedRef.current) {
+        setSearchResults(results);
+      }
     } catch (error) {
       console.error('Search error:', error);
-      setSearchResults([]);
+      if (isMountedRef.current) {
+        setSearchResults([]);
+      }
     }
   };
 
   const showLearningPath = async (concept: Concept) => {
+    if (!isMountedRef.current) return;
+
     if (!pathStartConcept) {
       setPathStartConcept(concept);
       return;
@@ -146,20 +211,30 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
 
     try {
       const path = await knowledgeGraph.findPath(pathStartConcept.id, concept.id);
-      setLearningPath(path);
+      if (isMountedRef.current) {
+        setLearningPath(path);
+      }
     } catch (error) {
       console.error('Error finding learning path:', error);
-      setLearningPath(null);
+      if (isMountedRef.current) {
+        setLearningPath(null);
+      }
     }
   };
 
   const loadNextConcepts = async (conceptId: string) => {
+    if (!isMountedRef.current) return;
+
     try {
       const next = await knowledgeGraph.getNextLearningConcepts(conceptId, 5);
-      setNextConcepts(next);
+      if (isMountedRef.current) {
+        setNextConcepts(next);
+      }
     } catch (error) {
       console.error('Error loading next concepts:', error);
-      setNextConcepts([]);
+      if (isMountedRef.current) {
+        setNextConcepts([]);
+      }
     }
   };
 
@@ -255,7 +330,8 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
       )}
 
       {/* SVG for graph visualization */}
-      <svg width="100%" height="600" className="rounded-lg">
+      <div ref={svgContainerRef}>
+        <svg width="100%" height="600" className="rounded-lg">
         {/* Render learning path first (so it appears on top) */}
         {learningPath && learningPath.concepts.map((concept, index) => {
           const currentNode = nodes.find(n => n.id === concept.id);
@@ -368,7 +444,8 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
             </text>
           </g>
         ))}
-      </svg>
+        </svg>
+      </div>
 
       {/* Selected concept details */}
       {selectedConcept && (

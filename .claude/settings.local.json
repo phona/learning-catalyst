@@ -44,7 +44,11 @@
       "WebSearch",
       "Bash(npx vite:*)",
       "Bash(sqlite3:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npx:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

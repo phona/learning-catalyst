@@ -3,6 +3,7 @@ import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron/simple'
+// @ts-ignore
 import pkg from './package.json'
 
 // https://vitejs.dev/config/
@@ -48,9 +49,12 @@ export default defineConfig(({ command }) => {
               outDir: 'dist-electron/main',
               rollupOptions: {
                 external: [
-                  ...Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
-                  'sqlite3'
+                  'sqlite-electron',
+                  'electron'
                 ],
+                output: {
+                  format: 'cjs'
+                }
               },
             },
           },
@@ -67,7 +71,7 @@ export default defineConfig(({ command }) => {
               rollupOptions: {
                 external: [
                   ...Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
-                  'sqlite3'
+                  'sqlite-electron'
                 ],
               },
             },
@@ -83,5 +87,19 @@ export default defineConfig(({ command }) => {
       }
     })(),
     clearScreen: false,
+    optimizeDeps: {
+      // Pre-bundle dependencies to improve performance
+      include: ['react', 'react-dom', 'zustand'],
+    },
+    build: {
+      // Reduce memory usage during development
+      rollupOptions: {
+        onwarn(warning, warn) {
+          // Suppress warnings to reduce console noise
+          if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+          warn(warning);
+        },
+      },
+    },
   }
 })

@@ -12,8 +12,14 @@ yarn install
 # Run the development server
 yarn dev
 
+# Run development with custom workspace
+yarn dev:workspace
+
 # Build the application
 yarn build
+
+# Build for all platforms
+yarn build:all
 ```
 
 ### Code Quality & Linting
@@ -33,8 +39,32 @@ yarn test
 # Run tests with UI
 yarn test:ui
 
+# Run tests once (CI mode)
+yarn test:run
+
 # Run tests with coverage
 yarn test:coverage
+```
+
+### Qdrant Vector Database Management
+```bash
+# Start Qdrant service
+yarn qdrant:start
+
+# Stop Qdrant service
+yarn qdrant:stop
+
+# Check Qdrant status
+yarn qdrant:status
+
+# Setup Qdrant initially
+yarn setup:qdrant
+```
+
+### Electron Development
+```bash
+# Rebuild native dependencies
+yarn rebuild
 ```
 
 ## Architecture Overview
@@ -73,22 +103,52 @@ Every module follows the **What-How-Relationship Framework**:
 ```
 src/
 ├── components/          # Reusable React components
-│   ├── ui/             # Base UI components
-│   ├── forms/          # Form components
-│   └── layout/         # Layout components
-├── pages/              # Page-level components
-├── hooks/              # Custom React hooks
+│   ├── Chat/           # Chat interface components
+│   ├── Dashboard/      # Learning dashboard components
+│   ├── Knowledge/      # Knowledge graph and search components
+│   ├── Analytics/      # Progress tracking and analytics
+│   ├── Config/         # Settings and configuration panels
+│   ├── Discovery/      # Content discovery components
+│   ├── Layout/         # App layout and navigation
+│   ├── Session/        # Session management components
+│   └── UI/             # Base UI components (ErrorBoundary, LoadingScreen, etc.)
+├── pages/              # Page-level components (DiscoveryPage)
+├── hooks/              # Custom React hooks (useQdrant, useAppServices)
 ├── services/           # API integration and business logic
-│   ├── ai/            # AI provider services
-│   ├── api/           # External API integrations
-│   └── storage/       # Data persistence services
-├── stores/             # Zustand state management
+│   ├── ai/            # AI provider services and implementations
+│   ├── knowledge/     # Knowledge management services
+│   ├── qdrant/        # Vector database integration
+│   └── configService.ts # Configuration management
+├── stores/             # Zustand state management (useChatStore, useAppStore, useConfigStore)
 ├── types/              # TypeScript type definitions
-├── utils/              # Utility functions
-├── main/               # Electron main process
-├── renderer/           # Electron renderer process
+│   ├── api.ts         # API interface types
+│   ├── learning.ts    # Learning-specific types
+│   ├── session.ts     # Session management types
+│   ├── ai.ts          # AI provider types
+│   ├── config.ts      # Configuration types
+│   ├── content.ts     # Content types
+│   ├── knowledge.ts   # Knowledge graph types
+│   └── ui.ts          # UI component types
+├── modules/            # Core business logic modules
+│   ├── database/      # Local database management
+│   ├── knowledge-graph/ # Knowledge graph implementation
+│   ├── analytics/     # Analytics and progress tracking
+│   └── vector-database/ # Vector database abstraction
+├── shared/             # Shared utilities and types
+├── test/               # Test setup and utilities
 ├── App.tsx             # Main application component
 └── main.tsx           # Application entry point
+```
+
+### Electron Architecture
+```
+electron/
+├── main/
+│   ├── index.ts        # Main Electron process
+│   ├── ipc-handlers.ts # IPC communication handlers
+│   └── qdrant-manager.ts # Qdrant service management
+└── preload/
+    └── index.ts        # Preload script for secure renderer communication
 ```
 
 ### Documentation Structure
@@ -217,16 +277,19 @@ src/
 yarn test
 
 # Run tests in watch mode
-yarn test:watch
+yarn test
 
 # Run tests with UI
 yarn test:ui
+
+# Run tests once (CI mode)
+yarn test:run
 
 # Run tests with coverage
 yarn test:coverage
 
 # Run specific test file
-yarn test src/components/__tests__/Button.test.tsx
+yarn test src/test/components/Chat/MessageBubble.test.tsx
 ```
 
 ## Key Files to Understand
@@ -234,72 +297,126 @@ yarn test src/components/__tests__/Button.test.tsx
 ### Core Implementation
 - **`src/main.tsx`**: Application entry point with React rendering
 - **`src/App.tsx`**: Main application component with routing and layout
-- **`src/main/index.ts`**: Electron main process configuration
+- **`electron/main/index.ts`**: Electron main process configuration
 - **`package.json`**: Complete project configuration with dependencies and scripts
 - **`vite.config.ts`**: Vite bundler configuration for development and build
-- **`electron.vite.config.ts`**: Electron-specific build configuration
 
 ### Configuration and Development
-- **`tsconfig.json`**: TypeScript compiler configuration
+- **`tsconfig.json`**: TypeScript compiler configuration with strict mode
 - **`tailwind.config.js`**: Tailwind CSS configuration
 - **`eslint.config.js`**: ESLint configuration for React and TypeScript
-- **`vite.config.ts`**: Vite development server and build configuration
+- **`vite.config.ts`**: Vite development server and build configuration with Electron integration
 
-### Documentation
-- **`docs/technical/system-architecture/README.md`**: Complete system architecture documentation
-- **`docs/technical/api-reference/README.md`**: API reference with maintaining philosophy
-- **`docs/README.md`**: Comprehensive application documentation and usage guide
+### Key Business Logic
+- **`src/modules/database/`**: Local SQLite-electron database management and schema
+- **`src/services/ai/`**: AI provider abstraction layer with factory pattern
+- **`src/services/qdrant/qdrant-service.ts`**: Vector database integration for semantic search
+- **`src/modules/knowledge-graph/`**: Knowledge graph implementation and concept management
+- **`src/modules/analytics/`**: Learning progress tracking and analytics
+
+### State Management
+- **`src/stores/useChatStore.ts`**: Chat interface state management
+- **`src/stores/useAppStore.ts`**: Global application state
+- **`src/stores/useConfigStore.ts`**: Configuration and settings state
 
 ## Working with This Codebase
 
 ### Development Workflow
-1. **Start with Documentation**: The `docs/` directory contains the most comprehensive and current information about the system
-2. **Use Yarn Commands**: All development workflows are standardized through yarn scripts
-3. **Run Tests Regularly**: Comprehensive test suite with Vitest and React Testing Library
-4. **Follow Component Architecture**: Understand the React component structure before making changes
+1. **Start the Development Server**: Use `yarn dev` to start the Vite development server with hot reload
+2. **Understand the Module System**: The codebase uses a modular architecture with clear separation between UI, business logic, and data layers
+3. **Run Tests Regularly**: Comprehensive test suite with Vitest and React Testing Library for reliable development
+4. **Use TypeScript Strictly**: All code must pass strict TypeScript compilation before committing
 
-### React Development
-5. **Component-First Development**: Build reusable, composable React components
-6. **TypeScript Integration**: Use strict TypeScript for type safety and better developer experience
-7. **State Management**: Use Zustand for global state, React hooks for local state
-8. **Error Boundaries**: Implement proper error handling with React error boundaries
-9. **Performance**: Use React.memo, useCallback, and useMemo for optimization
-10. **Responsive Design**: Build components that work across different screen sizes
-11. **Accessibility**: Follow WCAG guidelines and implement proper ARIA attributes
+### React Development Best Practices
+1. **Component Structure**: Components are organized by feature (Chat/, Dashboard/, Knowledge/, etc.) rather than type
+2. **State Management**: Use Zustand stores for global state, React hooks for local component state
+3. **TypeScript Integration**: All components must have proper TypeScript interfaces for props
+4. **Error Boundaries**: Use the ErrorBoundary component for graceful error handling
+5. **Performance**: Implement React.memo, useCallback, and useMemo where appropriate
+6. **Electron Integration**: Understand the distinction between main and renderer processes
 
-### Best Practices
-9. **Type Safety**: Use strict TypeScript and proper type definitions
-10. **Configuration Management**: Use environment variables and Electron store for settings
-11. **Testing**: Write comprehensive tests with React Testing Library and follow TDD methodology
-12. **Documentation**: Update relevant documentation when adding new features
+### AI Provider Integration
+- **Factory Pattern**: Use `src/services/ai/factory.ts` to create AI provider instances
+- **Provider Abstraction**: All AI providers implement the same interface for consistency
+- **Configuration**: AI provider settings are managed through the configuration service
+- **Streaming**: Real-time streaming is supported across all providers with consistent handling
+
+### Database and Vector Storage
+- **Local Database**: SQLite-electron for local data persistence using `src/modules/database/`
+- **Vector Database**: Qdrant for semantic search and knowledge graph operations
+- **Service Management**: Use yarn scripts to manage Qdrant service lifecycle
+- **Schema Management**: Database schema is defined in `src/modules/database/database-schema.ts`
+- **Important**: Uses `sqlite-electron` instead of `sqlite3` for proper Electron integration
+
+### Testing Strategy
+- **Unit Tests**: Component-level tests in `src/test/components/`
+- **Integration Tests**: End-to-end workflow tests in `src/test/integration/`
+- **Service Tests**: Business logic tests in `src/test/services/`
+- **Test Utilities**: Custom test utilities in `src/test/test-utils.tsx`
 
 ### Professional Development Environment
-- **Yarn**: Package management and dependency resolution
-- **VSCode Integration**: TypeScript and React development environment with debugging support
-- **Hot Reload**: Fast development with Vite's hot module replacement
-- **Electron DevTools**: Debug and inspect Electron main and renderer processes
+- **Hot Reload**: Vite provides fast hot module replacement during development
+- **TypeScript**: Strict mode enabled with comprehensive type checking
+- **ESLint**: Configured for React and TypeScript best practices
+- **Electron Debugging**: Use VSCode debugging for both main and renderer processes
 
-## Missing Development Guidelines
+## Common Development Patterns
 
-### AI Assistant Guidelines
-No `.cursorrules` or `.github/copilot-instructions.md` files found. Consider adding:
+### Adding New AI Providers
+1. Create provider implementation in `src/services/ai/providers/[provider].ts`
+2. Implement the standard AI provider interface
+3. Add provider configuration options to `src/types/config.ts`
+4. Update the factory pattern in `src/services/ai/factory.ts`
+5. Add provider-specific tests in `src/test/services/ai/`
 
-- **Cursor Rules**: `.cursorrules` file for consistent AI-assisted development
-- **Coding Standards**: Specific guidelines for code generation and formatting
-- **Architecture Guidelines**: Rules for maintaining 5-layer architecture during AI-assisted development
-- **Testing Guidelines**: Instructions for generating comprehensive tests
+### Creating New Components
+1. Organize components by feature in appropriate `src/components/[Feature]/` directory
+2. Create TypeScript interfaces for all props
+3. Use established patterns for state management (Zustand for global, hooks for local)
+4. Include comprehensive tests in `src/test/components/[Feature]/`
+5. Follow naming conventions: PascalCase for components, camelCase for hooks
 
-### Contributing Guidelines
-- **Contributing.md**: Missing contribution guidelines and pull request process
-- **Code Review Process**: Standards for reviewing and merging changes
-- **Release Process**: Guidelines for versioning and releases
+### Database Schema Changes
+1. Update `src/modules/database/database-schema.ts`
+2. Create migration scripts if needed
+3. Update TypeScript types in `src/types/`
+4. Add tests for new database operations
+5. Update service layer to handle new schema
 
-### CI/CD Configuration
-- **GitHub Actions**: No CI/CD configuration found for automated testing
-- **Quality Gates**: Missing automated code quality checks
-- **Deployment**: No automated deployment workflows
+### IPC Communication Patterns
+- Main process handles in `electron/main/ipc-handlers.ts`
+- Renderer communication through preload script in `electron/preload/index.ts`
+- Use TypeScript interfaces to define IPC channel contracts
+- Implement proper error handling and timeout management
 
-### Debugging and Troubleshooting
-- **Debugging Guide**: Missing systematic debugging procedures
-- **Common Issues**: No troubleshooting guide for frequent problems
-- **Performance Analysis**: Missing performance optimization guidelines
+## Development Environment Setup
+
+### Prerequisites
+- Node.js (v18 or higher)
+- Yarn package manager
+- Git for version control
+
+### Initial Setup
+```bash
+# Clone repository
+git clone [repository-url]
+cd learning_catalyst
+
+# Install dependencies
+yarn install
+
+# Setup Qdrant vector database
+yarn setup:qdrant
+
+# Start development server
+yarn dev
+```
+
+### Environment Variables
+The application uses Electron store for configuration rather than environment variables for sensitive data. API keys and configuration are managed through the settings panel.
+
+### Debugging Configuration
+- Use VSCode with the official React and TypeScript extensions
+- Configure breakpoints in both main and renderer processes
+- Use Electron DevTools for renderer process debugging
+- Check console output for main process debugging

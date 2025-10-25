@@ -35,6 +35,7 @@ class MainProcessQdrantService {
   private outputBuffer: string[] = [];
   private maxOutputBufferSize = 1000; // 最大输出行数
   private outputCleanupInterval: NodeJS.Timeout | null = null;
+  private processMonitoringInterval: NodeJS.Timeout | null = null;
 
   constructor(config?: any) {
     this.config = {
@@ -46,34 +47,81 @@ class MainProcessQdrantService {
       ...config
     };
 
-    this.client = axios.create({
+      this.client = axios.create({
       baseURL: `http://${this.config.host}:${this.config.port}`,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      // 添加连接池配置防止内存泄漏
+      maxRedirects: 5
     });
+
+    // 设置HTTP agents来控制连接池
+    this.setupHttpAgents();
+  }
+
+  private async setupHttpAgents(): Promise<void> {
+    try {
+      const { default: http } = await import('http');
+      const { default: https } = await import('https');
+
+      // 设置HTTP agent限制连接池大小
+      const httpAgent = new http.Agent({
+        keepAlive: true,
+        maxSockets: 10,
+        maxFreeSockets: 5,
+        timeout: 30000
+      });
+
+      const httpsAgent = new https.Agent({
+        keepAlive: true,
+        maxSockets: 10,
+        maxFreeSockets: 5,
+        timeout: 30000
+      });
+
+      this.client.defaults.httpAgent = httpAgent;
+      this.client.defaults.httpsAgent = httpsAgent;
+
+      // 添加响应拦截器来确保连接正确释放
+      this.client.interceptors.response.use(
+        (response: any) => {
+          // 确保响应完成后释放连接
+          if (response.socket) {
+            response.socket.destroy();
+          }
+          return response;
+        },
+        (error: any) => {
+          // 确保错误时也释放连接
+          if (error.socket) {
+            error.socket.destroy();
+          }
+          throw error;
+        }
+      );
+    } catch (error) {
+      console.warn('Failed to set up HTTP agents:', error);
+    }
   }
 
   private handleOutput(data: Buffer, isError: boolean = false): void {
     const output = data.toString().trim();
     if (!output) return;
 
+    // 只记录错误信息
+    if (isError) {
+      console.error(`Qdrant error: ${output}`);
+    }
+
     // 添加到缓冲区
     this.outputBuffer.push(output);
 
-    // 限制缓冲区大小 - 移除旧的输出
+    // 缓冲区管理 - 如果超过限制，立即清理一半
     if (this.outputBuffer.length > this.maxOutputBufferSize) {
-      const removed = this.outputBuffer.splice(0, this.outputBuffer.length - this.maxOutputBufferSize);
-      if (removed.length > 0) {
-        console.log(`[Qdrant Buffer] Cleaned ${removed.length} old output lines to prevent memory leak`);
-      }
-    }
-
-    // 只输出最近的日志，避免控制台被刷屏
-    if (this.outputBuffer.length % 100 === 0 || isError) {
-      const prefix = isError ? '[Qdrant ERROR]' : '[Qdrant INFO]';
-      console.log(`${prefix}: ${output} (buffer size: ${this.outputBuffer.length})`);
+      const removeCount = Math.floor(this.maxOutputBufferSize / 2);
+      this.outputBuffer.splice(0, removeCount);
     }
   }
 
@@ -81,8 +129,7 @@ class MainProcessQdrantService {
     // 定期清理输出缓冲区
     this.outputCleanupInterval = setInterval(() => {
       if (this.outputBuffer.length > this.maxOutputBufferSize / 2) {
-        const removed = this.outputBuffer.splice(0, Math.floor(this.maxOutputBufferSize / 2));
-        console.log(`[Qdrant Buffer] Scheduled cleanup: removed ${removed.length} old lines`);
+        this.outputBuffer.splice(0, Math.floor(this.maxOutputBufferSize / 2));
       }
     }, 60000); // 每分钟清理一次
   }
@@ -91,6 +138,67 @@ class MainProcessQdrantService {
     if (this.outputCleanupInterval) {
       clearInterval(this.outputCleanupInterval);
       this.outputCleanupInterval = null;
+    }
+  }
+
+  private startProcessMonitoring(): void {
+    if (!this.process || !this.process.pid) {
+      return;
+    }
+
+    this.processMonitoringInterval = setInterval(async () => {
+      if (!this.process || !this.process.pid) {
+        return;
+      }
+
+      try {
+        const { exec } = await import('child_process');
+
+        const childProcess = exec(`wmic process where ProcessId=${this.process.pid} get PageFileUsage,WorkingSetSize /format:list`,
+          { timeout: 10000 },
+          (_error, stdout) => {
+          try {
+            // 只在开发模式下输出监控信息
+            if (process.env.NODE_ENV === 'development' && stdout) {
+              const lines = stdout.trim().split('\n');
+              const memoryUsage: any = {};
+
+              lines.forEach(line => {
+                if (line.includes('PageFileUsage=')) {
+                  memoryUsage.pageFileUsage = parseInt(line.split('=')[1]) / 1024 / 1024;
+                }
+                if (line.includes('WorkingSetSize=')) {
+                  memoryUsage.workingSetSize = parseInt(line.split('=')[1]) / 1024 / 1024;
+                }
+              });
+
+              if (memoryUsage.pageFileUsage || memoryUsage.workingSetSize) {
+                console.log(`Qdrant PID:${this.process.pid} | PF:${memoryUsage.pageFileUsage?.toFixed(1)}MB | WS:${memoryUsage.workingSetSize?.toFixed(1)}MB`);
+              }
+            }
+          } finally {
+            // 确保子进程被正确清理
+            if (childProcess && childProcess.pid) {
+              childProcess.kill();
+              childProcess.unref();
+            }
+          }
+        });
+
+        childProcess.on('timeout', () => {
+          childProcess.kill();
+        });
+
+      } catch (error) {
+        // 静默处理监控错误
+      }
+    }, 30000); // 每30秒监控一次
+  }
+
+  private stopProcessMonitoring(): void {
+    if (this.processMonitoringInterval) {
+      clearInterval(this.processMonitoringInterval);
+      this.processMonitoringInterval = null;
     }
   }
 
@@ -121,6 +229,11 @@ class MainProcessQdrantService {
         stdio: ['ignore', 'pipe', 'pipe'],
         cwd: path.dirname(qdrantPath)
       });
+
+      // 启动进程监控
+      if (this.process && this.process.pid) {
+        this.startProcessMonitoring();
+      }
 
       // 使用新的输出处理方法
       this.process.stdout?.on('data', (data: Buffer) => {
@@ -162,6 +275,8 @@ class MainProcessQdrantService {
       if (this.process) {
         // 停止输出清理定时器
         this.stopOutputCleanup();
+        // 停止进程监控
+        this.stopProcessMonitoring();
 
         // Remove ALL event listeners to prevent memory leaks
         this.process.removeAllListeners('exit')
@@ -171,15 +286,10 @@ class MainProcessQdrantService {
         this.process.stderr?.removeAllListeners()
 
         // 清理输出缓冲区
-        const bufferSize = this.outputBuffer.length;
         this.outputBuffer = [];
-        if (bufferSize > 0) {
-          console.log(`[Qdrant Buffer] Cleared ${bufferSize} buffered output lines`);
-        }
 
         // Add proper exit handler
         this.process.once('exit', () => {
-          console.log('✅ Qdrant process exited')
           this.process = null;
           this.isReady = false;
           this.isStarting = false;
@@ -191,7 +301,6 @@ class MainProcessQdrantService {
         // Force kill after timeout if process doesn't exit
         setTimeout(() => {
           if (this.process) {
-            console.log('🔨 Force killing Qdrant process...')
             this.process.kill('SIGKILL');
             this.process = null;
             this.isReady = false;
@@ -594,11 +703,17 @@ export class QdrantManager {
   private qdrantService: MainProcessQdrantService;
   private knowledgeService: MainProcessKnowledgeService;
   private isInitialized = false;
+  private static ipcHandlersRegistered = false; // 静态标志确保IPC处理函数只注册一次
 
   constructor() {
     this.qdrantService = new MainProcessQdrantService();
     this.knowledgeService = new MainProcessKnowledgeService(this.qdrantService);
-    this.setupIpcHandlers();
+
+    // 只在第一次创建时注册IPC处理函数
+    if (!QdrantManager.ipcHandlersRegistered) {
+      this.setupIpcHandlers();
+      QdrantManager.ipcHandlersRegistered = true;
+    }
     // 移除自动初始化，由主应用控制初始化时机
   }
 
@@ -611,7 +726,6 @@ export class QdrantManager {
     }
 
     try {
-      console.log('Initializing Qdrant service...');
       await this.qdrantService.start();
 
       // Wait a moment for the service to be fully ready
@@ -621,7 +735,6 @@ export class QdrantManager {
       await this.knowledgeService['initializeCollections']?.();
 
       this.isInitialized = true;
-      console.log('Qdrant service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Qdrant service:', error);
       throw error;
@@ -643,6 +756,40 @@ export class QdrantManager {
       console.log('Qdrant service shut down successfully');
     } catch (error) {
       console.error('Failed to shutdown Qdrant service:', error);
+    }
+  }
+
+  /**
+   * Cleanup all resources and remove IPC handlers
+   */
+  static cleanup(): void {
+    try {
+      console.log('🧹 Cleaning up Qdrant manager resources...');
+
+      // 移除所有IPC处理函数
+      const ipcHandlers = [
+        'qdrant:start', 'qdrant:stop', 'qdrant:status',
+        'knowledge:add', 'knowledge:search', 'knowledge:get',
+        'knowledge:update', 'knowledge:delete',
+        'knowledge:storeContext', 'knowledge:getContext',
+        'knowledge:stats', 'knowledge:clear',
+        'qdrant:collections', 'qdrant:createCollection', 'qdrant:deleteCollection'
+      ];
+
+      ipcHandlers.forEach(handler => {
+        try {
+          ipcMain.removeAllListeners(handler);
+        } catch (error) {
+          console.warn(`Failed to remove IPC handler ${handler}:`, error);
+        }
+      });
+
+      // 重置静态标志
+      QdrantManager.ipcHandlersRegistered = false;
+
+      console.log('✅ Qdrant manager cleanup completed');
+    } catch (error) {
+      console.error('❌ Error during Qdrant manager cleanup:', error);
     }
   }
 
@@ -825,6 +972,7 @@ export class QdrantManager {
       }
     });
   }
+}
 
 // Singleton instance
 let qdrantManager: QdrantManager | null = null;
