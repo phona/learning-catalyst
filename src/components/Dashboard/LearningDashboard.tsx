@@ -1,48 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { ProgressChart, StudyStreak, SessionTracking, LearningTrends, Achievements } from '../Analytics';
 import { SimpleAnalyticsModule, StudyMetrics } from '../../modules/analytics/simple-analytics';
-import { LocalDatabaseModule } from '../../modules/database/local-database-module';
+import { getAnalytics } from '../../services/factory';
 
 export const LearningDashboard: React.FC = () => {
   const [analytics, setAnalytics] = useState<SimpleAnalyticsModule | null>(null);
-  const [database, setDatabase] = useState<LocalDatabaseModule | null>(null);
   const [metrics, setMetrics] = useState<StudyMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    initializeAnalytics();
+    setupAnalytics();
 
     // Cleanup function to stop services on unmount
     return () => {
-      // Store current values for cleanup
-      const currentAnalytics = analytics;
-      const currentDatabase = database;
-
-      if (currentAnalytics) {
-        currentAnalytics.stop().catch(console.error);
-      }
-      if (currentDatabase) {
-        currentDatabase.stop().catch(console.error);
+      if (analytics) {
+        analytics.stop().catch(console.error);
       }
     };
   }, []);
 
-  const initializeAnalytics = async () => {
+  const setupAnalytics = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Initialize database module
-      const db = new LocalDatabaseModule();
-      await db.initialize();
-      await db.start();
-      setDatabase(db);
-
-      // Initialize analytics module
-      const analyticsModule = new SimpleAnalyticsModule();
-      analyticsModule.databaseModule = db;
-      await analyticsModule.initialize();
+      console.log('[LearningDashboard] Getting analytics from factory...');
+      // Get shared analytics instance from factory (assumed already initialized at root)
+      const analyticsModule = getAnalytics();
       await analyticsModule.start();
       setAnalytics(analyticsModule);
 
@@ -50,10 +35,10 @@ export const LearningDashboard: React.FC = () => {
       const studyMetrics = await analyticsModule.getStudyMetrics();
       setMetrics(studyMetrics);
 
-      console.log('Analytics initialized successfully');
+      console.log('Analytics setup successfully with shared instance from factory');
     } catch (err) {
-      console.error('Failed to initialize analytics:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize analytics');
+      console.error('Failed to setup analytics:', err);
+      setError(err instanceof Error ? err.message : 'Failed to setup analytics');
     } finally {
       setLoading(false);
     }

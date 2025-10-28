@@ -11,17 +11,40 @@ import {
   ClockIcon,
   StarIcon,
   TrashIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/stores/useAppStore';
+import { useRecentSessions } from '@/hooks/useRecentSessions';
 
 interface SidebarProps {
   open: boolean;
 }
 
+// Helper function to format relative time
+const formatRelativeTime = (date: Date): string => {
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInHours / 24);
+
+  if (diffInHours < 1) {
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    return diffInMinutes <= 1 ? 'just now' : `${diffInMinutes} minutes ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
+  } else if (diffInDays < 7) {
+    return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { setCurrentView } = useAppStore();
+  const { sessions, loading, error } = useRecentSessions(5);
 
   const navigationItems = [
     {
@@ -129,43 +152,75 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
         {/* Recent Sessions */}
         <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
               Recent Sessions
             </h3>
-          </div>
-          <div className="space-y-1">
-            {[
-              { title: 'Python Basics', time: '2 hours ago', starred: true },
-              { title: 'React Hooks', time: '1 day ago', starred: false },
-              { title: 'Machine Learning', time: '3 days ago', starred: true },
-            ].map((session, index) => (
+            {error && (
               <button
-                key={index}
-                className="w-full flex items-center space-x-2 px-2 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                onClick={() => window.location.reload()}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                title="Retry loading sessions"
               >
-                {session.starred ? (
-                  <StarIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
-                ) : (
-                  <ClockIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {session.title}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {session.time}
-                  </p>
-                </div>
+                <ArrowPathIcon className="w-4 h-4" />
               </button>
-            ))}
+            )}
           </div>
+
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-sm text-red-600 dark:text-red-400 flex items-center space-x-2">
+              <ExclamationTriangleIcon className="w-4 h-4" />
+              <span>Failed to load sessions</span>
+            </div>
+          ) : sessions.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+              No recent sessions found
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {sessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => {
+                    // TODO: Load and navigate to session
+                    console.log('Open session:', session.id);
+                    navigate(`/sessions/${session.id}`);
+                  }}
+                  className="w-full flex items-center space-x-2 px-2 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                  title={session.metadata.description}
+                >
+                  {session.metadata.pinned ? (
+                    <StarIcon className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                  ) : (
+                    <ClockIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {session.title}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {session.statistics.total_messages} messages • {formatRelativeTime(session.updated_at)}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <button
               className="w-full flex items-center space-x-2 px-2 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
               onClick={() => {
-                // TODO: Clear recent sessions
+                // TODO: Implement clear recent sessions
                 console.log('Clear recent sessions');
               }}
             >

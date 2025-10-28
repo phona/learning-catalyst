@@ -8,7 +8,6 @@
 import { IDatabase, DatabaseHealthStatus, ResourceUsage } from '../database/database-factory';
 import { JSONUtils } from '../database/database-schema';
 import { VectorDatabaseModule, SearchResult } from '../vector-database/vector-database';
-import { Module, ModuleStatus } from '../index';
 
 export interface Concept {
   id: string;
@@ -75,25 +74,18 @@ export interface ConceptPath {
   difficulty: number;
 }
 
-export class KnowledgeGraphModule implements Module {
+
+export class KnowledgeGraphModule {
   public readonly name = 'KnowledgeGraphModule';
   public readonly version = '1.0.0';
-  public databaseModule: IDatabase | null = null; // Make public for injection
-  public vectorDatabaseModule: VectorDatabaseModule | null = null; // Vector database integration
+  private databaseModule: IDatabase;
+  private vectorDatabaseModule: VectorDatabaseModule;
 
   get initialized(): boolean {
     return this._isInitialized;
   }
 
-  getStatus(): ModuleStatus {
-    return {
-      initialized: this._isInitialized,
-      healthy: this.healthStatus.status === 'healthy',
-      error: this.healthStatus.status === 'failed' ? this.healthStatus.message : undefined,
-      lastCheck: this.healthStatus.lastCheck
-    };
-  }
-
+  
   // Update vector database with real module when available
   async updateVectorDatabase(conceptId: string): Promise<void> {
     if (this.vectorDatabaseModule?.isInitialized) {
@@ -124,12 +116,11 @@ export class KnowledgeGraphModule implements Module {
   private cacheTimeout = 5 * 60 * 1000; // 5 minutes
   private lastCacheUpdate = 0;
   private _isInitialized = false;
-  private healthStatus: DatabaseHealthStatus = {
-    status: 'initializing',
-    lastCheck: new Date(),
-  };
 
-  constructor() {
+  constructor(databaseModule: IDatabase, vectorDatabaseModule: VectorDatabaseModule) {
+    this.databaseModule = databaseModule;
+    this.vectorDatabaseModule = vectorDatabaseModule;
+
     // Initialize empty caches
     this.conceptCache.clear();
     this.relationshipCache.clear();
@@ -140,16 +131,9 @@ export class KnowledgeGraphModule implements Module {
     return this._isInitialized;
   }
 
-  async init(): Promise<void> {
-    // Initialize the module (Module interface)
-    await this.initialize();
-  }
-
+  
   async initialize(): Promise<void> {
     try {
-      if (!this.databaseModule) {
-        throw new Error('Database module not available');
-      }
 
       // Initialize search index (simplified - don't load all concepts during init)
       // The search index will be built lazily when first needed
@@ -159,29 +143,15 @@ export class KnowledgeGraphModule implements Module {
       this.lastCacheUpdate = 0;
 
       this._isInitialized = true;
-      this.healthStatus = {
-        status: 'healthy',
-        lastCheck: new Date(),
-        message: 'Knowledge graph initialized successfully'
-      };
 
       console.log('Knowledge graph initialized successfully');
     } catch (error) {
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Knowledge graph initialization failed: ${(error as Error).message}`
-      };
       throw error;
     }
   }
 
   async start(): Promise<void> {
     try {
-      // Verify database connection
-      if (!this.databaseModule) {
-        throw new Error('Database module not available');
-      }
 
       // Perform a simple health check (avoiding complex queries)
       const dbStats = await this.databaseModule.getDatabaseStats();
@@ -191,11 +161,6 @@ export class KnowledgeGraphModule implements Module {
 
       console.log('Knowledge graph started successfully');
     } catch (error) {
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Knowledge graph start failed: ${(error as Error).message}`
-      };
       throw error;
     }
   }
@@ -215,14 +180,7 @@ export class KnowledgeGraphModule implements Module {
   async cleanup(): Promise<void> {
     try {
       this.clearCaches();
-      this.databaseModule = null;
       this._isInitialized = false;
-
-      this.healthStatus = {
-        status: 'healthy',
-        lastCheck: new Date(),
-        message: 'Knowledge graph cleaned up successfully'
-      };
 
       console.log('Knowledge graph cleaned up');
     } catch (error) {
@@ -231,46 +189,7 @@ export class KnowledgeGraphModule implements Module {
     }
   }
 
-  async healthCheck(): Promise<DatabaseHealthStatus> {
-    try {
-      if (!this.databaseModule) {
-        return {
-          status: 'failed',
-          lastCheck: new Date(),
-          message: 'Database module not available'
-        };
-      }
-
-      // Test database access
-      const stats = await this.getGraphStats();
-
-      // Check cache freshness
-      const cacheAge = Date.now() - this.lastCacheUpdate;
-      const cacheFresh = cacheAge < this.cacheTimeout;
-
-      this.healthStatus = {
-        status: 'healthy',
-        lastCheck: new Date(),
-        message: `Knowledge graph operational (${stats.totalConcepts} concepts, ${stats.totalRelationships} relationships)`,
-        metrics: {
-          ...stats,
-          cacheFresh,
-          cacheAge,
-          searchIndexSize: this.searchIndex.size
-        }
-      };
-
-      return this.healthStatus;
-    } catch (error) {
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Health check failed: ${(error as Error).message}`
-      };
-      return this.healthStatus;
-    }
-  }
-
+  
   async getResourceUsage(): Promise<ResourceUsage> {
     return {
       memory: {
@@ -294,9 +213,6 @@ export class KnowledgeGraphModule implements Module {
    * Create a new concept
    */
   async createConcept(conceptData: Omit<Concept, 'id' | 'createdAt' | 'updatedAt' | 'reviewCount'>): Promise<Concept> {
-    if (!this.databaseModule) {
-      throw new Error('Database not available');
-    }
 
     const id = await this.databaseModule.createConcept({
       name: conceptData.name,
@@ -344,10 +260,7 @@ export class KnowledgeGraphModule implements Module {
       return this.conceptCache.get(id)!;
     }
 
-    if (!this.databaseModule) {
-      return null;
-    }
-
+    
     const record = await this.databaseModule.getConcept(id);
     if (!record) {
       return null;
@@ -362,9 +275,6 @@ export class KnowledgeGraphModule implements Module {
    * Update a concept
    */
   async updateConcept(id: string, updates: Partial<Concept>): Promise<Concept | null> {
-    if (!this.databaseModule) {
-      throw new Error('Database not available');
-    }
 
     const existing = await this.getConcept(id);
     if (!existing) {
@@ -410,9 +320,6 @@ export class KnowledgeGraphModule implements Module {
    * Delete a concept
    */
   async deleteConcept(id: string): Promise<boolean> {
-    if (!this.databaseModule) {
-      throw new Error('Database not available');
-    }
 
     const success = await this.databaseModule.deleteConcept(id);
     if (success) {
@@ -469,7 +376,7 @@ export class KnowledgeGraphModule implements Module {
    * Semantic search using vector database
    */
   async semanticSearch(query: string, options: { limit?: number; threshold?: number } = {}): Promise<SearchResult[]> {
-    if (!this.vectorDatabaseModule?.isInitialized) {
+    if (!this.vectorDatabaseModule.isInitialized) {
       return [];
     }
 
@@ -511,9 +418,6 @@ export class KnowledgeGraphModule implements Module {
       return this.relationshipCache.get(conceptId)!;
     }
 
-    if (!this.databaseModule) {
-      return [];
-    }
 
     const query = `
       SELECT * FROM relationships
@@ -538,9 +442,6 @@ export class KnowledgeGraphModule implements Module {
     strength = 0.5,
     description?: string
   ): Promise<Relationship> {
-    if (!this.databaseModule) {
-      throw new Error('Database not available');
-    }
 
     const id = `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -582,9 +483,6 @@ export class KnowledgeGraphModule implements Module {
    * Delete a relationship
    */
   async deleteRelationship(relationshipId: string): Promise<boolean> {
-    if (!this.databaseModule) {
-      throw new Error('Database not available');
-    }
 
     // Get the relationship first to know which concepts are affected
     const relationships = await this.databaseModule.query(
@@ -779,17 +677,6 @@ export class KnowledgeGraphModule implements Module {
    * Get knowledge graph statistics
    */
   async getGraphStats(): Promise<KnowledgeGraphStats> {
-    if (!this.databaseModule) {
-      return {
-        totalConcepts: 0,
-        totalRelationships: 0,
-        conceptsByType: {},
-        averageMasteryLevel: 0,
-        conceptsNeedingReview: 0,
-        recentlyStudied: 0
-      };
-    }
-
     // Get concept stats
     const conceptQuery = `
       SELECT
@@ -1039,9 +926,6 @@ export class KnowledgeGraphModule implements Module {
    * Get popular concepts based on usage and relationships
    */
   async getPopularConcepts(limit = 10): Promise<Concept[]> {
-    if (!this.databaseModule) {
-      return [];
-    }
 
     try {
       // Query concepts with most relationships and highest mastery
@@ -1138,7 +1022,7 @@ export class KnowledgeGraphModule implements Module {
   async updateKnowledgeGraph(conceptId: string): Promise<void> {
     try {
       const concept = await this.getConcept(conceptId);
-      if (!concept || !this.vectorDatabaseModule?.isInitialized) {
+      if (!concept || !this.vectorDatabaseModule.isInitialized) {
         return;
       }
 

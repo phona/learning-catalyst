@@ -28,9 +28,7 @@ export const ChatInput: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Debug: log config and thinking state
-  console.log('ChatInput render - enable_thinking:', config?.ai?.enable_thinking, 'showThinking:', showThinking);
-
+  
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {

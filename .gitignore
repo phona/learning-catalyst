@@ -51,6 +51,7 @@ node_modules/
 dist
 dist-electron
 release
+sqlite-electron-example
 
 # Learning space data
 **/.learningspace/

@@ -5,18 +5,13 @@
  * This service acts as a bridge between the renderer process and the main process database handlers.
  */
 
-import { IDatabase, DatabaseHealthStatus, ResourceUsage } from './database-factory';
+import { IDatabase, ResourceUsage } from './database-factory';
 import { JSONUtils, DATABASE_SCHEMA, DEFAULT_DATA } from './database-schema';
-import { Module, ModuleStatus } from '../index';
 
-export class LocalDatabaseModule implements IDatabase, Module {
+export class LocalDatabaseModule implements IDatabase {
   public readonly name = 'LocalDatabaseModule';
   public readonly version = '1.0.0';
   private _isInitialized = false;
-  private healthStatus: DatabaseHealthStatus = {
-    status: 'initializing',
-    lastCheck: new Date(),
-  };
 
   constructor() {}
 
@@ -24,63 +19,42 @@ export class LocalDatabaseModule implements IDatabase, Module {
     return this._isInitialized;
   }
 
-  getStatus(): ModuleStatus {
-    return {
-      initialized: this._isInitialized,
-      healthy: this.healthStatus.status === 'healthy',
-      error: this.healthStatus.status === 'failed' ? this.healthStatus.message : undefined,
-      lastCheck: this.healthStatus.lastCheck
-    };
-  }
-
-  async init(): Promise<void> {
-    // Initialize the module (Module interface)
-    await this.initialize();
-  }
-
   async initialize(): Promise<void> {
+    // If already initialized, return immediately
+    if (this._isInitialized) {
+      console.log('[LocalDB] Database already initialized');
+      return;
+    }
+
+    await this._doInitialization();
+  }
+
+  private async _doInitialization(): Promise<void> {
     try {
       // Check if Electron API is available
       if (!window.electronAPI) {
         throw new Error('Electron API not available. Make sure the application is running in Electron environment.');
       }
 
-      // Set database path first - use a default path if not provided
-      const userDataPath = await window.electronAPI.getUserDataPath();
-      const dbPath = userDataPath || './data';
-      const fullPath = `${dbPath}/learning-catalyst.db`;
+      console.log('[LocalDB] INSTANCE:', this.constructor.name, 'Starting database initialization, _isInitialized =', this._isInitialized);
 
-      const setResult = await window.electronAPI.dbSetPath(fullPath);
-      if (!setResult?.success) {
-        throw new Error(`Failed to set database path: ${setResult?.error}`);
-      }
+      // Get database path from main process (could change with workspace)
+      const fullPath = await window.electronAPI.getDatabasePath();
+      console.log('[LocalDB] Database path:', fullPath);
 
-      // Initialize schema by executing the schema SQL using executeQuery
-      const schemaResult = await window.electronAPI.dbExecuteQuery(DATABASE_SCHEMA);
-      if (!schemaResult?.success) {
-        throw new Error(`Failed to initialize database schema: ${schemaResult?.error}`);
-      }
+      // Set database path only if not already set for this workspace
+      console.log('[LocalDB] Setting database path...');
+      await window.electronAPI.dbSetPath(fullPath);
+      console.log('[LocalDB] Database path set successfully');
 
-      // Insert default data
-      const defaultDataResult = await window.electronAPI.dbExecuteQuery(DEFAULT_DATA);
-      if (!defaultDataResult?.success) {
-        console.warn('Warning: Failed to insert default data:', defaultDataResult?.error);
-      }
+      // Always check if the database schema exists for workspace changes
+      // even if _isInitialized is true (might be different workspace)
+      await this.ensureInitialized();
 
       this._isInitialized = true;
-      this.healthStatus = {
-        status: 'healthy',
-        lastCheck: new Date(),
-        message: 'Local database initialized successfully',
-      };
-      console.log('Local Database module initialized successfully');
+      console.log('[LocalDB] ✅ Database module initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize Local Database module:', error);
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
+      console.error('[LocalDB] ❌ Failed to initialize Local Database module:', error);
       throw error;
     }
   }
@@ -91,16 +65,10 @@ export class LocalDatabaseModule implements IDatabase, Module {
     }
 
     try {
-      // Perform health check
-      await this.healthCheck();
+      // Database is initialized and ready
       console.log('Local Database module started successfully');
     } catch (error) {
       console.error('Failed to start Local Database module:', error);
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Start failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
       throw error;
     }
   }
@@ -128,37 +96,17 @@ export class LocalDatabaseModule implements IDatabase, Module {
     return this._isInitialized;
   }
 
-  async healthCheck(): Promise<DatabaseHealthStatus> {
-    try {
-      // Check database health by querying a basic table
-      const result = await window.electronAPI?.dbFetchOne('SELECT COUNT(*) as count FROM sqlite_master WHERE type = "table"');
-
-      if (result?.success && result.result) {
-        this.healthStatus = {
-          status: 'healthy',
-          lastCheck: new Date(),
-          message: 'Database is healthy',
-          metrics: { tableCount: result.result.count },
-        };
-      } else {
-        this.healthStatus = {
-          status: 'degraded',
-          lastCheck: new Date(),
-          message: 'Unable to retrieve database stats',
-        };
-      }
-
-      return this.healthStatus;
-    } catch (error) {
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Health check failed: ${(error as Error).message}`,
-      };
-      return this.healthStatus;
+  /**
+   * Ensure database is initialized before any operation
+   */
+  private async ensureInitializedForOperation(): Promise<void> {
+    if (!this._isInitialized) {
+      console.log('[LocalDB] Database not initialized, initializing now...');
+      await this.initialize();
     }
   }
 
+  
   async getResourceUsage(): Promise<ResourceUsage> {
     try {
       // Get page count and page size to estimate database size
@@ -351,6 +299,50 @@ export class LocalDatabaseModule implements IDatabase, Module {
         databaseSize: 0,
         tableCount: 0
       };
+    }
+  }
+
+  /**
+   * Check if database is properly initialized by testing for key tables
+   */
+  async isDatabaseInitialized(): Promise<boolean> {
+    try {
+      if (!this._isInitialized || !window.electronAPI) {
+        return false;
+      }
+
+      // Check for essential tables
+      const conceptsCheck = await this.tableExists('concepts');
+      const sessionsCheck = await this.tableExists('learning_sessions');
+      const messagesCheck = await this.tableExists('messages');
+
+      return conceptsCheck && sessionsCheck && messagesCheck;
+    } catch (error) {
+      console.error('[LocalDB] Error checking database initialization:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure database is initialized, creates schema if needed
+   * Always checks schema regardless of _isInitialized flag to handle workspace changes
+   */
+  async ensureInitialized(): Promise<void> {
+    // Always check if schema exists, even if _isInitialized is true
+    // This handles workspace changes where database file might be different
+    const isInitialized = await this.isDatabaseInitialized();
+    if (!isInitialized) {
+      console.log('[LocalDB] Database schema not found, creating schema...');
+
+      // Create schema
+      await window.electronAPI.dbExecuteScript(DATABASE_SCHEMA);
+      console.log('[LocalDB] Database schema created successfully');
+
+      // Insert default data
+      console.log('[LocalDB] Inserting default data...');
+      await window.electronAPI.dbExecuteScript(DEFAULT_DATA);
+    } else {
+      console.log('[LocalDB] Database schema already exists and is valid');
     }
   }
 }

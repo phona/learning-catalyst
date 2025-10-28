@@ -1,25 +1,28 @@
 /**
- * Service Factory
+ * Simple Service Factory
  *
- * Simple singleton factory for managing service instances.
- * Replaces the complex module registry with direct instantiation.
+ * Direct service management without over-engineering.
+ * Creates and manages module instances in a straightforward way.
  */
 
-import { createDatabase, IDatabase } from '@/modules/database';
 import { KnowledgeGraphModule } from '@/modules/knowledge-graph';
 import { SimpleAnalyticsModule } from '@/modules/analytics';
-import { VectorDatabaseModule, vectorDatabase } from '@/modules/vector-database';
+import { VectorDatabaseModule } from '@/modules/vector-database';
+import { LocalDatabaseModule } from '@/modules/database/local-database-module';
 
 class ServiceFactory {
   private static instance: ServiceFactory;
 
-  private _database: IDatabase | null = null;
-  private _knowledgeGraph: KnowledgeGraphModule | null = null;
-  private _analytics: SimpleAnalyticsModule | null = null;
-  private _vectorDatabase: VectorDatabaseModule | null = null;
+  // Direct module instances - no Maps, no registration complexity
+  private database: LocalDatabaseModule | null = null;
+  private knowledgeGraph: KnowledgeGraphModule | null = null;
+  private analytics: SimpleAnalyticsModule | null = null;
+  private vectorDatabase: VectorDatabaseModule | null = null;
   private _initialized = false;
 
-  private constructor() {}
+  private constructor() {
+    console.log('🏗️ ServiceFactory instance created at:', new Date().toISOString());
+  }
 
   static getInstance(): ServiceFactory {
     if (!ServiceFactory.instance) {
@@ -29,79 +32,66 @@ class ServiceFactory {
   }
 
   /**
-   * Initialize all services
+   * Initialize all modules in dependency order
    */
   async initialize(): Promise<void> {
-    if (this._initialized) {
-      return;
-    }
+	this.database = new LocalDatabaseModule();
+	await this.database.initialize();
 
-    try {
-      console.log('Initializing services...');
+	// Initialize vector database with constructor injection
+	this.vectorDatabase = new VectorDatabaseModule(this.database);
+	await this.vectorDatabase.initialize();
 
-      // Initialize database first
-      this._database = createDatabase();
+	// Initialize knowledge graph with constructor injection
+	this.knowledgeGraph = new KnowledgeGraphModule(this.database, this.vectorDatabase);
+	await this.knowledgeGraph.initialize();
 
-      // Initialize knowledge graph with database dependency
-      this._knowledgeGraph = new KnowledgeGraphModule();
-      this._knowledgeGraph.databaseModule = this._database;
+	// Initialize analytics with constructor injection
+	this.analytics = new SimpleAnalyticsModule(this.database);
+	await this.analytics.initialize();
 
-      // Initialize analytics with database dependency
-      this._analytics = new SimpleAnalyticsModule();
-      this._analytics.databaseModule = this._database;
-
-      // Initialize vector database
-      this._vectorDatabase = vectorDatabase;
-      await this._vectorDatabase.initialize();
-      this._vectorDatabase.databaseModule = this._database;
-
-      this._initialized = true;
-      console.log('Services initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize services:', error);
-      this.cleanup();
-      throw error;
-    }
+	this._initialized = true;
+	console.log('All services initialized successfully');
   }
 
   /**
-   * Get database service
+   * Get database module
    */
-  getDatabase(): IDatabase {
-    if (!this._database) {
+  getDatabase(): LocalDatabaseModule {
+    if (!this.database) {
       throw new Error('Database not initialized. Call initialize() first.');
     }
-    return this._database;
+    return this.database;
   }
 
   /**
-   * Get knowledge graph service
+   * Get knowledge graph module
    */
   getKnowledgeGraph(): KnowledgeGraphModule {
-    if (!this._knowledgeGraph) {
+    if (!this.knowledgeGraph) {
       throw new Error('Knowledge graph not initialized. Call initialize() first.');
     }
-    return this._knowledgeGraph;
+    return this.knowledgeGraph;
   }
 
   /**
-   * Get analytics service
+   * Get analytics module
    */
   getAnalytics(): SimpleAnalyticsModule {
-    if (!this._analytics) {
+    if (!this.analytics) {
       throw new Error('Analytics not initialized. Call initialize() first.');
     }
-    return this._analytics;
+    return this.analytics;
   }
 
   /**
-   * Get vector database service
+   * Get vector database module
    */
   getVectorDatabase(): VectorDatabaseModule {
-    if (!this._vectorDatabase) {
+    if (!this.vectorDatabase) {
       throw new Error('Vector database not initialized. Call initialize() first.');
     }
-    return this._vectorDatabase;
+    return this.vectorDatabase;
   }
 
   /**
@@ -111,41 +101,47 @@ class ServiceFactory {
     return this._initialized;
   }
 
+  
+  
   /**
-   * Get initialization status
-   */
-  getStatus() {
-    return {
-      initialized: this._initialized,
-      database: !!this._database,
-      knowledgeGraph: !!this._knowledgeGraph,
-      analytics: !!this._analytics,
-      vectorDatabase: !!this._vectorDatabase,
-    };
-  }
-
-  /**
-   * Cleanup all services
+   * Cleanup all modules in reverse order
    */
   async cleanup(): Promise<void> {
     try {
-      if (this._analytics) {
-        await this._analytics.cleanup?.();
+      console.log('Cleaning up services...');
+
+      // Cleanup in reverse dependency order
+      if (this.analytics) {
+        console.log('Cleaning up analytics');
+        await this.analytics.cleanup();
       }
-      if (this._knowledgeGraph) {
-        await this._knowledgeGraph.cleanup?.();
+
+      if (this.knowledgeGraph) {
+        console.log('Cleaning up knowledge graph');
+        await this.knowledgeGraph.cleanup();
       }
-      if (this._database) {
-        await this._database.cleanup?.();
+
+      if (this.vectorDatabase) {
+        console.log('Cleaning up vector database');
+        await this.vectorDatabase.cleanup();
       }
+
+      if (this.database) {
+        console.log('Cleaning up database');
+        await this.database.cleanup();
+      }
+
+      // Reset all instances
+      this.database = null;
+      this.knowledgeGraph = null;
+      this.analytics = null;
+      this.vectorDatabase = null;
+      this._initialized = false;
+
+      console.log('All services cleaned up successfully');
     } catch (error) {
       console.error('Error during service cleanup:', error);
-    } finally {
-      this._database = null;
-      this._knowledgeGraph = null;
-      this._analytics = null;
-      this._vectorDatabase = null;
-      this._initialized = false;
+      throw error;
     }
   }
 }

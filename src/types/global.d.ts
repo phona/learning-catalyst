@@ -50,6 +50,7 @@ export interface ElectronAPI {
 
   // Workspace operations
   getWorkspacePath: () => Promise<string>;
+  getDatabasePath: () => Promise<string>;
   resolveWorkspacePath: (relativePath: string) => Promise<string>;
   readWorkspaceFile: (relativePath: string) => Promise<string>;
   writeWorkspaceFile: (relativePath: string, content: string) => Promise<void>;

@@ -6,7 +6,6 @@
  */
 
 import { IDatabase, DatabaseHealthStatus, ResourceUsage } from '../database/database-factory';
-import { Module, ModuleStatus } from '../index';
 
 export interface LearningSession {
   id: string;
@@ -84,25 +83,22 @@ export interface Achievement {
   icon?: string;
 }
 
-export class SimpleAnalyticsModule implements Module {
+
+export class SimpleAnalyticsModule {
   public readonly name = 'SimpleAnalyticsModule';
   public readonly version = '1.0.0';
-  public databaseModule: IDatabase | null = null; // Make public for injection
+  private databaseModule: IDatabase;
   private currentSession: LearningSession | null = null;
   private sessionStartTime: Date | null = null;
   private studyStreak = 0;
   private lastStudyDate: Date | null = null;
   private achievements: Achievement[] = [];
   private _isInitialized = false;
-  private healthStatus: DatabaseHealthStatus = {
-    status: 'initializing',
-    lastCheck: new Date(),
-  };
-  private lastHealthCheck = 0;
-  private healthCheckDebounce = 5000; // 5 seconds
   private cachedMetrics: StudyMetrics | null = null;
 
-  constructor() {
+  constructor(databaseModule: IDatabase) {
+    this.databaseModule = databaseModule;
+
     // Initialize default achievements
     this.initializeAchievements();
   }
@@ -111,25 +107,10 @@ export class SimpleAnalyticsModule implements Module {
     return this._isInitialized;
   }
 
-  getStatus(): ModuleStatus {
-    return {
-      initialized: this._isInitialized,
-      healthy: this.healthStatus.status === 'healthy',
-      error: this.healthStatus.status === 'failed' ? this.healthStatus.message : undefined,
-      lastCheck: this.healthStatus.lastCheck
-    };
-  }
-
-  async init(): Promise<void> {
-    // Initialize the module (Module interface)
-    await this.initialize();
-  }
-
+  
+  
   async initialize(): Promise<void> {
     try {
-      if (!this.databaseModule) {
-        throw new Error('Database module not available');
-      }
 
       // Initialize default values (avoid complex data loading during init)
       this.studyStreak = 0;
@@ -157,10 +138,6 @@ export class SimpleAnalyticsModule implements Module {
 
   async start(): Promise<void> {
     try {
-      // Verify database connection
-      if (!this.databaseModule) {
-        throw new Error('Database module not available');
-      }
 
       // Simple verification - avoid complex operations during startup
       console.log('Simple analytics started successfully');
@@ -195,14 +172,7 @@ export class SimpleAnalyticsModule implements Module {
     try {
       this.currentSession = null;
       this.sessionStartTime = null;
-      this.databaseModule = null;
       this._isInitialized = false;
-
-      this.healthStatus = {
-        status: 'healthy',
-        lastCheck: new Date(),
-        message: 'Simple analytics cleaned up successfully'
-      };
 
       console.log('Simple analytics cleaned up');
     } catch (error) {
@@ -211,65 +181,7 @@ export class SimpleAnalyticsModule implements Module {
     }
   }
 
-  async healthCheck(): Promise<DatabaseHealthStatus> {
-    const now = Date.now();
-
-    // Debounce health checks to prevent infinity loops
-    if (now - this.lastHealthCheck < this.healthCheckDebounce && this.healthStatus.status !== 'initializing') {
-      return this.healthStatus;
-    }
-
-    this.lastHealthCheck = now;
-
-    try {
-      if (!this.databaseModule) {
-        this.healthStatus = {
-          status: 'failed',
-          lastCheck: new Date(),
-          message: 'Database module not available'
-        };
-        return this.healthStatus;
-      }
-
-      // Use cached metrics if available to avoid repeated database queries
-      let stats: StudyMetrics;
-      if (this.cachedMetrics && (now - this.lastHealthCheck) < 30000) { // 30 seconds cache
-        stats = this.cachedMetrics;
-      } else {
-        // Only run fresh metrics check if cache is stale
-        try {
-          stats = await this.getStudyMetrics();
-          this.cachedMetrics = stats;
-        } catch (dbError) {
-          // If database query fails, use default metrics instead of failing the health check
-          console.warn('Database query failed during health check, using default metrics:', dbError);
-          stats = this.getDefaultMetrics();
-        }
-      }
-
-      this.healthStatus = {
-        status: 'healthy',
-        lastCheck: new Date(),
-        message: `Analytics operational (${stats.sessionsCompleted} sessions tracked)`,
-        metrics: {
-          totalSessions: stats.sessionsCompleted,
-          currentStreak: this.studyStreak,
-          activeSession: this.currentSession?.id || null,
-          achievementsUnlocked: this.achievements.filter(a => a.unlockedAt).length
-        }
-      };
-
-      return this.healthStatus;
-    } catch (error) {
-      this.healthStatus = {
-        status: 'failed',
-        lastCheck: new Date(),
-        message: `Health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-      return this.healthStatus;
-    }
-  }
-
+  
   async getResourceUsage(): Promise<ResourceUsage> {
     return {
       memory: {
@@ -433,10 +345,6 @@ export class SimpleAnalyticsModule implements Module {
    * Get study metrics
    */
   async getStudyMetrics(): Promise<StudyMetrics> {
-    if (!this.databaseModule) {
-      console.warn('Database module not available, returning default metrics');
-      return this.getDefaultMetrics();
-    }
 
     try {
       // Check if we're in a browser environment with electronAPI
@@ -543,9 +451,6 @@ export class SimpleAnalyticsModule implements Module {
    * Get concept progress for all concepts
    */
   async getConceptProgress(limit = 50): Promise<ConceptProgress[]> {
-    if (!this.databaseModule) {
-      return [];
-    }
 
     // Simplified implementation using basic database methods
     // This would need to be implemented with proper database queries
@@ -636,19 +541,12 @@ export class SimpleAnalyticsModule implements Module {
   }
 
   private async saveSessionToDatabase(): Promise<void> {
-    if (!this.databaseModule || !this.currentSession) {
-      return;
-    }
 
     // This would save the session to the database
     // Implementation would depend on the database schema
   }
 
   private async recordEvent(type: AnalyticsEvent['type'], data: Record<string, any>): Promise<void> {
-    if (!this.databaseModule) {
-      return;
-    }
-
     // This would save the analytics event to the database
     // Implementation would depend on the database schema
   }

@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { KnowledgeGraphVisualization, ConceptManager, RelationshipManager, KnowledgeSearch } from '../Knowledge';
 import { KnowledgeGraphModule, Concept } from '../../modules/knowledge-graph/knowledge-graph';
-import { LocalDatabaseModule } from '../../modules/database/local-database-module';
+import { getKnowledgeGraph } from '../../services/factory';
 
 export const KnowledgeMap: React.FC = () => {
   const [knowledgeGraph, setKnowledgeGraph] = useState<KnowledgeGraphModule | null>(null);
-  const [database, setDatabase] = useState<LocalDatabaseModule | null>(null);
   const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
   const [showManager, setShowManager] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'relationships'>('concepts');
@@ -13,31 +12,24 @@ export const KnowledgeMap: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    initializeKnowledgeGraph();
+    setupKnowledgeGraph();
   }, []);
 
-  const initializeKnowledgeGraph = async () => {
+  const setupKnowledgeGraph = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Initialize database module
-      const db = new LocalDatabaseModule();
-      await db.initialize();
-      await db.start();
-      setDatabase(db);
-
-      // Initialize knowledge graph module
-      const kg = new KnowledgeGraphModule();
-      kg.databaseModule = db;
-      await kg.initialize();
+      console.log('[KnowledgeMap] Getting knowledge graph from factory...');
+      // Get shared knowledge graph instance from factory (assumed already initialized at root)
+      const kg = getKnowledgeGraph();
       await kg.start();
       setKnowledgeGraph(kg);
 
-      console.log('Knowledge graph initialized successfully');
+      console.log('Knowledge graph setup successfully with shared instance from factory');
     } catch (err) {
-      console.error('Failed to initialize knowledge graph:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize knowledge graph');
+      console.error('Failed to setup knowledge graph:', err);
+      setError(err instanceof Error ? err.message : 'Failed to setup knowledge graph');
     } finally {
       setLoading(false);
     }
@@ -49,19 +41,11 @@ export const KnowledgeMap: React.FC = () => {
 
   const handleConceptCreated = (concept: Concept) => {
     console.log('Concept created:', concept);
-    // Force refresh of the visualization by triggering a reload
-    if (knowledgeGraph) {
-      // Clear caches to force reload
-      knowledgeGraph.initialize();
-    }
+    // Note: Visualization will refresh automatically through data updates
   };
 
   const handleConceptUpdated = (concept: Concept) => {
     console.log('Concept updated:', concept);
-    if (knowledgeGraph) {
-      // Clear caches to force reload
-      knowledgeGraph.initialize();
-    }
     if (selectedConcept?.id === concept.id) {
       setSelectedConcept(concept);
     }
@@ -204,10 +188,7 @@ export const KnowledgeMap: React.FC = () => {
                   selectedConcept={selectedConcept}
                   onRelationshipCreated={(relationship) => {
                     console.log('Relationship created:', relationship);
-                    // Force refresh of the visualization
-                    if (knowledgeGraph) {
-                      knowledgeGraph.initialize();
-                    }
+                    // Note: Visualization will refresh automatically through data updates
                   }}
                 />
               )}

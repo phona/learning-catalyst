@@ -1,9 +1,10 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { setupIpcHandlers, cleanupIpcHandlers } from './ipc-handlers'
+import { setupAllIpcHandlers } from './handlers'
 import { createAppMenu } from './menu'
 import { getQdrantManager } from './qdrant-manager'
+import { QdrantManager } from './qdrant-manager'
 // import { getMockQdrantManager } from './mock-qdrant-manager'
 // import { getMockDatabase } from './mock-database' // Using real SQLite now
 
@@ -112,7 +113,7 @@ async function createWindow(): Promise<void> {
   const workspaceArg = process.argv.find(arg => !arg.includes('electron') && !arg.includes('--'))
   const workspacePath = workspaceEnv ? path.resolve(workspaceEnv) : (workspaceArg ? path.resolve(workspaceArg) : process.cwd())
   console.log(`Using workspace: ${workspacePath}`)
-  setupIpcHandlers(win, workspacePath)
+  setupAllIpcHandlers(win, workspacePath)
 
   // Setup application menu
   const menu = createAppMenu(win)
@@ -126,10 +127,7 @@ async function cleanup() {
 
   console.log('🧹 Cleaning up resources...')
 
-  // Clean up IPC handlers using the proper cleanup function
-  cleanupIpcHandlers()
-
-  // Remove the remaining open-win handler
+  // Remove the open-win handler
   ipcMain.removeHandler('open-win')
 
   // Clean up Qdrant manager
@@ -140,7 +138,6 @@ async function cleanup() {
 
   // Clean up static Qdrant resources
   try {
-    const { QdrantManager } = await import('./qdrant-manager')
     if (QdrantManager && typeof QdrantManager.cleanup === 'function') {
       QdrantManager.cleanup()
     }

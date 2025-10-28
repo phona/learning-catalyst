@@ -7,6 +7,8 @@
  * MVP: Mock implementation for Phase 1 demonstration
  */
 
+import { LocalDatabaseModule } from '../database/local-database-module';
+
 // import { QdrantClient } from 'qdrant-client';
 // import { pipeline } from '@xenova/transformers';
 
@@ -31,20 +33,29 @@ export interface VectorSearchOptions {
   filter?: Record<string, any>;
 }
 
+
 export class VectorDatabaseModule {
+  public readonly name = "vector-database";
+  public readonly version = "1.0.0";
   private _isInitialized = false;
   private mockDocuments: VectorDocument[] = [];
-  public databaseModule: any = null; // Optional database dependency
+  private databaseModule: LocalDatabaseModule;
 
-  constructor() {
+  constructor(databaseModule: LocalDatabaseModule) {
+    this.databaseModule = databaseModule;
     // Mock implementation for MVP
     console.log('Vector database module created (mock mode)');
+  }
+
+  get initialized(): boolean {
+    return this._isInitialized;
   }
 
   get isInitialized(): boolean {
     return this._isInitialized;
   }
 
+  
   async initialize(): Promise<void> {
     try {
       console.log('Initializing vector database (mock mode)...');
@@ -169,6 +180,7 @@ export class VectorDatabaseModule {
     }
   }
 
+  
   /**
    * Get database statistics (mock implementation)
    */
@@ -180,5 +192,5 @@ export class VectorDatabaseModule {
   }
 }
 
-// Export singleton instance
-export const vectorDatabase = new VectorDatabaseModule();
+// Note: Singleton pattern removed for proper dependency injection
+// Use factory to create instances with dependencies

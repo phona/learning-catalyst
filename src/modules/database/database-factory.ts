@@ -11,7 +11,6 @@ export interface IDatabase {
   start(): Promise<void>;
   stop(): Promise<void>;
   cleanup(): Promise<void>;
-  healthCheck(): Promise<DatabaseHealthStatus>;
   getResourceUsage(): Promise<ResourceUsage>;
   prepare<T = any>(sql: string): any;
   all<T = any>(sql: string, params?: any[]): T[];

@@ -8,70 +8,85 @@
 import { useState, useEffect } from 'react';
 import { appServices, initializeAppServices } from '@/services/appServices';
 
+// Global flag to track if services have already been initialized to prevent double execution in React Strict Mode
+let hasInitializedServices = false;
+
 export interface AppServicesState {
-  initialized: boolean;
-  loading: boolean;
+  ready: boolean;
   error: string | null;
-  systemHealth: any;
 }
 
 export function useAppServices() {
   const [state, setState] = useState<AppServicesState>({
-    initialized: false,
-    loading: true,
-    error: null,
-    systemHealth: null
+    ready: false,
+    error: null
   });
-  const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
+    // Prevent double initialization in React Strict Mode
+    if (hasInitializedServices) {
+      console.log('🔧 Services already initialized by hook, skipping...');
+      return;
+    }
+
+    console.log('🚀 Starting service initialization from hook...');
+
     const initializeServices = async () => {
-      // Prevent multiple initializations
-      if (isInitializing || state.initialized) {
-        return;
-      }
-
-      setIsInitializing(true);
       try {
-        setState(prev => ({ ...prev, loading: true, error: null }));
+        // Only update state if component is still mounted
+        if (mounted) {
+          setState(prev => ({ ...prev, error: null }));
+        }
 
+        // Mark as initialized immediately to prevent race conditions
+        hasInitializedServices = true;
+
+        // Block here until all services are initialized
         await initializeAppServices();
 
-        setState({
-          initialized: true,
-          loading: false,
-          error: null,
-          systemHealth: await appServices.getSystemHealth()
-        });
+        // Only update state if component is still mounted
+        if (mounted) {
+          setState({
+            ready: true,
+            error: null
+          });
+          console.log('✅ All services initialized successfully');
+        }
       } catch (error) {
-        setState({
-          initialized: false,
-          loading: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          systemHealth: null
-        });
-      } finally {
-        setIsInitializing(false);
+        if (mounted) {
+          setState({
+            ready: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          console.error('❌ Service initialization failed:', error);
+        }
       }
     };
 
     initializeServices();
-  }, []);
 
-  const refreshSystemHealth = async () => {
-    try {
-      const health = await appServices.getSystemHealth();
-      setState(prev => ({ ...prev, systemHealth: health }));
-    } catch (error) {
-      console.error('Failed to refresh system health:', error);
-    }
-  };
+    return () => {
+      mounted = false;
+    };
+  }, []); // Empty dependency array ensures this runs only once
 
+  // Don't return services until fully ready
+  if (!state.ready || state.error) {
+    return {
+      ...state,
+      database: null,
+      analytics: null,
+      knowledgeGraph: null
+    };
+  }
+
+  // All services are ready
   return {
     ...state,
-    refreshSystemHealth,
-    database: appServices.isInitialized() ? appServices.getDatabase() : null,
-    analytics: appServices.isInitialized() ? appServices.getAnalytics() : null,
-    knowledgeGraph: appServices.isInitialized() ? appServices.getKnowledgeGraph() : null
+    database: appServices.getDatabase(),
+    analytics: appServices.getAnalytics(),
+    knowledgeGraph: appServices.getKnowledgeGraph()
   };
 }

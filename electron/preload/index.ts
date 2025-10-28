@@ -32,6 +32,7 @@ export interface ElectronAPI {
 
   // Workspace operations
   getWorkspacePath: () => Promise<string>;
+  getDatabasePath: () => Promise<string>;
   resolveWorkspacePath: (relativePath: string) => Promise<string>;
   readWorkspaceFile: (relativePath: string) => Promise<string>;
   writeWorkspaceFile: (relativePath: string, content: string) => Promise<void>;
@@ -99,6 +100,7 @@ const electronAPI: ElectronAPI = {
 
   // Workspace operations
   getWorkspacePath: () => ipcRenderer.invoke('workspace:getPath'),
+  getDatabasePath: () => ipcRenderer.invoke('workspace:getDatabasePath'),
   resolveWorkspacePath: (relativePath: string) => ipcRenderer.invoke('workspace:resolvePath', relativePath),
   readWorkspaceFile: (relativePath: string) => ipcRenderer.invoke('workspace:readFile', relativePath),
   writeWorkspaceFile: (relativePath: string, content: string) => ipcRenderer.invoke('workspace:writeFile', relativePath, content),

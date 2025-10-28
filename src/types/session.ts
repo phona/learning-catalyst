@@ -195,6 +195,24 @@ export interface SessionImportResult {
   warnings: string[];
 }
 
+export interface SessionCreateOptions {
+  title: string;
+  description?: string;
+  tags?: string[];
+  category?: string;
+  provider?: string;
+  model?: string;
+}
+
+export interface SessionUpdateOptions {
+  title?: string;
+  description?: string;
+  tags?: string[];
+  category?: string;
+  archived?: boolean;
+  pinned?: boolean;
+}
+
 // Session events
 export interface SessionEvent {
   type: 'created' | 'updated' | 'deleted' | 'archived' | 'restored' | 'exported';
