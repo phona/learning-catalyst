@@ -1,17 +1,20 @@
 /**
  * Database Module Index
  *
- * Central export point for database functionality.
+ * Central export point for Kysely database functionality.
  */
 
-// Core database exports
-export { default as createDatabase } from './database-factory';
-export type { IDatabase } from './database-factory';
-export { LocalDatabaseModule } from './local-database-module';
+// Kysely database exports
+export { createDatabase, runMigrations, getMigrationStatus, rollbackMigrations } from './kysely-database';
+export { DatabaseFactory } from './kysely-database';
+export type { Database } from './kysely-database';
 
-// Schema and utilities (includes JSONUtils)
-export * from './database-schema';
+// Kysely schema exports
+export * from './kysely-schema';
+
+// Migration system exports
+export { MigrationManager } from './migrations/index';
+export { loadAllMigrations } from './migrations/index';
 
 // Convenience exports
-import createDatabase from './database-factory';
-export const LocalDatabase = createDatabase;
+export { createDatabase as default } from './kysely-database';

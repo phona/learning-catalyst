@@ -7,7 +7,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Session } from '@/types/session';
-import { sessionService } from '@/services/sessionService';
+import { useService } from './useAppServices';
+import type { AppServices } from './useAppServices';
 
 export interface RecentSessionsState {
   sessions: Session[];
@@ -32,6 +33,20 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
     refreshing: false,
     hasMore: false,
   });
+
+  // Get session service through dependency injection
+  const sessionService = useService('sessionService');
+
+  // Update loading state based on service availability
+  useEffect(() => {
+    if (!sessionService) {
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Session service is initializing...'
+      }));
+    }
+  }, [sessionService]);
 
   const [currentLimit, setCurrentLimit] = useState(limit);
 
@@ -77,7 +92,7 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
         error: errorMessage,
       }));
     }
-  }, []);
+  }, [sessionService]);
 
   // Initial load
   useEffect(() => {

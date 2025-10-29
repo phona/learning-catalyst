@@ -7,7 +7,8 @@
  * MVP: Mock implementation for Phase 1 demonstration
  */
 
-import { LocalDatabaseModule } from '../database/local-database-module';
+import { Kysely } from 'kysely';
+import type { Database } from '../database/kysely-schema';
 
 // import { QdrantClient } from 'qdrant-client';
 // import { pipeline } from '@xenova/transformers';
@@ -39,10 +40,10 @@ export class VectorDatabaseModule {
   public readonly version = "1.0.0";
   private _isInitialized = false;
   private mockDocuments: VectorDocument[] = [];
-  private databaseModule: LocalDatabaseModule;
+  private db: Kysely<Database>;
 
-  constructor(databaseModule: LocalDatabaseModule) {
-    this.databaseModule = databaseModule;
+  constructor(db: Kysely<Database>) {
+    this.db = db;
     // Mock implementation for MVP
     console.log('Vector database module created (mock mode)');
   }

@@ -1,50 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { ProgressChart, StudyStreak, SessionTracking, LearningTrends, Achievements } from '../Analytics';
 import { SimpleAnalyticsModule, StudyMetrics } from '../../modules/analytics/simple-analytics';
-import { getAnalytics } from '../../services/factory';
+import { useService } from '../../hooks/useAppServices';
 
 export const LearningDashboard: React.FC = () => {
-  const [analytics, setAnalytics] = useState<SimpleAnalyticsModule | null>(null);
+  const analyticsService = useService('analytics');
   const [metrics, setMetrics] = useState<StudyMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setupAnalytics();
-
-    // Cleanup function to stop services on unmount
-    return () => {
-      if (analytics) {
-        analytics.stop().catch(console.error);
-      }
-    };
-  }, []);
+    if (analyticsService) {
+      setupAnalytics();
+    }
+  }, [analyticsService]);
 
   const setupAnalytics = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!analyticsService) {
+        throw new Error('Analytics service not available');
+      }
 
-      console.log('[LearningDashboard] Getting analytics from factory...');
-      // Get shared analytics instance from factory (assumed already initialized at root)
-      const analyticsModule = getAnalytics();
-      await analyticsModule.start();
-      setAnalytics(analyticsModule);
+      console.log('[LearningDashboard] Starting analytics service...');
+      await analyticsService.start();
 
       // Get study metrics
-      const studyMetrics = await analyticsModule.getStudyMetrics();
+      const studyMetrics = await analyticsService.getStudyMetrics();
       setMetrics(studyMetrics);
 
-      console.log('Analytics setup successfully with shared instance from factory');
+      console.log('Analytics setup successfully with dependency injection');
     } catch (err) {
       console.error('Failed to setup analytics:', err);
-      setError(err instanceof Error ? err.message : 'Failed to setup analytics');
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (loading) {
+  if (!analyticsService || !metrics) {
     return (
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center">
@@ -55,32 +43,6 @@ export const LearningDashboard: React.FC = () => {
           <p className="text-gray-600 dark:text-gray-400">
             Setting up your learning dashboard...
           </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !analytics || !metrics) {
-    return (
-      <div className="h-full flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
-            Analytics Error
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {error || 'Failed to initialize the analytics module'}
-          </p>
-          <button
-            onClick={initializeAnalytics}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -188,15 +150,15 @@ export const LearningDashboard: React.FC = () => {
         {/* Enhanced Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Learning Trends */}
-          <LearningTrends analytics={analytics} />
+          <LearningTrends analytics={analyticsService} />
 
           {/* Achievements */}
-          <Achievements analytics={analytics} />
+          <Achievements analytics={analyticsService} />
         </div>
 
         {/* Recent Sessions */}
         <div className="mb-8">
-          <SessionTracking analytics={analytics} />
+          <SessionTracking analytics={analyticsService} />
         </div>
 
         {/* Learning Insights */}

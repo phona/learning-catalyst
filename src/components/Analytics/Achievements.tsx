@@ -39,7 +39,7 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
     const icons = {
       time: '⏰',
       concepts: '🧠',
-      streaks: '🔥',
+      streak: '🔥',
       performance: '🎯',
       engagement: '⚡'
     };
@@ -59,7 +59,7 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
     const colors = {
       time: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
       concepts: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
-      streaks: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
+      streak: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
       performance: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
       engagement: 'bg-pink-100 dark:bg-pink-900 text-pink-800 dark:text-pink-200'
     };
