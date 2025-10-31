@@ -59,8 +59,8 @@ export class ChatService {
         content: session.context.system_prompt || this.getDefaultSystemPrompt(),
         timestamp: new Date(),
       },
-      // Conversation history (last 10 messages for context)
-      ...session.messages.slice(-10).map(msg => ({
+      // Full conversation history from session
+      ...session.messages.map(msg => ({
         ...msg,
         tokens_used: msg.tokens_used ? {
           prompt_tokens: 0,

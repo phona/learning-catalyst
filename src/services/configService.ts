@@ -205,6 +205,7 @@ export class ConfigService {
         providers: {},
         streaming: true,
         enable_thinking: true,
+        auto_hide_thinking: true,
         context_window_size: 10,
         // Enhanced model type configuration
         model_types: {

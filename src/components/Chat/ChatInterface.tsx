@@ -6,6 +6,7 @@ import { useConfigStore } from '@/stores/useConfigStore';
 
 export const ChatInterface: React.FC = () => {
   const {
+    currentSession,
     setCurrentSession,
     setShowThinking,
     setAutoScroll,
@@ -24,7 +25,8 @@ export const ChatInterface: React.FC = () => {
       setSelectedModel(config.ai?.model_types?.chat?.default_model ?? config.ai?.default_model ?? 'gpt-3.5-turbo');
 
       // Create a default session if none exists
-      setCurrentSession({
+      if (!currentSession) {
+        setCurrentSession({
         id: Date.now().toString(),
         title: 'New Chat',
         created_at: new Date(),
@@ -68,9 +70,11 @@ export const ChatInterface: React.FC = () => {
           engagement_score: 0,
         },
       });
+      }
     }
   }, [
     config,
+    currentSession,
     setCurrentSession,
     setShowThinking,
     setAutoScroll,

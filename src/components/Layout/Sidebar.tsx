@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ChatBubbleLeftRightIcon,
@@ -15,6 +15,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/stores/useAppStore';
+import { useChatStore } from '@/stores/useChatStore';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
 
 interface SidebarProps {
@@ -44,7 +45,57 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { setCurrentView } = useAppStore();
-  const { sessions, loading, error } = useRecentSessions(5);
+  const { createNewSession, setCurrentSession, clearMessages } = useChatStore();
+  const { sessions, loading, error, refresh } = useRecentSessions(5);
+
+  // Track newly created sessions to show special indicators
+  const [newSessionIds, setNewSessionIds] = useState<Set<string>>(new Set());
+
+  // Listen for session creation and update events to refresh the recent sessions list
+  useEffect(() => {
+    const handleSessionCreated = (event: any) => {
+      console.log('[Sidebar] Session created event received, refreshing recent sessions', event.detail);
+
+      // Mark this session as new if the flag is set
+      if (event.detail?.isNew && event.detail?.sessionId) {
+        setNewSessionIds(prev => new Set(prev).add(event.detail.sessionId));
+
+        // Remove the "new" status after 5 seconds to avoid clutter
+        setTimeout(() => {
+          setNewSessionIds(prev => {
+            const updated = new Set(prev);
+            updated.delete(event.detail.sessionId);
+            return updated;
+          });
+        }, 5000);
+      }
+
+      refresh();
+    };
+
+    const handleSessionUpdated = (event: any) => {
+      console.log('[Sidebar] Session updated event received, refreshing recent sessions', event.detail);
+
+      // Remove "new" status when first message is added to a session
+      if (event.detail?.hasFirstMessage && event.detail?.sessionId) {
+        setNewSessionIds(prev => {
+          const updated = new Set(prev);
+          updated.delete(event.detail.sessionId);
+          return updated;
+        });
+
+        refresh();
+      }
+    };
+
+    window.addEventListener('sessionCreated', handleSessionCreated);
+    window.addEventListener('sessionUpdated', handleSessionUpdated);
+
+    return () => {
+      window.removeEventListener('sessionCreated', handleSessionCreated);
+      window.removeEventListener('sessionUpdated', handleSessionUpdated);
+    };
+  }, [refresh]);
 
   const navigationItems = [
     {
@@ -94,6 +145,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     navigate(path);
   };
 
+  const handleNewChat = async () => {
+    try {
+      // Create a new session
+      const sessionId = await createNewSession();
+      console.log(`[Sidebar] Created new session: ${sessionId}`);
+
+      // Navigate to chat view
+      setCurrentView('chat');
+      navigate('/');
+
+      // Clear the current messages to start fresh
+      clearMessages();
+
+      console.log('[Sidebar] New chat session created and ready');
+    } catch (error) {
+      console.error('[Sidebar] Failed to create new chat session:', error);
+      // TODO: Show error toast/notification to user
+    }
+  };
+
+  const handleOpenSession = (session: any) => {
+    try {
+      // Load the session
+      setCurrentSession(session);
+
+      // Navigate to chat view
+      setCurrentView('chat');
+      navigate('/');
+
+      // Clear current messages (they will be loaded from the session)
+      clearMessages();
+
+      console.log(`[Sidebar] Opened session: ${session.id}`);
+    } catch (error) {
+      console.error('[Sidebar] Failed to open session:', error);
+      // TODO: Show error toast/notification to user
+    }
+  };
+
   if (!open) {
     return null;
   }
@@ -105,10 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="space-y-2">
             <button
-              onClick={() => {
-                // TODO: Create new chat session
-                console.log('New chat');
-              }}
+              onClick={handleNewChat}
               className="w-full flex items-center space-x-3 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
@@ -117,8 +204,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
             <button
               onClick={() => {
-                // TODO: Open existing session
-                console.log('Open session');
+                // Open session manager instead of just logging
+                setCurrentView('sessions');
+                navigate('/sessions');
               }}
               className="w-full flex items-center space-x-3 px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
             >
@@ -156,15 +244,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
               Recent Sessions
             </h3>
-            {error && (
+            <div className="flex items-center space-x-1">
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  refresh();
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                title="Retry loading sessions"
+                title="Refresh recent sessions"
               >
                 <ArrowPathIcon className="w-4 h-4" />
               </button>
-            )}
+              {error && (
+                <button
+                  onClick={() => {
+                    refresh();
+                  }}
+                  className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                  title="Retry loading sessions"
+                >
+                  <ExclamationTriangleIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -187,15 +288,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             </div>
           ) : (
             <div className="space-y-1">
-              {sessions.map((session) => (
+              {Array.from(new Map(sessions.map(session => [session.id, session])).values()).map((session) => (
                 <button
-                  key={session.id}
-                  onClick={() => {
-                    // TODO: Load and navigate to session
-                    console.log('Open session:', session.id);
-                    navigate(`/sessions/${session.id}`);
-                  }}
-                  className="w-full flex items-center space-x-2 px-2 py-2 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                  key={`session_${session.id}`}
+                  onClick={() => handleOpenSession(session)}
+                  className={`w-full flex items-center space-x-2 px-2 py-2 text-sm rounded-lg transition-all text-left ${
+                    newSessionIds.has(session.id)
+                      ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
                   title={session.metadata.description}
                 >
                   {session.metadata.pinned ? (
@@ -204,11 +305,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                     <ClockIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                      {session.title}
-                    </p>
+                    <div className="flex items-center space-x-2">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {session.title}
+                      </p>
+                      {newSessionIds.has(session.id) && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                          New
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {session.statistics.total_messages} messages • {formatRelativeTime(session.updated_at)}
+                      {session.statistics.total_messages} {session.statistics.total_messages === 1 ? 'message' : 'messages'} • {formatRelativeTime(session.updated_at)}
                     </p>
                   </div>
                 </button>

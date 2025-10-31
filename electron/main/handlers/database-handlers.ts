@@ -10,10 +10,10 @@ import {
 import { ipcMain } from 'electron';
 
 export function setupDatabaseHandlers(): void {
-	ipcMain.handle('db:setPath', async (_, dbPath: string) => {
+	ipcMain.handle('db:setPath', async (_, dbPath: string, isuri?: boolean, autocommit?: boolean) => {
 		try {
-			console.log('[DB API] Setting database path to:', dbPath);
-			await setdbPath(dbPath, false, false);
+			console.log('[DB API] Setting database path to:', dbPath, 'isuri:', isuri, 'autocommit:', autocommit);
+			await setdbPath(dbPath, isuri || false, autocommit || false);
 			console.log('[DB API] Database path set successfully');
 			return dbPath;
 		} catch (error: any) {

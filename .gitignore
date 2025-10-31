@@ -60,3 +60,7 @@ sqlite-electron-example
 .mypy_cache
 .pytest_cache
 external/qdrant/storage/
+
+# TypeScript build cache
+*.tsbuildinfo
+tsconfig.tsbuildinfo

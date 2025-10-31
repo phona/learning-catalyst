@@ -13,6 +13,7 @@ import { useAppStore } from './stores/useAppStore';
 import { useConfigStore } from './stores/useConfigStore';
 import { setupMenuHandlers } from './services/appService';
 import { useAppServices } from './hooks/useAppServices';
+import { useChatStoreWithServices } from './hooks/useChatStoreWithServices';
 import type { AppConfig } from '@/types';
 
 // Global flag to track if setup has already been completed to prevent double execution in Strict Mode
@@ -26,6 +27,9 @@ function App() {
     ready: servicesReady,
     error: servicesError
   } = useAppServices();
+
+  // Initialize chat store with session service
+  useChatStoreWithServices();
 
   // FIRST EFFECT: Application initialization and setup
   // This effect handles the one-time setup process that should only run once when services are ready.
@@ -134,6 +138,7 @@ function App() {
               <Route index element={<ChatInterface />} />
               <Route path="chat" element={<ChatInterface />} />
               <Route path="sessions" element={<SessionManager />} />
+              <Route path="sessions/:sessionId" element={<ChatInterface />} />
               <Route path="settings" element={<SettingsPanel />} />
               <Route path="progress" element={<LearningDashboard />} />
               <Route path="knowledge-map" element={<KnowledgeMap />} />

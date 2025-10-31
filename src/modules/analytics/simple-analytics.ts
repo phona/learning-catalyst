@@ -150,22 +150,31 @@ export class SimpleAnalyticsModule {
    * Record a learning session
    */
   async recordSession(session: Omit<LearningSession, 'id'>): Promise<LearningSession> {
-    const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     const dbSession = {
       id,
       title: session.title,
-      start_time: session.startTime,
-      end_time: session.endTime,
-      duration_minutes: session.durationMinutes,
-      ai_provider: session.aiProvider,
-      ai_model: session.aiModel,
-      tokens_used: session.tokensUsed,
-      concepts_covered: JSONFieldHelpers.stringifyArray(session.conceptsCovered),
-      session_type: session.sessionType,
-      status: session.status,
-      created_at: new Date(),
-      updated_at: new Date()
+      start_time: session.startTime.toISOString(),
+      end_time: session.endTime ? session.endTime.toISOString() : undefined,
+      duration_seconds: session.durationMinutes ? session.durationMinutes * 60 : 0,
+      total_messages: 0, // Default value
+      concepts_studied: session.conceptsCovered.length,
+      difficulty_level: 3, // Default difficulty
+      session_type: session.sessionType === 'chat' ? 'general' as const :
+                    session.sessionType === 'study' ? 'practice' as const :
+                    session.sessionType === 'assessment' ? 'assessment' as const :
+                    session.sessionType === 'review' ? 'review' as const :
+                    'general' as const,
+      metadata: JSONFieldHelpers.stringifyObject({
+        aiProvider: session.aiProvider,
+        aiModel: session.aiModel,
+        tokensUsed: session.tokensUsed,
+        conceptsCovered: session.conceptsCovered,
+        status: session.status
+      }),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     await this.db.insertInto('learning_sessions').values(dbSession).execute();
@@ -262,14 +271,15 @@ export class SimpleAnalyticsModule {
           sessions_studied: newSessionsStudied,
           average_performance: newAveragePerformance,
           improvement_rate: improvementRate,
-          last_studied: new Date(),
-          updated_at: new Date()
+          last_studied: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .where('concept_id', '=', conceptId)
         .execute();
     } else {
       // Create new progress record
       await this.db.insertInto('concept_progress').values({
+        id: Math.floor(Math.random() * 1000000), // Generate random ID
         concept_id: conceptId,
         concept_name: conceptName,
         mastery_level: sessionData.newMasteryLevel || 1,
@@ -279,9 +289,9 @@ export class SimpleAnalyticsModule {
         improvement_rate: 0,
         difficulty_rating: 3, // default
         confidence_level: 1,
-        last_studied: new Date(),
-        created_at: new Date(),
-        updated_at: new Date()
+        last_studied: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }).execute();
     }
   }
@@ -293,31 +303,50 @@ export class SimpleAnalyticsModule {
     const endDate = new Date();
     const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
 
-    // Get daily study time
-    const dailyData = await this.db
+    // Get all sessions in date range and group in application
+    const allSessions = await this.db
       .selectFrom('learning_sessions')
-      .select([
-        eb => eb.fn('date').call([eb.ref('start_time')]).as('date'),
-        eb => eb.fn.sum('duration_minutes').as('total_minutes'),
-        eb => eb.fn.count('id').as('session_count')
-      ])
-      .where('start_time', '>=', startDate)
-      .where('start_time', '<=', endDate)
-      .where('status', '=', 'completed')
-      .groupBy(eb => eb.fn('date').call([eb.ref('start_time')]))
-      .orderBy('date')
+      .select(['start_time', 'duration_seconds', 'id'])
+      .where('start_time', '>=', startDate.toISOString())
+      .where('start_time', '<=', endDate.toISOString())
+      .where('session_type', 'in', ['general', 'practice', 'review', 'assessment'])
       .execute();
+
+    // Group by date manually
+    const dailyDataMap = new Map<string, { totalSeconds: number; sessionCount: number }>();
+
+    allSessions.forEach(session => {
+      const date = session.start_time.split('T')[0]; // Extract date part
+      const existing = dailyDataMap.get(date) || { totalSeconds: 0, sessionCount: 0 };
+      dailyDataMap.set(date, {
+        totalSeconds: existing.totalSeconds + (session.duration_seconds || 0),
+        sessionCount: existing.sessionCount + 1
+      });
+    });
+
+    const dailyData = Array.from(dailyDataMap.entries()).map(([date, data]) => ({
+      date,
+      total_seconds: data.totalSeconds,
+      session_count: data.sessionCount
+    }));
 
     const dailyStudyTime = dailyData.map(row => ({
       date: row.date as string,
-      minutes: Number(row.total_minutes || 0),
+      minutes: Number(row.total_seconds || 0) / 60, // Convert seconds to minutes
       sessions: Number(row.session_count || 0)
     }));
 
     return {
       dailyStudyTime,
       weeklyProgress: [], // TODO: Implement weekly aggregation
-      monthlyAchievements: [] // TODO: Implement monthly aggregation
+      monthlyAchievements: [], // TODO: Implement monthly aggregation
+      masteryProgress: [], // TODO: Implement mastery progress tracking
+      sessionTypes: {
+        'general': 0,
+        'practice': 0,
+        'review': 0,
+        'assessment': 0
+      }
     };
   }
 
@@ -329,27 +358,45 @@ export class SimpleAnalyticsModule {
     const trends = await this.getLearningTrends();
 
     // Analyze performance trend
-    const recentPerformance = dailyStudyTime.slice(-7).reduce((sum, day) => sum + day.minutes, 0);
-    const olderPerformance = dailyStudyTime.slice(-14, -7).reduce((sum, day) => sum + day.minutes, 0);
+    const recentPerformance = trends.dailyStudyTime.slice(-7).reduce((sum, day) => sum + day.minutes, 0);
+    const olderPerformance = trends.dailyStudyTime.slice(-14, -7).reduce((sum, day) => sum + day.minutes, 0);
     const performanceTrend = recentPerformance > olderPerformance ? 'improving' :
                             recentPerformance < olderPerformance ? 'declining' : 'stable';
 
     // Find most productive time
-    const hourlyData = await this.db
+    const allSessionsForTime = await this.db
       .selectFrom('learning_sessions')
-      .select([
-        eb => eb.fn('strftime').call(['%H', eb.ref('start_time')]).as('hour'),
-        eb => eb.fn.avg('duration_minutes').as('avg_duration')
-      ])
-      .where('status', '=', 'completed')
-      .groupBy(eb => eb.fn('strftime').call(['%H', eb.ref('start_time')]))
-      .orderBy('avg_duration', 'desc')
-      .limit(1)
-      .executeTakeFirst();
+      .select(['start_time', 'duration_seconds'])
+      .where('session_type', 'in', ['general', 'practice', 'review', 'assessment'])
+      .execute();
+
+    // Group by hour manually
+    const hourlyMap = new Map<number, { totalDuration: number; count: number }>();
+
+    allSessionsForTime.forEach(session => {
+      const hour = new Date(session.start_time).getHours();
+      const existing = hourlyMap.get(hour) || { totalDuration: 0, count: 0 };
+      hourlyMap.set(hour, {
+        totalDuration: existing.totalDuration + (session.duration_seconds || 0),
+        count: existing.count + 1
+      });
+    });
+
+    // Find hour with highest average duration
+    let bestHour = 10;
+    let bestAvgDuration = 0;
+
+    hourlyMap.forEach((data, hour) => {
+      const avgDuration = data.totalDuration / data.count;
+      if (avgDuration > bestAvgDuration) {
+        bestAvgDuration = avgDuration;
+        bestHour = hour;
+      }
+    });
 
     const mostProductiveTime = {
-      hour: hourlyData ? Number(hourlyData.hour) : 10,
-      performance: hourlyData ? Number(hourlyData.avg_duration) : 0
+      hour: bestHour,
+      performance: bestAvgDuration
     };
 
     return {
@@ -378,13 +425,13 @@ export class SimpleAnalyticsModule {
     return results.map(row => ({
       id: row.id,
       title: row.title,
-      description: row.description,
-      category: row.category,
-      requirement: JSONFieldHelpers.parseObject(row.requirement),
-      progress: row.progress,
+      description: row.description || '',
+      category: row.category as 'streak' | 'time' | 'concepts' | 'performance' | 'engagement',
+      requirement: JSONFieldHelpers.parseObject(row.requirements),
+      progress: 0, // Default progress - would need to be calculated
       unlockedAt: row.unlocked_at ? new Date(row.unlocked_at) : undefined,
       icon: row.icon,
-      rarity: row.rarity
+      rarity: 'common' as const // Default rarity
     }));
   }
 
@@ -397,7 +444,7 @@ export class SimpleAnalyticsModule {
     }
 
     // Calculate average mastery level as a percentage
-    const totalConcepts = this.cachedMetrics.totalConceptsStudied;
+    const totalConcepts = this.cachedMetrics.conceptsStudied;
     if (totalConcepts === 0) return 0;
 
     // This is a simplified calculation - in a real implementation
@@ -415,7 +462,7 @@ export class SimpleAnalyticsModule {
   /**
    * Start analytics collection
    */
-  async start(config?: any): Promise<void> {
+  async start(): Promise<void> {
     await this.initialize();
   }
 
@@ -447,19 +494,19 @@ export class SimpleAnalyticsModule {
     const [totalTimeResult, sessionsResult, conceptsResult] = await Promise.all([
       this.db
         .selectFrom('learning_sessions')
-        .select(eb => eb.fn.sum('duration_minutes').as('total'))
-        .where('start_time', '>=', thirtyDaysAgo)
-        .where('status', '=', 'completed')
+        .select(eb => eb.fn.sum('duration_seconds').as('total'))
+        .where('start_time', '>=', thirtyDaysAgo.toISOString())
+        .where('session_type', 'in', ['general', 'practice', 'review', 'assessment'])
         .executeTakeFirst(),
 
       this.db
         .selectFrom('learning_sessions')
         .select([
           eb => eb.fn.count('id').as('count'),
-          eb => eb.fn.avg('duration_minutes').as('avg_length')
+          eb => eb.fn.avg('duration_seconds').as('avg_length')
         ])
-        .where('start_time', '>=', thirtyDaysAgo)
-        .where('status', '=', 'completed')
+        .where('start_time', '>=', thirtyDaysAgo.toISOString())
+        .where('session_type', 'in', ['general', 'practice', 'review', 'assessment'])
         .executeTakeFirst(),
 
       this.db
@@ -468,9 +515,9 @@ export class SimpleAnalyticsModule {
         .executeTakeFirst()
     ]);
 
-    const totalStudyTime = Number(totalTimeResult?.total || 0);
+    const totalStudyTime = Number(totalTimeResult?.total || 0) / 60; // Convert seconds to minutes
     const sessionsCompleted = Number(sessionsResult?.count || 0);
-    const averageSessionLength = Number(sessionsResult?.avg_length || 0);
+    const averageSessionLength = Number(sessionsResult?.avg_length || 0) / 60; // Convert seconds to minutes
     const conceptsStudied = Number(conceptsResult?.count || 0);
 
     return {
@@ -502,7 +549,7 @@ export class SimpleAnalyticsModule {
     const result = await this.db
       .selectFrom('learning_sessions')
       .select('start_time')
-      .where('status', '=', 'completed')
+      .where('session_type', 'in', ['general', 'practice', 'review', 'assessment'])
       .orderBy('start_time', 'desc')
       .limit(1)
       .executeTakeFirst();

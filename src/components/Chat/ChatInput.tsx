@@ -19,11 +19,9 @@ export const ChatInput: React.FC = () => {
     stopStreaming,
     selectedProvider,
     selectedModel,
-    showThinking,
-    toggleThinking,
   } = useChatStore();
 
-  const { config } = useConfigStore();
+  const { config, updateConfig } = useConfigStore();
 
   const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -69,12 +67,25 @@ export const ChatInput: React.FC = () => {
       handleSubmit(e);
     } else if (e.ctrlKey && e.key === 't') {
       e.preventDefault();
-      console.log('Ctrl+T pressed, enable_thinking:', config?.ai?.enable_thinking);
-      if (config?.ai?.enable_thinking) {
-        console.log('Before toggle, showThinking:', showThinking);
-        toggleThinking();
-        console.log('After toggle');
-      }
+      // Toggle deep thinking mode
+      toggleDeepThinking();
+    }
+  };
+
+  const toggleDeepThinking = async () => {
+    if (!config) return;
+
+    const newThinkingState = !config.ai.enable_thinking;
+
+    try {
+      await updateConfig({
+        ai: {
+          ...config.ai,
+          enable_thinking: newThinkingState
+        }
+      });
+    } catch (error) {
+      console.error('Failed to update thinking config:', error);
     }
   };
 
@@ -130,34 +141,25 @@ export const ChatInput: React.FC = () => {
               {currentModelName}
             </span>
           </span>
-          {config?.ai?.enable_thinking ? (
-            <button
-              onClick={() => {
-                console.log('Thinking button clicked, current state:', showThinking);
-                toggleThinking();
-              }}
-              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
-                showThinking
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
-              }`}
-              title={showThinking ? 'Hide thinking process (Ctrl+T)' : 'Show thinking process (Ctrl+T)'}
-            >
-              <SparklesIcon className={`w-4 h-4 ${showThinking ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
-              <span className="text-sm font-medium">
-                Thinking
-              </span>
-              <div className={`w-2 h-2 rounded-full transition-colors ${
-                showThinking
-                  ? 'bg-blue-600 dark:bg-blue-400'
-                  : 'bg-gray-400 dark:bg-gray-500'
-              }`} />
-            </button>
-          ) : (
-            <div className="flex items-center space-x-1 text-gray-400">
-              <span>Thinking disabled in settings</span>
-            </div>
-          )}
+          <button
+            onClick={toggleDeepThinking}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+              config?.ai?.enable_thinking
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+            title={config?.ai?.enable_thinking ? 'Disable deep thinking mode (Ctrl+T)' : 'Enable deep thinking mode (Ctrl+T)'}
+          >
+            <SparklesIcon className={`w-4 h-4 ${config?.ai?.enable_thinking ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+            <span className="text-sm font-medium">
+              Deep Thinking
+            </span>
+            <div className={`w-2 h-2 rounded-full transition-colors ${
+              config?.ai?.enable_thinking
+                ? 'bg-blue-600 dark:bg-blue-400'
+                : 'bg-gray-400 dark:bg-gray-500'
+            }`} />
+          </button>
         </div>
       </div>
 
@@ -250,12 +252,10 @@ export const ChatInput: React.FC = () => {
           <span>Ctrl+K for command palette</span>
           <span>•</span>
           <span>Ctrl+/ for keyboard shortcuts</span>
-          {config?.ai?.enable_thinking && (
-            <>
-              <span>•</span>
-              <span>Ctrl+T to toggle thinking</span>
-            </>
-          )}
+          <>
+            <span>•</span>
+            <span>Ctrl+T to toggle deep thinking mode</span>
+          </>
         </div>
       </form>
     </div>

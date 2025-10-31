@@ -2,18 +2,39 @@ import React, { useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { useChatStore } from '@/stores/useChatStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { useConfigStore } from '@/stores/useConfigStore';
 
 export const ChatArea: React.FC = () => {
   const {
     messages,
     isStreaming,
-    showThinking,
     thinkingContent,
     streamingContent,
     autoScroll,
-    toggleThinking,
+    toggleMessageThinking,
     selectedProvider,
+    thinkingCompleted,
+    hasHadThinkingContent,
   } = useChatStore();
+
+  // Debug: Log messages to see what ChatArea receives
+  console.log('[ChatArea] Messages in store:', messages.length, messages.map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 50) + '...' })));
+
+  const { config } = useConfigStore();
+
+  // Check if current provider supports thinking
+  const providerSupportsThinking = React.useMemo(() => {
+    if (!selectedProvider || !config?.ai) return false;
+
+    const chatModelConfig = config.ai.model_types?.chat;
+    const apiKey = chatModelConfig?.api_keys?.[selectedProvider as keyof typeof chatModelConfig.api_keys];
+
+    return config.ai.enable_thinking && (
+      selectedProvider === 'chatglm' ||
+      selectedProvider === 'deepseek' ||
+      !!apiKey
+    );
+  }, [selectedProvider, config]);
 
   const { theme } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -57,7 +78,8 @@ export const ChatArea: React.FC = () => {
     role: 'assistant' as const,
     content: streamingContent,
     timestamp: new Date(),
-    thinking_content: showThinking ? thinkingContent : undefined,
+    thinking_content: thinkingContent || undefined,
+    showThinking: !!thinkingContent, // Always show thinking bubble if thinking content exists
   } : null;
 
   return (
@@ -135,9 +157,9 @@ export const ChatArea: React.FC = () => {
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  showThinking={showThinking && message === lastAssistantMessage}
-                  onToggleThinking={toggleThinking}
+                  onToggleThinking={toggleMessageThinking}
                   canToggleThinking={message.role === 'assistant' && !!message.thinking_content}
+                  providerSupportsThinking={providerSupportsThinking}
                 />
               ))}
 
@@ -145,10 +167,11 @@ export const ChatArea: React.FC = () => {
               {streamingMessage && (
                 <MessageBubble
                   message={streamingMessage}
-                  showThinking={showThinking}
                   isStreaming={true}
-                  onToggleThinking={toggleThinking}
+                  onToggleThinking={toggleMessageThinking}
                   canToggleThinking={true}
+                  providerSupportsThinking={providerSupportsThinking}
+                  thinkingAutoHidden={hasHadThinkingContent && thinkingCompleted && !streamingMessage.showThinking}
                 />
               )}
             </div>

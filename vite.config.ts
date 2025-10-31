@@ -23,7 +23,7 @@ export default defineConfig(({ command }) => {
       alias: {
         '@': path.join(__dirname, 'src'),
         // Use renderer-safe database module in renderer process
-        './src/modules/database/local-db': path.join(__dirname, 'src/modules/database/local-db-renderer.ts'),
+        // './src/modules/database/local-db': path.join(__dirname, 'src/modules/database/local-db-renderer.ts'),
       },
     },
     define: {

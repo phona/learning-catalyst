@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { Message, StreamChunk, ChatOptions } from '@/types/ai';
-import type { Session } from '@/types/session';
+import type { Session, ConversationMessage } from '@/types/session';
 import { chatService } from '@/services/ai/chatService';
 import { useConfigStore } from './useConfigStore';
 
@@ -24,6 +24,9 @@ interface ChatStore {
   autoScroll: boolean;
   selectedProvider: string;
   selectedModel: string;
+
+  // Session service reference
+  _sessionService: any; // Internal reference to session service
 
   // Actions
   setCurrentSession: (session: Session | null) => void;
@@ -53,6 +56,10 @@ interface ChatStore {
   sendMessage: (content: string, options?: ChatOptions) => Promise<void>;
   stopStreaming: () => void;
   retryLastMessage: () => void;
+  createNewSession: () => Promise<string>;
+
+  // Session service actions
+  setSessionService: (sessionService: any) => void;
 }
 
 export const useChatStore = create<ChatStore>()(
@@ -77,25 +84,83 @@ export const useChatStore = create<ChatStore>()(
       selectedProvider: 'openai',
       selectedModel: 'gpt-3.5-turbo',
 
+      // Session service reference
+      _sessionService: null,
+
       // Actions
-      setCurrentSession: (session) => set({ currentSession: session }, false, 'setCurrentSession'),
+      setCurrentSession: (session) => {
+        // Convert session messages to store message format and set them
+        if (session && session.messages && session.messages.length > 0) {
+          const convertedMessages = session.messages.map((convMessage: any) => ({
+            id: convMessage.id,
+            role: convMessage.role,
+            content: convMessage.content,
+            timestamp: convMessage.timestamp,
+            provider: convMessage.provider,
+            model: convMessage.model,
+            thinking_content: convMessage.thinking_content,
+            tool_calls: convMessage.tool_calls,
+            showThinking: convMessage.role === 'assistant' && !!convMessage.thinking_content,
+          }));
+          set({ currentSession: session, messages: convertedMessages }, false, 'setCurrentSession');
+        } else {
+          set({ currentSession: session, messages: [] }, false, 'setCurrentSession');
+        }
+      },
 
       setMessages: (messages) => set({ messages }, false, 'setMessages'),
 
-      addMessage: (message) => set(
-        (state) => {
-          const newMessages = [...state.messages, message];
-          // 限制消息数量，移除最旧的消息
-          if (newMessages.length > state.maxMessages) {
-            const removed = newMessages.length - state.maxMessages;
-            console.warn(`[Chat Store] Limiting messages: removed ${removed} old messages to prevent memory leak`);
-            return { messages: newMessages.slice(-state.maxMessages) };
-          }
-          return { messages: newMessages };
-        },
-        false,
-        'addMessage'
-      ),
+      addMessage: (message) => {
+        const state = get();
+
+        // Set default thinking visibility for assistant messages with thinking content
+        const messageWithThinkingState = {
+          ...message,
+          showThinking: message.role === 'assistant' && !!message.thinking_content,
+        };
+
+        const newMessages = [...state.messages, messageWithThinkingState];
+
+        // 限制消息数量，移除最旧的消息
+        let finalMessages = newMessages;
+        if (newMessages.length > state.maxMessages) {
+          const removed = newMessages.length - state.maxMessages;
+          console.warn(`[Chat Store] Limiting messages: removed ${removed} old messages to prevent memory leak`);
+          finalMessages = newMessages.slice(-state.maxMessages);
+        }
+
+        // Update state
+        set({ messages: finalMessages }, false, 'addMessage');
+
+        // Persist to database if we have a session and session service
+        if (state.currentSession && state._sessionService) {
+          console.log('[ChatStore] Attempting to save message to session:', state.currentSession.id, message.role);
+          // Convert Message to ConversationMessage format
+          const conversationMessage: ConversationMessage = {
+            id: message.id || Date.now().toString(),
+            role: message.role,
+            content: message.content,
+            timestamp: message.timestamp || new Date(),
+            provider: message.provider,
+            model: undefined, // Message type doesn't have model field
+            thinking_content: message.thinking_content,
+            tokens_used: message.tokens_used ?
+              (typeof message.tokens_used === 'number' ? message.tokens_used : message.tokens_used.total_tokens) :
+              undefined,
+          };
+
+          // Save to database asynchronously (don't await to avoid blocking UI)
+          state._sessionService.saveMessage(state.currentSession.id, conversationMessage)
+            .then(() => console.log('[ChatStore] Message saved successfully'))
+            .catch((error: any) => console.error('[ChatStore] Failed to save message:', error));
+        } else {
+          console.log('[ChatStore] Cannot save message - missing session or service:', {
+            hasCurrentSession: !!state.currentSession,
+            hasSessionService: !!state._sessionService,
+            sessionId: state.currentSession?.id
+          });
+        }
+      },
 
       updateMessage: (id, updates) => set(
         (state) => ({
@@ -399,6 +464,132 @@ export const useChatStore = create<ChatStore>()(
           sendMessage(lastUserMessage.content);
         }
       },
+
+      createNewSession: async () => {
+        // Retry logic for session service availability
+        const maxRetries = 10;
+        const retryDelay = 500; // 500ms
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          const { _sessionService } = get();
+
+          if (_sessionService) {
+            try {
+              const sessionData = {
+                title: `Chat Session ${new Date().toLocaleDateString()}`,
+                metadata: {
+                  title: `Chat Session ${new Date().toLocaleDateString()}`,
+                  tags: [],
+                  topics_covered: [],
+                  archived: false,
+                  pinned: false,
+                },
+                context: {
+                  current_provider: get().selectedProvider,
+                  current_model: get().selectedModel,
+                  temperature: 0.7,
+                  max_tokens: 4096,
+                  enable_thinking: get().showThinking,
+                  conversation_style: 'educational',
+                  language: 'en',
+                  user_preferences: {
+                    learning_style: 'reading',
+                    detail_level: 'detailed',
+                    example_preference: 'all',
+                    response_length: 'medium',
+                    technical_level: 'intermediate',
+                  },
+                },
+                checkpoints: [],
+                statistics: {
+                  total_messages: 0,
+                  user_messages: 0,
+                  assistant_messages: 0,
+                  total_tokens_used: 0,
+                  total_thinking_tokens: 0,
+                  session_duration: 0,
+                  average_response_time: 0,
+                  concepts_learned: 0,
+                  checkpoints_created: 0,
+                  productivity_score: 0,
+                  engagement_score: 0,
+                },
+              };
+
+              const session = await _sessionService.createSession(sessionData);
+              console.log('[ChatStore] Created new session:', session.id);
+              return session.id;
+            } catch (error) {
+              console.error('[ChatStore] Failed to create session:', error);
+              if (attempt === maxRetries - 1) {
+                throw error;
+              }
+            }
+          } else {
+            console.log(`[ChatStore] Session service not available, retrying... (${attempt + 1}/${maxRetries})`);
+            if (attempt < maxRetries - 1) {
+              await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
+          }
+        }
+
+        // Fallback: create a temporary session in memory if session service is still not available
+        console.warn('[ChatStore] Session service not available after retries, creating temporary session');
+        const tempSessionId = `temp_${Date.now()}`;
+
+        // Set a temporary session in the store
+        const tempSession: Session = {
+          id: tempSessionId,
+          title: `Temporary Chat ${new Date().toLocaleDateString()}`,
+          created_at: new Date(),
+          updated_at: new Date(),
+          messages: [],
+          metadata: {
+            title: `Temporary Chat ${new Date().toLocaleDateString()}`,
+            tags: [],
+            topics_covered: [],
+            archived: false,
+            pinned: false,
+          },
+          context: {
+            current_provider: get().selectedProvider,
+            current_model: get().selectedModel,
+            temperature: 0.7,
+            max_tokens: 4096,
+            enable_thinking: get().showThinking,
+            conversation_style: 'educational',
+            language: 'en',
+            user_preferences: {
+              learning_style: 'reading',
+              detail_level: 'detailed',
+              example_preference: 'all',
+              response_length: 'medium',
+              technical_level: 'intermediate',
+            },
+          },
+          checkpoints: [],
+          statistics: {
+            total_messages: 0,
+            user_messages: 0,
+            assistant_messages: 0,
+            total_tokens_used: 0,
+            total_thinking_tokens: 0,
+            session_duration: 0,
+            average_response_time: 0,
+            concepts_learned: 0,
+            checkpoints_created: 0,
+            productivity_score: 0,
+            engagement_score: 0,
+          },
+        };
+
+        // Set the temporary session directly
+        get().setCurrentSession(tempSession);
+        return tempSessionId;
+      },
+
+      // Session service actions
+      setSessionService: (sessionService) => set({ _sessionService: sessionService }, false, 'setSessionService'),
     }),
     { name: 'chat-store' }
   )

@@ -52,6 +52,7 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
 
   const fetchSessions = useCallback(async (sessionLimit: number, isRefresh = false) => {
     try {
+      console.log('[useRecentSessions] Fetching sessions, service available:', !!sessionService);
       setState(prev => ({
         ...prev,
         loading: !isRefresh && prev.loading,
@@ -61,21 +62,30 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
 
       // Check if session service is available
       if (!sessionService) {
+        console.log('[useRecentSessions] Session service not available');
         throw new Error('Session service not available. Please wait for initialization to complete.');
       }
 
+      console.log('[useRecentSessions] Calling getRecentSessions with limit:', sessionLimit);
       const result = await sessionService.getRecentSessions(sessionLimit);
+      console.log('[useRecentSessions] Got sessions:', result.length);
 
-      setState(prev => ({
-        ...prev,
-        sessions: isRefresh ? result : [...prev.sessions, ...result],
-        loading: false,
-        refreshing: false,
-        error: null,
-        hasMore: result.length >= sessionLimit,
-      }));
+      setState(prev => {
+        // Always deduplicate sessions by ID to prevent duplicates
+        const allSessions = isRefresh ? result : [...prev.sessions, ...result];
+        const uniqueSessions = Array.from(new Map(allSessions.map(session => [session.id, session])).values());
+
+        return {
+          ...prev,
+          sessions: uniqueSessions,
+          loading: false,
+          refreshing: false,
+          error: null,
+          hasMore: result.length >= sessionLimit,
+        };
+      });
     } catch (error: any) {
-      console.error('Failed to fetch recent sessions:', error);
+      console.error('[useRecentSessions] Failed to fetch recent sessions:', error);
 
       // Provide more user-friendly error messages
       let errorMessage = error.message || 'Failed to load sessions';
@@ -94,10 +104,12 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
     }
   }, [sessionService]);
 
-  // Initial load
+  // Initial load and refresh when dependencies change
   useEffect(() => {
-    fetchSessions(currentLimit);
-  }, [fetchSessions, currentLimit]);
+    if (sessionService) {
+      fetchSessions(currentLimit);
+    }
+  }, [fetchSessions, currentLimit, sessionService]);
 
   const refresh = useCallback(async () => {
     await fetchSessions(currentLimit, true);

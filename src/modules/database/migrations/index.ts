@@ -3,6 +3,7 @@ import { MigrationManager } from './tools'
 
 // Static imports for all migration modules
 import createConcepts from './20251029_create_concepts'
+import { createConceptProgress } from './20251030_create_concept_progress'
 import createRelationships from './20251029_create_relationships'
 import createLearningSessions from './20251029_create_learning_sessions'
 import createMessages from './20251029_create_messages'
@@ -21,6 +22,7 @@ import insertDefaultData from './20251029_insert_default_data'
 export async function loadAllMigrations(): Promise<Record<string, Migration>> {
   return {
     '20251029_create_concepts': createConcepts,
+    '20251030_create_concept_progress': createConceptProgress,
     '20251029_create_relationships': createRelationships,
     '20251029_create_learning_sessions': createLearningSessions,
     '20251029_create_messages': createMessages,

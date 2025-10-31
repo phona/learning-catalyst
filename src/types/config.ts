@@ -19,6 +19,7 @@ export interface AIConfig {
   providers: Record<string, ProviderConfig>;
   streaming: boolean;
   enable_thinking: boolean;
+  auto_hide_thinking: boolean;
   context_window_size: number;
   system_prompt?: string;
   // Enhanced model type support

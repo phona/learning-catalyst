@@ -6,7 +6,7 @@
  */
 
 import { Kysely } from 'kysely';
-import { Database, createDatabase } from '@/modules/database/kysely-database';
+import { Database, createDatabase, runMigrations } from '@/modules/database/kysely-database';
 import { KnowledgeGraphModule } from '@/modules/knowledge-graph';
 import { SimpleAnalyticsModule } from '@/modules/analytics';
 import { VectorDatabaseModule } from '@/modules/vector-database';
@@ -37,6 +37,16 @@ export async function createServiceContainer(
   const database = await createDatabase();
   if (!database) {
     throw new Error('Failed to create database');
+  }
+
+  // Run migrations to ensure database schema is up to date
+  console.log('Running database migrations...');
+  try {
+    await runMigrations();
+    console.log('Database migrations completed successfully');
+  } catch (error) {
+    console.error('Failed to run database migrations:', error);
+    throw new Error(`Database migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
   // Create services with constructor injection

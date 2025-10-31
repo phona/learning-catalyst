@@ -35,7 +35,12 @@ class ElectronIPCConnection implements DatabaseConnection {
 
   async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
     try {
-      const result = await this.api.dbExecuteQuery(compiledQuery.sql, compiledQuery.parameters as any[])
+	  let result;
+	  if (compiledQuery.query.kind === 'SelectQueryNode') {
+		result = await this.api.dbFetchAll(compiledQuery.sql, compiledQuery.parameters as any[])
+	  } else {
+		result = await this.api.dbExecuteQuery(compiledQuery.sql, compiledQuery.parameters as any[])
+	  }
 
       // Transform the result to match Kysely's expected format
       const rows = Array.isArray(result) ? result as R[] :

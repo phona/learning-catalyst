@@ -12,6 +12,7 @@ export interface Message {
   provider?: string;
   thinking_content?: string;
   tokens_used?: TokenUsage;
+  showThinking?: boolean; // Individual thinking visibility control
 }
 
 export interface ToolCall {
@@ -26,6 +27,7 @@ export interface ToolCall {
 export interface StreamChunk {
   content?: string;
   reasoning_content?: string;
+  thinkingContent?: string; // Alias for reasoning_content for consistency
   done?: boolean;
   usage?: TokenUsage;
   error?: string;

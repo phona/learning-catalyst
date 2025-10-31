@@ -8,7 +8,6 @@
  * all database operations are properly typed at compile time.
  */
 
-import { ColumnType } from 'kysely'
 
 // Core Kysely interface for the entire database
 export interface Database {
@@ -17,6 +16,9 @@ export interface Database {
 
   // Learning concepts
   concepts: ConceptRow
+
+  // Concept progress tracking
+  concept_progress: ConceptProgressRow
 
   // Relationships between concepts
   relationships: RelationshipRow
@@ -69,6 +71,22 @@ export interface ConceptRow {
   last_reviewed?: string
   review_count: number
   parent_concept_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ConceptProgressRow {
+  id: number
+  concept_id: string
+  concept_name: string
+  mastery_level: number
+  time_spent: number // minutes
+  sessions_studied: number
+  average_performance: number // percentage 0-100
+  difficulty_rating: number // 1-5 scale
+  improvement_rate: number // mastery change per session
+  confidence_level: number // 1-5 scale
+  last_studied: string
   created_at: string
   updated_at: string
 }
@@ -186,12 +204,13 @@ export interface KnowledgeGraphCacheRow {
 }
 
 // Type helpers for working with JSON fields
-export type JSONField<T> = string & { readonly __brand: unique symbol }
-export type ParsedJSON<T> = T
+export type JSONField<T = unknown> = string & { readonly __brand: unique symbol }
+export type ParsedJSON<T = unknown> = T
 
 // Utility type for extracting insertable types (excluding auto-generated fields)
 export type InsertableCategory = Omit<CategoryRow, 'id' | 'created_at' | 'updated_at'>
 export type InsertableConcept = Omit<ConceptRow, 'created_at' | 'updated_at'>
+export type InsertableConceptProgress = Omit<ConceptProgressRow, 'id' | 'created_at' | 'updated_at'>
 export type InsertableRelationship = Omit<RelationshipRow, 'created_at' | 'updated_at'>
 export type InsertableLearningSession = Omit<LearningSessionRow, 'created_at' | 'updated_at'>
 export type InsertableMessage = Omit<MessageRow, 'created_at'>
@@ -205,6 +224,7 @@ export type InsertableKnowledgeGraphCache = Omit<KnowledgeGraphCacheRow, 'id' | 
 // Utility type for extracting updatable types
 export type UpdatableCategory = Partial<Omit<CategoryRow, 'id' | 'created_at'>>
 export type UpdatableConcept = Partial<Omit<ConceptRow, 'id' | 'created_at'>>
+export type UpdatableConceptProgress = Partial<Omit<ConceptProgressRow, 'id' | 'created_at'>>
 export type UpdatableRelationship = Partial<Omit<RelationshipRow, 'id' | 'created_at'>>
 export type UpdatableLearningSession = Partial<Omit<LearningSessionRow, 'id' | 'created_at'>>
 export type UpdatableMessage = Partial<Omit<MessageRow, 'id' | 'created_at'>>

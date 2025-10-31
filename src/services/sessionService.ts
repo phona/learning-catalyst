@@ -5,14 +5,15 @@
  * Uses dependency injection for database access.
  */
 
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import { JSONFieldHelpers } from '../modules/database/kysely-schema'
 import type { Database } from '../modules/database/kysely-schema'
 import {
   Session,
   SessionSearchQuery,
   SessionSearchResult,
-  SessionMetadata
+  SessionMetadata,
+  ConversationMessage
 } from '../types/session'
 
 /**
@@ -180,7 +181,11 @@ export class SessionService {
    */
   async getRecentSessions(limit: number = 10): Promise<Session[]> {
     try {
+      console.log('[SessionService] Getting recent sessions with limit:', limit);
       const db = this.getDB();
+
+      // Debug: Check if we can access the table
+      console.log('[SessionService] Executing query on learning_sessions table...');
 
       const rows = await db
         .selectFrom('learning_sessions')
@@ -189,16 +194,44 @@ export class SessionService {
         .limit(limit)
         .execute();
 
-      // Convert to session objects (without messages for performance)
+      console.log('[SessionService] Database returned rows:', rows.length);
+      console.log('[SessionService] Raw database rows:', rows);
+
+      // Convert to session objects with their messages
       const sessions: Session[] = [];
       for (const row of rows) {
         const metadata = JSONFieldHelpers.parseObject<SessionMetadata>(row.metadata) as SessionMetadata || {};
+
+        // Get messages for this session
+        const messageRows = await db
+          .selectFrom('messages')
+          .selectAll()
+          .where('session_id', '=', row.id)
+          .orderBy('message_order', 'asc')
+          .orderBy('timestamp', 'asc')
+          .execute();
+
+        console.log(`[SessionService] Found ${messageRows.length} messages for session ${row.id}`);
+
+        // Convert message rows to ConversationMessage objects
+        const messages: ConversationMessage[] = messageRows.map(msgRow => ({
+          id: msgRow.id,
+          role: msgRow.role as 'user' | 'assistant' | 'system' | 'tool',
+          content: msgRow.content,
+          timestamp: new Date(msgRow.timestamp),
+          provider: msgRow.provider,
+          model: msgRow.model,
+          thinking_content: msgRow.thinking_content,
+          tokens_used: msgRow.tokens_used ? Number(msgRow.tokens_used) : undefined,
+          metadata: undefined, // Add if needed in future
+        }));
+
         sessions.push({
           id: row.id,
           title: row.title,
           created_at: new Date(row.created_at),
           updated_at: new Date(row.updated_at),
-          messages: [], // Empty for recent sessions list
+          messages: messages, // Now includes actual messages from database
           metadata: {
             title: row.title,
             description: row.description,
@@ -363,8 +396,10 @@ export class SessionService {
    */
   async createSession(sessionData: Omit<Session, 'id' | 'created_at' | 'updated_at' | 'messages'>): Promise<string> {
     try {
+      console.log('[SessionService] Creating new session with title:', sessionData.title);
       const db = this.getDB()
-      const id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      const id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+      console.log('[SessionService] Generated session ID:', id);
 
       // Combine session metadata with context
       const metadata = {
@@ -401,10 +436,242 @@ export class SessionService {
         })
         .execute()
 
+      console.log('[SessionService] Session created successfully in database:', id);
       return id
     } catch (error) {
       console.error('[SessionService] Failed to create session:', error)
       throw new Error(`Failed to create session: ${error}`)
+    }
+  }
+
+  /**
+   * Save a message to the database
+   */
+  async saveMessage(sessionId: string, message: ConversationMessage): Promise<void> {
+    try {
+      console.log(`[SessionService] Saving message ${message.id} to session ${sessionId}`);
+      const db = this.getDB()
+
+      // Check if session exists, if not, create it
+      const existingSession = await db
+        .selectFrom('learning_sessions')
+        .select('id')
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+
+      if (!existingSession) {
+        console.log(`[SessionService] Session ${sessionId} does not exist, creating it...`);
+        await this.createSessionFromMessage(sessionId, message);
+      }
+
+      // Get the current message order for this session
+      const lastMessage = await db
+        .selectFrom('messages')
+        .select('message_order')
+        .where('session_id', '=', sessionId)
+        .orderBy('message_order', 'desc')
+        .limit(1)
+        .executeTakeFirst()
+
+      const message_order = (lastMessage?.message_order || 0) + 1
+
+      await db
+        .insertInto('messages')
+        .values({
+          id: message.id,
+          session_id: sessionId,
+          role: message.role,
+          content: message.content,
+          thinking_content: message.thinking_content,
+          provider: message.provider,
+          model: message.model,
+          tokens_used: message.tokens_used ? JSON.stringify({
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: message.tokens_used
+          }) : '{}',
+          timestamp: message.timestamp.toISOString(),
+          message_order,
+          created_at: new Date().toISOString()
+        })
+        .execute()
+
+      // Update session's message count and updated_at timestamp
+      await db
+        .updateTable('learning_sessions')
+        .set({
+          total_messages: sql`total_messages + 1`,
+          updated_at: new Date().toISOString()
+        })
+        .where('id', '=', sessionId)
+        .execute()
+
+      console.log(`[SessionService] Saved message ${message.id} to session ${sessionId}`)
+    } catch (error) {
+      console.error('[SessionService] Failed to save message:', error)
+      throw new Error(`Failed to save message: ${error}`)
+    }
+  }
+
+  /**
+   * Create a session from a message (for sessions that don't exist)
+   */
+  private async createSessionFromMessage(sessionId: string, message: ConversationMessage): Promise<void> {
+    try {
+      console.log(`[SessionService] Creating session ${sessionId} from message`);
+      const db = this.getDB();
+
+      const now = new Date().toISOString();
+      const metadata = {
+        title: `Chat Session ${new Date().toLocaleDateString()}`,
+        description: message.content.substring(0, 100) + (message.content.length > 100 ? '...' : ''),
+        tags: [],
+        category: 'general',
+        difficulty: 'intermediate',
+        learning_objectives: [],
+        topics_covered: [],
+        user_id: undefined,
+        archived: false,
+        pinned: false,
+        color: undefined,
+        provider: message.provider,
+        auto_created: true // Flag to indicate this was auto-created
+      };
+
+      await db
+        .insertInto('learning_sessions')
+        .values({
+          id: sessionId,
+          title: metadata.title,
+          description: metadata.description,
+          start_time: now,
+          duration_seconds: 0,
+          total_messages: 0,
+          concepts_studied: 0,
+          difficulty_level: 1,
+          session_type: 'general',
+          metadata: JSON.stringify(metadata),
+          created_at: now,
+          updated_at: now,
+        })
+        .execute();
+
+      console.log(`[SessionService] Auto-created session ${sessionId} successfully`);
+    } catch (error) {
+      console.error(`[SessionService] Failed to create session from message:`, error);
+      throw new Error(`Failed to create session from message: ${error}`);
+    }
+  }
+
+  /**
+   * Save multiple messages to the database (batch operation)
+   */
+  async saveMessages(sessionId: string, messages: ConversationMessage[]): Promise<void> {
+    try {
+      const db = this.getDB()
+
+      if (messages.length === 0) {
+        return
+      }
+
+      // Get the current message order for this session
+      const lastMessage = await db
+        .selectFrom('messages')
+        .select('message_order')
+        .where('session_id', '=', sessionId)
+        .orderBy('message_order', 'desc')
+        .limit(1)
+        .executeTakeFirst()
+
+      let message_order = (lastMessage?.message_order || 0)
+
+      // Prepare message records
+      const messageRecords = messages.map((message) => ({
+        id: message.id,
+        session_id: sessionId,
+        role: message.role,
+        content: message.content,
+        thinking_content: message.thinking_content,
+        provider: message.provider,
+        model: message.model,
+        tokens_used: message.tokens_used ? JSON.stringify({
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: message.tokens_used
+        }) : '{}',
+        timestamp: message.timestamp.toISOString(),
+        message_order: ++message_order,
+        created_at: new Date().toISOString()
+      }))
+
+      // Insert all messages
+      await db
+        .insertInto('messages')
+        .values(messageRecords)
+        .execute()
+
+      // Update session's message count and updated_at timestamp
+      await db
+        .updateTable('learning_sessions')
+        .set({
+          total_messages: sql`total_messages + ${messages.length}`,
+          updated_at: new Date().toISOString()
+        })
+        .where('id', '=', sessionId)
+        .execute()
+
+      console.log(`[SessionService] Saved ${messages.length} messages to session ${sessionId}`)
+    } catch (error) {
+      console.error('[SessionService] Failed to save messages:', error)
+      throw new Error(`Failed to save messages: ${error}`)
+    }
+  }
+
+  /**
+   * Update a message in the database
+   */
+  async updateMessage(sessionId: string, messageId: string, updates: Partial<ConversationMessage>): Promise<void> {
+    try {
+      const db = this.getDB()
+
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      }
+
+      if (updates.content !== undefined) {
+        updateData.content = updates.content
+      }
+      if (updates.thinking_content !== undefined) {
+        updateData.thinking_content = updates.thinking_content
+      }
+      if (updates.tokens_used !== undefined) {
+        updateData.tokens_used = JSON.stringify({
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: updates.tokens_used
+        })
+      }
+
+      await db
+        .updateTable('messages')
+        .set(updateData)
+        .where('id', '=', messageId)
+        .where('session_id', '=', sessionId)
+        .execute()
+
+      // Update session's updated_at timestamp
+      await db
+        .updateTable('learning_sessions')
+        .set({
+          updated_at: new Date().toISOString()
+        })
+        .where('id', '=', sessionId)
+        .execute()
+
+      console.log(`[SessionService] Updated message ${messageId} in session ${sessionId}`)
+    } catch (error) {
+      console.error('[SessionService] Failed to update message:', error)
+      throw new Error(`Failed to update message: ${error}`)
     }
   }
 
