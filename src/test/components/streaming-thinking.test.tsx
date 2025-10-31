@@ -113,12 +113,8 @@ describe('Streaming and Thinking Display Functionality', () => {
       // Thinking content should not be visible when showThinking is false
       expect(screen.queryByText(/Thinking about the answer/)).not.toBeInTheDocument();
 
-      // Toggle thinking display
-      const { toggleThinking } = useChatStore.getState();
-      toggleThinking();
-
-      // Now thinking should be visible (would need re-render)
-      setState({ showThinking: true });
+      // Toggle thinking display by updating the message
+      setState({ messages: [{ ...message, showThinking: true }] });
 
       expect(screen.getByText(/Thinking about the answer/)).toBeInTheDocument();
     });
@@ -131,6 +127,7 @@ describe('Streaming and Thinking Display Functionality', () => {
         role: 'assistant',
         content: 'Here is the explanation',
         thinking_content: 'Let me think about this step by step',
+        showThinking: false,
         timestamp: new Date(),
         provider: 'chatglm',
       };
@@ -138,8 +135,6 @@ describe('Streaming and Thinking Display Functionality', () => {
       render(
         <MessageBubble
           message={message}
-          showThinking={false}
-          canToggleThinking={true}
           onToggleThinking={vi.fn()}
         />
       );
@@ -161,8 +156,6 @@ describe('Streaming and Thinking Display Functionality', () => {
       render(
         <MessageBubble
           message={message}
-          showThinking={false}
-          canToggleThinking={false}
           onToggleThinking={vi.fn()}
         />
       );
@@ -178,6 +171,7 @@ describe('Streaming and Thinking Display Functionality', () => {
         role: 'assistant',
         content: 'Final answer here',
         thinking_content: '## My thought process\n\n1. Analyze the question\n2. Formulate response\n3. Provide examples',
+        showThinking: true,
         timestamp: new Date(),
         provider: 'chatglm',
       };
@@ -185,8 +179,6 @@ describe('Streaming and Thinking Display Functionality', () => {
       render(
         <MessageBubble
           message={message}
-          showThinking={true}
-          canToggleThinking={true}
           onToggleThinking={vi.fn()}
         />
       );
@@ -207,6 +199,7 @@ describe('Streaming and Thinking Display Functionality', () => {
         role: 'assistant',
         content: 'Response',
         thinking_content: 'Thinking process',
+        showThinking: false,
         timestamp: new Date(),
         provider: 'chatglm',
       };
@@ -214,8 +207,6 @@ describe('Streaming and Thinking Display Functionality', () => {
       render(
         <MessageBubble
           message={message}
-          showThinking={false}
-          canToggleThinking={true}
           onToggleThinking={mockToggleThinking}
         />
       );
@@ -224,7 +215,7 @@ describe('Streaming and Thinking Display Functionality', () => {
       const thinkingButton = screen.getByTitle('Show thinking process');
       fireEvent.click(thinkingButton);
 
-      expect(mockToggleThinking).toHaveBeenCalledTimes(1);
+      expect(mockToggleThinking).toHaveBeenCalledWith('1');
     });
 
     it('should display streaming indicator during active streaming', () => {
@@ -253,6 +244,7 @@ describe('Streaming and Thinking Display Functionality', () => {
         role: 'assistant',
         content: 'Final response',
         thinking_content: '# Analysis\n\n**Important point**: This is key.\n\n- Item 1\n- Item 2',
+        showThinking: true,
         timestamp: new Date(),
         provider: 'chatglm',
       };
@@ -260,8 +252,6 @@ describe('Streaming and Thinking Display Functionality', () => {
       render(
         <MessageBubble
           message={message}
-          showThinking={true}
-          canToggleThinking={true}
           onToggleThinking={vi.fn()}
         />
       );
@@ -385,6 +375,7 @@ describe('Streaming and Thinking Display Functionality', () => {
         id: '1',
         role: 'assistant',
         content: 'Response without thinking',
+        showThinking: false, // No thinking content so this should be false
         timestamp: new Date(),
         provider: 'chatglm',
       };
@@ -392,8 +383,6 @@ describe('Streaming and Thinking Display Functionality', () => {
       render(
         <MessageBubble
           message={message}
-          showThinking={true}
-          canToggleThinking={false} // Should be false if no thinking_content
           onToggleThinking={vi.fn()}
         />
       );

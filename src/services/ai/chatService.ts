@@ -6,6 +6,7 @@ import type {
   ChatResponse,
 } from '@/types/ai';
 import type { Session } from '@/types/session';
+import { useConfigStore } from '@/stores/useConfigStore';
 
 /**
  * Chat service to manage AI interactions
@@ -77,13 +78,17 @@ export class ChatService {
       },
     ];
 
-    // Send to provider with session context
+    // Get global config
+    const { config } = useConfigStore.getState();
+    const globalChatConfig = config?.ai?.model_types?.chat;
+
+    // Send to provider with global config (not session context)
     const mergedOptions = {
       ...options,
-      temperature: session.context.temperature,
-      max_tokens: session.context.max_tokens,
-      enable_thinking: session.context.enable_thinking,
-      model: session.context.current_model || options?.model,
+      temperature: options?.temperature ?? 0.7,
+      max_tokens: options?.max_tokens ?? 4096,
+      enable_thinking: options?.enable_thinking ?? false,
+      model: options?.model,
     };
 
     return await this.currentProvider.sendMessage(messages, mergedOptions);

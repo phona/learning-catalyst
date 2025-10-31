@@ -52,24 +52,13 @@ export interface SessionMetadata {
 }
 
 export interface SessionContext {
-  current_provider: string;
-  current_model: string;
-  system_prompt?: string;
-  temperature: number;
-  max_tokens: number;
-  enable_thinking: boolean;
-  conversation_style?: 'formal' | 'casual' | 'educational' | 'technical';
-  language: string;
-  user_preferences: UserPreferences;
+  // Session-specific context that differs from global config
+  system_prompt?: string; // Optional session-specific system prompt override
+  notes?: string; // Session-specific notes or context
+  learning_objectives?: string[]; // Session-specific learning goals
 }
 
-export interface UserPreferences {
-  learning_style: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
-  detail_level: 'brief' | 'detailed' | 'comprehensive';
-    example_preference: 'code' | 'real-world' | 'analogies' | 'all';
-  response_length: 'short' | 'medium' | 'long';
-  technical_level: 'beginner' | 'intermediate' | 'advanced';
-}
+// UserPreferences moved to global configuration
 
 export interface Checkpoint {
   id: string;
@@ -78,7 +67,7 @@ export interface Checkpoint {
   description?: string;
   created_at: Date;
   message_index: number;
-  context_snapshot: SessionContext;
+  // Remove context_snapshot as config is now global
   concepts_mastered: string[];
   concepts_reviewed: string[];
   practice_exercises?: PracticeExercise[];

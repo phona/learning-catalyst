@@ -167,17 +167,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   const handleOpenSession = (session: any) => {
     try {
-      // Load the session
-      setCurrentSession(session);
+      console.log(`[Sidebar] handleOpenSession called with:`, {
+        sessionId: session.id,
+        title: session.title,
+        messageCount: session.messages?.length || 0,
+        sampleMessages: session.messages?.slice(0, 2).map((m: any) => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' })) || []
+      });
 
-      // Navigate to chat view
+      // Navigate to chat view FIRST
       setCurrentView('chat');
       navigate('/');
 
-      // Clear current messages (they will be loaded from the session)
+      // Clear current messages BEFORE loading the session
       clearMessages();
 
+      // Load the session LAST (after clearing)
+      console.log(`[Sidebar] Calling setCurrentSession...`);
+      setCurrentSession(session);
+
       console.log(`[Sidebar] Opened session: ${session.id}`);
+
+      // Verify state after setting
+      setTimeout(() => {
+        const currentState = useChatStore.getState();
+        console.log(`[Sidebar] State after session open:`, {
+          currentSessionId: currentState.currentSession?.id,
+          messagesInStore: currentState.messages.length,
+          sampleMessages: currentState.messages.slice(0, 2).map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
+        });
+      }, 100);
     } catch (error) {
       console.error('[Sidebar] Failed to open session:', error);
       // TODO: Show error toast/notification to user

@@ -54,7 +54,6 @@ export type {
   MessageMetadata,
   SessionMetadata,
   SessionContext,
-  UserPreferences,
   Checkpoint,
   PracticeExercise,
   SessionStatistics,

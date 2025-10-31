@@ -7,6 +7,8 @@ import { getQdrantManager } from './qdrant-manager'
 import { QdrantManager } from './qdrant-manager'
 // import { getMockQdrantManager } from './mock-qdrant-manager'
 // import { getMockDatabase } from './mock-database' // Using real SQLite now
+// Memory debugging utility for development
+import { startMemoryDebug, cleanupMemoryDebug } from '../../src/utils/memory-debug'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -127,6 +129,9 @@ async function cleanup() {
 
   console.log('🧹 Cleaning up resources...')
 
+  // Clean up memory debugging
+  cleanupMemoryDebug();
+
   // Remove the open-win handler
   ipcMain.removeHandler('open-win')
 
@@ -153,6 +158,9 @@ async function cleanup() {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   console.log('🚀 Learning Catalyst starting...')
+
+  // Initialize memory debugging for development
+  startMemoryDebug();
 
   // Initialize Qdrant service
   const qdrantManager = getQdrantManager();

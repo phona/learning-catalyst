@@ -1,14 +1,18 @@
 import React, { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { ChatArea } from './ChatArea';
 import { ChatInput } from './ChatInput';
 import { useChatStore } from '@/stores/useChatStore';
 import { useConfigStore } from '@/stores/useConfigStore';
+import { useService } from '@/hooks/useAppServices';
 
 export const ChatInterface: React.FC = () => {
+  const { sessionId } = useParams<{ sessionId?: string }>();
+  const sessionService = useService('sessionService');
+
   const {
     currentSession,
     setCurrentSession,
-    setShowThinking,
     setAutoScroll,
     setSelectedProvider,
     setSelectedModel
@@ -19,7 +23,6 @@ export const ChatInterface: React.FC = () => {
   // Initialize chat settings from config
   useEffect(() => {
     if (config) {
-      setShowThinking(config.ai?.enable_thinking ?? true);
       setAutoScroll(config.ui?.auto_scroll ?? true);
       setSelectedProvider(config.ai?.model_types?.chat?.default_provider ?? config.ai?.default_provider ?? 'openai');
       setSelectedModel(config.ai?.model_types?.chat?.default_model ?? config.ai?.default_model ?? 'gpt-3.5-turbo');
@@ -40,20 +43,10 @@ export const ChatInterface: React.FC = () => {
           pinned: false,
         },
         context: {
-          current_provider: config.ai?.model_types?.chat?.default_provider ?? config.ai?.default_provider ?? 'openai',
-          current_model: config.ai?.model_types?.chat?.default_model ?? config.ai?.default_model ?? 'gpt-3.5-turbo',
-          temperature: config.ai?.temperature ?? 0.7,
-          max_tokens: config.ai?.max_tokens ?? 4096,
-          enable_thinking: config.ai?.enable_thinking ?? true,
-          conversation_style: 'educational',
-          language: 'en',
-          user_preferences: {
-            learning_style: 'reading',
-            detail_level: 'detailed',
-            example_preference: 'all',
-            response_length: 'medium',
-            technical_level: 'intermediate',
-          },
+          // Only session-specific context, no config
+          system_prompt: undefined,
+          notes: undefined,
+          learning_objectives: undefined,
         },
         checkpoints: [],
         statistics: {
@@ -76,11 +69,55 @@ export const ChatInterface: React.FC = () => {
     config,
     currentSession,
     setCurrentSession,
-    setShowThinking,
     setAutoScroll,
     setSelectedProvider,
     setSelectedModel
   ]);
+
+  // Load session by ID when provided in URL
+  useEffect(() => {
+    console.log(`[ChatInterface] useEffect triggered with sessionId: ${sessionId}, sessionService available: ${!!sessionService}`);
+
+    if (sessionId && sessionService) {
+      console.log(`[ChatInterface] Loading session from URL: ${sessionId}`);
+
+      const loadSession = async () => {
+        try {
+          console.log(`[ChatInterface] Calling sessionService.getSessionById(${sessionId})`);
+          const session = await sessionService.getSessionById(sessionId);
+          console.log(`[ChatInterface] getSessionById returned:`, {
+            sessionFound: !!session,
+            sessionId: session?.id,
+            title: session?.title,
+            messageCount: session?.messages?.length || 0
+          });
+
+          if (session) {
+            console.log(`[ChatInterface] Found session: ${session.title} with ${session.messages.length} messages`);
+            console.log(`[ChatInterface] Sample messages:`, session.messages.slice(0, 2).map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' })));
+            console.log(`[ChatInterface] Calling setCurrentSession with session data`);
+            setCurrentSession(session);
+
+            // Verify the state after setting
+            setTimeout(() => {
+              const currentState = useChatStore.getState();
+              console.log(`[ChatInterface] State after setCurrentSession:`, {
+                currentSessionId: currentState.currentSession?.id,
+                messagesInStore: currentState.messages.length,
+                sampleMessages: currentState.messages.slice(0, 2).map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
+              });
+            }, 100);
+          } else {
+            console.warn(`[ChatInterface] Session not found: ${sessionId}`);
+          }
+        } catch (error) {
+          console.error(`[ChatInterface] Failed to load session ${sessionId}:`, error);
+        }
+      };
+
+      loadSession();
+    }
+  }, [sessionId, sessionService, setCurrentSession]);
 
   return (
     <div className="h-full flex flex-col">

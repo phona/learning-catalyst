@@ -132,21 +132,10 @@ export class SessionService {
             color: metadata.color,
           },
           context: {
-            current_provider: (metadata as any).provider || 'openai',
-            current_model: (metadata as any).model || 'gpt-3.5-turbo',
+            // Only session-specific context
             system_prompt: (metadata as any).system_prompt,
-            temperature: (metadata as any).temperature || 0.7,
-            max_tokens: (metadata as any).max_tokens || 4096,
-            enable_thinking: (metadata as any).enable_thinking ?? true,
-            conversation_style: (metadata as any).conversation_style || 'educational',
-            language: (metadata as any).language || 'en',
-            user_preferences: (metadata as any).user_preferences || {
-              learning_style: 'reading',
-              detail_level: 'detailed',
-              example_preference: 'all',
-              response_length: 'medium',
-              technical_level: 'intermediate',
-            },
+            notes: (metadata as any).notes,
+            learning_objectives: (metadata as any).learning_objectives || [],
           },
           checkpoints: (metadata as any).checkpoints || [],
           statistics: {
@@ -246,21 +235,10 @@ export class SessionService {
             color: metadata.color,
           },
           context: {
-            current_provider: (metadata as any).provider || 'openai',
-            current_model: (metadata as any).model || 'gpt-3.5-turbo',
+            // Only session-specific context
             system_prompt: (metadata as any).system_prompt,
-            temperature: (metadata as any).temperature || 0.7,
-            max_tokens: (metadata as any).max_tokens || 4096,
-            enable_thinking: (metadata as any).enable_thinking ?? true,
-            conversation_style: (metadata as any).conversation_style || 'educational',
-            language: (metadata as any).language || 'en',
-            user_preferences: (metadata as any).user_preferences || {
-              learning_style: 'reading',
-              detail_level: 'detailed',
-              example_preference: 'all',
-              response_length: 'medium',
-              technical_level: 'intermediate',
-            },
+            notes: (metadata as any).notes,
+            learning_objectives: (metadata as any).learning_objectives || [],
           },
           checkpoints: (metadata as any).checkpoints || [],
           statistics: {
@@ -355,21 +333,10 @@ export class SessionService {
         color: metadata.color,
       },
       context: {
-        current_provider: (metadata as any).provider || 'openai',
-        current_model: (metadata as any).model || 'gpt-3.5-turbo',
+        // Only session-specific context
         system_prompt: (metadata as any).system_prompt,
-        temperature: (metadata as any).temperature || 0.7,
-        max_tokens: (metadata as any).max_tokens || 4096,
-        enable_thinking: (metadata as any).enable_thinking ?? true,
-        conversation_style: (metadata as any).conversation_style || 'educational',
-        language: (metadata as any).language || 'en',
-        user_preferences: (metadata as any).user_preferences || {
-          learning_style: 'reading',
-          detail_level: 'detailed',
-          example_preference: 'all',
-          response_length: 'medium',
-          technical_level: 'intermediate',
-        },
+        notes: (metadata as any).notes,
+        learning_objectives: (metadata as any).learning_objectives || [],
       },
       checkpoints: (metadata as any).checkpoints || [],
       statistics: {
@@ -401,18 +368,13 @@ export class SessionService {
       const id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
       console.log('[SessionService] Generated session ID:', id);
 
-      // Combine session metadata with context
+      // Combine session metadata with context (no config storage)
       const metadata = {
         ...sessionData.metadata,
-        provider: sessionData.context.current_provider,
-        model: sessionData.context.current_model,
+        // Only store session-specific context in metadata
         system_prompt: sessionData.context.system_prompt,
-        temperature: sessionData.context.temperature,
-        max_tokens: sessionData.context.max_tokens,
-        enable_thinking: sessionData.context.enable_thinking,
-        conversation_style: sessionData.context.conversation_style,
-        language: sessionData.context.language,
-        user_preferences: sessionData.context.user_preferences,
+        notes: sessionData.context.notes,
+        learning_objectives: sessionData.context.learning_objectives,
         checkpoints: sessionData.checkpoints,
       }
 

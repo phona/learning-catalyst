@@ -20,7 +20,6 @@ interface ChatStore {
   maxMessages: number;
 
   // UI state
-  showThinking: boolean;
   autoScroll: boolean;
   selectedProvider: string;
   selectedModel: string;
@@ -46,8 +45,6 @@ interface ChatStore {
   setError: (error: string | null) => void;
 
   // UI actions
-  setShowThinking: (show: boolean) => void;
-  toggleThinking: () => void;
   setAutoScroll: (autoScroll: boolean) => void;
   setSelectedProvider: (provider: string) => void;
   setSelectedModel: (model: string) => void;
@@ -79,7 +76,6 @@ export const useChatStore = create<ChatStore>()(
       maxMessages: 1000, // 限制最大消息数量
 
       // UI state
-      showThinking: true,
       autoScroll: true,
       selectedProvider: 'openai',
       selectedModel: 'gpt-3.5-turbo',
@@ -89,6 +85,14 @@ export const useChatStore = create<ChatStore>()(
 
       // Actions
       setCurrentSession: (session) => {
+        console.log('[ChatStore] setCurrentSession called with:', {
+          sessionId: session?.id,
+          sessionTitle: session?.title,
+          messageCount: session?.messages?.length || 0,
+          messages: session?.messages?.map((m: any) => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' })) || [],
+          sessionContext: session?.context
+        });
+
         // Convert session messages to store message format and set them
         if (session && session.messages && session.messages.length > 0) {
           const convertedMessages = session.messages.map((convMessage: any) => ({
@@ -100,11 +104,23 @@ export const useChatStore = create<ChatStore>()(
             model: convMessage.model,
             thinking_content: convMessage.thinking_content,
             tool_calls: convMessage.tool_calls,
-            showThinking: convMessage.role === 'assistant' && !!convMessage.thinking_content,
+            showThinking: false, // Hide thinking by default for historical sessions
           }));
-          set({ currentSession: session, messages: convertedMessages }, false, 'setCurrentSession');
+          console.log('[ChatStore] Setting messages in store:', convertedMessages.length, 'messages');
+
+          // Set session only - provider/model come from global config
+          set({
+            currentSession: session,
+            messages: convertedMessages,
+          }, false, 'setCurrentSession');
         } else {
-          set({ currentSession: session, messages: [] }, false, 'setCurrentSession');
+          console.log('[ChatStore] Setting empty messages array for session:', session?.id);
+
+          // Set session only - provider/model come from global config
+          set({
+            currentSession: session,
+            messages: [],
+          }, false, 'setCurrentSession');
         }
       },
 
@@ -113,10 +129,10 @@ export const useChatStore = create<ChatStore>()(
       addMessage: (message) => {
         const state = get();
 
-        // Set default thinking visibility for assistant messages with thinking content
+        // Set thinking visibility - hide by default, will be shown during streaming
         const messageWithThinkingState = {
           ...message,
-          showThinking: message.role === 'assistant' && !!message.thinking_content,
+          showThinking: false, // Default to hidden for completed messages
         };
 
         const newMessages = [...state.messages, messageWithThinkingState];
@@ -254,16 +270,6 @@ export const useChatStore = create<ChatStore>()(
       setError: (error) => set({ error }, false, 'setError'),
 
       // UI actions
-      setShowThinking: (show) => set({ showThinking: show }, false, 'setShowThinking'),
-
-      toggleThinking: () => {
-      console.log('toggleThinking called, current state:', get().showThinking);
-      set((state) => {
-        const newState = !state.showThinking;
-        console.log('toggleThinking setting to:', newState);
-        return { showThinking: newState };
-      }, false, 'toggleThinking');
-    },
 
       setAutoScroll: (autoScroll) => set({ autoScroll }, false, 'setAutoScroll'),
 
@@ -298,17 +304,7 @@ export const useChatStore = create<ChatStore>()(
         };
         addMessage(userMessage);
 
-        // Re-enable thinking for new message if provider supports it
-        const { config } = useConfigStore.getState();
-        const chatModelConfig = config?.ai?.model_types?.chat;
-        const apiKey = chatModelConfig?.api_keys?.[selectedProvider as keyof typeof chatModelConfig.api_keys];
-        const shouldShowThinking = config?.ai?.enable_thinking &&
-                                 (selectedProvider === 'chatglm' || apiKey);
-
-        if (shouldShowThinking) {
-          set({ showThinking: true }, false, 'enableThinkingForNewMessage');
-        }
-
+        
         setLoading(true);
         resetStreaming();
 
@@ -394,13 +390,7 @@ export const useChatStore = create<ChatStore>()(
             };
             addMessage(assistantMessage);
 
-            // Auto-hide thinking process when response is complete
-            const state = get();
-            if (state.showThinking && thinkingContent) {
-              // Only auto-hide if thinking content was actually shown
-              set({ showThinking: false }, false, 'autoHideThinking');
-            }
-          } else {
+                      } else {
             // Non-streaming response (fallback)
             const chatResponse = response as any;
             const assistantMessage: Message = {
@@ -418,13 +408,7 @@ export const useChatStore = create<ChatStore>()(
             };
             addMessage(assistantMessage);
 
-            // Auto-hide thinking process when response is complete (non-streaming)
-            const state = get();
-            if (state.showThinking && chatResponse.reasoning_content) {
-              // Only auto-hide if thinking content was actually present
-              set({ showThinking: false }, false, 'autoHideThinkingNonStreaming');
-            }
-          }
+                      }
         } catch (error) {
           console.error('Failed to send message:', error);
           setError(error instanceof Error ? error.message : 'Failed to send message');
@@ -485,20 +469,10 @@ export const useChatStore = create<ChatStore>()(
                   pinned: false,
                 },
                 context: {
-                  current_provider: get().selectedProvider,
-                  current_model: get().selectedModel,
-                  temperature: 0.7,
-                  max_tokens: 4096,
-                  enable_thinking: get().showThinking,
-                  conversation_style: 'educational',
-                  language: 'en',
-                  user_preferences: {
-                    learning_style: 'reading',
-                    detail_level: 'detailed',
-                    example_preference: 'all',
-                    response_length: 'medium',
-                    technical_level: 'intermediate',
-                  },
+                  // Only session-specific context, no config
+                  system_prompt: undefined,
+                  notes: undefined,
+                  learning_objectives: undefined,
                 },
                 checkpoints: [],
                 statistics: {
@@ -552,20 +526,10 @@ export const useChatStore = create<ChatStore>()(
             pinned: false,
           },
           context: {
-            current_provider: get().selectedProvider,
-            current_model: get().selectedModel,
-            temperature: 0.7,
-            max_tokens: 4096,
-            enable_thinking: get().showThinking,
-            conversation_style: 'educational',
-            language: 'en',
-            user_preferences: {
-              learning_style: 'reading',
-              detail_level: 'detailed',
-              example_preference: 'all',
-              response_length: 'medium',
-              technical_level: 'intermediate',
-            },
+            // Only session-specific context, no config
+            system_prompt: undefined,
+            notes: undefined,
+            learning_objectives: undefined,
           },
           checkpoints: [],
           statistics: {

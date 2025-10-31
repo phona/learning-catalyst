@@ -38,20 +38,10 @@ export const ChatInterface: React.FC = () => {
           pinned: false,
         },
         context: {
-          current_provider: config.ai?.default_provider ?? 'openai',
-          current_model: config.ai?.default_model ?? 'gpt-3.5-turbo',
-          temperature: config.ai?.temperature ?? 0.7,
-          max_tokens: config.ai?.max_tokens ?? 4096,
-          enable_thinking: config.ai?.enable_thinking ?? true,
-          conversation_style: 'educational',
-          language: 'en',
-          user_preferences: {
-            learning_style: 'reading',
-            detail_level: 'detailed',
-            example_preference: 'all',
-            response_length: 'medium',
-            technical_level: 'intermediate',
-          },
+          // Only session-specific context, no config
+          system_prompt: undefined,
+          notes: undefined,
+          learning_objectives: undefined,
         },
         checkpoints: [],
         statistics: {

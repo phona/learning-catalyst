@@ -3,13 +3,14 @@ import { useChatStore } from '@/stores/useChatStore';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { chatService } from '@/services/ai/chatService';
 import type { Message, Session, ChatOptions } from '@/types';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock dependencies
-jest.mock('@/stores/useConfigStore');
-jest.mock('@/services/ai/chatService');
+vi.mock('@/stores/useConfigStore');
+vi.mock('@/services/ai/chatService');
 
-const mockUseConfigStore = useConfigStore as jest.MockedFunction<typeof useConfigStore>;
-const mockChatService = chatService as jest.Mocked<typeof chatService>;
+const mockUseConfigStore = useConfigStore as any;
+const mockChatService = chatService as any;
 
 describe('useChatStore', () => {
   const mockSession: Session = {
@@ -93,19 +94,19 @@ describe('useChatStore', () => {
 
     mockUseConfigStore.mockReturnValue({
       config: mockConfig,
-      setConfig: jest.fn(),
-      loadConfig: jest.fn(),
-      saveConfig: jest.fn(),
-      resetConfig: jest.fn(),
+      setConfig: vi.fn(),
+      loadConfig: vi.fn(),
+      saveConfig: vi.fn(),
+      resetConfig: vi.fn(),
     } as any);
 
-    mockChatService.getProviderInfo = jest.fn();
-    mockChatService.initializeProvider = jest.fn().mockResolvedValue(undefined);
-    mockChatService.setCurrentSession = jest.fn();
-    mockChatService.sendMessage = jest.fn();
-    mockChatService.processStreamResponse = jest.fn();
+    mockChatService.getProviderInfo = vi.fn();
+    mockChatService.initializeProvider = vi.fn().mockResolvedValue(undefined);
+    mockChatService.setCurrentSession = vi.fn();
+    mockChatService.sendMessage = vi.fn();
+    mockChatService.processStreamResponse = vi.fn();
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Initial State', () => {
@@ -120,7 +121,6 @@ describe('useChatStore', () => {
       expect(result.current.thinkingContent).toBe('');
       expect(result.current.inputText).toBe('');
       expect(result.current.error).toBeNull();
-      expect(result.current.showThinking).toBe(true);
       expect(result.current.autoScroll).toBe(true);
       expect(result.current.selectedProvider).toBe('openai');
       expect(result.current.selectedModel).toBe('gpt-3.5-turbo');
@@ -170,7 +170,10 @@ describe('useChatStore', () => {
       });
 
       expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0]).toEqual(mockMessage);
+      expect(result.current.messages[0]).toEqual({
+        ...mockMessage,
+        showThinking: false, // This is added by the addMessage function
+      });
     });
 
     it('updates message', () => {
@@ -204,6 +207,30 @@ describe('useChatStore', () => {
       });
 
       expect(result.current.messages).toHaveLength(0);
+    });
+
+    it('updates message thinking visibility', () => {
+      const { result } = renderHook(() => useChatStore());
+      const messageWithThinking = {
+        id: 'msg-1',
+        role: 'assistant' as const,
+        content: 'Hello!',
+        thinking_content: 'Thinking process',
+        showThinking: false,
+      };
+
+      act(() => {
+        result.current.addMessage(messageWithThinking);
+        result.current.updateMessage(messageWithThinking.id, { showThinking: true });
+      });
+
+      expect(result.current.messages[0].showThinking).toBe(true);
+
+      act(() => {
+        result.current.updateMessage(messageWithThinking.id, { showThinking: false });
+      });
+
+      expect(result.current.messages[0].showThinking).toBe(false);
     });
   });
 
@@ -319,21 +346,6 @@ describe('useChatStore', () => {
   });
 
   describe('UI State Management', () => {
-    it('toggles thinking visibility', () => {
-      const { result } = renderHook(() => useChatStore());
-
-      act(() => {
-        result.current.setShowThinking(false);
-      });
-
-      expect(result.current.showThinking).toBe(false);
-
-      act(() => {
-        result.current.setShowThinking(true);
-      });
-
-      expect(result.current.showThinking).toBe(true);
-    });
 
     it('toggles auto scroll', () => {
       const { result } = renderHook(() => useChatStore());

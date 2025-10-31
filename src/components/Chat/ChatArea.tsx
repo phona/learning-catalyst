@@ -11,10 +11,8 @@ export const ChatArea: React.FC = () => {
     thinkingContent,
     streamingContent,
     autoScroll,
-    toggleMessageThinking,
     selectedProvider,
-    thinkingCompleted,
-    hasHadThinkingContent,
+    updateMessage,
   } = useChatStore();
 
   // Debug: Log messages to see what ChatArea receives
@@ -22,19 +20,13 @@ export const ChatArea: React.FC = () => {
 
   const { config } = useConfigStore();
 
-  // Check if current provider supports thinking
-  const providerSupportsThinking = React.useMemo(() => {
-    if (!selectedProvider || !config?.ai) return false;
-
-    const chatModelConfig = config.ai.model_types?.chat;
-    const apiKey = chatModelConfig?.api_keys?.[selectedProvider as keyof typeof chatModelConfig.api_keys];
-
-    return config.ai.enable_thinking && (
-      selectedProvider === 'chatglm' ||
-      selectedProvider === 'deepseek' ||
-      !!apiKey
-    );
-  }, [selectedProvider, config]);
+  // Simple toggle function for individual message thinking visibility
+  const handleToggleThinking = (messageId: string) => {
+    const message = messages.find(msg => msg.id === messageId);
+    if (message) {
+      updateMessage(messageId, { showThinking: !message.showThinking });
+    }
+  };
 
   const { theme } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -79,7 +71,7 @@ export const ChatArea: React.FC = () => {
     content: streamingContent,
     timestamp: new Date(),
     thinking_content: thinkingContent || undefined,
-    showThinking: !!thinkingContent, // Always show thinking bubble if thinking content exists
+    showThinking: true, // Show thinking during streaming
   } : null;
 
   return (
@@ -157,9 +149,7 @@ export const ChatArea: React.FC = () => {
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  onToggleThinking={toggleMessageThinking}
-                  canToggleThinking={message.role === 'assistant' && !!message.thinking_content}
-                  providerSupportsThinking={providerSupportsThinking}
+                  onToggleThinking={handleToggleThinking}
                 />
               ))}
 
@@ -168,10 +158,7 @@ export const ChatArea: React.FC = () => {
                 <MessageBubble
                   message={streamingMessage}
                   isStreaming={true}
-                  onToggleThinking={toggleMessageThinking}
-                  canToggleThinking={true}
-                  providerSupportsThinking={providerSupportsThinking}
-                  thinkingAutoHidden={hasHadThinkingContent && thinkingCompleted && !streamingMessage.showThinking}
+                  onToggleThinking={handleToggleThinking}
                 />
               )}
             </div>

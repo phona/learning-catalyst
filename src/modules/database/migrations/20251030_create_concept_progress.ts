@@ -14,9 +14,9 @@ export const createConceptProgress: Migration = {
       .addColumn('difficulty_rating', 'integer', (col) => col.notNull().defaultTo(3)) // 1-5 scale
       .addColumn('improvement_rate', 'real', (col) => col.notNull().defaultTo(0)) // mastery change per session
       .addColumn('confidence_level', 'integer', (col) => col.notNull().defaultTo(1)) // 1-5 scale
-      .addColumn('last_studied', 'datetime', (col) => col.notNull())
-      .addColumn('created_at', 'datetime', (col) => col.notNull().defaultToCurrentTimestamp())
-      .addColumn('updated_at', 'datetime', (col) => col.notNull().defaultToCurrentTimestamp())
+      .addColumn('last_studied', 'text', (col) => col.notNull())
+      .addColumn('created_at', 'text', (col) => col.notNull())
+      .addColumn('updated_at', 'text', (col) => col.notNull())
       .execute()
   },
 

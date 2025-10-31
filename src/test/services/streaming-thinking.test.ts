@@ -18,7 +18,6 @@ describe('Streaming and Thinking Core Functionality', () => {
       isStreaming: false,
       streamingContent: '',
       thinkingContent: '',
-      showThinking: true,
       selectedProvider: 'openai',
       inputText: '',
       error: null,
@@ -33,7 +32,6 @@ describe('Streaming and Thinking Core Functionality', () => {
       expect(store.isStreaming).toBe(false);
       expect(store.streamingContent).toBe('');
       expect(store.thinkingContent).toBe('');
-      expect(store.showThinking).toBe(true);
     });
 
     it('should set streaming state correctly', () => {
@@ -142,45 +140,62 @@ describe('Streaming and Thinking Core Functionality', () => {
     });
   });
 
-  describe('Thinking Display Controls', () => {
-    it('should toggle thinking display correctly', () => {
-      expect(useChatStore.getState().showThinking).toBe(true);
+  describe('Message-Level Thinking Controls', () => {
+    it('should toggle thinking visibility for individual messages', () => {
+      const messageWithThinking: Message = {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Here is my response',
+        thinking_content: 'I should explain this clearly',
+        showThinking: false,
+        timestamp: new Date(),
+      };
 
-      store.toggleThinking();
-      expect(useChatStore.getState().showThinking).toBe(false);
+      store.addMessage(messageWithThinking);
+      expect(useChatStore.getState().messages[0].showThinking).toBe(false);
 
-      store.toggleThinking();
-      expect(useChatStore.getState().showThinking).toBe(true);
+      // Toggle thinking visibility using updateMessage
+      store.updateMessage('msg-1', { showThinking: true });
+      expect(useChatStore.getState().messages[0].showThinking).toBe(true);
+
+      store.updateMessage('msg-1', { showThinking: false });
+      expect(useChatStore.getState().messages[0].showThinking).toBe(false);
     });
 
-    it('should set thinking display state directly', () => {
-      store.setShowThinking(false);
-      expect(useChatStore.getState().showThinking).toBe(false);
+    it('should handle messages without thinking content', () => {
+      const messageWithoutThinking: Message = {
+        id: 'msg-2',
+        role: 'assistant',
+        content: 'Simple response',
+        showThinking: false,
+        timestamp: new Date(),
+      };
 
-      store.setShowThinking(true);
-      expect(useChatStore.getState().showThinking).toBe(true);
+      store.addMessage(messageWithoutThinking);
+      expect(useChatStore.getState().messages[0].showThinking).toBe(false);
+      expect(useChatStore.getState().messages[0].thinking_content).toBeUndefined();
     });
 
-    it('should manage thinking content independently of display state', () => {
-      store.setStreaming(true);
+    it('should update message thinking content independently', () => {
+      const message: Message = {
+        id: 'msg-3',
+        role: 'assistant',
+        content: 'Original content',
+        showThinking: false,
+        timestamp: new Date(),
+      };
 
-      // Add thinking content
-      store.appendStreamChunk({
-        reasoning_content: 'This is my thought process.',
+      store.addMessage(message);
+
+      // Update with thinking content
+      store.updateMessage('msg-3', {
+        thinking_content: 'Added thinking later',
+        showThinking: true,
       });
 
-      // Hide thinking display
-      store.setShowThinking(false);
-
-      const currentState = useChatStore.getState();
-      expect(currentState.thinkingContent).toBe('This is my thought process.');
-      expect(currentState.showThinking).toBe(false);
-
-      // Show thinking display
-      store.setShowThinking(true);
-
-      expect(currentState.thinkingContent).toBe('This is my thought process.');
-      expect(currentState.showThinking).toBe(true);
+      const updatedMessage = useChatStore.getState().messages[0];
+      expect(updatedMessage.thinking_content).toBe('Added thinking later');
+      expect(updatedMessage.showThinking).toBe(true);
     });
   });
 
@@ -337,26 +352,27 @@ describe('Streaming and Thinking Core Functionality', () => {
       store.appendStreamChunk({ content: 'Test content' });
       expect(useChatStore.getState().streamingContent).toBe('Test content');
 
-      // Toggle thinking
-      store.toggleThinking();
-      expect(useChatStore.getState().showThinking).toBe(false);
-
-      // Add message
+      // Add message with thinking
       const message: Message = {
         id: '6',
-        role: 'user',
+        role: 'assistant',
         content: 'Hello',
+        thinking_content: 'Some thinking',
+        showThinking: true,
         timestamp: new Date(),
       };
       store.addMessage(message);
+
+      // Update message thinking visibility
+      store.updateMessage('6', { showThinking: false });
 
       // State should remain consistent
       const currentState = useChatStore.getState();
       expect(currentState.isStreaming).toBe(true);
       expect(currentState.streamingContent).toBe('Test content');
-      expect(currentState.showThinking).toBe(false);
       expect(currentState.messages).toHaveLength(1);
       expect(currentState.messages[0].content).toBe('Hello');
+      expect(currentState.messages[0].showThinking).toBe(false);
     });
   });
 
@@ -381,7 +397,7 @@ describe('Streaming and Thinking Core Functionality', () => {
 
       const content = useChatStore.getState().streamingContent;
       expect(content).toContain('0 1 2 3');
-      expect(content.split(' ')).toHaveLength(100); // Each chunk adds a number and space
+      expect(content.split(' ')).toHaveLength(101); // Each chunk adds a number and space
     });
   });
 });

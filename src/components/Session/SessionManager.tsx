@@ -1,8 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
+import { useChatStore } from '@/stores/useChatStore';
+import { useAppStore } from '@/stores/useAppStore';
 
 export const SessionManager: React.FC = () => {
   const { sessions, loading, error, refresh, clearError } = useRecentSessions(20);
+  const navigate = useNavigate();
+  const { setCurrentSession, clearMessages } = useChatStore();
+  const { setCurrentView } = useAppStore();
 
   const formatRelativeTime = (date: Date): string => {
     const now = new Date();
@@ -132,8 +138,20 @@ export const SessionManager: React.FC = () => {
                 key={session.id}
                 className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => {
-                  // TODO: Navigate to session
-                  console.log('Open session:', session.id);
+                  try {
+                    // Load the session into the chat store
+                    setCurrentSession(session);
+
+                    // Navigate to chat view with session ID in URL
+                    navigate(`/sessions/${session.id}`);
+
+                    // Switch to chat view
+                    setCurrentView('chat');
+
+                    console.log(`[SessionManager] Opened session: ${session.id}`);
+                  } catch (error) {
+                    console.error('[SessionManager] Failed to open session:', error);
+                  }
                 }}
               >
                 <div className="flex items-start justify-between">

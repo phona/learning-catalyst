@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { useChatStore } from '@/stores/useChatStore';
-import { useAppStore } from '@/stores/useAppStore';
 
 export const ChatArea: React.FC = () => {
   const {
@@ -13,8 +12,7 @@ export const ChatArea: React.FC = () => {
     autoScroll,
   } = useChatStore();
 
-  const { theme } = useAppStore();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
@@ -34,9 +32,6 @@ export const ChatArea: React.FC = () => {
     if (!container) return;
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-
       // Could update autoScroll state here if needed
     };
 
@@ -44,11 +39,7 @@ export const ChatArea: React.FC = () => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Get the last assistant message
-  const lastAssistantMessage = messages
-    .filter(msg => msg.role === 'assistant')
-    .pop();
-
+  
   // Create a temporary streaming message
   const streamingMessage = isStreaming ? {
     id: 'streaming',
@@ -133,7 +124,7 @@ export const ChatArea: React.FC = () => {
                 <MessageBubble
                   key={message.id}
                   message={message}
-                  showThinking={showThinking && message === lastAssistantMessage}
+                  showThinking={showThinking && !!message.thinking_content}
                 />
               ))}
 
