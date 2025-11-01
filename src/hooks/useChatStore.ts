@@ -55,6 +55,7 @@ interface ChatStore {
   retryLastMessage: () => void;
   createNewSession: () => Promise<string>;
   saveCurrentSession: () => Promise<SessionSaveResult>;
+  updateCurrentSessionTitle: (title: string) => Promise<void>;
 }
 
 // Create a store factory function
@@ -558,6 +559,70 @@ function createChatStore(sessionService: SessionService) {
               success: false,
               error: error instanceof Error ? error.message : 'Failed to save session'
             };
+          }
+        },
+
+        updateCurrentSessionTitle: async (title: string) => {
+          const { currentSession } = get();
+
+          if (!currentSession) {
+            console.warn('[ChatStore] Cannot update title: no current session');
+            return;
+          }
+
+          if (!title || title.trim() === '') {
+            console.warn('[ChatStore] Cannot update title: empty title provided');
+            return;
+          }
+
+          const trimmedTitle = title.trim();
+
+          try {
+            // Update session title in local state immediately
+            set((state) => ({
+              currentSession: state.currentSession ? {
+                ...state.currentSession,
+                title: trimmedTitle,
+                metadata: {
+                  ...state.currentSession.metadata,
+                  title: trimmedTitle
+                }
+              } : null
+            }), false, 'updateCurrentSessionTitle');
+
+            // If session has an ID, also update it in the database
+            if (currentSession.id) {
+              await sessionService.updateSessionTitle(currentSession.id, trimmedTitle);
+              console.log('[ChatStore] Updated session title in database:', {
+                sessionId: currentSession.id,
+                oldTitle: currentSession.title,
+                newTitle: trimmedTitle
+              });
+
+              // Emit event to refresh recent sessions list
+              window.dispatchEvent(new CustomEvent('sessionTitleUpdated', {
+                detail: {
+                  sessionId: currentSession.id,
+                  oldTitle: currentSession.title,
+                  newTitle: trimmedTitle
+                }
+              }));
+            } else {
+              console.log('[ChatStore] Session title updated locally (no ID to persist to database)');
+            }
+          } catch (error) {
+            console.error('[ChatStore] Failed to update session title:', error);
+            // Optionally revert the local state change on error
+            set((state) => ({
+              currentSession: state.currentSession ? {
+                ...state.currentSession,
+                title: currentSession.title, // Revert to original title
+                metadata: {
+                  ...state.currentSession.metadata,
+                  title: currentSession.title
+                }
+              } : null
+            }), false, 'revertSessionTitle');
           }
         },
       }),
