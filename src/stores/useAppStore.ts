@@ -3,11 +3,16 @@ import { devtools, persist } from 'zustand/middleware';
 import type { UIState } from '@/types/ui';
 
 interface AppStore extends UIState {
+  // Focus mode
+  focus_mode: boolean;
+
   // Actions
   setCurrentView: (view: UIState['current_view']) => void;
   setSidebarOpen: (open: boolean) => void;
   setSettingsPanelOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'auto') => void;
+  setFocusMode: (enabled: boolean) => void;
+  toggleFocusMode: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error?: string) => void;
   setSuccess: (message?: string) => void;
@@ -23,6 +28,7 @@ export const useAppStore = create<AppStore>()(
         settings_panel_open: false,
         theme: 'dark',
         current_view: 'chat',
+        focus_mode: false,
         loading: false,
         error_message: undefined,
         success_message: undefined,
@@ -34,6 +40,10 @@ export const useAppStore = create<AppStore>()(
 
         setSettingsPanelOpen: (open) =>
           set({ settings_panel_open: open }, false, 'setSettingsPanelOpen'),
+
+        setFocusMode: (enabled) => set({ focus_mode: enabled }, false, 'setFocusMode'),
+
+        toggleFocusMode: () => set((state) => ({ focus_mode: !state.focus_mode }), false, 'toggleFocusMode'),
 
         setTheme: (theme) => {
           // Apply theme to document

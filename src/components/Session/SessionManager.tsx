@@ -33,7 +33,7 @@ export const SessionManager: React.FC = () => {
   const handleRefresh = async () => {
     try {
       await refresh();
-      utilityToasts.success('Sessions refreshed successfully');
+      // Visual feedback is sufficient - no toast needed for refresh
     } catch (error) {
       utilityToasts.error('Failed to refresh sessions');
       console.error('Failed to refresh sessions:', error);
@@ -161,7 +161,7 @@ export const SessionManager: React.FC = () => {
                     setCurrentView('chat');
 
                     console.log(`[SessionManager] Opened session: ${session.id}`);
-                    sessionToasts.loaded();
+                    // Visual feedback is sufficient - no toast needed for session loading
                   } catch (error) {
                     console.error('[SessionManager] Failed to open session:', error);
                     sessionToasts.loadError(error instanceof Error ? error.message : 'Unknown error');

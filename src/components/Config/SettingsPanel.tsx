@@ -5,6 +5,9 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   GlobeAltIcon,
+  MagnifyingGlassIcon,
+  AdjustmentsHorizontalIcon,
+  ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { configService } from '@/services/configService';
@@ -13,6 +16,7 @@ import { settingsToasts, utilityToasts } from '@/utils/toast';
 import { useDebouncedSave } from '@/hooks/useDebouncedSave';
 import { SettingsErrorBoundary } from '@/components/UI/SettingsErrorBoundary';
 import { ComponentErrorBoundary } from '@/components/UI/ComponentErrorBoundary';
+import { Accordion, Input } from '@/components/UI';
 import { AIProviderSettings } from './AIProviderSettings';
 import { UISettings } from './UISettings';
 import { ResponseSettings } from './ResponseSettings';
@@ -25,7 +29,8 @@ import type { ModelList } from '@/types/ai';
 
 export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
-  const [activeSection, setActiveSection] = useState<'models' | 'ui' | 'advanced'>('models');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedSections, setExpandedSections] = useState<string[]>(['ai-models', 'interface']);
 
   // Remote models state
   const [remoteModels, setRemoteModels] = useState<Record<string, ModelList>>({});
@@ -44,7 +49,7 @@ export const SettingsPanel: React.FC = () => {
       setConfig(configToSave);
     },
     onSuccess: () => {
-      settingsToasts.saved();
+      // Visual feedback is shown in the header - no toast needed
     },
     onError: (error) => {
       settingsToasts.providerError('Settings', error.message);
@@ -91,7 +96,7 @@ export const SettingsPanel: React.FC = () => {
     try {
       await configService.saveConfig(localConfig);
       setConfig(localConfig);
-      settingsToasts.saved();
+      // Visual feedback is shown in the header - no toast needed
     } catch (error) {
       console.error('Failed to save configuration:', error);
       settingsToasts.providerError('Settings', error instanceof Error ? error.message : 'Unknown error');
@@ -203,6 +208,19 @@ export const SettingsPanel: React.FC = () => {
     debouncedSaveConfig(updatedConfig);
   }, [localConfig, debouncedSaveConfig]);
 
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev =>
+      prev.includes(sectionId)
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
+
+  const filterContent = (content: string) => {
+    if (!searchQuery) return true;
+    return content.toLowerCase().includes(searchQuery.toLowerCase());
+  };
+
   if (!localConfig) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -220,7 +238,7 @@ export const SettingsPanel: React.FC = () => {
             <div className="flex items-center space-x-3">
               <Cog6ToothIcon className="w-6 h-6 text-gray-600 dark:text-gray-400" />
               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Settings
+                Preferences
               </h1>
             </div>
             <div className="flex items-center space-x-3">
@@ -239,7 +257,7 @@ export const SettingsPanel: React.FC = () => {
               <button
                 onClick={handleSaveConfig}
                 disabled={isSaving}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium"
+                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium"
               >
                 {isSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -247,74 +265,80 @@ export const SettingsPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex space-x-8 px-6">
-            {[
-              { id: 'models', label: 'AI Models', icon: SparklesIcon },
-              { id: 'ui', label: 'Interface', icon: GlobeAltIcon },
-              { id: 'advanced', label: 'Advanced', icon: Cog6ToothIcon },
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveSection(id as any)}
-                className={`flex items-center space-x-2 py-3 px-1 border-b-2 transition-colors ${
-                  activeSection === id
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="font-medium">{label}</span>
-              </button>
-            ))}
-          </nav>
+        {/* Search Bar */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-3">
+          <div className="max-w-md">
+            <Input
+              type="text"
+              placeholder="Search preferences..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              leftIcon={<MagnifyingGlassIcon className="w-4 h-4" />}
+              className="text-sm"
+            />
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
-            {/* AI Models Section */}
-            {activeSection === 'models' && (
-              <div className="space-y-6">
-                <ComponentErrorBoundary componentName="AI Provider Settings">
-                  <AIProviderSettings
-                    modelTypeConfigs={modelTypeConfigs}
-                    onModelTypeConfigChange={handleModelTypeConfigChange}
-                    remoteModels={remoteModels}
-                    fetchingModels={fetchingModels}
-                    fetchErrors={fetchErrors}
-                    onFetchModels={fetchModelsFromProvider}
-                  />
-                </ComponentErrorBoundary>
-                <ComponentErrorBoundary componentName="Response Settings">
-                  <ResponseSettings
+            <Accordion multiple className="space-y-4">
+              {/* AI Models Section */}
+              <Accordion.Item
+                id="ai-models"
+                title="AI Models"
+                description="Configure AI providers, models, and response settings"
+                defaultExpanded={true}
+              >
+                <div className="space-y-6">
+                  <ComponentErrorBoundary componentName="AI Provider Settings">
+                    <AIProviderSettings
+                      modelTypeConfigs={modelTypeConfigs}
+                      onModelTypeConfigChange={handleModelTypeConfigChange}
+                      remoteModels={remoteModels}
+                      fetchingModels={fetchingModels}
+                      fetchErrors={fetchErrors}
+                      onFetchModels={fetchModelsFromProvider}
+                    />
+                  </ComponentErrorBoundary>
+                  <ComponentErrorBoundary componentName="Response Settings">
+                    <ResponseSettings
+                      config={localConfig}
+                      onConfigChange={handleConfigChange}
+                    />
+                  </ComponentErrorBoundary>
+                </div>
+              </Accordion.Item>
+
+              {/* Interface Section */}
+              <Accordion.Item
+                id="interface"
+                title="Interface"
+                description="Customize the appearance and behavior of the application"
+                defaultExpanded={true}
+              >
+                <ComponentErrorBoundary componentName="UI Settings">
+                  <UISettings
                     config={localConfig}
                     onConfigChange={handleConfigChange}
                   />
                 </ComponentErrorBoundary>
-              </div>
-            )}
+              </Accordion.Item>
 
-            {/* Interface Section */}
-            {activeSection === 'ui' && (
-              <ComponentErrorBoundary componentName="UI Settings">
-                <UISettings
-                  config={localConfig}
-                  onConfigChange={handleConfigChange}
-                />
-              </ComponentErrorBoundary>
-            )}
-
-            {/* Advanced Section */}
-            {activeSection === 'advanced' && (
-              <ComponentErrorBoundary componentName="Advanced Settings">
-                <AdvancedSettings
-                  config={localConfig}
-                  onConfigChange={handleConfigChange}
-                />
-              </ComponentErrorBoundary>
-            )}
+              {/* Advanced Section */}
+              <Accordion.Item
+                id="advanced"
+                title="Advanced"
+                description="Advanced configuration options and experimental features"
+              >
+                <ComponentErrorBoundary componentName="Advanced Settings">
+                  <AdvancedSettings
+                    config={localConfig}
+                    onConfigChange={handleConfigChange}
+                  />
+                </ComponentErrorBoundary>
+              </Accordion.Item>
+            </Accordion>
           </div>
         </div>
       </div>
