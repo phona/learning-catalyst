@@ -4,19 +4,18 @@ import {
   ChatBubbleLeftRightIcon,
   DocumentTextIcon,
   Cog6ToothIcon,
-  ChartBarIcon,
   AcademicCapIcon,
   PlusIcon,
-  FolderOpenIcon,
   ClockIcon,
-  StarIcon,
-  TrashIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/stores/useAppStore';
 import { useChatStore } from '@/hooks/useChatStore';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
+import { useScrollDetection } from '@/hooks/useScrollDetection';
+import { useGlobalMessageCount } from '@/hooks/useGlobalStatistics';
 import { sessionToasts, utilityToasts } from '@/utils/toast';
 
 interface SidebarProps {
@@ -42,41 +41,37 @@ const formatRelativeTime = (date: Date): string => {
   }
 };
 
-// Helper function to get session activity level
-const getSessionActivityLevel = (messageCount: number) => {
-  if (messageCount >= 20) return { level: 'high', color: 'bg-emerald-500', label: 'Active' };
-  if (messageCount >= 10) return { level: 'medium', color: 'bg-blue-500', label: 'Moderate' };
-  if (messageCount >= 5) return { level: 'low', color: 'bg-amber-500', label: 'Light' };
-  return { level: 'new', color: 'bg-gray-400', label: 'New' };
-};
-
-// Helper function to get session status indicator
-const getSessionStatusIcon = (session: any) => {
-  const messageCount = session.messages?.length || 0;
-  const hasTitle = session.title && session.title !== 'New Chat';
-
-  if (messageCount === 0) {
-    return { icon: '🆕', color: 'text-gray-400', label: 'Empty' };
-  }
-  if (!hasTitle) {
-    return { icon: '✏️', color: 'text-amber-500', label: 'Untitled' };
-  }
-  if (messageCount >= 20) {
-    return { icon: '🔥', color: 'text-emerald-500', label: 'Active' };
-  }
-  return { icon: '💬', color: 'text-blue-500', label: 'Chat' };
-};
-
 export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { setCurrentView } = useAppStore();
   const chatStore = useChatStore();
   const { createNewSession, setCurrentSession, clearMessages, currentSession, saveCurrentSession } = chatStore();
-  const { sessions, loading, error, refresh } = useRecentSessions(5);
+  const { sessions, loading, error, refresh, hasMore, loadMore } = useRecentSessions(10);
+  const { scrollRef, onNearBottom } = useScrollDetection({
+    threshold: 0.8,
+    debounceMs: 100,
+  });
+  const { count: globalMessageCount, loading: globalCountLoading } = useGlobalMessageCount();
 
   // Track newly created sessions to show special indicators
   const [newSessionIds, setNewSessionIds] = useState<Set<string>>(new Set());
+
+  // Set up infinite scroll when hasMore sessions
+  useEffect(() => {
+    if (hasMore && !loading) {
+      console.log('[Sidebar] Setting up infinite scroll callback, hasMore:', hasMore, 'loading:', loading);
+      onNearBottom(async () => {
+        console.log('[Sidebar] Scroll near bottom detected, calling loadMore');
+        try {
+          await loadMore();
+          console.log('[Sidebar] loadMore completed successfully');
+        } catch (error) {
+          console.warn('[Sidebar] Failed to load more sessions:', error);
+        }
+      });
+    }
+  }, [hasMore, loading, loadMore]); // Removed onNearBottom from dependencies
 
   // Listen for session creation and update events to refresh the recent sessions list
   useEffect(() => {
@@ -167,6 +162,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       description: 'Progress, concepts, and discovery',
     },
     {
+      id: 'discovery',
+      label: 'Discovery',
+      icon: FolderIcon,
+      path: '/discovery',
+      description: 'Parse concepts from local markdown files',
+    },
+    {
       id: 'settings',
       label: 'Settings',
       icon: Cog6ToothIcon,
@@ -187,6 +189,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     if (itemId === 'knowledge') {
       // Navigate to progress by default, but we could add sub-navigation here
       navigate('/progress');
+    } else if (itemId === 'discovery') {
+      // Navigate to discovery page for local files
+      navigate('/discovery');
     } else {
       navigate(path);
     }
@@ -276,7 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         {/* Navigation with enhanced interactions */}
         <nav className="flex-1 p-4">
           <div className="space-y-2">
-            {navigationItems.map((item, index) => {
+            {navigationItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
 
@@ -300,26 +305,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         </nav>
 
         {/* Recent Sessions with enhanced styling */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-1 flex flex-col min-h-0">
+          <div className="mb-4 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center space-x-2">
               <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center space-x-2">
                 <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
                 <span>Recent Sessions</span>
-                {sessions.length > 0 && (
-                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
-                    {sessions.length}
-                  </span>
-                )}
               </h3>
               {/* Session statistics */}
               {sessions.length > 0 && (
                 <div className="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center space-x-1">
-                    <ChatBubbleLeftRightIcon className="w-3 h-3" />
-                    <span>{sessions.reduce((total, session) => total + (session.messages?.length || 0), 0)} msgs</span>
-                  </div>
-                                  </div>
+				</div>
               )}
             </div>
             <button
@@ -362,15 +358,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Start your first conversation!</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {sessions.slice(0, 4).map((session, index) => {
-                const messageCount = session.messages?.length || 0;
-                const activityLevel = getSessionActivityLevel(messageCount);
-                const statusIcon = getSessionStatusIcon(session);
-                const lastUpdated = session.updatedAt || session.createdAt || new Date();
-                const timeAgo = formatRelativeTime(new Date(lastUpdated));
+            <>
+              <div
+                ref={scrollRef}
+                className="space-y-2 flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0"
+              >
+                {sessions.map((session) => {
+                  const messageCount = session.messages?.length || 0;
+                  const lastUpdated = session.updated_at || session.created_at || new Date();
+                  const timeAgo = formatRelativeTime(new Date(lastUpdated));
 
-                return (
+                  return (
                   <button
                     key={`session_${session.id}`}
                     onClick={() => handleOpenSession(session)}
@@ -386,9 +384,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                     <div className="flex items-start space-x-3">
                       {/* Session status icon */}
                       <div className="flex-shrink-0 mt-0.5 relative">
-                        <div className={`text-lg ${statusIcon.color}`}>
-                          {statusIcon.icon}
-                        </div>
                         {/* Active session indicator */}
                         {currentSession?.id === session.id && (
                           <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary-500 rounded-full"></div>
@@ -413,8 +408,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                               Active
                             </span>
                           )}
-                          {/* Activity indicator */}
-                          <div className={`w-1.5 h-1.5 rounded-full ${activityLevel.color}`}></div>
                         </div>
 
                         {/* Session metadata */}
@@ -443,25 +436,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                             </span>
                           )}
                         </div>
-
-                        {/* Activity level badge */}
-                        {messageCount > 0 && (
-                          <div className="mt-1.5">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              currentSession?.id === session.id
-                                ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 border border-primary-300 dark:border-primary-700'
-                                : activityLevel.level === 'high'
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                                : activityLevel.level === 'medium'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                                : activityLevel.level === 'low'
-                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                                : 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300'
-                            }`}>
-                              {currentSession?.id === session.id ? 'Current Session' : activityLevel.label}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -482,6 +456,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
                 );
               })}
             </div>
+
+            {/* Loading Indicator for Infinite Scroll */}
+            {loading && hasMore && (
+              <div className="mt-3 flex items-center justify-center space-x-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-primary-500"></div>
+                <span>Loading more sessions...</span>
+              </div>
+            )}
+
+            {/* End of Sessions Indicator */}
+            {!hasMore && sessions.length > 0 && (
+              <div className="mt-3 flex items-center justify-center space-x-2 px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
+                <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                <span>All sessions loaded</span>
+                <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>
