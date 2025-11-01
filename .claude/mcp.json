@@ -16,6 +16,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-sequential-thinking"
-    ]
+      ]
+    }
   }
 }

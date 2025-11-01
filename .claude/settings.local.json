@@ -51,7 +51,8 @@
       "Bash(powershell:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:electron-vite.org)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []
