@@ -5,7 +5,7 @@ import { devtools } from 'zustand/middleware';
 import type { Message, StreamChunk, ChatOptions } from '@/types/ai';
 import type { Session, ConversationMessage, MemorySession, SessionSaveResult } from '@/types/session';
 import { chatService } from '@/services/ai/chatService';
-import { useConfigStore } from '@/stores/useConfigStore';
+import { ChatMessageService } from '@/services/chat/chatMessageService';
 import type { SessionService } from '@/services/sessionService';
 
 interface ChatStore {
@@ -134,7 +134,7 @@ function createChatStore(sessionService: SessionService) {
 
           const newMessages = [...state.messages, messageWithThinkingState];
 
-          // 限制消息数量，移除最旧的消息
+          // Limit message count, remove oldest messages
           let finalMessages = newMessages;
           if (newMessages.length > state.maxMessages) {
             const removed = newMessages.length - state.maxMessages;
@@ -376,6 +376,13 @@ function createChatStore(sessionService: SessionService) {
             return;
           }
 
+          // Validate provider configuration
+          const configError = ChatMessageService.validateProviderConfig(selectedProvider);
+          if (configError) {
+            setError(configError);
+            return;
+          }
+
           // Add user message
           const userMessage: Message = {
             id: Date.now().toString(),
@@ -388,115 +395,37 @@ function createChatStore(sessionService: SessionService) {
           setLoading(true);
           resetStreaming();
 
-          try {
-            // Get provider config from new model type configuration
-            const { config } = useConfigStore.getState();
-            const chatModelConfig = config?.ai?.model_types?.chat;
-
-            // Get API key from the new model type configuration
-            const apiKey = chatModelConfig?.api_keys?.[selectedProvider as keyof typeof chatModelConfig.api_keys];
-
-            // Create provider config object compatible with chat service
-            const providerConfig = apiKey ? {
-              api_key: apiKey,
-              base_url: chatModelConfig?.custom_provider_url || undefined,
-              provider: selectedProvider
-            } : null;
-
-            if (!providerConfig || !apiKey) {
-              throw new Error(`No configuration found for provider: ${selectedProvider}. Please configure the API key in Settings.`);
-            }
-
-            // Initialize provider if not already done
-            if (!chatService.getProviderInfo() ||
-              chatService.getProviderInfo()?.name !== selectedProvider) {
-              await chatService.initializeProvider(selectedProvider, providerConfig);
-            }
-
-            // Set current session in chat service
-            chatService.setCurrentSession(currentSession);
-
-            // Send message to AI
-            setStreaming(true);
-            const response = await chatService.sendMessage(content, currentSession, {
-              ...options,
-              provider: selectedProvider,
-              model: selectedModel,
-              stream: true, // Always use streaming for better UX
-            });
-
-            // Check if response is an async generator
-            const isAsyncGenerator = response && typeof (response as any)[Symbol.asyncIterator] === 'function';
-
-            if (isAsyncGenerator) {
-              let assistantContent = '';
-              let thinkingContent = '';
-
-              // Process stream
-              for await (const chunk of chatService.processStreamResponse(response as AsyncGenerator<StreamChunk>)) {
-                if (chunk.error) {
-                  setError(chunk.error);
-                  break;
-                }
-
+          // Use the extracted service to handle message sending
+          await ChatMessageService.sendMessage(
+            content,
+            currentSession,
+            selectedProvider,
+            selectedModel,
+            options,
+            {
+              onStartStreaming: () => setStreaming(true),
+              onStopStreaming: () => {
+                setLoading(false);
+                setStreaming(false);
+                resetStreaming();
+              },
+              onStreamChunk: (chunk) => {
                 if (chunk.content) {
-                  assistantContent += chunk.content;
                   set((_state) => ({
-                    streamingContent: assistantContent,
+                    streamingContent: _state.streamingContent + chunk.content,
                   }));
                 }
 
                 if (chunk.thinkingContent) {
-                  thinkingContent += chunk.thinkingContent;
                   set((_state) => ({
-                    thinkingContent: thinkingContent,
+                    thinkingContent: _state.thinkingContent + chunk.thinkingContent,
                   }));
                 }
-
-                if (chunk.done) {
-                  break;
-                }
-              }
-
-              // Add final assistant message
-              const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: assistantContent,
-                thinking_content: thinkingContent || undefined,
-                timestamp: new Date(),
-                provider: selectedProvider,
-                tokens_used: undefined, // Will be populated by the actual implementation
-              };
-              addMessage(assistantMessage);
-
-            } else {
-              // Non-streaming response (fallback)
-              const chatResponse = response as any;
-              const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: chatResponse.content,
-                thinking_content: chatResponse.reasoning_content,
-                timestamp: new Date(),
-                provider: selectedProvider,
-                tokens_used: chatResponse.usage ? {
-                  prompt_tokens: chatResponse.usage.prompt_tokens || 0,
-                  completion_tokens: chatResponse.usage.completion_tokens || 0,
-                  total_tokens: chatResponse.usage.total_tokens || 0,
-                } : undefined,
-              };
-              addMessage(assistantMessage);
-
+              },
+              onError: (error) => setError(error),
+              onMessageComplete: (message) => addMessage(message),
             }
-          } catch (error) {
-            console.error('Failed to send message:', error);
-            setError(error instanceof Error ? error.message : 'Failed to send message');
-          } finally {
-            setLoading(false);
-            setStreaming(false);
-            resetStreaming();
-          }
+          );
         },
 
         stopStreaming: () => set({ isStreaming: false }, false, 'stopStreaming'),

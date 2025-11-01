@@ -167,7 +167,7 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
             <div>
               <div className="text-sm text-purple-600 dark:text-purple-400 mb-1">Total Sessions</div>
               <div className="text-xl font-bold text-purple-900 dark:text-purple-100">
-                {trends.sessionTypes.reduce((sum, type) => sum + type.count, 0)}
+                {Object.values(trends.sessionTypes).reduce((sum, count) => sum + count, 0)}
               </div>
             </div>
             <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

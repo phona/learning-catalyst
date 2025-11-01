@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   PaperAirplaneIcon,
   PaperClipIcon,
-  MicrophoneIcon,
   StopIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
@@ -25,8 +24,9 @@ export const ChatInput: React.FC = () => {
 
   const { config, updateConfig } = useConfigStore();
 
-  const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   
   // Auto-resize textarea
@@ -74,6 +74,19 @@ export const ChatInput: React.FC = () => {
       e.preventDefault();
       // Toggle deep thinking mode
       toggleDeepThinking();
+    } else if (e.key === 'Escape') {
+      // Clear input on escape
+      e.preventDefault();
+      setInputText('');
+      textareaRef.current?.focus();
+    } else if (e.ctrlKey && e.key === 'k') {
+      e.preventDefault();
+      // Open command palette (placeholder)
+      console.log('Command palette not implemented');
+    } else if (e.ctrlKey && e.key === '/') {
+      e.preventDefault();
+      // Show keyboard shortcuts (placeholder)
+      console.log('Keyboard shortcuts not implemented');
     }
   };
 
@@ -120,33 +133,28 @@ export const ChatInput: React.FC = () => {
     }
   };
 
-  const toggleRecording = () => {
-    if (isRecording) {
-      setIsRecording(false);
-      // TODO: Stop recording and process audio
-    } else {
-      setIsRecording(true);
-      // TODO: Start recording
-    }
-  };
-
+  
   const currentProviderName = config?.ai?.providers[selectedProvider]?.name || selectedProvider;
   const currentModelName = selectedModel;
 
   return (
-    <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+    <div
+      className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4"
+      role="region"
+      aria-label="Chat input area"
+    >
       {/* Provider/Model Info */}
-      <div className="max-w-4xl mx-auto mb-3">
+      <div className="max-w-4xl mx-auto mb-3" role="status" aria-live="polite">
         <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
           <span className="flex items-center space-x-1">
             <span>Provider:</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">
+            <span className="font-medium text-gray-900 dark:text-gray-100" aria-label={`Current AI provider: ${currentProviderName}`}>
               {currentProviderName}
             </span>
           </span>
           <span className="flex items-center space-x-1">
             <span>Model:</span>
-            <span className="font-medium text-gray-900 dark:text-gray-100">
+            <span className="font-medium text-gray-900 dark:text-gray-100" aria-label={`Current AI model: ${currentModelName}`}>
               {currentModelName}
             </span>
           </span>
@@ -158,36 +166,49 @@ export const ChatInput: React.FC = () => {
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
             title={config?.ai?.enable_thinking ? 'Disable deep thinking mode (Ctrl+T)' : 'Enable deep thinking mode (Ctrl+T)'}
+            aria-pressed={config?.ai?.enable_thinking}
+            aria-describedby="deep-thinking-status"
           >
             <SparklesIcon className={`w-4 h-4 ${config?.ai?.enable_thinking ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
             <span className="text-sm font-medium">
               Deep Thinking
             </span>
-            <div className={`w-2 h-2 rounded-full transition-colors ${
-              config?.ai?.enable_thinking
-                ? 'bg-blue-600 dark:bg-blue-400'
-                : 'bg-gray-400 dark:bg-gray-500'
-            }`} />
+            <div
+              id="deep-thinking-status"
+              className={`w-2 h-2 rounded-full transition-colors ${
+                config?.ai?.enable_thinking
+                  ? 'bg-blue-600 dark:bg-blue-400'
+                  : 'bg-gray-400 dark:bg-gray-500'
+              }`}
+              aria-hidden="true"
+            />
           </button>
         </div>
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-        <div className="flex items-end space-x-3">
+      <form onSubmit={handleSubmit} className="max-w-4xl mx-auto" noValidate>
+        <fieldset className="flex items-end space-x-3" disabled={isStreaming || isLoading}>
+          <legend className="sr-only">Message input form</legend>
+
           {/* File attachment button */}
           <button
             type="button"
             onClick={handleFileSelect}
-            className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
             title="Attach file"
+            aria-label="Attach file to message"
           >
             <PaperClipIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
 
           {/* Text input */}
           <div className="flex-1 relative">
+            <label htmlFor="chat-input" className="sr-only">
+              Type your message
+            </label>
             <textarea
+              id="chat-input"
               ref={textareaRef}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
@@ -198,6 +219,9 @@ export const ChatInput: React.FC = () => {
                   : 'Type your message here... (Enter to send, Shift+Enter for new line)'
               }
               disabled={isStreaming || isLoading}
+              aria-label="Type your message here"
+              aria-describedby="input-help"
+              aria-multiline="true"
               className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               rows={1}
               style={{ minHeight: '48px', maxHeight: '200px' }}
@@ -205,40 +229,27 @@ export const ChatInput: React.FC = () => {
 
             {/* Character count for long messages */}
             {inputText.length > 100 && (
-              <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+              <div
+                className="absolute bottom-2 right-2 text-xs text-gray-400"
+                aria-live="polite"
+                aria-label={`Character count: ${inputText.length}`}
+              >
                 {inputText.length}
               </div>
             )}
           </div>
 
-          {/* Voice input button */}
-          <button
-            type="button"
-            onClick={toggleRecording}
-            className={`p-3 rounded-lg transition-colors ${
-              isRecording
-                ? 'bg-red-100 hover:bg-red-200 text-red-600'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400'
-            }`}
-            title={isRecording ? 'Stop recording' : 'Start voice input'}
-          >
-            {isRecording ? (
-              <StopIcon className="w-5 h-5" />
-            ) : (
-              <MicrophoneIcon className="w-5 h-5" />
-            )}
-          </button>
-
           {/* Send/Stop button */}
           <button
             type={isStreaming ? 'button' : 'submit'}
             onClick={isStreaming ? stopStreaming : undefined}
-            className={`px-4 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+            className={`px-4 py-3 rounded-lg font-medium transition-colors flex items-center space-x-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
               isStreaming
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                ? 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500'
+                : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:ring-blue-500'
             }`}
             disabled={!inputText.trim() || (!isStreaming && isLoading)}
+            aria-label={isStreaming ? 'Stop generating response' : 'Send message'}
           >
             {isStreaming ? (
               <>
@@ -252,19 +263,25 @@ export const ChatInput: React.FC = () => {
               </>
             )}
           </button>
-        </div>
+        </fieldset>
 
         {/* Input tips */}
-        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex items-center space-x-4">
-          <span>Press Enter to send, Shift+Enter for new line</span>
+        <div
+          id="input-help"
+          className="mt-3 text-xs text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-2"
+          role="note"
+        >
+          <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Enter</kbd>
+          <span>to send</span>
           <span>•</span>
-          <span>Ctrl+K for command palette</span>
+          <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Shift+Enter</kbd>
+          <span>for new line</span>
           <span>•</span>
-          <span>Ctrl+/ for keyboard shortcuts</span>
-          <>
-            <span>•</span>
-            <span>Ctrl+T to toggle deep thinking mode</span>
-          </>
+          <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Ctrl+T</kbd>
+          <span>toggle thinking</span>
+          <span>•</span>
+          <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">Esc</kbd>
+          <span>clear input</span>
         </div>
       </form>
     </div>

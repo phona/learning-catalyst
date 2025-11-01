@@ -218,15 +218,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       console.log(`[Sidebar] Opened session: ${session.id}`);
       sessionToasts.loaded();
 
-      // Verify state after setting
-      setTimeout(() => {
-        const currentState = chatStore();
-        console.log(`[Sidebar] State after session open:`, {
-          currentSessionId: currentState.currentSession?.id,
-          messagesInStore: currentState.messages.length,
-          sampleMessages: currentState.messages.slice(0, 2).map((m: any) => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
-        });
-      }, 100);
+      // Verify state after setting (call chatStore outside of setTimeout)
+      const currentState = chatStore();
+      console.log(`[Sidebar] State after session open:`, {
+        currentSessionId: currentState.currentSession?.id,
+        messagesInStore: currentState.messages.length,
+        sampleMessages: currentState.messages.slice(0, 2).map((m: any) => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
+      });
     } catch (error) {
       console.error('[Sidebar] Failed to open session:', error);
       sessionToasts.loadError(error instanceof Error ? error.message : 'Unknown error');

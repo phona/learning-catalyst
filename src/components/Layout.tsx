@@ -40,12 +40,12 @@ export const Layout: React.FC = () => {
       <Header />
 
       {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Sidebar */}
         <Sidebar open={sidebar_open} />
 
         {/* Main content area */}
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           <div className="flex-1 overflow-auto custom-scrollbar">
             <div className="h-full">
               <Outlet />

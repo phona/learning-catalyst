@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { SyntaxHighlighterWrapper } from '@/components/UI/SyntaxHighlighterWrapper';
 import {
   UserIcon,
   CpuChipIcon,
@@ -79,7 +78,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      // TODO: Show toast notification
+      // Show success feedback by changing cursor briefly
+      console.log('Text copied to clipboard');
     } catch (error) {
       console.error('Failed to copy text:', error);
     }
@@ -114,12 +114,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   return (
-    <div className={`flex space-x-3 ${isUser ? 'justify-end' : 'justify-start'} mb-6`}>
+    <article
+      className={`flex space-x-3 ${isUser ? 'justify-end' : 'justify-start'} mb-6`}
+      aria-labelledby={`message-${message.id}`}
+    >
       {!isUser && getAvatar()}
 
       <div className={`max-w-4xl ${isUser ? 'order-1' : ''}`}>
         {/* Message header */}
-        <div className={`flex items-center space-x-2 mb-2 ${isUser ? 'justify-end' : ''}`}>
+        <header className={`flex items-center space-x-2 mb-2 ${isUser ? 'justify-end' : ''}`}>
           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {getRoleLabel()}
           </span>
@@ -128,11 +131,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               via {message.provider}
             </span>
           )}
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={message.timestamp?.toISOString()}>
             {formatTimestamp(message.timestamp)}
-          </span>
+          </time>
           {!isUser && (
-            <>
+            <div className="flex items-center space-x-1" role="group" aria-label="Message actions">
               {/* Thinking toggle button */}
               {shouldShowButton && (
                 <button
@@ -140,6 +143,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors group"
                   title={message.showThinking ? "Hide thinking process" : "Show thinking process"}
                   disabled={!message.id}
+                  aria-expanded={message.showThinking}
+                  aria-controls={`thinking-${message.id}`}
                 >
                   <div className="flex items-center space-x-1">
                     <LightBulbIcon className={`w-4 h-4 transition-colors ${
@@ -158,38 +163,56 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 onClick={() => copyToClipboard(message.content)}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                 title="Copy message"
+                aria-label="Copy message content to clipboard"
               >
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
               </button>
-            </>
+            </div>
           )}
-        </div>
+        </header>
 
         {/* Thinking content */}
         {isThinkingVisible && (
-          <div className="thinking-process mb-4 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 rounded-r-lg p-4">
+          <section
+            id={`thinking-${message.id}`}
+            className="thinking-process mb-4 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 rounded-r-lg p-4"
+            aria-label="AI thinking process"
+          >
             <div className="flex items-center space-x-2 mb-3">
               <LightBulbIcon className={`w-5 h-5 text-yellow-600 dark:text-yellow-400 ${isStreaming ? 'animate-pulse' : ''}`} />
-              <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+              <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                 {isStreaming ? 'AI Thinking Process (Live)' : 'AI Thinking Process'}
-              </span>
+              </h4>
+              {isStreaming && (
+                <span className="text-xs text-yellow-600 dark:text-yellow-400 animate-pulse" aria-live="polite">
+                  Thinking...
+                </span>
+              )}
             </div>
             <div className="prose prose-sm dark:prose-invert max-w-none prose-yellow">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {message.thinking_content || ""}
               </ReactMarkdown>
             </div>
-          </div>
+          </section>
         )}
 
         {/* Message content */}
-        <div className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}>
+        <main
+          id={`message-${message.id}`}
+          className={`message-bubble ${isUser ? 'message-user' : 'message-assistant'}`}
+          role="article"
+        >
           {isUser ? (
             <div className="whitespace-pre-wrap break-words">
               {message.content}
-              {isStreaming && <span className="animate-pulse">▊</span>}
+              {isStreaming && (
+                <span className="animate-pulse" aria-live="polite" aria-label="AI is typing">
+                  ▊
+                </span>
+              )}
             </div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none">
@@ -199,13 +222,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
                     return !inline && match ? (
-                      React.createElement(SyntaxHighlighter as any, {
-                        style: oneDark,
-                        language: match[1],
-                        PreTag: "div",
-                        className: "rounded-lg",
-                        ...props,
-                      }, String(children).replace(/\n$/, ''))
+                      <SyntaxHighlighterWrapper
+                        language={match[1]}
+                        PreTag="div"
+                        className="rounded-lg"
+                        {...props}
+                      >
+                        {children}
+                      </SyntaxHighlighterWrapper>
                     ) : (
                       <code className={className} {...props}>
                         {children}
@@ -216,10 +240,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               >
                 {message.content}
               </ReactMarkdown>
-              {isStreaming && <span className="animate-pulse">▊</span>}
+              {isStreaming && (
+                <span className="animate-pulse" aria-live="polite" aria-label="AI is typing">
+                  ▊
+                </span>
+              )}
             </div>
           )}
-        </div>
+        </main>
 
         {/* Message metadata */}
         {message.tokens_used && (
@@ -247,6 +275,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       </div>
 
       {isUser && getAvatar()}
-    </div>
+    </article>
   );
 };

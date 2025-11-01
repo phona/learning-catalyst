@@ -100,36 +100,40 @@ export const ChatArea: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    💡 Ask Questions
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 text-left max-w-4xl mx-auto">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                    <span className="text-2xl mr-3">💡</span>
+                    Ask Questions
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                     "Explain quantum computing in simple terms"
                   </p>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    📚 Learn Concepts
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                    <span className="text-2xl mr-3">📚</span>
+                    Learn Concepts
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                     "Teach me about React hooks with examples"
                   </p>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    🛠️ Get Help
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                    <span className="text-2xl mr-3">🛠️</span>
+                    Get Help
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                     "Debug this Python code for me"
                   </p>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                    🎯 Set Goals
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+                    <span className="text-2xl mr-3">🎯</span>
+                    Set Goals
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                     "Create a learning plan for machine learning"
                   </p>
                 </div>
