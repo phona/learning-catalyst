@@ -90,7 +90,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       if (result.status === 'success') {
         utilityToasts.success(`${modelName} test successful`);
       } else {
-        utilityToasts.error(`${modelName} test failed: ${result.details?.error || 'Unknown error'}`);
+        utilityToasts.error(`${modelName} test failed: ${result.error_message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Model test failed:', error);

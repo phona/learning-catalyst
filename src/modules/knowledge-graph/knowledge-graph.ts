@@ -132,6 +132,7 @@ export class KnowledgeGraphModule {
     const id = `concept_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Convert to database format
+    const now = new Date().toISOString();
     const dbConcept = {
       id,
       name: conceptData.name,
@@ -142,11 +143,11 @@ export class KnowledgeGraphModule {
       mastery_level: conceptData.masteryLevel,
       tags: JSONFieldHelpers.stringifyArray(conceptData.tags),
       metadata: JSONFieldHelpers.stringifyObject(conceptData.metadata),
-      last_reviewed: conceptData.lastReviewed,
+      last_reviewed: conceptData.lastReviewed ? conceptData.lastReviewed.toISOString() : null,
       review_count: 0,
       parent_concept_id: conceptData.parentConceptId,
-      created_at: new Date(),
-      updated_at: new Date()
+      created_at: now,
+      updated_at: now
     };
 
     await this.db.insertInto('concepts').values(dbConcept).execute();
@@ -219,6 +220,7 @@ export class KnowledgeGraphModule {
       createdBySession
     };
 
+    const now = new Date().toISOString();
     const dbRelationship = {
       id,
       source_concept_id: sourceConceptId,
@@ -228,8 +230,8 @@ export class KnowledgeGraphModule {
       description,
       metadata: JSONFieldHelpers.stringifyObject({}),
       created_by_session: createdBySession,
-      created_at: new Date(),
-      updated_at: new Date()
+      created_at: now,
+      updated_at: now
     };
 
     await this.db.insertInto('relationships').values(dbRelationship).execute();
@@ -355,7 +357,7 @@ export class KnowledgeGraphModule {
 
       // Build update object
       const updateData: any = {
-        updated_at: new Date()
+        updated_at: new Date().toISOString()
       };
 
       if (updates.name !== undefined) updateData.name = updates.name;
@@ -439,7 +441,7 @@ export class KnowledgeGraphModule {
   /**
    * Find a learning path between two concepts
    */
-  async findPath(fromConceptId: string, toConceptId: string): Promise<Concept[]> {
+  async findPath(fromConceptId: string, toConceptId: string): Promise<ConceptPath> {
     try {
       const visited = new Set<string>();
       const queue: { conceptId: string; path: Concept[] }[] = [];
@@ -456,7 +458,12 @@ export class KnowledgeGraphModule {
         const { conceptId, path } = queue.shift()!;
 
         if (conceptId === toConceptId) {
-          return path;
+          return {
+            concepts: path,
+            relationships: [],
+            totalStrength: 1.0,
+            difficulty: path.reduce((sum, c) => sum + c.difficultyLevel, 0) / path.length
+          };
         }
 
         // Get related concepts
@@ -473,7 +480,12 @@ export class KnowledgeGraphModule {
         }
       }
 
-      return []; // No path found
+      return {
+      concepts: [],
+      relationships: [],
+      totalStrength: 0,
+      difficulty: 0
+    }; // No path found
     } catch (error) {
       console.error('Failed to find path:', error);
       throw error;

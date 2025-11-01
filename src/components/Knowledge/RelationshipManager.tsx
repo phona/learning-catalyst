@@ -43,7 +43,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
 
   const loadConcepts = async () => {
     try {
-      const conceptList = await knowledgeGraph.searchConcepts({ limit: 100 });
+      const conceptList = await knowledgeGraph.searchConcepts('', 100);
       setConcepts(conceptList);
     } catch (err) {
       console.error('Failed to load concepts:', err);
@@ -109,26 +109,11 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
   };
 
   const deleteRelationship = async (relationshipId: string) => {
-    if (!confirm('Are you sure you want to delete this relationship?')) {
-      return;
-    }
+    // TODO: Implement deleteRelationship method in knowledge graph module
+    console.log('Delete relationship functionality not yet implemented:', relationshipId);
 
-    try {
-      const success = await knowledgeGraph.deleteRelationship(relationshipId);
-
-      if (success) {
-        console.log('Relationship deleted successfully:', relationshipId);
-
-        // Reload relationships
-        if (selectedConcept) {
-          await loadRelationships(selectedConcept.id);
-        }
-      } else {
-        console.error('Failed to delete relationship: Not found');
-      }
-    } catch (err) {
-      console.error('Failed to delete relationship:', err);
-    }
+    // For now, just show a message
+    alert('Delete relationship functionality will be implemented in a future update.');
   };
 
   const getRelationshipTypeColor = (type: Relationship['relationshipType']) => {

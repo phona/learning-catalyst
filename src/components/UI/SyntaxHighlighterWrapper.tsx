@@ -1,24 +1,24 @@
 import React, { Suspense, lazy } from 'react';
 
 interface SyntaxHighlighterWrapperProps {
-  style: any;
-  language: string;
-  PreTag: React.ElementType;
-  className: string;
-  children: React.ReactNode;
+  style?: any;
+  language?: string;
+  PreTag?: React.ElementType;
+  className?: string;
+  children?: React.ReactNode;
   [key: string]: any;
 }
 
 // Lazy load SyntaxHighlighter to reduce initial bundle size
 const SyntaxHighlighter = lazy(() =>
   import('react-syntax-highlighter').then(module => ({
-    default: module.Prism
+    default: (module as any).Prism || (module as any).default
   }))
 );
 
 const SyntaxHighlighterStyles = lazy(() =>
   import('react-syntax-highlighter/dist/esm/styles/prism').then(module => ({
-    default: module.oneDark
+    default: (module as any).oneDark || (module as any).default
   }))
 );
 
@@ -39,9 +39,9 @@ const SyntaxHighlighterFallback: React.FC<{ children: React.ReactNode }> = ({ ch
  */
 export const SyntaxHighlighterWrapper: React.FC<SyntaxHighlighterWrapperProps> = ({
   style,
-  language,
-  PreTag,
-  className,
+  language = 'text',
+  PreTag = 'pre',
+  className = '',
   children,
   ...props
 }) => {

@@ -61,15 +61,9 @@ const KnowledgeSearchComponent: React.FC<KnowledgeSearchProps> = ({
 
     setLoading(true);
     try {
-      const searchParams = {
-        query: query.trim(),
-        conceptTypes: selectedFilters.conceptTypes.length > 0 ? selectedFilters.conceptTypes : undefined,
-        difficultyRange: selectedFilters.difficultyRange[0] === 1 && selectedFilters.difficultyRange[1] === 5 ? undefined : selectedFilters.difficultyRange,
-        masteryRange: selectedFilters.masteryRange[0] === 0 && selectedFilters.masteryRange[1] === 5 ? undefined : selectedFilters.masteryRange,
-        limit: 20
-      };
-
-      const searchResults = await knowledgeGraph.searchConcepts(searchParams);
+      // For now, use simple search with just the query and limit
+      // TODO: Implement advanced filtering in the knowledge graph module
+      const searchResults = await knowledgeGraph.searchConcepts(query.trim(), 20);
 
       // Only update state if component is still mounted
       if (isMountedRef.current) {

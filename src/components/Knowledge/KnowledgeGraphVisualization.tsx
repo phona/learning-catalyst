@@ -97,7 +97,7 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
       setError(null);
 
       // Load concepts with limit to avoid performance issues
-      const loadedConcepts = await knowledgeGraph.searchConcepts({ limit: 50 });
+      const loadedConcepts = await knowledgeGraph.searchConcepts('', 50);
       if (!isMountedRef.current || abortControllerRef.current?.signal.aborted) return;
 
       setConcepts(loadedConcepts);
@@ -179,10 +179,7 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphProps> = ({
     }
 
     try {
-      const results = await knowledgeGraph.searchConcepts({
-        query,
-        limit: 10
-      });
+      const results = await knowledgeGraph.searchConcepts(query, 10);
 
       if (isMountedRef.current) {
         setSearchResults(results);

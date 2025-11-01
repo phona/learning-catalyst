@@ -178,21 +178,20 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
       </div>
 
       {/* Session Types Breakdown */}
-      {trends.sessionTypes.length > 0 && (
+      {Object.keys(trends.sessionTypes).length > 0 && (
         <div className="mb-6">
           <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Session Types</h4>
           <div className="space-y-2">
-            {trends.sessionTypes.map((sessionType) => (
-              <div key={sessionType.type} className="flex items-center justify-between">
+            {Object.entries(trends.sessionTypes).map(([sessionType, count]) => (
+              <div key={sessionType} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                   <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
-                    {sessionType.type}
+                    {sessionType}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{sessionType.count} sessions</span>
-                  <span>{Math.round(sessionType.avgDuration)}m avg</span>
+                  <span>{count} sessions</span>
                 </div>
               </div>
             ))}
