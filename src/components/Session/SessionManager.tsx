@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
 import { useChatStore } from '@/hooks/useChatStore';
 import { useAppStore } from '@/stores/useAppStore';
+import { sessionToasts, utilityToasts } from '@/utils/toast';
 
 export const SessionManager: React.FC = () => {
   const { sessions, loading, error, refresh, clearError } = useRecentSessions(20);
@@ -26,6 +27,16 @@ export const SessionManager: React.FC = () => {
       return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
     } else {
       return date.toLocaleDateString();
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      await refresh();
+      utilityToasts.success('Sessions refreshed successfully');
+    } catch (error) {
+      utilityToasts.error('Failed to refresh sessions');
+      console.error('Failed to refresh sessions:', error);
     }
   };
 
@@ -62,7 +73,7 @@ export const SessionManager: React.FC = () => {
           </p>
           <div className="flex gap-3 justify-center">
             <button
-              onClick={refresh}
+              onClick={handleRefresh}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
             >
               Retry
@@ -94,7 +105,7 @@ export const SessionManager: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={refresh}
+              onClick={handleRefresh}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,8 +161,10 @@ export const SessionManager: React.FC = () => {
                     setCurrentView('chat');
 
                     console.log(`[SessionManager] Opened session: ${session.id}`);
+                    sessionToasts.loaded();
                   } catch (error) {
                     console.error('[SessionManager] Failed to open session:', error);
+                    sessionToasts.loadError(error instanceof Error ? error.message : 'Unknown error');
                   }
                 }}
               >

@@ -17,6 +17,7 @@ import {
 import { useAppStore } from '@/stores/useAppStore';
 import { useChatStore } from '@/hooks/useChatStore';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
+import { sessionToasts, utilityToasts } from '@/utils/toast';
 
 interface SidebarProps {
   open: boolean;
@@ -187,9 +188,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       clearMessages();
 
       console.log('[Sidebar] New chat session created and ready');
+      sessionToasts.created();
     } catch (error) {
       console.error('[Sidebar] Failed to create new chat session:', error);
-      // TODO: Show error toast/notification to user
+      sessionToasts.createError(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -214,6 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       setCurrentSession(session);
 
       console.log(`[Sidebar] Opened session: ${session.id}`);
+      sessionToasts.loaded();
 
       // Verify state after setting
       setTimeout(() => {
@@ -226,7 +229,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       }, 100);
     } catch (error) {
       console.error('[Sidebar] Failed to open session:', error);
-      // TODO: Show error toast/notification to user
+      sessionToasts.loadError(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -293,7 +296,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => {
-                  refresh();
+                  try {
+                    refresh();
+                    utilityToasts.success('Recent sessions refreshed');
+                  } catch (error) {
+                    utilityToasts.error('Failed to refresh sessions');
+                  }
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 title="Refresh recent sessions"
@@ -303,8 +311,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
               {error && (
                 <button
                   onClick={() => {
+                  try {
                     refresh();
-                  }}
+                    utilityToasts.success('Recent sessions refreshed');
+                  } catch (error) {
+                    utilityToasts.error('Failed to refresh sessions');
+                  }
+                }}
                   className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300"
                   title="Retry loading sessions"
                 >

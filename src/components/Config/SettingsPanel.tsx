@@ -20,6 +20,7 @@ import {
 import { useConfigStore } from '@/stores/useConfigStore';
 import { configService } from '@/services/configService';
 import { modelFetchingService } from '@/services/modelFetchingService';
+import { settingsToasts, utilityToasts } from '@/utils/toast';
 import type {
   AppConfig,
   ModelTypeConfig,
@@ -182,10 +183,12 @@ export const SettingsPanel: React.FC = () => {
       setConfig(localConfig);
       setSaveStatus('success');
       saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
+      settingsToasts.saved();
     } catch (error) {
       console.error('Failed to save configuration:', error);
       setSaveStatus('error');
       saveTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 3000);
+      settingsToasts.providerError('Settings', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsSaving(false);
     }
@@ -262,8 +265,15 @@ export const SettingsPanel: React.FC = () => {
     try {
       const result = await configService.testModel(providerName, modelName, modelType);
       setModelTestResults(prev => ({ ...prev, [testKey]: result }));
+
+      if (result.status === 'success') {
+        utilityToasts.success(`${modelName} test successful`);
+      } else {
+        utilityToasts.error(`${modelName} test failed: ${result.error || 'Unknown error'}`);
+      }
     } catch (error) {
       console.error('Model test failed:', error);
+      utilityToasts.error(`${modelName} test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setTestingModels(prev => {
         const newSet = new Set(prev);
@@ -312,7 +322,7 @@ export const SettingsPanel: React.FC = () => {
     // Validate API key exists and is non-empty
     const apiKey = config.api_keys?.[config.default_provider as keyof typeof config.api_keys];
     if (!apiKey || apiKey.trim() === '') {
-      alert(`Please enter an API key for ${config.default_provider} before fetching models.`);
+      utilityToasts.error(`Please enter an API key for ${config.default_provider} before fetching models`);
       return;
     }
 
@@ -324,12 +334,13 @@ export const SettingsPanel: React.FC = () => {
     try {
       const models = await modelFetchingService.fetchModels(config.default_provider, config);
       setRemoteModels(prev => ({ ...prev, [cacheKey]: models }));
+      utilityToasts.success(`Fetched ${models.chat?.length || 0} models from ${config.default_provider}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch models';
       setFetchErrors(prev => ({ ...prev, [cacheKey]: errorMessage }));
 
-      // Show user-friendly alert dialog
-      alert(`Failed to fetch models from ${config.default_provider}: ${errorMessage}`);
+      // Show toast instead of alert
+      utilityToasts.error(`Failed to fetch models from ${config.default_provider}: ${errorMessage}`);
       console.error(`Failed to fetch models for ${config.default_provider}:`, error);
     } finally {
       setFetchingModels(prev => ({ ...prev, [cacheKey]: false }));
@@ -369,6 +380,9 @@ export const SettingsPanel: React.FC = () => {
     if (modelName && modelName.trim()) {
       handleManualModelInput(modelType, modelName.trim());
       toggleManualInput(modelType);
+      utilityToasts.success(`Model "${modelName.trim()}" applied successfully`);
+    } else {
+      utilityToasts.error('Please enter a valid model name');
     }
   };
 

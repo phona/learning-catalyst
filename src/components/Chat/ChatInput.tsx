@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useChatStore } from '@/hooks/useChatStore';
 import { useConfigStore } from '@/stores/useConfigStore';
+import { chatToasts, settingsToasts, utilityToasts } from '@/utils/toast';
 
 export const ChatInput: React.FC = () => {
   const chatStore = useChatStore();
@@ -47,6 +48,7 @@ export const ChatInput: React.FC = () => {
     setInputText('');
 
     try {
+      chatToasts.sending();
       await sendMessage(message, {
         provider: selectedProvider,
         model: selectedModel,
@@ -55,10 +57,12 @@ export const ChatInput: React.FC = () => {
         stream: config?.ai?.streaming,
         enable_thinking: config?.ai?.enable_thinking,
       });
+      chatToasts.sent();
     } catch (error) {
       console.error('Failed to send message:', error);
       // Restore input text on error
       setInputText(message);
+      chatToasts.error(error instanceof Error ? error.message : 'Unknown error occurred');
     }
   };
 
@@ -85,8 +89,10 @@ export const ChatInput: React.FC = () => {
           enable_thinking: newThinkingState
         }
       });
+      settingsToasts.saved();
     } catch (error) {
       console.error('Failed to update thinking config:', error);
+      settingsToasts.providerError('Settings', error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -106,9 +112,11 @@ export const ChatInput: React.FC = () => {
         const fileName = filePath.split(/[/\\]/).pop();
 
         setInputText(prev => prev + `\n\n📎 Attached file: ${fileName}\n\n${content}`);
+        utilityToasts.success(`File "${fileName}" attached successfully`);
       }
     } catch (error) {
       console.error('Failed to read file:', error);
+      utilityToasts.error(error instanceof Error ? error.message : 'Failed to read file');
     }
   };
 
