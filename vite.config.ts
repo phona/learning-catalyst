@@ -3,6 +3,7 @@ import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron/simple'
+import viteMemoryPlugin from './src/utils/vite-memory-plugin.js'
 // @ts-ignore
 import pkg from './package.json'
 
@@ -29,8 +30,19 @@ export default defineConfig(({ command }) => {
     define: {
       __WORKSPACE_PATH__: JSON.stringify(workspace)
     },
+    // Memory optimization settings
+    esbuild: {
+      target: 'es2020',
+    },
     plugins: [
       react(),
+      // Memory leak prevention plugin for development
+      ...(isServe ? [viteMemoryPlugin({
+        maxMemoryMB: 600, // Alert at 600MB
+        checkIntervalMs: 15000, // Check every 15 seconds
+        enableCleanup: true,
+        verbose: process.env.DEBUG_VITE_MEMORY === 'true'
+      })] : []),
       electron({
         main: {
           // Shortcut of `build.lib.entry`
@@ -79,17 +91,64 @@ export default defineConfig(({ command }) => {
         },
       }),
     ],
-    server: process.env.VSCODE_DEBUG && (() => {
-      const url = new URL(pkg.debug?.env?.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173/')
-      return {
-        host: url.hostname,
-        port: +url.port,
+    server: (() => {
+      const baseConfig = {
+        // Memory optimization settings for development server
+        fs: {
+          // Limit file system watching to reduce memory usage
+          strict: false,
+        },
+        watch: {
+          // Use polling to reduce file watcher memory usage
+          usePolling: false,
+          interval: 1000,
+          // Exclude node_modules and other large directories from watching
+          ignored: [
+            '**/node_modules/**',
+            '**/dist/**',
+            '**/dist-electron/**',
+            '**/.git/**',
+            '**/test_workspace/**',
+            '**/external/**'
+          ],
+        },
+        hmr: {
+          // Limit HMR connections to prevent memory leaks
+          port: 5174,
+        },
+      };
+
+      if (process.env.VSCODE_DEBUG) {
+        const url = new URL(pkg.debug?.env?.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173/')
+        return {
+          ...baseConfig,
+          host: url.hostname,
+          port: +url.port,
+        };
       }
+
+      return {
+        ...baseConfig,
+        host: '127.0.0.1',
+        port: 5173,
+      };
     })(),
     clearScreen: false,
     optimizeDeps: {
       // Pre-bundle dependencies to improve performance
       include: ['react', 'react-dom', 'zustand'],
+      // Memory optimization for dependency management
+      force: false, // Don't force rebuild unless necessary
+      // Exclude large dependencies that cause memory issues
+      exclude: [
+        '@anthropic-ai/claude-code',
+        'qdrant-js',
+        'sqlite-electron'
+      ],
+      // Limit the size of pre-bundled chunks
+      maxChunkSize: 500000, // 500KB chunks
+      // Enable more aggressive garbage collection
+      noDedupe: false,
     },
     build: {
       // Reduce memory usage during development
@@ -99,7 +158,28 @@ export default defineConfig(({ command }) => {
           if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
           warn(warning);
         },
+        // Memory optimization for build chunks
+        ...(isServe && {
+          output: {
+            // Split code into smaller chunks to reduce memory usage
+            manualChunks: {
+              vendor: ['react', 'react-dom'],
+              state: ['zustand'],
+              electron: ['electron'],
+            },
+            // Limit chunk sizes in development
+            maxChunkSize: 500000, // 500KB
+          },
+        }),
       },
+      // Development-specific build optimizations
+      ...(isServe && {
+        minify: false, // Skip minification in dev to save memory
+        sourcemap: true,
+        target: 'es2020',
+        // Reduce parallelism to save memory
+        chunkSizeWarningLimit: 1000,
+      }),
     },
   }
 })
