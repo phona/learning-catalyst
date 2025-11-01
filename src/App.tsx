@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { ChatInterface } from './components/Chat/ChatInterface';
@@ -13,8 +13,6 @@ import { useAppStore } from './stores/useAppStore';
 import { useConfigStore } from './stores/useConfigStore';
 import { setupMenuHandlers } from './services/appService';
 import { useAppServices } from './hooks/useAppServices';
-import { useChatStoreWithServices } from './hooks/useChatStoreWithServices';
-import type { AppConfig } from '@/types';
 
 // Global flag to track if setup has already been completed to prevent double execution in Strict Mode
 // This is outside the component so it persists across mount/unmount cycles in Strict Mode
@@ -28,9 +26,7 @@ function App() {
     error: servicesError
   } = useAppServices();
 
-  // Initialize chat store with session service
-  useChatStoreWithServices();
-
+  
   // FIRST EFFECT: Application initialization and setup
   // This effect handles the one-time setup process that should only run once when services are ready.
   // It's separated from error handling to avoid re-running initialization logic every time an error occurs.

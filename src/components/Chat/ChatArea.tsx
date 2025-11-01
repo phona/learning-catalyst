@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
-import { useChatStore } from '@/stores/useChatStore';
+import { useChatStore } from '@/hooks/useChatStore';
 import { useAppStore } from '@/stores/useAppStore';
 import { useConfigStore } from '@/stores/useConfigStore';
 
 export const ChatArea: React.FC = () => {
+  const chatStore = useChatStore();
   const {
     messages,
     isStreaming,
@@ -13,12 +14,7 @@ export const ChatArea: React.FC = () => {
     autoScroll,
     selectedProvider,
     updateMessage,
-  } = useChatStore();
-
-  // Debug: Log messages to see what ChatArea receives
-  console.log('[ChatArea] Messages in store:', messages.length, messages.map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 50) + '...' })));
-
-  const { config } = useConfigStore();
+  } = chatStore();
 
   // Simple toggle function for individual message thinking visibility
   const handleToggleThinking = (messageId: string) => {
@@ -28,7 +24,6 @@ export const ChatArea: React.FC = () => {
     }
   };
 
-  const { theme } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 

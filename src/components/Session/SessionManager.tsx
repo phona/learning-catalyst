@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
-import { useChatStore } from '@/stores/useChatStore';
+import { useChatStore } from '@/hooks/useChatStore';
 import { useAppStore } from '@/stores/useAppStore';
 
 export const SessionManager: React.FC = () => {
   const { sessions, loading, error, refresh, clearError } = useRecentSessions(20);
   const navigate = useNavigate();
-  const { setCurrentSession, clearMessages } = useChatStore();
+  const chatStore = useChatStore();
+  const { setCurrentSession, clearMessages } = chatStore();
   const { setCurrentView } = useAppStore();
 
   const formatRelativeTime = (date: Date): string => {

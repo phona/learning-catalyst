@@ -24,6 +24,26 @@ export interface ToolCall {
   };
 }
 
+export interface ToolDefinition {
+  type: 'function';
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: 'object';
+      properties: Record<string, {
+        type: string;
+        description?: string;
+        enum?: string[];
+        items?: Record<string, any>;
+        properties?: Record<string, any>;
+        required?: string[];
+      }>;
+      required: string[];
+    };
+  };
+}
+
 export interface StreamChunk {
   content?: string;
   reasoning_content?: string;
@@ -89,6 +109,7 @@ export interface AIProvider {
   validateConfig(config: ProviderConfig): Promise<boolean>;
   supportsStreaming(): boolean;
   supportsThinking(): boolean;
+  supportsTools(): boolean;
 }
 
 export interface ChatOptions {
@@ -102,6 +123,8 @@ export interface ChatOptions {
   presence_penalty?: number;
   provider?: string;
   model?: string;
+  tools?: ToolDefinition[];
+  tool_choice?: 'auto' | 'none' | 'required';
 }
 
 export interface ModelList {

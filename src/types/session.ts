@@ -227,3 +227,14 @@ export interface ToolCall {
     arguments: string;
   };
 }
+
+// In-memory session management types
+export interface MemorySession extends Omit<Session, 'id'> {
+  id?: string; // Optional until saved to database
+}
+
+export interface SessionSaveResult {
+  success: boolean;
+  sessionId?: string;
+  error?: string;
+}

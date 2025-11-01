@@ -8,7 +8,7 @@ import {
   ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/stores/useAppStore';
-import { useChatStore } from '@/stores/useChatStore';
+import { useChatStore } from '@/hooks/useChatStore';
 
 export const Header: React.FC = () => {
   const {
@@ -18,7 +18,7 @@ export const Header: React.FC = () => {
     setSettingsPanelOpen,
     setTheme,
   } = useAppStore();
-  const { currentSession } = useChatStore();
+  const chatStore = useChatStore();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebar_open);
@@ -56,6 +56,9 @@ export const Header: React.FC = () => {
         return 'Light';
     }
   };
+
+  // Get current session state on every render to ensure reactivity
+  const { currentSession } = chatStore();
 
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3">

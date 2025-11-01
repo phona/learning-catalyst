@@ -4,6 +4,7 @@ import type {
   ChatOptions,
   StreamChunk,
   ChatResponse,
+  AIProvider,
 } from '@/types/ai';
 import type { Session } from '@/types/session';
 import { useConfigStore } from '@/stores/useConfigStore';
@@ -14,7 +15,7 @@ import { useConfigStore } from '@/stores/useConfigStore';
  */
 export class ChatService {
   private static instance: ChatService;
-  private currentProvider: any = null;
+  private currentProvider: AIProvider | null = null;
   private currentSession: Session | null = null;
 
   private constructor() {}

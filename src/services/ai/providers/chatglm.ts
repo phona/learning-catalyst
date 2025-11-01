@@ -66,7 +66,12 @@ export class ChatGLMProvider extends BaseAIProvider {
       })),
       temperature: finalOptions.temperature ?? 0.7,
       max_tokens: finalOptions.max_tokens ?? 4096,
-      stream: finalOptions.stream ?? true
+      stream: finalOptions.stream ?? true,
+	  thinking: {
+		type: finalOptions.enable_thinking ? "enabled" : "disabled"
+	  },
+	  top_p: finalOptions.top_p,
+	  tools: finalOptions.tools,
     };
 
     console.log('ChatGLM API request:', { model: requestBody.model, messageCount: requestBody.messages.length });

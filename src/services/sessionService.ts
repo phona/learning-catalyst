@@ -13,8 +13,10 @@ import {
   SessionSearchQuery,
   SessionSearchResult,
   SessionMetadata,
-  ConversationMessage
+  ConversationMessage,
+  MemorySession
 } from '../types/session'
+import { chatService } from '../services/ai/chatService'
 
 /**
  * Session Service with dependency injection
@@ -168,13 +170,9 @@ export class SessionService {
   /**
    * Get recent sessions
    */
-  async getRecentSessions(limit: number = 10): Promise<Session[]> {
+  async getRecentSessions(limit = 10): Promise<Session[]> {
     try {
-      console.log('[SessionService] Getting recent sessions with limit:', limit);
       const db = this.getDB();
-
-      // Debug: Check if we can access the table
-      console.log('[SessionService] Executing query on learning_sessions table...');
 
       const rows = await db
         .selectFrom('learning_sessions')
@@ -182,9 +180,6 @@ export class SessionService {
         .orderBy('updated_at', 'desc')
         .limit(limit)
         .execute();
-
-      console.log('[SessionService] Database returned rows:', rows.length);
-      console.log('[SessionService] Raw database rows:', rows);
 
       // Convert to session objects with their messages
       const sessions: Session[] = [];
@@ -199,8 +194,6 @@ export class SessionService {
           .orderBy('message_order', 'asc')
           .orderBy('timestamp', 'asc')
           .execute();
-
-        console.log(`[SessionService] Found ${messageRows.length} messages for session ${row.id}`);
 
         // Convert message rows to ConversationMessage objects
         const messages: ConversationMessage[] = messageRows.map(msgRow => ({
@@ -355,6 +348,50 @@ export class SessionService {
         productivity_score: 0,
         engagement_score: 0,
       },
+    }
+  }
+
+  /**
+   * Update session title in database
+   */
+  async updateSessionTitle(sessionId: string, title: string): Promise<void> {
+    try {
+      console.log(`[SessionService] Updating title for session ${sessionId} to: "${title}"`);
+      const db = this.getDB();
+
+      // Get current session to preserve existing metadata
+      const currentSession = await db
+        .selectFrom('learning_sessions')
+        .select(['metadata'])
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+
+      if (!currentSession) {
+        throw new Error(`Session ${sessionId} not found`);
+      }
+
+      // Parse existing metadata and update title
+      const metadata = JSONFieldHelpers.parseObject<SessionMetadata>(currentSession.metadata) || {};
+      const updatedMetadata = {
+        ...metadata,
+        title: title
+      };
+
+      // Update session title and metadata in database
+      await db
+        .updateTable('learning_sessions')
+        .set({
+          title: title,
+          metadata: JSONFieldHelpers.stringifyObject(updatedMetadata),
+          updated_at: new Date().toISOString()
+        })
+        .where('id', '=', sessionId)
+        .execute();
+
+      console.log(`[SessionService] Successfully updated title for session ${sessionId}`);
+    } catch (error) {
+      console.error(`[SessionService] Failed to update title for session ${sessionId}:`, error);
+      throw new Error(`Failed to update session title: ${error}`);
     }
   }
 
@@ -661,6 +698,268 @@ export class SessionService {
       console.error('[SessionService] Failed to delete session:', error)
       throw new Error(`Failed to delete session: ${error}`)
     }
+  }
+
+  /**
+   * Save session and all messages in a single transaction (idempotent)
+   * Creates new session or updates existing session
+   */
+  async saveSessionWithMessages(
+    memorySession: MemorySession,
+    messages: ConversationMessage[]
+  ): Promise<string> {
+    try {
+      console.log('[SessionService] Saving session with messages:', {
+        sessionId: memorySession.id,
+        messageCount: messages.length
+      });
+
+      const db = this.getDB()
+      const sessionId = memorySession.id || this.generateSessionId()
+      const now = new Date().toISOString()
+
+      // Check if session exists
+      const existingSession = await db
+        .selectFrom('learning_sessions')
+        .select('id')
+        .where('id', '=', sessionId)
+        .executeTakeFirst()
+
+      const isUpdate = !!existingSession
+
+      console.log('[SessionService] Session exists:', { sessionId, isUpdate });
+
+      // Use transaction for atomicity
+      await db.transaction().execute(async (trx) => {
+        // Combine session metadata with context
+        const metadata = {
+          ...memorySession.metadata,
+          // Only store session-specific context in metadata
+          system_prompt: memorySession.context?.system_prompt,
+          notes: memorySession.context?.notes,
+          learning_objectives: memorySession.context?.learning_objectives,
+          checkpoints: memorySession.checkpoints || [],
+        }
+
+        if (isUpdate) {
+          // Update existing session
+          await trx
+            .updateTable('learning_sessions')
+            .set({
+              title: memorySession.title,
+              description: memorySession.metadata?.description,
+              total_messages: messages.length,
+              metadata: JSON.stringify(metadata),
+              updated_at: now,
+            })
+            .where('id', '=', sessionId)
+            .execute()
+
+          // Delete existing messages and recreate them
+          await trx
+            .deleteFrom('messages')
+            .where('session_id', '=', sessionId)
+            .execute()
+        } else {
+          // Insert new session
+          await trx
+            .insertInto('learning_sessions')
+            .values({
+              id: sessionId,
+              title: memorySession.title,
+              description: memorySession.metadata?.description,
+              start_time: now,
+              duration_seconds: 0,
+              total_messages: messages.length,
+              concepts_studied: 0,
+              difficulty_level: 1,
+              session_type: 'general',
+              metadata: JSON.stringify(metadata),
+              created_at: now,
+              updated_at: now,
+            })
+            .execute()
+        }
+
+        // Insert all messages in batch
+        if (messages.length > 0) {
+          const messageRecords = messages.map((message, index) => ({
+            id: message.id,
+            session_id: sessionId,
+            role: message.role,
+            content: message.content,
+            thinking_content: message.thinking_content,
+            provider: message.provider,
+            model: message.model,
+            tokens_used: message.tokens_used ? JSON.stringify({
+              prompt_tokens: 0,
+              completion_tokens: 0,
+              total_tokens: message.tokens_used
+            }) : '{}',
+            timestamp: message.timestamp.toISOString(),
+            message_order: index + 1,
+            created_at: now
+          }))
+
+          await trx
+            .insertInto('messages')
+            .values(messageRecords)
+            .execute()
+        }
+      })
+
+      console.log('[SessionService] Session and messages saved successfully:', sessionId, isUpdate ? '(updated)' : '(created)')
+      return sessionId
+
+    } catch (error) {
+      console.error('[SessionService] Failed to save session with messages:', error)
+      throw new Error(`Failed to save session with messages: ${error}`)
+    }
+  }
+
+  /**
+   * Generate unique session ID
+   */
+  generateSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+  }
+
+  /**
+   * Generate a title using AI based on the first user message
+   */
+  async generateAITitle(userMessage: string, provider?: string, model?: string): Promise<string> {
+    try {
+      console.log('[SessionService] Generating AI title from message:', userMessage.substring(0, 50) + '...');
+
+	  const systemPrompt = `You are a helpful assistant that generates concise chat titles. Generate a concise, descriptive title (maximum 5 words) for a conversation.
+
+The title should:
+- Be short and catchy (2-5 words)
+- Capture the main topic or theme
+- Be suitable as a chat session title
+- Use title case (capitalize major words)
+- NOT include quotes or special characters
+
+Respond with ONLY the title, nothing else.`;
+
+      // Create a minimal session for title generation
+      const tempSession: Session = {
+        id: 'temp_title_generation',
+        title: 'Untitled Session',
+        created_at: new Date(),
+        updated_at: new Date(),
+        messages: [],
+        metadata: {
+          title: 'Untitled Session',
+          tags: [],
+          topics_covered: [],
+          archived: false,
+          pinned: false,
+        },
+        context: {
+          system_prompt: systemPrompt,
+          notes: undefined,
+          learning_objectives: undefined,
+        },
+        checkpoints: [],
+        statistics: {
+          total_messages: 0,
+          user_messages: 0,
+          assistant_messages: 0,
+          total_tokens_used: 0,
+          total_thinking_tokens: 0,
+          session_duration: 0,
+          average_response_time: 0,
+          concepts_learned: 0,
+          checkpoints_created: 0,
+          productivity_score: 0,
+          engagement_score: 0,
+        },
+      };
+
+      // Check if chat service has an initialized provider
+      const currentProviderInfo = chatService.getProviderInfo();
+      console.log('[SessionService] Current provider info:', currentProviderInfo);
+      console.log('[SessionService] Requested provider and model:', { provider, model });
+
+      // If no provider/model specified, use fallback
+      if (!provider || !model) {
+        console.warn('[SessionService] No provider or model specified for title generation, using fallback');
+        return this.generateSimpleTitle(userMessage);
+      }
+
+      console.log('[SessionService] Using AI service for title generation with model:', model);
+
+      const response = await chatService.sendMessage(userMessage, tempSession, {
+        temperature: 0.3, // Lower temperature for more consistent titles
+        max_tokens: 20,   // Keep it short
+        model: model,     // Use the specified model
+        stream: false,     // Disable streaming for title generation
+		enable_thinking: false
+      });
+
+      let generatedTitle = 'Untitled Session';
+
+	  console.log('[SessionService] AI response for title generation:', response);
+      if (response && typeof response === 'object' && 'content' in response) {
+        // Handle non-streaming response (ChatResponse)
+        generatedTitle = response.content.trim();
+      } else if (response && typeof response === 'object' && Symbol.asyncIterator in response) {
+        // Handle streaming response (AsyncGenerator<StreamChunk>)
+        let fullContent = '';
+        for await (const chunk of response) {
+          if (chunk.content) {
+            fullContent += chunk.content;
+          }
+          if (chunk.done) {
+            break;
+          }
+        }
+        generatedTitle = fullContent.trim();
+      }
+
+      // Clean up and validate the generated title
+      generatedTitle = generatedTitle
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\n+/g, ' ') // Replace newlines with spaces
+        .trim();
+
+      // Ensure title is reasonable length and not empty
+      if (!generatedTitle || generatedTitle.length < 2) {
+        generatedTitle = 'Untitled Session';
+      } else if (generatedTitle.length > 50) {
+        generatedTitle = generatedTitle.substring(0, 47) + '...';
+      }
+
+      console.log('[SessionService] Generated AI title:', generatedTitle);
+      return generatedTitle;
+
+    } catch (error) {
+      console.error('[SessionService] Failed to generate AI title:', error);
+      // Fallback to simple title based on message content
+      return this.generateSimpleTitle(userMessage);
+    }
+  }
+
+  /**
+   * Generate a simple title based on message content (fallback)
+   */
+  private generateSimpleTitle(message: string): string {
+    const words = message
+      .replace(/[^\w\s]/g, '') // Remove punctuation
+      .split(/\s+/) // Split by whitespace
+      .filter(word => word.length > 2) // Remove very short words
+      .slice(0, 4); // Take first 4 meaningful words
+
+    if (words.length === 0) {
+      return 'Untitled Session';
+    }
+
+    const title = words.map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+
+    return title.length > 30 ? title.substring(0, 27) + '...' : title;
   }
 }
 

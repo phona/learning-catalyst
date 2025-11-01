@@ -138,4 +138,12 @@ export abstract class BaseAIProvider implements AIProvider {
       timestamp: new Date(),
     };
   }
+
+  /**
+   * Check if this provider supports tools/function calling
+   */
+  supportsTools(): boolean {
+    // Default implementation - most providers don't support tools
+    return false;
+  }
 }

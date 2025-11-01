@@ -15,7 +15,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/stores/useAppStore';
-import { useChatStore } from '@/stores/useChatStore';
+import { useChatStore } from '@/hooks/useChatStore';
 import { useRecentSessions } from '@/hooks/useRecentSessions';
 
 interface SidebarProps {
@@ -45,7 +45,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { setCurrentView } = useAppStore();
-  const { createNewSession, setCurrentSession, clearMessages } = useChatStore();
+  const chatStore = useChatStore();
+  const { createNewSession, setCurrentSession, clearMessages } = chatStore();
   const { sessions, loading, error, refresh } = useRecentSessions(5);
 
   // Track newly created sessions to show special indicators
@@ -54,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   // Listen for session creation and update events to refresh the recent sessions list
   useEffect(() => {
     const handleSessionCreated = (event: any) => {
-      console.log('[Sidebar] Session created event received, refreshing recent sessions', event.detail);
+      console.log('[Sidebar] Session created event received', event.detail);
 
       // Mark this session as new if the flag is set
       if (event.detail?.isNew && event.detail?.sessionId) {
@@ -70,7 +71,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         }, 5000);
       }
 
-      refresh();
+      // Refresh for any session
+      if (event.detail?.sessionId) {
+        console.log('[Sidebar] Refreshing recent sessions for session:', event.detail.sessionId);
+        refresh();
+      }
+    };
+
+    const handleSessionSaved = (event: any) => {
+      console.log('[Sidebar] Session saved event received, refreshing recent sessions', event.detail);
+
+      // Session was saved to database, refresh the list
+      if (event.detail?.sessionId) {
+        setNewSessionIds(prev => new Set(prev).add(event.detail.sessionId));
+        refresh();
+      }
     };
 
     const handleSessionUpdated = (event: any) => {
@@ -88,12 +103,25 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       }
     };
 
+    const handleSessionTitleUpdated = (event: any) => {
+      console.log('[Sidebar] Session title updated event received, refreshing recent sessions', event.detail);
+
+      // AI-generated title was updated in database, refresh the list
+      if (event.detail?.sessionId) {
+        refresh();
+      }
+    };
+
     window.addEventListener('sessionCreated', handleSessionCreated);
+    window.addEventListener('sessionSaved', handleSessionSaved);
     window.addEventListener('sessionUpdated', handleSessionUpdated);
+    window.addEventListener('sessionTitleUpdated', handleSessionTitleUpdated);
 
     return () => {
       window.removeEventListener('sessionCreated', handleSessionCreated);
+      window.removeEventListener('sessionSaved', handleSessionSaved);
       window.removeEventListener('sessionUpdated', handleSessionUpdated);
+      window.removeEventListener('sessionTitleUpdated', handleSessionTitleUpdated);
     };
   }, [refresh]);
 
@@ -189,11 +217,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
       // Verify state after setting
       setTimeout(() => {
-        const currentState = useChatStore.getState();
+        const currentState = chatStore();
         console.log(`[Sidebar] State after session open:`, {
           currentSessionId: currentState.currentSession?.id,
           messagesInStore: currentState.messages.length,
-          sampleMessages: currentState.messages.slice(0, 2).map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
+          sampleMessages: currentState.messages.slice(0, 2).map((m: any) => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
         });
       }, 100);
     } catch (error) {
@@ -306,7 +334,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
             </div>
           ) : (
             <div className="space-y-1">
-              {Array.from(new Map(sessions.map(session => [session.id, session])).values()).map((session) => (
+              {Array.from(new Map(sessions.map(session => [session.id, session])).values())
+                .map((session) => (
                 <button
                   key={`session_${session.id}`}
                   onClick={() => handleOpenSession(session)}

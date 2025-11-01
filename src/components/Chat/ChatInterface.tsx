@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ChatArea } from './ChatArea';
 import { ChatInput } from './ChatInput';
-import { useChatStore } from '@/stores/useChatStore';
+import { useChatStore } from '@/hooks/useChatStore';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { useService } from '@/hooks/useAppServices';
 
@@ -10,13 +10,14 @@ export const ChatInterface: React.FC = () => {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const sessionService = useService('sessionService');
 
+  const chatStore = useChatStore();
   const {
     currentSession,
     setCurrentSession,
     setAutoScroll,
     setSelectedProvider,
     setSelectedModel
-  } = useChatStore();
+  } = chatStore();
 
   const { config } = useConfigStore();
 
@@ -100,11 +101,11 @@ export const ChatInterface: React.FC = () => {
 
             // Verify the state after setting
             setTimeout(() => {
-              const currentState = useChatStore.getState();
+              const currentState = chatStore();
               console.log(`[ChatInterface] State after setCurrentSession:`, {
                 currentSessionId: currentState.currentSession?.id,
                 messagesInStore: currentState.messages.length,
-                sampleMessages: currentState.messages.slice(0, 2).map(m => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
+                sampleMessages: currentState.messages.slice(0, 2).map((m: any) => ({ id: m.id, role: m.role, content: m.content.substring(0, 30) + '...' }))
               });
             }, 100);
           } else {

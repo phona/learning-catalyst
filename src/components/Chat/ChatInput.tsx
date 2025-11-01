@@ -6,10 +6,11 @@ import {
   StopIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
-import { useChatStore } from '@/stores/useChatStore';
+import { useChatStore } from '@/hooks/useChatStore';
 import { useConfigStore } from '@/stores/useConfigStore';
 
 export const ChatInput: React.FC = () => {
+  const chatStore = useChatStore();
   const {
     inputText,
     setInputText,
@@ -19,7 +20,7 @@ export const ChatInput: React.FC = () => {
     stopStreaming,
     selectedProvider,
     selectedModel,
-  } = useChatStore();
+  } = chatStore();
 
   const { config, updateConfig } = useConfigStore();
 
