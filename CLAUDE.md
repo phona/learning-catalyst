@@ -7,82 +7,105 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Environment Setup
 ```bash
 # Install development dependencies
-yarn install
+npm install
 
 # Run the development server
-yarn dev
+npm run dev
 
 # Run development with custom workspace
-yarn dev:workspace
+npm run dev:workspace
 
 # Build the application
-yarn build
+npm run build
 
 # Build for all platforms
-yarn build:all
+npm run build:all
 ```
 
 ### Code Quality & Linting
 ```bash
 # Run linting
-yarn lint
+npm run lint
 
 # Type checking
-yarn type-check
+npm run type-check
 ```
 
 ### Testing
 ```bash
-# Run all tests
-yarn test
+# Run all tests (default configuration)
+npm test
 
 # Run tests with UI
-yarn test:ui
+npm run test:ui
 
 # Run tests once (CI mode)
-yarn test:run
+npm run test:run
 
 # Run tests with coverage
-yarn test:coverage
+npm run test:coverage
+
+# Multi-Environment Testing
+# Run tests for specific processes
+npm run test:main              # Main process tests
+npm run test:renderer          # Renderer process tests
+npm run test:integration       # Integration tests
+npm run test:performance       # Performance tests
+
+# With UI for specific environments
+npm run test:main:ui
+npm run test:renderer:ui
+npm run test:integration:ui
+npm run test:performance:ui
+
+# Coverage for specific environments
+npm run test:main:coverage
+npm run test:renderer:coverage
+npm run test:integration:coverage
+
+# Complete test suite
+npm run test:complete              # All test environments
+npm run test:complete:coverage     # All environments with coverage
 ```
 
 ### Qdrant Vector Database Management
 ```bash
 # Start Qdrant service
-yarn qdrant:start
+npm run qdrant:start
 
 # Stop Qdrant service
-yarn qdrant:stop
+npm run qdrant:stop
 
 # Check Qdrant status
-yarn qdrant:status
+npm run qdrant:status
 
 # Setup Qdrant initially
-yarn setup:qdrant
+npm run setup:qdrant
 ```
 
 ### Electron Development
 ```bash
 # Rebuild native dependencies
-yarn rebuild
+npm run rebuild
 ```
 
 ## Architecture Overview
 
-Learning Catalyst follows a **modern React-based desktop architecture** with clear separation of concerns:
+Learning Catalyst follows a **multi-process Electron architecture** with clear separation between main and renderer processes:
 
 ### Core Architecture Layers
-1. **Presentation Layer** - React components with TypeScript and Tailwind CSS
-2. **State Management Layer** - Zustand for reactive state management
-3. **Service Layer** - API integration and business logic
-4. **AI Integration Layer** - Multi-provider AI abstraction and tool orchestration
-5. **Data Storage Layer** - Local-first storage with Electron and Prisma
+1. **Main Process (Node.js)** - AI services, database operations, system integration
+2. **Renderer Process (Browser)** - React UI, state management, user interactions
+3. **IPC Communication** - Secure inter-process communication via preload scripts
+4. **AI Integration Layer** - Multi-provider AI abstraction with LangChain
+5. **Data Storage Layer** - Local SQLite database with Qdrant vector storage
 
 ### Key Architectural Principles
-- **Component-First Design**: Each UI element is a reusable React component
+- **Process Separation**: Clear boundary between main (Node.js) and renderer (browser) processes
+- **Multi-Agent System**: Sophisticated agent lifecycle management and orchestration
 - **Provider Abstraction**: Unified interface for multiple AI providers (OpenAI, ChatGLM, DeepSeek, SiliconFlow, local models)
-- **Local-First Approach**: User data remains primarily on local machines
-- **Desktop-First Design**: Electron-based desktop application with web technologies
+- **Local-First Approach**: User data remains primarily on local machines with SQLite
+- **Memory Optimization**: Development environment configured for memory efficiency
 
 ### Module Documentation Framework
 Every module follows the **What-How-Relationship Framework**:
@@ -99,45 +122,34 @@ Every module follows the **What-How-Relationship Framework**:
 - **Configuration**: Electron + Vite + TypeScript setup with comprehensive tooling
 - **Build System**: Vite for bundling with Electron builder for distribution
 
-### Source Architecture
+### Multi-Process Architecture
 ```
 src/
-├── components/          # Reusable React components
-│   ├── Chat/           # Chat interface components
-│   ├── Dashboard/      # Learning dashboard components
-│   ├── Knowledge/      # Knowledge graph and search components
-│   ├── Analytics/      # Progress tracking and analytics
-│   ├── Config/         # Settings and configuration panels
-│   ├── Discovery/      # Content discovery components
-│   ├── Layout/         # App layout and navigation
-│   ├── Session/        # Session management components
-│   └── UI/             # Base UI components (ErrorBoundary, LoadingScreen, etc.)
-├── pages/              # Page-level components (DiscoveryPage)
-├── hooks/              # Custom React hooks (useQdrant, useAppServices)
-├── services/           # API integration and business logic
-│   ├── ai/            # AI provider services and implementations
-│   ├── knowledge/     # Knowledge management services
-│   ├── qdrant/        # Vector database integration
-│   └── configService.ts # Configuration management
-├── stores/             # Zustand state management (useChatStore, useAppStore, useConfigStore)
-├── types/              # TypeScript type definitions
-│   ├── api.ts         # API interface types
-│   ├── learning.ts    # Learning-specific types
-│   ├── session.ts     # Session management types
-│   ├── ai.ts          # AI provider types
-│   ├── config.ts      # Configuration types
-│   ├── content.ts     # Content types
-│   ├── knowledge.ts   # Knowledge graph types
-│   └── ui.ts          # UI component types
-├── modules/            # Core business logic modules
-│   ├── database/      # Local database management
-│   ├── knowledge-graph/ # Knowledge graph implementation
-│   ├── analytics/     # Analytics and progress tracking
-│   └── vector-database/ # Vector database abstraction
-├── shared/             # Shared utilities and types
-├── test/               # Test setup and utilities
-├── App.tsx             # Main application component
-└── main.tsx           # Application entry point
+├── main/               # Electron main process (Node.js environment)
+│   ├── services/       # Main process services
+│   │   ├── agents/     # Multi-agent system management
+│   │   ├── catalyst/   # Core AI orchestration and concept parsing
+│   │   ├── database/   # SQLite database operations and migrations
+│   │   └── langchain/  # AI/ML processing and model factory
+│   └── index.ts        # Main process entry point
+├── renderer/           # React frontend (Browser environment)
+│   ├── components/     # UI components by feature
+│   │   ├── Analytics/  # Learning analytics and progress tracking
+│   │   ├── Chat/       # AI chat interface
+│   │   ├── Config/     # Settings and configuration
+│   │   ├── Dashboard/  # Learning dashboard
+│   │   ├── Discovery/  # Content discovery and exploration
+│   │   ├── Knowledge/  # Knowledge graph visualization
+│   │   ├── Layout/     # Application layout and navigation
+│   │   └── UI/         # Reusable UI components
+│   ├── hooks/          # Custom React hooks
+│   ├── services/       # Frontend services and API clients
+│   ├── stores/         # Zustand state management
+│   └── App.tsx         # React application root
+└── shared/             # Shared between processes
+    ├── constants/      # Shared constants and enums
+    ├── types/          # TypeScript type definitions
+    └── utils/          # Shared utility functions
 ```
 
 ### Electron Architecture
@@ -289,111 +301,134 @@ yarn test:run
 yarn test:coverage
 
 # Run specific test file
-yarn test src/test/components/Chat/MessageBubble.test.tsx
+npm test src/renderer/components/Chat/__tests__/MessageBubble.test.tsx
 ```
 
 ## Key Files to Understand
 
 ### Core Implementation
-- **`src/main.tsx`**: Application entry point with React rendering
-- **`src/App.tsx`**: Main application component with routing and layout
+- **`src/renderer/App.tsx`**: React application root with routing and layout
+- **`src/renderer/main.tsx`**: React application entry point with rendering
+- **`src/main/index.ts`**: Main Electron process entry point
 - **`electron/main/index.ts`**: Electron main process configuration
 - **`package.json`**: Complete project configuration with dependencies and scripts
-- **`vite.config.ts`**: Vite bundler configuration for development and build
+- **`vite.config.ts`**: Vite configuration with memory optimization and Electron integration
 
 ### Configuration and Development
 - **`tsconfig.json`**: TypeScript compiler configuration with strict mode
-- **`tailwind.config.js`**: Tailwind CSS configuration
+- **`vitest*.config.ts`**: Multiple test configurations for different environments
 - **`eslint.config.js`**: ESLint configuration for React and TypeScript
-- **`vite.config.ts`**: Vite development server and build configuration with Electron integration
+- **`vite.config.ts`**: Vite development server with memory optimization settings
 
 ### Key Business Logic
-- **`src/modules/database/`**: Local SQLite-electron database management and schema
-- **`src/services/ai/`**: AI provider abstraction layer with factory pattern
-- **`src/services/qdrant/qdrant-service.ts`**: Vector database integration for semantic search
-- **`src/modules/knowledge-graph/`**: Knowledge graph implementation and concept management
-- **`src/modules/analytics/`**: Learning progress tracking and analytics
+- **`src/main/services/database/`**: SQLite database management, migrations, and services
+- **`src/main/services/langchain/`**: AI provider abstraction with ModelFactory
+- **`src/main/services/agents/`**: Multi-agent system management and orchestration
+- **`src/main/services/catalyst/`**: Core AI orchestration and concept parsing
+- **`src/renderer/stores/`**: Zustand state management for frontend
+- **`src/renderer/hooks/`**: Custom React hooks for state and services
 
-### State Management
-- **`src/stores/useChatStore.ts`**: Chat interface state management
-- **`src/stores/useAppStore.ts`**: Global application state
-- **`src/stores/useConfigStore.ts`**: Configuration and settings state
+### Multi-Process Communication
+- **`electron/main/index.ts`**: Electron main process entry point
+- **`electron/preload/index.ts`**: Secure preload script for IPC communication
+- **Shared types in `src/shared/types/`**: TypeScript interfaces for IPC contracts
 
 ## Working with This Codebase
 
 ### Development Workflow
-1. **Start the Development Server**: Use `yarn dev` to start the Vite development server with hot reload
-2. **Understand the Module System**: The codebase uses a modular architecture with clear separation between UI, business logic, and data layers
-3. **Run Tests Regularly**: Comprehensive test suite with Vitest and React Testing Library for reliable development
+1. **Start the Development Server**: Use `npm run dev` to start the Vite development server with hot reload
+2. **Understand Process Separation**: Main process handles AI/database, renderer handles UI
+3. **Run Tests Regularly**: Comprehensive test suite with multiple environments (main, renderer, integration)
 4. **Use TypeScript Strictly**: All code must pass strict TypeScript compilation before committing
+5. **Memory Management**: Development environment is optimized for memory efficiency
 
-### React Development Best Practices
-1. **Component Structure**: Components are organized by feature (Chat/, Dashboard/, Knowledge/, etc.) rather than type
-2. **State Management**: Use Zustand stores for global state, React hooks for local component state
-3. **TypeScript Integration**: All components must have proper TypeScript interfaces for props
-4. **Error Boundaries**: Use the ErrorBoundary component for graceful error handling
-5. **Performance**: Implement React.memo, useCallback, and useMemo where appropriate
-6. **Electron Integration**: Understand the distinction between main and renderer processes
+### Multi-Process Development Best Practices
+1. **Process Boundaries**: Main process (Node.js) handles AI services and database; renderer process (browser) handles UI
+2. **Component Structure**: Components are organized by feature in `src/renderer/components/`
+3. **State Management**: Use Zustand stores for global state, React hooks for local component state
+4. **IPC Communication**: Use secure IPC channels via preload scripts for process communication
+5. **TypeScript Integration**: All components must have proper TypeScript interfaces for props
+6. **Memory Awareness**: Development environment has memory optimization settings configured
+7. **Error Boundaries**: Use the ErrorBoundary component for graceful error handling
+8. **Performance**: Implement React.memo, useCallback, and useMemo where appropriate
 
 ### AI Provider Integration
-- **Factory Pattern**: Use `src/services/ai/factory.ts` to create AI provider instances
+- **Factory Pattern**: Use `src/main/services/langchain/ModelFactory.ts` for AI provider instances
 - **Provider Abstraction**: All AI providers implement the same interface for consistency
 - **Configuration**: AI provider settings are managed through the configuration service
-- **Streaming**: Real-time streaming is supported across all providers with consistent handling
+- **Multi-Agent Support**: Advanced agent lifecycle management and orchestration
+- **LangChain Integration**: Built on LangChain ecosystem for advanced AI capabilities
 
 ### Database and Vector Storage
-- **Local Database**: SQLite-electron for local data persistence using `src/modules/database/`
+- **Local Database**: SQLite-electron for local data persistence via main process services
 - **Vector Database**: Qdrant for semantic search and knowledge graph operations
-- **Service Management**: Use yarn scripts to manage Qdrant service lifecycle
-- **Schema Management**: Database schema is defined in `src/modules/database/database-schema.ts`
+- **Service Management**: Use npm scripts to manage Qdrant service lifecycle
+- **Schema Management**: Database migrations in `src/main/services/database/migrations/`
 - **Important**: Uses `sqlite-electron` instead of `sqlite3` for proper Electron integration
 
 ### Testing Strategy
-- **Unit Tests**: Component-level tests in `src/test/components/`
-- **Integration Tests**: End-to-end workflow tests in `src/test/integration/`
-- **Service Tests**: Business logic tests in `src/test/services/`
-- **Test Utilities**: Custom test utilities in `src/test/test-utils.tsx`
+- **Multi-Environment Tests**: Separate configurations for main, renderer, integration, and performance
+- **Main Process Tests**: Test AI services, database operations, and agent management
+- **Renderer Tests**: Test React components, hooks, and UI interactions
+- **Integration Tests**: Test cross-process communication and end-to-end workflows
+- **Performance Tests**: Memory management and resource leak detection
+
+### Memory Optimization and Performance
+- **Development Configuration**: Memory limits and optimization settings in vite.config.ts
+- **Chunk Splitting**: Manual code splitting to reduce memory usage during development
+- **File Watching**: Optimized file watcher configuration to reduce memory overhead
+- **Cleanup Utilities**: Memory debugging and cleanup utilities for development
+- **Build Optimization**: Production builds with proper chunking and tree shaking
 
 ### Professional Development Environment
-- **Hot Reload**: Vite provides fast hot module replacement during development
+- **Hot Reload**: Vite provides fast hot module replacement with memory optimization
 - **TypeScript**: Strict mode enabled with comprehensive type checking
 - **ESLint**: Configured for React and TypeScript best practices
-- **Electron Debugging**: Use VSCode debugging for both main and renderer processes
+- **Multi-Process Debugging**: VSCode debugging for both main and renderer processes
+- **Memory Monitoring**: Built-in memory usage tracking and alerting during development
 
 ## Common Development Patterns
 
 ### Adding New AI Providers
-1. Create provider implementation in `src/services/ai/providers/[provider].ts`
-2. Implement the standard AI provider interface
-3. Add provider configuration options to `src/types/config.ts`
-4. Update the factory pattern in `src/services/ai/factory.ts`
-5. Add provider-specific tests in `src/test/services/ai/`
+1. Create provider implementation in main process services
+2. Implement the standard AI provider interface with LangChain compatibility
+3. Add provider configuration options to shared types
+4. Update the ModelFactory in `src/main/services/langchain/ModelFactory.ts`
+5. Add provider-specific tests in main process test suite
 
 ### Creating New Components
-1. Organize components by feature in appropriate `src/components/[Feature]/` directory
+1. Organize components by feature in appropriate `src/renderer/components/[Feature]/` directory
 2. Create TypeScript interfaces for all props
 3. Use established patterns for state management (Zustand for global, hooks for local)
-4. Include comprehensive tests in `src/test/components/[Feature]/`
+4. Include comprehensive tests in renderer test suite
 5. Follow naming conventions: PascalCase for components, camelCase for hooks
 
 ### Database Schema Changes
-1. Update `src/modules/database/database-schema.ts`
-2. Create migration scripts if needed
-3. Update TypeScript types in `src/types/`
-4. Add tests for new database operations
+1. Create migration script in `src/main/services/database/migrations/`
+2. Update Kysely schema definitions
+3. Update shared TypeScript types
+4. Add tests for new database operations in main process tests
 5. Update service layer to handle new schema
 
 ### IPC Communication Patterns
-- Main process handles in `electron/main/ipc-handlers.ts`
-- Renderer communication through preload script in `electron/preload/index.ts`
+- Main process services expose APIs via IPC handlers
+- Renderer communication through preload script with secure APIs
 - Use TypeScript interfaces to define IPC channel contracts
 - Implement proper error handling and timeout management
+- Test communication patterns in integration test suite
+
+### Memory Management Best Practices
+- Monitor memory usage during development with built-in alerts
+- Use the memory optimization settings configured in vite.config.ts
+- Test with performance test suite to detect memory leaks
+- Use appropriate cleanup patterns in event handlers and subscriptions
+- Be mindful of Node.js polyfills and their memory impact
 
 ## Development Environment Setup
 
 ### Prerequisites
 - Node.js (v18 or higher)
-- Yarn package manager
+- npm package manager
 - Git for version control
 
 ### Initial Setup
@@ -403,13 +438,13 @@ git clone [repository-url]
 cd learning_catalyst
 
 # Install dependencies
-yarn install
+npm install
 
 # Setup Qdrant vector database
-yarn setup:qdrant
+npm run setup:qdrant
 
 # Start development server
-yarn dev
+npm run dev
 ```
 
 ### Environment Variables
