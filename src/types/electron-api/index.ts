@@ -19,9 +19,11 @@ import type { SessionAPI } from './session-api'
 import type { QdrantAPI } from './qdrant-api'
 import type { KnowledgeAPI } from './knowledge-api'
 import type { EventsAPI } from './events-api'
+import type { AgentAPI } from './agent-api'
+import type { CatalystAPI } from './catalyst-api'
 
 // Re-export individual API interfaces
-export type { FileAPI, DialogAPI, AppAPI, ConfigAPI, DatabaseAPI, WorkspaceAPI, SessionAPI, QdrantAPI, KnowledgeAPI, EventsAPI }
+export type { FileAPI, DialogAPI, AppAPI, ConfigAPI, DatabaseAPI, WorkspaceAPI, SessionAPI, QdrantAPI, KnowledgeAPI, EventsAPI, AgentAPI, CatalystAPI }
 
 /**
  * Main ElectronAPI interface
@@ -43,7 +45,9 @@ export interface ElectronAPI extends
   SessionAPI,
   QdrantAPI,
   KnowledgeAPI,
-  EventsAPI {}
+  EventsAPI,
+  AgentAPI,
+  CatalystAPI {}
 
 /**
  * Type helpers for dependency injection and testing

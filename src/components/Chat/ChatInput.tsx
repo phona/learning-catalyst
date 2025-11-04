@@ -7,29 +7,35 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { useChatStore } from '@/hooks/useChatStore';
+import { useChat } from '@/hooks/useChat';
 import { useConfigStore } from '@/stores/useConfigStore';
 import { chatToasts, settingsToasts, utilityToasts } from '@/utils/toast';
+import type { ProviderType } from '@/types/config';
 
 export const ChatInput: React.FC = () => {
-  const chatStore = useChatStore();
+  const [inputText, setInputText] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+
   const {
-    inputText,
-    setInputText,
-    isStreaming,
     isLoading,
-    sendMessage,
+    isStreaming,
+    sendMessage: sendChatMessage,
+    sendMessageStream: sendChatMessageStream,
     stopStreaming,
-    selectedProvider,
-    selectedModel,
-  } = chatStore();
+    error,
+    setError,
+    selectedAgent
+  } = useChat();
 
   const { config, updateConfig } = useConfigStore();
 
+  // Use config values for provider/model since new service architecture doesn't expose these directly
+  const selectedProvider = config?.ai?.model_types?.chat?.default_provider || 'openai';
+  const selectedModel = config?.ai?.model_types?.chat?.default_model || 'gpt-3.5-turbo';
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   
   // Auto-resize textarea
@@ -49,23 +55,39 @@ export const ChatInput: React.FC = () => {
 
     const message = inputText.trim();
     setInputText('');
+    setError(null);
 
     try {
-      // Visual feedback is sufficient - no toast needed for sending
-      await sendMessage(message, {
-        provider: selectedProvider,
-        model: selectedModel,
-        temperature: config?.ai?.temperature,
-        max_tokens: config?.ai?.max_tokens,
-        stream: config?.ai?.streaming,
-        enable_thinking: config?.ai?.enable_thinking,
-      });
+      // Check if streaming is supported and enabled
+      const useStreaming = config?.ai?.model_types?.chat?.capabilities?.streaming;
+
+      if (useStreaming) {
+        // Use streaming for better user experience
+        await sendChatMessageStream(
+          message,
+          (chunk) => {
+            // Handle streaming chunks if needed
+            console.log('Received chunk:', chunk);
+          },
+          {
+            agentId: selectedAgent || undefined
+          }
+        );
+      } else {
+        // Use non-streaming for simple responses
+        await sendChatMessage(message, {
+          agentId: selectedAgent || undefined
+        });
+      }
+
       // Visual feedback shows message in chat - no success toast needed
     } catch (error) {
       console.error('Failed to send message:', error);
       // Restore input text on error
       setInputText(message);
-      chatToasts.error(error instanceof Error ? error.message : 'Unknown error occurred');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(errorMessage);
+      chatToasts.error(errorMessage);
     }
   };
 
@@ -96,13 +118,22 @@ export const ChatInput: React.FC = () => {
   const toggleDeepThinking = async () => {
     if (!config) return;
 
-    const newThinkingState = !config.ai.enable_thinking;
+    const newThinkingState = !config.ai.model_types.chat.capabilities.thinking;
 
     try {
       await updateConfig({
         ai: {
           ...config.ai,
-          enable_thinking: newThinkingState
+          model_types: {
+            ...config.ai.model_types,
+            chat: {
+              ...config.ai.model_types.chat,
+              capabilities: {
+                ...config.ai.model_types.chat.capabilities,
+                thinking: newThinkingState
+              }
+            }
+          }
         }
       });
       // Button provides visual feedback - no toast needed
@@ -137,7 +168,7 @@ export const ChatInput: React.FC = () => {
   };
 
   
-  const currentProviderName = config?.ai?.providers[selectedProvider]?.name || selectedProvider;
+  const currentProviderName = selectedProvider;
   const currentModelName = selectedModel;
 
   return (
@@ -188,6 +219,13 @@ export const ChatInput: React.FC = () => {
                   aria-label={`Character count: ${inputText.length}`}
                 >
                   {inputText.length}
+                </div>
+              )}
+
+              {/* Error display */}
+              {error && (
+                <div className="absolute top-3 right-3 px-3 py-1.5 bg-red-500 text-white rounded-full text-xs font-medium max-w-xs truncate">
+                  <span title={error}>{error}</span>
                 </div>
               )}
 
@@ -301,22 +339,22 @@ export const ChatInput: React.FC = () => {
               <button
                 onClick={toggleDeepThinking}
                 className={`flex items-center space-x-3 px-5 py-2.5 rounded-lg transition-colors duration-200 ${
-                  config?.ai?.enable_thinking
+                  config?.ai?.model_types?.chat?.capabilities?.thinking
                     ? 'bg-primary-500 text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400'
                 }`}
-                title={config?.ai?.enable_thinking ? 'Disable deep thinking mode (Ctrl+T)' : 'Enable deep thinking mode (Ctrl+T)'}
-                aria-pressed={config?.ai?.enable_thinking}
+                title={config?.ai?.model_types?.chat?.capabilities?.thinking ? 'Disable deep thinking mode (Ctrl+T)' : 'Enable deep thinking mode (Ctrl+T)'}
+                aria-pressed={config?.ai?.model_types?.chat?.capabilities?.thinking}
                 aria-describedby="deep-thinking-status"
               >
-                <SparklesIcon className={`w-4 h-4 ${config?.ai?.enable_thinking ? 'text-white' : ''}`} />
+                <SparklesIcon className={`w-4 h-4 ${config?.ai?.model_types?.chat?.capabilities?.thinking ? 'text-white' : ''}`} />
                 <span className="text-sm font-semibold">
                   Deep Thinking
                 </span>
                 <div
                   id="deep-thinking-status"
                   className={`w-2.5 h-2.5 rounded-full ${
-                    config?.ai?.enable_thinking
+                    config?.ai?.model_types?.chat?.capabilities?.thinking
                       ? 'bg-white'
                       : 'bg-gray-400'
                   }`}

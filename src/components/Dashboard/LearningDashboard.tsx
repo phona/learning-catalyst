@@ -2,19 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { ProgressChart, StudyStreak, SessionTracking, LearningTrends, Achievements } from '../Analytics';
 import { SimpleAnalyticsModule, StudyMetrics } from '../../modules/analytics/simple-analytics';
 import { useService } from '../../hooks/useAppServices';
+import { catalystService } from '../../services/CatalystService';
+import type { AgentInfo } from '../../services/CatalystService';
 
 export const LearningDashboard: React.FC = () => {
   const analyticsService = useService('analytics');
   const [metrics, setMetrics] = useState<StudyMetrics | null>(null);
+  const [availableAgents, setAvailableAgents] = useState<AgentInfo[]>([]);
+  const [activeExecutions, setActiveExecutions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (analyticsService) {
-      setupAnalytics();
+      setupDashboard();
     }
   }, [analyticsService]);
 
-  const setupAnalytics = async () => {
+  const setupDashboard = async () => {
     try {
+      setLoading(true);
+
       if (!analyticsService) {
         throw new Error('Analytics service not available');
       }
@@ -26,22 +33,50 @@ export const LearningDashboard: React.FC = () => {
       const studyMetrics = await analyticsService.getStudyMetrics();
       setMetrics(studyMetrics);
 
-      console.log('Analytics setup successfully with dependency injection');
+      // Get agent information from Catalyst service
+      await loadAgentInformation();
+
+      console.log('Dashboard setup successfully with new APIs');
     } catch (err) {
-      console.error('Failed to setup analytics:', err);
+      console.error('Failed to setup dashboard:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!analyticsService || !metrics) {
+  const loadAgentInformation = async () => {
+    try {
+      // Get available agents
+      const agents = await catalystService.getAvailableAgents();
+      setAvailableAgents(agents);
+
+      // Get active executions
+      const executions = await catalystService.getActiveExecutions();
+      setActiveExecutions(executions);
+    } catch (err) {
+      console.error('Failed to load agent information:', err);
+    }
+  };
+
+  // Refresh agent status periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadAgentInformation();
+    }, 10000); // Refresh every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading || !analyticsService || !metrics) {
     return (
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Loading Analytics
+            Loading Dashboard
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Setting up your learning dashboard...
+            Setting up your learning dashboard with AI agents...
           </p>
         </div>
       </div>
@@ -62,7 +97,7 @@ export const LearningDashboard: React.FC = () => {
         </div>
 
         {/* Overview Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Study Time</span>
@@ -108,6 +143,108 @@ export const LearningDashboard: React.FC = () => {
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {Math.round(metrics.accuracyRate)}%
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Agents</span>
+              <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {availableAgents.filter(a => a.enabled).length}/{availableAgents.length}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {activeExecutions.length} active
+            </div>
+          </div>
+        </div>
+
+        {/* Agent Status Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Available Agents */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+              <svg className="w-5 h-5 text-indigo-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              </svg>
+              Available AI Agents
+            </h3>
+            <div className="space-y-3">
+              {availableAgents.length === 0 ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No agents available
+                </div>
+              ) : (
+                availableAgents.map((agent) => (
+                  <div key={agent.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-2 h-2 rounded-full ${agent.enabled ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {agent.name}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {agent.type} • {agent.description}
+                        </div>
+                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          {agent.model_config?.provider} • {agent.model_config?.model}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {agent.capabilities.slice(0, 2).map((capability) => (
+                        <span key={capability} className="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full">
+                          {capability}
+                        </span>
+                      ))}
+                      {agent.capabilities.length > 2 && (
+                        <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full">
+                          +{agent.capabilities.length - 2}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Active Executions */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+              <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Active Executions
+            </h3>
+            <div className="space-y-3">
+              {activeExecutions.length === 0 ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                  No active executions
+                </div>
+              ) : (
+                activeExecutions.map((execution) => (
+                  <div key={execution.id} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {execution.agentId || 'Unknown Agent'}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {execution.status} • Started {new Date(execution.startTime).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {execution.progress ? `${execution.progress}%` : 'In progress'}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

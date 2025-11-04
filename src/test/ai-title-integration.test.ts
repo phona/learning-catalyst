@@ -14,7 +14,7 @@ describe('AI Title Integration', () => {
 
   it('should have correct updateSessionTitle method signature', async () => {
     // Import the SessionService to check method exists
-    const { SessionService } = await import('@/services/sessionService');
+    const { SessionService } = await import('services/sessionService');
     const sessionService = new SessionService();
 
     // Check that the method exists and has correct signature

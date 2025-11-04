@@ -24,15 +24,27 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
           </div>
           <button
             onClick={() => onConfigChange({
-              ai: { ...config.ai, streaming: !config.ai.streaming }
+              ai: {
+                ...config.ai,
+                model_types: {
+                  ...config.ai.model_types,
+                  chat: {
+                    ...config.ai.model_types.chat,
+                    capabilities: {
+                      ...config.ai.model_types.chat.capabilities,
+                      streaming: !config.ai.model_types.chat.capabilities.streaming
+                    }
+                  }
+                }
+              }
             })}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.ai.streaming ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              config.ai.model_types.chat.capabilities.streaming ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.ai.streaming ? 'translate-x-6' : 'translate-x-1'
+                config.ai.model_types.chat.capabilities.streaming ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
@@ -49,15 +61,27 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
           </div>
           <button
             onClick={() => onConfigChange({
-              ai: { ...config.ai, enable_thinking: !config.ai.enable_thinking }
+              ai: {
+                ...config.ai,
+                model_types: {
+                  ...config.ai.model_types,
+                  chat: {
+                    ...config.ai.model_types.chat,
+                    capabilities: {
+                      ...config.ai.model_types.chat.capabilities,
+                      thinking: !config.ai.model_types.chat.capabilities.thinking
+                    }
+                  }
+                }
+              }
             })}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.ai.enable_thinking ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              config.ai.model_types.chat.capabilities.thinking ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.ai.enable_thinking ? 'translate-x-6' : 'translate-x-1'
+                config.ai.model_types.chat.capabilities.thinking ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>

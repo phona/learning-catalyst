@@ -9,6 +9,10 @@ import {
   ExclamationTriangleIcon,
   DocumentTextIcon,
   LightBulbIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import type { Message } from '@/types/ai';
 
@@ -16,12 +20,28 @@ interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
   onToggleThinking?: (messageId: string) => void;
+  streamingProgress?: number;
+  agentStatus?: {
+    agentId: string;
+    agentName: string;
+    status: 'idle' | 'thinking' | 'processing' | 'responding' | 'error';
+    currentAction?: string;
+    progress?: number;
+  };
+  performanceMetrics?: {
+    responseTime: number;
+    tokensPerSecond?: number;
+    memoryUsage?: number;
+  };
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   isStreaming = false,
   onToggleThinking,
+  streamingProgress = 0,
+  agentStatus,
+  performanceMetrics,
 }) => {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
@@ -96,6 +116,53 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   };
 
+  // Agent status indicator
+  const getAgentStatusIcon = () => {
+    if (!agentStatus) return null;
+
+    switch (agentStatus.status) {
+      case 'thinking':
+        return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />;
+      case 'processing':
+        return <ClockIcon className="w-4 h-4 text-yellow-500 animate-pulse" />;
+      case 'responding':
+        return <SparklesIcon className="w-4 h-4 text-green-500 animate-pulse" />;
+      case 'error':
+        return <XCircleIcon className="w-4 h-4 text-red-500" />;
+      case 'idle':
+      default:
+        return <CheckCircleIcon className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getAgentStatusColor = () => {
+    if (!agentStatus) return '';
+
+    switch (agentStatus.status) {
+      case 'thinking':
+        return 'text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-900/20 dark:border-blue-800';
+      case 'processing':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/20 dark:border-yellow-800';
+      case 'responding':
+        return 'text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800';
+      case 'error':
+        return 'text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800';
+      case 'idle':
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-400 dark:bg-gray-900/20 dark:border-gray-800';
+    }
+  };
+
+  const formatResponseTime = (ms: number) => {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+    return `${(ms / 60000).toFixed(1)}m`;
+  };
+
+  const formatTokensPerSecond = (tps: number) => {
+    return `${tps.toFixed(1)} tokens/s`;
+  };
+
   if (isSystem) {
     return (
       <div className="flex justify-center my-4">
@@ -121,63 +188,111 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       {!isUser && getAvatar()}
 
       <div className={`max-w-4xl ${isUser ? 'order-1' : ''} flex-1`}>
-        {/* Message header */}
-        <header className={`flex items-center space-x-2 mb-3 ${isUser ? 'justify-end' : ''} animate-fade-in`}>
-          <span className={`text-sm font-semibold ${
-            isUser
-              ? 'text-primary-700 dark:text-primary-300'
-              : 'text-emerald-700 dark:text-emerald-300'
-          }`}>
-            {getRoleLabel()}
-          </span>
-          {message.provider && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
-              {message.provider}
+        {/* Message header with agent status */}
+        <header className={`flex flex-col space-y-2 mb-3 ${isUser ? 'items-end' : 'items-start'} animate-fade-in`}>
+          <div className={`flex items-center space-x-2 ${isUser ? 'justify-end' : ''}`}>
+            <span className={`text-sm font-semibold ${
+              isUser
+                ? 'text-primary-700 dark:text-primary-300'
+                : 'text-emerald-700 dark:text-emerald-300'
+            }`}>
+              {getRoleLabel()}
             </span>
-          )}
-          <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={message.timestamp?.toISOString()}>
-            {formatTimestamp(message.timestamp)}
-          </time>
-          {!isUser && (
-            <div className="flex items-center space-x-1" role="group" aria-label="Message actions">
-              {/* Thinking toggle button */}
-              {shouldShowButton && (
-                <button
-                  onClick={handleToggleThinking}
-                  className="p-1.5 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors duration-200"
-                  title={message.showThinking ? "Hide thinking process" : "Show thinking process"}
-                  disabled={!message.id}
-                  aria-expanded={message.showThinking}
-                  aria-controls={`thinking-${message.id}`}
-                >
-                  <div className="flex items-center space-x-1">
-                    <LightBulbIcon className={`w-4 h-4 transition-colors duration-200 ${
-                      message.showThinking
-                        ? "text-yellow-500"
-                        : "text-yellow-400 group-hover:text-yellow-500"
-                    }`} />
-                    <span className={`text-xs font-medium transition-colors duration-200 ${
-                      message.showShowing ? "text-yellow-500" : "text-yellow-400 group-hover:text-yellow-500"
-                    }`}>
-                      {message.showThinking ? "Hide" : "Show"}
-                    </span>
-                  </div>
-                </button>
+            {message.provider && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
+                {message.provider}
+              </span>
+            )}
+            <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={message.timestamp?.toISOString()}>
+              {formatTimestamp(message.timestamp)}
+            </time>
+          </div>
+
+          {/* Agent status indicator */}
+          {agentStatus && !isUser && (
+            <div className={`flex items-center space-x-2 text-xs px-3 py-2 rounded-full border ${getAgentStatusColor()}`}>
+              {getAgentStatusIcon()}
+              <span className="font-medium">
+                {agentStatus.agentName}: {agentStatus.status}
+              </span>
+              {agentStatus.currentAction && (
+                <span className="text-xs opacity-75">
+                  - {agentStatus.currentAction}
+                </span>
               )}
-              {/* Copy button */}
-              <button
-                onClick={() => copyToClipboard(message.content)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
-                title="Copy message"
-                aria-label="Copy message content to clipboard"
-              >
-                <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </button>
+              {agentStatus.progress !== undefined && (
+                <div className="flex items-center space-x-1">
+                  <div className="w-8 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-current transition-all duration-300 ease-out"
+                      style={{ width: `${agentStatus.progress}%` }}
+                    />
+                  </div>
+                  <span className="text-xs">
+                    {agentStatus.progress}%
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Streaming progress bar */}
+          {isStreaming && streamingProgress > 0 && (
+            <div className="w-full max-w-md">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <span>Generating response...</span>
+                <span>{streamingProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-400 to-blue-500 transition-all duration-300 ease-out"
+                  style={{ width: `${streamingProgress}%` }}
+                />
+              </div>
             </div>
           )}
         </header>
+
+        {/* Action buttons */}
+        {!isUser && (
+          <div className="flex items-center space-x-1 mb-3" role="group" aria-label="Message actions">
+            {/* Thinking toggle button */}
+            {shouldShowButton && (
+              <button
+                onClick={handleToggleThinking}
+                className="p-1.5 hover:bg-yellow-100 dark:hover:bg-yellow-900/30 rounded-lg transition-colors duration-200"
+                title={message.showThinking ? "Hide thinking process" : "Show thinking process"}
+                disabled={!message.id}
+                aria-expanded={message.showThinking}
+                aria-controls={`thinking-${message.id}`}
+              >
+                <div className="flex items-center space-x-1">
+                  <LightBulbIcon className={`w-4 h-4 transition-colors duration-200 ${
+                    message.showThinking
+                      ? "text-yellow-500"
+                      : "text-yellow-400 hover:text-yellow-500"
+                  }`} />
+                  <span className={`text-xs font-medium transition-colors duration-200 ${
+                    message.showThinking ? "text-yellow-500" : "text-yellow-400 hover:text-yellow-500"
+                  }`}>
+                    {message.showThinking ? "Hide" : "Show"}
+                  </span>
+                </div>
+              </button>
+            )}
+            {/* Copy button */}
+            <button
+              onClick={() => copyToClipboard(message.content)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+              title="Copy message"
+              aria-label="Copy message content to clipboard"
+            >
+              <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Thinking content - simplified styling */}
         {isThinkingVisible && (
@@ -222,7 +337,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               <div className="whitespace-pre-wrap break-words leading-relaxed">
                 {message.content}
                 {isStreaming && (
-                  <span className="inline-block w-2 h-4 bg-white/70 rounded-full animate-pulse" aria-live="polite" aria-label="AI is typing"></span>
+                  <>
+                    <span className="inline-block w-2 h-4 bg-white/70 rounded-full animate-pulse ml-1" aria-live="polite" aria-label="AI is typing"></span>
+                    {streamingProgress > 0 && (
+                      <span className="ml-2 text-xs text-white/70 text-xs">
+                        {streamingProgress}%
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             ) : (
@@ -263,22 +385,65 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   {message.content}
                 </ReactMarkdown>
                 {isStreaming && (
-                  <span className="inline-block w-2 h-4 bg-emerald-500/70 rounded-full animate-pulse" aria-live="polite" aria-label="AI is typing"></span>
+                  <>
+                    <span className="inline-block w-2 h-4 bg-emerald-500/70 rounded-full animate-pulse ml-1" aria-live="polite" aria-label="AI is typing"></span>
+                    {streamingProgress > 0 && (
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                        {streamingProgress}%
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             )}
           </div>
         </main>
 
-        {/* Message metadata with improved styling */}
-        {message.tokens_used && (
-          <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2 animate-fade-in">
-            <span className="flex items-center space-x-2">
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Tokens: {JSON.stringify(message.tokens_used)}
-            </span>
+        {/* Performance metrics and message metadata */}
+        {(performanceMetrics || message.tokens_used) && (
+          <div className="mt-3 space-y-2 animate-fade-in">
+            {/* Performance metrics */}
+            {performanceMetrics && (
+              <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
+                <span className="flex items-center space-x-1">
+                  <ClockIcon className="w-3 h-3" />
+                  <span>Response: {formatResponseTime(performanceMetrics.responseTime)}</span>
+                </span>
+                {performanceMetrics.tokensPerSecond && (
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>{formatTokensPerSecond(performanceMetrics.tokensPerSecond)}</span>
+                  </span>
+                )}
+                {performanceMetrics.memoryUsage && (
+                  <span className="flex items-center space-x-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span>{(performanceMetrics.memoryUsage / 1024 / 1024).toFixed(1)}MB</span>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Token usage */}
+            {message.tokens_used && (
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg px-3 py-2">
+                <span className="flex items-center space-x-2">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>
+                    {message.tokens_used.prompt_tokens} prompt / {message.tokens_used.completion_tokens} completion
+                  </span>
+                </span>
+                <span className="font-medium">
+                  {message.tokens_used.total_tokens} total
+                </span>
+              </div>
+            )}
           </div>
         )}
 

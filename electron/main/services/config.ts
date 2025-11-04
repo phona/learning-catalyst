@@ -1,0 +1,279 @@
+/**
+ * Main Thread Service Configuration
+ *
+ * Centralized configuration management for main thread services.
+ * Provides default values and environment-based overrides.
+ */
+
+import { ServiceConfig } from './types';
+
+/**
+ * Default service configuration
+ */
+const DEFAULT_CONFIG: ServiceConfig = {
+  database: {
+    maxConnections: 10,
+    connectionTimeout: 30000, // 30 seconds
+    queryTimeout: 60000, // 1 minute
+  },
+  agents: {
+    maxConcurrent: 5,
+    defaultTimeout: 300000, // 5 minutes
+    maxIterations: 50,
+  },
+  tools: {
+    defaultTimeout: 30000, // 30 seconds
+    enableSandbox: true,
+  },
+  logging: {
+    level: 'info',
+    maxLogSize: 1000,
+    enableConsole: true,
+  },
+};
+
+/**
+ * Configuration manager for main thread services
+ */
+export class ServiceConfigManager {
+  private static instance: ServiceConfigManager;
+  private config: ServiceConfig;
+
+  private constructor(config?: Partial<ServiceConfig>) {
+    this.config = this.mergeConfig(DEFAULT_CONFIG, config || {});
+  }
+
+  /**
+   * Get singleton instance
+   */
+  static getInstance(config?: Partial<ServiceConfig>): ServiceConfigManager {
+    if (!ServiceConfigManager.instance) {
+      ServiceConfigManager.instance = new ServiceConfigManager(config);
+    }
+    return ServiceConfigManager.instance;
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): ServiceConfig {
+    return { ...this.config };
+  }
+
+  /**
+   * Update configuration (only for development/testing)
+   */
+  updateConfig(updates: Partial<ServiceConfig>): void {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Configuration updates are not allowed in production');
+    }
+    this.config = this.mergeConfig(this.config, updates);
+  }
+
+  /**
+   * Get database configuration
+   */
+  getDatabaseConfig() {
+    return this.config.database;
+  }
+
+  /**
+   * Get agents configuration
+   */
+  getAgentsConfig() {
+    return this.config.agents;
+  }
+
+  /**
+   * Get tools configuration
+   */
+  getToolsConfig() {
+    return this.config.tools;
+  }
+
+  /**
+   * Get logging configuration
+   */
+  getLoggingConfig() {
+    return this.config.logging;
+  }
+
+  /**
+   * Deep merge configuration objects
+   */
+  private mergeConfig(
+    base: ServiceConfig,
+    overrides: Partial<ServiceConfig>
+  ): ServiceConfig {
+    return {
+      database: { ...base.database, ...overrides.database },
+      agents: { ...base.agents, ...overrides.agents },
+      tools: { ...base.tools, ...overrides.tools },
+      logging: { ...base.logging, ...overrides.logging },
+    };
+  }
+
+  /**
+   * Load configuration from environment variables
+   */
+  static loadFromEnvironment(): Partial<ServiceConfig> {
+    const config: Partial<ServiceConfig> = {};
+
+    // Database configuration
+    if (process.env.LC_DB_MAX_CONNECTIONS) {
+      config.database = {
+        ...config.database,
+        maxConnections: parseInt(process.env.LC_DB_MAX_CONNECTIONS, 10),
+      };
+    }
+
+    if (process.env.LC_DB_CONNECTION_TIMEOUT) {
+      config.database = {
+        ...config.database,
+        connectionTimeout: parseInt(process.env.LC_DB_CONNECTION_TIMEOUT, 10),
+      };
+    }
+
+    if (process.env.LC_DB_QUERY_TIMEOUT) {
+      config.database = {
+        ...config.database,
+        queryTimeout: parseInt(process.env.LC_DB_QUERY_TIMEOUT, 10),
+      };
+    }
+
+    // Agents configuration
+    if (process.env.LC_AGENTS_MAX_CONCURRENT) {
+      config.agents = {
+        ...config.agents,
+        maxConcurrent: parseInt(process.env.LC_AGENTS_MAX_CONCURRENT, 10),
+      };
+    }
+
+    if (process.env.LC_AGENTS_DEFAULT_TIMEOUT) {
+      config.agents = {
+        ...config.agents,
+        defaultTimeout: parseInt(process.env.LC_AGENTS_DEFAULT_TIMEOUT, 10),
+      };
+    }
+
+    if (process.env.LC_AGENTS_MAX_ITERATIONS) {
+      config.agents = {
+        ...config.agents,
+        maxIterations: parseInt(process.env.LC_AGENTS_MAX_ITERATIONS, 10),
+      };
+    }
+
+    // Tools configuration
+    if (process.env.LC_TOOLS_DEFAULT_TIMEOUT) {
+      config.tools = {
+        ...config.tools,
+        defaultTimeout: parseInt(process.env.LC_TOOLS_DEFAULT_TIMEOUT, 10),
+      };
+    }
+
+    if (process.env.LC_TOOLS_ENABLE_SANDBOX) {
+      config.tools = {
+        ...config.tools,
+        enableSandbox: process.env.LC_TOOLS_ENABLE_SANDBOX === 'true',
+      };
+    }
+
+    // Logging configuration
+    if (process.env.LC_LOG_LEVEL) {
+      const level = process.env.LC_LOG_LEVEL.toLowerCase();
+      if (['debug', 'info', 'warn', 'error'].includes(level)) {
+        config.logging = {
+          ...config.logging,
+          level: level as 'debug' | 'info' | 'warn' | 'error',
+        };
+      }
+    }
+
+    if (process.env.LC_LOG_MAX_SIZE) {
+      config.logging = {
+        ...config.logging,
+        maxLogSize: parseInt(process.env.LC_LOG_MAX_SIZE, 10),
+      };
+    }
+
+    if (process.env.LC_LOG_ENABLE_CONSOLE) {
+      config.logging = {
+        ...config.logging,
+        enableConsole: process.env.LC_LOG_ENABLE_CONSOLE === 'true',
+      };
+    }
+
+    return config;
+  }
+
+  /**
+   * Validate configuration values
+   */
+  validateConfig(config: ServiceConfig): void {
+    // Database validation
+    if (config.database.maxConnections < 1 || config.database.maxConnections > 100) {
+      throw new Error('Database maxConnections must be between 1 and 100');
+    }
+
+    if (config.database.connectionTimeout < 1000) {
+      throw new Error('Database connectionTimeout must be at least 1000ms');
+    }
+
+    if (config.database.queryTimeout < 1000) {
+      throw new Error('Database queryTimeout must be at least 1000ms');
+    }
+
+    // Agents validation
+    if (config.agents.maxConcurrent < 1 || config.agents.maxConcurrent > 20) {
+      throw new Error('Agents maxConcurrent must be between 1 and 20');
+    }
+
+    if (config.agents.defaultTimeout < 10000) {
+      throw new Error('Agents defaultTimeout must be at least 10000ms');
+    }
+
+    if (config.agents.maxIterations < 1 || config.agents.maxIterations > 1000) {
+      throw new Error('Agents maxIterations must be between 1 and 1000');
+    }
+
+    // Tools validation
+    if (config.tools.defaultTimeout < 1000) {
+      throw new Error('Tools defaultTimeout must be at least 1000ms');
+    }
+
+    // Logging validation
+    if (config.logging.maxLogSize < 100 || config.logging.maxLogSize > 10000) {
+      throw new Error('Logging maxLogSize must be between 100 and 10000');
+    }
+  }
+
+  /**
+   * Export configuration for debugging
+   */
+  exportConfig(): string {
+    return JSON.stringify(this.config, null, 2);
+  }
+
+  /**
+   * Reset configuration to defaults (development only)
+   */
+  resetToDefaults(): void {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Configuration reset is not allowed in production');
+    }
+    this.config = { ...DEFAULT_CONFIG };
+  }
+}
+
+/**
+ * Initialize service configuration with environment-based overrides
+ */
+export function initializeServiceConfig(): ServiceConfigManager {
+  const envConfig = ServiceConfigManager.loadFromEnvironment();
+  const configManager = ServiceConfigManager.getInstance(envConfig);
+
+  // Validate configuration
+  configManager.validateConfig(configManager.getConfig());
+
+  return configManager;
+}

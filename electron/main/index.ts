@@ -1,16 +1,15 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { setupAllIpcHandlers } from './handlers'
 import { createAppMenu } from './menu'
 import { getQdrantManager } from './qdrant-manager'
 import { QdrantManager } from './qdrant-manager'
+import { initializeCatalystService, disposeCatalystService } from './services/catalyst/catalyst-service'
 // import { getMockQdrantManager } from './mock-qdrant-manager'
 // import { getMockDatabase } from './mock-database' // Using real SQLite now
 // Memory debugging utility for development
 import { startMemoryDebug, cleanupMemoryDebug } from '../../src/utils/memory-debug'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
 //
@@ -35,7 +34,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 let win: BrowserWindow | null = null
 let isShuttingDown = false
 
-const preload = path.join(__dirname, '../preload/index.mjs')
+const preload = path.join(__dirname, '../preload/index.js')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
 async function createWindow(): Promise<void> {
@@ -53,6 +52,11 @@ async function createWindow(): Promise<void> {
       // Consider using contextBridge.exposeInMainWorld
       // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
       // contextIsolation: false,
+      // Enable Node.js APIs for LangChain compatibility
+      nodeIntegration: false,
+      contextIsolation: true,
+      // Allow Node.js APIs in renderer for LangChain
+      sandbox: false,
       // Enhanced memory optimization settings
       backgroundThrottling: false,
       offscreen: false,
@@ -115,6 +119,16 @@ async function createWindow(): Promise<void> {
   const workspaceArg = process.argv.find(arg => !arg.includes('electron') && !arg.includes('--'))
   const workspacePath = workspaceEnv ? path.resolve(workspaceEnv) : (workspaceArg ? path.resolve(workspaceArg) : process.cwd())
   console.log(`Using workspace: ${workspacePath}`)
+
+  // Initialize Catalyst service before setting up IPC handlers
+  try {
+    await initializeCatalystService(win, workspacePath)
+    console.log('✅ Catalyst service initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize Catalyst service:', error)
+    // Continue with IPC handler setup but log the error
+  }
+
   setupAllIpcHandlers(win, workspacePath)
 
   // Setup application menu
@@ -131,6 +145,14 @@ async function cleanup() {
 
   // Clean up memory debugging
   cleanupMemoryDebug();
+
+  // Clean up Catalyst service
+  try {
+    await disposeCatalystService()
+    console.log('✅ Catalyst service disposed successfully')
+  } catch (error) {
+    console.warn('Failed to dispose Catalyst service:', error)
+  }
 
   // Remove the open-win handler
   ipcMain.removeHandler('open-win')

@@ -4,12 +4,14 @@
  * Provides configuration operations through Electron IPC
  */
 
+import { AppConfig } from "../config";
+
 export interface ConfigAPI {
   /**
    * Get application configuration
    * @returns Current configuration object
    */
-  getConfig: () => Promise<any>;
+  getConfig: () => Promise<AppConfig | null>;
 
   /**
    * Set application configuration

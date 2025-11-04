@@ -46,6 +46,11 @@ export interface Database {
 
   // Knowledge graph cache for visualization
   knowledge_graph_cache: KnowledgeGraphCacheRow
+
+  // LangGraph checkpoint tables
+  checkpoints: CheckpointRow
+  checkpoint_writes: CheckpointWriteRow
+  checkpoint_blobs: CheckpointBlobRow
 }
 
 // Individual table row interfaces
@@ -203,6 +208,38 @@ export interface KnowledgeGraphCacheRow {
   created_at: string
 }
 
+export interface CheckpointRow {
+  id: string
+  thread_id: string
+  checkpoint_ns: string
+  checkpoint_id: string
+  parent_checkpoint_id?: string
+  checkpoint_data: string // JSON object stored as string
+  metadata?: string // JSON object stored as string
+  created_at: string
+  updated_at: string
+}
+
+export interface CheckpointWriteRow {
+  id: string
+  checkpoint_id: string
+  task_id: string
+  channel: string
+  type: string // 'channel' or 'mapper'
+  value?: string // JSON object stored as string
+  created_at: string
+}
+
+export interface CheckpointBlobRow {
+  id: string
+  checkpoint_id: string
+  task_id: string
+  channel: string
+  blob_type: string // 'input' or 'output'
+  data?: string // JSON object stored as string
+  created_at: string
+}
+
 // Type helpers for working with JSON fields
 export type JSONField<T = unknown> = string & { readonly __brand: unique symbol }
 export type ParsedJSON<T = unknown> = T
@@ -220,6 +257,9 @@ export type InsertableAchievement = Omit<AchievementRow, 'id' | 'created_at' | '
 export type InsertableUserStats = Omit<UserStatsRow, 'created_at' | 'updated_at'>
 export type InsertableSettings = Omit<SettingsRow, 'created_at' | 'updated_at'>
 export type InsertableKnowledgeGraphCache = Omit<KnowledgeGraphCacheRow, 'id' | 'created_at'>
+export type InsertableCheckpoint = Omit<CheckpointRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableCheckpointWrite = Omit<CheckpointWriteRow, 'id' | 'created_at'>
+export type InsertableCheckpointBlob = Omit<CheckpointBlobRow, 'id' | 'created_at'>
 
 // Utility type for extracting updatable types
 export type UpdatableCategory = Partial<Omit<CategoryRow, 'id' | 'created_at'>>
@@ -234,6 +274,9 @@ export type UpdatableAchievement = Partial<Omit<AchievementRow, 'id' | 'created_
 export type UpdatableUserStats = Partial<Omit<UserStatsRow, 'id' | 'created_at'>>
 export type UpdatableSettings = Partial<Omit<SettingsRow, 'id' | 'created_at'>>
 export type UpdatableKnowledgeGraphCache = Partial<Omit<KnowledgeGraphCacheRow, 'id' | 'created_at'>>
+export type UpdatableCheckpoint = Partial<Omit<CheckpointRow, 'id' | 'created_at'>>
+export type UpdatableCheckpointWrite = Partial<Omit<CheckpointWriteRow, 'id' | 'created_at'>>
+export type UpdatableCheckpointBlob = Partial<Omit<CheckpointBlobRow, 'id' | 'created_at'>>
 
 // Helper functions for working with JSON fields in Kysely queries
 export const JSONFieldHelpers = {

@@ -10,8 +10,6 @@ import {
   ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
 import { useConfigStore } from '@/stores/useConfigStore';
-import { configService } from '@/services/configService';
-import { modelFetchingService } from '@/services/modelFetchingService';
 import { settingsToasts, utilityToasts } from '@/utils/toast';
 import { useDebouncedSave } from '@/hooks/useDebouncedSave';
 import { SettingsErrorBoundary } from '@/components/UI/SettingsErrorBoundary';
@@ -21,11 +19,13 @@ import { AIProviderSettings } from './AIProviderSettings';
 import { UISettings } from './UISettings';
 import { ResponseSettings } from './ResponseSettings';
 import { AdvancedSettings } from './AdvancedSettings';
+import { ModelType } from '@/types/ai';
 import type {
   AppConfig,
   ModelTypeConfig,
 } from '@/types/config';
 import type { ModelList } from '@/types/ai';
+import { useService } from '@/hooks/useAppServices';
 
 export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
@@ -40,12 +40,13 @@ export const SettingsPanel: React.FC = () => {
   // Local state for configuration
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(null);
   const [modelTypeConfigs, setModelTypeConfigs] = useState<Record<string, ModelTypeConfig>>({});
+  const configService = useService('configService')
 
   // Debounced save functionality
   const { save: debouncedSaveConfig, isSaving, saveStatus } = useDebouncedSave<AppConfig>({
     delay: 1000,
     onSave: async (configToSave) => {
-      await configService.saveConfig(configToSave);
+      await configService!.saveConfig(configToSave);
       setConfig(configToSave);
     },
     onSuccess: () => {
@@ -84,7 +85,7 @@ export const SettingsPanel: React.FC = () => {
             model_types: updatedModelTypes as any
           }
         };
-        configService.saveConfig(updatedConfig).catch(console.error);
+        configService!.saveConfig(updatedConfig).catch(console.error);
       }
     }
   }, [config]);
@@ -94,7 +95,7 @@ export const SettingsPanel: React.FC = () => {
 
     // Immediate save without debouncing
     try {
-      await configService.saveConfig(localConfig);
+      await configService!.saveConfig(localConfig);
       setConfig(localConfig);
       // Visual feedback is shown in the header - no toast needed
     } catch (error) {
@@ -158,6 +159,11 @@ export const SettingsPanel: React.FC = () => {
 
       // Auto-save to global config store with debouncing
       debouncedSaveConfig(updatedConfig);
+
+      // Trigger model reload for chat type changes
+      if (modelType === 'chat' && modelTypeConfig) {
+        configService!.updateModelTypeConfig(ModelType.CHAT, modelTypeConfig).catch(console.error);
+      }
     }
   };
 
@@ -181,9 +187,9 @@ export const SettingsPanel: React.FC = () => {
     setFetchErrors(prev => ({ ...prev, [cacheKey]: '' }));
 
     try {
-      const models = await modelFetchingService.fetchModels(config.default_provider, config);
-      setRemoteModels(prev => ({ ...prev, [cacheKey]: models }));
-      utilityToasts.success(`Fetched ${models.chat?.length || 0} models from ${config.default_provider}`);
+      const models = await configService!.getAvailableModels(config.default_provider, modelType as 'chat' | 'embedding' | 'rerank');
+      setRemoteModels(prev => ({ ...prev, [cacheKey]: { [modelType]: models } }));
+      utilityToasts.success(`Fetched ${models?.length || 0} models from ${config.default_provider}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch models';
       setFetchErrors(prev => ({ ...prev, [cacheKey]: errorMessage }));

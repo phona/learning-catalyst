@@ -5,8 +5,8 @@ import { useChatStore } from '@/stores/useChatStore';
 import { useConfigStore } from '@/stores/useConfigStore';
 
 // Mock the stores
-jest.mock('@/stores/useChatStore');
-jest.mock('@/stores/useConfigStore');
+jest.mock('stores/useChatStore');
+jest.mock('stores/useConfigStore');
 
 // Mock Electron API
 const mockReadFile = jest.fn();

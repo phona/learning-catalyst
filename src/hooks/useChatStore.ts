@@ -4,8 +4,6 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { Message, StreamChunk, ChatOptions } from '@/types/ai';
 import type { Session, ConversationMessage, MemorySession, SessionSaveResult } from '@/types/session';
-import { chatService } from '@/services/ai/chatService';
-import { ChatMessageService } from '@/services/chat/chatMessageService';
 import type { SessionService } from '@/services/sessionService';
 
 interface ChatStore {
@@ -59,7 +57,8 @@ interface ChatStore {
 }
 
 // Create a store factory function
-function createChatStore(sessionService: SessionService) {
+function createChatStore(sessionService: SessionService, agentManager: AgentManager) {
+
   return create<ChatStore>()(
     devtools(
       (set, get) => ({
@@ -367,20 +366,11 @@ function createChatStore(sessionService: SessionService) {
             setStreaming,
             resetStreaming,
             currentSession,
-            selectedProvider,
-            selectedModel,
             setError
           } = get();
 
           if (!currentSession) {
             setError('No active session');
-            return;
-          }
-
-          // Validate provider configuration
-          const configError = ChatMessageService.validateProviderConfig(selectedProvider);
-          if (configError) {
-            setError(configError);
             return;
           }
 
@@ -395,38 +385,77 @@ function createChatStore(sessionService: SessionService) {
 
           setLoading(true);
           resetStreaming();
+          setStreaming(true);
 
-          // Use the extracted service to handle message sending
-          await ChatMessageService.sendMessage(
-            content,
-            currentSession,
-            selectedProvider,
-            selectedModel,
-            options,
-            {
-              onStartStreaming: () => setStreaming(true),
-              onStopStreaming: () => {
-                setLoading(false);
-                setStreaming(false);
-                resetStreaming();
-              },
-              onStreamChunk: (chunk) => {
-                if (chunk.content) {
-                  set((_state) => ({
-                    streamingContent: _state.streamingContent + chunk.content,
-                  }));
-                }
+          try {
+            // Use AgentManager with LangChain agent API
+            const agent = await agentManager.getAgent(AgentType.LEARNING);
 
-                if (chunk.thinkingContent) {
-                  set((_state) => ({
-                    thinkingContent: _state.thinkingContent + chunk.thinkingContent,
-                  }));
+            // Prepare agent input with session context
+            const agentInput = {
+              messages: [
+                {
+                  role: 'system',
+                  content: currentSession.context.system_prompt || 'You are a helpful AI assistant.'
+                },
+                ...currentSession.messages.map(msg => ({
+                  role: msg.role,
+                  content: msg.content
+                })),
+                {
+                  role: 'user',
+                  content
                 }
-              },
-              onError: (error) => setError(error),
-              onMessageComplete: (message) => addMessage(message),
+              ],
+              session_id: currentSession.id,
+              session_context: {
+                learning_objectives: currentSession.context.learning_objectives,
+                topics_covered: currentSession.metadata.topics_covered,
+                difficulty: currentSession.metadata.difficulty
+              }
+            };
+
+            // Use LangChain agent's stream method
+            const stream = await agent.stream(agentInput);
+
+            let fullContent = '';
+            let fullThinkingContent = '';
+
+            for await (const chunk of stream) {
+              if (chunk.content) {
+                fullContent += chunk.content;
+                set((_state) => ({
+                  streamingContent: fullContent,
+                }));
+              }
+
+              if (chunk.reasoning_content || chunk.thinking_content) {
+                fullThinkingContent += chunk.reasoning_content || chunk.thinking_content;
+                set((_state) => ({
+                  thinkingContent: fullThinkingContent,
+                }));
+              }
             }
-          );
+
+            // Add final assistant message
+            const assistantMessage: Message = {
+              id: `assistant_${Date.now()}`,
+              role: 'assistant',
+              content: fullContent,
+              thinking_content: fullThinkingContent,
+              timestamp: new Date(),
+            };
+            addMessage(assistantMessage);
+
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
+            setError(errorMessage);
+            console.error('[ChatStore] Agent error:', error);
+          } finally {
+            setLoading(false);
+            setStreaming(false);
+            resetStreaming();
+          }
         },
 
         stopStreaming: () => set({ isStreaming: false }, false, 'stopStreaming'),
@@ -634,6 +663,7 @@ function createChatStore(sessionService: SessionService) {
 // Global store cache to prevent recreating stores
 let cachedStore: ReturnType<typeof createChatStore> | null = null;
 let cachedSessionService: SessionService | null = null;
+let cachedAgentManager: AgentManager | null = null;
 
 /**
  * Hook to get the chat store with proper dependency injection
@@ -646,18 +676,25 @@ export function useChatStore() {
     throw new Error('SessionService is required but not available. Make sure ServiceProvider is properly configured.');
   }
 
-  // Use useMemo to create store only when sessionService changes
+  if (!services?.agentManager) {
+    throw new Error('AgentManager is required but not available. Make sure ServiceProvider is properly configured.');
+  }
+
+  // Use useMemo to create store only when services change
   const store = useMemo(() => {
-    // Return cached store if the same sessionService is being used
-    if (cachedStore && cachedSessionService === services.sessionService) {
+    // Return cached store if the same services are being used
+    if (cachedStore &&
+        cachedSessionService === services.sessionService &&
+        cachedAgentManager === services.agentManager) {
       return cachedStore;
     }
 
     // Create new store and cache it
-    cachedStore = createChatStore(services.sessionService);
+    cachedStore = createChatStore(services.sessionService, services.agentManager);
     cachedSessionService = services.sessionService;
+    cachedAgentManager = services.agentManager;
     return cachedStore;
-  }, [services.sessionService]);
+  }, [services.sessionService, services.agentManager]);
 
   return store;
 }

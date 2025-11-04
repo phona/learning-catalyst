@@ -52,7 +52,10 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:electron-vite.org)",
       "Bash(npm test:*)",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npm run type-check:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": [],
     "ask": []

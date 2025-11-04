@@ -1,7 +1,32 @@
 /**
  * Configuration Management Types
- * Converted from Python configuration system
+ * Simplified architecture with 3 main providers: openai, chatglm, openai-compatible
  */
+
+import { ModelType } from './ai';
+
+export type ProviderType = 'openai' | 'chatglm' | 'deepseek' | 'siliconflow' | 'openai-compatible';
+
+// Interface for AVAILABLE_PROVIDERS structure
+export interface ProviderModelInfo {
+  id: string;
+  capabilities: ModelType[];
+}
+
+export interface ProviderConfig {
+  provider_type: ProviderType;
+  api_key?: string;
+  base_url?: string;
+  models?: string[]; // Available models for this provider
+  // Legacy fields for backward compatibility
+  type?: ProviderType;
+  model?: string;
+  temperature?: number;
+  max_tokens?: number;
+  streaming?: boolean;
+  custom_headers?: Record<string, string>;
+  customHeaders?: Record<string, string>; // Legacy support
+}
 
 export interface AppConfig {
   ai: AIConfig;
@@ -11,22 +36,26 @@ export interface AppConfig {
   performance: PerformanceConfig;
 }
 
+export interface SelectedModel {
+	provider?: string;
+	model?: string;
+}
+
+export interface SelectedChatModel extends SelectedModel {
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+  enable_thinking?: boolean;
+  stream?: boolean;
+}
+
 export interface AIConfig {
-  default_provider: string;
-  default_model: string;
-  temperature: number;
-  max_tokens: number;
   providers: Record<string, ProviderConfig>;
-  streaming: boolean;
-  enable_thinking: boolean;
-  auto_hide_thinking: boolean;
-  context_window_size: number;
-  system_prompt?: string;
   // Enhanced model type support
   model_types: {
-    chat: ModelTypeConfig;
-    embedding: ModelTypeConfig;
-    rerank: ModelTypeConfig;
+    chat?: SelectedChatModel;
+    embedding?: SelectedModel;
+    rerank?: SelectedModel;
   };
   metadata?: {
     model_tests?: ModelTestResult[];
@@ -82,55 +111,13 @@ export interface PerformanceConfig {
   preload_models: boolean;
 }
 
-export interface ProviderConfig {
-  name: string;
-  api_key: string;
-  base_url?: string;
-  timeout?: number;
-  max_retries?: number;
-  organization_id?: string;
-  custom_headers?: Record<string, string>;
-  enabled: boolean;
-  last_validated?: Date;
-  models?: string[];
-}
-
-// Specific provider configurations
-export interface OpenAIProviderConfig extends ProviderConfig {
-  organization_id?: string;
-  base_url?: string;
-  models?: string[];
-}
-
-export interface ChatGLMProviderConfig extends ProviderConfig {
-  base_url: string;
-  enable_thinking: boolean;
-  models?: string[];
-}
-
-export interface DeepSeekProviderConfig extends ProviderConfig {
-  base_url: string;
-  models?: string[];
-}
-
-export interface SiliconFlowProviderConfig extends ProviderConfig {
-  base_url: string;
-  models?: string[];
-}
-
 // Model type configuration for multi-model support
 export interface ModelTypeConfig {
   default_provider: string;
   default_model: string;
-  available_providers: string[];
+  available_providers: ProviderType[];
   custom_provider_url?: string; // For openai-compatible providers
-  api_keys: {
-    openai?: string;
-    chatglm?: string;
-    deepseek?: string;
-    siliconflow?: string;
-    'openai-compatible'?: string;
-  };
+  api_key?: string;
   settings: {
     temperature?: number;
     max_tokens?: number;
@@ -148,13 +135,6 @@ export interface ModelCapabilities {
   vision: boolean;
   max_input_tokens?: number;
   max_output_tokens?: number;
-}
-
-// Provider to model type mappings
-export interface ProviderModelMapping {
-  [providerName: string]: {
-    [modelType: string]: string[]; // model type -> available models
-  };
 }
 
 // Model validation and testing
@@ -189,12 +169,85 @@ export interface ValidationResult {
   errors: ValidationError[];
 }
 
+// Provider validation result (for API validation)
+export interface ProviderValidationResult {
+  success: boolean;
+  error?: string;
+}
+
 // Configuration migration types
 export interface ConfigMigration {
   version: string;
   description: string;
   migrate: (config: any) => any;
 }
+
+// Default provider configurations for ModelFactory compatibility
+export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = {
+  openai: {
+    provider_type: 'openai',
+    base_url: 'https://api.openai.com/v1',
+    models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'text-embedding-ada-002'],
+    api_key: '',
+  },
+  chatglm: {
+    provider_type: 'chatglm',
+    base_url: 'https://open.bigmodel.cn/api/paas/v4',
+    models: ['glm-4', 'glm-4-plus', 'glm-3-turbo'],
+    api_key: '',
+  },
+  deepseek: {
+    provider_type: 'deepseek',
+    base_url: 'https://api.deepseek.com/v1',
+    models: ['deepseek-chat', 'deepseek-coder'],
+    api_key: '',
+  },
+  siliconflow: {
+    provider_type: 'siliconflow',
+    base_url: 'https://api.siliconflow.cn/v1',
+    models: ['Qwen/Qwen2.5-7B-Instruct', 'BAAI/bge-large-en-v1.5'],
+    api_key: '',
+  },
+  'openai-compatible': {
+    provider_type: 'openai-compatible',
+    base_url: 'http://localhost:11434/v1',
+    models: ['llama3.1:8b'],
+    api_key: '',
+  },
+};
+
+export const AVAILABLE_PROVIDERS: ProviderConfig[] = [
+  {
+    provider_type: 'openai',
+    models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'],
+    base_url: 'https://api.openai.com/v1',
+    api_key: '',
+  },
+  {
+    provider_type: 'chatglm',
+    models: ['glm-4', 'glm-4-0520', 'glm-3-turbo', 'glm-4-plus', 'glm-4-air', 'glm-4-airx', 'glm-4-long', 'embedding-2', 'embedding-3'],
+    base_url: 'https://open.bigmodel.cn/api/paas/v4/',
+    api_key: '',
+  },
+  {
+    provider_type: 'deepseek',
+    models: ['deepseek-chat', 'deepseek-coder'],
+    base_url: 'https://api.deepseek.com',
+    api_key: '',
+  },
+  {
+    provider_type: 'siliconflow',
+    models: ['deepseek-ai/DeepSeek-V3', 'meta-llama/Meta-Llama-3.1-8B-Instruct', '01-ai/Yi-1.5-9B-Chat-16K', 'BAAI/bge-large-en-v1.5', 'BAAI/bge-large-zh-v1.5', 'BAAI/bge-reranker-v2-m3'],
+    base_url: 'https://api.siliconflow.cn',
+    api_key: '',
+  },
+  {
+    provider_type: 'openai-compatible',
+    models: ['llama3.1:8b'],
+    base_url: 'http://localhost:11434/v1',
+    api_key: '',
+  },
+]
 
 // Configuration schema for validation
 export interface ConfigSchema {

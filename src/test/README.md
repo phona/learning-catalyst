@@ -178,7 +178,7 @@ describe('ServiceName', () => {
 ### Component Mocks
 ```typescript
 // Mock child components
-jest.mock('@/components/ChildComponent', () => ({
+jest.mock('components/ChildComponent', () => ({
   ChildComponent: ({ prop }) => <div data-testid="child">{prop}</div>,
 }));
 
@@ -211,7 +211,7 @@ global.fetch = jest.fn().mockResolvedValue({
 ### Store Mocks
 ```typescript
 // Mock Zustand stores
-jest.mock('@/stores/useStore');
+jest.mock('stores/useStore');
 const mockUseStore = useStore as jest.MockedFunction<typeof useStore>;
 
 mockUseStore.mockReturnValue({
@@ -225,7 +225,7 @@ mockUseStore.mockReturnValue({
 ### Creating Mock Data
 ```typescript
 // Use utility functions for consistent test data
-import { createMockSession, createMockMessage } from '@/test/test-utils';
+import { createMockSession, createMockMessage } from 'test/test-utils';
 
 const mockSession = createMockSession({
   title: 'Custom Title',

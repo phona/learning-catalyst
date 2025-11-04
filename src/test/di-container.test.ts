@@ -13,14 +13,14 @@ describe('Dependency Injection Container', () => {
 
   describe('Service Container Factory', () => {
     it('should create service container factory function', async () => {
-      const { createServiceContainer } = await import('@/services/container');
+      const { createServiceContainer } = await import('services/container');
 
       // This test verifies that the factory function exists
       expect(typeof createServiceContainer).toBe('function');
     });
 
     it('should have ServiceContainerManager class', async () => {
-      const module = await import('@/services/container');
+      const module = await import('services/container');
 
       // This test verifies that the manager class exists
       expect(module.ServiceContainerManager).toBeDefined();
@@ -28,7 +28,7 @@ describe('Dependency Injection Container', () => {
     });
 
     it('should have proper types exported', async () => {
-      const module = await import('@/services/container');
+      const module = await import('services/container');
 
       // Verify key exports exist
       expect(typeof module.createServiceContainer).toBe('function');
@@ -38,7 +38,7 @@ describe('Dependency Injection Container', () => {
 
   describe('Service Interface Types', () => {
     it('should export ServiceContainer type', async () => {
-      const module = await import('@/services/container');
+      const module = await import('services/container');
 
       // The module should have the ServiceContainer type
       expect(module).toBeDefined();

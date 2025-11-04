@@ -64,3 +64,6 @@ external/qdrant/storage/
 # TypeScript build cache
 *.tsbuildinfo
 tsconfig.tsbuildinfo
+
+null
+.tmp

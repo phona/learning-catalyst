@@ -1,6 +1,6 @@
 import type { Message, StreamChunk, ChatOptions } from '@/types/ai';
 import type { Session } from '@/types/session';
-import { chatService } from '../ai/chatService';
+import type { ChatService } from '../ChatService';
 import { useConfigStore } from '@/stores/useConfigStore';
 
 export interface ChatMessageServiceOptions {
@@ -16,10 +16,12 @@ export interface ChatMessageServiceOptions {
  * Extracted from store to improve separation of concerns
  */
 export class ChatMessageService {
+  constructor(private chatService: ChatService) {}
+
   /**
    * Send a message and handle the streaming response
    */
-  static async sendMessage(
+  async sendMessage(
     content: string,
     session: Session,
     provider: string,
@@ -38,34 +40,54 @@ export class ChatMessageService {
     try {
       // Get provider config from model type configuration
       const { config } = useConfigStore.getState();
+      console.log('[ChatMessageService] Config structure:', {
+        hasConfig: !!config,
+        hasAI: !!config?.ai,
+        hasModelTypes: !!config?.ai?.model_types,
+        hasChat: !!config?.ai?.model_types?.chat,
+        chatConfig: config?.ai?.model_types?.chat,
+        fullConfig: config
+      });
+
       const chatModelConfig = config?.ai?.model_types?.chat;
 
       // Get API key from the new model type configuration
-      const apiKey = chatModelConfig?.api_keys?.[provider as keyof typeof chatModelConfig.api_keys];
+      const apiKey = chatModelConfig?.api_key;
+      console.log('[ChatMessageService] API key check:', {
+        provider,
+        hasChatConfig: !!chatModelConfig,
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length,
+        defaultProvider: chatModelConfig?.default_provider
+      });
 
       // Create provider config object compatible with chat service
       const providerConfig = apiKey ? {
         api_key: apiKey,
         base_url: chatModelConfig?.custom_provider_url || undefined,
-        provider: provider
+        type: provider
       } : null;
 
       if (!providerConfig || !apiKey) {
-        throw new Error(`No configuration found for provider: ${provider}. Please configure the API key in Settings.`);
+        const errorMsg = `No API key configured for provider: ${provider}. Please configure the API key in Settings.`;
+        console.warn(`[ChatMessageService] ${errorMsg}`);
+        onError?.(errorMsg);
+        onStopStreaming?.();
+        return;
       }
 
       // Initialize provider if not already done
-      if (!chatService.getProviderInfo() ||
-        chatService.getProviderInfo()?.name !== provider) {
-        await chatService.initializeProvider(provider, providerConfig);
+      if (!this.chatService.getProviderInfo() ||
+        this.chatService.getProviderInfo()?.type !== provider) {
+        await this.chatService.initializeModel(provider, providerConfig);
       }
 
       // Set current session in chat service
-      chatService.setCurrentSession(session);
+      this.chatService.setCurrentSession(session);
 
       // Send message to AI
       onStartStreaming?.();
-      const response = await chatService.sendMessage(content, session, {
+      const response = await this.chatService.sendMessage(content, session, {
         ...options,
         provider,
         model,
@@ -80,7 +102,7 @@ export class ChatMessageService {
         let thinkingContent = '';
 
         // Process stream
-        for await (const chunk of chatService.processStreamResponse(response as AsyncGenerator<StreamChunk>)) {
+        for await (const chunk of this.chatService.processStreamResponse(response as AsyncGenerator<StreamChunk>)) {
           onStreamChunk?.(chunk);
 
           if (chunk.error) {
@@ -148,7 +170,7 @@ export class ChatMessageService {
   static validateProviderConfig(provider: string): string | null {
     const { config } = useConfigStore.getState();
     const chatModelConfig = config?.ai?.model_types?.chat;
-    const apiKey = chatModelConfig?.api_keys?.[provider as keyof typeof chatModelConfig.api_keys];
+    const apiKey = chatModelConfig?.api_key;
 
     if (!apiKey) {
       return `No API key found for provider: ${provider}. Please configure the API key in Settings.`;
@@ -163,12 +185,12 @@ export class ChatMessageService {
   static getProviderConfig(provider: string) {
     const { config } = useConfigStore.getState();
     const chatModelConfig = config?.ai?.model_types?.chat;
-    const apiKey = chatModelConfig?.api_keys?.[provider as keyof typeof chatModelConfig.api_keys];
+    const apiKey = chatModelConfig?.api_key;
 
     return apiKey ? {
       api_key: apiKey,
       base_url: chatModelConfig?.custom_provider_url || undefined,
-      provider: provider
+      type: provider
     } : null;
   }
 }

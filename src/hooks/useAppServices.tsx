@@ -12,6 +12,7 @@ import {
   ServiceContainerManager,
   type ServiceContainerOptions
 } from '@/services/container';
+import { LoadingScreen } from '@/components/UI/LoadingScreen';
 
 // Context for providing services to the component tree
 const ServiceContext = createContext<ServiceContainer | null>(null);
@@ -22,6 +23,10 @@ export interface AppServices {
   knowledgeGraph: ServiceContainer['knowledgeGraph'];
   vectorDatabase: ServiceContainer['vectorDatabase'];
   sessionService: ServiceContainer['sessionService'];
+  conceptParsing: ServiceContainer['conceptParsing'];
+  contentDiscovery: ServiceContainer['contentDiscovery'];
+  agentManager: ServiceContainer['agentManager'];
+  configService: ServiceContainer['configService'];
 }
 
 export interface UseAppServicesResult {
@@ -50,6 +55,8 @@ export function ServiceProvider({ children, options }: ServiceProviderProps) {
   );
   const [ready, setReady] = useState(() => containerManager.isInitialized());
   const [error, setError] = useState<string | null>(null);
+  const [initState, setInitState] = useState<'config' | 'services' | 'database' | 'ready'>('config');
+  const [initProgress, setInitProgress] = useState(0);
 
   useEffect(() => {
     // If already initialized, no need to re-initialize
@@ -57,29 +64,84 @@ export function ServiceProvider({ children, options }: ServiceProviderProps) {
       return;
     }
 
-    const initializeContainer = async () => {
+    const initializeEverything = async () => {
       try {
-        const serviceContainer = await containerManager.getContainer(options);
+        let config = options?.config || {};
+
+        // Step 1: Load configuration
+        setInitState('config');
+        setInitProgress(25);
+
+        if (!config) {
+          // Try to load config from electron API
+          try {
+            config = await window.electronAPI.getConfig();
+            if (!config) {
+              throw new Error('No configuration found. Please set up your AI providers.');
+            }
+          } catch (configError) {
+            throw new Error(`Failed to load configuration: ${configError instanceof Error ? configError.message : 'Unknown error'}`);
+          }
+        }
+
+        // Step 2: Initialize services
+        setInitState('services');
+        setInitProgress(50);
+
+        const serviceContainer = await containerManager.getContainer({ config });
+
+        // Step 3: Database setup (if needed - most initialization happens in container)
+        setInitState('database');
+        setInitProgress(75);
+
+        // Add any additional database initialization here if needed
+        // For now, the container handles database setup
+
+        // Step 4: Ready
+        setInitState('ready');
+        setInitProgress(100);
+
         setContainer(serviceContainer);
         setReady(true);
         setError(null);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred during initialization';
         setError(errorMessage);
         setReady(false);
       }
     };
 
-    initializeContainer();
+    initializeEverything();
   }, [ready, container, options, containerManager]);
 
-  const value = container;
+  // Show loading screen during initialization
+  if (!ready) {
+    return (
+      <LoadingScreen
+        state={initState}
+        error={error}
+        onRetry={() => window.location.reload()}
+        showProgress
+        progress={initProgress}
+      />
+    );
+  }
 
+  const value = container;
   return (
     <ServiceContext.Provider value={value}>
       {children}
     </ServiceContext.Provider>
   );
+}
+
+/**
+ * Config-aware Service Provider that bridges useConfigStore with services
+ * Now simplified - all initialization logic moved to ServiceProvider
+ */
+export function ConfigServiceProvider({ children }: { children: ReactNode }) {
+  // ServiceProvider now handles config loading internally
+  return <ServiceProvider>{children}</ServiceProvider>;
 }
 
 /**
@@ -95,6 +157,10 @@ export function useAppServices(): UseAppServicesResult {
       knowledgeGraph: container.knowledgeGraph,
       vectorDatabase: container.vectorDatabase,
       sessionService: container.sessionService,
+      conceptParsing: container.conceptParsing,
+      contentDiscovery: container.contentDiscovery,
+      agentManager: container.agentManager,
+      configService: container.configService,
     } : null,
     ready: container !== null,
     error: null,
@@ -108,6 +174,10 @@ export function useAppServices(): UseAppServicesResult {
         knowledgeGraph: container.knowledgeGraph,
         vectorDatabase: container.vectorDatabase,
         sessionService: container.sessionService,
+        conceptParsing: container.conceptParsing,
+        contentDiscovery: container.contentDiscovery,
+        agentManager: container.agentManager,
+        configService: container.configService,
       };
 
       setState({

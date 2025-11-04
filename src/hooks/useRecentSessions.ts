@@ -5,10 +5,9 @@
  * Provides loading, error, and refresh functionality.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@/types/session';
 import { useService } from './useAppServices';
-import type { AppServices } from './useAppServices';
 
 export interface RecentSessionsState {
   sessions: Session[];
@@ -48,7 +47,19 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
     }
   }, [sessionService]);
 
+  // Add a safeguard to prevent excessive limit growth
   const [currentLimit, setCurrentLimit] = useState(limit);
+  const maxLimit = 1000; // Maximum limit to prevent excessive growth
+
+  // Use a ref to track the latest state to avoid stale closures
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Add a ref to track if loadMore is currently in progress to prevent multiple concurrent calls
+  const isLoadingMoreRef = useRef(false);
+
+  // Add a ref to track if initial load has been triggered to prevent duplicate initial loads
+  const initialLoadTriggeredRef = useRef(false);
 
   const fetchSessions = useCallback(async (sessionLimit: number, isRefresh = false) => {
     try {
@@ -75,13 +86,36 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
         const allSessions = isRefresh ? result : [...prev.sessions, ...result];
         const uniqueSessions = Array.from(new Map(allSessions.map(session => [session.id, session])).values());
 
+        // Properly calculate hasMore:
+        // 1. If we got fewer results than the limit, we've reached the end
+        // 2. If we got the full limit but the total unique sessions didn't increase beyond what we expected, we've reached the end
+        // 3. Otherwise, there might be more
+        const gotFewerThanRequested = result.length < limit;
+        const expectedNewSessions = Math.min(limit, sessionLimit - prev.sessions.length);
+        const actualNewSessions = uniqueSessions.length - prev.sessions.length;
+        const totalDidNotIncrease = !isRefresh && actualNewSessions < expectedNewSessions && !gotFewerThanRequested;
+        const hasMore = !gotFewerThanRequested && !totalDidNotIncrease && uniqueSessions.length < maxLimit;
+
+        console.log('[useRecentSessions] Session update:', {
+          sessionLimit,
+          resultCount: result.length,
+          previousCount: prev.sessions.length,
+          newTotalCount: uniqueSessions.length,
+          expectedNewSessions,
+          actualNewSessions,
+          gotFewerThanRequested,
+          totalDidNotIncrease,
+          hasMore,
+          isRefresh
+        });
+
         return {
           ...prev,
           sessions: uniqueSessions,
           loading: false,
           refreshing: false,
           error: null,
-          hasMore: result.length >= sessionLimit,
+          hasMore,
         };
       });
     } catch (error: any) {
@@ -102,26 +136,71 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
         error: errorMessage,
       }));
     }
-  }, [sessionService]);
+  }, [sessionService, limit, maxLimit]);
 
-  // Initial load and refresh when dependencies change
+  // Initial load only - don't refetch when currentLimit changes
   useEffect(() => {
-    if (sessionService) {
-      fetchSessions(currentLimit);
+    if (sessionService && !initialLoadTriggeredRef.current) {
+      initialLoadTriggeredRef.current = true;
+      fetchSessions(currentLimit, true);
     }
-  }, [fetchSessions, currentLimit, sessionService]);
+  }, [sessionService]); // Only run once when sessionService becomes available
 
   const refresh = useCallback(async () => {
     await fetchSessions(currentLimit, true);
   }, [fetchSessions, currentLimit]);
 
   const loadMore = useCallback(async () => {
-    if (!state.loading && !state.refreshing && state.hasMore) {
-      const newLimit = currentLimit + limit;
-      setCurrentLimit(newLimit);
-      await fetchSessions(newLimit);
+    // Prevent multiple concurrent loadMore calls
+    if (isLoadingMoreRef.current) {
+      console.log('[useRecentSessions] loadMore skipped - already loading more');
+      return;
     }
-  }, [state.loading, state.refreshing, state.hasMore, currentLimit, limit, fetchSessions]);
+
+    // Use ref to get current state and avoid stale closures
+    const currentState = stateRef.current;
+    console.log('[useRecentSessions] loadMore called, loading:', currentState.loading, 'refreshing:', currentState.refreshing, 'hasMore:', currentState.hasMore, 'currentLimit:', currentLimit, 'limit:', limit);
+
+    // Enhanced conditions to prevent unnecessary calls
+    if (!currentState.loading &&
+        !currentState.refreshing &&
+        currentState.hasMore &&
+        currentLimit < maxLimit &&
+        currentState.sessions.length > 0) { // Only load more if we have sessions
+
+      isLoadingMoreRef.current = true;
+      const newLimit = Math.min(currentLimit + limit, maxLimit);
+      console.log('[useRecentSessions] Increasing limit from', currentLimit, 'to', newLimit);
+      setCurrentLimit(newLimit);
+
+      try {
+        // Fetch sessions with the new limit, but don't treat it as a refresh
+        await fetchSessions(newLimit, false);
+        // The main fetchSessions function already handles hasMore calculation correctly
+        // No need for additional checks here
+      } finally {
+        isLoadingMoreRef.current = false;
+      }
+    } else {
+      if (currentLimit >= maxLimit) {
+        console.log('[useRecentSessions] loadMore skipped - maximum limit reached');
+        setState(prev => ({ ...prev, hasMore: false }));
+      } else if (!currentState.hasMore) {
+        console.log('[useRecentSessions] loadMore skipped - no more sessions available');
+      } else if (currentState.sessions.length === 0) {
+        console.log('[useRecentSessions] loadMore skipped - no sessions to paginate from');
+      } else {
+        console.log('[useRecentSessions] loadMore skipped - conditions not met', {
+          loading: currentState.loading,
+          refreshing: currentState.refreshing,
+          hasMore: currentState.hasMore,
+          currentLimit,
+          maxLimit,
+          sessionCount: currentState.sessions.length
+        });
+      }
+    }
+  }, [currentLimit, limit, fetchSessions, maxLimit]);
 
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));

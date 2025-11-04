@@ -11,6 +11,11 @@ import { KnowledgeGraphModule } from '@/modules/knowledge-graph';
 import { SimpleAnalyticsModule } from '@/modules/analytics';
 import { VectorDatabaseModule } from '@/modules/vector-database';
 import SessionService from './sessionService';
+import { ContentDiscoveryService } from './ContentDiscoveryService';
+import { ConceptParsingService } from './ConceptParsingService';
+import { AgentManager } from './AgentManager';
+import { createConfigService, ConfigService } from '@/services/configService';
+import type { AppConfig } from '@/types/config';
 
 export interface ServiceContainer {
   database: Kysely<Database>;
@@ -18,19 +23,22 @@ export interface ServiceContainer {
   knowledgeGraph: KnowledgeGraphModule;
   vectorDatabase: VectorDatabaseModule;
   sessionService: SessionService;
+  contentDiscovery: ContentDiscoveryService;
+  conceptParsing: ConceptParsingService;
+  agentManager: AgentManager;
+  configService: ConfigService;
 }
 
 export interface ServiceContainerOptions {
-  databasePath?: string;
+  databasePath: string;
+  config: AppConfig;
 }
 
 /**
  * Create a new service container with dependency injection.
  * This function creates fresh service instances with proper DI.
  */
-export async function createServiceContainer(
-  options: ServiceContainerOptions = {}
-): Promise<ServiceContainer> {
+export async function createServiceContainer(): Promise<ServiceContainer> {
   console.log('Creating service container...');
 
   // Create database first - it's the root dependency
@@ -59,7 +67,16 @@ export async function createServiceContainer(
   const analytics = new SimpleAnalyticsModule(database);
   await analytics.initialize();
 
-  const sessionService = new SessionService(database);
+  const configService = await createConfigService();
+
+  // Create agent manager with service injection
+  const agentManager = new AgentManager(configService);
+  await agentManager.initialize();
+
+  // Update dependent services to use AgentManager instead of ChatService
+  const sessionService = new SessionService(database, agentManager);
+  const contentDiscovery = new ContentDiscoveryService(database);
+  const conceptParsing = new ConceptParsingService(agentManager, configService);
 
   console.log('Service container created successfully');
 
@@ -69,6 +86,10 @@ export async function createServiceContainer(
     knowledgeGraph,
     vectorDatabase,
     sessionService,
+    contentDiscovery,
+    conceptParsing,
+    agentManager,
+    configService,
   };
 }
 
@@ -84,7 +105,7 @@ export class ServiceContainerManager {
    * Get or create the service container.
    * Uses lazy initialization pattern.
    */
-  async getContainer(options: ServiceContainerOptions = {}): Promise<ServiceContainer> {
+  async getContainer(options: ServiceContainerOptions): Promise<ServiceContainer> {
     if (this.container) {
       return this.container;
     }
@@ -99,7 +120,7 @@ export class ServiceContainerManager {
 
   private async createContainer(options: ServiceContainerOptions): Promise<ServiceContainer> {
     try {
-      this.container = await createServiceContainer(options);
+      this.container = await createServiceContainer();
       return this.container;
     } catch (error) {
       this.initializationPromise = null;
@@ -143,6 +164,20 @@ export class ServiceContainerManager {
 
       if (this.container?.database) {
         console.log('Database cleanup complete (Kysely instance)');
+      }
+
+      if (this.container?.conceptParsing) {
+        // ConceptParsingService doesn't have explicit cleanup method, but we can cancel active jobs
+        const activeJobs = this.container.conceptParsing.getActiveJobs();
+        for (const job of activeJobs) {
+          this.container.conceptParsing.cancelJob(job.id);
+        }
+        console.log('ConceptParsing service cleanup complete');
+      }
+
+      if (this.container?.agentManager) {
+        this.container.agentManager.cleanup();
+        console.log('AgentManager cleanup complete');
       }
 
       this.container = null;

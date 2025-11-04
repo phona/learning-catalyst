@@ -9,7 +9,7 @@ import { useRecentSessions } from '@/hooks/useRecentSessions';
 import type { Session } from '@/types/session';
 
 // Mock the service context
-vi.mock('@/hooks/useAppServices', () => ({
+vi.mock('hooks/useAppServices', () => ({
   useService: vi.fn(() => ({
     getRecentSessions: vi.fn(),
   })),
@@ -17,9 +17,9 @@ vi.mock('@/hooks/useAppServices', () => ({
 }));
 
 // Mock the hooks and dependencies
-vi.mock('@/stores/useChatStore');
-vi.mock('@/stores/useAppStore');
-vi.mock('@/hooks/useRecentSessions');
+vi.mock('stores/useChatStore');
+vi.mock('stores/useAppStore');
+vi.mock('hooks/useRecentSessions');
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {

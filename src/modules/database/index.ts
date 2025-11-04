@@ -16,5 +16,18 @@ export * from './kysely-schema';
 export { MigrationManager } from './migrations/index';
 export { loadAllMigrations } from './migrations/index';
 
+// LangGraph checkpointing related exports
+export type {
+  CheckpointRow,
+  CheckpointWriteRow,
+  CheckpointBlobRow,
+  InsertableCheckpoint,
+  InsertableCheckpointWrite,
+  InsertableCheckpointBlob,
+  UpdatableCheckpoint,
+  UpdatableCheckpointWrite,
+  UpdatableCheckpointBlob
+} from './kysely-schema';
+
 // Convenience exports
 export { createDatabase as default } from './kysely-database';

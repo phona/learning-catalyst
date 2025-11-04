@@ -5,6 +5,8 @@
 
 import type { Concept, ConceptRelationship, LearningPath } from '@/types/knowledge';
 import type { ContentRecommendation, DiscoveryFilter } from '@/types/content';
+import type { Database } from '@/modules/database/kysely-database';
+import { Kysely } from 'kysely';
 
 export interface DiscoveryOptions {
   limit?: number;
@@ -34,11 +36,19 @@ export interface LearningRecommendation {
 }
 
 interface UserConcept {
-  concept_id: string;
-  user_mastery: number;
-  completion_date?: string;
+  id: string;
+  created_at: string;
+  updated_at: string;
   name: string;
-  description?: string;
+  description: string | undefined;
+  concept_type: "topic" | "skill" | "fact" | "procedure" | "principle";
+  difficulty_level: number;
+  mastery_level: number;
+  tags: string;
+  metadata: string;
+  review_count: number;
+  user_mastery: number;
+  completion_date: string;
 }
 
 /**
@@ -46,16 +56,9 @@ interface UserConcept {
  * Provides intelligent content recommendations based on user's knowledge graph and goals
  */
 export class ContentDiscoveryService {
-  private static instance: ContentDiscoveryService;
-
-  private constructor() {}
-
-  static getInstance(): ContentDiscoveryService {
-    if (!ContentDiscoveryService.instance) {
-      ContentDiscoveryService.instance = new ContentDiscoveryService();
-    }
-    return ContentDiscoveryService.instance;
-  }
+  constructor(
+    private database: Kysely<Database>
+  ) {}
 
   /**
    * Discover concepts related to a given concept
@@ -71,27 +74,38 @@ export class ContentDiscoveryService {
     } = options;
 
     try {
-      // Get the target concept
-      const concepts = await window.electronAPI.dbFetchAll(
-        'SELECT * FROM concepts WHERE id = ?',
-        [conceptId]
-      );
+      // Get the target concept using Kysely
+      const concepts = await this.database
+        .selectFrom('concepts')
+        .selectAll()
+        .where('id', '=', conceptId)
+        .execute();
 
       if (concepts.length === 0) {
         return [];
       }
 
-      // Get related concepts through relationships
-      const relationships = await window.electronAPI.dbFetchAll(`
-        SELECT r.*, c.id, c.name, c.description, c.mastery_level, c.difficulty_level,
-               c.tags, c.metadata, c.created_at, c.updated_at
-        FROM relationships r
-        JOIN concepts c ON (r.target_concept_id = c.id OR r.source_concept_id = c.id)
-        WHERE (r.source_concept_id = ? OR r.target_concept_id = ?)
-        AND c.id != ?
-        ORDER BY r.strength DESC
-        LIMIT ?
-      `, [conceptId, conceptId, conceptId, limit * 2]);
+      // Get related concepts through relationships using Kysely
+      const relationships = await this.database
+        .selectFrom('relationships')
+        .innerJoin('concepts', (join) =>
+          join.on((eb) =>
+            eb.or([
+              eb('relationships.target_concept_id', '=', eb.ref('concepts.id')),
+              eb('relationships.source_concept_id', '=', eb.ref('concepts.id'))
+            ])
+          )
+        )
+        .selectAll()
+        .where((eb) =>
+          eb.or([
+            eb('relationships.source_concept_id', '=', conceptId),
+            eb('relationships.target_concept_id', '=', conceptId)
+          ]).and('concepts.id', '!=', conceptId)
+        )
+        .orderBy('relationships.strength', 'desc')
+        .limit(limit * 2)
+        .execute();
 
       const relatedConcepts: RelatedConcept[] = [];
 
@@ -100,14 +114,14 @@ export class ContentDiscoveryService {
           id: row.id,
           name: row.name,
           description: row.description,
-          masteryLevel: row.mastery_level,
-          difficultyLevel: row.difficulty_level || row.difficulty,
+          masteryLevel: row.mastery_level as 0 | 1 | 2 | 3 | 4 | 5,
+          difficultyLevel: (row.difficulty_level || 3) as 1 | 2 | 3 | 4 | 5,
           tags: JSON.parse(row.tags || '[]'),
           metadata: JSON.parse(row.metadata || '{}'),
           createdAt: new Date(row.created_at),
           updatedAt: new Date(row.updated_at),
-          conceptType: row.concept_type || 'topic',
-          reviewCount: row.review_count || 0
+          conceptType: 'topic',
+          reviewCount: 0
         };
 
         const relationship: ConceptRelationship = {
@@ -115,10 +129,10 @@ export class ContentDiscoveryService {
           targetConceptId: row.target_concept_id,
           type: row.relationship_type,
           strength: row.strength,
-          bidirectional: true, // Default to true as bidirectional field doesn't exist
+          bidirectional: true,
           metadata: JSON.parse(row.metadata || '{}'),
-          createdAt: new Date(row.created_at || Date.now()),
-          updatedAt: new Date(row.updated_at || Date.now()),
+          createdAt: new Date(),
+          updatedAt: new Date(),
           createdBySession: row.created_by_session
         };
 
@@ -161,16 +175,29 @@ export class ContentDiscoveryService {
       const recommendations: LearningRecommendation[] = [];
 
       // 1. Get user's current concepts and progress
-      const userConcepts = await window.electronAPI.dbFetchAll(`
-        SELECT c.*, sc.mastery_after as user_mastery, sc.created_at as completion_date
-        FROM session_concepts sc
-        JOIN concepts c ON sc.concept_id = c.id
-        WHERE sc.session_id IN (
-          SELECT id FROM learning_sessions WHERE metadata LIKE ?
-        )
-        GROUP BY c.id
-        ORDER BY sc.mastery_after DESC
-      `, [`%"userId":"${userId}"%`]);
+      const userConcepts = await this.database
+        .selectFrom('session_concepts as sc')
+        .innerJoin('concepts as c', 'sc.concept_id', 'c.id')
+        .innerJoin('learning_sessions as ls', 'sc.session_id', 'ls.id')
+        .select([
+          'c.id',
+          'c.name',
+          'c.description',
+          'c.mastery_level',
+          'c.difficulty_level',
+          'c.concept_type',
+          'c.tags',
+          'c.metadata',
+          'c.created_at',
+          'c.updated_at',
+          'c.review_count',
+          'sc.mastery_after as user_mastery',
+          'sc.created_at as completion_date'
+        ])
+        .where('ls.metadata', 'like', `%"userId":"${userId}"%`)
+        .groupBy('c.id')
+        .orderBy('sc.mastery_after', 'desc')
+        .execute();
 
       const masteredTopics = userConcepts
         .filter((uc: UserConcept) => uc.user_mastery >= 0.7)
@@ -277,22 +304,30 @@ export class ContentDiscoveryService {
       // Since learning_paths table doesn't exist, we'll generate learning paths
       // based on concept relationships
 
-      let baseQuery = `
-        SELECT c.id, c.name, c.description, c.difficulty_level, c.concept_type, c.tags
-        FROM concepts c
-        WHERE 1=1
-      `;
-
-      const params: any[] = [];
+      let query = this.database
+        .selectFrom('concepts as c')
+        .select([
+          'c.id',
+          'c.name',
+          'c.description',
+          'c.difficulty_level',
+          'c.concept_type',
+          'c.tags'
+        ]);
 
       if (goal) {
-        baseQuery += ` AND (c.name LIKE ? OR c.description LIKE ?)`;
-        params.push(`%${goal}%`, `%${goal}%`);
+        query = query.where((eb) =>
+          eb.or([
+            eb('c.name', 'like', `%${goal}%`),
+            eb('c.description', 'like', `%${goal}%`)
+          ])
+        );
       }
 
-      baseQuery += ` ORDER BY c.difficulty_level ASC LIMIT 20`;
-
-      const concepts = await window.electronAPI.dbFetchAll(baseQuery, params);
+      const concepts = await query
+        .orderBy('c.difficulty_level', 'asc')
+        .limit(20)
+        .execute();
 
       // For now, return a simple learning path based on the concepts
       if (concepts.length === 0) {
@@ -440,16 +475,17 @@ export class ContentDiscoveryService {
   ): Promise<Concept[]> {
     // Find concepts that are prerequisites for what user is learning
     // or that are logical next steps
-    const userConceptIds = userConcepts.map(uc => uc.concept_id);
+    const userConceptIds = userConcepts.map(uc => uc.id);
 
-    const nextConcepts = await window.electronAPI.dbFetchAll(`
-      SELECT DISTINCT c.*
-      FROM concepts c
-      WHERE c.id NOT IN (${userConceptIds.map(() => '?').join(',')})
-      AND c.difficulty_level BETWEEN ? AND ?
-      ORDER BY c.difficulty_level ASC
-      LIMIT 10
-    `, [...userConceptIds, difficultyRange[0] * 5, difficultyRange[1] * 5]); // Convert 0-1 scale to 1-5
+    const nextConcepts = await this.database
+      .selectFrom('concepts as c')
+      .selectAll()
+      .where('c.id', 'not in', userConceptIds)
+      .where('c.difficulty_level', '>=', difficultyRange[0] * 5) // Convert 0-1 scale to 1-5
+      .where('c.difficulty_level', '<=', difficultyRange[1] * 5)
+      .orderBy('c.difficulty_level', 'asc')
+      .limit(10)
+      .execute();
 
     return this.formatConcepts(nextConcepts);
   }
@@ -507,10 +543,15 @@ export class ContentDiscoveryService {
     difficultyRange: [number, number],
     topicFilter: string[]
   ): Promise<Concept[]> {
-    const concepts = await window.electronAPI.dbFetchAll(
-      'SELECT * FROM concepts WHERE name LIKE ? AND difficulty_level BETWEEN ? AND ? ORDER BY CASE WHEN name = ? THEN 1 WHEN name LIKE ? THEN 2 ELSE 3 END LIMIT ?',
-      [`%${query}%`, difficultyRange[0] * 5, difficultyRange[1] * 5, query, `${query}%`, limit]
-    );
+    const concepts = await this.database
+      .selectFrom('concepts')
+      .selectAll()
+      .where('name', 'like', `%${query}%`)
+      .where('difficulty_level', '>=', difficultyRange[0] * 5)
+      .where('difficulty_level', '<=', difficultyRange[1] * 5)
+      .orderBy('name', 'asc')
+      .limit(limit)
+      .execute();
 
     return this.formatConcepts(concepts);
   }
@@ -521,10 +562,14 @@ export class ContentDiscoveryService {
     difficultyRange: [number, number],
     topicFilter: string[]
   ): Promise<Concept[]> {
-    const concepts = await window.electronAPI.dbFetchAll(
-      'SELECT * FROM concepts WHERE tags LIKE ? AND difficulty_level BETWEEN ? AND ? LIMIT ?',
-      [`%"${query}"%`, difficultyRange[0] * 5, difficultyRange[1] * 5, limit]
-    );
+    const concepts = await this.database
+      .selectFrom('concepts')
+      .selectAll()
+      .where('tags', 'like', `%"${query}"%`)
+      .where('difficulty_level', '>=', difficultyRange[0] * 5)
+      .where('difficulty_level', '<=', difficultyRange[1] * 5)
+      .limit(limit)
+      .execute();
 
     return this.formatConcepts(concepts);
   }
@@ -535,10 +580,14 @@ export class ContentDiscoveryService {
     difficultyRange: [number, number],
     topicFilter: string[]
   ): Promise<Concept[]> {
-    const concepts = await window.electronAPI.dbFetchAll(
-      'SELECT * FROM concepts WHERE description LIKE ? AND difficulty_level BETWEEN ? AND ? LIMIT ?',
-      [`%${query}%`, difficultyRange[0] * 5, difficultyRange[1] * 5, limit]
-    );
+    const concepts = await this.database
+      .selectFrom('concepts')
+      .selectAll()
+      .where('description', 'like', `%${query}%`)
+      .where('difficulty_level', '>=', difficultyRange[0] * 5)
+      .where('difficulty_level', '<=', difficultyRange[1] * 5)
+      .limit(limit)
+      .execute();
 
     return this.formatConcepts(concepts);
   }
@@ -548,8 +597,8 @@ export class ContentDiscoveryService {
       id: row.id,
       name: row.name,
       description: row.description,
-      masteryLevel: row.mastery_level,
-      difficultyLevel: row.difficulty_level || row.difficulty || 3,
+      masteryLevel: row.mastery_level as 0 | 1 | 2 | 3 | 4 | 5,
+      difficultyLevel: (row.difficulty_level || row.difficulty || 3) as 1 | 2 | 3 | 4 | 5,
       conceptType: row.concept_type || 'topic',
       tags: JSON.parse(row.tags || '[]'),
       metadata: JSON.parse(row.metadata || '{}'),
@@ -560,5 +609,4 @@ export class ContentDiscoveryService {
   }
 }
 
-// Export singleton instance
-export const contentDiscoveryService = ContentDiscoveryService.getInstance();
+// Factory function for dependency injection

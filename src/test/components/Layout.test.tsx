@@ -7,11 +7,11 @@ import { useConfigStore } from '@/stores/useConfigStore';
 import { vi } from 'vitest';
 
 // Mock the stores
-vi.mock('@/stores/useAppStore');
-vi.mock('@/stores/useConfigStore');
+vi.mock('stores/useAppStore');
+vi.mock('stores/useConfigStore');
 
 // Mock the child components
-vi.mock('@/components/Layout/Sidebar', () => ({
+vi.mock('components/Layout/Sidebar', () => ({
   Sidebar: ({ open }: { open: boolean }) => (
     <div data-testid="sidebar" data-open={open}>
       Sidebar
@@ -19,7 +19,7 @@ vi.mock('@/components/Layout/Sidebar', () => ({
   ),
 }));
 
-vi.mock('@/components/Layout/Header', () => ({
+vi.mock('components/Layout/Header', () => ({
   Header: () => <div data-testid="header">Header</div>,
 }));
 

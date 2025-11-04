@@ -16,13 +16,16 @@ import {
   ConversationMessage,
   MemorySession
 } from '../types/session'
-import { chatService } from '../services/ai/chatService'
+import { AgentManager } from '../services/AgentManager'
 
 /**
  * Session Service with dependency injection
  */
 export class SessionService {
-  constructor(private db: Kysely<Database>) {
+  constructor(
+    private db: Kysely<Database>,
+    private agentManager?: AgentManager
+  ) {
     // Dependency injection: database instance is required
   }
 
@@ -831,105 +834,16 @@ export class SessionService {
     try {
       console.log('[SessionService] Generating AI title from message:', userMessage.substring(0, 50) + '...');
 
-	  const systemPrompt = `You are a helpful assistant that generates concise chat titles. Generate a concise, descriptive title (maximum 5 words) for a conversation.
-
-The title should:
-- Be short and catchy (2-5 words)
-- Capture the main topic or theme
-- Be suitable as a chat session title
-- Use title case (capitalize major words)
-- NOT include quotes or special characters
-
-Respond with ONLY the title, nothing else.`;
-
-      // Create a minimal session for title generation
-      const tempSession: Session = {
-        id: 'temp_title_generation',
-        title: 'Untitled Session',
-        created_at: new Date(),
-        updated_at: new Date(),
-        messages: [],
-        metadata: {
-          title: 'Untitled Session',
-          tags: [],
-          topics_covered: [],
-          archived: false,
-          pinned: false,
-        },
-        context: {
-          system_prompt: systemPrompt,
-          notes: undefined,
-          learning_objectives: undefined,
-        },
-        checkpoints: [],
-        statistics: {
-          total_messages: 0,
-          user_messages: 0,
-          assistant_messages: 0,
-          total_tokens_used: 0,
-          total_thinking_tokens: 0,
-          session_duration: 0,
-          average_response_time: 0,
-          concepts_learned: 0,
-          checkpoints_created: 0,
-          productivity_score: 0,
-          engagement_score: 0,
-        },
-      };
-
-      // Check if chat service has an initialized provider
-      const currentProviderInfo = chatService.getProviderInfo();
-      console.log('[SessionService] Current provider info:', currentProviderInfo);
-      console.log('[SessionService] Requested provider and model:', { provider, model });
-
-      // If no provider/model specified, use fallback
-      if (!provider || !model) {
-        console.warn('[SessionService] No provider or model specified for title generation, using fallback');
+      // Check if agent manager is available
+      if (!this.agentManager) {
+        console.warn('[SessionService] AgentManager not available for title generation, using fallback');
         return this.generateSimpleTitle(userMessage);
       }
 
-      console.log('[SessionService] Using AI service for title generation with model:', model);
+      console.log('[SessionService] Using AgentManager for title generation');
 
-      const response = await chatService.sendMessage(userMessage, tempSession, {
-        temperature: 0.3, // Lower temperature for more consistent titles
-        max_tokens: 20,   // Keep it short
-        model: model,     // Use the specified model
-        stream: false,     // Disable streaming for title generation
-		enable_thinking: false
-      });
-
-      let generatedTitle = 'Untitled Session';
-
-	  console.log('[SessionService] AI response for title generation:', response);
-      if (response && typeof response === 'object' && 'content' in response) {
-        // Handle non-streaming response (ChatResponse)
-        generatedTitle = response.content.trim();
-      } else if (response && typeof response === 'object' && Symbol.asyncIterator in response) {
-        // Handle streaming response (AsyncGenerator<StreamChunk>)
-        let fullContent = '';
-        for await (const chunk of response) {
-          if (chunk.content) {
-            fullContent += chunk.content;
-          }
-          if (chunk.done) {
-            break;
-          }
-        }
-        generatedTitle = fullContent.trim();
-      }
-
-      // Clean up and validate the generated title
-      generatedTitle = generatedTitle
-        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-        .replace(/\n+/g, ' ') // Replace newlines with spaces
-        .trim();
-
-      // Ensure title is reasonable length and not empty
-      if (!generatedTitle || generatedTitle.length < 2) {
-        generatedTitle = 'Untitled Session';
-      } else if (generatedTitle.length > 50) {
-        generatedTitle = generatedTitle.substring(0, 47) + '...';
-      }
+      // Use the specialized title generation agent
+      const generatedTitle = await this.agentManager.generateSessionTitle(userMessage);
 
       console.log('[SessionService] Generated AI title:', generatedTitle);
       return generatedTitle;
@@ -938,6 +852,103 @@ Respond with ONLY the title, nothing else.`;
       console.error('[SessionService] Failed to generate AI title:', error);
       // Fallback to simple title based on message content
       return this.generateSimpleTitle(userMessage);
+    }
+  }
+
+  /**
+   * Get global message count using SQL aggregation
+   *
+   * This method performs a COUNT(*) query on the messages table
+   * to get the total number of messages across all sessions.
+   * This is much more efficient than client-side counting.
+   */
+  async getGlobalMessageCount(): Promise<number> {
+    try {
+      console.log('[SessionService] Getting global message count using SQL aggregation');
+      const db = this.getDB();
+
+      // Use SQL COUNT(*) aggregation for optimal performance
+      const result = await db
+        .selectFrom('messages')
+        .select((eb) => eb.fn.count('id').as('total_messages'))
+        .executeTakeFirst();
+
+      const totalCount = Number(result?.total_messages) || 0;
+      console.log('[SessionService] Global message count:', totalCount);
+      return totalCount;
+
+    } catch (error) {
+      console.error('[SessionService] Failed to get global message count:', error);
+      throw new Error(`Failed to get global message count: ${error}`);
+    }
+  }
+
+  /**
+   * Get global statistics using SQL aggregation
+   *
+   * This method provides comprehensive global statistics using
+   * database-level aggregation for optimal performance.
+   */
+  async getGlobalStatistics(): Promise<{
+    totalMessages: number;
+    totalSessions: number;
+    totalUserMessages: number;
+    totalAssistantMessages: number;
+    averageMessagesPerSession: number;
+    totalTokensUsed: number;
+  }> {
+    try {
+      console.log('[SessionService] Getting global statistics using SQL aggregation');
+      const db = this.getDB();
+
+      // Get message statistics
+      const messageStats = await db
+        .selectFrom('messages')
+        .select([
+          (eb) => eb.fn.count('id').as('total_messages'),
+          (eb) => eb.fn.sum(sql`CASE WHEN role = 'user' THEN 1 ELSE 0 END`).as('total_user_messages'),
+          (eb) => eb.fn.sum(sql`CASE WHEN role = 'assistant' THEN 1 ELSE 0 END`).as('total_assistant_messages'),
+          (eb) => eb.fn.sum(sql`CAST(JSON_EXTRACT(tokens_used, '$.total_tokens') AS INTEGER)`).as('total_tokens'),
+        ])
+        .executeTakeFirst();
+
+      // Get session statistics
+      const sessionStats = await db
+        .selectFrom('learning_sessions')
+        .select([
+          (eb) => eb.fn.count('id').as('total_sessions'),
+          (eb) => eb.fn.avg('total_messages').as('avg_messages_per_session'),
+        ])
+        .executeTakeFirst();
+
+      const totalMessages = Number(messageStats?.total_messages) || 0;
+      const totalSessions = Number(sessionStats?.total_sessions) || 0;
+      const totalUserMessages = Number(messageStats?.total_user_messages) || 0;
+      const totalAssistantMessages = Number(messageStats?.total_assistant_messages) || 0;
+      const averageMessagesPerSession = Number(sessionStats?.avg_messages_per_session) || 0;
+      const totalTokensUsed = Number(messageStats?.total_tokens) || 0;
+
+      console.log('[SessionService] Global statistics:', {
+        totalMessages,
+        totalSessions,
+        totalUserMessages,
+        totalAssistantMessages,
+        averageMessagesPerSession,
+        totalTokensUsed,
+      });
+
+      return {
+        totalMessages,
+        totalSessions,
+        totalUserMessages,
+        totalAssistantMessages,
+        averageMessagesPerSession,
+        totalTokensUsed,
+      };
+
+    } catch (error) {
+      console.error('[SessionService] Failed to get global statistics:', error);
+      throw new Error(`Failed to get global statistics: ${error}`);
     }
   }
 

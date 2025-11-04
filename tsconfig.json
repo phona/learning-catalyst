@@ -10,13 +10,13 @@
     "allowSyntheticDefaultImports": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "node16",
+    "moduleResolution": "node16",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "baseUrl": "./",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "src/*"
@@ -24,6 +24,6 @@
     },
   },
   "include": ["src", "electron"],
-  "exclude": ["src/test/**/*", "**/*.test.*", "**/*.spec.*", "src/renderer/**/*"],
+  "exclude": ["src/test/**/*", "**/*.test.*", "**/*.spec.*", "node_modules"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

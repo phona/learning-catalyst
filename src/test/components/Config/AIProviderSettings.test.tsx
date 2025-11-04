@@ -2,17 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AIProviderSettings } from '@/components/Config/AIProviderSettings';
-import { createMockConfig } from '@/test/test-utils';
+import { createMockConfig } from 'test/test-utils';
 
-// Mock the model fetching service
-vi.mock('@/services/modelFetchingService', () => ({
-  modelFetchingService: {
-    fetchModels: vi.fn(),
-  },
-}));
 
 // Mock the config service
-vi.mock('@/services/configService', () => ({
+vi.mock('services/configService', () => ({
   configService: {
     testModel: vi.fn(),
     getProviderModelMapping: () => ({
@@ -26,14 +20,13 @@ vi.mock('@/services/configService', () => ({
 }));
 
 // Mock the toast utility
-vi.mock('@/utils/toast', () => ({
+vi.mock('utils/toast', () => ({
   utilityToasts: {
     success: vi.fn(),
     error: vi.fn(),
   },
 }));
 
-import { modelFetchingService } from '@/services/modelFetchingService';
 import { configService } from '@/services/configService';
 import { utilityToasts } from '@/utils/toast';
 

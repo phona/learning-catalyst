@@ -7,6 +7,8 @@ import { setupAppHandlers } from './app-handlers';
 import { setupDialogHandlers } from './dialog-handlers';
 import { setupWindowHandlers } from './window-handlers';
 import { setupDevHandlers } from './dev-handlers';
+import { setupAgentHandlers } from './agent-handlers';
+import { setupSessionHandlers } from './session-handlers';
 
 export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspacePath: string): void {
 	// Initialize workspace path
@@ -21,6 +23,8 @@ export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspaceP
 	setupDialogHandlers(mainWindow);
 	setupWindowHandlers(mainWindow);
 	setupDevHandlers(mainWindow);
+	setupAgentHandlers();
+	setupSessionHandlers();
 
 	console.log('✅ All IPC handlers registered successfully');
 }

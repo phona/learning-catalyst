@@ -58,6 +58,13 @@ export const appServices = {
     }
     return container.sessionService;
   },
+  getAgentManager() {
+    const container = legacyManager.getCurrentContainer();
+    if (!container) {
+      throw new Error('Agent manager not initialized. Use ServiceProvider component first.');
+    }
+    return container.agentManager;
+  },
   isInitialized() {
     return legacyManager.isInitialized();
   }
@@ -72,4 +79,5 @@ export const getAnalytics = () => appServices.getAnalytics();
 export const getKnowledgeGraph = () => appServices.getKnowledgeGraph();
 export const getVectorDatabase = () => appServices.getVectorDatabase();
 export const getSessionService = () => appServices.getSessionService();
+export const getAgentManager = () => appServices.getAgentManager();
 export const getServiceFactory = () => appServices;

@@ -1,500 +1,478 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
-  ChatBubbleLeftRightIcon,
   CubeIcon,
   AcademicCapIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   CheckCircleIcon,
-  XCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon,
-  PencilIcon,
-  XMarkIcon,
   EyeIcon,
   EyeSlashIcon,
 } from '@heroicons/react/24/outline';
-import { modelFetchingService } from '@/services/modelFetchingService';
 import { utilityToasts } from '@/utils/toast';
 import type {
-  ModelTypeConfig,
-  ModelTestResult,
+  ProviderConfig,
+  ProviderValidationResult,
 } from '@/types/config';
-import type { ModelList } from '@/types/ai';
-import { configService } from '@/services/configService';
+import { ModelType } from '@/types/ai';
+import { useService } from '@/hooks/useAppServices';
+import { PREDEFINED_PROVIDERS } from '@/constants/providers';
 
-interface ModelTypeSection {
-  type: 'chat' | 'embedding' | 'rerank';
-  title: string;
-  description: string;
-  icon: React.ComponentType<any>;
-  color: string;
-}
-
-const modelTypes: ModelTypeSection[] = [
-  {
-    type: 'chat',
-    title: 'Chat Models',
-    description: 'Conversational AI models for chat and dialogue',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'blue',
-  },
-  {
-    type: 'embedding',
-    title: 'Embedding Models',
-    description: 'Text embedding models for semantic search and similarity',
-    icon: CubeIcon,
-    color: 'green',
-  },
-  {
-    type: 'rerank',
-    title: 'Rerank Models',
-    description: 'Text reranking models for improved search results',
-    icon: AcademicCapIcon,
-    color: 'purple',
-  },
-];
 
 interface AIProviderSettingsProps {
-  modelTypeConfigs: Record<string, ModelTypeConfig>;
-  onModelTypeConfigChange: (modelType: string, updates: Partial<ModelTypeConfig>) => void;
-  remoteModels: Record<string, ModelList>;
-  fetchingModels: Record<string, boolean>;
-  fetchErrors: Record<string, string>;
-  onFetchModels: (modelType: string) => void;
+  // New props for provider-based configuration
+  providerConfigs?: Record<string, ProviderConfig>;
+  modelAssignments?: Record<string, { provider_config_id: string; model_id: string }>;
+  onProviderConfigChange?: (providerId: string, config: ProviderConfig) => void;
+  onModelAssignmentChange?: (modelType: string, providerId: string, modelId: string) => void;
 }
 
 export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
-  modelTypeConfigs,
-  onModelTypeConfigChange,
-  remoteModels,
-  fetchingModels,
-  fetchErrors,
-  onFetchModels,
+  providerConfigs = {},
+  modelAssignments = {},
+  onProviderConfigChange,
+  onModelAssignmentChange,
 }) => {
-  const [expandedModelTypes, setExpandedModelTypes] = useState<Set<string>>(new Set(['chat']));
-  const [testingModels, setTestingModels] = useState<Set<string>>(new Set());
-  const [modelTestResults, setModelTestResults] = useState<Record<string, ModelTestResult>>({});
-  const [manualModelInput, setManualModelInput] = useState<Record<string, string>>({});
-  const [showManualInput, setShowManualInput] = useState<Record<string, boolean>>({});
+  const configService = useService('configService');
+
+  // Main component state according to plan
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [configuredProviders, setConfiguredProviders] = useState<Record<string, ProviderConfig>>(providerConfigs);
+  const [validationStatus, setValidationStatus] = useState<Record<string, ProviderValidationResult>>({});
+  const [discoveredModels, setDiscoveredModels] = useState<Record<string, string[]>>({});
+  const [isValidating, setIsValidating] = useState(false);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+
+  // UI state
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['provider-configuration', 'model-assignment']));
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [baseUrlInput, setBaseUrlInput] = useState('');
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
 
-  const testModel = async (providerName: string, modelName: string, modelType: 'chat' | 'embedding' | 'rerank') => {
-    const testKey = `${providerName}-${modelName}-${modelType}`;
-    setTestingModels(prev => new Set(prev).add(testKey));
-
-    try {
-      const result = await configService.testModel(providerName, modelName, modelType);
-      setModelTestResults(prev => ({ ...prev, [testKey]: result }));
-
-      if (result.status === 'success') {
-        utilityToasts.success(`${modelName} test successful`);
-      } else {
-        utilityToasts.error(`${modelName} test failed: ${result.error_message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Model test failed:', error);
-      utilityToasts.error(`${modelName} test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setTestingModels(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(testKey);
-        return newSet;
-      });
-    }
-  };
-
-  const toggleModelTypeExpansion = (modelType: string) => {
-    setExpandedModelTypes(prev => {
+  
+  // Section expansion handlers
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(modelType)) {
-        newSet.delete(modelType);
+      if (newSet.has(section)) {
+        newSet.delete(section);
       } else {
-        newSet.add(modelType);
+        newSet.add(section);
       }
       return newSet;
     });
   };
 
-  const toggleManualInput = (modelType: string) => {
-    const key = modelType;
-    setShowManualInput(prev => ({ ...prev, [key]: !prev[key] }));
-    if (!showManualInput[key]) {
-      // Initialize with current model value when opening
-      const config = modelTypeConfigs[modelType];
-      if (config) {
-        setManualModelInput(prev => ({ ...prev, [key]: config.default_model }));
-      }
+  // Provider configuration handlers
+  const handleProviderChange = (providerType: string) => {
+    setSelectedProvider(providerType);
+    const provider = PREDEFINED_PROVIDERS[providerType];
+    if (provider) {
+      setBaseUrlInput(provider.base_url);
+      // Reset validation status when switching providers
+      setValidationStatus(prev => ({ ...prev, [providerType]: {} }));
     }
   };
 
-  const toggleApiKeyVisibility = (modelType: string) => {
-    setShowApiKeys(prev => ({ ...prev, [modelType]: !prev[modelType] }));
+  // API key validation handler
+  const validateApiKey = async () => {
+    if (!selectedProvider || !apiKeyInput.trim()) {
+      utilityToasts.error('Please enter a provider and API key');
+      return;
+    }
+
+    setIsValidating(true);
+    try {
+      const result = await configService.validateProvider(selectedProvider, apiKeyInput.trim(), baseUrlInput);
+      setValidationStatus(prev => ({ ...prev, [selectedProvider]: result }));
+
+      if (result.success) {
+        utilityToasts.success('API key validated successfully');
+      } else {
+        utilityToasts.error(`Validation failed: ${result.error}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown validation error';
+      setValidationStatus(prev => ({
+        ...prev,
+        [selectedProvider]: { success: false, error: errorMessage }
+      }));
+      utilityToasts.error(`Validation failed: ${errorMessage}`);
+    } finally {
+      setIsValidating(false);
+    }
   };
 
-  const getProviderModelMapping = () => {
-    return configService.getProviderModelMapping();
-  };
+  // Model discovery handlers
+  const fetchModelsForProvider = async (providerId: string) => {
+    const providerConfig = configuredProviders[providerId];
+    if (!providerConfig || !providerConfig.api_key) {
+      utilityToasts.error('Please configure and validate the provider first');
+      return;
+    }
 
-  const getAvailableModels = useMemo(() => {
-    return (modelType: string): string[] => {
-      const config = modelTypeConfigs[modelType];
-      if (!config) return [];
+    setIsFetchingModels(true);
+    try {
+      const models = await configService.getProviderModels(
+        providerConfig.provider_type,
+        providerConfig.api_key,
+        providerConfig.base_url
+      );
 
-      const cacheKey = `${config.default_provider}-${modelType}`;
+      setDiscoveredModels(prev => ({ ...prev, [providerId]: models }));
 
-      // Use remote models if available, otherwise fallback to hardcoded models
-      const remoteModelList = remoteModels[cacheKey];
-      if (remoteModelList) {
-        const modelListKey = modelType as keyof ModelList;
-        return remoteModelList[modelListKey]?.map(model => model.model_id) || [];
+      // Update provider config with discovered models
+      const updatedConfig = { ...providerConfig, models };
+      setConfiguredProviders(prev => ({ ...prev, [providerId]: updatedConfig }));
+
+      if (onProviderConfigChange) {
+        onProviderConfigChange(providerId, updatedConfig);
       }
 
-      // Fallback to hardcoded models
-      const providerMapping = getProviderModelMapping();
-      return providerMapping[config.default_provider]?.[modelType] || [];
+      utilityToasts.success(`Found ${models.length} models for ${providerConfig.provider_type}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      utilityToasts.error(`Failed to fetch models: ${errorMessage}`);
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  // Provider configuration save handler
+  const saveProviderConfiguration = async () => {
+    if (!selectedProvider || !apiKeyInput.trim()) {
+      utilityToasts.error('Please select a provider and enter an API key');
+      return;
+    }
+
+    const providerId = `${selectedProvider}-${Date.now()}`;
+    const providerConfig: ProviderConfig = {
+      provider_type: selectedProvider,
+      api_key: apiKeyInput.trim(),
+      base_url: baseUrlInput,
+      models: discoveredModels[providerId] || [],
     };
-  }, [modelTypeConfigs, remoteModels]);
 
-  const handleManualModelInput = (modelType: string, modelName: string) => {
-    onModelTypeConfigChange(modelType, { default_model: modelName });
-    setManualModelInput(prev => ({ ...prev, [modelType]: modelName }));
-  };
+    try {
+      setConfiguredProviders(prev => ({ ...prev, [providerId]: providerConfig }));
 
-  const applyManualModel = (modelType: string) => {
-    const modelName = manualModelInput[modelType];
-    if (modelName && modelName.trim()) {
-      handleManualModelInput(modelType, modelName.trim());
-      toggleManualInput(modelType);
-      utilityToasts.success(`Model "${modelName.trim()}" applied successfully`);
-    } else {
-      utilityToasts.error('Please enter a valid model name');
+      if (onProviderConfigChange) {
+        onProviderConfigChange(providerId, providerConfig);
+      }
+
+      // Reset form
+      setSelectedProvider('');
+      setApiKeyInput('');
+      setBaseUrlInput('');
+
+      utilityToasts.success('Provider configuration saved successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      utilityToasts.error(`Failed to save provider configuration: ${errorMessage}`);
     }
   };
 
-  const getStatusIcon = (result?: ModelTestResult, isTesting?: boolean) => {
-    if (isTesting) {
-      return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />;
-    }
-    if (!result) {
-      return <ExclamationTriangleIcon className="w-4 h-4 text-gray-400" />;
-    }
-    switch (result.status) {
-      case 'success':
-        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
-      case 'error':
-        return <XCircleIcon className="w-4 h-4 text-red-500" />;
-      default:
-        return <ExclamationTriangleIcon className="w-4 h-4 text-gray-400" />;
+  // Model type assignment handlers
+  const handleModelAssignmentChange = (modelType: string, providerId: string, modelId: string) => {
+    if (onModelAssignmentChange) {
+      onModelAssignmentChange(modelType, providerId, modelId);
     }
   };
 
+  // UI helpers
+  const toggleApiKeyVisibility = (providerId: string) => {
+    setShowApiKeys(prev => ({ ...prev, [providerId]: !prev[providerId] }));
+  };
+
+  const getAvailableModels = (providerId: string): string[] => {
+    return discoveredModels[providerId] || configuredProviders[providerId]?.models || [];
+  };
+
+  
+  // Provider Configuration Section Component
+  const ProviderConfigurationSection = () => (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Provider Configuration</h3>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Provider</label>
+        <select
+          value={selectedProvider}
+          onChange={(e) => handleProviderChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="">Choose a provider...</option>
+          {Object.entries(PREDEFINED_PROVIDERS).map(([id, provider]) => (
+            <option key={id} value={id}>
+              {provider.name} - {provider.description}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {selectedProvider && (
+        <div className="space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-gray-900 dark:text-gray-100">
+              {PREDEFINED_PROVIDERS[selectedProvider]?.name} Configuration
+            </h4>
+            {validationStatus[selectedProvider]?.success && (
+              <span className="text-green-600 text-sm flex items-center">
+                <CheckCircleIcon className="w-4 h-4 mr-1" />
+                Configured
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
+            <div className="flex space-x-2">
+              <input
+                type={showApiKeys[selectedProvider] ? 'text' : 'password'}
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="Enter API key..."
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={() => validateApiKey()}
+                disabled={!apiKeyInput.trim() || isValidating}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"
+              >
+                {isValidating ? (
+                  <>
+                    <ArrowPathIcon className="w-4 h-4 mr-2 animate-spin" />
+                    Validating...
+                  </>
+                ) : (
+                  'Validate'
+                )}
+              </button>
+            </div>
+
+            {validationStatus[selectedProvider] && (
+              <div className={`text-sm ${validationStatus[selectedProvider].success ? 'text-green-600' : 'text-red-600'} flex items-center`}>
+                {validationStatus[selectedProvider].success ? (
+                  <CheckCircleIcon className="w-4 h-4 mr-1" />
+                ) : (
+                  <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+                )}
+                {validationStatus[selectedProvider].success
+                  ? '✓ API key is valid'
+                  : `✗ ${validationStatus[selectedProvider].error}`
+                }
+              </div>
+            )}
+          </div>
+
+          {/* Custom Base URL (for openai-compatible providers) */}
+          {selectedProvider === 'openai-compatible' && (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Base URL</label>
+              <input
+                type="url"
+                value={baseUrlInput}
+                onChange={(e) => setBaseUrlInput(e.target.value)}
+                placeholder="https://api.example.com/v1"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={saveProviderConfiguration}
+              disabled={!apiKeyInput.trim() || !validationStatus[selectedProvider]?.success}
+              className="px-4 py-2 bg-green-500 text-white rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              Save Configuration
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* List of configured providers */}
+      {Object.entries(configuredProviders).length > 0 && (
+        <div className="space-y-2">
+          <h4 className="font-medium text-gray-900 dark:text-gray-100">Configured Providers</h4>
+          {Object.entries(configuredProviders).map(([providerId, config]) => (
+            <div key={providerId} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+              <div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">
+                  {PREDEFINED_PROVIDERS[config.provider_type]?.name || config.provider_type}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {config.models?.length || 0} models available
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => fetchModelsForProvider(providerId)}
+                  disabled={isFetchingModels}
+                  className="p-2 text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                  title="Fetch models"
+                >
+                  {isFetchingModels ? (
+                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ArrowPathIcon className="w-4 h-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => toggleApiKeyVisibility(providerId)}
+                  className="p-2 text-gray-500 hover:text-gray-700"
+                  title="Toggle API key visibility"
+                >
+                  {showApiKeys[providerId] ? (
+                    <EyeSlashIcon className="w-4 h-4" />
+                  ) : (
+                    <EyeIcon className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Model Type Assignment Section Component
+  const ModelTypeAssignmentSection = () => {
+    const modelTypes: ModelType[] = ['chat', 'embedding', 'rerank'];
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Model Type Assignment</h3>
+
+        {modelTypes.map(modelType => (
+          <div key={modelType} className="flex items-center space-x-4">
+            <span className="capitalize w-24 text-gray-700 dark:text-gray-300">{modelType}:</span>
+
+            <select
+              value={modelAssignments[modelType]?.provider_config_id || ''}
+              onChange={(e) => {
+                const providerId = e.target.value;
+                if (providerId) {
+                  const models = getAvailableModels(providerId);
+                  if (models.length > 0) {
+                    handleModelAssignmentChange(modelType, providerId, models[0]);
+                  }
+                }
+              }}
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select provider...</option>
+              {Object.entries(configuredProviders)
+                .filter(([_, config]) => config.api_key)
+                .map(([providerId]) => (
+                  <option key={providerId} value={providerId}>
+                    {PREDEFINED_PROVIDERS[configuredProviders[providerId].provider_type]?.name || providerId}
+                  </option>
+                ))}
+            </select>
+
+            <select
+              value={modelAssignments[modelType]?.model_id || ''}
+              onChange={(e) => {
+                const providerId = modelAssignments[modelType]?.provider_config_id;
+                if (providerId) {
+                  handleModelAssignmentChange(modelType, providerId, e.target.value);
+                }
+              }}
+              disabled={!modelAssignments[modelType]?.provider_config_id}
+              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+            >
+              <option value="">Select model...</option>
+              {getAvailableModels(modelAssignments[modelType]?.provider_config_id || '').map(model => (
+                <option key={model} value={model}>{model}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => fetchModelsForProvider(modelAssignments[modelType]?.provider_config_id || '')}
+              disabled={!modelAssignments[modelType]?.provider_config_id || isFetchingModels}
+              className="px-3 py-1 bg-green-500 text-white rounded-md text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"
+            >
+              {isFetchingModels ? (
+                <ArrowPathIcon className="w-3 h-3 mr-1 animate-spin" />
+              ) : (
+                <ArrowPathIcon className="w-3 h-3 mr-1" />
+              )}
+              Fetch Models
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Main render
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          AI Model Configuration
+          AI Provider Configuration
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Configure different types of AI models for various tasks. Each model type serves a specific purpose in the learning platform.
+          Configure AI providers and assign models to different task types. Each provider can be validated before use.
         </p>
 
-        <div className="space-y-4">
-          {modelTypes.map(({ type, title, description, icon: Icon, color }) => {
-            const isExpanded = expandedModelTypes.has(type);
-            const config = modelTypeConfigs[type];
-
-            return (
-              <div key={type} className="border border-gray-200 dark:border-gray-700 rounded-lg">
-                <button
-                  onClick={() => toggleModelTypeExpansion(type)}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 bg-${color}-100 dark:bg-${color}-900 rounded-lg`}>
-                      <Icon className={`w-5 h-5 text-${color}-600 dark:text-${color}-400`} />
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-medium text-gray-900 dark:text-gray-100">{title}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
-                    </div>
-                  </div>
-                  {isExpanded ? (
-                    <ChevronUpIcon className="w-4 h-4 text-gray-500" />
-                  ) : (
-                    <ChevronDownIcon className="w-4 h-4 text-gray-500" />
-                  )}
-                </button>
-
-                {isExpanded && config && (
-                  <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                    {/* Provider Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Provider
-                      </label>
-                      <select
-                        value={config.default_provider}
-                        onChange={(e) => onModelTypeConfigChange(type, { default_provider: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        {config.available_providers.map(provider => (
-                          <option key={provider} value={provider}>
-                            {provider === 'openai-compatible' ? 'OpenAI-Compatible' :
-                             provider.charAt(0).toUpperCase() + provider.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Custom URL Input for OpenAI-Compatible Provider */}
-                      {config.default_provider === 'openai-compatible' && (
-                        <div className="mt-3">
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            API Endpoint URL
-                          </label>
-                          <input
-                            type="url"
-                            value={config.custom_provider_url || ''}
-                            onChange={(e) => onModelTypeConfigChange(type, { custom_provider_url: e.target.value })}
-                            placeholder="https://api.example.com/v1"
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            Enter the base URL for your OpenAI-compatible API endpoint
-                          </p>
-                        </div>
-                      )}
-
-                      {/* API Key Input for All Providers */}
-                      <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                          {config.default_provider === 'openai-compatible' ? 'API Key' :
-                           config.default_provider === 'openai' ? 'OpenAI API Key' :
-                           config.default_provider === 'chatglm' ? 'ChatGLM API Key' :
-                           config.default_provider === 'deepseek' ? 'DeepSeek API Key' :
-                           config.default_provider === 'siliconflow' ? 'SiliconFlow API Key' :
-                           'API Key'} <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type={showApiKeys[type] ? 'text' : 'password'}
-                            value={config.api_keys?.[config.default_provider as keyof typeof config.api_keys] || ''}
-                            onChange={(e) => onModelTypeConfigChange(type, {
-                              api_keys: {
-                                ...config.api_keys,
-                                [config.default_provider]: e.target.value
-                              }
-                            })}
-                            placeholder="Enter your API key"
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                          <button
-                            onClick={() => toggleApiKeyVisibility(type)}
-                            className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                            title={showApiKeys[type] ? 'Hide API key' : 'Show API key'}
-                          >
-                            {showApiKeys[type] ? (
-                              <EyeSlashIcon className="w-4 h-4" />
-                            ) : (
-                              <EyeIcon className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          API key is required for authentication
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Model Selection */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Model
-                      </label>
-                      {!showManualInput[type] ? (
-                        <div className="flex items-center space-x-2">
-                          <select
-                            value={config.default_model}
-                            onChange={(e) => onModelTypeConfigChange(type, { default_model: e.target.value })}
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="">Select a model</option>
-                            {/* Custom model first if it exists and not in available models */}
-                            {config.default_model &&
-                             !getAvailableModels(type).includes(config.default_model) && (
-                              <option key="custom-model" value={config.default_model}>
-                                {config.default_model} (Custom)
-                              </option>
-                            )}
-                            {/* Available models from API or fallback */}
-                            {getAvailableModels(type).map((model: string) => (
-                              <option key={model} value={model}>
-                                {model}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => toggleManualInput(type)}
-                            className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-                            title="Enter model manually"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => testModel(config.default_provider, config.default_model, type as any)}
-                            disabled={testingModels.has(`${config.default_provider}-${config.default_model}-${type}`)}
-                            className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
-                            title="Test model"
-                          >
-                            {getStatusIcon(
-                              modelTestResults[`${config.default_provider}-${config.default_model}-${type}`],
-                              testingModels.has(`${config.default_provider}-${config.default_model}-${type}`)
-                            )}
-                          </button>
-                          <button
-                            onClick={() => onFetchModels(type)}
-                            disabled={fetchingModels[`${config.default_provider}-${type}`] || !config.api_keys?.[config.default_provider as keyof typeof config.api_keys]}
-                            className="p-2 text-gray-500 hover:text-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={config.api_keys?.[config.default_provider as keyof typeof config.api_keys] ? "Fetch latest models from API" : "Enter API key to fetch models"}
-                          >
-                            {fetchingModels[`${config.default_provider}-${type}`] ? (
-                              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <ArrowPathIcon className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="text"
-                            value={manualModelInput[type] || ''}
-                            onChange={(e) => setManualModelInput(prev => ({ ...prev, [type]: e.target.value }))}
-                            placeholder="Enter model name manually"
-                            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                applyManualModel(type);
-                              }
-                            }}
-                          />
-                          <button
-                            onClick={() => applyManualModel(type)}
-                            className="p-2 text-green-600 hover:text-green-700 transition-colors"
-                            title="Apply model"
-                          >
-                            <CheckCircleIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => toggleManualInput(type)}
-                            className="p-2 text-red-600 hover:text-red-700 transition-colors"
-                            title="Cancel"
-                          >
-                            <XMarkIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Model Fetching Status */}
-                    {(() => {
-                      const cacheKey = `${config.default_provider}-${type}`;
-                      const isFetching = fetchingModels[cacheKey];
-                      const error = fetchErrors[cacheKey];
-                      const hasRemoteModels = remoteModels[cacheKey];
-                      const modelCount = getAvailableModels(type).length;
-
-                      return (
-                        <div className="mt-2 text-xs">
-                          {isFetching && (
-                            <div className="flex items-center space-x-1 text-blue-600">
-                              <ArrowPathIcon className="w-3 h-3 animate-spin" />
-                              <span>Fetching models from {config.default_provider}...</span>
-                            </div>
-                          )}
-                          {error && (
-                            <div className="flex items-center space-x-1 text-red-600">
-                              <ExclamationTriangleIcon className="w-3 h-3" />
-                              <span>{error}</span>
-                            </div>
-                          )}
-                          {hasRemoteModels && !isFetching && !error && (
-                            <div className="flex items-center space-x-1 text-green-600">
-                              <CheckCircleIcon className="w-3 h-3" />
-                              <span>
-                                {modelCount} models from {config.default_provider} API
-                              </span>
-                            </div>
-                          )}
-                          {!config.api_keys?.[config.default_provider as keyof typeof config.api_keys] && (
-                            <div className="text-gray-500">
-                              Enter API key to fetch latest models
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Model Settings */}
-                    {type === 'chat' && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Temperature
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="2"
-                            step="0.1"
-                            value={config.settings.temperature || 0.7}
-                            onChange={(e) => onModelTypeConfigChange(type, {
-                              settings: { ...config.settings, temperature: parseFloat(e.target.value) }
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Max Tokens
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="32000"
-                            value={config.settings.max_tokens || 4096}
-                            onChange={(e) => onModelTypeConfigChange(type, {
-                              settings: { ...config.settings, max_tokens: parseInt(e.target.value) }
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Capabilities */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Supported Capabilities
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(config.capabilities)
-                          .filter(([, value]) => value === true)
-                          .map(([capability]) => (
-                            <span
-                              key={capability}
-                              className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full"
-                            >
-                              {capability.replace(/_/g, ' ')}
-                            </span>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+        <div className="space-y-6">
+          {/* Provider Configuration Section */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
+            <button
+              onClick={() => toggleSection('provider-configuration')}
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-3">
+                <CubeIcon className="w-5 h-5 text-blue-600" />
+                <div className="text-left">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">Provider Configuration</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Set up and validate AI providers</p>
+                </div>
               </div>
-            );
-          })}
+              {expandedSections.has('provider-configuration') ? (
+                <ChevronUpIcon className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
+
+            {expandedSections.has('provider-configuration') && (
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <ProviderConfigurationSection />
+              </div>
+            )}
+          </div>
+
+          {/* Model Type Assignment Section */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg">
+            <button
+              onClick={() => toggleSection('model-assignment')}
+              className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-between"
+            >
+              <div className="flex items-center space-x-3">
+                <AcademicCapIcon className="w-5 h-5 text-green-600" />
+                <div className="text-left">
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">Model Type Assignment</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Assign providers and models to task types</p>
+                </div>
+              </div>
+              {expandedSections.has('model-assignment') ? (
+                <ChevronUpIcon className="w-4 h-4 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
+
+            {expandedSections.has('model-assignment') && (
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                <ModelTypeAssignmentSection />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

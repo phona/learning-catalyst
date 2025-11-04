@@ -132,14 +132,14 @@ describe('Dependency Injection Pattern', () => {
 
   describe('Service Container', () => {
     it('should create services with proper constructor injection', async () => {
-      const { createServiceContainer } = await import('@/services/container');
+      const { createServiceContainer } = await import('services/container');
 
       // This test verifies that service container can be created
       expect(typeof createServiceContainer).toBe('function');
     });
 
     it('should have proper service interface types', async () => {
-      const module = await import('@/services/container');
+      const module = await import('services/container');
 
       // This test verifies that the type exists
       expect(module).toBeDefined();
@@ -150,7 +150,7 @@ describe('Dependency Injection Pattern', () => {
   describe('Service Integration', () => {
     it('should maintain service state consistency', () => {
       // Mock the service container
-      vi.doMock('@/services/container', () => ({
+      vi.doMock('services/container', () => ({
         createServiceContainer: vi.fn().mockResolvedValue({
           sessionService: mockSessionService,
           analytics: mockAnalytics,
