@@ -1,21 +1,17 @@
-// Re-export from specific type modules
-export * from './session';
-export * from './learning';
-export * from './ui';
-export * from './api';
-// Import main types from central types directory, avoiding conflicts
+// Re-export from specific type modules with conflict resolution
 export type {
   Message,
   ToolCall,
   StreamChunk,
   TokenUsage,
-  ChatResponse,
+  ChatResponse as AIChatResponse,
   AIModel,
   ModelType,
+  ProviderConfig as AIProviderConfig,
+  AIProvider,
   ChatOptions,
   ModelList,
-  AIProvider,
-  ProviderConfig,
+  ProviderFactory,
   OpenAIConfig,
   ChatGLMConfig,
   DeepSeekConfig,
@@ -26,7 +22,7 @@ export type {
   ProviderError,
   RateLimitError,
   TimeoutError
-} from '../../types/ai';
+} from './ai';
 export type {
   AppConfig,
   AIConfig,
@@ -34,10 +30,16 @@ export type {
   LearningConfig,
   PrivacyConfig,
   PerformanceConfig,
+  ProviderConfig as ConfigProviderConfig,
   OpenAIProviderConfig,
   ChatGLMProviderConfig,
   DeepSeekProviderConfig,
   SiliconFlowProviderConfig,
+  ModelTypeConfig,
+  ModelCapabilities,
+  ProviderModelMapping,
+  ModelTestResult,
+  ModelValidationResult,
   ValidationError,
   ValidationResult,
   ConfigMigration,
@@ -45,4 +47,32 @@ export type {
   ThemeConfig,
   ConfigPreset,
   ConfigChangeEvent
-} from '../../types/config';
+} from './config';
+export type {
+  Session,
+  ConversationMessage,
+  MessageMetadata,
+  SessionMetadata,
+  SessionContext,
+  Checkpoint,
+  PracticeExercise,
+  SessionStatistics,
+  LearningProgress as SessionLearningProgress,
+  KnowledgeNode,
+  LearningResource,
+  SessionSearchQuery,
+  SessionSearchResult,
+  SessionExportOptions,
+  SessionImportResult,
+  SessionEvent,
+  MessageEvent
+} from './session';
+export type {
+  LearningObjective,
+  LearningMaterial,
+  AssessmentCriteria,
+  LearningPath,
+  LearningProgress as ObjectiveLearningProgress
+} from './learning';
+export * from './ui';
+export * from './api';

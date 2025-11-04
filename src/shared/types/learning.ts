@@ -44,7 +44,7 @@ export interface LearningPath {
   tags: string[];
 }
 
-export interface LearningObjectiveProgress {
+export interface LearningProgress {
   user_id: string;
   objective_id: string;
   completion_percentage: number;

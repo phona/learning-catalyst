@@ -2,8 +2,10 @@
  * API response/request types for internal communication
  */
 
-import type { Message, ChatOptions, TokenUsage, StreamChunk } from '../../types/ai';
-import type { AppConfig } from '../../types/config';
+// Import required types from other modules
+import type { Message } from './ai';
+import type { ChatOptions, TokenUsage, StreamChunk } from './ai';
+import type { AppConfig } from './config';
 import type { Session, SessionMetadata, SessionExportOptions } from './session';
 
 export interface ApiResponse<T = any> {

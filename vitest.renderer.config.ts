@@ -14,15 +14,16 @@ export default defineConfig({
   test: {
     name: 'renderer-thread',
     environment: 'jsdom',
-    include: ['src/test/renderer/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    include: ['src/renderer/**/__tests__/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: [
       'node_modules',
       'dist',
-      'src/test/main-thread',
-      'src/test/integration'
+      'src/main/**',
+      'src/__tests__/integration/**',
+      'src/__tests__/performance/**'
     ],
     globals: true,
-    setupFiles: ['src/test/renderer/setup.ts'],
+    setupFiles: ['src/renderer/__tests__/setup.ts'],
     testTimeout: 10000,
     hookTimeout: 5000,
     isolate: true,
@@ -44,17 +45,15 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       reportsDirectory: 'coverage/renderer',
       include: [
-        'src/components/**/*.{js,ts,jsx,tsx}',
-        'src/hooks/**/*.{js,ts}',
-        'src/services/**/*.{js,ts}',
-        'src/pages/**/*.{js,ts,jsx,tsx}'
+        'src/renderer/**/*.{js,ts,jsx,tsx}',
+        'src/shared/**/*.{js,ts}'
       ],
       exclude: [
         '**/*.test.{js,ts,jsx,tsx}',
         '**/*.spec.{js,ts,jsx,tsx}',
         '**/node_modules/**',
         '**/dist/**',
-        'electron/**'
+        '**/__tests__/**'
       ],
       thresholds: {
         global: {
@@ -69,7 +68,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@test': path.resolve(__dirname, './src/test')
+      '@/renderer': path.resolve(__dirname, './src/renderer'),
+      '@/main': path.resolve(__dirname, './src/main'),
+      '@/shared': path.resolve(__dirname, './src/shared')
     }
   },
   define: {

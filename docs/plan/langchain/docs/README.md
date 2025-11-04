@@ -74,6 +74,40 @@ LangChain migration architecture with before/after comparison
 - Testing and validation procedures
 - Success metrics and requirements
 
+### 10. [Advanced LangChain Integration Strategy](./advanced-langchain-integration-strategy.md)
+**Strategic Integration Plan** - Comprehensive strategy for deep LangChain integration with Learning Catalyst
+- 4-phase integration roadmap (Hybrid Agents, Memory Systems, Tool Ecosystem, Chain Composition)
+- Electron desktop-specific optimizations with sqlite-electron IPC integration
+- Local-first architecture patterns for offline capability
+- Educational specialization combined with LangChain's advanced AI capabilities
+- Multi-layer memory systems (short-term, long-term, episodic, procedural)
+- Desktop-optimized tool ecosystem with file system access
+- Dynamic chain composition with AI-driven workflow orchestration
+
+### 11. [Integration Executive Summary](./integration-executive-summary.md)
+**Business & Technical Overview** - High-level strategic summary for stakeholders
+- Current state vs future vision analysis
+- Expected transformation and impact metrics
+- Resource requirements and implementation timeline
+- Risk mitigation strategies and success criteria
+- Competitive advantages and market positioning
+
+### 12. [Technical Implementation Guide](./technical-implementation-guide.md)
+**Developer Implementation Guide** - Step-by-step technical implementation
+- Prerequisites and dependency management
+- Phase-by-phase implementation instructions
+- Code examples and integration patterns
+- Testing strategies and validation procedures
+- Performance optimization and monitoring setup
+
+### 13. [UI/Main Process Architecture Separation Plan](./ui-main-separation-plan.md)
+**Frontend/Backend Architecture** - Clean separation between UI and business logic layers
+- Frontend component structure with path-based organization
+- Display-optimized data models (SessionDisplay, MessageDisplay, AgentDisplay)
+- Backend service architecture with complex business logic
+- IPC communication layer with clean API design
+- Implementation roadmap with success metrics
+
 ## 🎯 Key Architecture Features
 
 ### Multi-Agent System
@@ -100,6 +134,13 @@ LangChain migration architecture with before/after comparison
 - **IPC Communication**: Secure bridge between renderer and main thread
 - **Streaming Support**: Real-time AI responses via MessageChannelMain
 - **Tool Integration**: Database-connected AI tools with secure execution
+
+### Advanced LangChain Integration Strategy
+- **Hybrid Agent Architecture**: Custom educational logic + LangChain agent framework
+- **Multi-Layer Memory Systems**: Short-term, long-term, episodic, and procedural memory with sqlite-electron IPC
+- **Desktop Tool Ecosystem**: Local file system access and offline-capable educational tools
+- **Dynamic Chain Composition**: AI-driven workflow orchestration optimized for desktop environment
+- **Educational Specialization**: Learning science principles combined with LangChain's AI capabilities
 
 ### Test-Driven Development Framework
 - **Multi-Environment Testing**: Dual Vitest configurations for renderer and main process
@@ -130,14 +171,20 @@ LangChain migration architecture with before/after comparison
 
 - **Frontend**: React + TypeScript + Tailwind CSS
 - **Backend**: Electron + Node.js
-- **Database**: SQLite-electron with enhanced schema
-- **AI Integration**: Multi-provider abstraction layer
-- **State Management**: Zustand stores
-- **Testing**: Vitest + React Testing Library
+- **Database**: SQLite-electron with enhanced schema and IPC handlers
+- **AI Integration**: Multi-provider abstraction layer + Advanced LangChain integration
+- **State Management**: Zustand stores + LangChain memory systems
+- **Testing**: Vitest + React Testing Library + LangChain testing frameworks
 
 ## 📖 Usage
 
-These documents serve as the authoritative reference for implementing the Learning Catalyst session system. Start with the **Session System Diagrams** for the most comprehensive overview, then refer to specific documents for detailed implementation guidance.
+These documents serve as the authoritative reference for implementing the Learning Catalyst session system with advanced LangChain integration.
+
+**For Implementation Teams**: Start with the **Integration Executive Summary** for the strategic overview, then proceed to the **Technical Implementation Guide** for step-by-step instructions.
+
+**For Architecture Understanding**: Begin with the **Session System Diagrams** for comprehensive system overview, then review the **Advanced LangChain Integration Strategy** for detailed AI integration patterns.
+
+**For Development Planning**: Use the **Migration Implementation Checklist** for project planning and the **Comprehensive TDD Framework** for quality assurance procedures.
 
 ---
 

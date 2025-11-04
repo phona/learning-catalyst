@@ -20,10 +20,19 @@
     "paths": {
       "@/*": [
         "src/*"
+      ],
+      "@/renderer/*": [
+        "src/renderer/*"
+      ],
+      "@/main/*": [
+        "src/main/*"
+      ],
+      "@/shared/*": [
+        "src/shared/*"
       ]
     },
   },
   "include": ["src", "electron"],
-  "exclude": ["src/test/**/*", "**/*.test.*", "**/*.spec.*", "node_modules"],
+  "exclude": ["src/**/__tests__/**/*", "src/test/**/*", "**/*.test.*", "**/*.spec.*", "node_modules"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
