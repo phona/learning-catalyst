@@ -6,10 +6,10 @@
  */
 
 import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
-import { initializeCatalystService, disposeCatalystService } from '../../../electron/main/services/catalyst/catalyst-service';
-import { ServiceConfigManager } from '../../../electron/main/services/config';
-import { LoggerFactory } from '../../../electron/main/services/logger';
-import { MainThreadServiceRegistry } from '../../../electron/main/services/registry';
+import { initializeCatalystService, disposeCatalystService } from '../services/catalyst/catalyst-service';
+import { ServiceConfigManager } from '../services/config';
+import { LoggerFactory } from '../services/logger';
+import { MainThreadServiceRegistry } from '../services/registry';
 
 // Mock Electron APIs for main thread testing
 const mockElectron = {

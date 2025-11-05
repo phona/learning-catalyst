@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Overview
+
+Learning Catalyst is a **sophisticated AI-powered desktop application** built with TypeScript, Electron, and React. It provides personalized learning experiences through multi-agent AI orchestration, comprehensive knowledge management, and adaptive learning technologies. The application follows a **multi-process Electron architecture** with clear separation between AI services (main process) and user interface (renderer process).
+
 ## Development Commands
 
 ### Environment Setup
@@ -33,10 +37,10 @@ npm run type-check
 
 ### Testing
 ```bash
-# Run all tests (default configuration)
+# Run all tests (default configuration - main process)
 npm test
 
-# Run tests with UI
+# Run tests with UI interface
 npm run test:ui
 
 # Run tests once (CI mode)
@@ -46,26 +50,49 @@ npm run test:run
 npm run test:coverage
 
 # Multi-Environment Testing
-# Run tests for specific processes
-npm run test:main              # Main process tests
-npm run test:renderer          # Renderer process tests
-npm run test:integration       # Integration tests
-npm run test:performance       # Performance tests
+# Main Process Tests (Node.js environment - AI services, database, agents)
+npm run test:main                    # Main process tests
+npm run test:main:ui                 # Main process tests with UI
+npm run test:main:coverage           # Main process tests with coverage
 
-# With UI for specific environments
-npm run test:main:ui
-npm run test:renderer:ui
-npm run test:integration:ui
-npm run test:performance:ui
+# Renderer Process Tests (Browser environment - React components, hooks, UI)
+npm run test:renderer                # Renderer process tests
+npm run test:renderer:ui             # Renderer tests with UI
+npm run test:renderer:coverage       # Renderer tests with coverage
 
-# Coverage for specific environments
-npm run test:main:coverage
-npm run test:renderer:coverage
-npm run test:integration:coverage
+# Integration Tests (Cross-process communication, end-to-end workflows)
+npm run test:integration             # Integration tests
+npm run test:integration:ui          # Integration tests with UI
+npm run test:integration:coverage    # Integration tests with coverage
 
-# Complete test suite
-npm run test:complete              # All test environments
-npm run test:complete:coverage     # All environments with coverage
+# Performance Tests (Memory management, resource leaks, concurrent operations)
+npm run test:performance             # Performance tests
+npm run test:performance:ui          # Performance tests with UI
+npm run test:performance:coverage    # Performance tests with coverage
+
+# Complete Test Suite
+npm run test:complete                # All test environments (main + renderer + integration)
+npm run test:complete:coverage       # All environments with coverage
+npm run test:all                     # Alias for complete test suite
+npm run test:all:coverage            # Alias for complete coverage
+```
+
+### Test Examples
+```bash
+# Run specific test file
+npm test src/main/services/agents/__tests__/agent-lifecycle.test.ts
+
+# Run tests with specific pattern
+npm test -- --grep "Agent Lifecycle"
+
+# Run tests in watch mode for development
+npm run test:main -- --watch
+
+# Run performance tests specifically
+npm run test:performance
+
+# Generate coverage report for all environments
+npm run test:complete:coverage
 ```
 
 ### Qdrant Vector Database Management
@@ -91,27 +118,36 @@ npm run rebuild
 
 ## Architecture Overview
 
-Learning Catalyst follows a **multi-process Electron architecture** with clear separation between main and renderer processes:
+Learning Catalyst follows a **sophisticated multi-process Electron architecture** with clear separation between main and renderer processes:
 
 ### Core Architecture Layers
-1. **Main Process (Node.js)** - AI services, database operations, system integration
-2. **Renderer Process (Browser)** - React UI, state management, user interactions
-3. **IPC Communication** - Secure inter-process communication via preload scripts
-4. **AI Integration Layer** - Multi-provider AI abstraction with LangChain
-5. **Data Storage Layer** - Local SQLite database with Qdrant vector storage
+1. **Main Process (Node.js Environment)** - AI services, database operations, agent orchestration, system integration
+2. **Renderer Process (Browser Environment)** - React UI, state management, user interactions, real-time updates
+3. **IPC Communication Layer** - Secure inter-process communication via preload scripts with type-safe contracts
+4. **AI Integration Layer** - Multi-provider AI abstraction with LangChain and advanced agent orchestration
+5. **Data Storage Layer** - Local SQLite database with Qdrant vector storage for semantic search
+
+### Multi-Agent Architecture
+The application features a **comprehensive multi-agent system** with:
+- **Agent Lifecycle Management**: Complete agent lifecycle from creation to deletion with state tracking
+- **Agent Registry**: Centralized agent registration, configuration, and discovery
+- **State Persistence**: Agent state saving and restoration across sessions
+- **Orchestration Patterns**: Tool-calling, handoff, and hybrid orchestration strategies
+- **Specialized Agents**: Learning, assessment, tutoring, and practice agents with specific capabilities
 
 ### Key Architectural Principles
-- **Process Separation**: Clear boundary between main (Node.js) and renderer (browser) processes
-- **Multi-Agent System**: Sophisticated agent lifecycle management and orchestration
+- **Process Separation**: Clear boundary between main (Node.js) and renderer (browser) processes with secure IPC
+- **Agent-First Design**: Multi-agent system with sophisticated lifecycle management and orchestration
 - **Provider Abstraction**: Unified interface for multiple AI providers (OpenAI, ChatGLM, DeepSeek, SiliconFlow, local models)
-- **Local-First Approach**: User data remains primarily on local machines with SQLite
-- **Memory Optimization**: Development environment configured for memory efficiency
+- **Local-First Approach**: User data remains primarily on local machines with SQLite and vector storage
+- **Memory Optimization**: Development environment configured for memory efficiency with monitoring and cleanup
+- **Type Safety**: Comprehensive TypeScript coverage with strict mode and shared type definitions
 
 ### Module Documentation Framework
 Every module follows the **What-How-Relationship Framework**:
 - **🎯 What It Is**: Clear module definition, purpose, and scope
-- **⚙️ How It Works**: Internal architecture and operational logic
-- **🔗 Relationships**: Dependencies and integration patterns
+- **⚙️ How It Works**: Internal architecture, operational logic, and design patterns
+- **🔗 Relationships**: Dependencies, integration patterns, and evolution paths
 
 ## Project Structure (Current State)
 
@@ -127,29 +163,48 @@ Every module follows the **What-How-Relationship Framework**:
 src/
 ├── main/               # Electron main process (Node.js environment)
 │   ├── services/       # Main process services
-│   │   ├── agents/     # Multi-agent system management
+│   │   ├── agents/     # Multi-agent system management and orchestration
+│   │   │   ├── agent-lifecycle-manager.ts    # Agent lifecycle and state management
+│   │   │   ├── agent-registry.ts             # Agent registration and discovery
+│   │   │   ├── agent-state-persistence.ts    # Agent state persistence
+│   │   │   └── orchestration/                # Agent orchestration strategies
 │   │   ├── catalyst/   # Core AI orchestration and concept parsing
+│   │   │   ├── catalyst-service.ts           # Main Catalyst AI service
+│   │   │   ├── ai-extractor.ts               # AI-powered content extraction
+│   │   │   ├── langchain-adapter.ts          # LangChain integration layer
+│   │   │   └── pipeline.ts                   # Content processing pipeline
 │   │   ├── database/   # SQLite database operations and migrations
+│   │   │   ├── kysely-database.ts            # Main database interface
+│   │   │   ├── qdrant-service.ts             # Vector database service
+│   │   │   ├── migrations/                   # Database schema migrations
+│   │   │   └── checkpoints/                  # Checkpoint and session management
 │   │   └── langchain/  # AI/ML processing and model factory
-│   └── index.ts        # Main process entry point
+│   │       ├── ModelFactory.ts               # AI provider factory
+│   │       └── langchain-service.ts          # LangChain service integration
+│   ├── handlers/          # IPC handlers for renderer communication
+│   ├── qdrant-manager.ts  # Qdrant vector database management
+│   └── index.ts           # Main process entry point
 ├── renderer/           # React frontend (Browser environment)
-│   ├── components/     # UI components by feature
-│   │   ├── Analytics/  # Learning analytics and progress tracking
-│   │   ├── Chat/       # AI chat interface
-│   │   ├── Config/     # Settings and configuration
-│   │   ├── Dashboard/  # Learning dashboard
-│   │   ├── Discovery/  # Content discovery and exploration
-│   │   ├── Knowledge/  # Knowledge graph visualization
-│   │   ├── Layout/     # Application layout and navigation
-│   │   └── UI/         # Reusable UI components
-│   ├── hooks/          # Custom React hooks
-│   ├── services/       # Frontend services and API clients
-│   ├── stores/         # Zustand state management
-│   └── App.tsx         # React application root
-└── shared/             # Shared between processes
-    ├── constants/      # Shared constants and enums
-    ├── types/          # TypeScript type definitions
-    └── utils/          # Shared utility functions
+│   ├── components/       # UI components organized by feature
+│   │   ├── Analytics/    # Learning analytics and progress tracking
+│   │   ├── Chat/         # AI chat interface with real-time streaming
+│   │   ├── Config/       # Settings and configuration management
+│   │   ├── Dashboard/    # Learning dashboard and analytics
+│   │   ├── Discovery/    # Content discovery and exploration
+│   │   ├── Knowledge/    # Knowledge graph visualization
+│   │   ├── Layout/       # Application layout and navigation
+│   │   ├── Session/      # Session management components
+│   │   ├── shared/       # Shared UI components
+│   │   └── UI/           # Reusable UI components and utilities
+│   ├── hooks/            # Custom React hooks for state and services
+│   ├── services/         # Frontend services and API clients
+│   ├── stores/           # Zustand state management stores
+│   ├── types/            # Renderer-specific TypeScript types
+│   └── App.tsx           # React application root with routing
+└── shared/               # Shared between processes
+    ├── constants/        # Shared constants and enums
+    ├── types/            # TypeScript type definitions for IPC
+    └── utils/            # Shared utility functions
 ```
 
 ### Electron Architecture
@@ -226,6 +281,153 @@ docs/
 - **Error Handling**: Comprehensive retry logic and graceful failures
 - **Timeout Management**: Configurable timeouts for model discovery and requests
 
+## Agent Lifecycle Management System
+
+The application features a **sophisticated multi-agent system** with comprehensive lifecycle management:
+
+### Core Agent Management Components
+
+#### Agent Lifecycle Manager (`src/main/services/agents/agent-lifecycle-manager.ts`)
+**What It Is**: Central authority for managing complete agent lifecycles from creation to deletion with full state tracking and event monitoring.
+
+**Key Capabilities**:
+- **Agent Creation**: Create agents with auto-activation and initial state configuration
+- **State Transitions**: Manage agent state changes (inactive ↔ active ↔ error ↔ deleted)
+- **Lifecycle Events**: Track all agent events with comprehensive metadata and timestamps
+- **Batch Operations**: Execute state transitions across multiple agents simultaneously
+- **Statistics & Monitoring**: Detailed lifecycle analytics and performance metrics
+- **Resource Management**: Handle agent cleanup, caching, and archival
+
+**Lifecycle States**:
+- `inactive`: Agent created but not active
+- `active`: Agent currently processing or available for tasks
+- `error`: Agent encountered error and requires attention
+- `deleted`: Agent permanently removed (with archival option)
+
+#### Agent Registry (`src/main/services/agents/agent-registry.ts`)
+**What It Is**: Centralized registration and discovery system for all agents with configuration management and type safety.
+
+**Key Features**:
+- Agent registration and configuration management
+- Agent discovery and type-based lookup
+- Configuration validation and schema enforcement
+- Agent dependency management
+- Runtime agent monitoring and health checks
+
+#### Agent State Persistence (`src/main/services/agents/agent-state-persistence.ts`)
+**What It Is**: Handles saving and restoring agent states across application sessions with database-backed persistence.
+
+**Capabilities**:
+- State serialization and deserialization
+- Database-backed state storage with SQLite
+- Checkpoint and rollback functionality
+- State migration and versioning support
+- Performance-optimized state operations
+
+### Agent Orchestration Strategies
+
+#### Tool-Calling Agents
+Agents that can call external tools and APIs to accomplish tasks:
+- Function discovery and execution
+- Tool result processing and integration
+- Error handling and retry logic
+- Tool usage tracking and analytics
+
+#### Handoff Agents
+Specialized agents designed for seamless collaboration and task handoff:
+- Agent-to-agent communication protocols
+- Context preservation during handoff
+- Specialized task delegation
+- Collaborative problem-solving workflows
+
+#### Hybrid Agents
+Combination agents that leverage multiple orchestration strategies:
+- Adaptive strategy selection based on task complexity
+- Dynamic tool and handoff coordination
+- Context-aware orchestration decisions
+- Performance optimization through strategy switching
+
+### Specialized Agent Types
+
+#### Learning Agents
+Focus on educational content and learning optimization:
+- Personalized learning path generation
+- Concept explanation and simplification
+- Learning progress assessment
+- Adaptive difficulty adjustment
+
+#### Assessment Agents
+Specialize in evaluating user knowledge and skills:
+- Question generation and validation
+- Performance evaluation and scoring
+- Knowledge gap identification
+- Assessment analytics and reporting
+
+#### Tutoring Agents
+Provide personalized guidance and support:
+- Interactive tutoring sessions
+- Real-time feedback and hints
+- Learning strategy recommendations
+- Motivational support and engagement
+
+#### Practice Agents
+Focus on skill development through practice:
+- Exercise generation and adaptation
+- Practice session management
+- Skill progression tracking
+- Performance optimization recommendations
+
+### Agent Configuration and Customization
+
+#### Agent Configuration Schema
+```typescript
+interface AgentConfiguration {
+  id: string;
+  name: string;
+  type: 'learning' | 'assessment' | 'tutoring' | 'practice';
+  modelConfig: {
+    provider: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+  };
+  tools: string[];
+  capabilities: string[];
+  metadata: Record<string, any>;
+}
+```
+
+#### Lifecycle Events and Monitoring
+All agent operations generate comprehensive lifecycle events:
+- **Creation Events**: Track agent creation with configuration details
+- **Activation Events**: Monitor agent activation with performance metrics
+- **State Transitions**: Record all state changes with context and metadata
+- **Error Events**: Capture and analyze errors for debugging and improvement
+- **Deletion Events**: Track agent removal with archival information
+
+### Agent Development Best Practices
+
+#### Creating New Agents
+1. **Define Agent Type**: Extend the base agent configuration schema
+2. **Implement Agent Logic**: Create specialized agent implementation
+3. **Register Agent**: Add to agent registry with proper configuration
+4. **Add Tests**: Create comprehensive tests for agent functionality
+5. **Document Capabilities**: Provide clear documentation of agent features
+
+#### Agent Configuration
+1. **Use Type Safety**: Leverage TypeScript interfaces for configuration
+2. **Validate Configuration**: Implement proper schema validation
+3. **Provide Defaults**: Ensure sensible default configurations
+4. **Document Options**: Clear documentation of all configuration options
+5. **Version Compatibility**: Handle configuration versioning and migration
+
+#### Agent Testing
+1. **Unit Tests**: Test individual agent functionality
+2. **Integration Tests**: Test agent interaction with system components
+3. **Lifecycle Tests**: Test complete agent lifecycle scenarios
+4. **Performance Tests**: Test agent performance under load
+5. **Error Scenarios**: Test agent behavior under error conditions
+
 ## Development Guidelines
 
 ### Code Style
@@ -261,48 +463,236 @@ When creating new components:
 
 ## Testing Environment
 
-### Test Configuration
-- **Framework**: Vitest with React support
-- **Coverage**: Built-in Vitest coverage reporting
-- **Test Environment**: jsdom for React component testing
-- **Test Libraries**: React Testing Library, user-event for interaction testing
-- **Type Checking**: TypeScript integration for type-safe tests
-- **TDD Methodology**: Red-green-refactor cycle support
+### Multi-Environment Testing Strategy
+
+The application uses a **comprehensive multi-environment testing strategy** to ensure quality across all process boundaries:
+
+#### Test Configurations
+- **`vitest.config.ts`**: Default configuration (main process focus)
+- **`vitest.main.config.ts`**: Main process (Node.js) environment configuration
+- **`vitest.renderer.config.ts`**: Renderer process (Browser) environment configuration
+- **`vitest.integration.config.ts`**: Cross-process integration testing configuration
+- **`vitest.performance.config.ts`**: Performance and memory testing configuration
+
+### Test Configuration by Environment
+
+#### Main Process Tests (Node.js Environment)
+- **Framework**: Vitest with Node.js environment
+- **Focus**: AI services, database operations, agent lifecycle management, IPC handlers
+- **Test Types**: Unit tests, integration tests, API tests, database tests
+- **Mocking**: Service layer mocking, database mocking, AI provider mocking
+- **Coverage**: Business logic, agent orchestration, data persistence
+
+#### Renderer Process Tests (Browser Environment)
+- **Framework**: Vitest + React Testing Library
+- **Environment**: jsdom for DOM simulation
+- **Focus**: React components, hooks, state management, user interactions
+- **Test Types**: Component tests, hook tests, integration tests, E2E workflows
+- **Tools**: user-event for interaction testing, React Testing Library for component testing
+- **Coverage**: UI components, user workflows, state management
+
+#### Integration Tests (Cross-Process)
+- **Framework**: Vitest with custom Electron integration setup
+- **Focus**: IPC communication, end-to-end workflows, process coordination
+- **Test Types**: Communication tests, workflow tests, data flow tests
+- **Mocking**: Partial service mocking, IPC channel mocking
+- **Coverage**: Complete user journeys, system integration
+
+#### Performance Tests (Resource Management)
+- **Framework**: Vitest with performance monitoring
+- **Focus**: Memory usage, resource leaks, concurrent operations, load testing
+- **Tools**: Memory monitoring, performance metrics, resource tracking
+- **Test Types**: Memory leak detection, concurrent session testing, load testing
+- **Coverage**: System stability, resource management, performance optimization
 
 ### Test Structure
 ```
 src/
-├── __tests__/           # Test files co-located with components
-│   ├── components/      # Component tests
-│   ├── hooks/          # Hook tests
-│   ├── services/       # Service tests
-│   └── utils/          # Utility function tests
-├── test/               # Additional test utilities and setup
-│   ├── setup.ts        # Test configuration
-│   └── mocks/          # Mock implementations
-└── test-utils/         # Custom test utilities
+├── __tests__/                           # Test files co-located with source code
+│   ├── components/                      # React component tests (renderer)
+│   │   ├── Chat/__tests__/              # Chat component tests
+│   │   ├── Dashboard/__tests__/         # Dashboard component tests
+│   │   └── UI/__tests__/                # UI component tests
+│   ├── hooks/                           # React hook tests (renderer)
+│   │   └── __tests__/                   # Hook-specific tests
+│   ├── services/                        # Service tests (main & renderer)
+│   │   └── __tests__/                   # Service layer tests
+│   ├── utils/                           # Utility function tests
+│   │   └── __tests__/                   # Utility function tests
+│   ├── integration/                     # Integration test scenarios
+│   │   ├── multi-agent-orchestration.test.ts
+│   │   ├── error-recovery.test.ts
+│   │   └── ipc-communication.test.ts
+│   └── performance/                     # Performance test scenarios
+│       ├── concurrent-sessions.test.ts
+│       ├── memory-management.test.ts
+│       └── resource-leak-detection.test.ts
+├── main/services/                       # Main process service tests
+│   ├── agents/__tests__/                # Agent system tests
+│   ├── catalyst/__tests__/              # Catalyst service tests
+│   ├── database/__tests__/              # Database service tests
+│   └── langchain/__tests__/             # LangChain service tests
+├── renderer/                            # Renderer process tests
+│   ├── stores/__tests__/                # State management tests
+│   ├── services/__tests__/              # Frontend service tests
+│   └── components/**/__tests__/         # Component tests (co-located)
+├── test/                                # Global test utilities and setup
+│   ├── setup/                           # Test setup configurations
+│   │   ├── integration-setup.ts         # Integration test setup
+│   │   ├── performance-setup.ts         # Performance test setup
+│   │   └── main-setup.ts                # Main process test setup
+│   ├── mocks/                           # Mock implementations
+│   │   ├── mock-agents.ts               # Agent system mocks
+│   │   ├── mock-langchain.ts            # LangChain mocks
+│   │   └── mock-electron-api.ts        # Electron API mocks
+│   └── utils/                           # Test utility functions
+│       ├── helpers/                     # Test helper functions
+│       └── fixtures/                    # Test data fixtures
+└── test-utils/                          # Custom test utilities
+    ├── agent-test-helpers.ts            # Agent testing utilities
+    ├── streaming-test-utils.ts          # Streaming response test utilities
+    └── test-utils.tsx                   # React testing utilities
 ```
 
 ### Test Running Examples
 ```bash
-# Run all tests
-yarn test
+# Main Process Testing (Node.js Environment)
+npm run test:main                         # Run all main process tests
+npm run test:main:ui                      # Run main tests with UI interface
+npm run test:main:coverage                # Run main tests with coverage
+npm run test:main -- --grep "Agent"       # Run main tests matching pattern
+npm run test:main -- src/main/services/agents/__tests__/agent-lifecycle.test.ts
 
-# Run tests in watch mode
-yarn test
+# Renderer Process Testing (Browser Environment)
+npm run test:renderer                     # Run all renderer process tests
+npm run test:renderer:ui                  # Run renderer tests with UI interface
+npm run test:renderer:coverage            # Run renderer tests with coverage
+npm run test:renderer -- --watch          # Run renderer tests in watch mode
+npm run test:renderer -- src/renderer/components/Chat/__tests__/MessageBubble.test.tsx
 
-# Run tests with UI
-yarn test:ui
+# Integration Testing (Cross-Process)
+npm run test:integration                   # Run all integration tests
+npm run test:integration:ui                # Run integration tests with UI
+npm run test:integration:coverage          # Run integration tests with coverage
+npm run test:integration -- --grep "IPC"   # Run IPC-specific integration tests
 
-# Run tests once (CI mode)
-yarn test:run
+# Performance Testing (Resource Management)
+npm run test:performance                  # Run all performance tests
+npm run test:performance:ui               # Run performance tests with UI
+npm run test:performance:coverage         # Run performance tests with coverage
+npm run test:performance -- --grep "memory"  # Run memory-specific tests
 
-# Run tests with coverage
-yarn test:coverage
+# Complete Test Suite
+npm run test:complete                     # Run all test environments
+npm run test:complete:coverage            # Run all tests with coverage
+npm run test:all                          # Alias for complete test suite
 
-# Run specific test file
-npm test src/renderer/components/Chat/__tests__/MessageBubble.test.tsx
+# Development Testing
+npm test                                  # Default: main process tests
+npm run test:ui                           # Default: main tests with UI
+npm run test:run                          # Run tests once (CI mode)
+npm run test:coverage                     # Generate coverage report
 ```
+
+### Test Development Guidelines
+
+#### Writing Tests for Different Environments
+
+**Main Process Tests**:
+```typescript
+// Example: Testing Agent Lifecycle Manager
+import { describe, it, expect, beforeEach } from 'vitest';
+import { AgentLifecycleManager } from '../agent-lifecycle-manager';
+
+describe('AgentLifecycleManager', () => {
+  let manager: AgentLifecycleManager;
+
+  beforeEach(() => {
+    // Setup with mocked dependencies
+    manager = new AgentLifecycleManager(mockRegistry, mockDb, mockLogger, mockAls);
+  });
+
+  it('should create agent with lifecycle tracking', async () => {
+    const agent = await manager.createAgent(testConfig, { autoActivate: true });
+    expect(agent.status).toBe('active');
+    // Verify lifecycle events were recorded
+  });
+});
+```
+
+**Renderer Process Tests**:
+```typescript
+// Example: Testing React Component
+import { render, screen, fireEvent } from '@testing-library/react';
+import { ChatInput } from '../ChatInput';
+
+describe('ChatInput', () => {
+  it('should send message when submitted', async () => {
+    const mockSendMessage = vi.fn();
+    render(<ChatInput onSendMessage={mockSendMessage} />);
+
+    const input = screen.getByPlaceholderText('Type a message...');
+    const submitButton = screen.getByRole('button', { name: 'Send' });
+
+    fireEvent.change(input, { target: { value: 'Hello' } });
+    fireEvent.click(submitButton);
+
+    expect(mockSendMessage).toHaveBeenCalledWith('Hello');
+  });
+});
+```
+
+**Integration Tests**:
+```typescript
+// Example: Testing Cross-Process Communication
+import { describe, it, expect, beforeEach } from 'vitest';
+import { setupElectronIntegration } from '../../../test/setup/integration-setup';
+
+describe('IPC Communication Integration', () => {
+  let electronApp: any;
+
+  beforeEach(async () => {
+    electronApp = await setupElectronIntegration();
+  });
+
+  it('should handle agent creation from renderer', async () => {
+    const result = await electronApp.renderer.evaluate(() => {
+      return window.electronAPI.createAgent(testConfig);
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.agent.id).toBeDefined();
+  });
+});
+```
+
+### Test Data Management
+
+#### Fixtures and Mocks
+- **Test Fixtures**: Predefined test data for consistent testing
+- **Mock Services**: Comprehensive mocking of external dependencies
+- **Database Mocks**: In-memory database for testing
+- **AI Provider Mocks**: Simulated AI responses for testing
+
+#### Test Environment Configuration
+- **Isolation**: Each test runs in isolated environment
+- **Cleanup**: Automatic cleanup after each test
+- **State Management**: Reset application state between tests
+- **Resource Management**: Proper resource cleanup to prevent leaks
+
+### Coverage and Quality Metrics
+
+#### Coverage Targets
+- **Main Process**: >90% coverage for business logic
+- **Renderer Process**: >85% coverage for UI components
+- **Integration**: >80% coverage for cross-process workflows
+- **Overall**: >85% combined coverage
+
+#### Quality Gates
+- **TypeScript**: All tests must pass strict type checking
+- **Linting**: All test files must pass ESLint rules
+- **Performance**: Tests must complete within time limits
+- **Memory**: No memory leaks detected in test runs
 
 ## Key Files to Understand
 

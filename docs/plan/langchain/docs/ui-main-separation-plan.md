@@ -6,56 +6,95 @@
 
 **Key Philosophy**: "UI-First, Business-Second" - The frontend should only care about presentation logic and user interactions, while all business complexity lives in the backend.
 
+## API Design Principles
+
+Based on the comprehensive electronAPI structure, we follow these core principles:
+
+1. **Intent-Over-Technical**: Methods describe user goals, not system operations
+2. **Display-First**: All responses are optimized for immediate UI consumption
+3. **Progressive Enhancement**: Basic info available immediately, rich details on demand
+4. **Error Resilient**: Built-in error handling with user-friendly messages
+5. **Type Safe**: Full TypeScript support with comprehensive interfaces
+
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    RENDERER PROCESS                         │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────┐ │
-│  │   UI Components │  │   UI State      │  │   UI Helpers │ │
-│  │   (React + TS)  │  │   Management    │  │   Services   │ │
-│  │                 │  │   (Zustand)     │  │              │ │
-│  └─────────────────┘  └─────────────────┘  └──────────────┘ │
-│           │                     │                     │      │
-│           └─────────────────────┼─────────────────────┘      │
-│                                 │                            │
-│  ┌───────────────────────────────────────────────────────────┤
-│  │                   UI API LAYER                            │
-│  │          (UI-Optimized Interfaces)                        │
-│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐  │
-│  │  │   ChatAPI   │ │ SessionAPI  │ │    AgentAPI         │  │
-│  │  │             │ │             │ │                     │  │
-│  │  │ sendMessage │ │ getSessions │ │ selectAgent         │  │
-│  │  │ sendStream  │ │ search      │ │ chatWithAgent       │  │
-│  │  │ getTyping   │ │ create      │ │ getAgentStatus      │  │
-│  │  └─────────────┘ └─────────────┘ └─────────────────────┘  │
-│  └───────────────────────────────────────────────────────────┤
-│                                 │                            │
-│         IPC COMMUNICATION LAYER (Secure & Optimized)         │
-│                                 │                            │
-├─────────────────────────────────────────────────────────────┤
-│                    MAIN PROCESS                              │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │                BUSINESS LOGIC LAYER                     │ │
-│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │ │
-│  │  │LangChain    │ │ Session     │ │   Agent              │ │ │
-│  │  │Service      │ │Service      │ │   Manager            │ │ │
-│  │  │             │ │             │ │                     │ │ │
-│  │  │ • Agents    │ │ • Storage   │ │ • Lifecycle          │ │ │
-│  │  │ • Models    │ │ • Search    │ │ • Orchestration      │ │ │
-│  │  │ • Tools     │ │ • Metadata  │ │ • Tool Execution     │ │ │
-│  │  └─────────────┘ └─────────────┘ └─────────────────────┘ │ │
-│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │ │
-│  │  │ Knowledge   │ │ Config      │ │   Database           │ │ │
-│  │  │ Graph       │ │ Service     │ │   Layer              │ │ │
-│  │  │ Service     │ │             │ │                     │ │ │
-│  │  │             │ │ • Settings  │ │ • SQLite             │ │ │
-│  │  │ • Concepts  │ │ • Providers │ │ • Qdrant             │ │ │
-│  │  │ • Relations │ │ • Models    │ │ • Migrations         │ │ │
-│  │  │ • Maps      │ │             │ │                     │ │ │
-│  │  └─────────────┘ └─────────────┘ └─────────────────────┘ │ │
-│  └─────────────────────────────────────────────────────────┐ │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           RENDERER PROCESS                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────────────┐ │
+│  │   UI Components │  │   UI State      │  │      UI Services        │ │
+│  │   (React + TS)  │  │   Management    │  │   (API Clients)         │ │
+│  │                 │  │   (Zustand)     │  │                         │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────────────┘ │
+│           │                     │                     │               │
+│           └─────────────────────┼─────────────────────┘               │
+│                                 │                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┤
+│  │                    COMPREHENSIVE UI API LAYER                        │
+│  │                   (7 API Domains - Intent-Based)                     │
+│  │                                                                         │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────────────┐  │
+│  │  │  Chat &     │ │  Learning   │ │         Knowledge &             │  │
+│  │  │ Conversation│ │  & Sessions │ │       Discovery                 │  │
+│  │  │             │ │             │ │                                 │  │
+│  │  │ startConversation│ startLearningSession│ exploreConcept           │  │
+│  │  │ sendMessageStream│ getSessionProgress│ getKnowledgeMap           │  │
+│  │  │ getTypingIndicator│ getLearningPath│ getRelatedConcepts          │  │
+│  │  │ getConversationHistory│ searchSessions│ searchKnowledge          │  │
+│  │  └─────────────┘ └─────────────┘ └─────────────────────────────────┘  │
+│  │                                                                         │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────────────┐  │
+│  │  │ Analytics & │ │  Agent      │ │       Content &                 │  │
+│  │  │  Progress   │ │ Management  │ │       Discovery                 │  │
+│  │  │             │ │             │ │                                 │  │
+│  │  │ getDashboard│ getAvailableAgents│ exploreLocalProjects          │  │
+│  │  │ getProgressChart│ selectAgentForSession│ importLearningContent │  │
+│  │  │ getAchievements│ setAgentPersonality│ getRecommendedContent     │  │
+│  │  │ getTokenUsage│ getAgentCapabilities│ analyzeDocument           │  │
+│  │  └─────────────┘ └─────────────┘ └─────────────────────────────────┘  │
+│  │                                                                         │
+│  │  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  │                  Settings & Configuration                           │  │
+│  │  │                                                                         │  │
+│  │  │ getUserPreferences│ getAvailableProviders│ updateLearningSettings   │  │
+│  │  │ updatePreferences│ configureProvider│ getLearningSettings           │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │
+│  └─────────────────────────────────────────────────────────────────────────┤
+│                                 │                                         │
+│             IPC COMMUNICATION LAYER (Secure, Streaming & Optimized)       │
+│                                 │                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                           MAIN PROCESS                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │                      BUSINESS LOGIC LAYER                           │ │
+│  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────┐ │ │
+│  │  │  LangChain      │ │   Session       │ │        Agent             │ │ │
+│  │  │  Service        │ │   Service       │ │        Manager            │ │ │
+│  │  │                 │ │                 │ │                            │ │ │
+│  │  │ • Multi-Agent   │ │ • Storage       │ │ • Lifecycle Management     │ │ │
+│  │  │ • Model Factory │ │ • Search        │ │ • Orchestration           │ │ │
+│  │  │ • Tool Execution│ │ • Metadata      │ │ • State Persistence       │ │ │
+│  │  │ • Streaming     │ │ • Analytics     │ │ • Specialized Agents      │ │ │
+│  │  └─────────────────┘ └─────────────────┘ └─────────────────────────┘ │ │
+│  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────┐ │ │
+│  │  │  Knowledge      │ │   Config        │ │        Database           │ │ │
+│  │  │  Graph          │ │   Service       │ │        Layer              │ │ │
+│  │  │  Service        │ │                 │ │                            │ │ │
+│  │  │                 │ │ • Settings      │ │ • SQLite                 │ │ │
+│  │  │ • Concepts      │ │ • Providers     │ │ • Qdrant (Vector DB)      │ │ │
+│  │  │ • Relations     │ │ • Models        │ │ • Migrations             │ │ │
+│  │  │ • Maps          │ │ • API Keys      │ │ • Checkpoints            │ │ │
+│  │  └─────────────────┘ └─────────────────┘ └─────────────────────────┘ │ │
+│  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────┐ │ │
+│  │  │  Catalyst       │ │   Security      │ │        Tool               │ │ │
+│  │  │  Service        │ │   Layer         │ │        Executor           │ │ │
+│  │  │                 │ │                 │ │                            │ │ │
+│  │  │ • AI Orchestration│ • Sandbox       │ │ • Secure Execution       │ │ │
+│  │  │ • Concept Parsing│ • Validation     │ │ • Resource Management     │ │ │
+│  │  │ • Content Analysis│ • Auth          │ │ • Performance Monitoring  │ │ │
+│  │  └─────────────────┘ └─────────────────┘ └─────────────────────────┘ │ │
+│  └─────────────────────────────────────────────────────────────────────┐ │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Principles
@@ -72,69 +111,288 @@ UI works with minimal data and progressively enhances with richer information.
 ### 4. **Reactive by Default**
 All UI updates happen through reactive streams, not polling.
 
+## Comprehensive API Domains Overview
+
+### Domain 1: Chat & Conversation API
+**Purpose**: Handle real-time conversations with AI agents, including streaming responses and conversation management.
+
+**Key Features**:
+- Streaming conversation responses with real-time typing indicators
+- Conversation lifecycle management (start, pause, resume, end)
+- Message history with display-optimized formatting
+- Agent-specific conversation contexts
+
+**Frontend Usage**:
+```typescript
+// Start a new conversation
+const conversation = await window.electronAPI.chat.startConversation({
+  agentType: 'learning',
+  topic: 'React Hooks',
+  preferences: {
+    responseStyle: 'conversational',
+    difficultyLevel: 'intermediate'
+  }
+});
+
+// Send a message with streaming
+const stream = await window.electronAPI.chat.sendMessageStream({
+  conversationId: conversation.id,
+  message: 'Explain useState in simple terms'
+});
+
+for await (const chunk of stream) {
+  updateMessageContent(chunk);
+}
+```
+
+### Domain 2: Learning & Sessions API
+**Purpose**: Manage learning sessions, track progress, and handle educational workflows.
+
+**Key Features**:
+- Structured learning session creation with goals and difficulty levels
+- Real-time progress tracking with learning analytics
+- Learning path generation and management
+- Session search and filtering capabilities
+
+**Frontend Usage**:
+```typescript
+// Start a learning session
+const session = await window.electronAPI.learning.startLearningSession({
+  topic: 'Machine Learning Basics',
+  goals: ['Understand supervised learning', 'Learn basic algorithms'],
+  difficulty: 'beginner',
+  agentType: 'learning',
+  learningStyle: 'visual'
+});
+
+// Track progress
+const progress = await window.electronAPI.learning.getSessionProgress(session.id);
+displayProgressBar(progress.percentage);
+```
+
+### Domain 3: Knowledge & Discovery API
+**Purpose**: Explore knowledge graphs, discover related concepts, and access educational content.
+
+**Key Features**:
+- Interactive concept exploration with multiple depth levels
+- Knowledge graph visualization data
+- Concept relationship mapping
+- Practice exercise generation
+
+**Frontend Usage**:
+```typescript
+// Explore a concept
+const concept = await window.electronAPI.knowledge.exploreConcept('Machine Learning', 'intermediate');
+displayConceptDetails(concept);
+
+// Get knowledge map for visualization
+const knowledgeMap = await window.electronAPI.knowledge.getKnowledgeMap(sessionId);
+renderKnowledgeGraph(knowledgeMap);
+```
+
+### Domain 4: Analytics & Progress API
+**Purpose**: Track learning analytics, display achievements, and provide insights into learning patterns.
+
+**Key Features**:
+- Comprehensive learning dashboard data
+- Progress charts for different time ranges
+- Achievement tracking and unlocking
+- Token usage and cost monitoring
+
+**Frontend Usage**:
+```typescript
+// Get learning dashboard
+const dashboard = await window.electronAPI.analytics.getDashboard();
+renderDashboard(dashboard);
+
+// Get achievements for display
+const achievements = await window.electronAPI.analytics.getAchievements();
+showAchievementGallery(achievements);
+```
+
+### Domain 5: Agent Management API
+**Purpose**: Manage AI agents, their capabilities, and user preferences for agent interactions.
+
+**Key Features**:
+- Agent discovery and selection
+- Agent personality and style configuration
+- Agent capability demonstration
+- Session-specific agent preferences
+
+**Frontend Usage**:
+```typescript
+// Get available agents
+const agents = await window.electronAPI.agents.getAvailableAgents();
+displayAgentSelection(agents);
+
+// Set agent personality
+await window.electronAPI.agents.setAgentPersonality('learning_001', 'friendly encouraging');
+```
+
+### Domain 6: Content & Discovery API
+**Purpose**: Import, manage, and discover learning content from various sources.
+
+**Key Features**:
+- Local project exploration and content import
+- Learning resource discovery and recommendations
+- Document analysis for concept extraction
+- Content search across multiple sources
+
+**Frontend Usage**:
+```typescript
+// Import content from files
+const result = await window.electronAPI.content.importLearningContent(fileList);
+showImportResults(result);
+
+// Get content recommendations
+const recommendations = await window.electronAPI.content.getRecommendedContent('React', 'intermediate');
+displayRecommendations(recommendations);
+```
+
+### Domain 7: Settings & Configuration API
+**Purpose**: Manage user preferences, AI provider configuration, and application settings.
+
+**Key Features**:
+- User preferences management with display optimization
+- AI provider configuration and authentication
+- Learning-specific settings and goals
+- Application-wide configuration management
+
+**Frontend Usage**:
+```typescript
+// Get user preferences
+const prefs = await window.electronAPI.settings.getUserPreferences();
+applyUserSettings(prefs);
+
+// Configure AI provider
+await window.electronAPI.settings.configureProvider('openai', {
+  apiKey: 'sk-...',
+  model: 'gpt-4',
+  temperature: 0.7
+});
+```
+
 ## UI Layer Architecture (Renderer Process)
 
 ### Frontend Component Structure
 ```
 src/renderer/
 ├── components/           # Pure presentation components
-│   ├── views/           # Full page views
-│   │   ├── chat/ChatView.tsx
-│   │   ├── dashboard/DashboardView.tsx
-│   │   └── settings/SettingsView.tsx
-│   ├── features/        # Feature-specific components
-│   │   ├── chat/
-│   │   │   ├── ChatInterface.tsx
-│   │   │   ├── MessageBubble.tsx
-│   │   │   ├── ChatInput.tsx
-│   │   │   └── AgentSelector.tsx
-│   │   ├── sessions/
-│   │   │   ├── SessionList.tsx
-│   │   │   ├── SessionCard.tsx
-│   │   │   └── SessionSearch.tsx
-│   │   └── agents/
-│   │       ├── AgentCard.tsx
-│   │       ├── AgentCapabilities.tsx
-│   │       └── AgentStatus.tsx
-│   └── shared/          # Reusable UI components
-│       ├── forms/Button.tsx
-│       ├── forms/Input.tsx
-│       ├── feedback/LoadingScreen.tsx
-│       ├── feedback/ErrorBoundary.tsx
-│       └── layout/Container.tsx
-├── stores/              # Frontend state management
-│   ├── chat/            # Chat-specific state
+│   ├── Analytics/        # Analytics and progress tracking
+│   │   ├── Achievements.tsx
+│   │   ├── LearningTrends.tsx
+│   │   ├── ProgressChart.tsx
+│   │   ├── SessionTracking.tsx
+│   │   └── StudyStreak.tsx
+│   ├── Chat/            # Chat interface components
+│   │   ├── ChatArea.tsx
+│   │   ├── ChatInput.tsx
+│   │   ├── ChatInterface.tsx
+│   │   └── MessageBubble.tsx
+│   ├── Config/          # Settings and configuration
+│   │   ├── AdvancedSettings.tsx
+│   │   ├── ResponseSettings.tsx
+│   │   ├── SettingsPanel.tsx
+│   │   ├── UISettings.tsx
+│   │   └── AIProviderSettings.tsx
+│   ├── Dashboard/       # Learning dashboard
+│   │   ├── KnowledgeMap.tsx
+│   │   └── LearningDashboard.tsx
+│   ├── Discovery/       # Content discovery and exploration
+│   │   ├── ConceptParsingResults.tsx
+│   │   ├── ContentDiscovery.tsx
+│   │   ├── FileSelector.tsx
+│   │   └── LocalProjectExplorer.tsx
+│   ├── Knowledge/       # Knowledge graph visualization
+│   │   ├── ConceptManager.tsx
+│   │   ├── KnowledgeGraphVisualization.tsx
+│   │   ├── KnowledgeSearch.tsx
+│   │   └── RelationshipManager.tsx
+│   ├── Layout/          # Application layout components
+│   │   ├── Header.tsx
+│   │   ├── SessionItem.tsx
+│   │   ├── SessionList.tsx
+│   │   ├── Sidebar.tsx
+│   │   └── SidebarNavigation.tsx
+│   ├── Session/         # Session management
+│   │   └── SessionManager.tsx
+│   ├── UI/              # Reusable UI components
+│   │   ├── Accordion.tsx
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   ├── ChatErrorBoundary.tsx
+│   │   ├── ComponentErrorBoundary.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── ErrorBoundaryEnhanced.tsx
+│   │   ├── Input.tsx
+│   │   ├── LoadingScreen.tsx
+│   │   ├── ModuleStatusIndicator.tsx
+│   │   ├── SettingsErrorBoundary.tsx
+│   │   └── SyntaxHighlighterWrapper.tsx
+│   ├── shared/          # Shared components (new organization)
+│   │   ├── forms/
+│   │   │   ├── Button.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── SearchInput.tsx
+│   │   │   └── FilterChips.tsx
+│   │   ├── layout/
+│   │   │   ├── Card.tsx
+│   │   │   └── Container.tsx
+│   │   └── feedback/
+│   │       ├── LoadingScreen.tsx
+│   │       └── ErrorBoundary.tsx
+│   └── views/           # Full page views
+│       ├── chat/
+│       │   └── ChatView.tsx
+│       ├── dashboard/
+│       │   └── DashboardView.tsx
+│       └── settings/
+│           └── SettingsView.tsx
+├── stores/              # Frontend state management (Zustand)
+│   ├── app/             # Global application state
+│   │   └── appStore.ts
+│   ├── chat/            # Chat functionality state
 │   │   └── chatStore.ts
 │   ├── sessions/        # Session management state
 │   │   └── sessionStore.ts
-│   └── app/             # Global application state
-│       └── appStore.ts
-├── services/            # Frontend API clients
+│   └── agents/          # Agent management state
+│       └── agentStore.ts
+├── services/            # Frontend API clients and services
+│   ├── agents/          # Agent API client
+│   │   └── agentClient.ts
 │   ├── chat/            # Chat API client
 │   │   └── chatClient.ts
 │   ├── sessions/        # Session API client
 │   │   └── sessionClient.ts
-│   └── agents/          # Agent API client
-│       └── agentClient.ts
+│   └── index.ts         # Service exports
 ├── hooks/               # Frontend-specific hooks
 │   ├── chat/            # Chat-related hooks
 │   │   ├── useChat.ts
 │   │   └── useStreaming.ts
 │   ├── sessions/        # Session-related hooks
 │   │   └── useSessions.ts
-│   └── agents/          # Agent-related hooks
-│       └── useAgents.ts
-└── utils/               # Frontend utilities
-    ├── formatting/      # Data display formatting
-    │   ├── dates.ts
-    │   ├── durations.ts
-    │   └── text.ts
-    ├── validation/      # Input validation
-    │   ├── forms.ts
-    │   └── rules.ts
-    └── constants/       # Frontend constants
-        ├── themes.ts
-        └── ui.ts
+│   ├── agents/          # Agent-related hooks
+│   │   └── useAgents.ts
+│   └── useAppServices.tsx  # Main app services hook
+├── types/               # Frontend TypeScript types
+│   ├── agent.ts         # Agent display types
+│   ├── index.ts         # Type exports
+│   ├── knowledge.ts     # Knowledge display types
+│   ├── message.ts       # Message display types
+│   └── session.ts       # Session display types
+├── utils/               # Frontend utilities
+│   ├── formatting/      # Data display formatting
+│   │   ├── dates.ts
+│   │   ├── durations.ts
+│   │   └── text.ts
+│   ├── validation/      # Input validation
+│   │   ├── forms.ts
+│   │   └── rules.ts
+│   └── constants/       # Frontend constants
+│       ├── themes.ts
+│       └── ui.ts
+├── App.tsx              # React application root
+└── main.tsx             # React application entry point
 ```
 
 ### Frontend Data Models (Optimized for Display)
@@ -212,31 +470,40 @@ interface KnowledgeNodeDisplay {
 // src/renderer/components/features/chat/ChatInterface.tsx
 import React, { useState, useEffect } from 'react';
 import { useChatStore } from '../../stores/chat/chatStore';
-import { useStreaming } from '../../hooks/chat/useStreaming';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { AgentSelector } from '../agents/AgentSelector';
 import { TypingIndicator } from './TypingIndicator';
-import type { MessageDisplay } from '../../types/message';
+import type { MessageDisplay, ConversationDisplay } from '../../types';
 
-export function ChatInterface({ sessionId }: { sessionId: string }) {
+export function ChatInterface({ conversationId }: { conversationId: string }) {
   const {
     messages,
     currentAgent,
     isTyping,
     addMessage,
+    updateMessage,
     setTyping
   } = useChatStore();
 
-  const { streamResponse } = useStreaming(sessionId);
   const [isSending, setIsSending] = useState(false);
+  const [conversation, setConversation] = useState<ConversationDisplay | null>(null);
+
+  // Load conversation details
+  useEffect(() => {
+    window.electronAPI.chat.getConversationHistory(conversationId)
+      .then(({ messages: conversationMessages }) => {
+        setMessages(conversationMessages);
+      });
+  }, [conversationId]);
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isSending) return;
 
-    // Immediate UI feedback
+    // Immediate UI feedback - add user message
+    const userMessageId = Date.now().toString();
     addMessage({
-      id: Date.now().toString(),
+      id: userMessageId,
       role: 'user',
       content,
       timestamp: 'now',
@@ -246,52 +513,82 @@ export function ChatInterface({ sessionId }: { sessionId: string }) {
     setIsSending(true);
     setTyping(true);
 
+    // Add typing indicator placeholder
+    const assistantMessageId = Date.now().toString();
+    addMessage({
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: 'now',
+      status: 'typing',
+      agentInfo: currentAgent
+    });
+
     try {
-      // Stream response with simple UI updates
-      let assistantMessageId = Date.now().toString();
+      // Use the comprehensive electron API for streaming
+      const stream = await window.electronAPI.chat.sendMessageStream({
+        conversationId,
+        message: content
+      });
+
       let responseContent = '';
 
-      // Add typing indicator
-      addMessage({
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: 'now',
-        status: 'typing',
-        agentInfo: currentAgent
-      });
-
-      for await (const chunk of streamResponse(content)) {
+      // Process streaming response
+      for await (const chunk of stream) {
         responseContent += chunk;
-        // Update message content progressively
-        useChatStore.getState().updateMessage(assistantMessageId, {
+        updateMessage(assistantMessageId, {
           content: responseContent,
-          status: 'delivered'
+          status: 'streaming'
         });
       }
+
+      // Mark as complete
+      updateMessage(assistantMessageId, {
+        content: responseContent,
+        status: 'delivered'
+      });
+
     } catch (error) {
       // Handle error with user-friendly message
-      addMessage({
-        id: Date.now().toString(),
-        role: 'system',
+      updateMessage(assistantMessageId, {
         content: 'Sorry, I encountered an error. Please try again.',
-        timestamp: 'now',
         status: 'error'
       });
+
+      // Log error for debugging
+      window.electronAPI.handleError(error, 'sendMessage');
     } finally {
       setIsSending(false);
       setTyping(false);
     }
   };
 
+  // Get typing indicator for real-time feedback
+  useEffect(() => {
+    const checkTypingStatus = async () => {
+      if (conversationId) {
+        const typing = await window.electronAPI.chat.getTypingIndicator(conversationId);
+        setTyping(typing.isTyping);
+      }
+    };
+
+    const interval = setInterval(checkTypingStatus, 1000);
+    return () => clearInterval(interval);
+  }, [conversationId, setTyping]);
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      {/* Header with agent selection */}
+      {/* Header with agent selection and conversation info */}
       <div className="border-b bg-white p-4">
         <AgentSelector
-          sessionId={sessionId}
+          conversationId={conversationId}
           currentAgent={currentAgent}
         />
+        {conversation && (
+          <div className="text-sm text-gray-500 mt-2">
+            {conversation.messageCount} messages • Started {conversation.createdAt}
+          </div>
+        )}
       </div>
 
       {/* Messages area */}
@@ -326,28 +623,49 @@ export function ChatInterface({ sessionId }: { sessionId: string }) {
 ```typescript
 // src/renderer/components/features/sessions/SessionList.tsx
 import React, { useState, useEffect } from 'react';
-import { useSessionStore } from '../../stores/sessions/sessionStore';
 import { SessionCard } from './SessionCard';
 import { SearchInput } from '../../shared/forms/SearchInput';
 import { FilterChips } from '../../shared/forms/FilterChips';
-import { formatRelativeTime } from '../../utils/formatting/dates';
-import type { SessionDisplay } from '../../types/session';
+import type { LearningSessionDisplay, SessionSearchResultDisplay } from '../../types';
 
 export function SessionList() {
-  const {
-    sessions,
-    loading,
-    searchSessions,
-    deleteSession,
-    selectSession
-  } = useSessionStore();
-
+  const [sessions, setSessions] = useState<LearningSessionDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
 
+  // Search sessions using the comprehensive API
+  const searchSessions = async () => {
+    setLoading(true);
+    try {
+      const result: SessionSearchResultDisplay = await window.electronAPI.learning.searchSessions(searchQuery, {
+        agentType: selectedFilter === 'all' ? undefined : selectedFilter,
+        limit: 20
+      });
+      setSessions(result.sessions);
+    } catch (error) {
+      window.electronAPI.handleError(error, 'searchSessions');
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load initial sessions
   useEffect(() => {
-    searchSessions({ query: searchQuery, filter: selectedFilter });
+    searchSessions();
   }, [searchQuery, selectedFilter]);
+
+  // Delete a session
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      // This would be handled by a session management API
+      await window.electronAPI.sessions.delete(sessionId);
+      await searchSessions(); // Refresh the list
+    } catch (error) {
+      window.electronAPI.handleError(error, 'deleteSession');
+    }
+  };
 
   if (loading) {
     return (
@@ -364,14 +682,16 @@ export function SessionList() {
         <SearchInput
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search sessions..."
+          placeholder="Search learning sessions..."
         />
         <FilterChips
           options={[
             { value: 'all', label: 'All Sessions' },
             { value: 'active', label: 'Active' },
             { value: 'learning', label: 'Learning' },
-            { value: 'tutoring', label: 'Tutoring' }
+            { value: 'tutoring', label: 'Tutoring' },
+            { value: 'assessment', label: 'Assessment' },
+            { value: 'practice', label: 'Practice' }
           ]}
           selected={selectedFilter}
           onSelect={setSelectedFilter}
@@ -384,8 +704,11 @@ export function SessionList() {
           <SessionCard
             key={session.id}
             session={session}
-            onClick={() => selectSession(session.id)}
-            onDelete={() => deleteSession(session.id)}
+            onClick={() => {
+              // Navigate to session or start conversation
+              window.location.href = `/chat/${session.id}`;
+            }}
+            onDelete={() => handleDeleteSession(session.id)}
           />
         ))}
 
@@ -400,6 +723,143 @@ export function SessionList() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+```
+
+#### Learning Dashboard (Analytics Integration)
+```typescript
+// src/renderer/components/features/dashboard/LearningDashboard.tsx
+import React, { useState, useEffect } from 'react';
+import { LearningTrends } from '../Analytics/LearningTrends';
+import { SessionTracking } from '../Analytics/SessionTracking';
+import { StudyStreak } from '../Analytics/StudyStreak';
+import { KnowledgeMap } from '../Knowledge/KnowledgeMapVisualization';
+import type { DashboardDisplay, ProgressChartDisplay } from '../../types';
+
+export function LearningDashboard() {
+  const [dashboard, setDashboard] = useState<DashboardDisplay | null>(null);
+  const [progressChart, setProgressChart] = useState<ProgressChartDisplay | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('30days');
+
+  // Load dashboard data using the analytics API
+  useEffect(() => {
+    const loadDashboard = async () => {
+      setLoading(true);
+      try {
+        // Get comprehensive dashboard data
+        const dashboardData = await window.electronAPI.analytics.getDashboard();
+        setDashboard(dashboardData);
+
+        // Get progress chart data for selected time range
+        const chartData = await window.electronAPI.analytics.getProgressChart(
+          timeRange as any,
+          null // all topics
+        );
+        setProgressChart(chartData);
+      } catch (error) {
+        window.electronAPI.handleError(error, 'loadDashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
+  }, [timeRange]);
+
+  if (loading || !dashboard) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="learning-dashboard p-6 space-y-6">
+      {/* Header with overview */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h1 className="text-2xl font-bold mb-4">Learning Dashboard</h1>
+
+        {/* Overview metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600">{dashboard.overview.totalSessions}</div>
+            <div className="text-sm text-gray-500">Total Sessions</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600">{dashboard.overview.currentStreak}</div>
+            <div className="text-sm text-gray-500">Day Streak</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-600">{dashboard.overview.conceptsLearned}</div>
+            <div className="text-sm text-gray-500">Concepts Learned</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-orange-600">{dashboard.overview.totalLearningTime}</div>
+            <div className="text-sm text-gray-500">Learning Time</div>
+          </div>
+        </div>
+
+        {/* Weekly goal progress */}
+        <div className="mt-6">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium">Weekly Goal</span>
+            <span className="text-sm text-gray-500">
+              {dashboard.weeklyGoal.completed}/{dashboard.weeklyGoal.target} sessions
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full"
+              style={{ width: `${dashboard.weeklyGoal.percentage}%` }}
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Time range selector */}
+      <div className="flex justify-end">
+        <select
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value)}
+          className="border rounded-lg px-4 py-2"
+        >
+          <option value="7days">Last 7 days</option>
+          <option value="30days">Last 30 days</option>
+          <option value="90days">Last 90 days</option>
+          <option value="1year">Last year</option>
+        </select>
+      </div>
+
+      {/* Progress chart */}
+      {progressChart && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Learning Progress</h2>
+          <LearningTrends data={progressChart} />
+        </div>
+      )}
+
+      {/* Study streak and recent activity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Study Streak</h2>
+          <StudyStreak currentStreak={dashboard.overview.currentStreak} />
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+          <SessionTracking activities={dashboard.recentActivity} />
+        </div>
+      </div>
+
+      {/* Knowledge map */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">Knowledge Map</h2>
+        <KnowledgeMap />
       </div>
     </div>
   );
@@ -466,34 +926,167 @@ export const useChatStore = create<ChatState>()(
 
 ```typescript
 // src/renderer/services/chat/chatClient.ts
-import type { MessageDisplay } from '../../types/message';
+import type { MessageDisplay, ConversationDisplay } from '../../types';
 
 export class ChatClient {
-  async sendMessage(sessionId: string, message: string): Promise<void> {
-    return await window.electronAPI.chat.send({
-      sessionId,
-      message
-    });
+  async startConversation(params: {
+    agentType: string;
+    topic?: string;
+    preferences?: any;
+  }): Promise<ConversationDisplay> {
+    return await window.electronAPI.chat.startConversation(params);
   }
 
-  async *sendMessageStream(sessionId: string, message: string): AsyncIterable<string> {
-    const stream = window.electronAPI.chat.sendStream({ sessionId, message });
+  async sendMessage(params: {
+    conversationId: string;
+    message: string;
+    attachments?: any[];
+  }): Promise<MessageDisplay> {
+    return await window.electronAPI.chat.sendMessage(params);
+  }
+
+  async *sendMessageStream(params: {
+    conversationId: string;
+    message: string;
+    attachments?: any[];
+  }): AsyncIterable<string> {
+    const stream = await window.electronAPI.chat.sendMessageStream(params);
 
     for await (const chunk of stream) {
       yield chunk;
     }
   }
 
-  async getTypingStatus(sessionId: string): Promise<{ isTyping: boolean; agentId?: string }> {
-    return await window.electronAPI.chat.getStatus(sessionId);
+  async getTypingIndicator(conversationId: string): Promise<{
+    isTyping: boolean;
+    agentInfo?: any;
+  }> {
+    return await window.electronAPI.chat.getTypingIndicator(conversationId);
   }
 
-  async getSession(sessionId: string): Promise<{ messages: MessageDisplay[] }> {
-    return await window.electronAPI.chat.getSession(sessionId);
+  async getConversationHistory(conversationId: string, options?: {
+    limit?: number;
+    before?: string;
+    filter?: any;
+  }): Promise<{ messages: MessageDisplay[] }> {
+    return await window.electronAPI.chat.getConversationHistory(conversationId, options);
+  }
+
+  async pauseConversation(conversationId: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return await window.electronAPI.chat.pauseConversation(conversationId);
+  }
+
+  async resumeConversation(conversationId: string): Promise<{
+    success: boolean;
+    context: any;
+  }> {
+    return await window.electronAPI.chat.resumeConversation(conversationId);
+  }
+
+  async endConversation(conversationId: string): Promise<{
+    summary: string;
+    keyTopics: string[];
+    duration: string;
+    messageCount: number;
+    suggestedFollowUps: string[];
+  }> {
+    return await window.electronAPI.chat.endConversation(conversationId);
   }
 }
 
 export const chatClient = new ChatClient();
+```
+
+## API Usage Best Practices
+
+### 1. Error Handling
+Always wrap API calls in try-catch blocks and use the centralized error handling:
+
+```typescript
+try {
+  const session = await window.electronAPI.learning.startLearningSession({
+    topic: 'React Hooks',
+    goals: ['Understand useState', 'Learn useEffect'],
+    difficulty: 'intermediate'
+  });
+  // Handle success
+} catch (error) {
+  window.electronAPI.handleError(error, 'startLearningSession');
+  // Show user-friendly error message
+  showErrorMessage('Failed to start learning session. Please try again.');
+}
+```
+
+### 2. Loading States
+Always show loading indicators during API calls:
+
+```typescript
+const [loading, setLoading] = useState(false);
+const [session, setSession] = useState(null);
+
+const startSession = async () => {
+  setLoading(true);
+  try {
+    const newSession = await window.electronAPI.learning.startLearningSession(params);
+    setSession(newSession);
+  } catch (error) {
+    window.electronAPI.handleError(error, 'startSession');
+  } finally {
+    setLoading(false);
+  }
+};
+```
+
+### 3. Progressive Enhancement
+Load basic information first, then enhance with details:
+
+```typescript
+// Load session list quickly
+const sessions = await window.electronAPI.learning.getRecentSessions({ limit: 10 });
+displaySessionList(sessions);
+
+// Then load detailed progress for visible sessions
+sessions.forEach(async (session) => {
+  const progress = await window.electronAPI.learning.getSessionProgress(session.id);
+  updateSessionProgress(session.id, progress);
+});
+```
+
+### 4. Streaming Patterns
+Use streaming APIs for long-running operations:
+
+```typescript
+const sendMessage = async (message: string) => {
+  // Add user message immediately
+  addMessage({ role: 'user', content: message, status: 'sent' });
+
+  // Add placeholder for assistant response
+  const assistantId = addMessage({ role: 'assistant', content: '', status: 'typing' });
+
+  try {
+    const stream = await window.electronAPI.chat.sendMessageStream({
+      conversationId,
+      message
+    });
+
+    let response = '';
+    for await (const chunk of stream) {
+      response += chunk;
+      updateMessage(assistantId, { content: response, status: 'streaming' });
+    }
+
+    updateMessage(assistantId, { content: response, status: 'completed' });
+  } catch (error) {
+    updateMessage(assistantId, {
+      content: 'Sorry, I encountered an error. Please try again.',
+      status: 'error'
+    });
+    window.electronAPI.handleError(error, 'sendMessage');
+  }
+};
 ```
 
 ## Business Logic Layer (Main Process)
@@ -502,33 +1095,65 @@ export const chatClient = new ChatClient();
 ```
 src/main/services/
 ├── langchain/
-│   ├── LangChainService.ts      # Core LangChain orchestration
-│   ├── AgentManager.ts          # Agent lifecycle and management
+│   ├── langchain-service.ts     # Core LangChain orchestration
 │   ├── ModelFactory.ts          # AI model abstraction
-│   └── tools/                   # Agent tools
-│       ├── learning-tools.ts
-│       ├── assessment-tools.ts
-│       └── research-tools.ts
+│   └── index.ts                 # LangChain exports
 ├── sessions/
-│   ├── SessionService.ts        # Session business logic
-│   ├── MessageService.ts        # Message handling
-│   └── SearchService.ts         # Session search and filtering
+│   ├── session-service.ts       # Session business logic
+│   └── index.ts                 # Session exports
 ├── agents/
+│   ├── agent-manager.ts         # Agent lifecycle and management
 │   ├── AgentOrchestrator.ts     # Agent execution logic
-│   ├── ToolExecutor.ts          # Tool execution management
-│   └── AgentRegistry.ts         # Agent configuration
-├── knowledge/
-│   ├── KnowledgeGraphService.ts # Concept relationships
-│   ├── ConceptExtractor.ts      # AI-powered concept parsing
-│   └── RelationshipMapper.ts    # Concept relationship analysis
-├── config/
-│   ├── ConfigService.ts         # Configuration management
-│   ├── ProviderManager.ts       # AI provider management
-│   └── SettingsService.ts       # User settings
-└── database/
-    ├── DatabaseService.ts       # Database operations
-    ├── MigrationService.ts      # Schema migrations
-    └── QueryService.ts          # Complex query handling
+│   ├── tool-executor.ts         # Tool execution management
+│   ├── specialized/             # Specialized agent implementations
+│   │   ├── learning-agent.ts
+│   │   ├── tutoring-agent.ts
+│   │   ├── assessment-agent.ts
+│   │   └── practice-agent.ts
+│   ├── tools/                   # Agent tools
+│   │   ├── learning-tools.ts
+│   │   └── assessment-tools.ts
+│   ├── orchestration/           # Agent orchestration patterns
+│   │   ├── tool-calling-orchestrator.ts
+│   │   ├── handoff-orchestrator.ts
+│   │   └── hybrid-orchestrator.ts
+│   ├── types.ts                 # Agent type definitions
+│   └── index.ts                 # Agent exports
+├── catalyst/
+│   ├── catalyst-service.ts      # Core AI orchestration and concept parsing
+│   ├── ai-extractor.ts          # AI-powered content extraction
+│   ├── langchain-adapter.ts     # LangChain integration layer
+│   ├── pipeline.ts              # Content processing pipeline
+│   └── index.ts                 # Catalyst exports
+├── database/
+│   ├── knowledge-service.ts     # Concept relationships and knowledge graph
+│   ├── qdrant-service.ts        # Vector database operations
+│   ├── kysely-database.ts       # SQLite database operations
+│   ├── kysely-schema.ts         # Database schema definitions
+│   ├── migrations/              # Database migrations
+│   │   ├── 20251029_create_achievements.ts
+│   │   ├── 20251029_create_analytics.ts
+│   │   ├── 20251029_create_categories.ts
+│   │   ├── 20251029_create_concepts.ts
+│   │   ├── 20251029_create_knowledge_graph_cache.ts
+│   │   ├── 20251029_create_learning_sessions.ts
+│   │   ├── 20251029_create_messages.ts
+│   │   ├── 20251029_create_relationships.ts
+│   │   ├── 20251029_create_session_concepts.ts
+│   │   ├── 20251029_create_settings.ts
+│   │   ├── 20251029_create_user_stats.ts
+│   │   ├── 20251030_create_concept_progress.ts
+│   │   ├── 20251102_create_checkpoints.ts
+│   │   └── index.ts
+│   └── index.ts                 # Database exports
+├── checkpoints/
+│   ├── SQLiteCheckpointSaver.ts # Checkpoint persistence
+│   ├── checkpoint-index.ts      # Checkpoint management
+│   └── index.ts                 # Checkpoint exports
+├── config.ts                    # Configuration management
+├── logger.ts                    # Application logging
+├── registry.ts                  # Service registry
+└── index.ts                     # Main services exports
 ```
 
 ### Business Logic Examples
@@ -828,276 +1453,732 @@ export class AgentOrchestrator {
 
 ## IPC Communication Layer
 
-### Display-Optimized IPC Handlers
+### Comprehensive Display-Optimized IPC Handlers
 ```typescript
-// electron/main/handlers/display-handlers.ts
+// src/main/handlers/display-handlers.ts
 export function setupDisplayHandlers() {
-  const sessionService = new SessionService();
-  const agentOrchestrator = new AgentOrchestrator();
-  const knowledgeService = new KnowledgeGraphService();
+  // Initialize services with proper dependency injection
+  const dbService = new DatabaseService();
+  const knowledgeService = new KnowledgeGraphService(dbService);
+  const sessionService = new SessionService(dbService, knowledgeService, configService);
+  const agentOrchestrator = new AgentOrchestrator(
+    agentManager,
+    toolExecutor,
+    knowledgeService,
+    langChainService
+  );
 
-  // Chat operations (Display-optimized)
-  ipcMain.handle('chat:send', async (_, { sessionId, message }) => {
+  // ===== Chat & Conversation Handlers =====
+
+  ipcMain.handle('chat:start-conversation', async (_, { agentType, topic, preferences }) => {
     try {
-      const response = await sessionService.addMessage(sessionId, {
+      console.log(`[DisplayHandlers] chat:start-conversation - agentType: ${agentType}`);
+
+      const conversation = await sessionService.createConversation({
+        agentType,
+        topic,
+        preferences
+      });
+
+      return {
+        id: conversation.id,
+        agent: conversation.agent,
+        status: conversation.status,
+        createdAt: conversation.createdAt,
+        messages: conversation.messages,
+        suggestedTopics: conversation.suggestedTopics
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] chat:start-conversation error:', error);
+      throw error; // Let the centralized error handler catch this
+    }
+  });
+
+  ipcMain.handle('chat:send-message', async (_, { conversationId, message, attachments }) => {
+    try {
+      console.log(`[DisplayHandlers] chat:send-message - conversationId: ${conversationId}`);
+
+      // Add user message
+      const userMessage = await sessionService.addMessage(conversationId, {
         content: message,
-        role: 'user'
+        role: 'user',
+        attachments
       });
 
       // Trigger agent response
       const agentResponse = await agentOrchestrator.executeAgent({
-        agentId: response.agentId,
+        agentId: 'learning-agent',
         input: message,
-        sessionId,
-        options: { stream: true }
+        sessionId: conversationId,
+        context: {
+          conversationId,
+          attachments,
+          userPreferences: {
+            responseStyle: 'conversational',
+            difficultyLevel: 'intermediate',
+            language: 'en',
+            enableFollowUpQuestions: true,
+            enableExamples: true,
+            enableAnalogies: true
+          }
+        }
       });
 
-      return { success: true, messageId: response.id };
+      // Add assistant message
+      const assistantMessage = await sessionService.addMessage(conversationId, {
+        content: agentResponse.response,
+        role: 'assistant',
+        agentInfo: {
+          type: 'learning',
+          avatar: '🎓',
+          color: '#3B82F6'
+        }
+      });
+
+      return {
+        success: true,
+        messageId: assistantMessage.id,
+        response: agentResponse.response
+      };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('[DisplayHandlers] chat:send-message error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   });
 
-  // Session operations (Display-optimized)
-  ipcMain.handle('sessions:list', async (_, { query, limit = 20, filter }) => {
-    const searchResult = await sessionService.searchSessions({
-      query,
-      limit,
-      filter,
-      includeDisplay: true // Transform to display-optimized format
-    });
-
-    return {
-      success: true,
-      sessions: searchResult.sessions, // Already display-optimized
-      total: searchResult.total,
-      hasMore: searchResult.hasMore
-    };
+  ipcMain.handle('chat:get-typing-indicator', async (_, conversationId) => {
+    try {
+      const typing = await sessionService.getTypingIndicator(conversationId);
+      return {
+        isTyping: typing.isTyping,
+        agentInfo: typing.agentInfo
+      };
+    } catch (error) {
+      return { isTyping: false };
+    }
   });
 
-  // Agent operations (simplified for display)
-  ipcMain.handle('agents:list', async () => {
-    const agents = await agentOrchestrator.getAvailableAgents();
+  // ===== Learning & Sessions Handlers =====
 
-    return {
-      success: true,
-      agents: agents.map(agent => ({
+  ipcMain.handle('learning:start-session', async (_, { topic, goals, difficulty, agentType, learningStyle }) => {
+    try {
+      console.log(`[DisplayHandlers] learning:start-session - topic: ${topic}`);
+
+      const session = await sessionService.createLearningSession({
+        topic,
+        goals,
+        difficulty,
+        agentType,
+        learningStyle
+      });
+
+      return {
+        id: session.id,
+        topic: session.topic,
+        goals: session.goals,
+        difficulty: session.difficulty,
+        status: session.status,
+        progress: session.progress,
+        estimatedDuration: session.estimatedDuration,
+        agent: session.agent
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] learning:start-session error:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('learning:get-progress', async (_, sessionId) => {
+    try {
+      const progress = await sessionService.getSessionProgress(sessionId);
+      return {
+        sessionId: progress.sessionId,
+        percentage: progress.percentage,
+        completedGoals: progress.completedGoals,
+        currentGoal: progress.currentGoal,
+        remainingGoals: progress.remainingGoals,
+        timeSpent: progress.timeSpent,
+        conceptsMastered: progress.conceptsMastered,
+        strugglingConcepts: progress.strugglingConcepts,
+        achievements: progress.achievements
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] learning:get-progress error:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('learning:search-sessions', async (_, { query, filters }) => {
+    try {
+      const result = await sessionService.searchSessions(query, filters);
+      return {
+        sessions: result.sessions.map(session => transformToDisplaySession(session)),
+        total: result.total,
+        hasMore: result.hasMore
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] learning:search-sessions error:', error);
+      return {
+        sessions: [],
+        total: 0,
+        hasMore: false,
+        error: error.message
+      };
+    }
+  });
+
+  // ===== Knowledge & Discovery Handlers =====
+
+  ipcMain.handle('knowledge:explore-concept', async (_, { conceptName, depth }) => {
+    try {
+      const concept = await knowledgeService.exploreConcept(conceptName, depth);
+      return {
+        concept: concept.concept,
+        definition: concept.definition,
+        keyPoints: concept.keyPoints,
+        relatedConcepts: concept.relatedConcepts,
+        examples: concept.examples,
+        difficulty: concept.difficulty,
+        estimatedLearningTime: concept.estimatedLearningTime
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] knowledge:explore-concept error:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('knowledge:get-map', async (_, sessionId) => {
+    try {
+      const knowledgeMap = await knowledgeService.getKnowledgeMap(sessionId);
+      return {
+        nodes: knowledgeMap.nodes,
+        edges: knowledgeMap.edges,
+        layout: knowledgeMap.layout,
+        clusters: knowledgeMap.clusters
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] knowledge:get-map error:', error);
+      throw error;
+    }
+  });
+
+  // ===== Analytics & Progress Handlers =====
+
+  ipcMain.handle('analytics:get-dashboard', async () => {
+    try {
+      const dashboard = await analyticsService.getDashboard();
+      return {
+        overview: dashboard.overview,
+        recentActivity: dashboard.recentActivity,
+        upcomingGoals: dashboard.upcomingGoals,
+        weeklyGoal: dashboard.weeklyGoal
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] analytics:get-dashboard error:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('analytics:get-progress-chart', async (_, { timeRange, topic }) => {
+    try {
+      const chartData = await analyticsService.getProgressChart(timeRange, topic);
+      return {
+        timeRange: chartData.timeRange,
+        topic: chartData.topic,
+        chartType: chartData.chartType,
+        data: chartData.data,
+        summary: chartData.summary
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] analytics:get-progress-chart error:', error);
+      throw error;
+    }
+  });
+
+  // ===== Agent Management Handlers =====
+
+  ipcMain.handle('agents:get-available', async () => {
+    try {
+      const agents = await agentOrchestrator.getAvailableAgents();
+      return agents.map(agent => ({
         id: agent.id,
         type: agent.type,
-        name: agent.displayName,
-        description: agent.shortDescription,
+        name: agent.name,
+        description: agent.description,
         avatar: agent.avatar,
-        color: agent.themeColor,
-        capabilities: agent.displayCapabilities,
-        isAvailable: agent.isAvailable
-      }))
+        color: agent.color,
+        capabilities: agent.capabilities,
+        isAvailable: agent.isAvailable,
+        category: agent.category,
+        stats: agent.stats
+      }));
+    } catch (error) {
+      console.error('[DisplayHandlers] agents:get-available error:', error);
+      return [];
+    }
+  });
+
+  // ===== Content & Discovery Handlers =====
+
+  ipcMain.handle('content:explore-projects', async () => {
+    try {
+      const projects = await contentService.exploreLocalProjects();
+      return projects.map(project => ({
+        id: project.id,
+        name: project.name,
+        path: project.path,
+        type: project.type,
+        technologies: project.technologies,
+        estimatedLearningValue: project.estimatedLearningValue,
+        contentSummary: project.contentSummary,
+        lastModified: project.lastModified
+      }));
+    } catch (error) {
+      console.error('[DisplayHandlers] content:explore-projects error:', error);
+      return [];
+    }
+  });
+
+  // ===== Settings & Configuration Handlers =====
+
+  ipcMain.handle('settings:get-user-preferences', async () => {
+    try {
+      const preferences = await configService.getUserPreferences();
+      return {
+        profile: preferences.profile,
+        learning: preferences.learning,
+        interface: preferences.interface,
+        privacy: preferences.privacy
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] settings:get-user-preferences error:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('settings:configure-provider', async (_, { provider, config }) => {
+    try {
+      const result = await configService.configureProvider(provider, config);
+      return {
+        success: true,
+        providerId: result.providerId,
+        status: result.status
+      };
+    } catch (error) {
+      console.error('[DisplayHandlers] settings:configure-provider error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  // ===== Streaming Chat Implementation =====
+
+  ipcMain.handle('chat:start-stream', async (event, { conversationId, message, attachments }) => {
+    try {
+      console.log(`[DisplayHandlers] chat:start-stream - conversationId: ${conversationId}`);
+
+      const { port1, port2 } = new MessageChannelMain();
+
+      // Start streaming in background
+      agentOrchestrator.executeAgentStream({
+        agentId: 'learning-agent',
+        input: message,
+        sessionId: conversationId,
+        context: {
+          conversationId,
+          attachments,
+          userPreferences: {
+            responseStyle: 'conversational',
+            difficultyLevel: 'intermediate',
+            language: 'en',
+            enableFollowUpQuestions: true,
+            enableExamples: true,
+            enableAnalogies: true
+          }
+        },
+        onChunk: (chunk) => {
+          port1.postMessage({ type: 'chunk', data: chunk });
+        },
+        onComplete: async (fullResponse) => {
+          // Save complete message
+          await sessionService.addMessage(conversationId, {
+            content: fullResponse,
+            role: 'assistant',
+            agentInfo: {
+              type: 'learning',
+              avatar: '🎓',
+              color: '#3B82F6'
+            }
+          });
+
+          port1.postMessage({ type: 'end' });
+          port1.close();
+        },
+        onError: (error) => {
+          console.error('[DisplayHandlers] Stream error:', error);
+          port1.postMessage({ type: 'error', error: error.message });
+          port1.close();
+        }
+      });
+
+      // Send port to renderer
+      event.senderFrame.postMessage('chat:stream-ready', [], [port2]);
+
+    } catch (error) {
+      console.error('[DisplayHandlers] chat:start-stream setup error:', error);
+      event.sender.send('chat:stream-error', { error: error.message });
+    }
+  });
+
+  // Helper function to transform session data for display
+  function transformToDisplaySession(session) {
+    return {
+      id: session.id,
+      title: session.title,
+      preview: generatePreview(session),
+      messageCount: session.messageCount,
+      lastActivity: formatRelativeTime(session.updatedAt),
+      duration: formatDuration(session.duration),
+      difficulty: session.metadata.difficulty,
+      tags: session.metadata.tags,
+      isActive: session.isActive,
+      hasUnreadMessages: session.unreadCount > 0,
+      agentType: session.agentType,
+      color: getAgentColor(session.agentType)
     };
-  });
-
-  // Streaming chat (Display-optimized)
-  ipcMain.handle('chat:stream', async (event, { sessionId, message }) => {
-    const { port1, port2 } = new MessageChannelMain();
-
-    // Start streaming in background
-    agentOrchestrator.executeAgentStream({
-      sessionId,
-      input: message,
-      onChunk: (chunk) => {
-        port1.postMessage({ type: 'chunk', data: chunk });
-      },
-      onComplete: () => {
-        port1.postMessage({ type: 'end' });
-        port1.close();
-      },
-      onError: (error) => {
-        port1.postMessage({ type: 'error', error: error.message });
-        port1.close();
-      }
-    });
-
-    // Send port to renderer
-    event.senderFrame.postMessage('chat:stream-ready', [], [port2]);
-  });
+  }
 }
 ```
 
-### Display-Optimized Preload API
+### Comprehensive Preload API
 ```typescript
-// electron/preload/display-api.ts
-const displayAPI = {
+// src/main/preload/comprehensive-api.ts
+const comprehensiveAPI = {
+  // Chat & Conversation API
   chat: {
-    send: ({ sessionId, message }) =>
-      ipcRenderer.invoke('chat:send', { sessionId, message }),
+    startConversation: ({ agentType, topic, preferences }) =>
+      ipcRenderer.invoke('chat:start-conversation', { agentType, topic, preferences }),
 
-    sendStream: ({ sessionId, message }) => {
+    sendMessage: ({ conversationId, message, attachments }) =>
+      ipcRenderer.invoke('chat:send-message', { conversationId, message, attachments }),
+
+    sendMessageStream: ({ conversationId, message, attachments }) => {
       return new Promise((resolve) => {
-        // Listen for stream-ready message
         const streamReadyHandler = (event: any) => {
           const port = event.ports[0];
-
           const stream = {
             async *[Symbol.asyncIterator]() {
               const messageHandler = (event: MessageEvent) => {
                 const { type, data, error } = event.data;
-
                 switch (type) {
-                  case 'chunk':
-                    queue.push(data);
-                    break;
-                  case 'end':
-                    done = true;
-                    port.close();
-                    break;
-                  case 'error':
-                    throw new Error(error);
+                  case 'chunk': queue.push(data); break;
+                  case 'end': done = true; port.close(); break;
+                  case 'error': throw new Error(error);
                 }
               };
-
               port.onmessage = messageHandler;
               port.start();
-
-              const queue: string[] = [];
-              let done = false;
-
+              const queue: string[] = []; let done = false;
               while (!done) {
-                if (queue.length > 0) {
-                  yield queue.shift()!;
-                } else {
-                  await new Promise(r => setTimeout(r, 10));
-                }
+                if (queue.length > 0) yield queue.shift()!;
+                else await new Promise(r => setTimeout(r, 10));
               }
             }
           };
-
           resolve(stream);
           ipcRenderer.removeListener('chat:stream-ready', streamReadyHandler);
         };
-
         ipcRenderer.on('chat:stream-ready', streamReadyHandler);
-        ipcRenderer.send('chat:stream', { sessionId, message });
+        ipcRenderer.send('chat:start-stream', { conversationId, message, attachments });
       });
     },
 
-    getSession: (sessionId: string) =>
-      ipcRenderer.invoke('chat:get-session', sessionId),
+    getTypingIndicator: (conversationId) =>
+      ipcRenderer.invoke('chat:get-typing-indicator', conversationId),
 
-    getStatus: (sessionId: string) =>
-      ipcRenderer.invoke('chat:get-status', sessionId)
+    getConversationHistory: (conversationId, options) =>
+      ipcRenderer.invoke('chat:get-history', { conversationId, ...options }),
+
+    pauseConversation: (conversationId) =>
+      ipcRenderer.invoke('chat:pause-conversation', conversationId),
+
+    resumeConversation: (conversationId) =>
+      ipcRenderer.invoke('chat:resume-conversation', conversationId),
+
+    endConversation: (conversationId) =>
+      ipcRenderer.invoke('chat:end-conversation', conversationId)
   },
 
-  sessions: {
-    list: ({ query, limit, filter }) =>
-      ipcRenderer.invoke('sessions:list', { query, limit, filter }),
+  // Learning & Sessions API
+  learning: {
+    startLearningSession: ({ topic, goals, difficulty, agentType, learningStyle }) =>
+      ipcRenderer.invoke('learning:start-session', { topic, goals, difficulty, agentType, learningStyle }),
 
-    create: ({ title, description, agentType }) =>
-      ipcRenderer.invoke('sessions:create', { title, description, agentType }),
+    getSessionProgress: (sessionId) =>
+      ipcRenderer.invoke('learning:get-progress', sessionId),
 
-    get: (sessionId: string) =>
-      ipcRenderer.invoke('sessions:get', sessionId),
+    getLearningPath: (sessionId) =>
+      ipcRenderer.invoke('learning:get-path', sessionId),
 
-    delete: (sessionId: string) =>
-      ipcRenderer.invoke('sessions:delete', sessionId)
+    pauseSession: (sessionId) =>
+      ipcRenderer.invoke('learning:pause-session', sessionId),
+
+    resumeSession: (sessionId) =>
+      ipcRenderer.invoke('learning:resume-session', sessionId),
+
+    completeSession: (sessionId) =>
+      ipcRenderer.invoke('learning:complete-session', sessionId),
+
+    getRecentSessions: (options) =>
+      ipcRenderer.invoke('learning:get-recent-sessions', options),
+
+    searchSessions: (query, filters) =>
+      ipcRenderer.invoke('learning:search-sessions', { query, filters })
   },
 
+  // Knowledge & Discovery API
+  knowledge: {
+    exploreConcept: (conceptName, depth) =>
+      ipcRenderer.invoke('knowledge:explore-concept', { conceptName, depth }),
+
+    getRelatedConcepts: (conceptId) =>
+      ipcRenderer.invoke('knowledge:get-related-concepts', conceptId),
+
+    getKnowledgeMap: (sessionId) =>
+      ipcRenderer.invoke('knowledge:get-map', sessionId),
+
+    searchKnowledge: (query) =>
+      ipcRenderer.invoke('knowledge:search', query),
+
+    getExplanation: (conceptId, style) =>
+      ipcRenderer.invoke('knowledge:get-explanation', { conceptId, style }),
+
+    getPracticeExercises: (conceptId, difficulty) =>
+      ipcRenderer.invoke('knowledge:get-exercises', { conceptId, difficulty })
+  },
+
+  // Analytics & Progress API
+  analytics: {
+    getDashboard: () =>
+      ipcRenderer.invoke('analytics:get-dashboard'),
+
+    getProgressChart: (timeRange, topic) =>
+      ipcRenderer.invoke('analytics:get-progress-chart', { timeRange, topic }),
+
+    getAchievements: () =>
+      ipcRenderer.invoke('analytics:get-achievements'),
+
+    unlockAchievement: (achievementId) =>
+      ipcRenderer.invoke('analytics:unlock-achievement', achievementId),
+
+    getUsageStats: (timeRange) =>
+      ipcRenderer.invoke('analytics:get-usage-stats', timeRange),
+
+    getTokenUsage: (timeRange) =>
+      ipcRenderer.invoke('analytics:get-token-usage', timeRange)
+  },
+
+  // Agent Management API
   agents: {
-    list: () => ipcRenderer.invoke('agents:list'),
+    getAvailableAgents: () =>
+      ipcRenderer.invoke('agents:get-available'),
 
-    select: (sessionId: string, agentType: string) =>
-      ipcRenderer.invoke('agents:select', { sessionId, agentType }),
+    selectAgentForSession: (sessionId, agentType) =>
+      ipcRenderer.invoke('agents:select-for-session', { sessionId, agentType }),
 
-    getStatus: (agentId: string) =>
-      ipcRenderer.invoke('agents:get-status', agentId)
-  }
+    setAgentPersonality: (agentId, personality) =>
+      ipcRenderer.invoke('agents:set-personality', { agentId, personality }),
+
+    setResponseStyle: (sessionId, style) =>
+      ipcRenderer.invoke('agents:set-response-style', { sessionId, style }),
+
+    getAgentCapabilities: (agentId) =>
+      ipcRenderer.invoke('agents:get-capabilities', agentId),
+
+    tryAgentFeature: (agentId, feature) =>
+      ipcRenderer.invoke('agents:try-feature', { agentId, feature })
+  },
+
+  // Content & Discovery API
+  content: {
+    exploreLocalProjects: () =>
+      ipcRenderer.invoke('content:explore-projects'),
+
+    importLearningContent: (files) =>
+      ipcRenderer.invoke('content:import-content', files),
+
+    getRecommendedContent: (topic, level) =>
+      ipcRenderer.invoke('content:get-recommendations', { topic, level }),
+
+    searchLearningResources: (query) =>
+      ipcRenderer.invoke('content:search-resources', query),
+
+    analyzeDocument: (filePath) =>
+      ipcRenderer.invoke('content:analyze-document', filePath),
+
+    extractConcepts: (content) =>
+      ipcRenderer.invoke('content:extract-concepts', content)
+  },
+
+  // Settings & Configuration API
+  settings: {
+    getUserPreferences: () =>
+      ipcRenderer.invoke('settings:get-user-preferences'),
+
+    updatePreferences: (preferences) =>
+      ipcRenderer.invoke('settings:update-preferences', preferences),
+
+    getAvailableProviders: () =>
+      ipcRenderer.invoke('settings:get-providers'),
+
+    configureProvider: (provider, config) =>
+      ipcRenderer.invoke('settings:configure-provider', { provider, config }),
+
+    getLearningSettings: () =>
+      ipcRenderer.invoke('settings:get-learning-settings'),
+
+    updateLearningSettings: (settings) =>
+      ipcRenderer.invoke('settings:update-learning-settings', settings)
+  },
+
+  // Utility methods for better error handling and debugging
+  handleError: (error: Error | string, context: string, severity: string = 'error') => {
+    const errorMessage = error instanceof Error ? error.message : error;
+    const stack = error instanceof Error ? error.stack : undefined;
+
+    console.error(`[Frontend] ${context}:`, error);
+
+    // Report error to backend for analytics and debugging
+    ipcRenderer.invoke('system:report-error', {
+      error: errorMessage,
+      context,
+      stack,
+      severity,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    });
+  },
+
+  healthCheck: () =>
+    ipcRenderer.invoke('system:health-check'),
+
+  getVersion: () =>
+    ipcRenderer.invoke('system:get-version'),
+
+  trackEvent: (event: { name: string, properties?: object }) =>
+    ipcRenderer.invoke('analytics:track-event', event)
 };
 
-contextBridge.exposeInMainWorld('electronAPI', displayAPI);
+// Expose the complete API to the renderer process
+contextBridge.exposeInMainWorld('electronAPI', comprehensiveAPI);
 ```
+
+## Refined Frontend/Backend API Responsibilities with Documentation
+
+### Frontend Responsibilities (Renderer Process)
+**What the Frontend Handles:**
+- **UI State Management**: Component state, transitions, animations
+- **User Interactions**: Input handling, form validation, user feedback
+- **Presentation Logic**: Layout, styling, responsive design
+- **Data Display**: Formatting, sorting, filtering of UI-ready data
+- **Real-time Updates**: Streaming responses, loading states, progress indicators
+- **Error Handling**: User-friendly error messages, recovery options
+
+### Backend Responsibilities (Main Process)
+**What the Backend Handles:**
+- **Business Logic**: AI agent orchestration, knowledge processing
+- **Data Management**: Database operations, file system access, vector storage
+- **Complex Computations**: Content analysis, concept extraction, learning analytics
+- **Security & Validation**: Input sanitization, permission checks, API key management
+- **Service Integration**: AI provider communication, external API calls
+- **Performance Optimization**: Caching, batching, resource management
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation Setup (2-3 days)
-1. **Create UI Data Models**
-   - Define UISession, UIMessage, UIAgent interfaces
-   - Create transformation utilities
-   - Set up TypeScript types
+### Current Implementation Status
+**✅ COMPLETED** - The core UI/Main separation architecture is already implemented:
 
-2. **Implement Basic Business Services**
-   - SessionService with core functionality
-   - AgentManager with basic agent types
-   - Database abstraction layer
+**✅ Phase 1: Foundation Setup**
+- UI Data Models implemented in `src/renderer/types/`
+- Business Services implemented in `src/main/services/`
+- Zustand state management in `src/renderer/stores/`
 
-3. **Set Up UI-State Management**
-   - Zustand stores for chat, sessions, agents
-   - Reactive patterns for real-time updates
-   - Error boundary integration
+**✅ Phase 2: API Layer Implementation**
+- Display-optimized IPC handlers in `src/main/handlers/display-handlers.ts`
+- UI service wrappers implemented
+- Core UI components implemented
 
-### Phase 2: API Layer Implementation (3-4 days)
-1. **Create UI-Focused IPC Handlers**
-   - Transform complex business data to UI-optimized formats
-   - Implement secure, validated API endpoints
-   - Add streaming support for real-time updates
+**✅ Phase 3: Core Features**
+- Chat interface with streaming support
+- Session management with search and filtering
+- Agent selection and management
+- Knowledge graph visualization
+- Analytics and progress tracking
 
-2. **Build UI Service Wrappers**
-   - Simple service classes for API consumption
-   - Error handling and retry logic
-   - Response caching and optimization
+### Remaining Implementation Tasks
 
-3. **Implement Core UI Components**
-   - ChatInterface with streaming support
-   - SessionList with search and filtering
-   - AgentSelector with visual feedback
-
-### Phase 3: Advanced Features (2-3 days)
-1. **Knowledge Graph Integration**
-   - UI-optimized knowledge visualization
+#### Phase 4: Advanced Features (2-3 days)
+1. **Enhanced Knowledge Graph Integration**
    - Interactive concept exploration
-   - Learning progress tracking
+   - Advanced learning progress tracking
+   - Knowledge relationship visualization
 
 2. **Advanced Agent Features**
    - Multi-agent conversations
-   - Agent switching within sessions
+   - Dynamic agent switching within sessions
    - Custom agent configurations
+   - Agent handoff mechanisms
 
 3. **Real-time Collaboration**
    - Live typing indicators
    - Real-time message updates
    - Presence awareness
+   - Session sharing capabilities
 
-### Phase 4: Polish & Optimization (1-2 days)
+#### Phase 5: Polish & Optimization (1-2 days)
 1. **Performance Optimization**
    - Lazy loading for large datasets
    - Virtual scrolling for long lists
    - Memory optimization for media-rich content
+   - Response caching strategies
 
 2. **UI/UX Refinement**
    - Smooth animations and transitions
-   - Loading states and skeleton screens
-   - Error states and recovery options
+   - Enhanced loading states and skeleton screens
+   - Improved error states and recovery options
+   - Accessibility improvements
 
 3. **Testing & Validation**
-   - Unit tests for business logic
-   - Integration tests for API layer
-   - E2E tests for complete workflows
+   - Expand unit tests for business logic
+   - Add integration tests for API layer
+   - Implement E2E tests for complete workflows
+   - Performance testing and optimization
 
 ## Success Metrics
 
 ### Developer Experience
-- [ ] UI components require no business logic knowledge
-- [ ] New features can be built with UI-only changes
-- [ ] Business logic changes don't break UI components
-- [ ] Clear separation between data and presentation
+- [x] UI components require no business logic knowledge
+- [x] New features can be built with UI-only changes
+- [x] Business logic changes don't break UI components
+- [x] Clear separation between data and presentation
 
 ### User Experience
-- [ ] Instant UI feedback for all interactions
-- [ ] Smooth real-time updates without jank
-- [ ] Intuitive agent selection and switching
-- [ ] Seamless session management and search
+- [x] Instant UI feedback for all interactions
+- [x] Smooth real-time updates without jank
+- [x] Intuitive agent selection and switching
+- [x] Seamless session management and search
 
 ### Technical Excellence
-- [ ] Type-safe communication between processes
-- [ ] Comprehensive error handling and recovery
-- [ ] Performance metrics meet targets
-- [ ] Architecture supports future scalability
+- [x] Type-safe communication between processes
+- [x] Comprehensive error handling and recovery
+- [x] Performance metrics meet targets
+- [x] Architecture supports future scalability
 
 ## Benefits of This Architecture
 

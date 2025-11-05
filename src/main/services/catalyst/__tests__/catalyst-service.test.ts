@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { CatalystServiceMain, initializeCatalystService, disposeCatalystService, getCatalystService } from '../../../electron/main/services/catalyst/catalyst-service'
+import { CatalystServiceMain, initializeCatalystService, disposeCatalystService, getCatalystService } from '../catalyst-service'
 import { DatabaseMocks } from '../../../test/utils/mocks/mock-database'
 import type { BrowserWindow } from 'electron'
 

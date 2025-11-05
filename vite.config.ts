@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron/simple'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
-import viteMemoryPlugin from './src/utils/vite-memory-plugin.js'
+// import viteMemoryPlugin from './src/utils/vite-memory-plugin.js'
 // @ts-ignore
 import pkg from './package.json'
 
@@ -68,16 +68,16 @@ export default defineConfig(({ command }) => {
         ]
       }),
       // Memory leak prevention plugin for development
-      ...(isServe ? [viteMemoryPlugin({
-        maxMemoryMB: 600, // Alert at 600MB
-        checkIntervalMs: 15000, // Check every 15 seconds
-        enableCleanup: true,
-        verbose: process.env.DEBUG_VITE_MEMORY === 'true'
-      })] : []),
+      // ...(isServe ? [viteMemoryPlugin({
+      //   maxMemoryMB: 600, // Alert at 600MB
+      //   checkIntervalMs: 15000, // Check every 15 seconds
+      //   enableCleanup: true,
+      //   verbose: process.env.DEBUG_VITE_MEMORY === 'true'
+      // })] : []),
       electron({
         main: {
           // Shortcut of `build.lib.entry`
-          entry: 'electron/main/index.ts',
+          entry: 'src/main/index.ts',
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')

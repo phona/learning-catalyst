@@ -5,7 +5,7 @@
  * between renderer and main processes.
  */
 
-import { AgentConfig, AgentExecutionRequest, AgentExecutionChunk, ServiceExecutionContext } from '../../../electron/main/services/types';
+import { AgentConfig, AgentExecutionRequest, AgentExecutionChunk, ServiceExecutionContext } from '../../main/services/types';
 
 /**
  * Agent execution request from renderer

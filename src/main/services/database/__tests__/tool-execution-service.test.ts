@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { ToolExecutorService, BuiltinTools } from '../../../electron/main/services/tool-executor'
+import { ToolExecutorService, BuiltinTools } from '../../tool-executor'
 import { DatabaseMocks } from '../../../test/utils/mocks/mock-database'
-import type { ServiceDependencies, ToolExecutionRequest, ToolExecutionResult } from '../../../electron/main/services/types'
+import type { ServiceDependencies, ToolExecutionRequest, ToolExecutionResult } from '../../types'
 
 describe('ToolExecutorService', () => {
   let toolExecutor: ToolExecutorService
