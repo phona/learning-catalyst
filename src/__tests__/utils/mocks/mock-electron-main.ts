@@ -227,46 +227,53 @@ export const mockWebContents = vi.fn().mockImplementation(() => ({
 
 // Mock Message Channel Main
 export const mockMessageChannelMain = vi.fn().mockImplementation(() => {
-  const port1 = {
-    postMessage: vi.fn(),
-    start: vi.fn(),
-    close: vi.fn(),
-    closed: false,
-    onmessage: null as any,
-    onmessageerror: null as any,
+  const createPort = () => {
+    const port: any = {
+      postMessage: vi.fn(),
+      start: vi.fn(),
+      close: vi.fn(),
+      closed: false,
+      onmessage: null as any,
+      onmessageerror: null as any,
 
-    _messages: [] as any[],
-    _listeners: new Map(),
+      _messages: [] as any[],
+      _listeners: new Map(),
 
-    // Helper methods for testing
-    _receiveMessage: function(message: any) {
-      this._messages.push(message);
-      if (this.onmessage) {
-        this.onmessage({ data: message });
-      }
-      this._listeners.get('message')?.forEach((listener: any) => listener(message));
-    },
+      // Helper methods for testing
+      _receiveMessage: function(message: any) {
+        this._messages.push(message);
+        if (this.onmessage) {
+          this.onmessage({ data: message });
+        }
+        this._listeners.get('message')?.forEach((listener: any) => listener(message));
+      },
 
-    addEventListener: vi.fn().mockImplementation((event: string, listener: any) => {
-      this._listeners.set(event, [...(this._listeners.get(event) || []), listener]);
-    }),
+      addEventListener: vi.fn().mockImplementation(function(event: string, listener: any) {
+        this._listeners.set(event, [...(this._listeners.get(event) || []), listener]);
+      }),
 
-    removeEventListener: vi.fn().mockImplementation((event: string, listener: any) => {
-      const listeners = this._listeners.get(event) || [];
-      this._listeners.set(event, listeners.filter((l: any) => l !== listener));
-    })
+      removeEventListener: vi.fn().mockImplementation(function(event: string, listener: any) {
+        const listeners = this._listeners.get(event) || [];
+        this._listeners.set(event, listeners.filter((l: any) => l !== listener));
+      })
+    };
+
+    return port;
   };
 
-  const port2 = { ...port1 };
+  const port1 = createPort();
+  const port2 = createPort();
 
-  // Connect ports for testing
-  port1.addEventListener('message', (message: any) => {
-    port2._receiveMessage(message);
-  });
+  // Connect ports for testing - but add listeners after both ports are created
+  setTimeout(() => {
+    port1.addEventListener('message', (message: any) => {
+      port2._receiveMessage(message);
+    });
 
-  port2.addEventListener('message', (message: any) => {
-    port1._receiveMessage(message);
-  });
+    port2.addEventListener('message', (message: any) => {
+      port1._receiveMessage(message);
+    });
+  }, 0);
 
   return {
     port1,

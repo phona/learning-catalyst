@@ -455,3 +455,19 @@ The application uses Electron store for configuration rather than environment va
 - Configure breakpoints in both main and renderer processes
 - Use Electron DevTools for renderer process debugging
 - Check console output for main process debugging
+
+## Memory-Optimized Development
+
+### Development Environment Configuration
+The development environment is configured for memory efficiency:
+- **Node.js Memory Limits**: 512MB heap, 64MB semispace
+- **Vite Optimization**: Manual chunk splitting and dependency pre-bundling
+- **File Watching**: Excludes large directories to reduce overhead
+- **Memory Monitoring**: Built-in alerts for memory usage
+
+### Best Practices
+- Monitor memory usage during development
+- Use memory profiling tools when needed
+- Test with performance suite regularly
+- Follow cleanup patterns for event listeners and subscriptions
+- Be aware of Node.js polyfill memory impact

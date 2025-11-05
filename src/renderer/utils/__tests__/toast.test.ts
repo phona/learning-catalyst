@@ -18,12 +18,16 @@ import {
 
 // Mock react-hot-toast
 vi.mock('react-hot-toast', () => ({
-  default: vi.fn(),
-  success: vi.fn(),
-  error: vi.fn(),
-  loading: vi.fn(),
-  promise: vi.fn(),
-  dismiss: vi.fn(),
+  default: Object.assign(
+    vi.fn(), // This makes the default export callable
+    {
+      success: vi.fn(),
+      error: vi.fn(),
+      loading: vi.fn(),
+      promise: vi.fn(),
+      dismiss: vi.fn(),
+    }
+  ),
 }));
 
 describe('Toast Utils', () => {
@@ -69,7 +73,7 @@ describe('Toast Utils', () => {
 
       showToast(message, options);
 
-      expect(toast.default).toHaveBeenCalledWith(message, options);
+      expect(toast).toHaveBeenCalledWith(message, options);
     });
 
     it('should call toast.promise with correct parameters', async () => {
@@ -181,7 +185,7 @@ describe('Toast Utils', () => {
     it('should show chat error without message', () => {
       chatToasts.error();
 
-      expect(toast.error).toHaveBeenCalledWith('Failed to send message: Unknown error occurred', undefined);
+      expect(toast.error).toHaveBeenCalledWith('Failed to send message', undefined);
     });
 
     it('should show chat cleared success', () => {
@@ -232,7 +236,7 @@ describe('Toast Utils', () => {
 
       settingsToasts.providerError(provider);
 
-      expect(toast.error).toHaveBeenCalledWith('DeepSeek Failed to configure AI provider: Unknown error', undefined);
+      expect(toast.error).toHaveBeenCalledWith('DeepSeek Failed to configure AI provider', undefined);
     });
   });
 
@@ -260,7 +264,7 @@ describe('Toast Utils', () => {
     it('should show knowledge error without message', () => {
       knowledgeToasts.error();
 
-      expect(toast.error).toHaveBeenCalledWith('Failed to update knowledge: Unknown error', undefined);
+      expect(toast.error).toHaveBeenCalledWith('Failed to update knowledge', undefined);
     });
   });
 

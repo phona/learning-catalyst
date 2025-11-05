@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UISettings } from '@/renderer/components/Config/UISettings';
-import { createMockConfig } from 'test/test-utils';
+import { createMockConfig } from '@/__tests__/utils/helpers/test-utils';
 
 describe('UISettings', () => {
   const mockConfig = createMockConfig({

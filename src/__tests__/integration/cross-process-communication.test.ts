@@ -17,7 +17,7 @@ import {
   mockIPCMain,
   createMockStream
 } from '../utils/mocks/mock-electron-main';
-import type { IPCMessage, StreamMessage, ProcessMessage } from '../types/ipc';
+import type { IPCMessage, IPCStreamMessage } from '../../shared/types/ipc';
 
 describe('Cross-Process Communication Integration Tests', () => {
   let mockMainProcess: any;
@@ -118,7 +118,7 @@ describe('Cross-Process Communication Integration Tests', () => {
     it('should handle bidirectional streaming communication', async () => {
       // Set up streaming handler in main process
       ipcHandlers.set('catalyst:start-stream', async (event, request) => {
-        const { port1, port2 } = new mockMessageChannelMain();
+        const { port1, port2 } = mockMessageChannelMain();
 
         // Send port2 back to renderer
         event.sender.postMessage('catalyst:stream-port', { port: port2 }, [port2]);
@@ -135,7 +135,7 @@ describe('Cross-Process Communication Integration Tests', () => {
         let index = 0;
         const streamInterval = setInterval(() => {
           if (index < streamData.length) {
-            const message: StreamMessage = {
+            const message: IPCStreamMessage = {
               type: 'chunk',
               index,
               content: streamData[index],
@@ -165,14 +165,18 @@ describe('Cross-Process Communication Integration Tests', () => {
       // Wait for port message and handle stream
       const receivedChunks = [];
       const streamComplete = new Promise<void>((resolve) => {
+        console.log('🔧 Setting up stream port listener...');
         mockRendererProcess.once('catalyst:stream-port', (event, { port }) => {
-          port.on('message', (message: StreamMessage) => {
+          console.log('📥 Received stream port event!', { port });
+          port.on('message', (message: IPCStreamMessage) => {
+            console.log('📨 Received port message:', message);
             if (message.type === 'chunk') {
               receivedChunks.push(message);
             } else if (message.type === 'end') {
               expect(receivedChunks).toHaveLength(5);
               expect(receivedChunks[0].content).toContain('Starting comprehensive explanation');
               expect(receivedChunks[4].content).toContain('Completion: End of explanation');
+              console.log('✅ Stream completed!');
               resolve();
             }
           });
@@ -184,7 +188,7 @@ describe('Cross-Process Communication Integration Tests', () => {
 
     it('should handle stream interruption and recovery', async () => {
       ipcHandlers.set('catalyst:interruptible-stream', async (event, request) => {
-        const { port1, port2 } = new mockMessageChannelMain();
+        const { port1, port2 } = mockMessageChannelMain();
         event.sender.postMessage('catalyst:stream-port', { port: port2 }, [port2]);
 
         let interrupted = false;
@@ -232,7 +236,7 @@ describe('Cross-Process Communication Integration Tests', () => {
       const streamInterrupted = new Promise<void>((resolve) => {
         mockRendererProcess.once('catalyst:stream-port', (event, { port }) => {
           streamPort = port;
-          port.on('message', (message: StreamMessage) => {
+          port.on('message', (message: IPCStreamMessage) => {
             if (message.type === 'chunk') {
               receivedChunks.push(message);
               // Interrupt after receiving 5 chunks
@@ -264,7 +268,7 @@ describe('Cross-Process Communication Integration Tests', () => {
       const streamPromises = [];
 
       ipcHandlers.set('catalyst:concurrent-stream', async (event, request) => {
-        const { port1, port2 } = new mockMessageChannelMain();
+        const { port1, port2 } = mockMessageChannelMain();
         event.sender.postMessage(`catalyst:stream-port-${request.streamId}`, { port: port2 }, [port2]);
 
         const streamData = Array.from({ length: 10 }, (_, i) => `Stream ${request.streamId} - Chunk ${i}`);
@@ -298,7 +302,7 @@ describe('Cross-Process Communication Integration Tests', () => {
           mockRendererProcess.invoke('catalyst:concurrent-stream', { streamId }).then(() => {
             const chunks = [];
             mockRendererProcess.once(`catalyst:stream-port-${streamId}`, (event, { port }) => {
-              port.on('message', (message: StreamMessage) => {
+              port.on('message', (message: IPCStreamMessage) => {
                 if (message.type === 'chunk') {
                   chunks.push(message);
                 } else if (message.type === 'end') {

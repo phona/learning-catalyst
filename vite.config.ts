@@ -39,7 +39,12 @@ export default defineConfig(({ command }) => {
       target: 'es2020',
     },
     plugins: [
-      react(),
+      react({
+        // Minimal configuration to avoid preamble detection issues
+        jsxImportSource: undefined,
+        include: '**/*.{jsx,tsx}',
+        exclude: ['node_modules', '**/node_modules/**']
+      }),
       // Node.js polyfills for LangChain compatibility
       nodePolyfills({
         // Enable specific polyfills needed by LangChain

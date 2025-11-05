@@ -6,10 +6,12 @@
  */
 
 import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { EventEmitter } from 'events';
 import { ElectronMainMocks } from '../utils/mocks/mock-electron-main';
 import { LangChainMocks } from '../utils/mocks/mock-langchain';
 import { DatabaseMocks } from '../utils/mocks/mock-database';
 import { TestDatabaseFactory } from '../utils/factories/test-database-factory';
+import { mockDatabaseService, mockErrorRecoveryManager, mockSystemHealthMonitor } from '../utils/mocks/mock-services';
 
 /**
  * Setup integration test environment
@@ -87,6 +89,120 @@ afterEach(() => {
   // Clean up any test-specific state
   vi.restoreAllMocks();
 });
+
+/**
+ * Setup IPC integration test environment
+ */
+export async function setupIPCIntegrationTest() {
+  // Create mock main and renderer processes
+  const mockMainProcess = new EventEmitter();
+  const mockRendererProcess = new EventEmitter();
+  const messageChannel = ElectronMainMocks.MessageChannelMain();
+  const ipcHandlers = new Map<string, Function>();
+
+  // Set up mock invoke method for renderer
+  mockRendererProcess.invoke = vi.fn().mockImplementation(async (channel: string, data: any) => {
+    const handler = ipcHandlers.get(channel);
+    if (handler) {
+      try {
+        const result = await handler({ sender: mockRendererProcess }, data);
+        return result;
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'IPC_ERROR',
+          timestamp: Date.now()
+        };
+      }
+    }
+    return {
+      success: false,
+      error: `No handler for channel: ${channel}`,
+      errorCode: 'NO_HANDLER',
+      timestamp: Date.now()
+    };
+  });
+
+  mockRendererProcess.invokeWithTimeout = vi.fn().mockImplementation(async (channel: string, data: any, timeout: number) => {
+    const handler = ipcHandlers.get(channel);
+    if (handler) {
+      try {
+        return await Promise.race([
+          handler({ sender: mockRendererProcess }, data),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Operation timeout')), timeout))
+        ]);
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          errorCode: 'TIMEOUT',
+          timestamp: Date.now()
+        };
+      }
+    }
+    return {
+      success: false,
+      error: `No handler for channel: ${channel}`,
+      errorCode: 'NO_HANDLER',
+      timestamp: Date.now()
+    };
+  });
+
+  // Mock postMessage method for IPC communication
+  mockRendererProcess.postMessage = vi.fn().mockImplementation((channel: string, data: any, transfer?: any[]) => {
+    // Emit the message so tests can listen for it
+    // The event should be the first parameter, data the second
+    console.log(`📤 postMessage called: channel=${channel}, data=${JSON.stringify(data)}`);
+    mockRendererProcess.emit(channel, { sender: mockRendererProcess }, data);
+  });
+  mockRendererProcess.disconnect = vi.fn();
+
+  return {
+    mainProcess: mockMainProcess,
+    rendererProcess: mockRendererProcess,
+    messageChannel,
+    ipcHandlers
+  };
+}
+
+/**
+ * Cleanup IPC integration test environment
+ */
+export async function cleanupIPCIntegrationTest() {
+  // Clean up event listeners and handlers
+  // In a real implementation, you'd clean up any resources
+  console.log('🧹 IPC integration test environment cleaned up');
+}
+
+/**
+ * Setup integration test environment (comprehensive)
+ */
+export async function setupIntegrationTest() {
+  // Initialize test environment with all required services
+  const testEnvironment = await setupIPCIntegrationTest();
+
+  // Add mock services to the environment
+  const { mockCatalystService, mockLangChainService, mockElectronIPC } = await import('../utils/mocks/mock-services');
+
+  return {
+    ...testEnvironment,
+    catalystService: mockCatalystService(),
+    langChainService: mockLangChainService,
+    databaseService: mockDatabaseService,
+    errorRecoveryManager: mockErrorRecoveryManager,
+    healthMonitor: mockSystemHealthMonitor,
+    ipc: mockElectronIPC
+  };
+}
+
+/**
+ * Cleanup integration test environment (comprehensive)
+ */
+export async function cleanupIntegrationTest() {
+  await cleanupIPCIntegrationTest();
+  console.log('🧹 Comprehensive integration test environment cleaned up');
+}
 
 /**
  * Integration test utilities

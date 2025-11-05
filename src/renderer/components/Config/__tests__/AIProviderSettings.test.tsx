@@ -2,33 +2,30 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AIProviderSettings } from '@/renderer/components/Config/AIProviderSettings';
-import { createMockConfig } from 'test/test-utils';
+import { createMockConfig } from '@/__tests__/utils/helpers/test-utils';
+import { useService } from '@/renderer/hooks/useAppServices';
+import { utilityToasts } from '@/renderer/utils/toast';
 
 
-// Mock the config service
-vi.mock('services/configService', () => ({
-  configService: {
-    testModel: vi.fn(),
-    getProviderModelMapping: () => ({
-      openai: {
-        chat: ['gpt-3.5-turbo', 'gpt-4'],
-        embedding: ['text-embedding-ada-002'],
-        rerank: [],
-      },
+// Mock the useAppServices hook to provide configService
+vi.mock('@/renderer/hooks/useAppServices', () => ({
+  useService: vi.fn().mockReturnValue({
+    validateProvider: vi.fn().mockResolvedValue({ success: true }),
+    getProviderModels: vi.fn().mockResolvedValue(['gpt-3.5-turbo', 'gpt-4']),
+    testModel: vi.fn().mockResolvedValue({
+      status: 'success',
+      details: { response_time: 100 },
     }),
-  },
+  }),
 }));
 
 // Mock the toast utility
-vi.mock('utils/toast', () => ({
+vi.mock('@/renderer/utils/toast', () => ({
   utilityToasts: {
     success: vi.fn(),
     error: vi.fn(),
   },
 }));
-
-import { configService } from '@/renderer/services/configService';
-import { utilityToasts } from '@/renderer/utils/toast';
 
 describe('AIProviderSettings', () => {
   const mockModelTypeConfigs = {
@@ -285,7 +282,8 @@ describe('AIProviderSettings', () => {
       details: { response_time: 100 },
     });
 
-    vi.mocked(configService.testModel).mockImplementation(mockTestModel);
+    const mockConfigService = { testModel: mockTestModel };
+    vi.mocked(useService).mockReturnValue(mockConfigService);
 
     render(<AIProviderSettings {...defaultProps} />);
 
@@ -305,7 +303,8 @@ describe('AIProviderSettings', () => {
       details: { error: 'Invalid API key' },
     });
 
-    vi.mocked(configService.testModel).mockImplementation(mockTestModel);
+    const mockConfigService = { testModel: mockTestModel };
+    vi.mocked(useService).mockReturnValue(mockConfigService);
 
     render(<AIProviderSettings {...defaultProps} />);
 

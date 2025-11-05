@@ -6,8 +6,8 @@
  */
 
 import { Kysely, sql } from 'kysely'
-import { JSONFieldHelpers } from '../modules/database/kysely-schema'
-import type { Database } from '../modules/database/kysely-schema'
+import { JSONFieldHelpers } from '../../main/services/database/kysely-schema'
+import type { Database } from '../../main/services/database/kysely-schema'
 import {
   Session,
   SessionSearchQuery,

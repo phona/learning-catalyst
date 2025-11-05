@@ -14,7 +14,7 @@ import SessionService from '@/renderer/services/sessionService';
 import { ContentDiscoveryService } from '@/renderer/services/ContentDiscoveryService';
 import { ConceptParsingService } from '@/renderer/services/ConceptParsingService';
 import { AgentManager } from '@/main/services/catalyst/AgentManager';
-import { createConfigService, ConfigService } from '@/renderer/services/configService';
+import { createConfigService, ConfigService } from '@/main/services/configService';
 import type { AppConfig } from '@/shared/types/config';
 
 export interface ServiceContainer {

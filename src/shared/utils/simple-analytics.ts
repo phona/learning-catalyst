@@ -5,8 +5,8 @@
  * Provides insights into learning effectiveness and user engagement.
  */
 
-import type { Database } from '../database/kysely-schema';
-import { JSONFieldHelpers } from '../database/kysely-schema';
+import type { Database } from '../../main/services/database/kysely-schema';
+import { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
 import { Kysely } from 'kysely';
 
 export interface LearningSession {

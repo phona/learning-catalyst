@@ -6,7 +6,7 @@ import { SessionManager } from './components/Session/SessionManager';
 import { SettingsPanel } from './components/Config/SettingsPanel';
 import { LearningDashboard } from './components/Dashboard/LearningDashboard';
 import { KnowledgeMap } from './components/Dashboard/KnowledgeMap';
-import { DiscoveryPage } from './pages/DiscoveryPage';
+import { DiscoveryPage } from './DiscoveryPage';
 import { ErrorBoundary } from './components/UI/ErrorBoundary';
 import { useAppStore } from './stores/useAppStore';
 import { useConfigStore } from './stores/useConfigStore';

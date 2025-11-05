@@ -5,6 +5,7 @@ import { devtools } from 'zustand/middleware';
 import type { Message, StreamChunk, ChatOptions } from '@/shared/types/ai';
 import type { Session, ConversationMessage, MemorySession, SessionSaveResult } from '@/shared/types/session';
 import type { SessionService } from '@/renderer/services/sessionService';
+import { AgentManager, AgentType } from '@/main/services/catalyst/AgentManager';
 
 interface ChatStore {
   // Current session
@@ -696,5 +697,6 @@ export function useChatStore() {
     return cachedStore;
   }, [services.sessionService, services.agentManager]);
 
-  return store;
+  // Use the Zustand store as a hook to get state and actions
+  return store();
 }

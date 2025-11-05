@@ -13,13 +13,26 @@ const mockSessionService = {
   saveSessionWithMessages: vi.fn().mockResolvedValue('session_test123'),
   saveMessage: vi.fn().mockResolvedValue(undefined),
   generateAITitle: vi.fn().mockResolvedValue('AI Generated Title'),
+  updateSessionTitle: vi.fn().mockResolvedValue(undefined),
+};
+
+// Mock AgentManager
+const mockAgentManager = {
+  getAgent: vi.fn().mockResolvedValue({
+    stream: vi.fn().mockImplementation(async function* () {
+      yield { content: 'Mock response' };
+    })
+  }),
+  initialize: vi.fn().mockResolvedValue(undefined),
+  cleanup: vi.fn()
 };
 
 // Mock the dependencies first
 vi.mock('@/renderer/hooks/useAppServices', () => ({
   useAppServices: () => ({
     services: {
-      sessionService: mockSessionService
+      sessionService: mockSessionService,
+      agentManager: mockAgentManager
     }
   })
 }));
@@ -52,21 +65,16 @@ Object.defineProperty(window, 'dispatchEvent', {
 
 describe('Simplified Chat Store', () => {
   beforeEach(() => {
-    // Reset the store before each test
-    const { result } = renderHook(() => useChatStore());
-    act(() => {
-      result.current.setSessionService(mockSessionService);
-    });
+    vi.clearAllMocks();
+    // Clear the cached store to ensure fresh mock services
+    vi.resetModules();
   });
 
   describe('createNewSession', () => {
     it('should create a session with consistent ID format', async () => {
       const { result } = renderHook(() => useChatStore());
 
-      act(() => {
-        result.current.setSessionService(mockSessionService);
-      });
-
+      
       let sessionId: string;
       await act(async () => {
         sessionId = await result.current.createNewSession();
@@ -81,10 +89,7 @@ describe('Simplified Chat Store', () => {
     it('should generate unique session IDs', async () => {
       const { result } = renderHook(() => useChatStore());
 
-      act(() => {
-        result.current.setSessionService(mockSessionService);
-      });
-
+      
       let sessionId1: string;
       let sessionId2: string;
 
@@ -105,10 +110,7 @@ describe('Simplified Chat Store', () => {
     it('should save session idempotently', async () => {
       const { result } = renderHook(() => useChatStore());
 
-      act(() => {
-        result.current.setSessionService(mockSessionService);
-      });
-
+      
       // Create a new session
       await act(async () => {
         await result.current.createNewSession();
@@ -155,16 +157,30 @@ describe('Simplified Chat Store', () => {
       expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledTimes(2);
     });
 
-    it('should return error when no session service is available', async () => {
+    it('should throw error when no session service is available', async () => {
+      // Mock the useAppServices to return no session service
+      vi.doMock('@/renderer/hooks/useAppServices', () => ({
+        useAppServices: () => ({
+          services: {
+            sessionService: null,
+            agentManager: mockAgentManager
+          }
+        })
+      }));
+
       const { result } = renderHook(() => useChatStore());
 
-      let saveResult;
+      let error: Error | null = null;
       await act(async () => {
-        saveResult = await result.current.saveCurrentSession();
+        try {
+          await result.current.saveCurrentSession();
+        } catch (e) {
+          error = e as Error;
+        }
       });
 
-      expect(saveResult.success).toBe(false);
-      expect(saveResult.error).toBe('Session service not available');
+      expect(error).not.toBeNull();
+      expect(error?.message).toContain('SessionService is required');
     });
   });
 
@@ -172,10 +188,7 @@ describe('Simplified Chat Store', () => {
     it('should save messages for sessions with IDs', async () => {
       const { result } = renderHook(() => useChatStore());
 
-      act(() => {
-        result.current.setSessionService(mockSessionService);
-      });
-
+      
       // Create session with ID
       await act(async () => {
         await result.current.createNewSession();
@@ -200,10 +213,7 @@ describe('Simplified Chat Store', () => {
     it('should trigger AI title generation on first assistant message', async () => {
       const { result } = renderHook(() => useChatStore());
 
-      act(() => {
-        result.current.setSessionService(mockSessionService);
-      });
-
+      
       // Create session
       await act(async () => {
         await result.current.createNewSession();
@@ -248,10 +258,7 @@ describe('Simplified Chat Store', () => {
     it('should handle save operations consistently', async () => {
       const { result } = renderHook(() => useChatStore());
 
-      act(() => {
-        result.current.setSessionService(mockSessionService);
-      });
-
+      
       // Create session
       await act(async () => {
         await result.current.createNewSession();

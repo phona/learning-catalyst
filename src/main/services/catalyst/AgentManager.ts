@@ -5,12 +5,12 @@ import type {
   ProviderType,
 } from '@/shared/types/config';
 import type { ConfigService } from '@/main/services/configService';
-import { createDatabase } from '@/shared/modules/database';
-import { SQLiteCheckpointSaver } from '@/shared/modules/langgraph';
+import { createDatabase, runMigrations } from '../database/kysely-database';
+import { SQLiteCheckpointSaver } from '../database/SQLiteCheckpointSaver';
 import { Kysely } from "kysely";
 import type { Database } from '../modules/database/kysely-schema'
 import { BaseCheckpointSaver, type LangGraphRunnableConfig } from "@langchain/langgraph";
-import { ModelFactory } from "./ModelFactory";
+import { ModelFactory } from "../langchain/ModelFactory";
 
 /**
  * Educational Agent Types

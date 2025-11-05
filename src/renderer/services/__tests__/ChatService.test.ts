@@ -20,7 +20,7 @@ const { mockCatalystService } = vi.hoisted(() => {
   return { mockCatalystService: mockService };
 });
 
-vi.mock('@/services/CatalystService', () => ({
+vi.mock('@/renderer/services/CatalystService', () => ({
   catalystService: mockCatalystService,
 }));
 

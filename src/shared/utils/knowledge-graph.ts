@@ -5,8 +5,8 @@
  * Provides semantic search, concept discovery, and relationship mapping.
  */
 
-import type { Database } from '../database/kysely-schema';
-import { JSONFieldHelpers } from '../database/kysely-schema';
+import type { Database } from '../../main/services/database/kysely-schema';
+import { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
 import { VectorDatabaseModule, SearchResult } from '../vector-database/vector-database';
 import { Kysely } from 'kysely';
 

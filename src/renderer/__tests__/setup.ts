@@ -6,19 +6,55 @@
  */
 
 import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Mock window.electronAPI
 Object.defineProperty(window, 'electronAPI', {
   value: {
     catalyst: {
-      executeAgent: vi.fn(),
-      executeAgentStream: vi.fn(),
-      cancelAgent: vi.fn(),
-      getAgentStatus: vi.fn(),
-      listAgents: vi.fn(),
-      getActiveExecutions: vi.fn(),
-      registerAgent: vi.fn(),
-      unregisterAgent: vi.fn(),
+      sendChat: vi.fn().mockResolvedValue({
+        success: true,
+        messageId: 'test-message-id',
+        response: 'Test response from CatalystService'
+      }),
+      sendChatStream: vi.fn().mockImplementation(async (message, options, onChunk) => {
+        // Simulate streaming response
+        onChunk({ type: 'thinking', content: 'Thinking...', timestamp: Date.now() });
+        onChunk({ type: 'content', content: 'Test streaming response', timestamp: Date.now() });
+        onChunk({ type: 'complete', content: '', timestamp: Date.now() });
+        return {
+          success: true,
+          messageId: 'test-stream-id'
+        };
+      }),
+      getAvailableAgents: vi.fn().mockResolvedValue({
+        success: true,
+        agents: [
+          {
+            id: 'test-agent-1',
+            name: 'Test Agent 1',
+            description: 'A test agent for unit testing',
+            capabilities: ['chat', 'thinking']
+          },
+          {
+            id: 'test-agent-2',
+            name: 'Test Agent 2',
+            description: 'Another test agent',
+            capabilities: ['chat', 'tool-calling']
+          }
+        ]
+      }),
+      getSession: vi.fn().mockResolvedValue({
+        success: true,
+        session: {
+          id: 'test-session-id',
+          title: 'Test Session',
+          messages: []
+        }
+      }),
+      cancelExecution: vi.fn().mockResolvedValue({
+        success: true
+      }),
     },
     session: {
       create: vi.fn(),

@@ -1,22 +1,9 @@
 import React, { useState } from 'react';
-import {
-  CubeIcon,
-  AcademicCapIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ArrowPathIcon,
-  EyeIcon,
-  EyeSlashIcon,
-} from '@heroicons/react/24/outline';
+import { CubeIcon, AcademicCapIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { utilityToasts } from '@/renderer/utils/toast';
-import type {
-  ProviderConfig,
-  ProviderValidationResult,
-} from '@/shared/types/config';
-import { ModelType } from '@/shared/types/ai';
 import { useService } from '@/renderer/hooks/useAppServices';
+import type { ProviderConfig, ProviderValidationResult } from '@/shared/types/config';
+import type { ModelType } from '@/shared/types/ai';
 import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';
 
 

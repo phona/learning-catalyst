@@ -194,7 +194,7 @@ export const mockDatabase = {
   }),
 
   // Mock connection management
-  close: vi.fn().mockImplementation(async () => {
+  close: vi.fn().mockImplementation(async function() {
     this.connected = false;
     this.closed = true;
     await new Promise(resolve => setTimeout(resolve, 10));
