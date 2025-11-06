@@ -15,7 +15,7 @@ import { ServiceConfigManager } from '../config';
 import { ToolExecutorService } from '../tool-executor';
 import { AgentManagerMain } from '../agents/agent-manager';
 import { SessionServiceMain } from '../session/session-service';
-import { Database, createDatabase, runMigrations } from '@/modules/database';
+import { Database, createDatabase, runMigrations } from '../database/kysely-database';
 import { ServiceError } from './types';
 
 /**

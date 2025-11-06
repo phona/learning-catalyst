@@ -51,7 +51,8 @@ export default defineConfig({
       include: [
         'electron/main/services/**/*.{js,ts}',
         'electron/main/handlers/**/*.{js,ts}',
-        'src/modules/**/*.{js,ts}'
+        'src/main/services/**/*.{js,ts}',
+        'src/shared/modules/**/*.{js,ts}'
       ],
       exclude: [
         '**/*.test.{js,ts}',

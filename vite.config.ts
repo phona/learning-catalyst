@@ -27,8 +27,6 @@ export default defineConfig(({ command }) => {
         '@/renderer': path.join(__dirname, 'src/renderer'),
         '@/main': path.join(__dirname, 'src/main'),
         '@/shared': path.join(__dirname, 'src/shared'),
-        // Use renderer-safe database module in renderer process
-        // './src/modules/database/local-db': path.join(__dirname, 'src/modules/database/local-db-renderer.ts'),
       },
     },
     define: {
@@ -86,6 +84,14 @@ export default defineConfig(({ command }) => {
             }
           },
           vite: {
+            resolve: {
+              alias: {
+                '@': path.join(__dirname, 'src'),
+                '@/renderer': path.join(__dirname, 'src/renderer'),
+                '@/main': path.join(__dirname, 'src/main'),
+                '@/shared': path.join(__dirname, 'src/shared'),
+              },
+            },
             build: {
               sourcemap,
               minify: isBuild,

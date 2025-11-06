@@ -9,9 +9,73 @@ import type { LoggerFactory } from './logger';
 // Mock database implementation
 export const mockDatabase = {
   select: vi.fn(),
+  selectFrom: vi.fn(() => ({
+    selectAll: vi.fn(() => ({
+      where: vi.fn(() => ({
+        execute: vi.fn(() => Promise.resolve([])),
+        executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+      })),
+      orderBy: vi.fn(() => ({
+        execute: vi.fn(() => Promise.resolve([])),
+        executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+      })),
+      limit: vi.fn(() => ({
+        offset: vi.fn(() => ({
+          execute: vi.fn(() => Promise.resolve([])),
+          executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+        }))
+      })),
+      execute: vi.fn(() => Promise.resolve([])),
+      executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+    })),
+    where: vi.fn(() => ({
+      selectAll: vi.fn(() => ({
+        execute: vi.fn(() => Promise.resolve([])),
+        executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+      })),
+      orderBy: vi.fn(() => ({
+        execute: vi.fn(() => Promise.resolve([])),
+        executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+      })),
+      execute: vi.fn(() => Promise.resolve([])),
+      executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+    }))
+  })),
   insert: vi.fn(),
+  insertInto: vi.fn(() => ({
+    values: vi.fn(() => ({
+      execute: vi.fn(() => Promise.resolve({ insertId: 1 })),
+      executeTakeFirst: vi.fn(() => Promise.resolve({ insertId: 1 })),
+      onConflict: vi.fn(() => ({
+        column: vi.fn(() => ({
+          doUpdateSet: vi.fn(() => ({
+            execute: vi.fn(() => Promise.resolve({ insertId: 1 })),
+            executeTakeFirst: vi.fn(() => Promise.resolve({ insertId: 1 }))
+          }))
+        }))
+      })),
+      returning: vi.fn(() => ({
+        execute: vi.fn(() => Promise.resolve([])),
+        executeTakeFirst: vi.fn(() => Promise.resolve(undefined))
+      }))
+    }))
+  })),
   update: vi.fn(),
+  updateTable: vi.fn(() => ({
+    set: vi.fn(() => ({
+      where: vi.fn(() => ({
+        execute: vi.fn(() => Promise.resolve({ numUpdatedRows: 1 })),
+        executeTakeFirst: vi.fn(() => Promise.resolve({ numUpdatedRows: 1 }))
+      }))
+    }))
+  })),
   delete: vi.fn(),
+  deleteFrom: vi.fn(() => ({
+    where: vi.fn(() => ({
+      execute: vi.fn(() => Promise.resolve({ numDeletedRows: 1 })),
+      executeTakeFirst: vi.fn(() => Promise.resolve({ numDeletedRows: 1 }))
+    }))
+  })),
   execute: vi.fn(),
   query: vi.fn(),
   transaction: vi.fn(),
@@ -37,7 +101,10 @@ export const mockLoggerFactory = {
 // Mock AsyncLocalStorage
 export const mockAsyncLocalStorage = {
   getStore: vi.fn(),
-  run: vi.fn(),
+  run: vi.fn((store, fn) => {
+    // Execute the function with the mock context
+    return fn();
+  }),
   exit: vi.fn(),
   enterWith: vi.fn(),
 };

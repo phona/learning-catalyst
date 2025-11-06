@@ -228,7 +228,7 @@ interface ConceptData {
 ### Phase 2: Database Schema Extensions
 
 #### 2.1 Workspace Tracking Tables
-**Location**: `src/modules/database/workspace-schema.ts`
+**Location**: `src/main/services/database/workspace-schema.ts`
 
 ```sql
 -- File tracking for workspace synchronization

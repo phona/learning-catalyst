@@ -20,10 +20,15 @@ const mockBrowserWindow = {
 };
 
 // Mock the createDatabase function
-jest.mock('@/main/modules/database', () => ({
+jest.mock('@/main/services/database/kysely-database', () => ({
   createDatabase: async () => mockDatabase,
   runMigrations: async () => {},
-  Database: {}
+  getMigrationStatus: async () => ({ executed: [], pending: [], total: 0 }),
+  rollbackMigrations: async () => [],
+  DatabaseFactory: {
+    createElectronDB: () => mockDatabase,
+    createCustomDB: () => mockDatabase,
+  }
 }));
 
 describe('CatalystServiceMain', () => {
@@ -242,8 +247,8 @@ describe('CatalystServiceMain', () => {
   describe('Error Handling', () => {
     it('should handle initialization errors gracefully', async () => {
       // Mock database initialization to fail
-      const originalCreateDatabase = require('@/main/modules/database').createDatabase;
-      require('@/main/modules/database').createDatabase = async () => {
+      const originalCreateDatabase = require('@/main/services/database/kysely-database').createDatabase;
+      require('@/main/services/database/kysely-database').createDatabase = async () => {
         throw new Error('Database initialization failed');
       };
 
@@ -257,7 +262,7 @@ describe('CatalystServiceMain', () => {
       expect(faultyService.getStats().disposed).toBe(true);
 
       // Restore original function
-      require('@/main/modules/database').createDatabase = originalCreateDatabase;
+      require('@/main/services/database/kysely-database').createDatabase = originalCreateDatabase;
     });
 
     it('should handle context execution errors', async () => {

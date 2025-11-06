@@ -199,9 +199,9 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
 - `electron/main/handlers/index.ts` - Updated to include new handlers
 
 ### Checkpoint System
-- `src/modules/langgraph/SQLiteCheckpointSaver.ts` - Complete checkpoint implementation
-- `src/modules/langgraph/index.ts` - Module exports and utilities
-- `src/modules/database/migrations/20251102_create_checkpoints.ts` - Checkpoint tables
+- `src/shared/modules/langgraph/SQLiteCheckpointSaver.ts` - Complete checkpoint implementation
+- `src/shared/modules/langgraph/index.ts` - Module exports and utilities
+- `src/main/services/database/migrations/20251102_create_checkpoints.ts` - Checkpoint tables
 
 ### Preload Enhancement
 - `electron/preload/index.ts` - Extended with agent and session APIs
@@ -209,9 +209,9 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
 - `src/types/electron-api/session-api.ts` - Session management types
 
 ### Test Coverage
-- `src/test/integration/ipc-communication.test.ts` - IPC integration tests
-- `src/test/modules/checkpoint-saver.test.ts` - Checkpoint system tests
-- `src/test/main-thread/services/agent-manager.test.ts` - Agent management tests
+- `src/__tests__/integration/ipc-communication.test.ts` - IPC integration tests
+- `src/main/services/database/__tests__/checkpoint-saver.test.ts` - Checkpoint system tests
+- `src/main/services/agents/__tests__/agent-manager.test.ts` - Agent management tests
 
 ---
 

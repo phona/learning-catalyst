@@ -14,7 +14,7 @@ import { TestUtils, mockDatabase } from '../setup';
 
 
 // Mock the LangChainProviderAdapter
-vi.mock('@/modules/concept-parsing/langchain-adapter', () => ({
+vi.mock('@/shared/modules/concept-parsing/langchain-adapter', () => ({
   LangChainProviderAdapter: {
     createModel: vi.fn().mockResolvedValue({
       invoke: async () => ({ content: 'Mock AI response' }),
@@ -35,7 +35,7 @@ const mockConceptPipeline = {
 };
 
 // Mock the ConceptProcessingPipeline
-vi.mock('@/modules/concept-parsing/concept-processing-pipeline', () => ({
+vi.mock('@/shared/modules/concept-parsing/concept-processing-pipeline', () => ({
   ConceptProcessingPipeline: vi.fn().mockImplementation(() => mockConceptPipeline)
 }));
 

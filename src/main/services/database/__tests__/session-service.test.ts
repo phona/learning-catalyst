@@ -9,7 +9,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { SessionService } from '@/main/services/sessionService'
 import { DatabaseMocks } from '@/test/utils/mocks/mock-database'
-import type { Database } from '@/main/modules/database/kysely-schema'
 import type { SessionSearchQuery, Session, ConversationMessage, MemorySession } from '@/shared/types/session'
 
 describe('SessionService', () => {

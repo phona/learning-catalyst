@@ -203,6 +203,11 @@ src/
 │   └── App.tsx           # React application root with routing
 └── shared/               # Shared between processes
     ├── constants/        # Shared constants and enums
+    ├── modules/          # Shared business logic modules
+    │   ├── concept-parsing/ # Concept extraction and processing
+    │   ├── knowledge-graph/ # Knowledge graph operations
+    │   ├── analytics/       # Learning analytics
+    │   └── vector-database/ # Vector database abstractions
     ├── types/            # TypeScript type definitions for IPC
     └── utils/            # Shared utility functions
 ```
@@ -229,6 +234,79 @@ docs/
     ├── system-architecture/  # 5-layer architecture docs
     └── testing/        # Testing procedures
 ```
+
+## Module Architecture Migration
+
+### 🎯 Migration Overview
+
+The project has completed a comprehensive migration from the deprecated `src/modules` directory to a properly organized architecture with clear separation between main process services and shared modules.
+
+### ✅ New Architecture Benefits
+
+- **Process Separation**: Clear boundaries between main (Node.js) and renderer (browser) processes
+- **Type Safety**: Full TypeScript coverage with proper module boundaries
+- **Service-Oriented Design**: Business logic organized by responsibility and process context
+- **Shared Modules**: Pure business logic reusable across processes
+- **Build Optimization**: Memory-efficient development configuration
+
+### 📁 New Module Structure
+
+```
+src/
+├── main/services/          # Main process business logic
+│   ├── agents/            # Multi-agent system management
+│   ├── catalyst/          # AI orchestration and concept parsing
+│   ├── database/          # SQLite database operations
+│   └── langchain/         # AI provider abstraction
+├── shared/modules/        # Shared business logic (pure functions)
+│   ├── concept-parsing/   # Concept extraction and processing
+│   ├── knowledge-graph/   # Knowledge graph operations
+│   ├── analytics/         # Learning analytics
+│   └── vector-database/   # Vector database abstractions
+└── shared/utils/          # Shared utility functions
+```
+
+### 🔧 Import Patterns
+
+**Main Process Services:**
+```typescript
+// Database operations
+import { createDatabase, DatabaseFactory } from '@/main/services/database/kysely-database';
+import type { Database } from '@/main/services/database/kysely-schema';
+
+// AI services
+import { CatalystService } from '@/main/services/catalyst/catalyst-service';
+import { ModelFactory } from '@/main/services/langchain/ModelFactory';
+
+// Agent management
+import { AgentLifecycleManager } from '@/main/services/agents/agent-lifecycle-manager';
+```
+
+**Shared Modules:**
+```typescript
+// Concept processing
+import { ConceptProcessingPipeline } from '@/shared/modules/concept-parsing';
+
+// Knowledge graph operations
+import { KnowledgeGraphModule } from '@/shared/modules/knowledge-graph';
+
+// Analytics
+import { SimpleAnalyticsModule } from '@/shared/modules/analytics';
+```
+
+### 🚫 Deprecated Patterns
+
+```typescript
+// ❌ These imports are no longer valid
+import { LocalDatabaseModule } from '@/modules/database';
+import { Something } from '@/src/modules/old-module';
+```
+
+### 🏗️ Architecture Guidelines
+
+- **Main Process (`src/main/services/`)**: System operations, database access, AI providers
+- **Shared Modules (`src/shared/modules/`)**: Pure business logic, data structures, algorithms
+- **Renderer Process**: UI components, state management, user interactions
 
 ## Desktop Application Interface
 
@@ -751,9 +829,11 @@ describe('IPC Communication Integration', () => {
 
 ### Database and Vector Storage
 - **Local Database**: SQLite-electron for local data persistence via main process services
+- **Database Factory**: Use `DatabaseFactory` from `src/main/services/database/kysely-database.ts` for dependency injection
+- **Schema Management**: Database migrations in `src/main/services/database/migrations/`
+- **Type Safety**: Database types from `src/main/services/database/kysely-schema.ts`
 - **Vector Database**: Qdrant for semantic search and knowledge graph operations
 - **Service Management**: Use npm scripts to manage Qdrant service lifecycle
-- **Schema Management**: Database migrations in `src/main/services/database/migrations/`
 - **Important**: Uses `sqlite-electron` instead of `sqlite3` for proper Electron integration
 
 ### Testing Strategy

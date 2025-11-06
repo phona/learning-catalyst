@@ -221,7 +221,7 @@ export class TestDatabaseFactory {
     const db = new Database(':memory:');
 
     // Load and execute schema
-    const schema = readFileSync('src/modules/database/schema.sql', 'utf8');
+    const schema = readFileSync('src/main/services/database/schema.sql', 'utf8');
     db.exec(schema);
 
     // Load seed data if available

@@ -41,9 +41,9 @@ electron/main/utils/
 **LangChainService.ts (Main Thread):**
 ```typescript
 import { AgentManagerMain } from './AgentManagerMain';
-import { createDatabase } from '../../../src/modules/database';
+import { createDatabase } from '../../../src/main/services/database/kysely-database';
 import { Kysely } from 'kysely';
-import type { Database } from '../../../src/modules/database/kysely-schema';
+import type { Database } from '../../../src/main/services/database/kysely-schema';
 
 export class LangChainService {
   private agentManager: AgentManagerMain;
@@ -172,7 +172,7 @@ export class LangChainService {
 **SessionServiceMain.ts (Main Thread):**
 ```typescript
 import { Kysely, sql } from 'kysely';
-import type { Database } from '../../../src/modules/database/kysely-schema';
+import type { Database } from '../../../src/main/services/database/kysely-schema';
 import type { Session, SessionSearchQuery, SessionSearchResult } from '../../../src/types/session';
 
 export class SessionServiceMain {

@@ -56,7 +56,8 @@
       "Bash(npm run type-check:*)",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "WebFetch(domain:stackoverflow.com)"
     ],
     "deny": [],
     "ask": []

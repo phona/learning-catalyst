@@ -5,7 +5,7 @@
 
 import type { Concept, ConceptRelationship, LearningPath } from '@/shared/types/knowledge';
 import type { ContentRecommendation, DiscoveryFilter } from '@/shared/types/content';
-import type { Database } from '@/shared/modules/database/kysely-database';
+import type { Database } from '@/main/services/database/kysely-schema';
 import { Kysely } from 'kysely';
 
 export interface DiscoveryOptions {

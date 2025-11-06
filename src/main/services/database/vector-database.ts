@@ -8,7 +8,7 @@
  */
 
 import { Kysely } from 'kysely';
-import type { Database } from '../database/kysely-schema';
+import type { Database } from '@/main/services/database/kysely-schema';
 
 // import { QdrantClient } from 'qdrant-client';
 // import { pipeline } from '@xenova/transformers';

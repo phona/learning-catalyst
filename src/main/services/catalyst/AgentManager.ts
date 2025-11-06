@@ -8,7 +8,7 @@ import type { ConfigService } from '@/main/services/configService';
 import { createDatabase, runMigrations } from '../database/kysely-database';
 import { SQLiteCheckpointSaver } from '../database/SQLiteCheckpointSaver';
 import { Kysely } from "kysely";
-import type { Database } from '../modules/database/kysely-schema'
+import type { Database } from '@/main/services/database/kysely-schema'
 import { BaseCheckpointSaver, type LangGraphRunnableConfig } from "@langchain/langgraph";
 import { ModelFactory } from "../langchain/ModelFactory";
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ContentDiscovery } from '../components/Discovery/ContentDiscovery';
+import { ContentDiscovery } from './components/Discovery/ContentDiscovery';
 
 export const DiscoveryPage: React.FC = () => {
   return (

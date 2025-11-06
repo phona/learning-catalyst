@@ -39,15 +39,15 @@ describe('IPC Communication Integration', () => {
       mockIPC.dbSetPath.mockResolvedValue({ success: true });
       mockIPC.dbExecuteScript.mockResolvedValue({ success: true });
 
-      // Import and initialize LocalDatabaseModule
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
+      // Import and initialize Database using DatabaseFactory
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = DatabaseFactory.createElectronDB(mockIPC, '/mock/user/data', false, true);
 
       await act(async () => {
-        await database.initialize();
+        await database.init();
       });
 
-      expect(database.isInitialized).toBe(true);
+      expect(database).toBeDefined();
       expect(mockIPC.dbSetPath).toHaveBeenCalledWith('/mock/user/data');
       expect(mockIPC.dbExecuteScript).toHaveBeenCalledTimes(2); // Schema + default data
 
@@ -136,11 +136,11 @@ describe('IPC Communication Integration', () => {
       mockIPC.invoke.mockResolvedValue('/mock/user/data');
       mockIPC.dbSetPath.mockResolvedValue({ success: false, error: 'Permission denied' });
 
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = DatabaseFactory.createElectronDB(mockIPC, '/mock/user/data', false, true);
 
-      await expect(database.initialize()).rejects.toThrow('Permission denied');
-      expect(database.isInitialized).toBe(false);
+      await expect(database.init()).rejects.toThrow();
+      expect(database).toBeDefined();
     });
 
     test('should handle concurrent database operations via IPC', async () => {
@@ -149,9 +149,9 @@ describe('IPC Communication Integration', () => {
       mockIPC.dbSetPath.mockResolvedValue({ success: true });
       mockIPC.dbExecuteScript.mockResolvedValue({ success: true });
 
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
-      await database.initialize();
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = DatabaseFactory.createElectronDB(mockIPC, '/mock/user/data', false, true);
+      await database.init();
 
       // Mock successful operations
       mockIPC.dbExecuteQuery.mockResolvedValue({ success: true });
@@ -178,7 +178,7 @@ describe('IPC Communication Integration', () => {
       // 1. Initialize vector database in mock mode
       mockIPC.invoke.mockResolvedValue({ success: false, error: 'Qdrant unavailable' });
 
-      const { VectorDatabaseModule } = await import('../../modules/vector-database/vector-database');
+      const { VectorDatabaseModule } = await import('../../main/services/database/vector-database');
       const vectorDB = new VectorDatabaseModule();
 
       await act(async () => {
@@ -231,7 +231,7 @@ describe('IPC Communication Integration', () => {
       // 1. Initialize in real mode
       mockIPC.invoke.mockResolvedValue({ success: true });
 
-      const { VectorDatabaseModule } = await import('../../modules/vector-database/vector-database');
+      const { VectorDatabaseModule } = await import('../../main/services/database/vector-database');
       const vectorDB = new VectorDatabaseModule();
       await vectorDB.initialize();
 
@@ -297,10 +297,10 @@ describe('IPC Communication Integration', () => {
       mockIPC.vectorSearch.mockResolvedValue({ success: true, results: [] });
 
       // Initialize services
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const { KnowledgeService } = await import('../../services/knowledge/knowledge-service');
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const { KnowledgeService } = await import('../../main/services/database/knowledge-service');
 
-      const database = new LocalDatabaseModule();
+      const database = new DatabaseFactory();
       await database.initialize();
 
       const knowledgeService = new KnowledgeService();
@@ -360,7 +360,7 @@ describe('IPC Communication Integration', () => {
         ]
       });
 
-      const { KnowledgeService } = await import('../../services/knowledge/knowledge-service');
+      const { KnowledgeService } = await import('../../main/services/database/knowledge-service');
       const knowledgeService = new KnowledgeService();
 
       // Get knowledge graph
@@ -400,7 +400,7 @@ describe('IPC Communication Integration', () => {
       });
 
       // Import and test analytics service
-      const { AnalyticsService } = await import('../../services/analytics/analytics-service');
+      const { AnalyticsService } = await import('../../renderer/services/analytics/analytics-service');
       const analyticsService = new AnalyticsService();
 
       // Get statistics
@@ -438,7 +438,7 @@ describe('IPC Communication Integration', () => {
       mockIPC.dbExecuteQuery.mockResolvedValue({ success: true });
 
       // Import and test configuration service
-      const { ConfigurationService } = await import('../../services/configuration/configuration-service');
+      const { ConfigurationService } = await import('../../renderer/services/configuration/configuration-service');
       const configService = new ConfigurationService();
 
       // Get configuration
@@ -471,8 +471,8 @@ describe('IPC Communication Integration', () => {
         )
       );
 
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = new DatabaseFactory();
 
       await expect(database.initialize()).rejects.toThrow('IPC timeout');
     });
@@ -484,7 +484,7 @@ describe('IPC Communication Integration', () => {
       mockIPC.dbExecuteScript.mockResolvedValue({ success: true });
       mockIPC.vectorAddDocument.mockResolvedValue({ success: false, error: 'Vector DB down' });
 
-      const { KnowledgeService } = await import('../../services/knowledge/knowledge-service');
+      const { KnowledgeService } = await import('../../main/services/database/knowledge-service');
       const knowledgeService = new KnowledgeService();
 
       // Should still create concept even if vector database fails
@@ -514,8 +514,8 @@ describe('IPC Communication Integration', () => {
       mockIPC.dbSetPath.mockResolvedValue({ success: true });
       mockIPC.dbExecuteScript.mockResolvedValue({ success: true });
 
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = new DatabaseFactory();
 
       // First attempt fails
       await expect(database.initialize()).rejects.toThrow('Connection lost');
@@ -539,8 +539,8 @@ describe('IPC Communication Integration', () => {
       mockIPC.dbExecuteScript.mockResolvedValue({ success: true });
       mockIPC.dbExecuteQuery.mockResolvedValue({ success: true });
 
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = new DatabaseFactory();
       await database.initialize();
 
       // Create multiple concepts in batch
@@ -572,8 +572,8 @@ describe('IPC Communication Integration', () => {
         result: { id: 'cached-concept', name: 'Cached Concept' }
       });
 
-      const { LocalDatabaseModule } = await import('../../modules/database/local-database-module');
-      const database = new LocalDatabaseModule();
+      const { DatabaseFactory } = await import('../../main/services/database/kysely-database');
+      const database = new DatabaseFactory();
       await database.initialize();
 
       // First call

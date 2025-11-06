@@ -454,9 +454,9 @@ export function setupSettingsHandlers(workspacePath?: string): void {
         },
         {
           operation: 'settings:import',
-          source: params.source,
+          source: 'ipc_handler',
           sourceType: params.sourceType,
-          source: 'ipc_handler'
+          originalSource: params.source
         }
       );
 

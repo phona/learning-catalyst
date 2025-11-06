@@ -8,7 +8,7 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { Kysely } from 'kysely';
-import type { Database } from '@/shared/modules/database/kysely-schema';
+import type { Database } from '@/main/services/database/kysely-schema';
 import { AgentType } from '@/main/services/AgentManager';
 import { createUUID, generateTimestamp } from '@/shared/utils/helpers';
 

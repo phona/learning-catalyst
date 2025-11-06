@@ -7,10 +7,11 @@
  */
 
 import { ToolDefinition, ToolExecutionRequest, ToolExecutionResult, ServiceDependencies, ToolHandler } from './types';
-import { Database } from '../database';
+import type { Database } from '../database/kysely-schema';
 import { ServiceLogger } from './types';
 import { ToolExecutionError, DatabaseConnectionError } from './types';
-import { readFile, writeFile, exists } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
+import { access } from 'fs/promises';
 import { join, resolve } from 'path';
 
 /**
@@ -142,7 +143,10 @@ export class BuiltinTools {
         }
 
         // Check if file exists
-        if (!(await exists(resolvedPath))) {
+        try {
+          await access(resolvedPath);
+        } catch {
+          // File doesn't exist
           throw new ToolExecutionError(
             `File not found: ${path}`,
             'file-read',

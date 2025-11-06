@@ -12,7 +12,7 @@ import { SimpleAnalyticsModule } from '@/shared/modules/analytics/simple-analyti
 import { catalystService } from '@/renderer/services/CatalystService';
 
 // Mock analytics module
-vi.mock('@/modules/analytics/simple-analytics', () => ({
+vi.mock('@/shared/modules/analytics/simple-analytics', () => ({
   SimpleAnalyticsModule: vi.fn().mockImplementation(() => ({
     start: vi.fn().mockResolvedValue(true),
     getStudyMetrics: vi.fn().mockResolvedValue({

@@ -8,7 +8,7 @@ import { initializeCatalystService, disposeCatalystService } from './services/ca
 // import { getMockQdrantManager } from './mock-qdrant-manager'
 // import { getMockDatabase } from './mock-database' // Using real SQLite now
 // Memory debugging utility for development
-import { startMemoryDebug, cleanupMemoryDebug } from '../utils/memory-debug'
+import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
 
 
 // The built directory structure

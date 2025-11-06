@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'async_hooks';
 import { MessageChannelMain } from 'electron';
 import { AgentConfig, AgentExecutionRequest, AgentExecutionChunk, ServiceDependencies, ServiceExecutionContext, AgentExecutionError } from './types';
 import { ToolExecutorService } from './tool-executor';
-import { ConceptProcessingPipeline } from '../catalyst/concept-parsing';
+import { ConceptProcessingPipeline } from '@/shared/modules/concept-parsing';
 import { AIProvider } from '@/shared/types/ai';
 import { LangChainProviderAdapter } from '../catalyst/langchain-adapter';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';

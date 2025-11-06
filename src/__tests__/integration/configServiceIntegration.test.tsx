@@ -1,4 +1,6 @@
 import { renderHook } from '@testing-library/react';
+import React from 'react';
+import { vi } from 'vitest';
 import { useService } from '@/renderer/hooks/useAppServices';
 import { ServiceProvider } from '@/renderer/hooks/useAppServices';
 import { ModelType } from '@/types/ai';

@@ -34,8 +34,8 @@ const COVERAGE_THRESHOLDS: CoverageThresholds = {
 
 const BUSINESS_LOGIC_PATHS = [
   'electron/main/services/**/*.{js,ts}',
-  'src/modules/**/*.{js,ts}',
-  'src/services/**/*.{js,ts}'
+  'src/main/services/**/*.{js,ts}',
+  'src/shared/modules/**/*.{js,ts}'
 ];
 
 const INTEGRATION_LAYER_PATHS = [
