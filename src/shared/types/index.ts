@@ -76,3 +76,7 @@ export type {
 } from './learning';
 export * from './ui';
 export * from './api';
+export type {
+  Database,
+  SessionDatabase
+} from './database';

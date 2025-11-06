@@ -6,25 +6,22 @@
  */
 
 import { Kysely, sql } from 'kysely'
-import { JSONFieldHelpers } from '../../main/services/database/kysely-schema'
-import type { Database } from '../../main/services/database/kysely-schema'
-import {
+import type {
+  SessionDatabase,
   Session,
   SessionSearchQuery,
   SessionSearchResult,
   SessionMetadata,
   ConversationMessage,
   MemorySession
-} from '../types/session'
-import { AgentManager } from '../services/AgentManager'
+} from '@/shared/types/session'
 
 /**
  * Session Service with dependency injection
  */
 export class SessionService {
   constructor(
-    private db: Kysely<Database>,
-    private agentManager?: AgentManager
+    private db: Kysely<SessionDatabase>
   ) {
     // Dependency injection: database instance is required
   }
@@ -32,7 +29,7 @@ export class SessionService {
   /**
    * Get database instance
    */
-  private getDB(): Kysely<Database> {
+  private getDB(): Kysely<SessionDatabase> {
     return this.db
   }
 
@@ -116,7 +113,7 @@ export class SessionService {
       // Convert to session objects (without messages for performance)
       const sessions: Session[] = []
       for (const row of rows) {
-        const metadata = JSONFieldHelpers.parseObject<SessionMetadata>(row.metadata) as SessionMetadata || {}
+        const metadata = row.metadata ? (JSON.parse(row.metadata) as SessionMetadata) : {}
         sessions.push({
           id: row.id,
           title: row.title,
@@ -187,7 +184,7 @@ export class SessionService {
       // Convert to session objects with their messages
       const sessions: Session[] = [];
       for (const row of rows) {
-        const metadata = JSONFieldHelpers.parseObject<SessionMetadata>(row.metadata) as SessionMetadata || {};
+        const metadata = row.metadata ? (JSON.parse(row.metadata) as SessionMetadata) : {};
 
         // Get messages for this session
         const messageRows = await db
@@ -298,7 +295,7 @@ export class SessionService {
    * Convert database rows to Session object with messages
    */
   private convertRowToSessionWithMessages(sessionRow: any, messageRows: any[]): Session {
-    const metadata = JSONFieldHelpers.parseObject<SessionMetadata>(sessionRow.metadata) || {}
+    const metadata = sessionRow.metadata ? (JSON.parse(sessionRow.metadata) as SessionMetadata) : {}
 
     return {
       id: sessionRow.id,
@@ -313,7 +310,7 @@ export class SessionService {
         timestamp: new Date(row.timestamp),
         provider: row.provider,
         model: row.model,
-        tokens_used: (JSONFieldHelpers.parseObject(row.tokens_used) as any)?.total || 0,
+        tokens_used: row.tokens_used ? (JSON.parse(row.tokens_used) as any)?.total || 0 : 0,
       })),
       metadata: {
         title: sessionRow.title,
@@ -340,7 +337,7 @@ export class SessionService {
         user_messages: messageRows.filter(m => m.role === 'user').length,
         assistant_messages: messageRows.filter(m => m.role === 'assistant').length,
         total_tokens_used: messageRows.reduce((sum, m) => {
-          const tokens = JSONFieldHelpers.parseObject(m.tokens_used)
+          const tokens = m.tokens_used ? JSON.parse(m.tokens_used) : {}
           return sum + ((tokens as any)?.total || 0)
         }, 0),
         total_thinking_tokens: 0, // Would need to parse from thinking_content
@@ -374,7 +371,7 @@ export class SessionService {
       }
 
       // Parse existing metadata and update title
-      const metadata = JSONFieldHelpers.parseObject<SessionMetadata>(currentSession.metadata) || {};
+      const metadata = currentSession.metadata ? (JSON.parse(currentSession.metadata) as SessionMetadata) : {};
       const updatedMetadata = {
         ...metadata,
         title: title
@@ -385,7 +382,7 @@ export class SessionService {
         .updateTable('learning_sessions')
         .set({
           title: title,
-          metadata: JSONFieldHelpers.stringifyObject(updatedMetadata),
+          metadata: JSON.stringify(updatedMetadata),
           updated_at: new Date().toISOString()
         })
         .where('id', '=', sessionId)
@@ -834,19 +831,10 @@ export class SessionService {
     try {
       console.log('[SessionService] Generating AI title from message:', userMessage.substring(0, 50) + '...');
 
-      // Check if agent manager is available
-      if (!this.agentManager) {
-        console.warn('[SessionService] AgentManager not available for title generation, using fallback');
-        return this.generateSimpleTitle(userMessage);
-      }
-
-      console.log('[SessionService] Using AgentManager for title generation');
-
-      // Use the specialized title generation agent
-      const generatedTitle = await this.agentManager.generateSessionTitle(userMessage);
-
-      console.log('[SessionService] Generated AI title:', generatedTitle);
-      return generatedTitle;
+      // For now, use simple title generation
+      // TODO: Could integrate with AI service via electronAPI in the future
+      console.warn('[SessionService] Using simple title generation (AI integration not available)');
+      return this.generateSimpleTitle(userMessage);
 
     } catch (error) {
       console.error('[SessionService] Failed to generate AI title:', error);

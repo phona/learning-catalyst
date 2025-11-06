@@ -27,7 +27,6 @@ import {
 import type { FileSystemItem } from '@/shared/types/filesystem';
 import type { Message, ChatOptions } from '@/shared/types/ai';
 import type { Session } from '@/shared/types/session';
-import { ModelFactory } from '@/renderer/services/ModelFactory';
 import type { AppConfig } from '@/shared/types/config';
 import type { ConfigService } from '@/renderer/services/configService';
 
@@ -112,16 +111,13 @@ export class ConceptParsingService {
       if (providerInfo) {
           console.log(`Creating concept pipeline with global AI config: Provider: ${providerInfo.type} | Model: ${globalConfig.model} | Temperature: ${globalConfig.temperature} | Max Tokens: ${globalConfig.maxTokens}`);
 
-          // Create LangChain adapter for the AI provider
-          const adapter = ModelFactory.createModel(
-              providerInfo.type,
-              {
-                  type: providerInfo.type,
-                  model: globalConfig.model,
-                  temperature: globalConfig.temperature,
-                  max_tokens: globalConfig.maxTokens
-              }
-          );
+          // Create LangChain adapter for the AI provider using electronAPI
+          const adapter = await window.electronAPI.ai.createModelAdapter({
+              type: providerInfo.type,
+              model: globalConfig.model,
+              temperature: globalConfig.temperature,
+              max_tokens: globalConfig.maxTokens
+          });
 
           this.pipeline = new ConceptProcessingPipeline([adapter], pipelineConfig);
         } else {

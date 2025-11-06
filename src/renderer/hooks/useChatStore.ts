@@ -5,7 +5,6 @@ import { devtools } from 'zustand/middleware';
 import type { Message, StreamChunk, ChatOptions } from '@/shared/types/ai';
 import type { Session, ConversationMessage, MemorySession, SessionSaveResult } from '@/shared/types/session';
 import type { SessionService } from '@/renderer/services/sessionService';
-import { AgentManager, AgentType } from '@/main/services/catalyst/AgentManager';
 
 interface ChatStore {
   // Current session
@@ -58,7 +57,7 @@ interface ChatStore {
 }
 
 // Create a store factory function
-function createChatStore(sessionService: SessionService, agentManager: AgentManager) {
+function createChatStore(sessionService: SessionService) {
 
   return create<ChatStore>()(
     devtools(
@@ -389,69 +388,63 @@ function createChatStore(sessionService: SessionService, agentManager: AgentMana
           setStreaming(true);
 
           try {
-            // Use AgentManager with LangChain agent API
-            const agent = await agentManager.getAgent(AgentType.LEARNING);
-
-            // Prepare agent input with session context
-            const agentInput = {
-              messages: [
-                {
-                  role: 'system',
-                  content: currentSession.context.system_prompt || 'You are a helpful AI assistant.'
-                },
-                ...currentSession.messages.map(msg => ({
-                  role: msg.role,
-                  content: msg.content
-                })),
-                {
-                  role: 'user',
-                  content
-                }
-              ],
-              session_id: currentSession.id,
-              session_context: {
-                learning_objectives: currentSession.context.learning_objectives,
-                topics_covered: currentSession.metadata.topics_covered,
-                difficulty: currentSession.metadata.difficulty
+            // Use electronAPI for chat communication
+            const messages = [
+              ...(currentSession.messages || []).map(msg => ({
+                role: msg.role,
+                content: msg.content
+              })),
+              {
+                role: 'user',
+                content
               }
-            };
-
-            // Use LangChain agent's stream method
-            const stream = await agent.stream(agentInput);
+            ];
 
             let fullContent = '';
             let fullThinkingContent = '';
 
-            for await (const chunk of stream) {
-              if (chunk.content) {
-                fullContent += chunk.content;
-                set((_state) => ({
-                  streamingContent: fullContent,
-                }));
-              }
+            // Send chat message via electronAPI with streaming
+            const result = await window.electronAPI.catalyst.sendChatStream(
+              messages,
+              {
+                sessionId: currentSession.id,
+                systemPrompt: currentSession.context.system_prompt,
+                onChunk: (chunk: StreamChunk) => {
+                  if (chunk.content) {
+                    fullContent += chunk.content;
+                    set((_state) => ({
+                      streamingContent: fullContent,
+                    }));
+                  }
 
-              if (chunk.reasoning_content || chunk.thinking_content) {
-                fullThinkingContent += chunk.reasoning_content || chunk.thinking_content;
-                set((_state) => ({
-                  thinkingContent: fullThinkingContent,
-                }));
+                  if (chunk.reasoning_content || chunk.thinking_content) {
+                    fullThinkingContent += chunk.reasoning_content || chunk.thinking_content;
+                    set((_state) => ({
+                      thinkingContent: fullThinkingContent,
+                    }));
+                  }
+                }
               }
+            );
+
+            if (result.success) {
+              // Add final assistant message with streamed content
+              const assistantMessage: Message = {
+                id: `assistant_${Date.now()}`,
+                role: 'assistant',
+                content: fullContent,
+                thinking_content: fullThinkingContent,
+                timestamp: new Date(),
+              };
+              addMessage(assistantMessage);
+            } else {
+              throw new Error(result.error || 'Failed to send message');
             }
-
-            // Add final assistant message
-            const assistantMessage: Message = {
-              id: `assistant_${Date.now()}`,
-              role: 'assistant',
-              content: fullContent,
-              thinking_content: fullThinkingContent,
-              timestamp: new Date(),
-            };
-            addMessage(assistantMessage);
 
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
             setError(errorMessage);
-            console.error('[ChatStore] Agent error:', error);
+            console.error('[ChatStore] Chat error:', error);
           } finally {
             setLoading(false);
             setStreaming(false);
@@ -664,7 +657,6 @@ function createChatStore(sessionService: SessionService, agentManager: AgentMana
 // Global store cache to prevent recreating stores
 let cachedStore: ReturnType<typeof createChatStore> | null = null;
 let cachedSessionService: SessionService | null = null;
-let cachedAgentManager: AgentManager | null = null;
 
 /**
  * Hook to get the chat store with proper dependency injection
@@ -677,25 +669,18 @@ export function useChatStore() {
     throw new Error('SessionService is required but not available. Make sure ServiceProvider is properly configured.');
   }
 
-  if (!services?.agentManager) {
-    throw new Error('AgentManager is required but not available. Make sure ServiceProvider is properly configured.');
-  }
-
   // Use useMemo to create store only when services change
   const store = useMemo(() => {
     // Return cached store if the same services are being used
-    if (cachedStore &&
-        cachedSessionService === services.sessionService &&
-        cachedAgentManager === services.agentManager) {
+    if (cachedStore && cachedSessionService === services.sessionService) {
       return cachedStore;
     }
 
     // Create new store and cache it
-    cachedStore = createChatStore(services.sessionService, services.agentManager);
+    cachedStore = createChatStore(services.sessionService);
     cachedSessionService = services.sessionService;
-    cachedAgentManager = services.agentManager;
     return cachedStore;
-  }, [services.sessionService, services.agentManager]);
+  }, [services.sessionService]);
 
   // Use the Zustand store as a hook to get state and actions
   return store();

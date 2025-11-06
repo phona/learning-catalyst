@@ -375,3 +375,6 @@ export interface AgentExecutionContext {
     enable_tool_calls: boolean;
   };
 }
+
+// Re-export database types for session management
+export type { SessionDatabase } from './database';
