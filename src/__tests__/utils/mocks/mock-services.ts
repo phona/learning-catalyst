@@ -8,7 +8,7 @@ import { vi } from 'vitest';
 import { EventEmitter } from 'events';
 
 // Mock Agent Registry
-export const mockAgentRegistry = {
+export const mockAgentRegistry = vi.fn().mockReturnValue({
   getAgent: vi.fn().mockResolvedValue({
     id: 'mock-agent-id',
     name: 'Mock Agent',
@@ -19,7 +19,7 @@ export const mockAgentRegistry = {
   registerAgent: vi.fn().mockResolvedValue(true),
   unregisterAgent: vi.fn().mockResolvedValue(true),
   listAgents: vi.fn().mockResolvedValue([])
-};
+});
 
 // Mock Database Service
 export const mockDatabaseService = {
@@ -343,7 +343,67 @@ export const mockCatalystService = () => {
       return streamSession;
     }),
     initialize: vi.fn().mockResolvedValue(undefined),
-    cleanup: vi.fn()
+    cleanup: vi.fn(),
+
+    // Additional methods needed by error recovery tests
+    registerAgent: vi.fn().mockResolvedValue({
+      id: 'test-agent-id',
+      type: 'learning',
+      name: 'Test Agent',
+      status: 'ready'
+    }),
+
+    invokeWithRetry: vi.fn().mockImplementation(async (method, ...args) => {
+      // Mock retry logic
+      return await method(...args);
+    }),
+
+    getStreamManager: vi.fn().mockReturnValue({
+      createStream: vi.fn().mockReturnValue({
+        id: 'test-stream-id',
+        write: vi.fn(),
+        close: vi.fn()
+      })
+    }),
+
+    saveSessionProgress: vi.fn().mockResolvedValue({
+      success: true,
+      sessionId: 'test-session',
+      progress: 0.75
+    }),
+
+    setMaxConcurrentRequests: vi.fn().mockResolvedValue(true),
+
+    getCircuitBreaker: vi.fn().mockReturnValue({
+      isOpen: vi.fn().mockReturnValue(false),
+      recordSuccess: vi.fn(),
+      recordFailure: vi.fn(),
+      getState: vi.fn().mockReturnValue('closed')
+    }),
+
+    setServiceAvailability: vi.fn().mockImplementation((serviceName, available) => {
+      // Mock service availability control
+      return true;
+    }),
+
+    restartService: vi.fn().mockResolvedValue({
+      success: true,
+      service: 'catalyst-service',
+      restartTime: Date.now()
+    }),
+
+    // Additional methods needed by error recovery tests
+    attemptStreamReconnection: vi.fn().mockResolvedValue({
+      success: true,
+      attempts: 2,
+      reconnected: true
+    }),
+
+    getSessionState: vi.fn().mockResolvedValue({
+      sessionId: 'test-session',
+      messageHistory: ['message1', 'message2'],
+      conceptsDiscussed: ['react-hooks']
+    })
   };
 };
 

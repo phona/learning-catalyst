@@ -183,7 +183,7 @@ export async function setupIntegrationTest() {
   const testEnvironment = await setupIPCIntegrationTest();
 
   // Add mock services to the environment
-  const { mockCatalystService, mockLangChainService, mockElectronIPC } = await import('../utils/mocks/mock-services');
+  const { mockCatalystService, mockLangChainService, mockElectronIPC, mockAgentRegistry } = await import('../utils/mocks/mock-services');
 
   return {
     ...testEnvironment,
@@ -192,6 +192,7 @@ export async function setupIntegrationTest() {
     databaseService: mockDatabaseService,
     errorRecoveryManager: mockErrorRecoveryManager,
     healthMonitor: mockSystemHealthMonitor,
+    agentRegistry: mockAgentRegistry,
     ipc: mockElectronIPC
   };
 }
