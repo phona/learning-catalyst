@@ -1,80 +1,232 @@
 /**
- * Knowledge Graph Operations API
+ * Knowledge & Discovery API
  *
- * Provides knowledge graph operations through Electron IPC
+ * Provides access to the knowledge graph and learning content discovery.
+ * Focuses on conceptual understanding and knowledge exploration.
  */
 
 export interface KnowledgeAPI {
   /**
-   * Add item to knowledge graph
-   * @param item - Item to add
-   * @param embedding - Optional embedding vector
-   * @param provider - Provider information
-   * @returns Operation result
+   * Explores a concept in detail with related information
+   * Provides comprehensive concept analysis for learning
+   * @param params.conceptName - Name of the concept to explore
+   * @param params.depth - 'basic' | 'intermediate' | 'advanced' - depth of exploration
+   * @returns Promise<ConceptExplorationDisplay> - Detailed concept information
    */
-  knowledgeAdd: (item: any, embedding?: number[], provider?: any) => Promise<{ success: boolean; error?: string }>;
+  exploreConcept: (params: {
+    conceptName: string;
+    depth: 'basic' | 'intermediate' | 'advanced';
+  }) => Promise<ConceptExplorationDisplay>;
 
   /**
-   * Search knowledge graph
-   * @param query - Search query
-   * @param provider - Provider information
-   * @param limit - Maximum number of results
-   * @param filters - Search filters
-   * @returns Search results
+   * Gets concepts related to a given concept
+   * Useful for knowledge graph navigation and discovery
+   * @param conceptId - ID of the concept to find relations for
+   * @returns Promise<RelatedConceptsDisplay> - Array of related concepts with relationships
    */
-  knowledgeSearch: (query: string, provider: any, limit?: number, filters?: any) => Promise<{ success: boolean; results?: any[]; error?: string }>;
+  getRelatedConcepts: (conceptId: string) => Promise<RelatedConceptsDisplay>;
 
   /**
-   * Get specific knowledge item
-   * @param id - Item ID
-   * @returns Knowledge item
+   * Gets knowledge map data for visualization
+   * Returns structured data for knowledge graph rendering
+   * @param sessionId - Optional session ID to focus on session-specific knowledge
+   * @returns Promise<KnowledgeMapDisplay> - Knowledge graph data for visualization
    */
-  knowledgeGet: (id: string) => Promise<{ success: boolean; item?: any; error?: string }>;
+  getKnowledgeMap: (sessionId?: string) => Promise<KnowledgeMapDisplay>;
 
   /**
-   * Update knowledge item
-   * @param id - Item ID
-   * @param updates - Update data
-   * @param provider - Provider information
-   * @returns Operation result
+   * Searches the knowledge base for specific content
+   * Supports natural language queries and semantic search
+   * @param query - Search query string
+   * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
    */
-  knowledgeUpdate: (id: string, updates: any, provider: any) => Promise<{ success: boolean; error?: string }>;
+  searchKnowledge: (query: string) => Promise<KnowledgeSearchResultDisplay>;
 
   /**
-   * Delete knowledge item
-   * @param id - Item ID
-   * @returns Operation result
+   * Gets explanation for a concept in specific style
+   * Provides different ways to understand the same concept
+   * @param params.conceptId - ID of the concept to explain
+   * @param params.style - 'simple' | 'technical' | 'analogy' | 'example' | 'visual'
+   * @returns Promise<ExplanationDisplay> - Concept explanation in requested style
    */
-  knowledgeDelete: (id: string) => Promise<{ success: boolean; error?: string }>;
+  getExplanation: (params: {
+    conceptId: string;
+    style: 'simple' | 'technical' | 'analogy' | 'example' | 'visual';
+  }) => Promise<ExplanationDisplay>;
 
   /**
-   * Store session context
-   * @param sessionId - Session ID
-   * @param messages - Session messages
-   * @param provider - Provider information
-   * @returns Operation result
+   * Gets practice exercises for a specific concept
+   * Provides hands-on learning opportunities with varying difficulty
+   * @param params.conceptId - ID of the concept to practice
+   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
+   * @returns Promise<ExerciseDisplay[]> - Array of practice exercises
    */
-  knowledgeStoreContext: (sessionId: string, messages: any[], provider: any) => Promise<{ success: boolean; error?: string }>;
+  getPracticeExercises: (params: {
+    conceptId: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+  }) => Promise<ExerciseDisplay[]>;
+}
 
-  /**
-   * Get session context
-   * @param sessionId - Session ID
-   * @param query - Search query
-   * @param provider - Provider information
-   * @param limit - Maximum number of results
-   * @returns Context information
-   */
-  knowledgeGetContext: (sessionId: string, query: string, provider: any, limit?: number) => Promise<{ success: boolean; context?: string[]; error?: string }>;
+// ============================================================================
+// Display-Optimized Types
+// ============================================================================
 
-  /**
-   * Get knowledge statistics
-   * @returns Statistics information
-   */
-  knowledgeStats: () => Promise<{ success: boolean; stats?: any; error?: string }>;
+/**
+ * Display-ready concept exploration
+ */
+export interface ConceptExplorationDisplay {
+  concept: {
+    id: string;
+    name: string;
+    category: string;
+  };
+  definition: string;
+  keyPoints: string[];
+  relatedConcepts: RelatedConcept[];
+  examples: string[];
+  difficulty: 'basic' | 'intermediate' | 'advanced';
+  estimatedLearningTime: string;
+  visualAids?: string[];
+  prerequisites: string[];
+  learningOutcomes: string[];
+}
 
-  /**
-   * Clear all knowledge data
-   * @returns Operation result
-   */
-  knowledgeClear: () => Promise<{ success: boolean; error?: string }>;
+/**
+ * Related concept with relationship information
+ */
+export interface RelatedConcept {
+  id: string;
+  name: string;
+  relationship: 'subset' | 'related' | 'foundation' | 'type' | 'application';
+  strength: number; // 0-1 confidence score
+  description: string;
+  difficulty?: 'basic' | 'intermediate' | 'advanced';
+}
+
+/**
+ * Display-ready related concepts collection
+ */
+export interface RelatedConceptsDisplay {
+  conceptId: string;
+  relatedConcepts: RelatedConcept[];
+  totalConnections: number;
+  strongestConnection: string;
+  categories: string[];
+  learningPaths: Array<{
+    path: string[];
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    estimatedTime: string;
+  }>;
+}
+
+/**
+ * Knowledge map data for visualization
+ */
+export interface KnowledgeMapDisplay {
+  nodes: KnowledgeMapNode[];
+  edges: KnowledgeMapEdge[];
+  layout: 'force-directed' | 'hierarchical' | 'circular';
+  clusters: string[];
+  metadata: {
+    totalNodes: number;
+    totalEdges: number;
+    centerConcepts: string[];
+    learningPaths: Array<{
+      name: string;
+      nodes: string[];
+      difficulty: string;
+    }>;
+  };
+}
+
+/**
+ * Knowledge map node for visualization
+ */
+export interface KnowledgeMapNode {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  category: string;
+  difficulty?: 'basic' | 'intermediate' | 'advanced';
+  mastery?: number; // 0-1 mastery level
+}
+
+/**
+ * Knowledge map edge for visualization
+ */
+export interface KnowledgeMapEdge {
+  from: string;
+  to: string;
+  label: string;
+  strength: number;
+  type: 'foundation' | 'related' | 'prerequisite' | 'application';
+}
+
+/**
+ * Knowledge search results
+ */
+export interface KnowledgeSearchResultDisplay {
+  query: string;
+  results: SearchResult[];
+  totalResults: number;
+  searchTime: string;
+  suggestions: string[];
+  filters: {
+    categories: string[];
+    difficulties: string[];
+    types: string[];
+  };
+}
+
+/**
+ * Individual search result
+ */
+export interface SearchResult {
+  id: string;
+  title: string;
+  type: 'concept' | 'example' | 'exercise' | 'explanation';
+  category: string;
+  relevanceScore: number;
+  preview: string;
+  difficulty?: 'basic' | 'intermediate' | 'advanced';
+  estimatedTime?: string;
+  tags: string[];
+}
+
+/**
+ * Concept explanation in specific style
+ */
+export interface ExplanationDisplay {
+  conceptId: string;
+  conceptName: string;
+  style: 'simple' | 'technical' | 'analogy' | 'example' | 'visual';
+  explanation: string;
+  examples: string[];
+  visualAids: string[];
+  difficulty: 'basic' | 'intermediate' | 'advanced';
+  estimatedReadingTime: string;
+  relatedConcepts: string[];
+  comprehensionLevel?: number; // 0-1 estimated comprehension
+}
+
+/**
+ * Practice exercise display
+ */
+export interface ExerciseDisplay {
+  id: string;
+  title: string;
+  type: 'multiple-choice' | 'fill-blank' | 'coding' | 'practical' | 'discussion';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  description: string;
+  instructions: string;
+  estimatedTime: string;
+  concepts: string[];
+  prerequisites: string[];
+  learningObjectives: string[];
+  hints?: string[];
+  solution?: string;
+  feedback?: string;
 }

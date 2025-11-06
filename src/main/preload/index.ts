@@ -1,401 +1,669 @@
+/**
+ * Complete 7-Domain electronAPI Implementation
+ *
+ * This file implements the official electronAPI specification with all 7 domains:
+ * 1. Chat & Conversation API
+ * 2. Learning & Sessions API
+ * 3. Knowledge & Discovery API
+ * 4. Analytics & Progress API
+ * 5. Agent Management API
+ * 6. Content & Discovery API
+ * 7. Settings & Configuration API
+ *
+ * Replaces the previous implementation to align with official specification.
+ */
+
 import { contextBridge, ipcRenderer } from 'electron';
+import {
+  ElectronAPI,
+  ChatAPI,
+  LearningAPI,
+  KnowledgeAPI,
+  AnalyticsAPI,
+  AgentsAPI,
+  ContentAPI,
+  SettingsAPI
+} from '@/shared/types/electron-api';
 
-// Import the modular ElectronAPI interface
-import type { ElectronAPI } from '../../src/types/electron-api';
-import type { DirectoryFilterConfig } from '../../src/types/filesystem';
-import type {
-  AgentExecutionRequestAPI,
-  AgentExecutionResponse,
-  AgentStatus,
-  AgentExecutionStatus,
-  AgentConfig
-} from '../../src/types/electron-api/agent-api';
-import type {
-  SessionCreateRequest,
-  SessionUpdateRequest,
-  SessionGetRequest,
-  SessionListRequest,
-  SessionDeleteRequest,
-  AgentSessionRequest
-} from '../../src/types/electron-api/session-api';
+// ============================================================================
+// 1. Chat & Conversation API
+// ============================================================================
 
-// Expose the API to the renderer process
-const electronAPI: ElectronAPI = {
-  // File operations
-  readFile: (path: string) => ipcRenderer.invoke('fs:readFile', path),
-  writeFile: (path: string, content: string) => ipcRenderer.invoke('fs:writeFile', path, content),
-  existsFile: (path: string) => ipcRenderer.invoke('fs:existsFile', path),
-  readDirectory: (dirPath: string, recursive?: boolean, maxDepth?: number, filterConfig?: DirectoryFilterConfig) =>
-    ipcRenderer.invoke('fs:readDirectory', dirPath, recursive, maxDepth, filterConfig),
-  getFileInfo: (filePath: string) => ipcRenderer.invoke('fs:getFileInfo', filePath),
+/**
+ * Chat & Conversation API
+ *
+ * Manages real-time conversations with AI agents.
+ * All methods return display-optimized data ready for UI rendering.
+ */
+const chatAPI: ChatAPI = {
+  /**
+   * Starts a new conversation with an AI agent
+   * @param params.agentType - Type of agent ('learning', 'tutoring', 'assessment', 'practice')
+   * @param params.topic - Optional topic to focus the conversation
+   * @param params.preferences - User preferences for response style, difficulty, etc.
+   * @returns Promise<ConversationDisplay> - Display-ready conversation object
+   */
+  startConversation: (params) =>
+    ipcRenderer.invoke('chat:startConversation', params),
 
-  // Dialog operations
-  showOpenDialog: (options) => ipcRenderer.invoke('dialog:openFile', options),
-  showSaveDialog: (options) => ipcRenderer.invoke('dialog:saveFile', options),
+  /**
+   * Sends a message and gets response (non-streaming)
+   * Use this for simple Q&A where streaming isn't needed
+   * @param params.conversationId - Active conversation ID
+   * @param params.message - Message content to send
+   * @param params.attachments - Optional file attachments
+   * @returns Promise<MessageDisplay> - Complete response message
+   */
+  sendMessage: (params) =>
+    ipcRenderer.invoke('chat:sendMessage', params),
 
-  // App operations
-  getAppVersion: () => ipcRenderer.invoke('app:getVersion'),
-  getApp: () => ipcRenderer.invoke('app:getApp'),
-  quit: () => ipcRenderer.invoke('app:quit'),
-
-  // Configuration
-  getConfig: () => ipcRenderer.invoke('config:get'),
-  setConfig: (config) => ipcRenderer.invoke('config:set', config),
-  resetConfig: () => ipcRenderer.invoke('config:reset'),
-
-  // Database operations
-  dbSetPath: (path, isuri, autocommit) => ipcRenderer.invoke('db:setPath', path, isuri, autocommit),
-  dbExecuteQuery: (query, params) => ipcRenderer.invoke('db:executeQuery', query, params),
-  dbFetchOne: (query, params) => ipcRenderer.invoke('db:fetchOne', query, params),
-  dbFetchMany: (query, size, params) => ipcRenderer.invoke('db:fetchMany', query, size, params),
-  dbFetchAll: (query, params) => ipcRenderer.invoke('db:fetchAll', query, params),
-  dbExecuteMany: (query, values) => ipcRenderer.invoke('db:executeMany', query, values),
-  dbExecuteScript: (script) => ipcRenderer.invoke('db:executeScript', script),
-
-  // Workspace operations
-  getWorkspacePath: () => ipcRenderer.invoke('workspace:getPath'),
-  getDatabasePath: () => ipcRenderer.invoke('workspace:getDatabasePath'),
-  resolveWorkspacePath: (relativePath: string) => ipcRenderer.invoke('workspace:resolvePath', relativePath),
-  readWorkspaceFile: (relativePath: string) => ipcRenderer.invoke('workspace:readFile', relativePath),
-  writeWorkspaceFile: (relativePath: string, content: string) => ipcRenderer.invoke('workspace:writeFile', relativePath, content),
-  workspaceFileExists: (relativePath: string) => ipcRenderer.invoke('workspace:existsFile', relativePath),
-  showWorkspaceDialog: (options) => ipcRenderer.invoke('workspace:openDialog', options),
-
-  // Session operations
-  getUserDataPath: () => ipcRenderer.invoke('session:getUserDataPath'),
-  getDocumentsPath: () => ipcRenderer.invoke('session:getDocumentsPath'),
-  getAppPath: () => ipcRenderer.invoke('session:getAppPath'),
-
-  // Qdrant operations
-  qdrantStart: () => ipcRenderer.invoke('qdrant:start'),
-  qdrantStop: () => ipcRenderer.invoke('qdrant:stop'),
-  qdrantStatus: () => ipcRenderer.invoke('qdrant:status'),
-  qdrantCollections: () => ipcRenderer.invoke('qdrant:collections'),
-  qdrantCreateCollection: (name: string, vectorSize: number, distance?: string) =>
-    ipcRenderer.invoke('qdrant:createCollection', { name, vectorSize, distance }),
-  qdrantDeleteCollection: (name: string) =>
-    ipcRenderer.invoke('qdrant:deleteCollection', { name }),
-
-  // Knowledge operations
-  knowledgeAdd: (item: any, embedding?: number[], provider?: any) =>
-    ipcRenderer.invoke('knowledge:add', { item, embedding, provider }),
-  knowledgeSearch: (query: string, provider: any, limit?: number, filters?: any) =>
-    ipcRenderer.invoke('knowledge:search', { query, provider, limit, filters }),
-  knowledgeGet: (id: string) => ipcRenderer.invoke('knowledge:get', { id }),
-  knowledgeUpdate: (id: string, updates: any, provider: any) =>
-    ipcRenderer.invoke('knowledge:update', { id, updates, provider }),
-  knowledgeDelete: (id: string) => ipcRenderer.invoke('knowledge:delete', { id }),
-  knowledgeStoreContext: (sessionId: string, messages: any[], provider: any) =>
-    ipcRenderer.invoke('knowledge:storeContext', { sessionId, messages, provider }),
-  knowledgeGetContext: (sessionId: string, query: string, provider: any, limit?: number) =>
-    ipcRenderer.invoke('knowledge:getContext', { sessionId, query, provider, limit }),
-  knowledgeStats: () => ipcRenderer.invoke('knowledge:stats'),
-  knowledgeClear: () => ipcRenderer.invoke('knowledge:clear'),
-
-  // Events
-  onMenuAction: (callback) => ipcRenderer.on('menu:action', (_, action, data) => callback(action, data)),
-  removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
-
-  // Agent operations
-  executeAgent: async (request: AgentExecutionRequestAPI): Promise<AgentExecutionResponse> => {
-    // Convert request to internal format
-    const internalRequest = {
-      agentId: request.agentId,
-      input: request.input,
-      context: {
-        id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        sessionId: request.sessionId,
-        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: Date.now(),
-        operation: 'agent:execute',
-        metadata: {}
-      },
-      options: request.options
-    };
-
-    return await ipcRenderer.invoke('agent:execute', internalRequest);
-  },
-
-  executeAgentStream: async (request: AgentExecutionRequestAPI) => {
-    // Return a streaming execution interface
-    return new Promise((resolve, reject) => {
-      const executionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // Set up listener for stream-ready message
-      const setupStream = (event: any, data: any) => {
-        if (data.executionId === executionId) {
-          ipcRenderer.removeListener('agent:stream-ready', setupStream);
-
-          if (data.success) {
-            // Create streaming interface
-            const streamingExecution = {
-              executionId,
-              port: null as MessagePort | null,
-
-              async start() {
-                return new Promise<void>((resolveStart, rejectStart) => {
-                  if (this.port) {
-                    resolveStart();
-                    return;
-                  }
-
-                  // Wait for port to be available
-                  const portListener = (event: any, data: any) => {
-                    if (data.type === 'agent:chunk' && data.executionId === executionId) {
-                      this.port = event.ports[0];
-                      ipcRenderer.removeListener('message', portListener);
-                      resolveStart();
-                    }
-                  };
-
-                  ipcRenderer.on('message', portListener);
-
-                  // Set timeout for port availability
-                  setTimeout(() => {
-                    ipcRenderer.removeListener('message', portListener);
-                    rejectStart(new Error('Timeout waiting for stream port'));
-                  }, 5000);
-                });
-              },
-
-              async cancel() {
-                await ipcRenderer.invoke('agent:cancel', executionId);
-              },
-
-              onChunk(callback: (chunk: any) => void) {
-                const listener = (event: any, data: any) => {
-                  if (data.type === 'agent:chunk' && data.executionId === executionId) {
-                    callback(data.chunk);
-                  }
-                };
-                ipcRenderer.on('message', listener);
-
-                // Return cleanup function
-                return () => ipcRenderer.removeListener('message', listener);
-              },
-
-              onComplete(callback: () => void) {
-                const listener = (event: any, data: any) => {
-                  if (data.type === 'agent:complete' && data.executionId === executionId) {
-                    callback();
-                  }
-                };
-                ipcRenderer.on('message', listener);
-
-                // Return cleanup function
-                return () => ipcRenderer.removeListener('message', listener);
-              },
-
-              onError(callback: (error: Error) => void) {
-                const listener = (event: any, data: any) => {
-                  if (data.type === 'agent:error' && data.executionId === executionId) {
-                    callback(new Error(data.error.message));
-                  }
-                };
-                ipcRenderer.on('message', listener);
-
-                // Return cleanup function
-                return () => ipcRenderer.removeListener('message', listener);
+  /**
+   * Sends a message with streaming response
+   * Use this for long responses or when you want real-time feedback
+   * @param params.conversationId - Active conversation ID
+   * @param params.message - Message content to send
+   * @param params.attachments - Optional file attachments
+   * @returns Promise<AsyncIterable<string>> - Stream of response chunks
+   */
+  sendMessageStream: (params) => {
+    return new Promise((resolve) => {
+      const streamReadyHandler = (event: any) => {
+        const port = event.ports[0];
+        const stream = {
+          async *[Symbol.asyncIterator]() {
+            const messageHandler = (event: MessageEvent) => {
+              const { type, chunk, isComplete, error } = event.data;
+              switch (type) {
+                case 'chat:chunk': yield chunk; break;
+                case 'chat:complete': port.close(); return;
+                case 'chat:error': throw new Error(error);
               }
             };
-
-            resolve(streamingExecution);
-          } else {
-            reject(new Error('Failed to initialize stream'));
+            port.onmessage = messageHandler;
+            port.start();
           }
-        }
+        };
+        resolve(stream);
+        ipcRenderer.removeListener('chat:stream-ready', streamReadyHandler);
       };
-
-      ipcRenderer.on('agent:stream-ready', setupStream);
-
-      // Set timeout for stream initialization
-      setTimeout(() => {
-        ipcRenderer.removeListener('agent:stream-ready', setupStream);
-        reject(new Error('Timeout waiting for stream initialization'));
-      }, 5000);
-
-      // Send stream request
-      const internalRequest = {
-        agentId: request.agentId,
-        input: request.input,
-        context: {
-          id: executionId,
-          sessionId: request.sessionId,
-          requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          timestamp: Date.now(),
-          operation: 'agent:execute-stream',
-          metadata: { streaming: true }
-        },
-        options: request.options
-      };
-
-      ipcRenderer.send('agent:execute-stream', internalRequest);
+      ipcRenderer.on('chat:stream-ready', streamReadyHandler);
+      ipcRenderer.send('chat:streamMessage', params);
     });
   },
 
-  getAgents: async (): Promise<AgentStatus[]> => {
-    const agents = await ipcRenderer.invoke('agent:list');
-    return agents.map((agent: any) => ({
-      agentId: agent.id,
-      name: agent.name,
-      type: agent.type,
-      enabled: agent.enabled,
-      registered: true
-    }));
-  },
+  /**
+   * Gets conversation history with display optimization
+   * Returns messages formatted for UI display with relative timestamps
+   * @param conversationId - Conversation ID
+   * @returns Promise<ConversationHistory> - Conversation data
+   */
+  getConversationHistory: (conversationId: string) =>
+    ipcRenderer.invoke('chat:getConversation', conversationId),
 
-  getAgent: async (agentId: string): Promise<AgentStatus | null> => {
-    try {
-      const agents = await ipcRenderer.invoke('agent:list');
-      const agent = agents.find((a: any) => a.id === agentId);
-      if (!agent) return null;
+  /**
+   * Lists all conversations
+   * Returns conversations with basic information for UI display
+   * @returns Promise<ConversationDisplay[]> - Array of conversations
+   */
+  listConversations: () =>
+    ipcRenderer.invoke('chat:listConversations'),
 
-      return {
-        agentId: agent.id,
-        name: agent.name,
-        type: agent.type,
-        enabled: agent.enabled,
-        registered: true
-      };
-    } catch (error) {
-      return null;
-    }
-  },
-
-  registerAgent: async (config: AgentConfig): Promise<{ success: boolean }> => {
-    return await ipcRenderer.invoke('agent:register', config);
-  },
-
-  unregisterAgent: async (agentId: string): Promise<{ success: boolean }> => {
-    return await ipcRenderer.invoke('agent:unregister', agentId);
-  },
-
-  cancelExecution: async (executionId: string): Promise<{ success: boolean }> => {
-    return await ipcRenderer.invoke('agent:cancel', executionId);
-  },
-
-  getExecutionStatus: async (executionId: string): Promise<AgentExecutionStatus> => {
-    const status = await ipcRenderer.invoke('agent:status', executionId);
-    if (!status.found) {
-      throw new Error(`Execution ${executionId} not found`);
-    }
-
-    return {
-      executionId,
-      agentId: status.execution?.agentId || 'unknown',
-      status: status.execution?.iteration >= 0 ? 'running' : 'completed',
-      startTime: status.execution?.startTime || Date.now(),
-      progress: {
-        current: status.execution?.iteration || 0,
-        total: status.execution?.maxIterations || 50,
-        message: 'Processing...'
-      }
-    };
-  },
-
-  getActiveExecutions: async (): Promise<AgentExecutionStatus[]> => {
-    const executions = await ipcRenderer.invoke('agent:executions');
-    return executions.map((exec: any) => ({
-      executionId: exec.id,
-      agentId: exec.agentId,
-      status: 'running',
-      startTime: exec.startTime,
-      progress: {
-        current: exec.iteration,
-        total: exec.maxIterations,
-        message: 'Processing...'
-      }
-    }));
-  },
-
-  // Session management operations
-  session: {
-    create: async (request: SessionCreateRequest) => {
-      return await ipcRenderer.invoke('session:create', request);
-    },
-
-    get: async (request: SessionGetRequest) => {
-      return await ipcRenderer.invoke('session:get', request);
-    },
-
-    update: async (request: SessionUpdateRequest) => {
-      return await ipcRenderer.invoke('session:update', request);
-    },
-
-    delete: async (request: SessionDeleteRequest) => {
-      return await ipcRenderer.invoke('session:delete', request);
-    },
-
-    list: async (request: SessionListRequest) => {
-      return await ipcRenderer.invoke('session:list', request);
-    },
-
-    associateAgent: async (request: AgentSessionRequest) => {
-      return await ipcRenderer.invoke('session:associate-agent', request);
-    },
-
-    removeAgent: async (sessionId: string, agentId: string) => {
-      return await ipcRenderer.invoke('session:remove-agent', { sessionId, agentId });
-    },
-
-    getAgents: async (sessionId: string) => {
-      return await ipcRenderer.invoke('session:get-agents', sessionId);
-    }
-  },
-
-  // Catalyst operations - high-level agent execution API
-  catalyst: {
-    executeAgent: async (request: any) => {
-      return await ipcRenderer.invoke('agent:execute', request);
-    },
-
-    executeAgentStream: async (request: any) => {
-      // For streaming, we need to set up listeners before invoking
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Stream setup timeout'));
-        }, 5000);
-
-        // Send the stream request
-        ipcRenderer.send('agent:execute-stream', request);
-
-        // Listen for the stream-ready response
-        const streamReadyListener = (_: any, data: any) => {
-          clearTimeout(timeout);
-          ipcRenderer.removeListener('agent:stream-ready', streamReadyListener);
-          resolve(data);
-        };
-
-        ipcRenderer.on('agent:stream-ready', streamReadyListener);
-      });
-    },
-
-    cancelAgent: async (executionId: string) => {
-      return await ipcRenderer.invoke('agent:cancel', executionId);
-    },
-
-    getAgentStatus: async (executionId: string) => {
-      return await ipcRenderer.invoke('agent:status', executionId);
-    },
-
-    listAgents: async () => {
-      return await ipcRenderer.invoke('agent:list');
-    },
-
-    registerAgent: async (agentConfig: any) => {
-      return await ipcRenderer.invoke('agent:register', agentConfig);
-    },
-
-    unregisterAgent: async (agentId: string) => {
-      return await ipcRenderer.invoke('agent:unregister', agentId);
-    },
-
-    getActiveExecutions: async () => {
-      return await ipcRenderer.invoke('agent:executions');
-    }
-  }
+  /**
+   * Deletes a conversation
+   * Removes conversation and associated messages
+   * @param conversationId - Conversation to delete
+   * @returns Promise<{ success: boolean, deleted: boolean }>
+   */
+  deleteConversation: (conversationId: string) =>
+    ipcRenderer.invoke('chat:deleteConversation', conversationId)
 };
 
-// Expose the API to the renderer process
+// ============================================================================
+// 2. Learning & Sessions API
+// ============================================================================
+
+/**
+ * Learning & Sessions API
+ *
+ * Manages structured learning sessions with progress tracking.
+ * Focuses on educational outcomes and learning analytics.
+ */
+const learningAPI: LearningAPI = {
+  /**
+   * Starts a new structured learning session
+   * Creates a session with specific learning goals and tracks progress
+   * @param params.topic - Main topic for the learning session
+   * @param params.goals - Array of specific learning objectives
+   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
+   * @param params.agentType - Type of AI agent to guide the session
+   * @param params.learningStyle - 'visual' | 'auditory' | 'kinesthetic' | 'reading'
+   * @returns Promise<LearningSessionDisplay> - Session object with progress tracking
+   */
+  startLearningSession: (params) =>
+    ipcRenderer.invoke('learning:startSession', params),
+
+  /**
+   * Gets detailed progress for a learning session
+   * Returns comprehensive progress data for UI display
+   * @param sessionId - Learning session ID
+   * @returns Promise<LearningProgressDisplay> - Detailed progress information
+   */
+  getSessionProgress: (sessionId: string) =>
+    ipcRenderer.invoke('learning:getProgress', sessionId),
+
+  /**
+   * Lists all learning sessions
+   * Returns sessions with basic information for UI display
+   * @returns Promise<SessionDisplay[]> - Array of learning sessions
+   */
+  listSessions: () =>
+    ipcRenderer.invoke('learning:listSessions'),
+
+  /**
+   * Updates progress for a learning session
+   * Records progress updates and achievements
+   * @param params.sessionId - Learning session ID
+   * @param params.progress - Progress value (0-1)
+   * @param params.type - Type of progress update
+   * @returns Promise<{ success: boolean, updatedProgress: ProgressUpdate }>
+   */
+  updateProgress: (params) =>
+    ipcRenderer.invoke('learning:updateProgress', params),
+
+  /**
+   * Gets personalized recommendations
+   * Returns learning recommendations based on current progress
+   * @param sessionId - Learning session ID
+   * @returns Promise<RecommendationDisplay[]> - Array of recommendations
+   */
+  getRecommendations: (sessionId: string) =>
+    ipcRenderer.invoke('learning:getRecommendations', sessionId),
+
+  /**
+   * Generates a learning path
+   * Creates a structured learning path for a topic
+   * @param params.topic - Topic to create path for
+   * @param params.currentLevel - Current skill level
+   * @param params.targetLevel - Target skill level
+   * @returns Promise<LearningPathDisplay> - Generated learning path
+   */
+  generateLearningPath: (params) =>
+    ipcRenderer.invoke('learning:generatePath', params)
+};
+
+// ============================================================================
+// 3. Knowledge & Discovery API
+// ============================================================================
+
+/**
+ * Knowledge & Discovery API
+ *
+ * Provides access to the knowledge graph and learning content discovery.
+ * Focuses on conceptual understanding and knowledge exploration.
+ */
+const knowledgeAPI: KnowledgeAPI = {
+  /**
+   * Explores a concept in detail with related information
+   * Provides comprehensive concept analysis for learning
+   * @param conceptName - Name of the concept to explore
+   * @param depth - 'basic' | 'intermediate' | 'advanced' - depth of exploration
+   * @returns Promise<ConceptExplorationDisplay> - Detailed concept information
+   */
+  exploreConcept: (params) =>
+    ipcRenderer.invoke('knowledge:exploreConcept', params),
+
+  /**
+   * Gets concepts related to a given concept
+   * Useful for knowledge graph navigation and discovery
+   * @param conceptId - ID of the concept to find relations for
+   * @returns Promise<RelatedConceptsDisplay> - Array of related concepts with relationships
+   */
+  getRelatedConcepts: (conceptId: string) =>
+    ipcRenderer.invoke('knowledge:getRelatedConcepts', conceptId),
+
+  /**
+   * Searches the knowledge base for specific content
+   * Supports natural language queries and semantic search
+   * @param params.query - Search query string
+   * @param params.filters - Search filters
+   * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
+   */
+  searchKnowledge: (params) =>
+    ipcRenderer.invoke('knowledge:search', params),
+
+  /**
+   * Builds a knowledge graph
+   * Creates a visualizable knowledge graph from concepts
+   * @param params.concepts - Array of concepts to include
+   * @param params.includeRelationships - Whether to include relationships
+   * @param params.title - Optional title for the graph
+   * @returns Promise<KnowledgeGraphDisplay> - Knowledge graph data
+   */
+  buildKnowledgeGraph: (params) =>
+    ipcRenderer.invoke('knowledge:buildGraph', params),
+
+  /**
+   * Gets concept hierarchy
+   * Returns hierarchical structure of concepts
+   * @param params.rootConcept - Root concept for hierarchy
+   * @param params.maxDepth - Maximum depth to traverse
+   * @returns Promise<ConceptHierarchyDisplay> - Hierarchical concept data
+   */
+  getConceptHierarchy: (params) =>
+    ipcRenderer.invoke('knowledge:getHierarchy', params)
+};
+
+// ============================================================================
+// 4. Analytics & Progress API
+// ============================================================================
+
+/**
+ * Analytics & Progress API
+ *
+ * Provides comprehensive learning analytics and progress tracking.
+ * Focuses on motivation through achievement and progress visualization.
+ */
+const analyticsAPI: AnalyticsAPI = {
+  /**
+   * Gets comprehensive learning dashboard data
+   * Returns all key metrics needed for dashboard display
+   * @returns Promise<DashboardDisplay> - Complete dashboard data
+   */
+  getDashboard: () =>
+    ipcRenderer.invoke('analytics:getDashboard'),
+
+  /**
+   * Gets progress chart data for visualization
+   * Returns structured data for various chart types
+   * @param params.timeRange - Time range for chart data
+   * @param params.topic - Optional topic filter
+   * @returns Promise<ProgressChartDisplay> - Chart-ready progress data
+   */
+  getProgressChart: (params) =>
+    ipcRenderer.invoke('analytics:getProgressChart', params),
+
+  /**
+   * Gets learning insights
+   * Returns personalized learning insights and recommendations
+   * @param params.timeRange - Time range for insights
+   * @param params.type - Type of insights
+   * @returns Promise<InsightsDisplay> - Learning insights
+   */
+  getInsights: (params) =>
+    ipcRenderer.invoke('analytics:getInsights', params),
+
+  /**
+   * Gets detailed performance metrics
+   * Returns comprehensive performance analysis
+   * @param params.timeRange - Time range for metrics
+   * @param params.breakdown - Level of detail breakdown
+   * @returns Promise<PerformanceDisplay> - Performance metrics
+   */
+  getPerformance: (params) =>
+    ipcRenderer.invoke('analytics:getPerformance', params)
+};
+
+// ============================================================================
+// 5. Agent Management API
+// ============================================================================
+
+/**
+ * Agent Management API
+ *
+ * Manages AI agent selection, configuration, and interaction preferences.
+ * Focuses on personalizing the AI learning experience.
+ */
+const agentsAPI: AgentsAPI = {
+  /**
+   * Gets all available AI agents with display information
+   * Returns agents optimized for selection UI
+   * @returns Promise<AgentDisplay[]> - Array of available agents
+   */
+  getAvailableAgents: () =>
+    ipcRenderer.invoke('agent:list'),
+
+  /**
+   * Executes an agent with specific parameters
+   * Runs the agent and returns execution results
+   * @param request - Agent execution request with parameters
+   * @returns Promise<AgentExecutionResult> - Execution results
+   */
+  executeAgent: (request) =>
+    ipcRenderer.invoke('agent:execute', request),
+
+  /**
+   * Cancels a running agent execution
+   * Stops the agent execution and cleanup resources
+   * @param executionId - Execution ID to cancel
+   * @returns Promise<{ success: boolean, cancelledAt: string }>
+   */
+  cancelAgentExecution: (executionId: string) =>
+    ipcRenderer.invoke('agent:cancel', executionId),
+
+  /**
+   * Gets status of an agent execution
+   * Returns current execution status and progress
+   * @param executionId - Execution ID to check
+   * @returns Promise<AgentExecutionStatus> - Current execution status
+   */
+  getAgentExecutionStatus: (executionId: string) =>
+    ipcRenderer.invoke('agent:status', executionId),
+
+  /**
+   * Lists all agent executions
+   * Returns history of agent executions with status
+   * @returns Promise<AgentExecution[]> - Array of execution records
+   */
+  getAgentExecutions: () =>
+    ipcRenderer.invoke('agent:executions'),
+
+  /**
+   * Registers a new agent
+   * Adds a new agent to the system with configuration
+   * @param agentConfig - Agent configuration object
+   * @returns Promise<{ success: boolean, agentId: string }>
+   */
+  registerAgent: (agentConfig) =>
+    ipcRenderer.invoke('agent:register', agentConfig),
+
+  /**
+   * Unregisters an agent
+   * Removes an agent from the system
+   * @param agentId - Agent ID to unregister
+   * @returns Promise<{ success: boolean, unregisteredAt: string }>
+   */
+  unregisterAgent: (agentId: string) =>
+    ipcRenderer.invoke('agent:unregister', agentId)
+};
+
+// ============================================================================
+// 6. Content & Discovery API
+// ============================================================================
+
+/**
+ * Content & Discovery API
+ *
+ * Manages learning content import, discovery, and analysis.
+ * Focuses on expanding the knowledge base with relevant content.
+ */
+const contentAPI: ContentAPI = {
+  /**
+   * Explores local projects for learning content
+   * Scans file system for code, documentation, and learning materials
+   * @returns Promise<ProjectDisplay[]> - Array of discoverable local projects
+   */
+  exploreLocalProjects: () =>
+    ipcRenderer.invoke('content:exploreProjects'),
+
+  /**
+   * Imports learning content from files
+   * Processes files and extracts learning concepts and materials
+   * @param files - FileList from file input or drag-drop
+   * @returns Promise<ImportResultDisplay> - Import results and extracted content
+   */
+  importLearningContent: (files: FileList) =>
+    ipcRenderer.invoke('content:importContent', files),
+
+  /**
+   * Discovers learning resources from various sources
+   * Finds and analyzes learning materials from different platforms
+   * @param params - Discovery parameters with filters and options
+   * @returns Promise<ResourceDiscoveryDisplay[]> - Array of discovered resources
+   */
+  discoverResources: (params) =>
+    ipcRenderer.invoke('content:discoverResources', params),
+
+  /**
+   * Analyzes a project for learning content
+   * Scans project files and extracts learning materials
+   * @param params - Project analysis parameters
+   * @returns Promise<ProjectAnalysisDisplay> - Detailed project analysis
+   */
+  analyzeProject: (params) =>
+    ipcRenderer.invoke('content:analyzeProject', params)
+};
+
+// ============================================================================
+// 7. Settings & Configuration API
+// ============================================================================
+
+/**
+ * Settings & Configuration API
+ *
+ * Manages user preferences, AI provider configuration, and application settings.
+ * Focuses on personalizing the learning experience and managing technical configurations.
+ */
+const settingsAPI: SettingsAPI = {
+  /**
+   * Gets comprehensive user preferences
+   * Returns all user-configurable settings in display-ready format
+   * @returns Promise<UserPreferencesDisplay> - Complete user preferences
+   */
+  getUserPreferences: () =>
+    ipcRenderer.invoke('settings:getPreferences'),
+
+  /**
+   * Updates user preferences
+   * Applies changes to user configuration settings
+   * @param preferences - Partial preferences object to update
+   * @returns Promise<{ success: boolean, updatedSettings: any, changes: string[] }>
+   */
+  updatePreferences: (preferences) =>
+    ipcRenderer.invoke('settings:updatePreferences', preferences),
+
+  /**
+   * Exports user settings to a file
+   * Creates a backup of user preferences and configuration
+   * @param params - Export parameters including format and options
+   * @returns Promise<ExportResultDisplay> - Export results with file info
+   */
+  exportSettings: (params) =>
+    ipcRenderer.invoke('settings:export', params),
+
+  /**
+   * Imports settings from a file or source
+   * Restores user preferences from backup or external source
+   * @param params - Import parameters with source and merge options
+   * @returns Promise<ImportResultDisplay> - Import results with applied changes
+   */
+  importSettings: (params) =>
+    ipcRenderer.invoke('settings:import', params),
+
+  /**
+   * Resets settings to default values
+   * Restores all settings to their original defaults
+   * @returns Promise<ResetResultDisplay> - Reset results with changes made
+   */
+  resetToDefaults: () =>
+    ipcRenderer.invoke('settings:resetDefaults'),
+
+  /**
+   * Gets system information and status
+   * Returns comprehensive system and application information
+   * @returns Promise<SystemInfoDisplay> - Detailed system information
+   */
+  getSystemInfo: () =>
+    ipcRenderer.invoke('settings:getSystemInfo'),
+
+  /**
+   * Gets workspace configuration
+   * Returns workspace-specific configuration settings
+   * @returns Promise<WorkspaceConfig> - Workspace configuration object
+   */
+  getWorkspaceConfig: () =>
+    ipcRenderer.invoke('settings:getWorkspaceConfig'),
+
+  /**
+   * Sets workspace configuration
+   * Updates workspace-specific configuration settings
+   * @param config - Workspace configuration object
+   * @returns Promise<{ success: boolean }> - Operation result
+   */
+  setWorkspaceConfig: (config) =>
+    ipcRenderer.invoke('settings:setWorkspaceConfig', config),
+
+  /**
+   * Gets workspace configuration value by key
+   * Retrieves specific configuration value using dot notation
+   * @param key - Configuration key (supports dot notation)
+   * @returns Promise<any> - Configuration value
+   */
+  getWorkspaceConfigKey: (key: string) =>
+    ipcRenderer.invoke('settings:getWorkspaceConfigKey', key),
+
+  /**
+   * Sets workspace configuration value by key
+   * Updates specific configuration value using dot notation
+   * @param key - Configuration key (supports dot notation)
+   * @param value - Configuration value to set
+   * @returns Promise<{ success: boolean }> - Operation result
+   */
+  setWorkspaceConfigKey: (key: string, value: any) =>
+    ipcRenderer.invoke('settings:setWorkspaceConfigKey', key, value),
+
+  /**
+   * Deletes workspace configuration key
+   * Removes specific configuration key using dot notation
+   * @param key - Configuration key to delete (supports dot notation)
+   * @returns Promise<{ success: boolean }> - Operation result
+   */
+  deleteWorkspaceConfigKey: (key: string) =>
+    ipcRenderer.invoke('settings:deleteWorkspaceConfigKey', key),
+
+  /**
+   * Resets workspace configuration
+   * Clears all workspace configuration settings
+   * @returns Promise<{ success: boolean }> - Operation result
+   */
+  resetWorkspaceConfig: () =>
+    ipcRenderer.invoke('settings:resetWorkspaceConfig'),
+
+  /**
+   * Gets application version
+   * Returns the current application version information
+   * @returns Promise<string> - Application version
+   */
+  getAppVersion: () =>
+    ipcRenderer.invoke('settings:getAppVersion'),
+
+  /**
+   * Gets user data path
+   * Returns the path to the user data directory
+   * @returns Promise<string> - User data directory path
+   */
+  getUserDataPath: () =>
+    ipcRenderer.invoke('settings:getUserDataPath'),
+
+  /**
+   * Gets documents path
+   * Returns the path to the user's documents directory
+   * @returns Promise<string> - Documents directory path
+   */
+  getDocumentsPath: () =>
+    ipcRenderer.invoke('settings:getDocumentsPath'),
+
+  /**
+   * Gets application path
+   * Returns the path to the application executable
+   * @returns Promise<string> - Application executable path
+   */
+  getAppPath: () =>
+    ipcRenderer.invoke('settings:getAppPath'),
+
+  /**
+   * Quits the application
+   * Initiates application shutdown process
+   * @returns Promise<void> - Operation completes when shutdown starts
+   */
+  quitApplication: () =>
+    ipcRenderer.invoke('settings:quitApp')
+};
+
+// ============================================================================
+// Complete electronAPI Export with Error Handling
+// ============================================================================
+
+/**
+ * Complete electronAPI Export
+ *
+ * Combines all API modules with centralized error handling and utilities.
+ * Provides a unified interface for frontend-backend communication.
+ */
+const electronAPI = {
+  // API Modules - 7 Complete Domains
+  chat: chatAPI,
+  learning: learningAPI,
+  knowledge: knowledgeAPI,
+  analytics: analyticsAPI,
+  agents: agentsAPI,
+  content: contentAPI,
+  settings: settingsAPI,
+
+  // Utility methods for better error handling and debugging
+
+  /**
+   * Centralized error handling and reporting
+   * Logs errors to backend for debugging and analytics
+   * @param error - Error object or message
+   * @param context - Context where the error occurred
+   * @param severity - 'info' | 'warning' | 'error' | 'critical'
+   */
+  handleError: (error: Error | string, context: string, severity: string = 'error') => {
+    const errorMessage = error instanceof Error ? error.message : error;
+    const stack = error instanceof Error ? error.stack : undefined;
+
+    console.error(`[Frontend] ${context}:`, error);
+
+    // Report error to backend for analytics and debugging
+    ipcRenderer.invoke('system:report-error', {
+      error: errorMessage,
+      context,
+      stack,
+      severity,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    });
+  },
+
+  /**
+   * Checks API health and connectivity
+   * Useful for debugging connection issues
+   * @returns Promise<{ status: 'healthy' | 'degraded' | 'offline', apis: Object }>
+   */
+  healthCheck: () =>
+    ipcRenderer.invoke('system:health-check'),
+
+  /**
+   * Gets application version and build information
+   * Useful for debugging and support
+   * @returns Promise<{ version: string, build: string, platform: string }>
+   */
+  getVersion: () =>
+    ipcRenderer.invoke('system:get-version'),
+
+  /**
+   * Logs user interactions for analytics
+   * Helps understand how users interact with the application
+   * @param event - Event name and properties
+   */
+  trackEvent: (event: { name: string, properties?: object }) =>
+    ipcRenderer.invoke('analytics:track-event', event)
+};
+
+// ============================================================================
+// Type Definitions and Exports
+// ============================================================================
+
+
+// Add TypeScript declarations for global scope
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+
+// Expose the complete API to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
+export default electronAPI;

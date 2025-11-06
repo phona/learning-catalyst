@@ -22,6 +22,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: [
+      './src/__tests__/setup/global-mocks.ts',
       './src/__tests__/setup/integration-setup.ts',
       './src/renderer/__tests__/setup.ts'  // Add the renderer test setup for Testing Library matchers
     ],

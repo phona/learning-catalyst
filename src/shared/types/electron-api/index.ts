@@ -1,53 +1,149 @@
 /**
- * Electron API Interfaces
+ * Electron API Interfaces - 7-Domain Architecture
  *
- * This module provides modular, focused interfaces for Electron IPC operations.
- * Each interface represents a specific functional area of the Electron API.
+ * This module provides the official 7-domain electronAPI structure with comprehensive
+ * type safety and display-optimized interfaces for modern learning applications.
  *
- * The main ElectronAPI interface extends all individual interfaces to maintain
- * backward compatibility while providing better type safety and modularity.
+ * The 7 domains are:
+ * 1. Chat & Conversation API
+ * 2. Learning & Sessions API
+ * 3. Knowledge & Discovery API
+ * 4. Analytics & Progress API
+ * 5. Agent Management API
+ * 6. Content & Discovery API
+ * 7. Settings & Configuration API
  */
 
-// Import individual API interfaces
-import type { FileAPI } from './file-api'
-import type { DialogAPI } from './dialog-api'
-import type { AppAPI } from './app-api'
-import type { ConfigAPI } from './config-api'
-import type { DatabaseAPI } from './database-api'
-import type { WorkspaceAPI } from './workspace-api'
-import type { SessionAPI } from './session-api'
-import type { QdrantAPI } from './qdrant-api'
+// Import individual API interfaces from the 7-domain structure
+import type { ChatAPI } from './chat-api'
+import type { LearningAPI } from './learning-api'
 import type { KnowledgeAPI } from './knowledge-api'
-import type { EventsAPI } from './events-api'
-import type { AgentAPI } from './agent-api'
-import type { CatalystAPI } from './catalyst-api'
+import type { AnalyticsAPI } from './analytics-api'
+import type { AgentsAPI } from './agent-api'
+import type { ContentAPI } from './content-api'
+import type { SettingsAPI } from './settings-api'
 
 // Re-export individual API interfaces
-export type { FileAPI, DialogAPI, AppAPI, ConfigAPI, DatabaseAPI, WorkspaceAPI, SessionAPI, QdrantAPI, KnowledgeAPI, EventsAPI, AgentAPI, CatalystAPI }
+export type {
+  ChatAPI,
+  LearningAPI,
+  KnowledgeAPI,
+  AnalyticsAPI,
+  AgentsAPI,
+  ContentAPI,
+  SettingsAPI
+}
+
+// Export key display-optimized types for convenience
+export type {
+  ConversationDisplay,
+  MessageDisplay,
+  AgentDisplay as ChatAgentDisplay,
+  TypingIndicator,
+  ConversationSummary
+} from './chat-api'
+
+export type {
+  LearningSessionDisplay,
+  SessionDisplay,
+  LearningProgressDisplay,
+  AchievementDisplay,
+  LearningPathDisplay
+} from './learning-api'
+
+export type {
+  ConceptExplorationDisplay,
+  KnowledgeMapDisplay,
+  RelatedConceptsDisplay,
+  ExplanationDisplay,
+  ExerciseDisplay
+} from './knowledge-api'
+
+export type {
+  DashboardDisplay,
+  ProgressChartDisplay,
+  AchievementDisplay as AnalyticsAchievementDisplay,
+  UsageStatsDisplay,
+  TokenUsageDisplay
+} from './analytics-api'
+
+export type {
+  AgentDisplay as ManagementAgentDisplay,
+  AgentCapabilitiesDisplay,
+  AgentSettings,
+  FeatureDemoDisplay
+} from './agent-api'
+
+export type {
+  ContentRecommendationDisplay,
+  ResourceSearchResultDisplay,
+  DocumentAnalysisDisplay,
+  ProjectDisplay,
+  ImportResultDisplay
+} from './content-api'
+
+export type {
+  UserPreferencesDisplay,
+  ProviderDisplay,
+  LearningSettingsDisplay,
+  ProviderConfig
+} from './settings-api'
 
 /**
- * Main ElectronAPI interface
+ * Main ElectronAPI interface - 7 Complete Domains
  *
- * This composite interface extends all individual API interfaces to provide
- * a unified interface that maintains backward compatibility with existing code.
+ * This composite interface combines all 7 API domains to provide a unified
+ * interface that matches the documented electronAPI specification.
  *
- * Services can either:
- * 1. Use the full ElectronAPI interface (backward compatible)
- * 2. Import and use specific interfaces for better type safety
+ * Features:
+ * - Display-optimized types ready for UI consumption
+ * - Comprehensive error handling and validation
+ * - Streaming support for real-time interactions
+ * - Progressive enhancement patterns
+ * - Type-safe communication between processes
  */
-export interface ElectronAPI extends
-  FileAPI,
-  DialogAPI,
-  AppAPI,
-  ConfigAPI,
-  DatabaseAPI,
-  WorkspaceAPI,
-  SessionAPI,
-  QdrantAPI,
-  KnowledgeAPI,
-  EventsAPI,
-  AgentAPI,
-  CatalystAPI {}
+export interface ElectronAPI {
+  // 7 Complete API Domains
+  chat: ChatAPI;
+  learning: LearningAPI;
+  knowledge: KnowledgeAPI;
+  analytics: AnalyticsAPI;
+  agents: AgentsAPI;
+  content: ContentAPI;
+  settings: SettingsAPI;
+
+  // Utility methods for better error handling and debugging
+
+  /**
+   * Centralized error handling and reporting
+   * Logs errors to backend for debugging and analytics
+   * @param error - Error object or message
+   * @param context - Context where the error occurred
+   * @param severity - 'info' | 'warning' | 'error' | 'critical'
+   */
+  handleError: (error: Error | string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void;
+
+  /**
+   * Checks API health and connectivity
+   * Useful for debugging connection issues
+   * @returns Promise<{ status: 'healthy' | 'degraded' | 'offline', apis: Object }>
+   */
+  healthCheck: () => Promise<{ status: 'healthy' | 'degraded' | 'offline'; apis: Object }>;
+
+  /**
+   * Gets application version and build information
+   * Useful for debugging and support
+   * @returns Promise<{ version: string, build: string, platform: string }>
+   */
+  getVersion: () => Promise<{ version: string; build: string; platform: string }>;
+
+  /**
+   * Logs user interactions for analytics
+   * Helps understand how users interact with the application
+   * @param event - Event name and properties
+   */
+  trackEvent: (event: { name: string; properties?: object }) => Promise<void>;
+}
 
 /**
  * Type helpers for dependency injection and testing
@@ -69,3 +165,26 @@ export type ElectronAPIMock = Partial<ElectronAPI>
 export type ExtractAPI<T> = T extends keyof ElectronAPI
   ? Pick<ElectronAPI, T>
   : never
+
+/**
+ * Type-safe API domain selector
+ */
+export type APIDomain = 'chat' | 'learning' | 'knowledge' | 'analytics' | 'agents' | 'content' | 'settings'
+
+/**
+ * API response wrapper for consistent error handling
+ */
+export interface APIResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  metadata?: {
+    timestamp: string;
+    requestId: string;
+    processingTime: number;
+  };
+}

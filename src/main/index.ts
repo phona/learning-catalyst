@@ -154,9 +154,7 @@ async function cleanup() {
     console.warn('Failed to dispose Catalyst service:', error)
   }
 
-  // Remove the open-win handler
-  ipcMain.removeHandler('open-win')
-
+  
   // Clean up Qdrant manager
   const qdrantManager = getQdrantManager()
   if (qdrantManager && typeof qdrantManager.shutdown === 'function') {
@@ -222,24 +220,3 @@ app.on('will-quit', async () => {
   await cleanup()
 })
 
-// New window example arg: new windows url
-ipcMain.handle('open-win', (_, arg) => {
-  const childWindow = new BrowserWindow({
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.mjs'),
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-  })
-
-  // Clean up child window on close
-  childWindow.on('closed', () => {
-    childWindow.removeAllListeners()
-  })
-
-  if (VITE_DEV_SERVER_URL) {
-    childWindow.loadURL(`${VITE_DEV_SERVER_URL}#${arg}`)
-  } else {
-    childWindow.loadFile(indexHtml, { hash: arg })
-  }
-})

@@ -8,9 +8,9 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { MessagePortMain } from 'electron';
-import { Database } from '../../../src/modules/database';
-import { AIProvider } from '../../../src/types/ai';
-import { Concept, ProposedRelationship } from '../../../src/types/concept-parsing';
+import { Database } from '../database';
+import { AIProvider } from '@/shared/types/ai';
+import { Concept, ProposedRelationship } from '@/shared/types/concept-parsing';
 import { ToolExecutorService } from './tool-executor';
 import { AgentManagerMain } from './agents/agent-manager';
 import { SessionServiceMain } from './session/session-service';

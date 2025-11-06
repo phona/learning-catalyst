@@ -5,7 +5,7 @@
  * the database and integrates with the agent manager for agent-aware sessions.
  */
 
-import { Database } from '../../../src/modules/database';
+import { Database } from '../../database';
 import { AsyncLocalStorage } from 'async_hooks';
 import { LoggerFactory } from '../logger';
 import { ServiceError } from '../types';

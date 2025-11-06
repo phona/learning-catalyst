@@ -5,26 +5,27 @@
  * Tests agent registration, execution, streaming, and lifecycle management.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AgentManagerMain } from '@/main/services/agents/agent-manager';
 import { ToolExecutorService } from '@/main/services/tool-executor';
 import { LoggerFactory } from '@/main/services/logger';
 import { ServiceConfigManager } from '@/main/services/config';
 import { TestUtils, mockDatabase } from '../setup';
 
-// Mock LangChain components
-const mockLangChainModel = {
-  invoke: async () => ({ content: 'Mock AI response' }),
-  getModelInfo: () => ({ modelId: 'mock-model', provider: 'mock' })
-};
 
-const mockLangChainAdapter = {
-  createModel: async () => mockLangChainModel
-};
+// Mock the LangChainProviderAdapter
+vi.mock('@/modules/concept-parsing/langchain-adapter', () => ({
+  LangChainProviderAdapter: {
+    createModel: vi.fn().mockResolvedValue({
+      invoke: async () => ({ content: 'Mock AI response' }),
+      getModelInfo: () => ({ modelId: 'mock-model', provider: 'mock' })
+    })
+  }
+}));
 
-// Mock concept parsing pipeline
+// Create mock concept pipeline instance
 const mockConceptPipeline = {
-  processContent: async () => ({
+  processContent: vi.fn().mockResolvedValue({
     concepts: [{ id: '1', name: 'Test Concept', type: 'concept' }],
     relationships: [],
     statistics: { totalConcepts: 1, totalRelationships: 0, processingTime: 100, confidence: 0.8 },
@@ -33,14 +34,9 @@ const mockConceptPipeline = {
   })
 };
 
-// Mock the LangChainProviderAdapter
-jest.mock('@/main/modules/concept-parsing/langchain-adapter', () => ({
-  LangChainProviderAdapter: mockLangChainAdapter
-}));
-
 // Mock the ConceptProcessingPipeline
-jest.mock('@/main/modules/concept-parsing/pipeline', () => ({
-  ConceptProcessingPipeline: jest.fn().mockImplementation(() => mockConceptPipeline)
+vi.mock('@/modules/concept-parsing/concept-processing-pipeline', () => ({
+  ConceptProcessingPipeline: vi.fn().mockImplementation(() => mockConceptPipeline)
 }));
 
 describe('AgentManagerMain', () => {

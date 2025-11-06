@@ -5,11 +5,12 @@
  * Provides secure communication between renderer and main thread for agent operations.
  */
 
-import { ipcMain, MessagePortMain } from 'electron';
+import { ipcMain, MessageChannelMain } from 'electron';
 import { getCatalystService } from '../services/catalyst/catalyst-service';
 import { AgentExecutionRequest, ServiceExecutionContext } from '../services/types';
 import { LoggerFactory } from '../services/logger';
 import { ServiceError } from '../services/types';
+import { AgentManagerMain } from '../services/agents/agent-manager';
 
 /**
  * Setup agent execution IPC handlers
@@ -43,7 +44,7 @@ export function setupAgentHandlers(): void {
         request.context.sessionId,
         'agent:execute',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             throw new ServiceError(
               'Agent manager not available',
@@ -107,7 +108,7 @@ export function setupAgentHandlers(): void {
         request.context.sessionId,
         'agent:execute-stream',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             throw new ServiceError(
               'Agent manager not available',
@@ -120,31 +121,34 @@ export function setupAgentHandlers(): void {
           const stream = await agentManager.executeAgent(request);
 
           for await (const chunk of stream) {
-            // Check if port is still open
-            if (port2.closed) {
+            // Try to send chunk, catch if port is closed
+            try {
+              port2.postMessage({
+                type: 'agent:chunk',
+                executionId: request.context.id,
+                chunk
+              });
+            } catch (error) {
+              // Port is closed, stop streaming
               logger.info('Stream port closed, stopping execution', {
                 executionId: request.context.id
               });
               break;
             }
 
-            // Send chunk to renderer
-            port2.postMessage({
-              type: 'agent:chunk',
-              executionId: request.context.id,
-              chunk
-            });
-
             // Add small delay to prevent overwhelming the renderer
             await new Promise(resolve => setTimeout(resolve, 10));
           }
 
           // Send completion message
-          if (!port2.closed) {
+          try {
             port2.postMessage({
               type: 'agent:complete',
               executionId: request.context.id
             });
+          } catch (error) {
+            // Port is closed, ignore
+            logger.debug('Could not send completion message, port may be closed');
           }
         },
         {
@@ -204,7 +208,7 @@ export function setupAgentHandlers(): void {
         'system',
         'agent:cancel',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             return false;
           }
@@ -243,7 +247,7 @@ export function setupAgentHandlers(): void {
         'system',
         'agent:status',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             return { found: false };
           }
@@ -281,7 +285,7 @@ export function setupAgentHandlers(): void {
         'system',
         'agent:list',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             return [];
           }
@@ -320,7 +324,7 @@ export function setupAgentHandlers(): void {
         'system',
         'agent:executions',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             return [];
           }
@@ -362,7 +366,7 @@ export function setupAgentHandlers(): void {
         'system',
         'agent:register',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             throw new ServiceError(
               'Agent manager not available',
@@ -411,7 +415,7 @@ export function setupAgentHandlers(): void {
         'system',
         'agent:unregister',
         async () => {
-          const agentManager = catalystService.getService('agentManager');
+          const agentManager = catalystService.getService('agentManager') as AgentManagerMain;
           if (!agentManager) {
             throw new ServiceError(
               'Agent manager not available',

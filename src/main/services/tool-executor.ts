@@ -7,7 +7,7 @@
  */
 
 import { ToolDefinition, ToolExecutionRequest, ToolExecutionResult, ServiceDependencies, ToolHandler } from './types';
-import { Database } from '../../../src/modules/database';
+import { Database } from '../database';
 import { ServiceLogger } from './types';
 import { ToolExecutionError, DatabaseConnectionError } from './types';
 import { readFile, writeFile, exists } from 'fs/promises';

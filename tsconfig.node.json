@@ -4,7 +4,23 @@
     "skipLibCheck": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ],
+      "@/renderer/*": [
+        "src/renderer/*"
+      ],
+      "@/main/*": [
+        "src/main/*"
+      ],
+      "@/shared/*": [
+        "src/shared/*"
+      ]
+    }
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "src/**/*"],
+  "exclude": ["node_modules"]
 }

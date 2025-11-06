@@ -630,7 +630,7 @@ User's answer: ${userAnswer}
 
 Determine if the user's answer is correct (1) or incorrect (0) and provide a brief explanation.
 
-Format as JSON: {"correct": true/false, "explanation": "Explanation"}';
+Format as JSON: {"correct": true/false, "explanation": "Explanation"}';`
 
       try {
         const response = await this.model.invoke([

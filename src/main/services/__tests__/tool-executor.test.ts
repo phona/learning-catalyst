@@ -5,11 +5,23 @@
  * Tests tool registration, execution, and error handling.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ToolExecutorService, BuiltinTools } from '@/main/services/tool-executor';
 import { LoggerFactory } from '@/main/services/logger';
 import { ServiceConfigManager } from '@/main/services/config';
 import { TestUtils, mockDatabase } from '../setup';
+
+// Mock fs/promises to avoid import issues
+vi.mock('fs/promises', () => ({
+  default: {
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    exists: vi.fn(),
+  },
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  exists: vi.fn(),
+}));
 
 describe('ToolExecutorService', () => {
   let toolExecutor: ToolExecutorService;

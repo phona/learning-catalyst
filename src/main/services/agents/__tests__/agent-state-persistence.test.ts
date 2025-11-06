@@ -7,12 +7,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AgentStatePersistence } from '@/services/agent/agent-state-persistence';
-import { SQLiteCheckpointSaver } from '@/modules/langgraph';
-import { AgentType } from '@/services/AgentManager';
+import { AgentStatePersistence } from '../agent-state-persistence';
+import { SQLiteCheckpointSaver } from '../checkpoints/SQLiteCheckpointSaver';
+import { AgentType } from '../../catalyst/AgentManager';
 import type { Kysely } from 'kysely';
-import type { Database } from '@/modules/database/kysely-schema';
-import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/mocks';
+import type { Database } from '@/shared/types/database';
+import { mockDatabaseService } from '@/__tests__/utils/mocks/mock-services';
 
 describe('AgentStatePersistence', () => {
   let statePersistence: AgentStatePersistence;
@@ -20,6 +20,33 @@ describe('AgentStatePersistence', () => {
   let mockLogger: any;
   let mockAls: any;
   let mockCheckpointSaver: SQLiteCheckpointSaver;
+
+  // Create mock functions
+  const createMockDatabase = () => ({
+    insertInto: vi.fn(),
+    selectFrom: vi.fn(),
+    updateTable: vi.fn(),
+    deleteFrom: vi.fn(),
+    transaction: vi.fn(),
+    fetchOne: vi.fn(),
+    fetchAll: vi.fn()
+  });
+
+  const createMockLogger = () => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnThis()
+  });
+
+  const createMockAsyncLocalStorage = () => ({
+    run: vi.fn(),
+    getStore: vi.fn().mockReturnValue({
+      get: vi.fn(),
+      set: vi.fn()
+    })
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

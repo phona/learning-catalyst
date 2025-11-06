@@ -7,12 +7,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AgentLifecycleManager } from '@/services/agent/agent-lifecycle-manager';
-import { AgentRegistry } from '@/services/agent/agent-registry';
-import { AgentType } from '@/services/AgentManager';
-import type { Kysely } from 'kysely';
-import type { Database } from '@/modules/database/kysely-schema';
-import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/mocks';
+import { AgentLifecycleManager } from '../agent-lifecycle-manager';
+import { AgentRegistry } from '../agent-registry';
+import { AgentType } from '../../catalyst/AgentManager';
+import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '../../setup';
 
 // Mock AgentRegistry
 const mockAgentRegistry = {

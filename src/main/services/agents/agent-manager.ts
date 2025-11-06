@@ -7,12 +7,12 @@
  */
 
 import { AsyncLocalStorage } from 'async_hooks';
-import { MessagePortMain } from 'electron';
+import { MessageChannelMain } from 'electron';
 import { AgentConfig, AgentExecutionRequest, AgentExecutionChunk, ServiceDependencies, ServiceExecutionContext, AgentExecutionError } from './types';
 import { ToolExecutorService } from './tool-executor';
-import { ConceptProcessingPipeline } from '../../../src/modules/concept-parsing';
-import { AIProvider } from '../../../src/types/ai';
-import { LangChainProviderAdapter } from '../../../src/modules/concept-parsing/langchain-adapter';
+import { ConceptProcessingPipeline } from '../catalyst/concept-parsing';
+import { AIProvider } from '@/shared/types/ai';
+import { LangChainProviderAdapter } from '../catalyst/langchain-adapter';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 
@@ -538,6 +538,9 @@ export class AgentManagerMain {
     enabledAgents: number;
     activeExecutions: number;
     agentTypes: Record<string, number>;
+    totalSessions: number;
+    activeSessions: number;
+    totalAgentSessions: number;
   } {
     const agents = Array.from(this.agents.values());
     const agentTypes = agents.reduce((acc, agent) => {
@@ -545,11 +548,23 @@ export class AgentManagerMain {
       return acc;
     }, {} as Record<string, number>);
 
+    // Count session statistics
+    const activeSessions = Array.from(this.sessionAgents.entries())
+      .filter(([_, associations]) =>
+        associations.some(assoc => assoc.status === 'active')
+      ).length;
+
+    const totalAgentSessions = Array.from(this.agentSessions.values())
+      .reduce((total, sessionSet) => total + sessionSet.size, 0);
+
     return {
       totalAgents: agents.length,
       enabledAgents: agents.filter(a => a.enabled).length,
       activeExecutions: this.executions.size,
-      agentTypes
+      agentTypes,
+      totalSessions: this.sessionAgents.size,
+      activeSessions,
+      totalAgentSessions
     };
   }
 
@@ -890,44 +905,7 @@ export class AgentManagerMain {
     }
   }
 
-  /**
-   * Update agent manager statistics to include session data
-   */
-  getStats(): {
-    totalAgents: number;
-    enabledAgents: number;
-    activeExecutions: number;
-    agentTypes: Record<string, number>;
-    totalSessions: number;
-    activeSessions: number;
-    totalAgentSessions: number;
-  } {
-    const agents = Array.from(this.agents.values());
-    const agentTypes = agents.reduce((acc, agent) => {
-      acc[agent.type] = (acc[agent.type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Count session statistics
-    const activeSessions = Array.from(this.sessionAgents.entries())
-      .filter(([_, associations]) =>
-        associations.some(assoc => assoc.status === 'active')
-      ).length;
-
-    const totalAgentSessions = Array.from(this.agentSessions.values())
-      .reduce((total, sessionSet) => total + sessionSet.size, 0);
-
-    return {
-      totalAgents: agents.length,
-      enabledAgents: agents.filter(a => a.enabled).length,
-      activeExecutions: this.executions.size,
-      agentTypes,
-      totalSessions: this.sessionAgents.size,
-      activeSessions,
-      totalAgentSessions
-    };
-  }
-
+  
   /**
    * Dispose of the agent manager
    */

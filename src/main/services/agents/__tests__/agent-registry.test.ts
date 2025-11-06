@@ -7,14 +7,14 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AgentRegistry } from '@/services/agent/agent-registry';
-import { AgentType } from '@/services/AgentManager';
+import { AgentRegistry } from '../agent-registry';
+import { AgentType } from '../../catalyst/AgentManager';
 import type { Kysely } from 'kysely';
-import type { Database } from '@/modules/database/kysely-schema';
-import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/mocks';
+import type { Database } from '@/shared/types/database';
+import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '../setup';
 
 // Mock AgentManager for testing
-vi.mock('@/services/AgentManager', () => ({
+vi.mock('../../catalyst/AgentManager', () => ({
   AgentType: {
     LEARNING: 'learning',
     ASSESSMENT: 'assessment',

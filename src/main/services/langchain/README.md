@@ -49,8 +49,8 @@ Store large data objects
 ## Usage
 
 ```typescript
-import { SQLiteCheckpointSaver } from '@/modules/langgraph'
-import { createDatabase } from '@/modules/database'
+import { SQLiteCheckpointSaver } from '../checkpoints/SQLiteCheckpointSaver'
+import { createDatabase } from '../database'
 
 // Initialize
 const db = await createDatabase()
