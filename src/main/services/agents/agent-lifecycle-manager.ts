@@ -532,15 +532,15 @@ export class AgentLifecycleManager {
           .where('agent_id', '=', agentId);
 
         if (options.eventType) {
-          query = query.where('event', '=', options.eventType);
+          query = query.where('event', '=', options.eventType as any);
         }
 
         if (options.startDate) {
-          query = query.where('timestamp', '>=', new Date(options.startDate));
+          query = query.where('timestamp', '>=', new Date(options.startDate).getTime());
         }
 
         if (options.endDate) {
-          query = query.where('timestamp', '<=', new Date(options.endDate));
+          query = query.where('timestamp', '<=', new Date(options.endDate).getTime());
         }
 
         query = query.orderBy('timestamp', 'desc');
@@ -561,7 +561,7 @@ export class AgentLifecycleManager {
           event: row.event as LifecycleEvent['event'],
           fromState: row.from_state as string | undefined,
           toState: row.to_state as string | undefined,
-          timestamp: row.timestamp.getTime(),
+          timestamp: typeof row.timestamp === 'number' ? row.timestamp : (row.timestamp as any).getTime(),
           metadata: JSON.parse(row.metadata || '{}')
         }));
       } catch (error) {
@@ -648,8 +648,9 @@ export class AgentLifecycleManager {
         event: event.event,
         from_state: event.fromState,
         to_state: event.toState,
-        timestamp: new Date(event.timestamp),
-        metadata: JSON.stringify(event.metadata)
+        timestamp: event.timestamp,
+        metadata: JSON.stringify(event.metadata),
+        created_at: Date.now()
       }).executeTakeFirst();
     } catch (error) {
       // Don't throw here to avoid infinite loops, but log the error
@@ -659,18 +660,29 @@ export class AgentLifecycleManager {
 
   private async saveAgentState(agentId: string, state: Record<string, any>): Promise<void> {
     try {
-      await this.db.insertInto('agent_states').values({
-        id: createUUID(),
-        agent_id: agentId,
-        state_data: JSON.stringify(state),
-        created_at: new Date()
-      }).onConflict(oc => oc
-        .column('agent_id')
-        .doUpdateSet({
+      const now = Date.now();
+
+      // Try to insert first
+      try {
+        await this.db.insertInto('agent_states').values({
+          id: createUUID(),
+          agent_id: agentId,
           state_data: JSON.stringify(state),
-          updated_at: new Date()
-        })
-      ).execute();
+          version: 1,
+          created_at: now,
+          updated_at: now
+        }).execute();
+      } catch (insertError) {
+        // If insert fails (conflict), update instead
+        await this.db
+          .updateTable('agent_states')
+          .set({
+            state_data: JSON.stringify(state),
+            updated_at: now
+          })
+          .where('agent_id', '=', agentId)
+          .execute();
+      }
     } catch (error) {
       this.logger.error('Failed to save agent state', error as Error);
       throw error;
@@ -718,7 +730,7 @@ export class AgentLifecycleManager {
         .updateTable('agents')
         .set({
           status: 'error',
-          updated_at: new Date(),
+          updated_at: Date.now(),
           metadata: JSON.stringify({
             ...agent.metadata,
             errorState: metadata,
@@ -786,8 +798,10 @@ export class AgentLifecycleManager {
         id: createUUID(),
         agent_id: agentId,
         archive_data: JSON.stringify(archiveData),
-        backup_location: options.backupLocation || null,
-        archived_at: new Date()
+        backup_location: options.backupLocation || undefined,
+        archive_reason: 'deletion',
+        retained_history: options.retainHistory || false,
+        archived_at: Date.now()
       }).execute();
 
       this.logger.info('Agent archived before deletion', { agentId, archiveData });

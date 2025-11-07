@@ -9,9 +9,9 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { Kysely } from 'kysely';
 import type { Database } from '@/main/services/database/kysely-schema';
-import { SQLiteCheckpointSaver } from '@/shared/modules/langgraph';
 import { createUUID, generateTimestamp } from '@/shared/utils/helpers';
-import { compress as compressData, decompress as decompressData } from '@/shared/utils/compression';
+import { SQLiteCheckpointSaver } from '@/main/services/database/SQLiteCheckpointSaver';
+import { compress, decompress } from '@/shared/utils/compression';
 
 export interface AgentState {
   status: string;
@@ -83,12 +83,15 @@ export interface IntegrityValidationResult {
  * Manages agent state with comprehensive persistence and recovery capabilities
  */
 export class AgentStatePersistence {
+  private checkpointer: SQLiteCheckpointSaver;
+
   constructor(
     private db: Kysely<Database>,
-    private checkpointSaver: SQLiteCheckpointSaver,
     private logger: any,
     private als: AsyncLocalStorage<any>
-  ) {}
+  ) {
+    this.checkpointer = new SQLiteCheckpointSaver(db);
+  }
 
   /**
    * Save agent state with optional checkpoint data
@@ -128,7 +131,7 @@ export class AgentStatePersistence {
         // Compress if requested or if data is large
         if (options.compress !== false && originalSize > 1024) {
           try {
-            stateData = await compressData(stateData);
+            stateData = await compress(stateData);
             compressed = true;
             this.logger.info('Large state data compressed', {
               agentId,
@@ -157,22 +160,30 @@ export class AgentStatePersistence {
 
         // Save to database within transaction
         await this.db.transaction().execute(async (trx) => {
+          // Combine state and metadata for storage since AgentStateRow doesn't have metadata field
+          const stateWithMetadata = {
+            state: state,
+            metadata: metadata
+          };
+
           await trx.insertInto('agent_states').values({
             id: stateId,
             agent_id: agentId,
-            state_data: stateData,
-            metadata: JSON.stringify(metadata),
-            created_at: new Date(timestamp),
-            updated_at: new Date(timestamp)
+            state_data: JSON.stringify(stateWithMetadata),
+            version: 1,
+            created_at: timestamp,
+            updated_at: timestamp
           }).executeTakeFirst();
 
           // Save checkpoint data if provided
           let checkpointSaved = false;
           if (options.checkpointData) {
             try {
-              await this.checkpointSaver.put(
+              await this.checkpointer.put(
                 { configurable: { thread_id: agentId, checkpoint_ns: 'agent_state' } },
-                options.checkpointData
+                options.checkpointData,
+                { source: "update" as const, step: 0, parents: {} },
+                {}
               );
               checkpointSaved = true;
             } catch (error) {
@@ -262,14 +273,19 @@ export class AgentStatePersistence {
         // Parse and validate state data
         let stateData: string;
         let metadata: StateMetadata;
+        let state: AgentState;
 
         try {
-          metadata = JSON.parse(stateRecord.metadata || '{}');
+          // Parse the combined state data that includes metadata
+          const stateWithMetadata = JSON.parse(stateRecord.state_data);
+          state = stateWithMetadata.state;
+          metadata = stateWithMetadata.metadata || {};
 
-          // Decompress if needed
-          if (metadata.compressed) {
+          // The state data itself might be compressed if it was large
+          if (metadata.compressed && typeof state === 'string') {
             try {
-              stateData = await decompressData(stateRecord.state_data);
+              stateData = await decompress(state);
+              state = JSON.parse(stateData);
               this.logger.info('State data decompressed', {
                 agentId,
                 compressedSize: Buffer.byteLength(stateRecord.state_data, 'utf8'),
@@ -282,20 +298,21 @@ export class AgentStatePersistence {
                 error: 'Failed to decompress state data'
               };
             }
-          } else {
-            stateData = stateRecord.state_data;
           }
 
-          // Validate checksum
-          if (metadata.checksum && metadata.checksum !== this.calculateChecksum(stateData)) {
-            this.logger.error('State data checksum mismatch', {
-              agentId,
-              stateId: stateRecord.id
-            });
-            return {
-              success: false,
-              error: 'State data corrupted (checksum mismatch)'
-            };
+          // Validate checksum if present
+          if (metadata.checksum) {
+            const dataToCheck = typeof state === 'string' ? state : JSON.stringify(state);
+            if (metadata.checksum !== this.calculateChecksum(dataToCheck)) {
+              this.logger.error('State data checksum mismatch', {
+                agentId,
+                stateId: stateRecord.id
+              });
+              return {
+                success: false,
+                error: 'State data corrupted (checksum mismatch)'
+              };
+            }
           }
         } catch (error) {
           this.logger.error('Failed to parse state data', error as Error);
@@ -305,23 +322,11 @@ export class AgentStatePersistence {
           };
         }
 
-        // Parse state
-        let state: AgentState;
-        try {
-          state = JSON.parse(stateData);
-        } catch (error) {
-          this.logger.error('Failed to parse agent state', error as Error);
-          return {
-            success: false,
-            error: 'Invalid state JSON'
-          };
-        }
-
         // Restore checkpoint if requested
         let checkpoint: any;
         if (options.restoreCheckpoint) {
           try {
-            checkpoint = await this.checkpointSaver.get({
+            checkpoint = await this.checkpointer.get({
               configurable: { thread_id: agentId, checkpoint_ns: 'agent_state' }
             });
 
@@ -381,11 +386,11 @@ export class AgentStatePersistence {
           .where('agent_id', '=', agentId);
 
         if (options.startDate) {
-          query = query.where('created_at', '>=', new Date(options.startDate));
+          query = query.where('created_at', '>=', options.startDate);
         }
 
         if (options.endDate) {
-          query = query.where('created_at', '<=', new Date(options.endDate));
+          query = query.where('created_at', '<=', options.endDate);
         }
 
         query = query.orderBy('created_at', 'desc');
@@ -403,24 +408,17 @@ export class AgentStatePersistence {
         const history: StateHistoryEntry[] = [];
         for (const record of records) {
           try {
-            let stateData: string;
-            const metadata = JSON.parse(record.metadata || '{}');
-
-            // Decompress if needed
-            if (metadata.compressed) {
-              stateData = await decompressData(record.state_data);
-            } else {
-              stateData = record.state_data;
-            }
-
-            const state = JSON.parse(stateData);
+            // Parse the combined state data
+            const stateWithMetadata = JSON.parse(record.state_data);
+            const state = stateWithMetadata.state;
+            const metadata = stateWithMetadata.metadata || {};
 
             history.push({
               id: record.id,
               agentId: record.agent_id,
               state,
               metadata,
-              timestamp: record.created_at.getTime(),
+              timestamp: record.created_at,
               isLatest: record.id === records[0]?.id
             });
           } catch (error) {
@@ -454,10 +452,10 @@ export class AgentStatePersistence {
         const checkpointOptions = limit ? { limit } : undefined;
 
         const history = [];
-        for await (const checkpoint of this.checkpointSaver.list(config, checkpointOptions)) {
+        for await (const checkpoint of this.checkpointer.list(config, checkpointOptions)) {
           history.push({
-            id: checkpoint.id,
-            timestamp: checkpoint.ts,
+            id: checkpoint.checkpoint?.id || 'unknown',
+            timestamp: checkpoint.checkpoint?.ts || Date.now(),
             metadata: checkpoint.metadata || {},
             checkpoint
           });
@@ -495,7 +493,7 @@ export class AgentStatePersistence {
           }
         };
 
-        const checkpoint = await this.checkpointSaver.get(config);
+        const checkpoint = await this.checkpointer.get(config);
 
         if (!checkpoint) {
           this.logger.warn('Checkpoint not found', { agentId, checkpointId });
@@ -527,6 +525,7 @@ export class AgentStatePersistence {
 
   /**
    * Create backup of agent state
+   * Note: Disabled until agent_backups table is added to schema
    */
   async createBackup(
     agentId: string,
@@ -539,68 +538,17 @@ export class AgentStatePersistence {
     error?: string;
   }> {
     return this.runWithContext('create-backup', async () => {
-      try {
-        const backupId = createUUID();
-        const timestamp = generateTimestamp();
-
-        // Get all states for the agent
-        const states = await this.db
-          .selectFrom('agent_states')
-          .selectAll()
-          .where('agent_id', '=', agentId)
-          .execute();
-
-        // Get checkpoints if requested
-        let checkpoints: any[] = [];
-        if (config.includeCheckpoints) {
-          checkpoints = await this.getCheckpointHistory(agentId);
-        }
-
-        // Create backup data
-        const backupData = {
-          backupId,
-          agentId,
-          timestamp,
-          states,
-          checkpoints,
-          config
-        };
-
-        // Save backup record
-        await this.db.insertInto('agent_backups').values({
-          id: backupId,
-          agent_id: agentId,
-          backup_data: JSON.stringify(backupData),
-          backup_path: config.destination,
-          created_at: new Date(timestamp)
-        }).executeTakeFirst();
-
-        this.logger.info('Agent state backup created', {
-          agentId,
-          backupId,
-          backupPath: config.destination,
-          stateCount: states.length,
-          checkpointCount: checkpoints.length
-        });
-
-        return {
-          success: true,
-          backupId,
-          backupPath: config.destination,
-          stateCount: states.length
-        };
-      } catch (error) {
-        this.logger.error('Failed to create state backup', error as Error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
-      }
+      this.logger.warn('Backup functionality disabled - agent_backups table not in schema');
+      return {
+        success: false,
+        error: 'Backup functionality not available - agent_backups table missing'
+      };
     });
   }
 
   /**
    * Restore from backup
+   * Note: Disabled until agent_backups table is added to schema
    */
   async restoreFromBackup(agentId: string, backupId: string): Promise<{
     success: boolean;
@@ -609,78 +557,11 @@ export class AgentStatePersistence {
     error?: string;
   }> {
     return this.runWithContext('restore-from-backup', async () => {
-      try {
-        // Get backup record
-        const backupRecord = await this.db
-          .selectFrom('agent_backups')
-          .selectAll()
-          .where('id', '=', backupId)
-          .where('agent_id', '=', agentId)
-          .executeTakeFirst();
-
-        if (!backupRecord) {
-          return {
-            success: false,
-            error: 'Backup not found'
-          };
-        }
-
-        const backupData = JSON.parse(backupRecord.backup_data);
-
-        // Restore states
-        let restoredStates = 0;
-        if (backupData.states?.length > 0) {
-          await this.db.transaction().execute(async (trx) => {
-            for (const state of backupData.states) {
-              await trx.insertInto('agent_states').values({
-                ...state,
-                restored_from_backup: backupId,
-                restored_at: new Date()
-              }).executeTakeFirst();
-              restoredStates++;
-            }
-          });
-        }
-
-        // Restore checkpoints if available
-        let restoredCheckpoints = 0;
-        if (backupData.checkpoints?.length > 0) {
-          for (const checkpoint of backupData.checkpoints) {
-            try {
-              await this.checkpointSaver.put(
-                { configurable: { thread_id: agentId, checkpoint_ns: 'agent_state' } },
-                checkpoint.checkpoint
-              );
-              restoredCheckpoints++;
-            } catch (error) {
-              this.logger.warn('Failed to restore checkpoint', {
-                agentId,
-                checkpointId: checkpoint.id,
-                error: error instanceof Error ? error.message : 'Unknown error'
-              });
-            }
-          }
-        }
-
-        this.logger.info('Agent state restored from backup', {
-          agentId,
-          backupId,
-          restoredStates,
-          restoredCheckpoints
-        });
-
-        return {
-          success: true,
-          restoredStates,
-          restoredCheckpoints
-        };
-      } catch (error) {
-        this.logger.error('Failed to restore from backup', error as Error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        };
-      }
+      this.logger.warn('Backup restore functionality disabled - agent_backups table not in schema');
+      return {
+        success: false,
+        error: 'Backup restore functionality not available - agent_backups table missing'
+      };
     });
   }
 
@@ -700,7 +581,7 @@ export class AgentStatePersistence {
         let query = this.db
           .deleteFrom('agent_states')
           .where('agent_id', '=', agentId)
-          .where('created_at', '<', new Date(options.olderThan));
+          .where('created_at', '<', options.olderThan);
 
         // Keep latest states if specified
         if (options.keepLatest && options.keepLatest > 0) {
@@ -724,7 +605,7 @@ export class AgentStatePersistence {
             .selectFrom('agent_states')
             .select(eb => eb.fn.count('id').as('count'))
             .where('agent_id', '=', agentId)
-            .where('created_at', '<', new Date(options.olderThan));
+            .where('created_at', '<', options.olderThan);
 
           if (options.keepLatest && options.keepLatest > 0) {
             const latestStates = await this.db
@@ -753,7 +634,7 @@ export class AgentStatePersistence {
         }
 
         const result = await query.execute();
-        const deletedCount = Number(result.numDeletedRows || 0);
+        const deletedCount = result.length > 0 ? Number(result[0]?.numDeletedRows || 0) : 0;
 
         this.logger.info('Old states cleaned up', {
           agentId,
@@ -907,7 +788,9 @@ export class AgentStatePersistence {
 
         for (const stateRecord of states) {
           try {
-            const metadata = JSON.parse(stateRecord.metadata || '{}');
+            // Parse the combined state data
+            const stateWithMetadata = JSON.parse(stateRecord.state_data);
+            const metadata = stateWithMetadata.metadata || {};
             const expectedChecksum = metadata.checksum;
 
             if (expectedChecksum) {
@@ -922,16 +805,21 @@ export class AgentStatePersistence {
                   stateId: stateRecord.id
                 });
 
-                // Attempt to fix by marking as corrupted
+                // Attempt to fix by marking as corrupted in the metadata
+                const corruptedStateWithMetadata = {
+                  ...stateWithMetadata,
+                  metadata: {
+                    ...metadata,
+                    corrupted: true,
+                    corruptionDetected: Date.now()
+                  }
+                };
+
                 await this.db
                   .updateTable('agent_states')
                   .set({
-                    metadata: JSON.stringify({
-                      ...metadata,
-                      corrupted: true,
-                      corruptionDetected: Date.now()
-                    }),
-                    updated_at: new Date()
+                    state_data: JSON.stringify(corruptedStateWithMetadata),
+                    updated_at: Date.now()
                   })
                   .where('id', '=', stateRecord.id)
                   .execute();

@@ -16,6 +16,41 @@ import { AppConfig } from '../../shared/types/config';
 // Store workspace path for config operations
 let globalWorkspacePath: string = '';
 
+// Type definitions for settings export
+interface ExportSettings {
+  appearance: {
+    theme: string;
+    fontSize: string;
+    fontFamily: string;
+  };
+  learning: {
+    defaultDifficulty: string;
+    sessionDuration: number;
+    dailyGoal: number;
+  };
+  notifications: {
+    enablePushNotifications: boolean;
+    reminderFrequency: string;
+  };
+  private?: {
+    apiKey: string;
+    personalData: string;
+  };
+}
+
+interface ExportData {
+  version: string;
+  exportedAt: string;
+  format: string;
+  includePrivate: boolean;
+  settings: ExportSettings;
+  metadata: {
+    totalCategories: number;
+    exportedBy: string;
+    checksum: string;
+  };
+}
+
 /**
  * Setup settings and configuration IPC handlers
  */
@@ -335,7 +370,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
         'settings:export',
         async () => {
           // Mock settings export
-          const exportData = {
+          const exportData: ExportData = {
             version: '1.0.0',
             exportedAt: new Date().toISOString(),
             format: params.format || 'json',

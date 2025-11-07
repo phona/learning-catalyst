@@ -350,6 +350,78 @@ export class KnowledgeService {
       throw error;
     }
   }
+
+  /**
+   * Search for relevant concepts based on query
+   */
+  async searchRelevantConcepts(
+    query: string,
+    options?: {
+      limit?: number;
+      difficulty?: 'beginner' | 'intermediate' | 'advanced';
+      conceptType?: string;
+      sessionId?: string;
+    }
+  ): Promise<KnowledgeSearchResult[]> {
+    try {
+      const result = await this.invokeIPC('knowledge:searchConcepts', {
+        query,
+        limit: options?.limit || 10,
+        difficulty: options?.difficulty,
+        conceptType: options?.conceptType,
+        sessionId: options?.sessionId
+      });
+
+      if (!result.success) {
+        console.error('Failed to search relevant concepts:', result.error);
+        return [];
+      }
+
+      return result.concepts || [];
+    } catch (error) {
+      console.error('Failed to search relevant concepts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Add knowledge (alias for addKnowledgeItem)
+   */
+  async addKnowledge(
+    item: KnowledgeItem,
+    aiProvider: AIProvider,
+    embedding?: number[]
+  ): Promise<void> {
+    return this.addKnowledgeItem(item, aiProvider, embedding);
+  }
+
+  /**
+   * Update concept relationships
+   */
+  async updateConceptRelationships(
+    conceptId: string,
+    relationships: Array<{
+      targetConceptId: string;
+      relationshipType: 'prerequisite' | 'related' | 'contains' | 'example';
+      strength: number;
+    }>
+  ): Promise<void> {
+    try {
+      const result = await this.invokeIPC('knowledge:updateRelationships', {
+        conceptId,
+        relationships
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update concept relationships');
+      }
+
+      console.log(`Updated relationships for concept: ${conceptId}`);
+    } catch (error) {
+      console.error('Failed to update concept relationships:', error);
+      throw error;
+    }
+  }
 }
 
 // Singleton instance

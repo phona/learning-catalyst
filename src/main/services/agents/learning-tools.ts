@@ -1,8 +1,8 @@
 import { tool } from "langchain";
 import { z } from "zod";
-import type { ConceptParsingService } from "@/services/ConceptParsingService";
-import type { ConfigService } from "@/services/configService";
-import type { SessionService } from "@/services/sessionService";
+import { ConceptProcessingPipeline } from "../concept-parsing";
+import { ConfigService } from "../configService";
+import { SessionService } from "../sessions/SessionService";
 
 /**
  * Learning-specific tools for the agentic AgentManager
@@ -10,7 +10,7 @@ import type { SessionService } from "@/services/sessionService";
  */
 
 export function createLearningTools(
-  conceptParsingService: ConceptParsingService,
+  conceptParsingPipeline: ConceptProcessingPipeline,
   configService: ConfigService,
   sessionService: SessionService
 ) {
@@ -26,26 +26,31 @@ export function createLearningTools(
           };
         }
 
-        const result = await conceptParsingService.parseConcepts(content, {
-          sessionId: session_id,
-          extractRelationships: true,
-          identifyKeyTopics: true,
-          generateSummary: true,
+        const result = await conceptParsingPipeline.processContent({
+          materialId: session_id || `temp_${Date.now()}`,
+          title: `Concept Analysis ${Date.now()}`,
+          content,
+          format: 'text'
         });
 
         return {
           success: true,
           concepts: result.concepts.map(concept => ({
             name: concept.name,
-            definition: concept.definition,
-            category: concept.category,
+            definition: concept.description,
+            category: concept.type,
             difficulty: concept.difficulty,
-            relationships: concept.relationships || [],
-            examples: concept.examples || [],
+            relationships: [],
+            examples: [],
           })),
-          summary: result.summary,
-          keyTopics: result.keyTopics || [],
-          relationships: result.relationships || [],
+          summary: result.material ? result.material.title : 'Concept analysis completed',
+          keyTopics: result.concepts.map(c => c.name),
+          relationships: result.relationships.map(rel => ({
+            source: rel.sourceId,
+            target: rel.targetId,
+            type: rel.type,
+            strength: rel.strength
+          })),
         };
       } catch (error) {
         return {
@@ -75,23 +80,23 @@ export function createLearningTools(
           limit: limit || 10,
         };
 
-        const result = await sessionService.searchSessions(searchQuery);
+        const result = await sessionService.listSessions(searchQuery);
 
         return {
           success: true,
           sessions: result.sessions.map(session => ({
             id: session.id,
             title: session.title,
-            description: session.metadata.description,
-            tags: session.metadata.tags,
-            category: session.metadata.category,
-            difficulty: session.metadata.difficulty,
-            topics_covered: session.metadata.topics_covered,
-            created_at: session.created_at,
-            message_count: session.statistics.total_messages,
+            description: session.preview || session.title,
+            tags: session.tags || [],
+            category: session.agentType,
+            difficulty: session.difficulty || 'medium',
+            topics_covered: session.tags || [],
+            created_at: session.lastActivity || 'recent',
+            message_count: session.messageCount || 0,
           })),
           total: result.total,
-          has_more: result.has_more,
+          has_more: result.hasMore,
         };
       } catch (error) {
         return {
@@ -174,12 +179,12 @@ export function createLearningTools(
         return {
           success: true,
           config: {
-            default_provider: config.ai.model_types.chat.default_provider,
-            temperature: config.ai.model_types.chat.settings.temperature,
-            max_tokens: config.ai.model_types.chat.settings.max_tokens,
-            thinking_enabled: config.ai.model_types.chat.capabilities.thinking,
-            auto_parsing: config.ai.content_discovery?.auto_parse_concepts || false,
-            workspace_path: config.file_explorer?.default_workspace_path,
+            default_provider: config.ai.model_types.chat?.provider || 'openai',
+            temperature: config.ai.model_types.chat?.temperature || 0.7,
+            max_tokens: config.ai.model_types.chat?.max_tokens || 4096,
+            thinking_enabled: config.ai.model_types.chat?.enable_thinking || false,
+            auto_parsing: config.learning?.auto_save || false,
+            workspace_path: config.learning?.auto_save ? './workspace' : undefined,
           },
         };
       } catch (error) {

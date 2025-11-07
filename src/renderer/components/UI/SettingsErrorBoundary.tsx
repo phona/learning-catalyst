@@ -1,5 +1,5 @@
 import React from 'react';
-import { ErrorBoundaryEnhanced } from './ErrorBoundaryEnhanced';
+import { ErrorBoundary } from './ErrorBoundary';
 import { ExclamationTriangleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 
 interface SettingsErrorBoundaryProps {
@@ -8,8 +8,38 @@ interface SettingsErrorBoundaryProps {
 }
 
 /**
- * Specialized error boundary for settings components
- * Handles configuration-related errors with appropriate recovery options
+ * ⚙️ Settings Error Boundary
+ *
+ * Specialized error boundary for settings components with configuration-aware
+ * error handling and reassurance about settings persistence.
+ *
+ * 🎯 What It Does:
+ * - Catches settings component errors without affecting user settings
+ * - Reassures users that their previous settings remain active
+ * - Provides settings-specific error recovery options
+ * - Maintains context-appropriate styling for settings interface
+ * - Handles configuration-related error scenarios gracefully
+ *
+ * 🔧 Features:
+ * - Warning-themed styling to indicate configuration issues
+ * - Clear messaging about settings persistence
+ * - Settings context that won't panic users about data loss
+ * - Integration with settings error handling for onSaveError scenarios
+ *
+ * 💡 Best Practices:
+ * - Use for settings panels, configuration forms, and preference interfaces
+ * - Implement onSaveError to handle configuration save failures
+ * - Reassure users that settings failures don't affect current configuration
+ * - Provide retry mechanisms that can recover from transient errors
+ *
+ * @example
+ * ```tsx
+ * <SettingsErrorBoundary onSaveError={handleConfigSaveError}>
+ *   <SettingsPanel />
+ *   <AIProviderSettings />
+ *   <UISettings />
+ * </SettingsErrorBoundary>
+ * ```
  */
 export const SettingsErrorBoundary: React.FC<SettingsErrorBoundaryProps> = ({
   children,
@@ -43,7 +73,7 @@ export const SettingsErrorBoundary: React.FC<SettingsErrorBoundaryProps> = ({
   );
 
   return (
-    <ErrorBoundaryEnhanced
+    <ErrorBoundary
       variant="inline"
       title="Settings Error"
       description="The settings panel encountered an error. Your previous settings are still active."
@@ -52,6 +82,6 @@ export const SettingsErrorBoundary: React.FC<SettingsErrorBoundaryProps> = ({
       showRetry={true}
     >
       {children}
-    </ErrorBoundaryEnhanced>
+    </ErrorBoundary>
   );
 };

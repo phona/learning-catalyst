@@ -478,3 +478,6 @@ export class SecureToolExecutor extends EventEmitter {
     this.dependencies.logger.info('SecureToolExecutor disposed');
   }
 }
+
+// Re-export security types for external use
+export { SecurityLevel, PermissionType } from './tool-sandbox-security-manager';

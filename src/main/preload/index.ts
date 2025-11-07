@@ -71,16 +71,18 @@ const chatAPI: ChatAPI = {
         const port = event.ports[0];
         const stream = {
           async *[Symbol.asyncIterator]() {
-            const messageHandler = (event: MessageEvent) => {
-              const { type, chunk, isComplete, error } = event.data;
-              switch (type) {
-                case 'chat:chunk': yield chunk; break;
-                case 'chat:complete': port.close(); return;
-                case 'chat:error': throw new Error(error);
-              }
-            };
-            port.onmessage = messageHandler;
-            port.start();
+            return new Promise((resolveStream, rejectStream) => {
+              const messageHandler = (event: MessageEvent) => {
+                const { type, chunk, isComplete, error } = event.data;
+                switch (type) {
+                  case 'chat:chunk': resolveStream(chunk); break;
+                  case 'chat:complete': port.close(); resolveStream(undefined); return;
+                  case 'chat:error': rejectStream(new Error(error)); return;
+                }
+              };
+              port.onmessage = messageHandler;
+              port.start();
+            });
           }
         };
         resolve(stream);
@@ -92,31 +94,52 @@ const chatAPI: ChatAPI = {
   },
 
   /**
+   * Gets real-time typing indicator
+   * Use this to show when the AI is typing or processing
+   * @param conversationId - Active conversation ID
+   * @returns Promise<TypingIndicator> - Typing status and agent info
+   */
+  getTypingIndicator: (conversationId: string) =>
+    ipcRenderer.invoke('chat:getTypingIndicator', conversationId),
+
+  /**
    * Gets conversation history with display optimization
    * Returns messages formatted for UI display with relative timestamps
    * @param conversationId - Conversation ID
+   * @param options - Optional pagination and filter options
    * @returns Promise<ConversationHistory> - Conversation data
    */
-  getConversationHistory: (conversationId: string) =>
-    ipcRenderer.invoke('chat:getConversation', conversationId),
+  getConversationHistory: (conversationId: string, options?: any) =>
+    ipcRenderer.invoke('chat:getConversation', { conversationId, ...options }),
 
   /**
-   * Lists all conversations
-   * Returns conversations with basic information for UI display
-   * @returns Promise<ConversationDisplay[]> - Array of conversations
+   * Pauses an active conversation
+   * Use this when user wants to temporarily stop the conversation
+   * @param conversationId - Active conversation ID
+   * @returns Promise<{ success: boolean; message: string }>
    */
-  listConversations: () =>
-    ipcRenderer.invoke('chat:listConversations'),
+  pauseConversation: (conversationId: string) =>
+    ipcRenderer.invoke('chat:pauseConversation', conversationId),
 
   /**
-   * Deletes a conversation
-   * Removes conversation and associated messages
-   * @param conversationId - Conversation to delete
-   * @returns Promise<{ success: boolean, deleted: boolean }>
+   * Resumes a paused conversation
+   * Restores the conversation context and continues
+   * @param conversationId - Paused conversation ID
+   * @returns Promise<{ success: boolean; context: ConversationContext }>
    */
-  deleteConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:deleteConversation', conversationId)
-};
+  resumeConversation: (conversationId: string) =>
+    ipcRenderer.invoke('chat:resumeConversation', conversationId),
+
+  /**
+   * Ends a conversation and generates summary
+   * Returns a summary of key points covered in the conversation
+   * @param conversationId - Conversation to end
+   * @returns Promise<ConversationSummary> - Summary and key takeaways
+   */
+  endConversation: (conversationId: string) =>
+    ipcRenderer.invoke('chat:endConversation', conversationId)
+
+  };
 
 // ============================================================================
 // 2. Learning & Sessions API
@@ -152,43 +175,59 @@ const learningAPI: LearningAPI = {
     ipcRenderer.invoke('learning:getProgress', sessionId),
 
   /**
-   * Lists all learning sessions
-   * Returns sessions with basic information for UI display
-   * @returns Promise<SessionDisplay[]> - Array of learning sessions
-   */
-  listSessions: () =>
-    ipcRenderer.invoke('learning:listSessions'),
-
-  /**
-   * Updates progress for a learning session
-   * Records progress updates and achievements
-   * @param params.sessionId - Learning session ID
-   * @param params.progress - Progress value (0-1)
-   * @param params.type - Type of progress update
-   * @returns Promise<{ success: boolean, updatedProgress: ProgressUpdate }>
-   */
-  updateProgress: (params) =>
-    ipcRenderer.invoke('learning:updateProgress', params),
-
-  /**
-   * Gets personalized recommendations
-   * Returns learning recommendations based on current progress
+   * Gets the structured learning path for a session
+   * Returns the planned sequence of topics and activities
    * @param sessionId - Learning session ID
-   * @returns Promise<RecommendationDisplay[]> - Array of recommendations
+   * @returns Promise<LearningPathDisplay> - Structured learning path
    */
-  getRecommendations: (sessionId: string) =>
-    ipcRenderer.invoke('learning:getRecommendations', sessionId),
+  getLearningPath: (sessionId: string) =>
+    ipcRenderer.invoke('learning:getPath', sessionId),
 
   /**
-   * Generates a learning path
-   * Creates a structured learning path for a topic
-   * @param params.topic - Topic to create path for
-   * @param params.currentLevel - Current skill level
-   * @param params.targetLevel - Target skill level
-   * @returns Promise<LearningPathDisplay> - Generated learning path
+   * Pauses an active learning session
+   * Saves current state and stops progress tracking
+   * @param sessionId - Active learning session ID
+   * @returns Promise<{ success: boolean; resumeData: any }>
    */
-  generateLearningPath: (params) =>
-    ipcRenderer.invoke('learning:generatePath', params)
+  pauseSession: (sessionId: string) =>
+    ipcRenderer.invoke('learning:pauseSession', sessionId),
+
+  /**
+   * Resumes a paused learning session
+   * Restores session state and continues progress tracking
+   * @param sessionId - Paused learning session ID
+   * @returns Promise<{ success: boolean; context: LearningContext }>
+   */
+  resumeSession: (sessionId: string) =>
+    ipcRenderer.invoke('learning:resumeSession', sessionId),
+
+  /**
+   * Completes a learning session and generates summary
+   * Calculates achievements and provides recommendations
+   * @param sessionId - Learning session to complete
+   * @returns Promise<SessionCompletionDisplay> - Completion summary and recommendations
+   */
+  completeSession: (sessionId: string) =>
+    ipcRenderer.invoke('learning:completeSession', sessionId),
+
+  /**
+   * Gets recent learning sessions for quick access
+   * Returns sessions ordered by last activity
+   * @param options - Optional filter and limit options
+   * @returns Promise<SessionDisplay[]> - Array of recent sessions
+   */
+  getRecentSessions: (options?: any) =>
+    ipcRenderer.invoke('learning:getRecentSessions', options),
+
+  /**
+   * Searches learning sessions with advanced filters
+   * Supports text search and multiple filter criteria
+   * @param query - Search query string
+   * @param filters - Filter options
+   * @returns Promise<SessionSearchResultDisplay> - Search results with pagination
+   */
+  searchSessions: (query: string, filters?: any) =>
+    ipcRenderer.invoke('learning:searchSessions', query, filters)
 };
 
 // ============================================================================
@@ -205,11 +244,11 @@ const knowledgeAPI: KnowledgeAPI = {
   /**
    * Explores a concept in detail with related information
    * Provides comprehensive concept analysis for learning
-   * @param conceptName - Name of the concept to explore
-   * @param depth - 'basic' | 'intermediate' | 'advanced' - depth of exploration
+   * @param params.conceptName - Name of the concept to explore
+   * @param params.depth - 'basic' | 'intermediate' | 'advanced' - depth of exploration
    * @returns Promise<ConceptExplorationDisplay> - Detailed concept information
    */
-  exploreConcept: (params) =>
+  exploreConcept: (params: { conceptName: string; depth: 'basic' | 'intermediate' | 'advanced' }) =>
     ipcRenderer.invoke('knowledge:exploreConcept', params),
 
   /**
@@ -222,35 +261,48 @@ const knowledgeAPI: KnowledgeAPI = {
     ipcRenderer.invoke('knowledge:getRelatedConcepts', conceptId),
 
   /**
+   * Gets knowledge map data for visualization
+   * Returns structured data for knowledge graph rendering
+   * @param sessionId - Optional session ID to focus on session-specific knowledge
+   * @returns Promise<KnowledgeMapDisplay> - Knowledge graph data for visualization
+   */
+  getKnowledgeMap: (sessionId?: string) =>
+    ipcRenderer.invoke('knowledge:getKnowledgeMap', sessionId),
+
+  /**
    * Searches the knowledge base for specific content
    * Supports natural language queries and semantic search
-   * @param params.query - Search query string
-   * @param params.filters - Search filters
+   * @param query - Search query string
    * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
    */
-  searchKnowledge: (params) =>
-    ipcRenderer.invoke('knowledge:search', params),
+  searchKnowledge: (query: string) =>
+    ipcRenderer.invoke('knowledge:search', query),
 
   /**
-   * Builds a knowledge graph
-   * Creates a visualizable knowledge graph from concepts
-   * @param params.concepts - Array of concepts to include
-   * @param params.includeRelationships - Whether to include relationships
-   * @param params.title - Optional title for the graph
-   * @returns Promise<KnowledgeGraphDisplay> - Knowledge graph data
+   * Gets explanation for a concept in specific style
+   * Provides different ways to understand the same concept
+   * @param params.conceptId - ID of the concept to explain
+   * @param params.style - 'simple' | 'technical' | 'analogy' | 'example' | 'visual'
+   * @returns Promise<ExplanationDisplay> - Concept explanation in requested style
    */
-  buildKnowledgeGraph: (params) =>
-    ipcRenderer.invoke('knowledge:buildGraph', params),
+  getExplanation: (params: {
+    conceptId: string;
+    style: 'simple' | 'technical' | 'analogy' | 'example' | 'visual';
+  }) =>
+    ipcRenderer.invoke('knowledge:getExplanation', params),
 
   /**
-   * Gets concept hierarchy
-   * Returns hierarchical structure of concepts
-   * @param params.rootConcept - Root concept for hierarchy
-   * @param params.maxDepth - Maximum depth to traverse
-   * @returns Promise<ConceptHierarchyDisplay> - Hierarchical concept data
+   * Gets practice exercises for a specific concept
+   * Provides hands-on learning opportunities with varying difficulty
+   * @param params.conceptId - ID of the concept to practice
+   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
+   * @returns Promise<ExerciseDisplay[]> - Array of practice exercises
    */
-  getConceptHierarchy: (params) =>
-    ipcRenderer.invoke('knowledge:getHierarchy', params)
+  getPracticeExercises: (params: {
+    conceptId: string;
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+  }) =>
+    ipcRenderer.invoke('knowledge:getPracticeExercises', params)
 };
 
 // ============================================================================
@@ -275,32 +327,50 @@ const analyticsAPI: AnalyticsAPI = {
   /**
    * Gets progress chart data for visualization
    * Returns structured data for various chart types
-   * @param params.timeRange - Time range for chart data
-   * @param params.topic - Optional topic filter
+   * @param params.timeRange - '7days' | '30days' | '90days' | '1year'
+   * @param params.topic - Optional topic filter (null for all topics)
    * @returns Promise<ProgressChartDisplay> - Chart-ready progress data
    */
-  getProgressChart: (params) =>
+  getProgressChart: (params: {
+    timeRange: '7days' | '30days' | '90days' | '1year';
+    topic?: string | null;
+  }) =>
     ipcRenderer.invoke('analytics:getProgressChart', params),
 
   /**
-   * Gets learning insights
-   * Returns personalized learning insights and recommendations
-   * @param params.timeRange - Time range for insights
-   * @param params.type - Type of insights
-   * @returns Promise<InsightsDisplay> - Learning insights
+   * Gets all user achievements and milestones
+   * Returns achievements with completion status and metadata
+   * @returns Promise<AchievementDisplay[]> - Array of achievements
    */
-  getInsights: (params) =>
-    ipcRenderer.invoke('analytics:getInsights', params),
+  getAchievements: () =>
+    ipcRenderer.invoke('analytics:getAchievements'),
 
   /**
-   * Gets detailed performance metrics
-   * Returns comprehensive performance analysis
-   * @param params.timeRange - Time range for metrics
-   * @param params.breakdown - Level of detail breakdown
-   * @returns Promise<PerformanceDisplay> - Performance metrics
+   * Unlocks an achievement and handles rewards
+   * Called when user meets achievement criteria
+   * @param achievementId - ID of the achievement to unlock
+   * @returns Promise<{ success: boolean; reward?: AchievementReward }>
    */
-  getPerformance: (params) =>
-    ipcRenderer.invoke('analytics:getPerformance', params)
+  unlockAchievement: (achievementId: string) =>
+    ipcRenderer.invoke('analytics:unlockAchievement', achievementId),
+
+  /**
+   * Gets detailed usage statistics
+   * Provides insights into learning patterns and habits
+   * @param timeRange - Time range for statistics
+   * @returns Promise<UsageStatsDisplay> - Detailed usage analytics
+   */
+  getUsageStats: (timeRange: '7days' | '30days' | '90days' | '1year') =>
+    ipcRenderer.invoke('analytics:getUsageStats', timeRange),
+
+  /**
+   * Gets token usage and cost information
+   * Important for monitoring API usage and costs
+   * @param timeRange - Time range for token statistics
+   * @returns Promise<TokenUsageDisplay> - Token usage breakdown
+   */
+  getTokenUsage: (timeRange: '7days' | '30days' | '90days' | '1year') =>
+    ipcRenderer.invoke('analytics:getTokenUsage', timeRange)
 };
 
 // ============================================================================
@@ -323,57 +393,65 @@ const agentsAPI: AgentsAPI = {
     ipcRenderer.invoke('agent:list'),
 
   /**
-   * Executes an agent with specific parameters
-   * Runs the agent and returns execution results
-   * @param request - Agent execution request with parameters
-   * @returns Promise<AgentExecutionResult> - Execution results
+   * Selects an agent for a specific session
+   * Associates the agent with the session and applies preferences
+   * @param params.sessionId - Learning session ID
+   * @param params.agentType - Type of agent to select
+   * @returns Promise<{ success: boolean; agent: AgentDisplay; context: AgentContext }>
    */
-  executeAgent: (request) =>
-    ipcRenderer.invoke('agent:execute', request),
+  selectAgentForSession: (params: {
+    sessionId: string;
+    agentType: string;
+  }) =>
+    ipcRenderer.invoke('agent:selectForSession', params),
 
   /**
-   * Cancels a running agent execution
-   * Stops the agent execution and cleanup resources
-   * @param executionId - Execution ID to cancel
-   * @returns Promise<{ success: boolean, cancelledAt: string }>
+   * Sets personality preferences for an agent
+   * Customizes how the agent interacts and responds
+   * @param params.agentId - Agent ID to configure
+   * @param params.personality - Personality description
+   * @returns Promise<{ success: boolean; updatedSettings: AgentSettings }>
    */
-  cancelAgentExecution: (executionId: string) =>
-    ipcRenderer.invoke('agent:cancel', executionId),
+  setAgentPersonality: (params: {
+    agentId: string;
+    personality: 'friendly encouraging' | 'formal professional' | 'casual friendly' | 'technical expert';
+  }) =>
+    ipcRenderer.invoke('agent:setPersonality', params),
 
   /**
-   * Gets status of an agent execution
-   * Returns current execution status and progress
-   * @param executionId - Execution ID to check
-   * @returns Promise<AgentExecutionStatus> - Current execution status
+   * Sets response style preferences for a session
+   * Controls the format and depth of agent responses
+   * @param params.sessionId - Session ID to apply settings to
+   * @param params.style - Response style configuration
+   * @returns Promise<{ success: boolean; appliedSettings: ResponseStyleSettings }>
    */
-  getAgentExecutionStatus: (executionId: string) =>
-    ipcRenderer.invoke('agent:status', executionId),
+  setResponseStyle: (params: {
+    sessionId: string;
+    style: any;
+  }) =>
+    ipcRenderer.invoke('agent:setResponseStyle', params),
 
   /**
-   * Lists all agent executions
-   * Returns history of agent executions with status
-   * @returns Promise<AgentExecution[]> - Array of execution records
+   * Gets detailed capabilities for a specific agent
+   * Useful for showcasing agent features and limitations
+   * @param agentId - Agent ID to get capabilities for
+   * @returns Promise<AgentCapabilitiesDisplay> - Detailed capability information
    */
-  getAgentExecutions: () =>
-    ipcRenderer.invoke('agent:executions'),
+  getAgentCapabilities: (agentId: string) =>
+    ipcRenderer.invoke('agent:getCapabilities', agentId),
 
   /**
-   * Registers a new agent
-   * Adds a new agent to the system with configuration
-   * @param agentConfig - Agent configuration object
-   * @returns Promise<{ success: boolean, agentId: string }>
+   * Demonstrates a specific agent feature
+   * Provides interactive preview of agent capabilities
+   * @param params.agentId - Agent ID to demonstrate
+   * @param params.feature - Feature name to demonstrate
+   * @returns Promise<FeatureDemoDisplay> - Interactive feature demonstration
    */
-  registerAgent: (agentConfig) =>
-    ipcRenderer.invoke('agent:register', agentConfig),
-
-  /**
-   * Unregisters an agent
-   * Removes an agent from the system
-   * @param agentId - Agent ID to unregister
-   * @returns Promise<{ success: boolean, unregisteredAt: string }>
-   */
-  unregisterAgent: (agentId: string) =>
-    ipcRenderer.invoke('agent:unregister', agentId)
+  tryAgentFeature: (params: {
+    agentId: string;
+    feature: string;
+  }) =>
+    ipcRenderer.invoke('agent:tryFeature', params)
 };
 
 // ============================================================================
@@ -405,22 +483,44 @@ const contentAPI: ContentAPI = {
     ipcRenderer.invoke('content:importContent', files),
 
   /**
-   * Discovers learning resources from various sources
-   * Finds and analyzes learning materials from different platforms
-   * @param params - Discovery parameters with filters and options
-   * @returns Promise<ResourceDiscoveryDisplay[]> - Array of discovered resources
+   * Gets recommended learning content for a topic
+   * Suggests relevant materials based on topic and skill level
+   * @param params.topic - Learning topic or concept
+   * @param params.level - 'beginner' | 'intermediate' | 'advanced'
+   * @returns Promise<ContentRecommendationDisplay[]> - Array of recommended content
    */
-  discoverResources: (params) =>
-    ipcRenderer.invoke('content:discoverResources', params),
+  getRecommendedContent: (params: {
+    topic: string;
+    level: 'beginner' | 'intermediate' | 'advanced';
+  }) =>
+    ipcRenderer.invoke('content:getRecommendedContent', params),
 
   /**
-   * Analyzes a project for learning content
-   * Scans project files and extracts learning materials
-   * @param params - Project analysis parameters
-   * @returns Promise<ProjectAnalysisDisplay> - Detailed project analysis
+   * Searches learning resources across multiple sources
+   * Performs comprehensive search with intelligent filtering
+   * @param query - Search query string
+   * @returns Promise<ResourceSearchResultDisplay> - Search results with relevance ranking
    */
-  analyzeProject: (params) =>
-    ipcRenderer.invoke('content:analyzeProject', params)
+  searchLearningResources: (query: string) =>
+    ipcRenderer.invoke('content:searchResources', query),
+
+  /**
+   * Analyzes a document for learning content
+   * Extracts concepts, structure, and learning value from documents
+   * @param filePath - Path to the document to analyze
+   * @returns Promise<DocumentAnalysisDisplay> - Detailed document analysis
+   */
+  analyzeDocument: (filePath: string) =>
+    ipcRenderer.invoke('content:analyzeDocument', filePath),
+
+  /**
+   * Extracts concepts from raw text content
+   * Identifies key learning concepts and their relationships
+   * @param content - Text content to analyze
+   * @returns Promise<ConceptExtractionDisplay[]> - Array of extracted concepts
+   */
+  extractConcepts: (content: string) =>
+    ipcRenderer.invoke('content:extractConcepts', content)
 };
 
 // ============================================================================
@@ -448,136 +548,45 @@ const settingsAPI: SettingsAPI = {
    * @param preferences - Partial preferences object to update
    * @returns Promise<{ success: boolean, updatedSettings: any, changes: string[] }>
    */
-  updatePreferences: (preferences) =>
+  updatePreferences: (preferences: any) =>
     ipcRenderer.invoke('settings:updatePreferences', preferences),
 
   /**
-   * Exports user settings to a file
-   * Creates a backup of user preferences and configuration
-   * @param params - Export parameters including format and options
-   * @returns Promise<ExportResultDisplay> - Export results with file info
+   * Gets available AI providers and their status
+   * Returns configured and available AI providers
+   * @returns Promise<ProviderDisplay[]> - Array of AI providers
    */
-  exportSettings: (params) =>
-    ipcRenderer.invoke('settings:export', params),
+  getAvailableProviders: () =>
+    ipcRenderer.invoke('settings:getAvailableProviders'),
 
   /**
-   * Imports settings from a file or source
-   * Restores user preferences from backup or external source
-   * @param params - Import parameters with source and merge options
-   * @returns Promise<ImportResultDisplay> - Import results with applied changes
+   * Configures an AI provider with authentication and settings
+   * Sets up or updates provider configuration
+   * @param params.provider - Provider ID to configure
+   * @param params.config - Provider configuration object
+   * @returns Promise<{ success: boolean; providerId: string; status: string }>
    */
-  importSettings: (params) =>
-    ipcRenderer.invoke('settings:import', params),
+  configureProvider: (params: { provider: string; config: any }) =>
+    ipcRenderer.invoke('settings:configureProvider', params),
 
   /**
-   * Resets settings to default values
-   * Restores all settings to their original defaults
-   * @returns Promise<ResetResultDisplay> - Reset results with changes made
+   * Gets learning-specific settings
+   * Returns settings related to learning preferences and goals
+   * @returns Promise<LearningSettingsDisplay> - Learning configuration settings
    */
-  resetToDefaults: () =>
-    ipcRenderer.invoke('settings:resetDefaults'),
+  getLearningSettings: () =>
+    ipcRenderer.invoke('settings:getLearningSettings'),
 
   /**
-   * Gets system information and status
-   * Returns comprehensive system and application information
-   * @returns Promise<SystemInfoDisplay> - Detailed system information
+   * Updates learning-specific settings
+   * Modifies learning preferences, goals, and tracking settings
+   * @param settings - Learning settings to update
+   * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
    */
-  getSystemInfo: () =>
-    ipcRenderer.invoke('settings:getSystemInfo'),
+  updateLearningSettings: (settings: any) =>
+    ipcRenderer.invoke('settings:updateLearningSettings', settings)
 
-  /**
-   * Gets workspace configuration
-   * Returns workspace-specific configuration settings
-   * @returns Promise<WorkspaceConfig> - Workspace configuration object
-   */
-  getWorkspaceConfig: () =>
-    ipcRenderer.invoke('settings:getWorkspaceConfig'),
-
-  /**
-   * Sets workspace configuration
-   * Updates workspace-specific configuration settings
-   * @param config - Workspace configuration object
-   * @returns Promise<{ success: boolean }> - Operation result
-   */
-  setWorkspaceConfig: (config) =>
-    ipcRenderer.invoke('settings:setWorkspaceConfig', config),
-
-  /**
-   * Gets workspace configuration value by key
-   * Retrieves specific configuration value using dot notation
-   * @param key - Configuration key (supports dot notation)
-   * @returns Promise<any> - Configuration value
-   */
-  getWorkspaceConfigKey: (key: string) =>
-    ipcRenderer.invoke('settings:getWorkspaceConfigKey', key),
-
-  /**
-   * Sets workspace configuration value by key
-   * Updates specific configuration value using dot notation
-   * @param key - Configuration key (supports dot notation)
-   * @param value - Configuration value to set
-   * @returns Promise<{ success: boolean }> - Operation result
-   */
-  setWorkspaceConfigKey: (key: string, value: any) =>
-    ipcRenderer.invoke('settings:setWorkspaceConfigKey', key, value),
-
-  /**
-   * Deletes workspace configuration key
-   * Removes specific configuration key using dot notation
-   * @param key - Configuration key to delete (supports dot notation)
-   * @returns Promise<{ success: boolean }> - Operation result
-   */
-  deleteWorkspaceConfigKey: (key: string) =>
-    ipcRenderer.invoke('settings:deleteWorkspaceConfigKey', key),
-
-  /**
-   * Resets workspace configuration
-   * Clears all workspace configuration settings
-   * @returns Promise<{ success: boolean }> - Operation result
-   */
-  resetWorkspaceConfig: () =>
-    ipcRenderer.invoke('settings:resetWorkspaceConfig'),
-
-  /**
-   * Gets application version
-   * Returns the current application version information
-   * @returns Promise<string> - Application version
-   */
-  getAppVersion: () =>
-    ipcRenderer.invoke('settings:getAppVersion'),
-
-  /**
-   * Gets user data path
-   * Returns the path to the user data directory
-   * @returns Promise<string> - User data directory path
-   */
-  getUserDataPath: () =>
-    ipcRenderer.invoke('settings:getUserDataPath'),
-
-  /**
-   * Gets documents path
-   * Returns the path to the user's documents directory
-   * @returns Promise<string> - Documents directory path
-   */
-  getDocumentsPath: () =>
-    ipcRenderer.invoke('settings:getDocumentsPath'),
-
-  /**
-   * Gets application path
-   * Returns the path to the application executable
-   * @returns Promise<string> - Application executable path
-   */
-  getAppPath: () =>
-    ipcRenderer.invoke('settings:getAppPath'),
-
-  /**
-   * Quits the application
-   * Initiates application shutdown process
-   * @returns Promise<void> - Operation completes when shutdown starts
-   */
-  quitApplication: () =>
-    ipcRenderer.invoke('settings:quitApp')
-};
+  };
 
 // ============================================================================
 // Complete electronAPI Export with Error Handling

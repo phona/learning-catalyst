@@ -3,7 +3,27 @@
  */
 
 import { vi } from 'vitest';
-import type { AgentExecutionRequest, AgentExecutionResult } from '../types';
+import type { AgentExecutionRequest } from '../types';
+
+// Define AgentExecutionResult locally since it's not exported
+interface AgentExecutionResult {
+  success: boolean;
+  executionId: string;
+  agentId: string;
+  result: {
+    type: string;
+    content: string;
+    metadata?: Record<string, any>;
+  };
+  metadata: {
+    startTime: Date;
+    endTime: Date;
+    duration: number;
+    tokensUsed: number;
+    model: string;
+    provider: string;
+  };
+}
 
 export interface MockProviderInfo {
   type: string;

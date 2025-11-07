@@ -5,7 +5,14 @@
  * Provides simplified API for common analytics operations.
  */
 
-import { SimpleAnalyticsModule, LearningSession, StudyMetrics, ConceptProgress, LearningGoals, Achievement } from './simple-analytics';
+import { SimpleAnalyticsModule, LearningSession, StudyMetrics, ConceptProgress, Achievement } from './simple-analytics';
+
+// Define LearningGoals interface since it's not exported from simple-analytics
+export interface LearningGoals {
+  dailyStudyTime: number; // minutes
+  weeklyConcepts: number;
+  practiceQuestionsPerDay: number;
+}
 
 export interface SessionSummary {
   id: string;

@@ -51,6 +51,19 @@ export interface Database {
   checkpoints: CheckpointRow
   checkpoint_writes: CheckpointWriteRow
   checkpoint_blobs: CheckpointBlobRow
+
+  // Multi-layer memory system tables (Phase 8 implementation)
+  memory_entries: MemoryEntryRow
+  episodic_memories: EpisodicMemoryRow
+  semantic_memories: SemanticMemoryRow
+  procedural_memories: ProceduralMemoryRow
+  memory_associations: MemoryAssociationRow
+
+  // Agent lifecycle management tables
+  agents: AgentRow
+  agent_lifecycle_events: AgentLifecycleEventRow
+  agent_states: AgentStateRow
+  agent_archives: AgentArchiveRow
 }
 
 // Individual table row interfaces
@@ -240,6 +253,135 @@ export interface CheckpointBlobRow {
   created_at: string
 }
 
+// Multi-layer memory system row interfaces (Phase 8 implementation)
+export interface MemoryEntryRow {
+  id: string
+  type: 'working' | 'episodic' | 'semantic' | 'procedural' | 'long_term'
+  importance: 'critical' | 'high' | 'medium' | 'low'
+  content: string
+  metadata: string // JSON object stored as string
+  retrieval_strength: number
+  consolidation_state: 'pending' | 'in_progress' | 'completed' | 'failed'
+  consolidation_data: string // JSON object stored as string
+  associations: string // JSON array stored as string
+  access_data: string // JSON object stored as string
+  user_id?: string
+  session_id?: string
+  created_at: string
+  updated_at: string
+  last_accessed?: string
+}
+
+export interface EpisodicMemoryRow {
+  id: string
+  session_id: string
+  user_id: string
+  sequence: string // JSON object stored as string
+  context: string // JSON object stored as string
+  outcomes: string // JSON object stored as string
+  reflections: string // JSON object stored as string
+  emotional_tags: string // JSON array stored as string
+  temporal_markers: string // JSON object stored as string
+  created_at: string
+  updated_at: string
+}
+
+export interface SemanticMemoryRow {
+  id: string
+  concept: string
+  definition: string
+  attributes: string // JSON object stored as string
+  relationships: string // JSON object stored as string
+  examples: string // JSON array stored as string
+  misconceptions: string // JSON array stored as string
+  category: string
+  domain: string
+  difficulty: string
+  abstractions: string // JSON array stored as string
+  confidence: number
+  verification_count: number
+  last_verified?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProceduralMemoryRow {
+  id: string
+  skill_name: string
+  steps: string // JSON array stored as string
+  prerequisites: string // JSON array stored as string
+  context_conditions: string // JSON object stored as string
+  success_criteria: string // JSON object stored as string
+  common_errors: string // JSON array stored as string
+  mastery_level: number
+  practice_count: number
+  success_rate: number
+  last_practiced?: string
+  automaticity_level: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MemoryAssociationRow {
+  id: string
+  source_id: string
+  target_id: string
+  type: 'hierarchical' | 'associative' | 'temporal' | 'causal' | 'semantic'
+  strength: number
+  context: string // JSON object stored as string
+  bidirectional: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Agent lifecycle management row interfaces
+export interface AgentRow {
+  id: string
+  name: string
+  type: 'learning' | 'assessment' | 'tutoring' | 'practice' | 'general'
+  status: 'inactive' | 'active' | 'error' | 'deleted'
+  description?: string
+  model_config: string // JSON object stored as string
+  tools: string // JSON array stored as string
+  capabilities: string // JSON array stored as string
+  metadata: string // JSON object stored as string
+  activated_at?: number
+  deactivated_at?: number
+  created_at: number
+  updated_at: number
+}
+
+export interface AgentLifecycleEventRow {
+  id: string
+  agent_id: string
+  event: 'created' | 'activated' | 'deactivated' | 'updated' | 'deleted' | 'error'
+  from_state?: string
+  to_state?: string
+  timestamp: number
+  metadata: string // JSON object stored as string
+  created_at: number
+}
+
+export interface AgentStateRow {
+  id: string
+  agent_id: string
+  state_data: string // JSON object stored as string
+  version: number
+  created_at: number
+  updated_at: number
+}
+
+export interface AgentArchiveRow {
+  id: string
+  agent_id: string
+  archive_data: string // JSON object stored as string
+  backup_location?: string
+  archive_reason: 'deletion' | 'migration' | 'backup' | 'maintenance'
+  retained_history: boolean
+  archived_at: number
+  expires_at?: number
+}
+
 // Type helpers for working with JSON fields
 export type JSONField<T = unknown> = string & { readonly __brand: unique symbol }
 export type ParsedJSON<T = unknown> = T
@@ -261,6 +403,19 @@ export type InsertableCheckpoint = Omit<CheckpointRow, 'id' | 'created_at' | 'up
 export type InsertableCheckpointWrite = Omit<CheckpointWriteRow, 'id' | 'created_at'>
 export type InsertableCheckpointBlob = Omit<CheckpointBlobRow, 'id' | 'created_at'>
 
+// Multi-layer memory system insertable types (Phase 8 implementation)
+export type InsertableMemoryEntry = Omit<MemoryEntryRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableEpisodicMemory = Omit<EpisodicMemoryRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableSemanticMemory = Omit<SemanticMemoryRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableProceduralMemory = Omit<ProceduralMemoryRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableMemoryAssociation = Omit<MemoryAssociationRow, 'id' | 'created_at' | 'updated_at'>
+
+// Agent lifecycle management insertable types
+export type InsertableAgent = Omit<AgentRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableAgentLifecycleEvent = Omit<AgentLifecycleEventRow, 'id' | 'created_at'>
+export type InsertableAgentState = Omit<AgentStateRow, 'id' | 'created_at' | 'updated_at'>
+export type InsertableAgentArchive = Omit<AgentArchiveRow, 'id' | 'archived_at'>
+
 // Utility type for extracting updatable types
 export type UpdatableCategory = Partial<Omit<CategoryRow, 'id' | 'created_at'>>
 export type UpdatableConcept = Partial<Omit<ConceptRow, 'id' | 'created_at'>>
@@ -277,6 +432,19 @@ export type UpdatableKnowledgeGraphCache = Partial<Omit<KnowledgeGraphCacheRow, 
 export type UpdatableCheckpoint = Partial<Omit<CheckpointRow, 'id' | 'created_at'>>
 export type UpdatableCheckpointWrite = Partial<Omit<CheckpointWriteRow, 'id' | 'created_at'>>
 export type UpdatableCheckpointBlob = Partial<Omit<CheckpointBlobRow, 'id' | 'created_at'>>
+
+// Multi-layer memory system updatable types (Phase 8 implementation)
+export type UpdatableMemoryEntry = Partial<Omit<MemoryEntryRow, 'id' | 'created_at' | 'updated_at'>>
+export type UpdatableEpisodicMemory = Partial<Omit<EpisodicMemoryRow, 'id' | 'created_at' | 'updated_at'>>
+export type UpdatableSemanticMemory = Partial<Omit<SemanticMemoryRow, 'id' | 'created_at' | 'updated_at'>>
+export type UpdatableProceduralMemory = Partial<Omit<ProceduralMemoryRow, 'id' | 'created_at' | 'updated_at'>>
+export type UpdatableMemoryAssociation = Partial<Omit<MemoryAssociationRow, 'id' | 'created_at' | 'updated_at'>>
+
+// Agent lifecycle management updatable types
+export type UpdatableAgent = Partial<Omit<AgentRow, 'id' | 'created_at'>>
+export type UpdatableAgentLifecycleEvent = Partial<Omit<AgentLifecycleEventRow, 'id' | 'created_at'>>
+export type UpdatableAgentState = Partial<Omit<AgentStateRow, 'id' | 'created_at'>>
+export type UpdatableAgentArchive = Partial<Omit<AgentArchiveRow, 'id' | 'archived_at'>>
 
 // Helper functions for working with JSON fields in Kysely queries
 export const JSONFieldHelpers = {

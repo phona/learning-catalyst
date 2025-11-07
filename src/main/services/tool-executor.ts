@@ -482,6 +482,13 @@ export class ToolExecutorService {
   }
 
   /**
+   * Get base tools (built-in tools)
+   */
+  getBaseTools(): ToolDefinition[] {
+    return BuiltinTools.getAll();
+  }
+
+  /**
    * Get tool execution statistics
    */
   getStats(): {

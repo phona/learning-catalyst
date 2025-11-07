@@ -13,6 +13,12 @@ export interface IPCMessage {
   channel: string;
   data?: any;
   timestamp: number;
+  type?: string;
+  method?: string;
+  success?: boolean;
+  eventName?: string;
+  streamId?: string;
+  isComplete?: boolean;
 }
 
 // IPC Request/Response patterns

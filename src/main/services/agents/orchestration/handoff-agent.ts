@@ -8,7 +8,27 @@
 
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
-import { AgentExecutionRequest, AgentExecutionContext, AgentExecutionChunk, AgentConfig } from '../types';
+import { AgentExecutionRequest, AgentExecutionChunk, AgentConfig } from '../../types';
+
+// Local definition since the import is having issues
+export interface AgentExecutionContext {
+  id: string;
+  sessionId?: string;
+  userId?: string;
+  timestamp: number;
+  requestId: string;
+  correlationId?: string;
+  operation: string;
+  metadata?: Record<string, any>;
+  agentId: string;
+  agentType: string;
+  learningContext: {
+    currentTopic?: string;
+    difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
+    userGoals?: string[];
+    previousInteractions?: any[];
+  };
+}
 import { AgentManagerMain } from '../agent-manager';
 import { ServiceDependencies } from '../types';
 
@@ -339,8 +359,9 @@ Response format:
     }
 
     yield {
-      type: 'handoff_start',
+      type: 'progress',
       content: {
+        phase: 'handoff_start',
         fromAgent: executionContext.agentId,
         toAgent: targetAgentId,
         reason: handoffDecision.reasoning,
@@ -384,7 +405,7 @@ Response format:
       };
 
       // Execute target agent
-      const targetExecution = this.agentManager.executeAgent(targetRequest);
+      const targetExecution = await this.agentManager.executeAgent(targetRequest);
 
       // Stream results from target agent
       let assistantResponse = '';
@@ -406,8 +427,9 @@ Response format:
       });
 
       yield {
-        type: 'handoff_complete',
+        type: 'complete',
         content: {
+          phase: 'handoff_complete',
           fromAgent: executionContext.agentId,
           toAgent: targetAgentId,
           responseLength: assistantResponse.length,
@@ -418,8 +440,9 @@ Response format:
 
     } catch (error) {
       yield {
-        type: 'handoff_error',
+        type: 'error',
         content: {
+          phase: 'handoff_error',
           fromAgent: executionContext.agentId,
           toAgent: targetAgentId,
           error: (error as Error).message
@@ -448,7 +471,7 @@ Response format:
 
     try {
       // Execute with current agent
-      const currentExecution = this.agentManager.executeAgent(request);
+      const currentExecution = await this.agentManager.executeAgent(request);
 
       let assistantResponse = '';
       for await (const chunk of currentExecution) {

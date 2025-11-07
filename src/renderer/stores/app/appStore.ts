@@ -135,7 +135,9 @@ export const useAppStore = create<AppState>()(
     navigateTo: (view) => set((state) => {
       const newHistory = [...state.navigationHistory.slice(0, -1), view];
       return {
+        ...state,
         currentView: view,
+        current_view: view, // Keep both for compatibility
         navigationHistory: newHistory,
         canGoBack: newHistory.length > 1,
         canGoForward: false

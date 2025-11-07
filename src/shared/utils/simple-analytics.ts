@@ -561,6 +561,71 @@ export class SimpleAnalyticsModule {
     // Initialize default achievements if they don't exist
     // TODO: Implement achievement initialization
   }
+
+  /**
+   * Start a new learning session (alias for recordSession)
+   */
+  async startSession(
+    title: string,
+    sessionType: LearningSession['sessionType'] = 'study',
+    aiProvider: string = 'openai',
+    aiModel: string = 'gpt-3.5-turbo'
+  ): Promise<string> {
+    const session = await this.recordSession({
+      title,
+      startTime: new Date(),
+      aiProvider,
+      aiModel,
+      conceptsCovered: [],
+      sessionType,
+      status: 'active'
+    });
+
+    return session.id;
+  }
+
+  /**
+   * Track concept study progress
+   */
+  async trackConceptStudied(
+    conceptId: string,
+    conceptName: string,
+    performanceScore?: number
+  ): Promise<void> {
+    await this.updateConceptProgress(conceptId, conceptName, {
+      timeSpent: 0, // Default time
+      performance: performanceScore || 0
+    });
+  }
+
+  /**
+   * Track question answer
+   */
+  async trackQuestionAnswered(
+    correct: boolean,
+    responseTimeSeconds?: number
+  ): Promise<void> {
+    // TODO: Implement question tracking in database
+    // For now, just log the event
+    console.log(`Question answered: ${correct ? 'correct' : 'incorrect'} in ${responseTimeSeconds}s`);
+  }
+
+  /**
+   * Get learning goals
+   */
+  async getLearningGoals(): Promise<{
+    dailyStudyTime: number; // minutes
+    weeklyConcepts: number;
+    practiceQuestionsPerDay: number;
+  }> {
+    // TODO: Store and retrieve from database
+    // For now, return default goals
+    return {
+      dailyStudyTime: 30,
+      weeklyConcepts: 5,
+      practiceQuestionsPerDay: 10
+    };
+  }
 }
 
 // Note: Singleton pattern removed for proper dependency injection

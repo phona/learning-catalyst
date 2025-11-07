@@ -1,16 +1,49 @@
-import React, { useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Layout/Sidebar';
 import { Header } from './Layout/Header';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 
+/**
+ * 🏗️ Application Layout Component
+ *
+ * Main application layout that orchestrates header, sidebar, and content areas.
+ * Handles theme management, focus mode, and responsive layout behavior.
+ *
+ * 🎯 What It Does:
+ * - Manages theme application and system theme detection
+ * - Controls focus mode for distraction-free learning
+ * - Coordinates header, sidebar, and main content layout
+ * - Handles responsive behavior and conditional component visibility
+ *
+ * 🔧 Features:
+ * - Optimized theme calculations with useMemo to prevent unnecessary re-renders
+ * - System theme detection with automatic theme switching in auto mode
+ * - Focus mode that hides header and sidebar for concentrated learning
+ * - Conditional status bar with token usage information
+ * - Smooth transitions and responsive design
+ *
+ * 💡 Performance Optimizations:
+ * - Theme calculation memoized to prevent DOM manipulation on every render
+ * - System theme listener only attached when in auto mode
+ * - Conditional rendering based on focus mode state
+ *
+ * @example
+ * ```tsx
+ * <Layout>
+ *   <Routes>
+ *     <Route path="/chat" element={<ChatInterface />} />
+ *   </Routes>
+ * </Layout>
+ * ```
+ */
 export const Layout: React.FC = () => {
   const { sidebar_open, theme, focus_mode } = useAppStore();
   const { config } = useConfigStore();
 
-  // Apply theme on component mount and config change
-  useEffect(() => {
+  // Memoize theme calculation to prevent unnecessary re-renders
+  const themeClasses = useMemo(() => {
     const root = document.documentElement;
 
     if (theme === 'auto') {
@@ -18,20 +51,25 @@ export const Layout: React.FC = () => {
         ? 'dark'
         : 'light';
       root.classList.toggle('dark', systemTheme === 'dark');
+      return systemTheme;
     } else {
       root.classList.toggle('dark', theme === 'dark');
+      return theme;
     }
+  }, [theme]);
 
-    // Listen for system theme changes when in auto mode
-    if (theme === 'auto') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleThemeChange = () => {
-        root.classList.toggle('dark', mediaQuery.matches);
-      };
+  // Set up system theme listener only when in auto mode
+  useEffect(() => {
+    if (theme !== 'auto') return;
 
-      mediaQuery.addEventListener('change', handleThemeChange);
-      return () => mediaQuery.removeEventListener('change', handleThemeChange);
-    }
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleThemeChange = () => {
+      const root = document.documentElement;
+      root.classList.toggle('dark', mediaQuery.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleThemeChange);
   }, [theme]);
 
   return (

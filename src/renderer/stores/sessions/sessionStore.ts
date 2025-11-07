@@ -84,7 +84,7 @@ const initialState = {
   deleting: false,
   searchQuery: '',
   filters: {},
-  selectedSessions: new Set(),
+  selectedSessions: new Set<string>(),
   error: null,
   currentPage: 1,
   pageSize: 20,
@@ -140,7 +140,7 @@ export const useSessionStore = create<SessionState>()(
     selectAllSessions: () => set((state) => ({
       selectedSessions: new Set(state.sessions.map(s => s.id))
     })),
-    clearSelection: () => set({ selectedSessions: new Set() }),
+    clearSelection: () => set({ selectedSessions: new Set<string>() }),
 
     // Pagination actions
     setCurrentPage: (currentPage) => set({ currentPage }),
@@ -151,24 +151,24 @@ export const useSessionStore = create<SessionState>()(
       try {
         set({ loading: true, error: null });
 
-        if (typeof window !== 'undefined' && window.electronAPI?.sessions) {
-          const result = await window.electronAPI.sessions.list({
-            query: filters?.query,
+        if (typeof window !== 'undefined' && window.electronAPI?.learning) {
+          const result = await window.electronAPI.learning.searchSessions(filters?.query || '', {
+            agentType: filters?.agentType,
+            difficulty: filters?.difficulty,
             limit: get().pageSize,
-            filter: filters?.agentType,
             ...filters
           });
 
           set({
-            sessions: result.sessions,
-            totalSessions: result.total,
-            hasMore: result.hasMore,
+            sessions: result.sessions || [],
+            totalSessions: result.total || 0,
+            hasMore: result.hasMore || false,
             loading: false
           });
         }
       } catch (error) {
         console.error('Failed to load sessions:', error);
-        set({ error: error.message, loading: false });
+        set({ error: (error as Error).message, loading: false });
       }
     },
 
@@ -176,8 +176,14 @@ export const useSessionStore = create<SessionState>()(
       try {
         set({ creating: true, error: null });
 
-        if (typeof window !== 'undefined' && window.electronAPI?.sessions) {
-          const session = await window.electronAPI.sessions.create(request);
+        if (typeof window !== 'undefined' && window.electronAPI?.learning) {
+          const session = await window.electronAPI.learning.startLearningSession({
+            topic: request.title || 'New Learning Session',
+            goals: request.tags || [],
+            difficulty: request.difficulty || 'medium',
+            agentType: request.agentType || 'learning',
+            learningStyle: 'mixed'
+          });
 
           set((state) => ({
             sessions: [session, ...state.sessions],
@@ -188,10 +194,10 @@ export const useSessionStore = create<SessionState>()(
           return session;
         }
 
-        throw new Error('Sessions API not available');
+        throw new Error('Learning API not available');
       } catch (error) {
         console.error('Failed to create session:', error);
-        set({ error: error.message, creating: false });
+        set({ error: (error as Error).message, creating: false });
         throw error;
       }
     },
@@ -200,16 +206,17 @@ export const useSessionStore = create<SessionState>()(
       try {
         set({ updating: true, error: null });
 
-        if (typeof window !== 'undefined' && window.electronAPI?.sessions) {
-          await window.electronAPI.sessions.update(sessionId, updates);
-
+        // For learning sessions, we might need to pause/resume to update
+        if (typeof window !== 'undefined' && window.electronAPI?.learning) {
+          // Learning sessions are typically updated through progress tracking
+          // This is a placeholder for future session update functionality
           get().updateSession(sessionId, updates);
         }
 
         set({ updating: false });
       } catch (error) {
         console.error('Failed to update session:', error);
-        set({ error: error.message, updating: false });
+        set({ error: (error as Error).message, updating: false });
         throw error;
       }
     },
@@ -218,8 +225,9 @@ export const useSessionStore = create<SessionState>()(
       try {
         set({ deleting: true, error: null });
 
-        if (typeof window !== 'undefined' && window.electronAPI?.sessions) {
-          await window.electronAPI.sessions.delete(sessionId);
+        if (typeof window !== 'undefined' && window.electronAPI?.learning) {
+          // Complete the session to remove it from active sessions
+          await window.electronAPI.learning.completeSession(sessionId);
 
           get().removeSession(sessionId);
         }
@@ -227,16 +235,16 @@ export const useSessionStore = create<SessionState>()(
         set({ deleting: false });
       } catch (error) {
         console.error('Failed to delete session:', error);
-        set({ error: error.message, deleting: false });
+        set({ error: (error as Error).message, deleting: false });
         throw error;
       }
     },
 
     getCurrentSession: async (sessionId) => {
       try {
-        if (typeof window !== 'undefined' && window.electronAPI?.sessions) {
-          const session = await window.electronAPI.sessions.get(sessionId);
-          return session;
+        if (typeof window !== 'undefined' && window.electronAPI?.learning) {
+          const progress = await window.electronAPI.learning.getSessionProgress(sessionId);
+          return progress as any; // Type assertion for compatibility
         }
 
         return null;

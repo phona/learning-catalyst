@@ -3,10 +3,11 @@
  * Handles agent lifecycle, coordination, and tool execution
  */
 
-import { AgentManager } from './AgentManager';
-import { ToolExecutor } from './ToolExecutor';
-import { KnowledgeGraphService } from '../knowledge/KnowledgeGraphService';
-import { LangChainService } from '../langchain/LangChainService';
+import { AgentManagerMain } from './agent-manager';
+import { ToolExecutorService } from './tool-executor';
+import { KnowledgeService } from '../database/knowledge-service';
+import { LangChainServiceMain } from '../langchain/langchain-service';
+import { AgentConfig } from './types';
 import type { AgentDisplay, AgentSettings, MessageDisplay } from '../../../renderer/types';
 
 interface AgentExecutionRequest {
@@ -63,10 +64,10 @@ interface ExecutionContext {
 
 export class AgentOrchestrator {
   constructor(
-    private agentManager: AgentManager,
-    private toolExecutor: ToolExecutor,
-    private knowledgeService: KnowledgeGraphService,
-    private langChainService: LangChainService
+    private agentManager: AgentManagerMain,
+    private toolExecutor: ToolExecutorService,
+    private knowledgeService: KnowledgeService,
+    private langChainService: LangChainServiceMain
   ) {}
 
   async executeAgent(request: AgentExecutionRequest): Promise<AgentExecutionResponse> {
@@ -171,62 +172,63 @@ export class AgentOrchestrator {
         },
         onError: (error) => {
           onError?.(error);
-        }
+        },
+        options: request.options
       });
 
     } catch (error) {
-      onError?.(error);
+      onError?.(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   async getAvailableAgents(): Promise<AgentDisplay[]> {
-    const agents = await this.agentManager.getAllAgents();
+    const agents = this.agentManager.getRegisteredAgents();
 
-    return agents.map(agent => ({
+    return agents.map((agent: AgentConfig) => ({
       id: agent.id,
-      type: agent.type,
-      name: agent.displayName,
-      description: agent.shortDescription,
-      avatar: agent.avatar,
-      color: agent.themeColor,
-      capabilities: agent.displayCapabilities,
-      isAvailable: agent.isAvailable,
-      isPremium: agent.isPremium,
+      type: this.mapAgentTypeToDisplayType(agent.type),
+      name: agent.name,
+      description: agent.description || 'No description available',
+      avatar: agent.metadata?.avatar || '🤖',
+      color: agent.metadata?.themeColor || '#6B7280',
+      capabilities: agent.capabilities,
+      isAvailable: agent.enabled,
+      isPremium: agent.metadata?.isPremium || false,
       category: this.getAgentCategory(agent.type),
       stats: {
-        sessionsCount: agent.stats?.sessionsCount || 0,
-        avgRating: agent.stats?.avgRating || 0,
-        totalInteractions: agent.stats?.totalInteractions || 0,
-        successRate: agent.stats?.successRate || 0
+        sessionsCount: 0,
+        avgRating: 0,
+        totalInteractions: 0,
+        successRate: 0
       }
     }));
   }
 
   async getAgent(agentId: string): Promise<AgentDisplay | null> {
-    const agent = await this.agentManager.getAgent(agentId);
+    const agent = this.agentManager.getAgent(agentId);
     if (!agent) return null;
 
     return {
       id: agent.id,
-      type: agent.type,
-      name: agent.displayName,
-      description: agent.shortDescription,
-      avatar: agent.avatar,
-      color: agent.themeColor,
-      capabilities: agent.displayCapabilities,
-      isAvailable: agent.isAvailable,
-      isPremium: agent.isPremium,
+      type: this.mapAgentTypeToDisplayType(agent.type),
+      name: agent.name,
+      description: agent.description || 'No description available',
+      avatar: agent.metadata?.avatar || '🤖',
+      color: agent.metadata?.themeColor || '#6B7280',
+      capabilities: agent.capabilities,
+      isAvailable: agent.enabled,
+      isPremium: agent.metadata?.isPremium || false,
       category: this.getAgentCategory(agent.type),
       stats: {
-        sessionsCount: agent.stats?.sessionsCount || 0,
-        avgRating: agent.stats?.avgRating || 0,
-        totalInteractions: agent.stats?.totalInteractions || 0,
-        successRate: agent.stats?.successRate || 0
+        sessionsCount: 0,
+        avgRating: 0,
+        totalInteractions: 0,
+        successRate: 0
       }
     };
   }
 
-  private async createExecutionContext(request: AgentExecutionRequest, agent: any): Promise<ExecutionContext> {
+  private async createExecutionContext(request: AgentExecutionRequest, agent: AgentConfig): Promise<ExecutionContext> {
     // Load session data
     const sessionData = await this.loadSessionData(request.sessionId);
 
@@ -239,7 +241,7 @@ export class AgentOrchestrator {
       userPreferences,
       knowledge: [],
       tools: [],
-      constraints: agent.constraints || []
+      constraints: [] // AgentConfig doesn't have constraints, use empty array
     };
   }
 
@@ -268,23 +270,29 @@ export class AgentOrchestrator {
 
   private async loadRelevantKnowledge(input: string, sessionId: string): Promise<any[]> {
     // Load knowledge relevant to the input
-    return await this.knowledgeService.searchRelevantConcepts(input, sessionId);
+    return await this.knowledgeService.searchRelevantConcepts(input, { sessionId });
   }
 
-  private async prepareToolsForAgent(agent: any, context: ExecutionContext): Promise<any[]> {
+  private async prepareToolsForAgent(agent: AgentConfig, context: ExecutionContext): Promise<any[]> {
     // Prepare tools based on agent type and context
     const baseTools = await this.toolExecutor.getBaseTools();
 
     switch (agent.type) {
-      case 'learning':
+      case 'concept-parser':
         return [
           ...baseTools,
-          await this.createLearningTools(context),
           await this.createConceptAnalysisTools(context),
           await this.createKnowledgeTools(context)
         ];
 
-      case 'tutoring':
+      case 'chat-agent':
+        return [
+          ...baseTools,
+          await this.createLearningTools(context),
+          await this.createAnalysisTools(context)
+        ];
+
+      case 'learning-coach':
         return [
           ...baseTools,
           await this.createTutoringTools(context),
@@ -292,23 +300,7 @@ export class AgentOrchestrator {
           await this.createProgressTools(context)
         ];
 
-      case 'assessment':
-        return [
-          ...baseTools,
-          await this.createAssessmentTools(context),
-          await this.createGradingTools(context),
-          await this.createFeedbackTools(context)
-        ];
-
-      case 'practice':
-        return [
-          ...baseTools,
-          await this.createExerciseTools(context),
-          await this.createValidationTools(context),
-          await this.createHintTools(context)
-        ];
-
-      case 'research':
+      case 'content-discoverer':
         return [
           ...baseTools,
           await this.createResearchTools(context),
@@ -644,39 +636,44 @@ export class AgentOrchestrator {
   }
 
   private async executeWithLangChain(params: {
-    agent: any;
+    agent: AgentConfig;
     input: string;
     context: ExecutionContext;
     options?: any;
   }): Promise<any> {
     // Execute agent using LangChain
-    return await this.langChainService.executeAgent({
-      agentType: params.agent.type,
-      input: params.input,
-      context: params.context,
-      tools: params.context.tools,
-      options: params.options
-    });
+    return await this.langChainService.executeAgent(
+      'openai', // Use default provider
+      {
+        systemPrompt: params.agent.systemPrompt,
+        instructions: params.agent.description,
+        tools: params.context.tools
+      },
+      params.input,
+      params.options
+    );
   }
 
   private async executeWithLangChainStream(params: {
-    agent: any;
+    agent: AgentConfig;
     input: string;
     context: ExecutionContext;
     onChunk: (chunk: string) => void;
     onComplete: (response: string) => void;
     onError: (error: Error) => void;
+    options?: any;
   }): Promise<void> {
     // Execute agent with streaming using LangChain
-    await this.langChainService.executeAgentStream({
-      agentType: params.agent.type,
-      input: params.input,
-      context: params.context,
-      tools: params.context.tools,
-      onChunk: params.onChunk,
-      onComplete: params.onComplete,
-      onError: params.onError
-    });
+    await this.langChainService.executeAgentStream(
+      'openai', // Use default provider
+      {
+        systemPrompt: params.agent.systemPrompt,
+        instructions: params.agent.description,
+        tools: params.context.tools
+      },
+      params.input,
+      params.options
+    );
   }
 
   private async processExecutionResults(execution: any, context: ExecutionContext): Promise<any> {
@@ -701,24 +698,38 @@ export class AgentOrchestrator {
   private async updateKnowledgeFromExecution(sessionId: string, results: any): Promise<void> {
     // Update knowledge graph with new information from execution
     if (results.newKnowledge) {
-      await this.knowledgeService.addKnowledge(sessionId, results.newKnowledge);
+      await this.knowledgeService.addKnowledge(results.newKnowledge, 'openai');
     }
 
     if (results.concepts && results.concepts.length > 0) {
-      await this.knowledgeService.updateConceptRelationships(sessionId, results.concepts);
+      await this.knowledgeService.updateConceptRelationships(sessionId, results.concepts.map((c: any) => ({
+        targetConceptId: c.id || c.name,
+        relationshipType: 'related',
+        strength: c.strength || 0.8
+      })));
     }
   }
 
   private getAgentCategory(agentType: string): 'learning' | 'creative' | 'analysis' {
-    const categories = {
-      learning: 'learning',
-      tutoring: 'learning',
-      practice: 'creative',
-      assessment: 'analysis',
-      research: 'analysis'
+    const categories: Record<string, 'learning' | 'creative' | 'analysis'> = {
+      'concept-parser': 'analysis',
+      'chat-agent': 'learning',
+      'learning-coach': 'learning',
+      'content-discoverer': 'creative'
     };
 
-    return categories[agentType as keyof typeof categories] || 'learning';
+    return categories[agentType] || 'learning';
+  }
+
+  private mapAgentTypeToDisplayType(agentType: string): 'learning' | 'tutoring' | 'assessment' | 'practice' | 'research' {
+    const typeMapping: Record<string, 'learning' | 'tutoring' | 'assessment' | 'practice' | 'research'> = {
+      'concept-parser': 'assessment',
+      'chat-agent': 'learning',
+      'learning-coach': 'tutoring',
+      'content-discoverer': 'research'
+    };
+
+    return typeMapping[agentType] || 'learning';
   }
 
   // Helper methods for tool implementations

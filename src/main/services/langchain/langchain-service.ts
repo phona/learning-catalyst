@@ -320,6 +320,130 @@ export class LangChainServiceMain {
   }
 
   /**
+   * Execute agent (non-streaming)
+   */
+  async executeAgent(
+    providerName: string,
+    agentConfig: {
+      systemPrompt?: string;
+      instructions?: string;
+      tools?: any[];
+    },
+    input: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+    }
+  ): Promise<{
+    response: string;
+    metadata: {
+      model: string;
+      tokensUsed: number;
+      provider: string;
+      timestamp: number;
+    };
+  }> {
+    if (!this.initialized) {
+      throw new Error('LangChain service not initialized');
+    }
+
+    const provider = this.providers.get(providerName);
+    if (!provider || !provider.langchainModel) {
+      throw new Error(`Provider ${providerName} not found or not properly initialized`);
+    }
+
+    return this.runWithContext('execute-agent', async () => {
+      this.logger.info(`Executing agent using provider: ${providerName}`);
+
+      try {
+        // Prepare messages
+        const messages: Array<{ role: string; content: string }> = [
+          { role: 'user', content: input }
+        ];
+
+        // Add system prompt if provided
+        const systemPrompt = agentConfig.systemPrompt || agentConfig.instructions;
+
+        // Generate response using existing chat method
+        const response = await this.generateChatResponse(providerName, messages, {
+          systemPrompt,
+          temperature: options?.temperature,
+          maxTokens: options?.maxTokens
+        });
+
+        return {
+          response: response.content,
+          metadata: response.metadata
+        };
+
+      } catch (error) {
+        this.logger.error(`Failed to execute agent with ${providerName}:`, error as Error);
+        throw new Error(`Agent execution error: ${(error as Error).message}`);
+      }
+    });
+  }
+
+  /**
+   * Execute agent (streaming)
+   */
+  async *executeAgentStream(
+    providerName: string,
+    agentConfig: {
+      systemPrompt?: string;
+      instructions?: string;
+      tools?: any[];
+    },
+    input: string,
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+    }
+  ): AsyncGenerator<{
+    content: string;
+    metadata: {
+      model: string;
+      tokensUsed: number;
+      provider: string;
+      timestamp: number;
+    };
+    isComplete: boolean;
+  }> {
+    if (!this.initialized) {
+      throw new Error('LangChain service not initialized');
+    }
+
+    const provider = this.providers.get(providerName);
+    if (!provider || !provider.langchainModel) {
+      throw new Error(`Provider ${providerName} not found or not properly initialized`);
+    }
+
+    yield* this.runWithContext('execute-agent-stream', async function* () {
+      this.logger.info(`Executing agent stream using provider: ${providerName}`);
+
+      try {
+        // Prepare messages
+        const messages: Array<{ role: string; content: string }> = [
+          { role: 'user', content: input }
+        ];
+
+        // Add system prompt if provided
+        const systemPrompt = agentConfig.systemPrompt || agentConfig.instructions;
+
+        // Generate streaming response using existing method
+        yield* this.generateStreamingChatResponse(providerName, messages, {
+          systemPrompt,
+          temperature: options?.temperature,
+          maxTokens: options?.maxTokens
+        });
+
+      } catch (error) {
+        this.logger.error(`Failed to execute agent stream with ${providerName}:`, error as Error);
+        throw new Error(`Agent stream execution error: ${(error as Error).message}`);
+      }
+    }.bind(this));
+  }
+
+  /**
    * Generate streaming chat response
    */
   async *generateStreamingChatResponse(

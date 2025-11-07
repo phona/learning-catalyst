@@ -20,7 +20,7 @@ import { AgentExecutionChunk, AgentExecutionError } from '../types';
 interface ToolCall {
   id: string;
   name: string;
-  arguments: Record<string, any>;
+  args: Record<string, any>;
 }
 
 /**
@@ -322,7 +322,7 @@ export class ToolCallingOrchestrator {
         toolCalls.push({
           id: toolCall.id || `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: toolCall.name,
-          arguments: toolCall.args || toolCall.arguments || {}
+          args: toolCall.args || {}
         });
       }
     }
@@ -356,7 +356,7 @@ export class ToolCallingOrchestrator {
         // Execute tool
         const result = await this.toolExecutor.executeTool(
           toolCall.name,
-          toolCall.arguments,
+          toolCall.args,
           {
             agentId: context.agentId,
             sessionId: context.sessionId,
@@ -426,7 +426,7 @@ export class ToolCallingOrchestrator {
     // Validate tool arguments
     const validationResult = await this.toolExecutor.validateToolArguments(
       toolCall.name,
-      toolCall.arguments
+      toolCall.args
     );
 
     if (!validationResult.valid) {

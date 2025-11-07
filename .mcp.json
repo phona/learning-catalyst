@@ -17,6 +17,10 @@
         "-y",
         "@modelcontextprotocol/server-sequential-thinking"
       ]
+    },
+    "langchain": {
+      "type": "http",
+      "url": "https://docs.langchain.com/mcp"
     }
   }
 }

@@ -57,9 +57,16 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "Bash(xargs:*)",
-      "WebFetch(domain:stackoverflow.com)"
+      "WebFetch(domain:stackoverflow.com)",
+      "mcp__langchain__SearchDocsByLangChain"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "langchain",
+    "context7",
+    "magic",
+    "sequential-thinking"
+  ]
 }

@@ -143,7 +143,7 @@ export class KnowledgeGraphModule {
       mastery_level: conceptData.masteryLevel,
       tags: JSONFieldHelpers.stringifyArray(conceptData.tags),
       metadata: JSONFieldHelpers.stringifyObject(conceptData.metadata),
-      last_reviewed: conceptData.lastReviewed ? conceptData.lastReviewed.toISOString() : null,
+      last_reviewed: conceptData.lastReviewed ? conceptData.lastReviewed.toISOString() : undefined,
       review_count: 0,
       parent_concept_id: conceptData.parentConceptId,
       created_at: now,
@@ -293,9 +293,22 @@ export class KnowledgeGraphModule {
 
     return validConcepts.map(concept => ({
       concept,
-      relationships: relationships.filter(rel =>
-        rel.source_concept_id === concept.id || rel.target_concept_id === concept.id
-      ),
+      relationships: relationships
+        .filter(rel =>
+          rel.source_concept_id === concept.id || rel.target_concept_id === concept.id
+        )
+        .map(rel => ({
+          id: rel.id,
+          sourceConceptId: rel.source_concept_id,
+          targetConceptId: rel.target_concept_id,
+          relationshipType: rel.relationship_type,
+          strength: rel.strength,
+          description: rel.description,
+          metadata: JSONFieldHelpers.parseObject(rel.metadata),
+          createdAt: new Date(rel.created_at),
+          updatedAt: new Date(rel.updated_at),
+          createdBySession: rel.created_by_session
+        })),
       relatedConcepts: [],
       children: [],
       parents: []
@@ -411,11 +424,13 @@ export class KnowledgeGraphModule {
       const dbRelationships = await this.db
         .selectFrom('relationships')
         .selectAll()
-        .where('source_concept_id', '=', conceptId)
-        .or('target_concept_id', '=', conceptId)
+        .where((eb) => eb.or([
+          eb('source_concept_id', '=', conceptId),
+          eb('target_concept_id', '=', conceptId)
+        ]))
         .execute();
 
-      const relationships: Relationship[] = dbRelationships.map(dbRel => ({
+      const relationships: Relationship[] = dbRelationships.map((dbRel: any) => ({
         id: dbRel.id,
         sourceConceptId: dbRel.source_concept_id,
         targetConceptId: dbRel.target_concept_id,
@@ -448,7 +463,12 @@ export class KnowledgeGraphModule {
       const startConcept = await this.getConcept(fromConceptId);
 
       if (!startConcept) {
-        return [];
+        return {
+          concepts: [],
+          relationships: [],
+          totalStrength: 0,
+          difficulty: 0
+        };
       }
 
       queue.push({ conceptId: fromConceptId, path: [startConcept] });

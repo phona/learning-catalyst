@@ -9,10 +9,49 @@
 
 import { DatabaseConnection, DatabaseIntrospector, Dialect, DialectAdapter, Driver, Kysely, QueryCompiler, SqliteAdapter, SqliteIntrospector, SqliteQueryCompiler, TransactionSettings, CompiledQuery, Migration, MigrationResult } from 'kysely'
 import { Database } from './kysely-schema'
-import type { DatabaseAPI, ElectronAPI } from '../../types/electron-api'
+const { setdbPath, executeQuery, fetchOne, fetchAll, fetchMany } = require('sqlite-electron')
 
 // Import migration system
 import { MigrationManager, loadAllMigrations } from './migrations/index'
+
+/**
+ * SQLite Database API
+ *
+ * Clean abstraction over sqlite-electron functions
+ */
+interface SQLiteDatabaseAPI {
+  setPath(dbPath: string, isUri?: boolean, autocommit?: boolean): Promise<void>
+  executeQuery(sql: string, params?: any[]): Promise<any>
+  fetchOne(sql: string, params?: any[]): Promise<any>
+  fetchAll(sql: string, params?: any[]): Promise<any[]>
+  fetchMany(sql: string, limit: number, params?: any[]): Promise<any[]>
+}
+
+/**
+ * SQLite Electron Implementation
+ * Direct implementation using sqlite-electron library
+ */
+class SQLiteElectronDB implements SQLiteDatabaseAPI {
+  async setPath(dbPath: string, isUri = false, autocommit = true): Promise<void> {
+    await setdbPath(dbPath, isUri, autocommit)
+  }
+
+  async executeQuery(sql: string, params: any[] = []): Promise<any> {
+    return await executeQuery(sql, params)
+  }
+
+  async fetchOne(sql: string, params: any[] = []): Promise<any> {
+    return await fetchOne(sql, params)
+  }
+
+  async fetchAll(sql: string, params: any[] = []): Promise<any[]> {
+    return await fetchAll(sql, params)
+  }
+
+  async fetchMany(sql: string, limit: number, params: any[] = []): Promise<any[]> {
+    return await fetchMany(sql, limit, params)
+  }
+}
 
 /**
  * Kysely QueryResult interface for type compatibility
@@ -26,20 +65,22 @@ interface QueryResult<T> {
 
 
 /**
- * Electron IPC Database Connection
+ * SQLite Database Connection
  *
- * Implements Kysely's DatabaseConnection interface using Electron IPC
+ * Implements Kysely's DatabaseConnection interface using SQLiteDatabaseAPI
  */
-class ElectronIPCConnection implements DatabaseConnection {
-  constructor(private api: DatabaseAPI) {}
+class SQLiteDatabaseConnection implements DatabaseConnection {
+  constructor(private db: SQLiteDatabaseAPI) {}
 
   async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
     try {
 	  let result;
 	  if (compiledQuery.query.kind === 'SelectQueryNode') {
-		result = await this.api.dbFetchAll(compiledQuery.sql, compiledQuery.parameters as any[])
+		// Use fetchAll for SELECT queries
+		result = await this.db.fetchAll(compiledQuery.sql, compiledQuery.parameters as any[])
 	  } else {
-		result = await this.api.dbExecuteQuery(compiledQuery.sql, compiledQuery.parameters as any[])
+		// Use executeQuery for INSERT, UPDATE, DELETE queries
+		result = await this.db.executeQuery(compiledQuery.sql, compiledQuery.parameters as any[])
 	  }
 
       // Transform the result to match Kysely's expected format
@@ -78,25 +119,35 @@ class ElectronIPCConnection implements DatabaseConnection {
 }
 
 /**
- * Electron IPC Database Adapter
+ * SQLite Database Adapter
  *
- * Implements the Kysely Driver interface using Electron IPC handlers
+ * Implements the Kysely Driver interface using SQLiteDatabaseAPI
  */
-export class ElectronIPCAdapter implements Driver {
-  private connection: ElectronIPCConnection
+export class SQLiteDatabaseAdapter implements Driver {
+  private connection: SQLiteDatabaseConnection
+  private dbInitialized: boolean = false
 
   constructor(
-    private api: DatabaseAPI,
+    private db: SQLiteDatabaseAPI,
     private dbPath: string,
     private isuri?: boolean,
     private autocommit?: boolean,
   ) {
-    this.connection = new ElectronIPCConnection(this.api)
-    this.api.dbSetPath(this.dbPath, this.isuri, this.autocommit)
+    this.connection = new SQLiteDatabaseConnection(this.db)
+    this.initializeDatabase()
+  }
+
+  private async initializeDatabase(): Promise<void> {
+    if (!this.dbInitialized) {
+      console.log(`[SQLiteDatabaseAdapter] Initializing database at: ${this.dbPath}`)
+      await this.db.setPath(this.dbPath, this.isuri || false, this.autocommit !== false)
+      this.dbInitialized = true
+      console.log('[SQLiteDatabaseAdapter] Database initialized successfully')
+    }
   }
 
   async init(): Promise<void> {
-    console.log('[ElectronIPCAdapter] initialized')
+    console.log('[SQLiteDatabaseAdapter] initialized')
     return
   }
 
@@ -196,7 +247,7 @@ export class ElectronIPCAdapter implements Driver {
   }
 
   async destroy(): Promise<void> {
-    console.log('[ElectronIPCAdapter] Destroyed')
+    console.log('[SQLiteDatabaseAdapter] Destroyed')
   }
 }
 
@@ -238,18 +289,13 @@ export class DatabaseFactory {
   /**
    * Create a database instance with Electron IPC adapter (for production)
    */
-  static createElectronDB(
-    api: DatabaseAPI,
+  static createSQLiteDB(
     dbPath: string,
     isuri?: boolean,
     autocommit?: boolean,
 ): SimpleKyselyDB {
-    // Use provided API or get from window object
-    const electronAPI = api || (typeof window !== 'undefined' ? window.electronAPI : null)
-    if (!electronAPI) {
-      throw new Error('ElectronAPI not available. Make sure this code is running in Electron renderer process.')
-    }
-    const adapter = new ElectronIPCAdapter(api, dbPath, isuri, autocommit)
+    const sqliteDB = new SQLiteElectronDB()
+    const adapter = new SQLiteDatabaseAdapter(sqliteDB, dbPath, isuri, autocommit)
     return new SimpleKyselyDB(adapter)
   }
 
@@ -262,18 +308,26 @@ export class DatabaseFactory {
 }
 
 /**
+ * Generate database path for main process
+ * Creates appropriate database path based on environment
+ */
+function generateDatabasePath(): string {
+  // In main process, we can use Node.js path module
+  const path = require('path')
+
+  // For development, use current directory
+  // In production, this would typically use app.getPath('userData')
+  return path.join(process.cwd(), 'learning_catalyst.db')
+}
+
+/**
  * Factory function to create a Kysely database instance
  * This replaces the global singleton pattern with proper dependency injection
  */
-export async function createDatabase(api?: ElectronAPI): Promise<Kysely<Database>> {
-  // Use provided API or get from window object
-  const electronAPI = api || (typeof window !== 'undefined' ? window.electronAPI : null)
-  if (!electronAPI) {
-    throw new Error('ElectronAPI not available. Make sure this code is running in Electron renderer process.')
-  }
-
-  const dbPath = await electronAPI.getDatabasePath()
-  const dialect = DatabaseFactory.createElectronDB(electronAPI, dbPath, false, true)
+export async function createDatabase(): Promise<Kysely<Database>> {
+  // Generate database path directly for main process
+  const dbPath = generateDatabasePath()
+  const dialect = DatabaseFactory.createSQLiteDB(dbPath, false, true)
 
   return new Kysely<Database>({
     dialect,
@@ -285,8 +339,8 @@ export async function createDatabase(api?: ElectronAPI): Promise<Kysely<Database
 /**
  * Convenience function to run migrations
  */
-export async function runMigrations(api?: ElectronAPI, migrationFiles?: Record<string, Migration>): Promise<MigrationResult[]> {
-  const db = await createDatabase(api)
+export async function runMigrations(migrationFiles?: Record<string, Migration>): Promise<MigrationResult[]> {
+  const db = await createDatabase()
 
   // If no migration files provided, load all migrations
   const migrations = migrationFiles || await loadAllMigrations()
@@ -297,12 +351,12 @@ export async function runMigrations(api?: ElectronAPI, migrationFiles?: Record<s
 /**
  * Convenience function to get migration status
  */
-export async function getMigrationStatus(api?: ElectronAPI, migrationFiles?: Record<string, Migration>): Promise<{
+export async function getMigrationStatus(migrationFiles?: Record<string, Migration>): Promise<{
   executed: string[]
   pending: string[]
   total: number
 }> {
-  const db = await createDatabase(api)
+  const db = await createDatabase()
 
   // If no migration files provided, load all migrations
   const migrations = migrationFiles || await loadAllMigrations()
@@ -313,8 +367,8 @@ export async function getMigrationStatus(api?: ElectronAPI, migrationFiles?: Rec
 /**
  * Convenience function to rollback migrations
  */
-export async function rollbackMigrations(api?: ElectronAPI, targetVersion?: string, migrationFiles?: Record<string, Migration>): Promise<MigrationResult[]> {
-  const db = await createDatabase(api)
+export async function rollbackMigrations(targetVersion?: string, migrationFiles?: Record<string, Migration>): Promise<MigrationResult[]> {
+  const db = await createDatabase()
 
   // If no migration files provided, load all migrations
   const migrations = migrationFiles || await loadAllMigrations()

@@ -8,7 +8,7 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { BrowserWindow } from 'electron';
-import { CatalystServiceDependencies, ServiceConfig, ServiceHealth, ServiceExecutionContext } from '../types';
+import { CatalystServiceDependencies, ServiceConfig, ServiceError, ServiceHealth, ServiceExecutionContext } from '../types';
 import { ServiceRegistry, MainThreadServiceRegistry } from '../registry';
 import { LoggerFactory } from '../logger';
 import { ServiceConfigManager } from '../config';
@@ -16,7 +16,6 @@ import { ToolExecutorService } from '../tool-executor';
 import { AgentManagerMain } from '../agents/agent-manager';
 import { SessionServiceMain } from '../session/session-service';
 import { Database, createDatabase, runMigrations } from '../database/kysely-database';
-import { ServiceError } from './types';
 
 /**
  * Main service orchestrator for Learning Catalyst

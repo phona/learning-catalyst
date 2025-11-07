@@ -139,6 +139,14 @@ export class ToolExecutorService {
   }
 
   /**
+   * Get base tools for agents
+   * Returns standard tools available for all agents
+   */
+  getBaseTools(): string[] {
+    return ['file-system', 'database', 'network'];
+  }
+
+  /**
    * Update configuration
    */
   updateConfig(config: Partial<ToolExecutorConfig>): void {

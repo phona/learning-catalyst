@@ -10,9 +10,9 @@ import { AsyncLocalStorage } from 'async_hooks';
 import { MessageChannelMain } from 'electron';
 import { AgentConfig, AgentExecutionRequest, AgentExecutionChunk, ServiceDependencies, ServiceExecutionContext, AgentExecutionError } from './types';
 import { ToolExecutorService } from './tool-executor';
-import { ConceptProcessingPipeline } from '@/shared/modules/concept-parsing';
+import { ConceptProcessingPipeline } from '@/main/services/concept-parsing';
 import { AIProvider } from '@/shared/types/ai';
-import { LangChainProviderAdapter } from '../catalyst/langchain-adapter';
+import { LangChainProviderAdapter, LangChainModelFactory } from '../catalyst/langchain-adapter';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 
@@ -238,7 +238,7 @@ export class AgentManagerMain {
 
     try {
       // Convert AI provider to LangChain model
-      const langChainModel = await LangChainProviderAdapter.createModel(
+      const langChainModel = await LangChainModelFactory.createModel(
         agent.modelConfig.provider,
         agent.modelConfig.provider.name,
         agent.modelConfig.modelId,
@@ -326,7 +326,7 @@ export class AgentManagerMain {
 
     try {
       // Convert AI provider to LangChain model
-      const langChainModel = await LangChainProviderAdapter.createModel(
+      const langChainModel = await LangChainModelFactory.createModel(
         agent.modelConfig.provider,
         agent.modelConfig.provider.name,
         agent.modelConfig.modelId,
@@ -356,9 +356,9 @@ export class AgentManagerMain {
 
       // Execute with streaming if requested
       if (request.options.stream) {
-        yield* this.executeStreamingChat(langChainModel, messages, executionContext);
+        yield* this.executeStreamingChat(langChainModel as any, messages, executionContext);
       } else {
-        yield* this.executeNonStreamingChat(langChainModel, messages, executionContext);
+        yield* this.executeNonStreamingChat(langChainModel as any, messages, executionContext);
       }
 
     } catch (error) {
@@ -585,7 +585,7 @@ export class AgentManagerMain {
       throw new AgentExecutionError(
         `Agent '${agentId}' not found`,
         agentId,
-        'session_activation'
+        'execution'
       );
     }
 
@@ -720,7 +720,7 @@ export class AgentManagerMain {
       throw new AgentExecutionError(
         `Agent '${agentId}' not found`,
         agentId,
-        'session_primary_set'
+        'execution'
       );
     }
 
@@ -767,7 +767,7 @@ export class AgentManagerMain {
       throw new AgentExecutionError(
         `Agent '${agentId}' is not active for session '${sessionId}'`,
         agentId,
-        'session_execution'
+        'execution'
       );
     }
 
@@ -783,6 +783,8 @@ export class AgentManagerMain {
         sessionId,
         userId: 'system',
         timestamp: Date.now(),
+        requestId: `session_${sessionId}_${agentId}_${Date.now()}`,
+        operation: 'session-execution',
         correlationId: `${sessionId}_${agentId}_${Date.now()}`
       },
       options: {

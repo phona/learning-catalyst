@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+	"jsx": "react",
     "composite": true,
     "skipLibCheck": true,
     "module": "nodenext",
@@ -21,6 +22,6 @@
       ]
     }
   },
-  "include": ["vite.config.ts", "src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["vite.config.ts"],
+  "exclude": ["node_modules", "src/**/*"]
 }

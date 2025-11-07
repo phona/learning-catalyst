@@ -64,13 +64,12 @@ export class ConceptManager {
       throw new Error(`Concept with name "${data.name}" already exists`);
     }
 
-    // Create the concept
+    // Create the concept (Note: Concept type doesn't have lastReviewed field)
     const concept = await this.knowledgeGraph.createConcept({
       ...data,
       tags: data.tags || [],
       metadata: data.metadata || {},
-      masteryLevel: 0,
-      lastReviewed: undefined
+      masteryLevel: 0
     });
 
     // Auto-create relationships if parent concept is specified
@@ -113,6 +112,7 @@ export class ConceptManager {
 
   /**
    * Delete a concept and handle cleanup
+   * Note: This method is not implemented in KnowledgeGraphModule yet
    */
   async deleteConcept(id: string, force = false): Promise<boolean> {
     const concept = await this.knowledgeGraph.getConcept(id);
@@ -138,32 +138,59 @@ export class ConceptManager {
       }
     }
 
-    return await this.knowledgeGraph.deleteConcept(id);
+    // KnowledgeGraphModule doesn't have deleteConcept method yet
+    throw new Error('Delete concept functionality is not implemented in KnowledgeGraphModule');
   }
 
   /**
    * Search for concepts with advanced filtering
    */
   async searchConcepts(params: ConceptSearchParams = {}): Promise<Concept[]> {
-    return await this.knowledgeGraph.searchConcepts({
-      query: params.query,
-      conceptTypes: params.types,
-      difficultyRange: params.difficultyRange,
-      masteryRange: params.masteryRange,
-      tags: params.tags,
-      limit: params.limit || 50,
-      offset: params.offset || 0
-    });
+    // Build query string from parameters
+    let query = params.query || '';
+
+    // Add tag filtering to query if specified
+    if (params.tags && params.tags.length > 0) {
+      const tagQuery = params.tags.map(tag => `tag:${tag}`).join(' ');
+      query = query ? `${query} ${tagQuery}` : tagQuery;
+    }
+
+    // Add concept type filtering to query if specified
+    if (params.types && params.types.length > 0) {
+      const typeQuery = params.types.map(type => `type:${type}`).join(' ');
+      query = query ? `${query} ${typeQuery}` : typeQuery;
+    }
+
+    const limit = params.limit || 50;
+    const allResults = await this.knowledgeGraph.searchConcepts(query, Math.max(limit, 1000));
+
+    // Apply additional filtering that can't be handled by text search
+    let filteredResults = allResults;
+
+    if (params.difficultyRange) {
+      filteredResults = filteredResults.filter(concept =>
+        concept.difficultyLevel >= params.difficultyRange![0] &&
+        concept.difficultyLevel <= params.difficultyRange![1]
+      );
+    }
+
+    if (params.masteryRange) {
+      filteredResults = filteredResults.filter(concept =>
+        concept.masteryLevel >= params.masteryRange![0] &&
+        concept.masteryLevel <= params.masteryRange![1]
+      );
+    }
+
+    // Apply pagination
+    const offset = params.offset || 0;
+    return filteredResults.slice(offset, offset + limit);
   }
 
   /**
    * Find concept by exact name match
    */
   async findConceptByName(name: string): Promise<Concept | null> {
-    const results = await this.knowledgeGraph.searchConcepts({
-      query: name,
-      limit: 1
-    });
+    const results = await this.knowledgeGraph.searchConcepts(name, 100);
 
     // Find exact match
     return results.find(concept => concept.name.toLowerCase() === name.toLowerCase()) || null;
@@ -176,11 +203,12 @@ export class ConceptManager {
     const thresholdDate = new Date();
     thresholdDate.setDate(thresholdDate.getDate() - daysThreshold);
 
-    const allConcepts = await this.knowledgeGraph.searchConcepts({ limit: 1000 });
+    const allConcepts = await this.knowledgeGraph.searchConcepts('', 10000);
 
     return allConcepts.filter(concept => {
-      // Hasn't been reviewed in threshold days, or never reviewed
-      const needsReview = !concept.lastReviewed || concept.lastReviewed < thresholdDate;
+      // Note: Concept type doesn't have lastReviewed field, so we'll use updatedAt instead
+      const conceptDate = new Date(concept.updatedAt);
+      const needsReview = conceptDate < thresholdDate;
 
       // Mastery level is not yet maxed
       const canImprove = concept.masteryLevel < 5;
@@ -193,7 +221,7 @@ export class ConceptManager {
    * Get concept suggestions based on learning progress
    */
   async getLearningRecommendations(sessionContext?: string): Promise<LearningRecommendation[]> {
-    const allConcepts = await this.knowledgeGraph.searchConcepts({ limit: 1000 });
+    const allConcepts = await this.knowledgeGraph.searchConcepts('', 10000);
     const recommendations: LearningRecommendation[] = [];
 
     for (const concept of allConcepts) {
@@ -276,11 +304,9 @@ export class ConceptManager {
       newMasteryLevel = Math.max(0, concept.masteryLevel - 1) as Concept['masteryLevel'];
     }
 
-    // Update the concept
+    // Update the concept (Note: Concept type doesn't have lastReviewed or reviewCount fields)
     const updated = await this.knowledgeGraph.updateConcept(conceptId, {
       masteryLevel: newMasteryLevel,
-      lastReviewed: new Date(),
-      reviewCount: concept.reviewCount + 1,
       metadata: {
         ...concept.metadata,
         lastStudySession: {
@@ -395,7 +421,7 @@ export class ConceptManager {
       }
       return concepts;
     } else {
-      return await this.knowledgeGraph.searchConcepts({ limit: 10000 });
+      return await this.knowledgeGraph.searchConcepts('', 10000);
     }
   }
 

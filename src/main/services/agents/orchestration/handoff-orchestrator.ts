@@ -89,7 +89,12 @@ export class HandoffOrchestrator {
     }
   ): AsyncGenerator<AgentExecutionChunk> {
     const handoffContext: HandoffContext = {
+      id: `handoff_${sessionId}_${Date.now()}`,
       sessionId,
+      userId: 'system',
+      timestamp: Date.now(),
+      requestId: `req_${Date.now()}`,
+      operation: 'handoff-orchestration',
       currentAgentId: initialAgentId,
       maxHandoffs: options?.maxHandoffs || 5,
       currentHandoffs: 0,
@@ -100,7 +105,7 @@ export class HandoffOrchestrator {
       sessionContext: {}
     };
 
-    yield* this.runWithContext('handoff-orchestration', async function* () {
+    yield* this.runWithContext('handoff-orchestration', async function* (this: HandoffOrchestrator) {
       this.dependencies.logger.info(`Starting handoff orchestration`, {
         sessionId,
         initialAgentId,
@@ -204,7 +209,7 @@ export class HandoffOrchestrator {
 
       // Execute agent
       const agentResults: AgentExecutionChunk[] = [];
-      for await (const chunk of this.agentManager.executeAgent({
+      const agentExecution = await this.agentManager.executeAgent({
         agentId,
         input: agentInput,
         context: {
@@ -212,6 +217,8 @@ export class HandoffOrchestrator {
           sessionId: context.sessionId,
           userId: 'system',
           timestamp: Date.now(),
+          requestId: `${context.sessionId}_${agentId}_${Date.now()}`,
+          operation: 'agent-execution',
           correlationId: `${context.sessionId}_${agentId}_${Date.now()}`
         },
         options: {
@@ -219,7 +226,9 @@ export class HandoffOrchestrator {
           timeout: 60000,   // 1 minute per agent
           stream: true
         }
-      })) {
+      });
+
+      for await (const chunk of agentExecution) {
         agentResults.push(chunk);
 
         // Filter and yield relevant chunks
@@ -351,7 +360,7 @@ Description: ${currentAgent.description || 'No description'}
 Available Agents for Handoff:
 ${agentDescriptions}
 
-User Goals: ${context.userGoals.join(', ') || 'Not specified'}
+User Goals: ${context.userGoals?.join(', ') || 'Not specified'}
 
 Conversation History: ${context.conversationHistory.length} messages
 Previous Handoffs: ${context.currentHandoffs}/${context.maxHandoffs}
@@ -463,7 +472,7 @@ Consider the user's journey and only recommend handoffs that genuinely improve t
       handoffMetadata: {
         confidence: decision.confidence,
         contextSummary: decision.contextSummary,
-        userGoals: context.userGoals
+        userGoals: context.userGoals || []
       }
     };
 
@@ -520,7 +529,7 @@ Consider the user's journey and only recommend handoffs that genuinely improve t
     }
 
     // Preserve session context
-    if (Object.keys(context.sessionContext).length > 0) {
+    if (context.sessionContext && Object.keys(context.sessionContext).length > 0) {
       preservedContext.push('session_context');
     }
 
@@ -577,7 +586,14 @@ Consider the user's journey and only recommend handoffs that genuinely improve t
     operation: string,
     fn: () => AsyncIterable<T>
   ): AsyncIterable<T> {
-    const context = { service: 'handoff-orchestrator', operation };
+    const context: ServiceExecutionContext = {
+      id: `ctx_${Date.now()}`,
+      sessionId: `session_${Date.now()}`,
+      timestamp: Date.now(),
+      requestId: `req_${Date.now()}`,
+      operation,
+      metadata: { service: 'handoff-orchestrator', operation }
+    };
     yield* this.als.run(context, fn);
   }
 

@@ -43,13 +43,3 @@ export interface SearchDisplay<T> {
   hasMore: boolean;
   loading?: boolean;
 }
-
-// Re-export commonly used types for convenience
-export type {
-  // UI Component Props
-  UIState,
-  ChatUIState,
-  ModalProps,
-  ToastProps,
-  NotificationData
-} from './ui';

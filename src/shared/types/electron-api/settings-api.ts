@@ -62,7 +62,8 @@ export interface SettingsAPI {
     updatedSettings: any;
     impact: string[];
   }>;
-}
+
+  }
 
 // ============================================================================
 // Display-Optimized Types

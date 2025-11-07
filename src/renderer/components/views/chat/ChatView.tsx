@@ -9,8 +9,8 @@ import { ChatInterface } from '../../features/chat/ChatInterface';
 import { AgentSelector } from '../../features/agents/AgentSelector';
 import { useChatStore } from '../../../stores/chat/chatStore';
 import { useSessionStore } from '../../../stores/sessions/sessionStore';
-import { LoadingScreen } from '../../shared/feedback/LoadingScreen';
-import { Container } from '../../shared/layout/Container';
+import { LoadingScreen } from '../../UI/LoadingScreen';
+import { Container } from '../../UI/Container';
 import type { SessionDisplay, MessageDisplay } from '../../../types';
 
 interface ChatViewProps {
@@ -91,10 +91,15 @@ export const ChatView: React.FC<ChatViewProps> = ({ sessionId: propSessionId }) 
   // Show loading screen while initializing
   if (initialLoading) {
     return (
-      <LoadingScreen
-        message="Loading chat session..."
-        showSpinner={true}
-      />
+      <Container className="h-full flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+          <div className="space-y-2">
+            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-48 mx-auto animate-pulse"></div>
+            <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32 mx-auto animate-pulse"></div>
+          </div>
+        </div>
+      </Container>
     );
   }
 

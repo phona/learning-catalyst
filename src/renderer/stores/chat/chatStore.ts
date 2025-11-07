@@ -75,15 +75,15 @@ export const useChatStore = create<ChatState>()(
     setCurrentSession: (sessionId) => {
       set({ currentSessionId: sessionId });
 
-      // Load messages for this session
+      // Load conversation history for this session
       if (typeof window !== 'undefined' && window.electronAPI?.chat) {
-        window.electronAPI.chat.getSession(sessionId)
-          .then(({ messages }) => {
-            set({ messages, error: null });
+        window.electronAPI.chat.getConversationHistory(sessionId)
+          .then((history) => {
+            set({ messages: history.messages || [], error: null });
           })
           .catch((error) => {
-            console.error('Failed to load session messages:', error);
-            set({ error: error.message });
+            console.error('Failed to load conversation history:', error);
+            set({ error: (error as Error).message });
           });
       }
     },

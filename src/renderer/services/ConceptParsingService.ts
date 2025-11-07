@@ -38,8 +38,8 @@ import {
   type PipelineConfig,
   type ProcessingOptions,
   type PipelineResult
-} from '@/shared/modules/concept-parsing';
-import { LangChainModelFactory } from '@/shared/modules/concept-parsing/langchain-adapter';
+} from '@/main/services/concept-parsing';
+import { LangChainModelFactory } from '@/main/services/concept-parsing/langchain-adapter';
 import type { AIProvider } from '@/shared/types/ai';
 
 export interface ParsingOptions {

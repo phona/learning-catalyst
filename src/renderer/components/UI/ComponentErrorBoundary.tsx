@@ -1,5 +1,5 @@
 import React from 'react';
-import { ErrorBoundaryEnhanced } from './ErrorBoundaryEnhanced';
+import { ErrorBoundary } from './ErrorBoundary';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface ComponentErrorBoundaryProps {
@@ -65,7 +65,7 @@ export const ComponentErrorBoundary: React.FC<ComponentErrorBoundaryProps> = ({
   );
 
   return (
-    <ErrorBoundaryEnhanced
+    <ErrorBoundary
       variant={variant}
       title={`${componentName} Error`}
       fallback={customFallback}
@@ -74,6 +74,6 @@ export const ComponentErrorBoundary: React.FC<ComponentErrorBoundaryProps> = ({
       showRetry={!!onRetry}
     >
       {children}
-    </ErrorBoundaryEnhanced>
+    </ErrorBoundary>
   );
 };

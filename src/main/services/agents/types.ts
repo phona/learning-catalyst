@@ -44,7 +44,7 @@ export interface AgentExecutionRequest {
 }
 
 export interface AgentExecutionChunk {
-  type: 'start' | 'progress' | 'data' | 'complete' | 'error';
+  type: 'error' | 'data' | 'start' | 'progress' | 'complete' | 'tool-call' | 'tool-result';
   content: any;
   timestamp: number;
 }
@@ -55,7 +55,27 @@ export interface ServiceExecutionContext {
   userId?: string;
   timestamp: number;
   requestId: string;
+  correlationId?: string;
+  operation: string;
   metadata?: Record<string, any>;
+}
+
+export interface AgentExecutionContext extends ServiceExecutionContext {
+  agentId: string;
+  agentType: string;
+  learningContext: {
+    currentTopic?: string;
+    difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
+    userGoals?: string[];
+    previousInteractions?: any[];
+  };
+}
+
+export interface EnhancedToolCallingContext extends AgentExecutionContext {
+  orchestrationId: string;
+  toolSelectionStrategy?: string;
+  iteration: number;
+  maxIterations: number;
 }
 
 export interface ServiceDependencies {
@@ -69,7 +89,7 @@ export class AgentExecutionError extends Error {
   constructor(
     message: string,
     public agentId: string,
-    public phase: 'initialization' | 'execution' | 'cleanup',
+    public phase: 'initialization' | 'execution' | 'cleanup' | 'tool-call',
     public context?: ServiceExecutionContext,
     public cause?: Error
   ) {
@@ -99,4 +119,23 @@ export interface ToolExecutionResult {
   error?: string;
   metadata?: Record<string, any>;
   executionTime: number;
+}
+
+export interface AgentExecutionResult {
+  success: boolean;
+  executionId: string;
+  agentId: string;
+  result: {
+    type: string;
+    content: string;
+    metadata?: Record<string, any>;
+  };
+  metadata: {
+    startTime: Date;
+    endTime: Date;
+    duration: number;
+    tokensUsed: number;
+    model: string;
+    provider: string;
+  };
 }

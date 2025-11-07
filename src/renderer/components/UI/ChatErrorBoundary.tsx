@@ -1,5 +1,5 @@
 import React from 'react';
-import { ErrorBoundaryEnhanced } from './ErrorBoundaryEnhanced';
+import { ErrorBoundary } from './ErrorBoundary';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface ChatErrorBoundaryProps {
@@ -8,8 +8,38 @@ interface ChatErrorBoundaryProps {
 }
 
 /**
- * Specialized error boundary for chat components
- * Provides chat-specific error handling and recovery options
+ * 💬 Chat Error Boundary
+ *
+ * Specialized error boundary for chat components with context-aware error messages
+ * and chat-specific recovery options. Preserves user experience during chat failures.
+ *
+ * 🎯 What It Does:
+ * - Catches chat component errors without crashing the entire app
+ * - Displays user-friendly chat error messages
+ * - Provides chat-specific recovery options (reload chat)
+ * - Warns users about potential message loss
+ * - Maintains context-specific error styling
+ *
+ * 🔧 Features:
+ * - Inline error display to maintain chat context
+ * - Chat-specific error messaging about message state
+ * - Reload chat functionality to recover from errors
+ * - Warning about unsent messages to manage expectations
+ *
+ * 💡 Best Practices:
+ * - Wrap chat interfaces with this boundary
+ * - Provide onRetry handlers that clear chat state if needed
+ * - Use appropriate error messages for chat context
+ * - Consider message persistence when implementing recovery
+ *
+ * @example
+ * ```tsx
+ * <ChatErrorBoundary onRetry={() => clearChatState()}>
+ *   <ChatInterface />
+ *   <ChatArea />
+ *   <ChatInput />
+ * </ChatErrorBoundary>
+ * ```
  */
 export const ChatErrorBoundary: React.FC<ChatErrorBoundaryProps> = ({
   children,
@@ -49,7 +79,7 @@ export const ChatErrorBoundary: React.FC<ChatErrorBoundaryProps> = ({
   );
 
   return (
-    <ErrorBoundaryEnhanced
+    <ErrorBoundary
       variant="inline"
       title="Chat Error"
       description="The chat interface encountered an error. Try reloading the chat."
@@ -57,6 +87,6 @@ export const ChatErrorBoundary: React.FC<ChatErrorBoundaryProps> = ({
       onRetry={handleRetry}
     >
       {children}
-    </ErrorBoundaryEnhanced>
+    </ErrorBoundary>
   );
 };

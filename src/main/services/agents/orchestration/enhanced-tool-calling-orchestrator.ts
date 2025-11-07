@@ -11,9 +11,39 @@ import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolExecutorService } from '../../tool-executor';
 import { SecureToolExecutor, SecurityLevel, PermissionType } from '../../security/secure-tool-executor';
-import { ServiceDependencies, ServiceExecutionContext } from '../../types';
-import { AgentExecutionChunk, AgentExecutionError } from '../../types';
+import { ServiceDependencies, ServiceExecutionContext, AgentExecutionChunk, AgentExecutionError } from '../../types';
 import { randomUUID } from 'crypto';
+
+/**
+ * Agent execution context
+ */
+export interface AgentExecutionContext extends ServiceExecutionContext {
+  agentId: string;
+  agentType: string;
+  learningContext: {
+    currentTopic?: string;
+    difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
+    userGoals?: string[];
+    previousInteractions?: any[];
+  };
+}
+
+/**
+ * Enhanced tool calling orchestration context with additional properties
+ */
+export interface EnhancedToolCallingContextExtended extends AgentExecutionContext {
+  orchestrationId: string;
+  toolSelectionStrategy?: string;
+  iteration: number;
+  maxIterations: number;
+  maxToolCalls: number;
+  currentIteration: number;
+  toolCallCount: number;
+  messages: any[];
+  toolResults: EnhancedToolResult[];
+  startTime: number;
+  securityLevel: SecurityLevel;
+}
 
 /**
  * Enhanced tool call request with metadata
@@ -21,7 +51,7 @@ import { randomUUID } from 'crypto';
 export interface EnhancedToolCall {
   id: string;
   name: string;
-  arguments: Record<string, any>;
+  args: Record<string, any>;
   metadata: {
     confidence: number;
     reasoning: string;
@@ -55,29 +85,6 @@ export interface EnhancedToolResult {
   };
 }
 
-/**
- * Enhanced tool calling orchestration context
- */
-export interface EnhancedToolCallingContext extends ServiceExecutionContext {
-  agentId: string;
-  sessionId?: string;
-  userId?: string;
-  orchestrationId: string;
-  maxToolCalls: number;
-  maxIterations: number;
-  currentIteration: number;
-  toolCallCount: number;
-  messages: any[];
-  toolResults: EnhancedToolResult[];
-  startTime: number;
-  securityLevel: SecurityLevel;
-  learningContext: {
-    currentTopic?: string;
-    learningGoal?: string;
-    priorKnowledge: string[];
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-  };
-}
 
 /**
  * Tool selection strategy
@@ -120,7 +127,7 @@ export class EnhancedToolCallingOrchestrator {
     input: string,
     systemPrompt: string,
     availableTools: string[],
-    context: Partial<EnhancedToolCallingContext>,
+    context: Partial<EnhancedToolCallingContextExtended>,
     options?: {
       maxToolCalls?: number;
       maxIterations?: number;
@@ -128,31 +135,45 @@ export class EnhancedToolCallingOrchestrator {
       stream?: boolean;
       selectionStrategy?: ToolSelectionStrategy;
       securityLevel?: SecurityLevel;
-      learningContext?: EnhancedToolCallingContext['learningContext'];
+      learningContext?: {
+        currentTopic?: string;
+        difficulty?: 'beginner' | 'intermediate' | 'advanced';
+        userGoals?: string[];
+        priorKnowledge?: string[];
+      };
     }
   ): AsyncGenerator<AgentExecutionChunk> {
     const orchestrationId = randomUUID();
-    const orchestrationContext: EnhancedToolCallingContext = {
-      ...context,
-      agentId: context.agentId || 'unknown',
-      sessionId: context.sessionId,
+    const orchestrationContext: EnhancedToolCallingContextExtended = {
+      id: randomUUID(),
+      sessionId: context.sessionId || `session_${orchestrationId}`,
       userId: context.userId,
+      timestamp: Date.now(),
+      requestId: randomUUID(),
+      operation: 'enhanced-tool-calling-orchestration',
+      metadata: { service: 'enhanced-tool-calling-orchestrator' },
+      agentId: context.agentId || 'unknown',
+      agentType: 'learning',
+      learningContext: {
+        currentTopic: options?.learningContext?.currentTopic,
+        difficultyLevel: options?.learningContext?.difficulty || 'intermediate',
+        userGoals: options?.learningContext?.userGoals || [],
+        previousInteractions: options?.learningContext?.priorKnowledge || []
+      },
       orchestrationId,
-      maxToolCalls: options?.maxToolCalls || 10,
+      toolSelectionStrategy: options?.selectionStrategy,
+      iteration: 0,
       maxIterations: options?.maxIterations || 5,
+      maxToolCalls: options?.maxToolCalls || 10,
       currentIteration: 0,
       toolCallCount: 0,
       messages: [],
       toolResults: [],
       startTime: Date.now(),
-      securityLevel: options?.securityLevel || SecurityLevel.STANDARD,
-      learningContext: options?.learningContext || {
-        priorKnowledge: [],
-        difficulty: 'intermediate'
-      }
+      securityLevel: options?.securityLevel || SecurityLevel.STANDARD
     };
 
-    yield* this.runWithContext('enhanced-tool-calling-orchestration', async function* () {
+    yield* this.runWithContext('enhanced-tool-calling-orchestration', async function* (this: EnhancedToolCallingOrchestrator) {
       this.dependencies.logger.info(`Starting enhanced tool calling orchestration`, {
         orchestrationId,
         agentId: orchestrationContext.agentId,
@@ -178,7 +199,7 @@ export class EnhancedToolCallingOrchestrator {
         orchestrationContext.currentIteration++;
 
         yield {
-          type: 'progress',
+          type: 'progress' as const,
           content: {
             phase: 'thinking',
             message: `Iteration ${orchestrationContext.currentIteration}: Analyzing and planning next actions...`,
@@ -207,7 +228,7 @@ export class EnhancedToolCallingOrchestrator {
         if (toolCalls.length === 0) {
           // No tool calls, orchestration complete
           yield {
-            type: 'progress',
+            type: 'progress' as const,
             content: {
               phase: 'complete',
               message: 'Task completed without additional tool calls'
@@ -216,7 +237,7 @@ export class EnhancedToolCallingOrchestrator {
           };
 
           yield {
-            type: 'data',
+            type: 'data' as const,
             content: {
               message: aiResponse.content,
               type: 'final_response',
@@ -233,7 +254,7 @@ export class EnhancedToolCallingOrchestrator {
 
         // Execute enhanced tool calls
         yield {
-          type: 'progress',
+          type: 'progress' as const,
           content: {
             phase: 'executing_tools',
             message: `Executing ${toolCalls.length} tool call(s) with security controls...`,
@@ -260,7 +281,7 @@ export class EnhancedToolCallingOrchestrator {
         // Check limits
         if (orchestrationContext.toolCallCount >= orchestrationContext.maxToolCalls) {
           yield {
-            type: 'progress',
+            type: 'progress' as const,
             content: {
               phase: 'limit_reached',
               message: 'Maximum tool calls reached, providing final response'
@@ -275,7 +296,7 @@ export class EnhancedToolCallingOrchestrator {
           );
 
           yield {
-            type: 'data',
+            type: 'data' as const,
             content: {
               message: finalResponse.content,
               type: 'final_response',
@@ -304,7 +325,7 @@ export class EnhancedToolCallingOrchestrator {
 
       // Max iterations reached
       yield {
-        type: 'progress',
+        type: 'progress' as const,
         content: {
           phase: 'limit_reached',
           message: 'Maximum iterations reached, providing final response'
@@ -319,7 +340,7 @@ export class EnhancedToolCallingOrchestrator {
       );
 
       yield {
-        type: 'data',
+        type: 'data' as const,
         content: {
           message: finalResponse.content,
           type: 'final_response',
@@ -340,16 +361,16 @@ export class EnhancedToolCallingOrchestrator {
    */
   private buildEnhancedSystemPrompt(
     basePrompt: string,
-    learningContext: EnhancedToolCallingContext['learningContext'],
+    learningContext: AgentExecutionContext['learningContext'],
     availableTools: string[]
   ): string {
     return `${basePrompt}
 
 LEARNING CONTEXT:
 - Current Topic: ${learningContext.currentTopic || 'Not specified'}
-- Learning Goal: ${learningContext.learningGoal || 'General understanding'}
-- Prior Knowledge: ${learningContext.priorKnowledge.join(', ') || 'None'}
-- Difficulty Level: ${learningContext.difficulty}
+- Learning Goal: ${learningContext.userGoals?.join(', ') || 'General understanding'}
+- Prior Knowledge: ${learningContext.previousInteractions?.join(', ') || 'None'}
+- Difficulty Level: ${learningContext.difficultyLevel}
 
 AVAILABLE TOOLS:
 ${availableTools.join(', ')}
@@ -375,7 +396,7 @@ SECURITY CONSIDERATIONS:
     model: BaseLanguageModel,
     messages: any[],
     availableTools: string[],
-    context: EnhancedToolCallingContext,
+    context: EnhancedToolCallingContextExtended,
     strategy: ToolSelectionStrategy
   ): Promise<AIMessage> {
     try {
@@ -391,8 +412,8 @@ SECURITY CONSIDERATIONS:
 Based on the conversation context and available tools, determine if any tools should be called.
 
 Available tools: ${availableTools.join(', ')}
-Current learning goal: ${context.learningContext.learningGoal || 'Not specified'}
-Difficulty level: ${context.learningContext.difficulty}
+Current learning goal: ${context.learningContext.currentTopic || 'Not specified'}
+Difficulty level: ${context.learningContext.difficultyLevel}
 
 ${strategy === ToolSelectionStrategy.ADAPTIVE ?
   'Consider the learning progress and adapt your tool selection accordingly.' :
@@ -402,7 +423,7 @@ If tools should be called, respond with:
 TOOL_CALLS: [
   {
     "name": "tool_name",
-    "arguments": {"param": "value"},
+    "args": {"param": "value"},
     "confidence": 0.8,
     "reasoning": "Why this tool is needed",
     "alternatives": ["alternative_tool_name"]
@@ -424,7 +445,7 @@ If no tools are needed, provide a direct response.
           tool_calls: toolCalls.map(tc => ({
             id: tc.id,
             name: tc.name,
-            args: tc.arguments,
+            args: tc.args,
             metadata: tc.metadata
           }))
         });
@@ -436,8 +457,9 @@ If no tools are needed, provide a direct response.
       this.dependencies.logger.error('Failed to get enhanced AI response with tool calls', error as Error);
       throw new AgentExecutionError(
         `Enhanced AI response generation failed: ${(error as Error).message}`,
-        'enhanced-tool-calling-orchestrator',
-        'ai_response'
+        context.agentId,
+        'execution',
+        context
       );
     }
   }
@@ -447,7 +469,7 @@ If no tools are needed, provide a direct response.
    */
   private async createEnhancedToolDefinitions(
     toolNames: string[],
-    context: EnhancedToolCallingContext,
+    context: EnhancedToolCallingContextExtended,
     strategy: ToolSelectionStrategy
   ): Promise<any[]> {
     const definitions = [];
@@ -473,7 +495,7 @@ If no tools are needed, provide a direct response.
    */
   private enhanceToolDescription(
     baseDescription: string,
-    context: EnhancedToolCallingContext
+    context: EnhancedToolCallingContextExtended
   ): string {
     const learningHints = [];
 
@@ -481,12 +503,12 @@ If no tools are needed, provide a direct response.
       learningHints.push(`Focus on: ${context.learningContext.currentTopic}`);
     }
 
-    if (context.learningContext.difficulty !== 'intermediate') {
-      learningHints.push(`Adapt for ${context.learningContext.difficulty} level`);
+    if (context.learningContext.difficultyLevel !== 'intermediate') {
+      learningHints.push(`Adapt for ${context.learningContext.difficultyLevel} level`);
     }
 
-    if (context.learningContext.priorKnowledge.length > 0) {
-      learningHints.push(`Build on prior knowledge: ${context.learningContext.priorKnowledge.join(', ')}`);
+    if (context.learningContext.previousInteractions && context.learningContext.previousInteractions.length > 0) {
+      learningHints.push(`Build on prior knowledge: ${context.learningContext.previousInteractions.join(', ')}`);
     }
 
     return learningHints.length > 0
@@ -499,7 +521,7 @@ If no tools are needed, provide a direct response.
    */
   private determineToolSecurityLevel(
     toolName: string,
-    context: EnhancedToolCallingContext
+    context: EnhancedToolCallingContextExtended
   ): SecurityLevel {
     // Tools that need higher security
     const highSecurityTools = ['file-write', 'system-command', 'network-request'];
@@ -521,13 +543,13 @@ If no tools are needed, provide a direct response.
    */
   private mapToolToLearningContext(
     toolName: string,
-    context: EnhancedToolCallingContext
+    context: EnhancedToolCallingContextExtended
   ): Record<string, any> {
     return {
       currentTopic: context.learningContext.currentTopic,
-      learningGoal: context.learningContext.learningGoal,
-      difficulty: context.learningContext.difficulty,
-      priorKnowledge: context.learningContext.priorKnowledge
+      learningGoal: context.learningContext.currentTopic,
+      difficulty: context.learningContext.difficultyLevel,
+      priorKnowledge: context.learningContext.previousInteractions || []
     };
   }
 
@@ -543,8 +565,8 @@ If no tools are needed, provide a direct response.
         toolCalls.push({
           id: toolCall.id || randomUUID(),
           name: toolCall.name,
-          arguments: toolCall.args || toolCall.arguments || {},
-          metadata: toolCall.metadata || {
+          args: toolCall.args || {},
+          metadata: (toolCall as any).metadata || {
             confidence: 0.8,
             reasoning: 'Default reasoning'
           }
@@ -560,7 +582,7 @@ If no tools are needed, provide a direct response.
    */
   private async executeEnhancedToolCalls(
     toolCalls: EnhancedToolCall[],
-    context: EnhancedToolCallingContext
+    context: EnhancedToolCallingContextExtended
   ): Promise<EnhancedToolResult[]> {
     const results: EnhancedToolResult[] = [];
 
@@ -579,7 +601,7 @@ If no tools are needed, provide a direct response.
         const result = await this.secureToolExecutor.executeSecureTool({
           toolId: toolCall.name,
           operation: 'execute',
-          parameters: toolCall.arguments,
+          parameters: toolCall.args,
           agentId: context.agentId,
           sessionId: context.sessionId,
           userId: context.userId,
@@ -716,7 +738,7 @@ Consider the learning context and adapt the explanation accordingly.`)
           toolCalls.push({
             id: toolCall.id || randomUUID(),
             name: toolCall.name,
-            arguments: toolCall.arguments || {},
+            args: toolCall.args || {},
             metadata: {
               confidence: toolCall.confidence || 0.8,
               reasoning: toolCall.reasoning || 'Standard reasoning',
@@ -739,7 +761,14 @@ Consider the learning context and adapt the explanation accordingly.`)
     operation: string,
     fn: () => AsyncIterable<T>
   ): AsyncIterable<T> {
-    const context = { service: 'enhanced-tool-calling-orchestrator', operation };
+    const context: ServiceExecutionContext = {
+      id: randomUUID(),
+      sessionId: `session_${Date.now()}`,
+      timestamp: Date.now(),
+      requestId: randomUUID(),
+      operation,
+      metadata: { service: 'enhanced-tool-calling-orchestrator', operation }
+    };
     yield* this.als.run(context, fn);
   }
 

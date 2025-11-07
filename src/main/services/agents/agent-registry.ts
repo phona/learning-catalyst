@@ -9,7 +9,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { Kysely } from 'kysely';
 import type { Database } from '@/main/services/database/kysely-schema';
-import { AgentType } from '@/main/services/AgentManager';
+import { AgentType } from '@/main/services/catalyst/AgentManager';
 import { createUUID, generateTimestamp } from '@/shared/utils/helpers';
 
 export interface AgentConfiguration {
@@ -111,19 +111,25 @@ export class AgentRegistry {
         };
 
         // Persist to database
+        // Store systemPrompt in metadata along with other metadata
+        const combinedMetadata = {
+          ...agent.metadata,
+          systemPrompt: agent.systemPrompt
+        };
+
         await this.db.transaction().execute(async (trx) => {
           await trx.insertInto('agents').values({
             id: agent.id,
-            type: agent.type,
+            type: agent.type as any,
             name: agent.name,
             description: agent.description,
-            system_prompt: agent.systemPrompt,
-            tools: JSON.stringify(agent.tools),
             model_config: JSON.stringify(agent.modelConfig),
+            tools: JSON.stringify(agent.tools),
+            capabilities: JSON.stringify([]),
+            metadata: JSON.stringify(combinedMetadata),
             status: agent.status,
-            metadata: agent.metadata ? JSON.stringify(agent.metadata) : null,
-            created_at: new Date(agent.createdAt),
-            updated_at: new Date(agent.updatedAt)
+            created_at: agent.createdAt,
+            updated_at: agent.updatedAt
           }).executeTakeFirstOrThrow();
         });
 
@@ -198,7 +204,7 @@ export class AgentRegistry {
         const rows = await this.db
           .selectFrom('agents')
           .selectAll()
-          .where('type', '=', type)
+          .where('type', '=', type as any)
           .execute();
 
         return rows.map(row => this.mapRowToAgent(row));
@@ -222,7 +228,7 @@ export class AgentRegistry {
         }
 
         if (options.type) {
-          query = query.where('type', '=', options.type);
+          query = query.where('type', '=', options.type as any);
         }
 
         if (options.limit) {
@@ -283,11 +289,8 @@ export class AgentRegistry {
           .set({
             name: updatedAgent.name,
             description: updatedAgent.description,
-            system_prompt: updatedAgent.systemPrompt,
-            tools: JSON.stringify(updatedAgent.tools),
-            model_config: JSON.stringify(updatedAgent.modelConfig),
-            metadata: updatedAgent.metadata ? JSON.stringify(updatedAgent.metadata) : null,
-            updated_at: new Date(updatedAgent.updatedAt)
+            metadata: updatedAgent.metadata ? JSON.stringify(updatedAgent.metadata) : '',
+            updated_at: updatedAgent.updatedAt
           })
           .where('id', '=', id)
           .executeTakeFirstOrThrow();
@@ -336,8 +339,8 @@ export class AgentRegistry {
           .updateTable('agents')
           .set({
             status: 'active',
-            activated_at: new Date(activatedAgent.activatedAt!),
-            updated_at: new Date(activatedAgent.updatedAt)
+            activated_at: activatedAgent.activatedAt!,
+            updated_at: activatedAgent.updatedAt
           })
           .where('id', '=', id)
           .executeTakeFirstOrThrow();
@@ -378,8 +381,8 @@ export class AgentRegistry {
           .updateTable('agents')
           .set({
             status: 'inactive',
-            deactivated_at: new Date(deactivatedAgent.deactivatedAt!),
-            updated_at: new Date(deactivatedAgent.updatedAt)
+            deactivated_at: deactivatedAgent.deactivatedAt!,
+            updated_at: deactivatedAgent.updatedAt
           })
           .where('id', '=', id)
           .executeTakeFirstOrThrow();
@@ -584,20 +587,23 @@ export class AgentRegistry {
    */
   private mapRowToAgent(row: any): Agent {
     try {
+      const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+      const { systemPrompt, ...otherMetadata } = metadata;
+
       return {
         id: row.id,
         type: row.type as AgentType,
         name: row.name,
         description: row.description,
-        systemPrompt: row.system_prompt,
+        systemPrompt: systemPrompt || '',
         tools: JSON.parse(row.tools || '[]'),
         modelConfig: JSON.parse(row.model_config || '{}'),
         status: row.status as Agent['status'],
-        metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
-        createdAt: row.created_at.getTime(),
-        updatedAt: row.updated_at.getTime(),
-        activatedAt: row.activated_at ? row.activated_at.getTime() : undefined,
-        deactivatedAt: row.deactivated_at ? row.deactivated_at.getTime() : undefined
+        metadata: Object.keys(otherMetadata).length > 0 ? otherMetadata : undefined,
+        createdAt: typeof row.created_at === 'number' ? row.created_at : row.created_at.getTime(),
+        updatedAt: typeof row.updated_at === 'number' ? row.updated_at : row.updated_at.getTime(),
+        activatedAt: row.activated_at ? (typeof row.activated_at === 'number' ? row.activated_at : row.activated_at.getTime()) : undefined,
+        deactivatedAt: row.deactivated_at ? (typeof row.deactivated_at === 'number' ? row.deactivated_at : row.deactivated_at.getTime()) : undefined
       };
     } catch (error) {
       this.logger.error('Failed to parse agent data', error as Error);
