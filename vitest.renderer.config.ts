@@ -10,7 +10,15 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    // Configure React plugin with minimal settings to avoid preamble issues
+    react({
+      include: '**/*.{jsx,tsx}',
+      exclude: ['node_modules', '**/node_modules/**'],
+      // Disable fast refresh to avoid preamble detection issues
+      fastRefresh: false,
+    })
+  ],
   test: {
     name: 'renderer-thread',
     environment: 'jsdom',
