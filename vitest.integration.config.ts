@@ -16,20 +16,21 @@ export default defineConfig({
     name: 'integration',
     environment: 'jsdom',
     include: [
-      'test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}',
-      'src/test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'
+      'src/**/__tests__/integration/**/*.{test,spec}.{js,ts,jsx,tsx}',
+      'test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'
     ],
     exclude: [
       'node_modules',
       'dist',
-      'src/test/main-thread',
-      'src/test/renderer-thread',
+      'src/main/**/__tests__/**',
+      'src/renderer/**/__tests__/**',
+      'src/**/__tests__/performance/**',
       'test/performance'
     ],
     globals: true,
     setupFiles: [
       'test/setup/integration-setup.ts',
-      'src/test/main-thread/setup.ts'
+      'src/main/__tests__/setup.ts'
     ],
     testTimeout: 60000, // 60 seconds for integration tests
     hookTimeout: 15000,
@@ -52,12 +53,12 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       reportsDirectory: 'coverage/integration',
       include: [
-        'electron/main/services/**/*.{js,ts}',
-        'electron/main/handlers/**/*.{js,ts}',
-        'src/components/**/*.{js,ts,jsx,tsx}',
-        'src/services/**/*.{js,ts}',
         'src/main/services/**/*.{js,ts}',
-        'src/shared/modules/**/*.{js,ts}'
+        'src/main/handlers/**/*.{js,ts}',
+        'src/renderer/components/**/*.{js,ts,jsx,tsx}',
+        'src/renderer/services/**/*.{js,ts}',
+        'src/renderer/stores/**/*.{js,ts}',
+        'src/shared/**/*.{js,ts}'
       ],
       exclude: [
         '**/*.test.{js,ts,jsx,tsx}',
@@ -84,8 +85,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@electron': path.resolve(__dirname, './electron/main'),
-      '@test': path.resolve(__dirname, './src/test'),
+      '@/main': path.resolve(__dirname, './src/main'),
+      '@/renderer': path.resolve(__dirname, './src/renderer'),
+      '@/shared': path.resolve(__dirname, './src/shared'),
+      '@test': path.resolve(__dirname, './test'),
       '@integration': path.resolve(__dirname, './test'),
       '@fixtures': path.resolve(__dirname, './test/fixtures'),
       '@mocks': path.resolve(__dirname, './test/utils/mocks')

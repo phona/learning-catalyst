@@ -8,16 +8,8 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
-// Import React for JSX/TSX tests
-import { createElement } from 'react';
-
-// Make React available globally for tests
-global.React = { createElement };
-
-// Mock React components for testing
-global.jsx = (type: any, props: any, ...children: any[]) => {
-  return { type, props, children };
-};
+// React will be handled automatically by @vitejs/plugin-react
+// No manual React mocking needed
 
 // Mock window.electronAPI
 Object.defineProperty(window, 'electronAPI', {

@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { SimpleAnalyticsModule, LearningTrends as LearningTrendsType } from '../../modules/analytics/simple-analytics';
+import { SimpleAnalyticsModule } from './Achievements';
+
+// Define the LearningTrends type inline since the module is missing
+export interface LearningTrendsType {
+  dailyStudyTime: Array<{ date: string; minutes: number }>;
+  masteryProgress: Array<{ date: string; avgMastery: number }>;
+  sessionTypes: Record<string, number>;
+}
 
 interface LearningTrendsProps {
-  analytics: SimpleAnalyticsModule;
+  analytics: SimpleAnalyticsModule & {
+    getLearningTrends(period?: number): Promise<LearningTrendsType>;
+  };
   className?: string;
 }
 

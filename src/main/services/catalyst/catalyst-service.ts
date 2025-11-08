@@ -114,13 +114,7 @@ export class CatalystServiceMain {
 
     try {
       // Create database instance
-      const dbConfig = this.config.getDatabaseConfig();
-      this.database = await createDatabase({
-        filename: './learning_catalyst.db',
-        maxConnections: dbConfig.maxConnections,
-        connectionTimeout: dbConfig.connectionTimeout,
-        queryTimeout: dbConfig.queryTimeout
-      });
+      this.database = await createDatabase();
 
       // Run migrations
       await runMigrations(this.database);

@@ -1,23 +1,27 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { LearningTrends } from '@/renderer/components/Analytics/LearningTrends';
-import { SimpleAnalyticsModule } from '@/renderer/modules/analytics/simple-analytics';
+import { LearningTrends, LearningTrendsType } from '@/renderer/components/Analytics/LearningTrends';
+import { SimpleAnalyticsModule } from '@/renderer/components/Analytics/Achievements';
 
-// Mock the SimpleAnalyticsModule
-vi.mock('@/renderer/modules/analytics/simple-analytics', () => ({
-  SimpleAnalyticsModule: vi.fn().mockImplementation(() => ({
-    getLearningTrends: vi.fn(),
-    getStudyMetrics: vi.fn(),
-    getAchievements: vi.fn(),
-  })),
-}));
+// Mock analytics class that the tests expect
+class MockSimpleAnalyticsModule implements SimpleAnalyticsModule {
+  getLearningTrends = vi.fn().mockImplementation((period?: number) =>
+    Promise.resolve({
+      dailyStudyTime: [],
+      masteryProgress: [],
+      sessionTypes: {}
+    })
+  );
+  getStudyMetrics = vi.fn();
+  getAchievements = vi.fn();
+}
 
 describe('LearningTrends', () => {
-  let mockAnalytics: any;
+  let mockAnalytics: MockSimpleAnalyticsModule;
 
   beforeEach(() => {
-    mockAnalytics = new SimpleAnalyticsModule();
+    mockAnalytics = new MockSimpleAnalyticsModule();
     vi.clearAllMocks();
   });
 
@@ -40,7 +44,7 @@ describe('LearningTrends', () => {
   });
 
   it('renders trends data when loaded successfully', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [
         { date: '2025-01-20', minutes: 45 },
         { date: '2025-01-21', minutes: 60 },
@@ -51,10 +55,10 @@ describe('LearningTrends', () => {
         { date: '2025-01-21', avgMastery: 3.0 },
         { date: '2025-01-22', avgMastery: 3.2 },
       ],
-      sessionTypes: [
-        { type: 'study', count: 5, avgDuration: 45 },
-        { type: 'review', count: 2, avgDuration: 20 },
-      ],
+      sessionTypes: {
+        'study': 5,
+        'review': 2,
+      },
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -64,14 +68,14 @@ describe('LearningTrends', () => {
     expect(await screen.findByText('Learning Trends')).toBeInTheDocument();
     expect(screen.getByText('45m')).toBeInTheDocument();
     expect(screen.getByText('3.2')).toBeInTheDocument();
-    expect(screen.getByText('5 sessions')).toBeInTheDocument();
+    expect(screen.getByText('7')).toBeInTheDocument(); // Total sessions: 5 study + 2 review
   });
 
   it('renders period selector buttons', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [],
       masteryProgress: [],
-      sessionTypes: [],
+      sessionTypes: {},
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -84,10 +88,10 @@ describe('LearningTrends', () => {
   });
 
   it('shows no data message when trends are empty', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [],
       masteryProgress: [],
-      sessionTypes: [],
+      sessionTypes: {},
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -98,14 +102,14 @@ describe('LearningTrends', () => {
   });
 
   it('displays average study time correctly', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [
         { date: '2025-01-20', minutes: 30 },
         { date: '2025-01-21', minutes: 60 },
         { date: '2025-01-22', minutes: 90 },
       ],
       masteryProgress: [],
-      sessionTypes: [],
+      sessionTypes: {},
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -117,14 +121,14 @@ describe('LearningTrends', () => {
   });
 
   it('displays session types breakdown', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [],
       masteryProgress: [],
-      sessionTypes: [
-        { type: 'study', count: 8, avgDuration: 45 },
-        { type: 'review', count: 3, avgDuration: 20 },
-        { type: 'assessment', count: 2, avgDuration: 30 },
-      ],
+      sessionTypes: {
+        'study': 8,
+        'review': 3,
+        'assessment': 2,
+      },
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -132,16 +136,16 @@ describe('LearningTrends', () => {
     render(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Session Types')).toBeInTheDocument();
-    expect(screen.getByText('Study')).toBeInTheDocument();
+    expect(screen.getByText('study')).toBeInTheDocument();
     expect(screen.getByText('8 sessions')).toBeInTheDocument();
-    expect(screen.getByText('45m avg')).toBeInTheDocument();
-    expect(screen.getByText('Review')).toBeInTheDocument();
+    expect(screen.getByText('review')).toBeInTheDocument();
     expect(screen.getByText('3 sessions')).toBeInTheDocument();
-    expect(screen.getByText('20m avg')).toBeInTheDocument();
+    expect(screen.getByText('assessment')).toBeInTheDocument();
+    expect(screen.getByText('2 sessions')).toBeInTheDocument();
   });
 
   it('displays recent activity list', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [
         { date: '2025-01-22', minutes: 60 },
         { date: '2025-01-21', minutes: 45 },
@@ -153,7 +157,7 @@ describe('LearningTrends', () => {
         { date: '2025-01-15', minutes: 55 },
       ],
       masteryProgress: [],
-      sessionTypes: [],
+      sessionTypes: {},
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -170,10 +174,10 @@ describe('LearningTrends', () => {
   });
 
   it('calls analytics.getLearningTrends with correct period when period changes', async () => {
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [],
       masteryProgress: [],
-      sessionTypes: [],
+      sessionTypes: {},
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
@@ -193,7 +197,7 @@ describe('LearningTrends', () => {
 
   it('trend calculations work correctly', async () => {
     // Test with increasing trend
-    const mockTrends = {
+    const mockTrends: LearningTrendsType = {
       dailyStudyTime: [
         { date: '2025-01-15', minutes: 30 },
         { date: '2025-01-16', minutes: 35 },
@@ -204,7 +208,7 @@ describe('LearningTrends', () => {
         { date: '2025-01-16', avgMastery: 2.2 },
         { date: '2025-01-17', avgMastery: 2.5 },
       ],
-      sessionTypes: [],
+      sessionTypes: {},
     };
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);

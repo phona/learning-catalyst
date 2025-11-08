@@ -315,9 +315,20 @@ function generateDatabasePath(): string {
   // In main process, we can use Node.js path module
   const path = require('path')
 
-  // For development, use current directory
-  // In production, this would typically use app.getPath('userData')
-  return path.join(process.cwd(), 'learning_catalyst.db')
+  // Create .catalyst directory if it doesn't exist
+  const catalystDir = path.join(process.cwd(), '.catalyst')
+  const fs = require('fs')
+
+  try {
+    if (!fs.existsSync(catalystDir)) {
+      fs.mkdirSync(catalystDir, { recursive: true })
+    }
+  } catch (error) {
+    console.warn('Could not create .catalyst directory:', error)
+  }
+
+  // Return path within .catalyst directory
+  return path.join(catalystDir, 'learning_catalyst.db')
 }
 
 /**

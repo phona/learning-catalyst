@@ -75,7 +75,10 @@ export class MainThreadServiceRegistry implements ServiceRegistry {
     if (this.services.has(name)) {
       const service = this.services.get(name);
 
-      // Call dispose method if service has one
+      // Remove from services first to prevent recursion
+      this.services.delete(name);
+
+      // Call dispose method if service has one (but don't let it call unregister again)
       if (service && typeof service.dispose === 'function') {
         try {
           service.dispose();
@@ -83,8 +86,6 @@ export class MainThreadServiceRegistry implements ServiceRegistry {
           console.warn(`Error disposing service '${name}':`, error);
         }
       }
-
-      this.services.delete(name);
     }
   }
 
@@ -94,19 +95,31 @@ export class MainThreadServiceRegistry implements ServiceRegistry {
   async dispose(): Promise<void> {
     if (this.disposed) return;
 
+    // Mark as disposed first to prevent new registrations
+    this.disposed = true;
+
     // Dispose all services in reverse order of registration
     const serviceNames = Array.from(this.services.keys()).reverse();
 
     for (const name of serviceNames) {
       try {
-        this.unregister(name);
+        const service = this.services.get(name);
+        if (service) {
+          // Remove service from registry before disposing
+          this.services.delete(name);
+
+          // Dispose the service
+          if (typeof service.dispose === 'function') {
+            await Promise.resolve(service.dispose());
+          }
+        }
       } catch (error) {
-        console.warn(`Error unregistering service '${name}':`, error);
+        console.warn(`Error disposing service '${name}':`, error);
       }
     }
 
+    // Clear any remaining services
     this.services.clear();
-    this.disposed = true;
   }
 
   /**

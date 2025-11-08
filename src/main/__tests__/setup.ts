@@ -134,104 +134,195 @@ afterEach(() => {
 });
 
 /**
+ * Create a mock service context
+ */
+export function createMockContext(sessionId: string = 'test-session', operation: string = 'test') {
+  return {
+    id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    sessionId,
+    requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    timestamp: Date.now(),
+    operation,
+    metadata: { test: true }
+  };
+}
+
+/**
+ * Create a mock agent configuration
+ */
+export function createMockAgentConfig(agentId: string = 'test-agent', type: string = 'concept-parser') {
+  return {
+    id: agentId,
+    name: `Test ${type} Agent`,
+    type: type as any,
+    modelConfig: {
+      provider: {
+        name: 'openai',
+        config: {
+          name: 'gpt-3.5-turbo',
+          apiKey: 'test-key'
+        }
+      },
+      modelId: 'gpt-3.5-turbo',
+      temperature: 0.7,
+      maxTokens: 1000,
+      timeout: 30000
+    },
+    tools: ['database-query', 'file-read'],
+    systemPrompt: 'You are a test assistant.',
+    capabilities: ['text-generation', 'analysis'],
+    enabled: true
+  };
+}
+
+/**
+ * Create a mock AI provider
+ */
+export function createMockAIProvider() {
+  return {
+    name: 'openai',
+    config: {
+      name: 'gpt-3.5-turbo',
+      apiKey: 'test-key'
+    },
+    chat: async () => ({ content: 'Mock response' }),
+    models: async () => [{ id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }]
+  };
+}
+
+/**
+ * Wait for async operation with timeout
+ */
+export async function waitFor(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Create a mock tool execution request
+ */
+export function createMockToolRequest(toolId: string = 'test-tool', operation: string = 'test') {
+  return {
+    toolId,
+    operation,
+    parameters: { test: true },
+    context: createMockContext()
+  };
+}
+
+/**
+ * Get test database path
+ */
+export function getTestDatabasePath(): string {
+  return './test-database.sqlite';
+}
+
+/**
+ * Clean up test database
+ */
+export async function cleanupTestDatabase(): Promise<void> {
+  const fs = require('fs/promises');
+  try {
+    await fs.unlink(getTestDatabasePath());
+  } catch (error) {
+    // Ignore file not found errors
+  }
+}
+
+/**
  * Test utilities for main thread testing
  */
 export const TestUtils = {
-  /**
-   * Create a mock service context
-   */
-  createMockContext(sessionId: string = 'test-session', operation: string = 'test') {
-    return {
-      id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sessionId,
-      requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      operation,
-      metadata: { test: true }
-    };
+  createMockContext,
+  createMockAgentConfig,
+  createMockAIProvider,
+  waitFor,
+  createMockToolRequest,
+  createMockKyselyType() {
+    const mockDb = createMockKyselyDatabase();
+    return mockDb as any; // Cast to any to bypass strict typing
   },
-
-  /**
-   * Create a mock agent configuration
-   */
-  createMockAgentConfig(agentId: string = 'test-agent', type: string = 'concept-parser') {
-    return {
-      id: agentId,
-      name: `Test ${type} Agent`,
-      type: type as any,
-      modelConfig: {
-        provider: {
-          name: 'openai',
-          config: {
-            name: 'gpt-3.5-turbo',
-            apiKey: 'test-key'
-          }
-        },
-        modelId: 'gpt-3.5-turbo',
-        temperature: 0.7,
-        maxTokens: 1000,
-        timeout: 30000
-      },
-      tools: ['database-query', 'file-read'],
-      systemPrompt: 'You are a test assistant.',
-      capabilities: ['text-generation', 'analysis'],
-      enabled: true
-    };
-  },
-
-  /**
-   * Create a mock AI provider
-   */
-  createMockAIProvider() {
-    return {
-      name: 'openai',
-      config: {
-        name: 'gpt-3.5-turbo',
-        apiKey: 'test-key'
-      },
-      chat: async () => ({ content: 'Mock response' }),
-      models: async () => [{ id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }]
-    };
-  },
-
-  /**
-   * Wait for async operation with timeout
-   */
-  async waitFor(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  },
-
-  /**
-   * Create a mock tool execution request
-   */
-  createMockToolRequest(toolId: string = 'test-tool', operation: string = 'test') {
-    return {
-      toolId,
-      operation,
-      parameters: { test: true },
-      context: this.createMockContext()
-    };
-  },
-
-  /**
-   * Get test database path
-   */
-  getTestDatabasePath(): string {
-    return './test-database.sqlite';
-  },
-
-  /**
-   * Clean up test database
-   */
-  async cleanupTestDatabase(): Promise<void> {
-    const fs = require('fs/promises');
-    try {
-      await fs.unlink(this.getTestDatabasePath());
-    } catch (error) {
-      // Ignore file not found errors
-    }
-  }
+  getTestDatabasePath,
+  cleanupTestDatabase
 };
+
+/**
+ * Create mock logger for testing
+ */
+export function createMockLogger() {
+  return {
+    info: vi.fn().mockReturnValue(undefined),
+    warn: vi.fn().mockReturnValue(undefined),
+    error: vi.fn().mockReturnValue(undefined),
+    debug: vi.fn().mockReturnValue(undefined),
+    verbose: vi.fn().mockReturnValue(undefined),
+    child: vi.fn().mockReturnValue({}),
+    createContextAwareLogger: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      verbose: vi.fn()
+    })
+  };
+}
+
+/**
+ * Create mock AsyncLocalStorage for testing
+ */
+export function createMockAsyncLocalStorage() {
+  return {
+    run: vi.fn().mockImplementation((store, fn) => {
+      return fn();
+    }),
+    getStore: vi.fn().mockReturnValue(new Map()),
+    enterWith: vi.fn()
+  };
+}
+
+/**
+ * Create mock Kysely database for testing
+ */
+export function createMockKyselyDatabase() {
+  const mockQueryBuilder = {
+    select: vi.fn().mockReturnThis(),
+    selectAll: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    whereRef: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    orderByDesc: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    offset: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+    groupBy: vi.fn().mockReturnThis(),
+    having: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue([]),
+    executeTakeFirst: vi.fn().mockResolvedValue(null),
+    executeTakeFirstOrThrow: vi.fn().mockRejectedValue(new Error('No rows found'))
+  };
+
+  return {
+    selectFrom: vi.fn().mockReturnValue(mockQueryBuilder),
+    insertInto: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue({ insertId: 1 }),
+        executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 })
+      })
+    }),
+    updateTable: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue(mockQueryBuilder)
+    }),
+    deleteFrom: vi.fn().mockReturnValue(mockQueryBuilder),
+    transaction: vi.fn().mockImplementation(async (fn) => {
+      return fn(createMockKyselyDatabase());
+    }),
+    close: vi.fn().mockResolvedValue(undefined)
+  };
+}
+
+// Export type aliases for easier use in tests
+export type MockDatabaseType = ReturnType<typeof createMockKyselyDatabase>;
+export type MockKyselyDatabaseType = ReturnType<typeof createMockKyselyDatabase>;
 
 // Export test utilities for use in test files
 export { mockDatabase, mockElectron, mockFs };

@@ -10,7 +10,24 @@ import {
   BoltIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { SimpleAnalyticsModule, Achievement } from '../../modules/analytics/simple-analytics';
+
+// Define interfaces inline since the module is missing
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  category: 'time' | 'concepts' | 'streaks' | 'performance' | 'engagement';
+  requirement: Record<string, any>;
+  progress: number;
+  icon: string;
+  unlockedAt?: Date;
+}
+
+export interface SimpleAnalyticsModule {
+  getAchievements(): Promise<Achievement[]>;
+  getStudyMetrics(): Promise<any>;
+  getLearningTrends(): Promise<any>;
+}
 
 interface AchievementsProps {
   analytics: SimpleAnalyticsModule;

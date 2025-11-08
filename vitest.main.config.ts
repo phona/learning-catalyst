@@ -12,15 +12,19 @@ export default defineConfig({
   test: {
     name: 'main-thread',
     environment: 'node',
-    include: ['src/test/main-thread/**/*.{test,spec}.{js,ts}'],
+    include: [
+      'src/main/**/__tests__/**/*.{test,spec}.{js,ts}',
+      'src/main/services/**/__tests__/**/*.{test,spec}.{js,ts}'
+    ],
     exclude: [
       'node_modules',
       'dist',
-      'src/test/renderer-thread',
-      'src/test/integration'
+      'src/renderer/**',
+      'src/**/__tests__/integration/**',
+      'src/**/__tests__/performance/**'
     ],
     globals: true,
-    setupFiles: ['src/test/main-thread/setup.ts'],
+    setupFiles: ['src/main/__tests__/setup.ts'],
     testTimeout: 30000, // 30 seconds for async operations
     hookTimeout: 10000,
     isolate: true,
@@ -42,8 +46,8 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       reportsDirectory: 'coverage/main-thread',
       include: [
-        'electron/main/services/**/*.{js,ts}',
-        'electron/main/handlers/agent-handlers.{js,ts}'
+        'src/main/services/**/*.{js,ts}',
+        'src/main/handlers/**/*.{js,ts}'
       ],
       exclude: [
         '**/*.test.{js,ts}',
@@ -64,8 +68,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@electron': path.resolve(__dirname, './electron/main'),
-      '@test': path.resolve(__dirname, './src/test')
+      '@/main': path.resolve(__dirname, './src/main'),
+      '@/shared': path.resolve(__dirname, './src/shared'),
+      '@test': path.resolve(__dirname, './test')
     }
   },
   define: {

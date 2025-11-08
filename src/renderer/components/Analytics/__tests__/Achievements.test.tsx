@@ -1,23 +1,20 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Achievements } from '@/renderer/components/Analytics/Achievements';
-import { SimpleAnalyticsModule } from '@/renderer/modules/analytics/simple-analytics';
+import { Achievements, SimpleAnalyticsModule, Achievement } from '@/renderer/components/Analytics/Achievements';
 
-// Mock the SimpleAnalyticsModule
-vi.mock('@/renderer/modules/analytics/simple-analytics', () => ({
-  SimpleAnalyticsModule: vi.fn().mockImplementation(() => ({
-    getAchievements: vi.fn(),
-    getStudyMetrics: vi.fn(),
-    getLearningTrends: vi.fn(),
-  })),
-}));
+// Mock analytics class that the tests expect
+class MockSimpleAnalyticsModule implements SimpleAnalyticsModule {
+  getAchievements = vi.fn();
+  getStudyMetrics = vi.fn();
+  getLearningTrends = vi.fn();
+}
 
 describe('Achievements', () => {
-  let mockAnalytics: any;
+  let mockAnalytics: MockSimpleAnalyticsModule;
 
   beforeEach(() => {
-    mockAnalytics = new SimpleAnalyticsModule();
+    mockAnalytics = new MockSimpleAnalyticsModule();
     vi.clearAllMocks();
   });
 
