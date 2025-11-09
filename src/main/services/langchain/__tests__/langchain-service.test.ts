@@ -7,9 +7,9 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { LangChainServiceMain, type LangChainServiceConfig } from '@/services/langchain/langchain-service';
-import type { ModelProvider, StreamingResponse } from '@/services/langchain/langchain-service';
-import { createMockLogger, createMockAsyncLocalStorage } from '@/test/mocks';
+import { LangChainServiceMain, type LangChainServiceConfig } from '../langchain-service';
+import type { ModelProvider, StreamingResponse } from '../langchain-service';
+import { createMockLogger, createMockAsyncLocalStorage } from '@/test/setup/main-process/setup';
 
 // Mock LangChain imports
 vi.mock('@langchain/openai', () => ({

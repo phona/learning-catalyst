@@ -80,9 +80,8 @@ export class KnowledgeService {
    */
   private async initializeCollections(): Promise<void> {
     try {
-      console.log('Initializing Qdrant collections via IPC...');
       // Collections are initialized in the main process
-      // This is just for logging
+      // Initialization handled by vector database service
     } catch (error) {
       console.error('Failed to initialize Qdrant collections:', error);
     }

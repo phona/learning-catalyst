@@ -109,8 +109,14 @@ export class AgentLifecycleManager {
       const startTime = performance.now();
 
       try {
+        // Validate configuration before proceeding
+        const validation = await this.agentRegistry.validateConfiguration(config);
+        if (!validation.isValid) {
+          throw new Error(`Invalid agent configuration: ${validation.errors.join(', ')}`);
+        }
+
         // Create the agent through registry
-        const agent = await this.agentRegistry.registerAgent(config);
+        let agent = await this.agentRegistry.registerAgent(config);
 
         // Record creation event
         await this.recordLifecycleEvent({
@@ -133,7 +139,7 @@ export class AgentLifecycleManager {
 
         // Auto-activate if requested
         if (options.autoActivate) {
-          await this.activateAgent(agent.id);
+          agent = await this.activateAgent(agent.id);
         }
 
         const duration = performance.now() - startTime;

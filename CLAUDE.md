@@ -2,6 +2,22 @@
 
 Learning Catalyst - AI-powered desktop application for personalized learning with multi-agent orchestration. Built with TypeScript, Electron, React, and LangChain integration.
 
+## 🎯 Product Vision Index
+
+**Core Mission**: Transform learning from passive reading into active discovery through AI-guided exploration.
+
+**User Experience Goal**: Make the study → assess → review loop feel like an engaging game, not studying.
+
+**Key Documents**:
+- 📋 [Product Blueprint](./docs/product-blueprint.md) - User-focused vision and experience design
+- 🏗️ This document - Technical implementation and development guidelines
+
+**Development Alignment**: Every feature must serve the core user experience of making learning feel like:
+- **Discovery**, not studying
+- **Conversation**, not lectures
+- **Achievement**, not testing
+- **Adventure**, not curriculum
+
 ## Quick Start
 
 ```bash
@@ -116,12 +132,14 @@ import {hdonModelType } from '@/shared/types/ai';
 - User-friendly error handling and recovery
 
 **Core Capabilities:**
-- AI chat with multiple providers (OpenAI, ChatGLM, DeepSeek, local models)
-- Interactive knowledge graphs and learning paths
-- Session management with save/restore functionality
-- Analytics dashboard for progress tracking
-- Settings panel for provider configuration
-- Import/export for learning data
+- AI chat with multiple providers (OpenAI, ChatGLM, DeepSeek, local models) → **Conversational Learning Adventures**
+- Interactive knowledge graphs and learning paths → **Visual Knowledge Discovery Maps**
+- Session management with save/restore functionality → **Learning Quest Persistence**
+- Analytics dashboard for progress tracking → **Achievement & Progress Celebration**
+- Settings panel for provider configuration → **Learning Experience Personalization**
+- Import/export for learning data → **Learning Material Library Management**
+
+**Feature Development Guideline**: Every technical capability must be expressed through user-facing language that emphasizes discovery, achievement, and adventure over traditional education terminology.
 
 ## AI Integration
 
@@ -160,10 +178,12 @@ import {hdonModelType } from '@/shared/types/ai';
 - **Hybrid**: Adaptive strategy selection
 
 **Specialized Agents:**
-- **Learning**: Personalized learning paths and concept explanation
-- **Assessment**: Knowledge evaluation and gap identification
-- **Tutoring**: Interactive guidance and real-time feedback
-- **Practice**: Skill development through adaptive exercises
+- **Learning**: Personalized learning paths and concept explanation → **Learning Guide**: Explores concepts conversationally
+- **Assessment**: Knowledge evaluation and gap identification → **Understanding Coach**: Checks mastery naturally
+- **Tutoring**: Interactive guidance and real-time feedback → **Learning Mentor**: Personalized help and motivation
+- **Practice**: Skill development through adaptive exercises → **Practice Master**: Gamified challenges and puzzles
+
+**User Experience Alignment**: Each agent serves the study → assess → review loop while making learning feel like an adventure.
 
 **Configuration Schema:**
 ```typescript
@@ -417,6 +437,29 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - ❌ Main Process: NEVER accesses or invokes electronAPI
 - ✅ Renderer Process: Consumes electronAPI via window.electronAPI
 - ✅ All Communication: Must flow through IPC contracts in `@/shared/types/electron-api/`
+
+## 🎯 Development Alignment Checklist
+
+**Before implementing any feature, ask:**
+- Does this make learning feel like discovery? 🗺️
+- Does this create conversational interaction? 💬
+- Does this provide achievement and progress? 🏆
+- Does this feel like an adventure, not studying? 🚀
+
+**User Experience Validation:**
+- [ ] Feature supports study → assess → review loop naturally
+- [ ] Technical complexity is hidden from users
+- [ ] Language emphasizes exploration over education
+- [ ] Progress feels like achievement, not evaluation
+- [ ] Interaction feels conversational, not mechanical
+
+**Implementation Priority:**
+1. User experience > Technical sophistication
+2. Conversational flow > Feature completeness
+3. Achievement motivation > Data accuracy
+4. Adventure framing > Traditional education patterns
+
+**Refer to [Product Blueprint](./docs/product-blueprint.md) for detailed user experience guidelines.**
 
 **Important Notes:**
 - Uses `sqlite-electron` (not `sqlite3`) for Electron compatibility

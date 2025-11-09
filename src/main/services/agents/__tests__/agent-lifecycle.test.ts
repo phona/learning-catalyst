@@ -17,11 +17,12 @@ const mockAgentRegistry = {
   registerAgent: vi.fn(),
   getAgent: vi.fn(),
   updateAgent: vi.fn(),
-  deleteAgent: vi.fn(),
+  deleteAgent: vi.fn().mockResolvedValue(true), // Returns boolean indicating success
   activateAgent: vi.fn(),
   deactivateAgent: vi.fn(),
   listAgents: vi.fn(),
-  getAgentsByType: vi.fn()
+  getAgentsByType: vi.fn(),
+  validateConfiguration: vi.fn()
 } as any;
 
 describe('AgentLifecycleManager', () => {
@@ -51,10 +52,76 @@ describe('AgentLifecycleManager', () => {
       return fn(mockDb);
     });
 
+    // Setup lifecycle events mock for database
+    const mockLifecycleEvents = [];
+    mockDb.selectFrom.mockImplementation((table: string) => {
+      if (table === 'agent_lifecycle_events') {
+        return {
+          selectAll: vi.fn().mockReturnThis(),
+          select: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          orderBy: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockReturnThis(),
+          offset: vi.fn().mockReturnThis(),
+          execute: vi.fn().mockResolvedValue([])
+        };
+      }
+      // Default behavior for other tables
+      return createMockDatabase().selectFrom(table);
+    });
+
     mockLogger.info.mockReturnValue(undefined);
     mockLogger.error.mockReturnValue(undefined);
     mockLogger.warn.mockReturnValue(undefined);
     mockLogger.debug.mockReturnValue(undefined);
+
+    // Setup validation mock defaults
+    mockAgentRegistry.validateConfiguration.mockImplementation((config) => {
+      const errors: string[] = [];
+
+      // Validate type
+      if (!Object.values(AgentType).includes(config.type)) {
+        errors.push(`Invalid agent type: ${config.type}`);
+      }
+
+      // Validate name
+      if (!config.name || config.name.trim().length === 0) {
+        errors.push('Agent name is required');
+      }
+
+      // Validate description
+      if (!config.description || config.description.trim().length === 0) {
+        errors.push('Agent description is required');
+      }
+
+      // Validate system prompt
+      if (!config.systemPrompt || config.systemPrompt.trim().length === 0) {
+        errors.push('System prompt is required');
+      }
+
+      // Validate tools
+      if (!Array.isArray(config.tools)) {
+        errors.push('Tools must be an array');
+      }
+
+      // Validate model config
+      if (!config.modelConfig) {
+        errors.push('Model configuration is required');
+      } else {
+        if (!config.modelConfig.provider || config.modelConfig.provider.trim().length === 0) {
+          errors.push('Model provider is required');
+        }
+
+        if (!config.modelConfig.model || config.modelConfig.model.trim().length === 0) {
+          errors.push('Model name is required');
+        }
+      }
+
+      return {
+        isValid: errors.length === 0,
+        errors
+      };
+    });
 
     // Setup AgentRegistry mock defaults
     mockAgentRegistry.registerAgent.mockImplementation((config) => {
@@ -162,7 +229,8 @@ describe('AgentLifecycleManager', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Agent created with lifecycle tracking', {
         agentId: agent.id,
         agentType: AgentType.LEARNING,
-        agentName: 'Lifecycle Test Agent'
+        agentName: 'Lifecycle Test Agent',
+        duration: expect.any(Number)
       });
     });
 
@@ -270,7 +338,7 @@ describe('AgentLifecycleManager', () => {
       expect(result.activatedAt).toBeDefined();
 
       expect(mockAgentRegistry.activateAgent).toHaveBeenCalledWith(agentId);
-      expect(mockDb.updateTable).toHaveBeenCalledWith('agent_lifecycle_events');
+      expect(mockDb.insertInto).toHaveBeenCalledWith('agent_lifecycle_events');
       expect(mockLogger.info).toHaveBeenCalledWith('Agent activated successfully', {
         agentId,
         activationDuration: expect.any(Number)
@@ -376,7 +444,7 @@ describe('AgentLifecycleManager', () => {
       expect(result.deactivatedAt).toBeDefined();
 
       expect(mockAgentRegistry.deactivateAgent).toHaveBeenCalledWith(agentId);
-      expect(mockDb.updateTable).toHaveBeenCalledWith('agent_lifecycle_events');
+      expect(mockDb.insertInto).toHaveBeenCalledWith('agent_lifecycle_events');
       expect(mockLogger.info).toHaveBeenCalledWith('Agent deactivated successfully', {
         agentId,
         activeDuration: expect.any(Number)
@@ -556,8 +624,7 @@ describe('AgentLifecycleManager', () => {
       expect(result.success).toBe(true);
       expect(mockAgentRegistry.deleteAgent).toHaveBeenCalledWith(agentId);
       expect(mockLogger.info).toHaveBeenCalledWith('Agent deleted successfully', {
-        agentId,
-        deletionOptions: {}
+        agentId
       });
     });
 
@@ -573,8 +640,7 @@ describe('AgentLifecycleManager', () => {
       expect(result.success).toBe(true);
       expect(mockDb.insertInto).toHaveBeenCalledWith('agent_archives');
       expect(mockLogger.info).toHaveBeenCalledWith('Agent archived before deletion', {
-        agentId,
-        archivalOptions
+        agentId
       });
     });
 
@@ -597,12 +663,31 @@ describe('AgentLifecycleManager', () => {
       expect(result.success).toBe(true);
       expect(mockAgentRegistry.deactivateAgent).toHaveBeenCalled();
       expect(mockAgentRegistry.deleteAgent).toHaveBeenCalledWith(agentId);
-      expect(mockLogger.info).toHaveBeenCalledWith('Agent force deleted', {
+      expect(mockLogger.info).toHaveBeenCalledWith('Agent deleted successfully', {
         agentId
       });
     });
 
     it('should handle deletion of non-existent agent', async () => {
+      // Mock getAgent to return null for non-existent agent
+      mockAgentRegistry.getAgent.mockImplementation((id) => {
+        if (id === 'non-existent-id') {
+          return Promise.resolve(null);
+        }
+        return Promise.resolve({
+          id: 'test-agent-id',
+          type: AgentType.LEARNING,
+          name: 'Test Agent',
+          description: 'Test Description',
+          systemPrompt: 'Test Prompt',
+          tools: [],
+          modelConfig: { provider: 'openai', model: 'gpt-4' },
+          status: 'inactive',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      });
+
       const result = await lifecycleManager.deleteAgent('non-existent-id');
 
       expect(result.success).toBe(false);

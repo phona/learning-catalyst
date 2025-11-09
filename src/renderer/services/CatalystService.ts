@@ -37,7 +37,15 @@ export interface ChatStreamOptions {
  * Implements proper dependency injection pattern for testability and maintainability
  */
 export class CatalystService implements ICatalystService {
-  constructor(private ipcClient: ICatalystIPCClient) {}
+  constructor(ipcClient?: ICatalystIPCClient) {
+    if (ipcClient) {
+      this.ipcClient = ipcClient;
+    } else {
+      this.ipcClient = new ElectronIPCClient();
+    }
+  }
+
+  private ipcClient: ICatalystIPCClient;
 
   /**
    * Send a chat message via dependency-injected IPC client
@@ -283,3 +291,6 @@ export class CatalystService implements ICatalystService {
     };
   }
 }
+
+// Singleton instance for backward compatibility
+export const catalystService = new CatalystService();

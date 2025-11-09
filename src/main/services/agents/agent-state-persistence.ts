@@ -10,7 +10,7 @@ import { AsyncLocalStorage } from 'async_hooks';
 import { Kysely } from 'kysely';
 import type { Database } from '@/main/services/database/kysely-schema';
 import { createUUID, generateTimestamp } from '@/shared/utils/helpers';
-import { SQLiteCheckpointSaver } from '@/main/services/database/SQLiteCheckpointSaver';
+import { SQLiteCheckpointSaver } from '@/main/services/checkpoints/SQLiteCheckpointSaver';
 import { compress, decompress } from '@/shared/utils/compression';
 
 export interface AgentState {
