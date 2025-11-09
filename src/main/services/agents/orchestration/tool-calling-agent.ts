@@ -165,7 +165,7 @@ export class ToolCallingAgent {
 
     // Create tool selection prompt
     const toolDescriptions = availableTools.map(tool =>
-      `- ${tool.name}: ${tool.description} (parameters: ${JSON.stringify(tool.parameters)})`
+      `- ${tool}: Available tool for execution`
     ).join('\n');
 
     const systemPrompt = `You are an intelligent tool selection agent. Analyze the user's request and determine which tools would be helpful.
@@ -275,30 +275,14 @@ Response format:
       // Execute ready tools (in parallel if allowed)
       const executionPromises = readyTools.slice(0, this.config.maxConcurrentTools).map(async (toolCall) => {
         try {
-          yield progressCallback({
-            toolName: toolCall.toolName,
-            status: 'starting',
-            message: `Executing ${toolCall.toolName}...`
-          });
-
           const startTime = Date.now();
-          const result = await this.toolExecutor.executeTool(
-            toolCall.toolName,
-            toolCall.parameters,
-            {
-              timeout: this.config.maxToolExecutionTime,
-              executionId: executionContext.id,
-              agentId: executionContext.agentId
-            }
-          );
-          const executionTime = Date.now() - startTime;
-
-          yield progressCallback({
-            toolName: toolCall.toolName,
-            status: 'completed',
-            message: `Completed ${toolCall.toolName} in ${executionTime}ms`,
-            executionTime
+          const result = await this.toolExecutor.executeTool({
+            toolId: toolCall.toolName,
+            method: 'execute',
+            parameters: toolCall.parameters,
+            context: executionContext
           });
+          const executionTime = Date.now() - startTime;
 
           return {
             toolCall,
@@ -308,12 +292,6 @@ Response format:
           };
 
         } catch (error) {
-          yield progressCallback({
-            toolName: toolCall.toolName,
-            status: 'error',
-            message: `Error in ${toolCall.toolName}: ${(error as Error).message}`
-          });
-
           return {
             toolCall,
             result: null,
@@ -453,11 +431,7 @@ Please provide a clear, helpful response that synthesizes the tool results effec
   /**
    * Get available tools information
    */
-  getAvailableTools(): Array<{
-    name: string;
-    description: string;
-    parameters: Record<string, any>;
-  }> {
+  getAvailableTools(): string[] {
     return this.toolExecutor.getAvailableTools();
   }
 

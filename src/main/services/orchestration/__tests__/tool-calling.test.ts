@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ToolCallingOrchestrator } from '@/services/orchestration/tool-calling-orchestrator';
-import { AgentType } from '@/services/AgentManager';
+import { AgentType } from '../../agents/types';
 import type { Agent, ToolExecutionResult } from '@/services/orchestration/types';
 import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/mocks';
 

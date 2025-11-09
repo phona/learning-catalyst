@@ -155,13 +155,11 @@ describe('Service Container Initialization', () => {
     });
 
     it('should handle missing electronAPI gracefully', async () => {
-      // Mock the electronAPI to be undefined for this test
-      const mockElectronAPI = undefined;
-      Object.defineProperty(window, 'electronAPI', {
-        value: mockElectronAPI,
-        writable: true,
-        configurable: true,
-      });
+      // Store original value
+      const originalElectronAPI = window.electronAPI;
+
+      // Delete the property temporarily
+      delete (window as any).electronAPI;
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -176,10 +174,7 @@ describe('Service Container Initialization', () => {
 
       // Restore original electronAPI after test
       Object.defineProperty(window, 'electronAPI', {
-        value: {
-          getConfig: vi.fn().mockResolvedValue({}),
-          catalyst: { sendChat: vi.fn(), sendChatStream: vi.fn() }
-        },
+        value: originalElectronAPI,
         writable: true,
         configurable: true,
       });

@@ -11,6 +11,9 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
+// Import React Testing Library
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
 // Set test environment
 process.env.NODE_ENV = 'test';
 

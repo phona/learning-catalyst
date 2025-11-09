@@ -162,11 +162,11 @@ export class OrchestrationPatternFactory {
     const metadata = this.getPatternMetadata(pattern);
 
     // Check required resources
-    if (metadata.resources.includes('tools') && !configuration.availableTools?.length) {
+    if (metadata.resources.includes('tools' as any) && !configuration.availableTools?.length) {
       errors.push('Tools are required for this pattern but none are available');
     }
 
-    if (metadata.resources.includes('agents') && !configuration.availableAgents?.length) {
+    if (metadata.resources.includes('agents' as any) && !configuration.availableAgents?.length) {
       errors.push('Agents are required for this pattern but none are available');
     }
 

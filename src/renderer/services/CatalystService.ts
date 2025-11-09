@@ -19,6 +19,7 @@ import {
   SessionResponse,
   ExecutionCancelResponse
 } from './ipc/ICatalystIPCClient';
+import { ElectronIPCClient } from './ipc/ElectronIPCClient';
 
 export interface ChatOptions {
   sessionId?: string;

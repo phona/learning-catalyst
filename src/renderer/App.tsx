@@ -10,7 +10,7 @@ import { DiscoveryPage } from './DiscoveryPage';
 import { ErrorBoundary } from './components/UI/ErrorBoundary';
 import { useAppStore } from './stores/useAppStore';
 import { useConfigStore } from './stores/useConfigStore';
-import { setupMenuHandlers } from './services/appService';
+import { setupMenuHandlers } from './services/AppServiceClient';
 import { ServicesProvider } from './services/services-container';
 
 // Global flag to track if setup has already been completed to prevent double execution in Strict Mode

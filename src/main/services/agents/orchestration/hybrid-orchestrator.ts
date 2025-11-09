@@ -161,7 +161,7 @@ export class HybridOrchestrator {
             strategy: strategyDecision.strategy,
             reason: strategyDecision.reason,
             confidence: strategyDecision.confidence,
-            phase: hybridContext.currentPhase
+            currentPhase: hybridContext.currentPhase
           },
           timestamp: Date.now()
         };
@@ -340,7 +340,7 @@ ${toolList}
 Current Context:
 - Current Phase: ${context.currentPhase}/${context.maxPhases}
 - Previous Phases: ${context.phaseHistory.length}
-- User Goals: ${context.userGoals.join(', ') || 'Not specified'}
+- User Goals: ${(context.userGoals || []).join(', ') || 'Not specified'}
 - Tool Results: ${context.toolResults.length}
 - Agent Transitions: ${context.transitions.length}
 
@@ -709,7 +709,15 @@ ${context.phaseHistory.slice(-2).map(phase =>
     operation: string,
     fn: () => AsyncIterable<T>
   ): AsyncIterable<T> {
-    const context = { service: 'hybrid-orchestrator', operation };
+    const context: ServiceExecutionContext = {
+      id: `hybrid_${Date.now()}`,
+      sessionId: 'unknown',
+      userId: 'system',
+      requestId: `req_${Date.now()}`,
+      timestamp: Date.now(),
+      operation,
+      metadata: {}
+    };
     yield* this.als.run(context, fn);
   }
 

@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AgentStatePersistence } from '../agent-state-persistence';
 import { SQLiteCheckpointSaver } from '../checkpoints/SQLiteCheckpointSaver';
-import { AgentType } from '../../catalyst/AgentManager';
+import { AgentType } from '../types';
 import type { Kysely } from 'kysely';
 import type { Database } from '@/shared/types/database';
 import { mockDatabaseService } from '@/__tests__/utils/mocks/mock-services';

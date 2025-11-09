@@ -8,23 +8,12 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AgentRegistry } from '../agent-registry';
-import { AgentType } from '../../catalyst/AgentManager';
+import { AgentType } from '../types';
 import type { Kysely } from 'kysely';
 import type { Database } from '@/shared/types/database';
 import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/setup/main-process/setup';
 
-// Mock AgentManager for testing
-vi.mock('../../catalyst/AgentManager', () => ({
-  AgentType: {
-    LEARNING: 'learning',
-    ASSESSMENT: 'assessment',
-    TUTORING: 'tutoring',
-    PRACTICE: 'practice',
-    RESEARCH: 'research',
-    COLLABORATION: 'collaboration',
-    TITLE_GENERATION: 'title-generation'
-  }
-}));
+// Mock AgentType is now imported from types
 
 describe('AgentRegistry', () => {
   let agentRegistry: AgentRegistry;

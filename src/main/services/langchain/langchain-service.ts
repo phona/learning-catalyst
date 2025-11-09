@@ -14,8 +14,8 @@ import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import { StringOutputParser } from '@langchain/core/output_parsers';
 import { RunnablePassthrough, RunnableSequence } from '@langchain/core/runnables';
-import { ModelFactory } from '../../../../src/services/ModelFactory';
-import { ProviderConfig, ProviderType } from '../../../../src/types/config';
+import { ModelFactory } from './ModelFactory';
+import { ProviderConfig, ProviderType } from '@/shared/types/config';
 
 export interface LangChainServiceConfig {
   defaultProvider: string;

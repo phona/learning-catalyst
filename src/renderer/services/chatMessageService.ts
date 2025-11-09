@@ -40,26 +40,10 @@ export class ChatMessageService {
     try {
       // Get provider config from model type configuration
       const { config } = useConfigStore.getState();
-      console.log('[ChatMessageService] Config structure:', {
-        hasConfig: !!config,
-        hasAI: !!config?.ai,
-        hasModelTypes: !!config?.ai?.model_types,
-        hasChat: !!config?.ai?.model_types?.chat,
-        chatConfig: config?.ai?.model_types?.chat,
-        fullConfig: config
-      });
-
       const chatModelConfig = config?.ai?.model_types?.chat;
 
       // Get API key from the new model type configuration
       const apiKey = chatModelConfig?.api_key;
-      console.log('[ChatMessageService] API key check:', {
-        provider,
-        hasChatConfig: !!chatModelConfig,
-        hasApiKey: !!apiKey,
-        apiKeyLength: apiKey?.length,
-        defaultProvider: chatModelConfig?.default_provider
-      });
 
       // Create provider config object compatible with chat service
       const providerConfig = apiKey ? {

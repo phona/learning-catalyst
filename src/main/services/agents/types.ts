@@ -4,6 +4,16 @@
  * Type definitions for agent management and execution.
  */
 
+export enum AgentType {
+  LEARNING = 'learning',
+  ASSESSMENT = 'assessment',
+  TUTORING = 'tutoring',
+  PRACTICE = 'practice',
+  RESEARCH = 'research',
+  COLLABORATION = 'collaboration',
+  TITLE_GENERATION = 'title-generation'
+}
+
 export interface AgentConfig {
   id: string;
   name: string;

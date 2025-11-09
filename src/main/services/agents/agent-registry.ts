@@ -9,7 +9,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { Kysely } from 'kysely';
 import type { Database } from '@/main/services/database/kysely-schema';
-import { AgentType } from '@/main/services/catalyst/AgentManager';
+import { AgentType } from './types';
 import { createUUID, generateTimestamp } from '@/shared/utils/helpers';
 
 export interface AgentConfiguration {
