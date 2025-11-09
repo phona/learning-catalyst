@@ -103,7 +103,13 @@ export class HybridOrchestrator {
     }
   ): AsyncGenerator<AgentExecutionChunk> {
     const hybridContext: HybridContext = {
+      id: `hybrid_${sessionId}_${Date.now()}`,
       sessionId,
+      userId: 'system',
+      requestId: `req_${Date.now()}`,
+      timestamp: Date.now(),
+      operation: 'hybrid-orchestration',
+      metadata: {},
       currentAgentId: initialAgentId,
       strategy: options?.preferredStrategy || 'hybrid',
       maxPhases: options?.maxPhases || 8,
@@ -117,8 +123,9 @@ export class HybridOrchestrator {
       sessionContext: {}
     };
 
+    const self = this;
     yield* this.runWithContext('hybrid-orchestration', async function* () {
-      this.dependencies.logger.info(`Starting hybrid orchestration`, {
+      self.dependencies.logger.info(`Starting hybrid orchestration`, {
         sessionId,
         initialAgentId,
         strategy: hybridContext.strategy,
@@ -141,7 +148,7 @@ export class HybridOrchestrator {
         hybridContext.currentPhase++;
 
         // Determine best strategy for current phase
-        const strategyDecision = await this.determineStrategy(
+        const strategyDecision = await self.determineStrategy(
           model,
           hybridContext
         );
@@ -167,7 +174,7 @@ export class HybridOrchestrator {
           // Execute based on chosen strategy
           switch (strategyDecision.strategy) {
             case 'tool_calling':
-              yield* this.executeToolCallingPhase(
+              yield* self.executeToolCallingPhase(
                 model,
                 strategyDecision,
                 hybridContext
@@ -176,7 +183,7 @@ export class HybridOrchestrator {
               break;
 
             case 'handoff':
-              yield* this.executeHandoffPhase(
+              yield* self.executeHandoffPhase(
                 model,
                 strategyDecision,
                 hybridContext
@@ -185,7 +192,7 @@ export class HybridOrchestrator {
               break;
 
             case 'hybrid':
-              yield* this.executeHybridPhase(
+              yield* self.executeHybridPhase(
                 model,
                 strategyDecision,
                 hybridContext
@@ -194,7 +201,7 @@ export class HybridOrchestrator {
               break;
 
             case 'sequential':
-              yield* this.executeSequentialPhase(
+              yield* self.executeSequentialPhase(
                 model,
                 strategyDecision,
                 hybridContext
@@ -208,7 +215,7 @@ export class HybridOrchestrator {
 
         } catch (error) {
           phaseError = (error as Error).message;
-          this.dependencies.logger.error(`Phase execution failed`, {
+          self.dependencies.logger.error(`Phase execution failed`, {
             phase: hybridContext.currentPhase,
             strategy: strategyDecision.strategy,
             error: phaseError
@@ -219,8 +226,7 @@ export class HybridOrchestrator {
             content: {
               phase: 'phase_error',
               message: `Phase ${hybridContext.currentPhase} failed: ${phaseError}`,
-              strategy: strategyDecision.strategy,
-              phase: hybridContext.currentPhase
+              strategy: strategyDecision.strategy
             },
             timestamp: Date.now()
           };
@@ -238,7 +244,7 @@ export class HybridOrchestrator {
         });
 
         // Determine if we should continue
-        shouldContinue = await this.shouldContinueOrchestration(
+        shouldContinue = await self.shouldContinueOrchestration(
           model,
           hybridContext,
           phaseSuccess
@@ -256,9 +262,9 @@ export class HybridOrchestrator {
       }
 
       // Generate final summary
-      yield* this.generateFinalHybridSummary(hybridContext);
+      yield* self.generateFinalHybridSummary(hybridContext);
 
-    }.bind(this));
+    });
   }
 
   /**
@@ -403,16 +409,14 @@ ${context.phaseHistory.slice(-2).map(phase =>
         }
 
         // Validate tools if specified
-        if (decision.tools && Array.isArray(decision.tools)) {
-          decision.tools = decision.tools.filter((tool: string) =>
-            availableTools.includes(tool)
-          );
-        }
+        const validTools = decision.tools && Array.isArray(decision.tools)
+          ? decision.tools.filter((tool: string) => availableTools.includes(tool))
+          : availableTools.slice(0, 3);
 
         return {
           strategy: decision.strategy,
           targetAgentId: decision.targetAgentId,
-          tools: decision.tools || availableTools.slice(0, 3),
+          tools: validTools,
           reason: decision.reason || 'No reason provided',
           confidence: decision.confidence || 0.5,
           estimatedDuration: decision.estimatedDuration

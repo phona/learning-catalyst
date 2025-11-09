@@ -1,73 +1,104 @@
-import React, { useState, useEffect } from 'react';
-import { ProgressChart, StudyStreak, SessionTracking, LearningTrends, Achievements } from '../Analytics';
-import { SimpleAnalyticsModule, StudyMetrics } from '../../modules/analytics/simple-analytics';
-import { useService } from '../../hooks/useAppServices';
-import { catalystService } from '../../services/CatalystService';
-import type { AgentInfo } from '../../services/CatalystService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ProgressChart, StudyStreak, LearningTrends, Achievements, SessionTracking } from '../Analytics';
+import type { StudyMetrics } from '@/shared/utils/simple-analytics';
+import { useCatalystService, useAnalyticsService } from '../../hooks/useServices';
+import type { AgentDisplay, ActiveExecution } from '@/shared/types/electron-api';
+
+const REFRESH_INTERVAL = 10000; // 10 seconds
 
 export const LearningDashboard: React.FC = () => {
-  const analyticsService = useService('analytics');
+  const catalystService = useCatalystService();
+  const analyticsService = useAnalyticsService();
   const [metrics, setMetrics] = useState<StudyMetrics | null>(null);
-  const [availableAgents, setAvailableAgents] = useState<AgentInfo[]>([]);
-  const [activeExecutions, setActiveExecutions] = useState<any[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<AgentDisplay[]>([]);
+  const [activeExecutions, setActiveExecutions] = useState<ActiveExecution[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (analyticsService) {
-      setupDashboard();
-    }
-  }, [analyticsService]);
-
-  const setupDashboard = async () => {
+  // Load agent information with proper error handling
+  const loadAgentInformation = useCallback(async () => {
     try {
-      setLoading(true);
-
-      if (!analyticsService) {
-        throw new Error('Analytics service not available');
+      // Get available agents with proper typing
+      const agentsResponse = await catalystService.getAvailableAgents();
+      if (agentsResponse.success && agentsResponse.agents) {
+        setAvailableAgents(agentsResponse.agents);
+      } else {
+        console.warn('Failed to get available agents:', agentsResponse.error);
       }
 
-      console.log('[LearningDashboard] Starting analytics service...');
-      await analyticsService.start();
+      // Get active executions with proper typing
+      const executionsResponse = await catalystService.getActiveExecutions();
+      if (executionsResponse.success && executionsResponse.executions) {
+        setActiveExecutions(executionsResponse.executions);
+      } else {
+        console.warn('Failed to get active executions:', executionsResponse.error);
+      }
 
-      // Get study metrics
-      const studyMetrics = await analyticsService.getStudyMetrics();
-      setMetrics(studyMetrics);
+      setError(null); // Clear any previous errors
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('Failed to load agent information:', err);
+      setError(errorMessage);
+    }
+  }, [catalystService]);
 
-      // Get agent information from Catalyst service
+  // Setup dashboard and load initial data
+  const setupDashboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load real metrics from analytics service
+      const metrics = await analyticsService.getStudyMetrics();
+      setMetrics(metrics);
+
+      // Load agent information
       await loadAgentInformation();
 
-      console.log('Dashboard setup successfully with new APIs');
+      console.log('[LearningDashboard] Dashboard setup completed successfully');
     } catch (err) {
-      console.error('Failed to setup dashboard:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('[LearningDashboard] Failed to setup dashboard:', err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadAgentInformation]);
 
-  const loadAgentInformation = async () => {
-    try {
-      // Get available agents
-      const agents = await catalystService.getAvailableAgents();
-      setAvailableAgents(agents);
+  // Initial setup effect
+  useEffect(() => {
+    setupDashboard();
+  }, [setupDashboard]);
 
-      // Get active executions
-      const executions = await catalystService.getActiveExecutions();
-      setActiveExecutions(executions);
-    } catch (err) {
-      console.error('Failed to load agent information:', err);
-    }
-  };
-
-  // Refresh agent status periodically
+  // Periodic refresh effect with proper cleanup
   useEffect(() => {
     const interval = setInterval(() => {
       loadAgentInformation();
-    }, 10000); // Refresh every 10 seconds
+    }, REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadAgentInformation]);
 
-  if (loading || !analyticsService || !metrics) {
+  // Error state display
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="text-red-500 text-xl mb-4">⚠️ Error Loading Dashboard</div>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={() => setupDashboard()}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state display
+  if (loading || !metrics) {
     return (
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center">
@@ -189,9 +220,6 @@ export const LearningDashboard: React.FC = () => {
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {agent.type} • {agent.description}
                         </div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          {agent.model_config?.provider} • {agent.model_config?.model}
-                        </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1">
@@ -287,15 +315,34 @@ export const LearningDashboard: React.FC = () => {
         {/* Enhanced Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Learning Trends */}
-          <LearningTrends analytics={analyticsService} />
+          <LearningTrends
+            analytics={{
+              getAchievements: () => analyticsService.getAchievements(),
+              getStudyMetrics: () => analyticsService.getStudyMetrics(),
+              getLearningTrends: (period?: number) => analyticsService.getLearningTrends(period)
+            }}
+          />
 
           {/* Achievements */}
-          <Achievements analytics={analyticsService} />
+          <Achievements
+            analytics={{
+              getAchievements: () => analyticsService.getAchievements(),
+              getStudyMetrics: () => analyticsService.getStudyMetrics(),
+              getLearningTrends: () => analyticsService.getLearningTrends()
+            }}
+          />
         </div>
 
         {/* Recent Sessions */}
         <div className="mb-8">
-          <SessionTracking analytics={analyticsService} />
+          <SessionTracking
+            analytics={{
+              getAchievements: () => analyticsService.getAchievements(),
+              getStudyMetrics: () => analyticsService.getStudyMetrics(),
+              getLearningTrends: () => analyticsService.getLearningTrends(),
+              getRecentSessions: (limit?: number) => analyticsService.getRecentSessions(limit)
+            }}
+          />
         </div>
 
         {/* Learning Insights */}

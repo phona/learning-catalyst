@@ -6,8 +6,8 @@
  */
 
 import type { Database } from '../../main/services/database/kysely-schema';
-import { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
-import { Kysely } from 'kysely';
+import type { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
+import type { Kysely } from 'kysely';
 
 export interface LearningSession {
   id: string;
@@ -166,7 +166,7 @@ export class SimpleAnalyticsModule {
                     session.sessionType === 'assessment' ? 'assessment' as const :
                     session.sessionType === 'review' ? 'review' as const :
                     'general' as const,
-      metadata: JSONFieldHelpers.stringifyObject({
+      metadata: JSON.stringify({
         aiProvider: session.aiProvider,
         aiModel: session.aiModel,
         tokensUsed: session.tokensUsed,
@@ -427,7 +427,7 @@ export class SimpleAnalyticsModule {
       title: row.title,
       description: row.description || '',
       category: row.category as 'streak' | 'time' | 'concepts' | 'performance' | 'engagement',
-      requirement: JSONFieldHelpers.parseObject(row.requirements),
+      requirement: JSON.parse(row.requirements || '{}'),
       progress: 0, // Default progress - would need to be calculated
       unlockedAt: row.unlocked_at ? new Date(row.unlocked_at) : undefined,
       icon: row.icon,

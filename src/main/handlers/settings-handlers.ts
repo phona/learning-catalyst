@@ -5,7 +5,7 @@
  * configuration management, and system options.
  */
 
-import { ipcMain } from 'electron';
+import { ipcMain, app } from 'electron';
 import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { getCatalystService } from '../services/catalyst/catalyst-service';
@@ -698,7 +698,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
    */
   ipcMain.handle('settings:getAppVersion', () => {
     logger.info('Getting application version');
-    const app = require('electron').app;
+    // Use imported app
     return app.getVersion();
   });
 
@@ -707,7 +707,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
    */
   ipcMain.handle('settings:getUserDataPath', () => {
     logger.info('Getting user data path');
-    const app = require('electron').app;
+    // Use imported app
     return app.getPath('userData');
   });
 
@@ -716,7 +716,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
    */
   ipcMain.handle('settings:getDocumentsPath', () => {
     logger.info('Getting documents path');
-    const app = require('electron').app;
+    // Use imported app
     return app.getPath('documents');
   });
 
@@ -725,7 +725,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
    */
   ipcMain.handle('settings:getAppPath', () => {
     logger.info('Getting application path');
-    const app = require('electron').app;
+    // Use imported app
     return app.getAppPath();
   });
 
@@ -734,7 +734,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
    */
   ipcMain.handle('settings:quitApp', () => {
     logger.info('Quitting application');
-    const app = require('electron').app;
+    // Use imported app
     app.quit();
   });
 

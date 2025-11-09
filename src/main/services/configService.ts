@@ -5,39 +5,80 @@ import type {
   ProviderValidationResult,
 } from '@/shared/types/config';
 import { ModelType } from '@/shared/types/ai';
-import { ConfigAPI } from '@/shared/types/electron-api';
 import { ChatOpenAI } from '@langchain/openai';
 import { PREDEFINED_PROVIDERS, supportsModelDiscovery, getPredefinedModels } from '@/shared/constants/providers';
+import { IConfigStorage, ConfigValidationError, ConfigValidator } from './config/interfaces';
+import { ILogger, IEventBus } from './registry/ServiceTokens';
 
 /**
  * Configuration management service
+ * Uses dependency injection for storage, logging, and event handling
  */
 export class ConfigService {
   private config: AppConfig | null = null;
   private currentModelChangedCallbacks: ((modelType: ModelType, config: SelectedModel) => void)[] = [];
 
-  constructor(private api: ConfigAPI) { }
+  constructor(
+    private configStorage: IConfigStorage,
+    private logger: ILogger,
+    private eventBus?: IEventBus
+  ) {}
 
   private async loadConfig(): Promise<void> {
-    const storedConfig = await this.api.getConfig();
-    if (storedConfig) {
-      this.config = storedConfig;
-    } else {
+    try {
+      const storedConfig = await this.configStorage.loadConfig();
+      if (storedConfig) {
+        this.config = ConfigValidator.validate(storedConfig);
+        this.logger.info('Configuration loaded successfully from storage');
+      } else {
+        this.config = this.getDefaultConfig();
+        await this.configStorage.saveConfig(this.config);
+        this.logger.info('Created default configuration');
+      }
+
+      // Emit config loaded event
+      if (this.eventBus) {
+        this.eventBus.emit('config:loaded', this.config);
+      }
+    } catch (error) {
+      this.logger.error('Failed to load configuration', error);
+      // Fall back to default configuration
       this.config = this.getDefaultConfig();
+      try {
+        await this.configStorage.saveConfig(this.config);
+        this.logger.info('Created default configuration after load failure');
+      } catch (saveError) {
+        this.logger.error('Failed to save default configuration', saveError);
+      }
     }
   }
 
   /**
-   * Save configuration to workspace file
+   * Save configuration to storage
    */
   async saveConfig(config: Partial<AppConfig>): Promise<void> {
-    if (!this.config) {
-      await this.loadConfig();
-    }
+    try {
+      if (!this.config) {
+        await this.loadConfig();
+      }
 
-    const updatedConfig = { ...this.config, ...config } as AppConfig;
-    await this.api.setConfig(updatedConfig);
-    this.config = updatedConfig;
+      const updatedConfig = { ...this.config, ...config };
+      ConfigValidator.validate(updatedConfig);
+
+      await this.configStorage.saveConfig(updatedConfig);
+      this.config = updatedConfig;
+
+      this.logger.info('Configuration saved successfully');
+
+      // Emit config saved event
+      if (this.eventBus) {
+        this.eventBus.emit('config:saved', updatedConfig);
+      }
+    } catch (error) {
+      this.logger.error('Failed to save configuration', error);
+      throw error instanceof ConfigValidationError ? error :
+        new ConfigValidationError(`Failed to save configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -47,7 +88,7 @@ export class ConfigService {
     if (!this.config) {
       await this.loadConfig();
     }
-    return this.config as AppConfig;
+    return this.config; // Safe - validated in loadConfig
   }
 
   /**
@@ -213,13 +254,23 @@ export class ConfigService {
 
       const data = await response.json();
 
-      // Handle different API response formats
-      if (data.data && Array.isArray(data.data)) {
+      // Handle different API response formats with type safety
+      if (data && typeof data === 'object' && 'data' in data && Array.isArray(data.data)) {
         // OpenAI-style format
-        return data.data.map((model: any) => model.id);
+        return data.data
+          .filter((model: unknown): model is { id?: string } =>
+            typeof model === 'object' && model !== null && 'id' in model
+          )
+          .map((model) => model.id)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0);
       } else if (Array.isArray(data)) {
         // Direct array format
-        return data.map((model: any) => model.id || model.model || model);
+        return data
+          .filter((model: unknown): model is { id?: string; model?: string } =>
+            typeof model === 'object' && model !== null
+          )
+          .map((model) => model.id || model.model)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0);
       }
 
       return [];
@@ -279,7 +330,8 @@ export class ConfigService {
         model: modelId
       };
     } else {
-      (appConfig.ai.model_types as any)[modelType] = modelAssignment;
+      const modelTypes = appConfig.ai.model_types as Record<string, unknown>;
+      modelTypes[modelType] = modelAssignment;
     }
 
     await this.saveConfig(appConfig);
@@ -296,9 +348,9 @@ export class ConfigService {
       throw new Error('No chat model configured');
     }
 
-    // Support both old and new configuration formats
-    const providerId = (chatConfig as any).provider_config_id || chatConfig.provider;
-    const modelId = (chatConfig as any).model_id || chatConfig.model;
+    // Support both old and new configuration formats safely
+    const providerId = this.extractProviderId(chatConfig);
+    const modelId = this.extractModelId(chatConfig);
 
     if (!providerId || !modelId) {
       throw new Error('Chat model configuration is incomplete');
@@ -310,6 +362,48 @@ export class ConfigService {
     }
 
     return this.createChatModel(providerConfig, modelId);
+  }
+
+  /**
+   * Extract provider ID from chat configuration safely
+   * Supports both old and new configuration formats
+   */
+  private extractProviderId(chatConfig: Record<string, unknown>): string | undefined {
+    // New format
+    if (chatConfig.provider && typeof chatConfig.provider === 'string') {
+      return chatConfig.provider;
+    }
+
+    // Legacy format
+    if (
+      'provider_config_id' in chatConfig &&
+      typeof chatConfig.provider_config_id === 'string'
+    ) {
+      return chatConfig.provider_config_id;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Extract model ID from chat configuration safely
+   * Supports both old and new configuration formats
+   */
+  private extractModelId(chatConfig: Record<string, unknown>): string | undefined {
+    // New format
+    if (chatConfig.model && typeof chatConfig.model === 'string') {
+      return chatConfig.model;
+    }
+
+    // Legacy format
+    if (
+      'model_id' in chatConfig &&
+      typeof chatConfig.model_id === 'string'
+    ) {
+      return chatConfig.model_id;
+    }
+
+    return undefined;
   }
 
   /**
@@ -378,13 +472,28 @@ export class ConfigService {
   }
 }
 
-export async function createConfigService(api?: ConfigAPI): Promise<ConfigService> {
-  const electronAPI = api || (typeof window !== 'undefined' ? window.electronAPI : null);
-  if (!electronAPI) {
-    throw new Error('ElectronAPI not available. Make sure this code is running in Electron renderer process.')
-  }
+/**
+ * Factory function to create ConfigService with dependencies
+ * This should be used with the service registry for proper dependency injection
+ */
+export function createConfigService(
+  configStorage: IConfigStorage,
+  logger: ILogger,
+  eventBus?: IEventBus
+): ConfigService {
+  return new ConfigService(configStorage, logger, eventBus);
+}
 
-  const configService = new ConfigService(electronAPI);
-  await configService.getConfig();
+/**
+ * Factory function to create ConfigService and initialize it
+ * Convenience function that also loads initial configuration
+ */
+export async function createAndInitializeConfigService(
+  configStorage: IConfigStorage,
+  logger: ILogger,
+  eventBus?: IEventBus
+): Promise<ConfigService> {
+  const configService = new ConfigService(configStorage, logger, eventBus);
+  await configService.getConfig(); // Initialize by loading config
   return configService;
 }

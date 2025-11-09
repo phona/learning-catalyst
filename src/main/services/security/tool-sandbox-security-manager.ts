@@ -9,6 +9,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { randomUUID } from 'crypto';
 import { EventEmitter } from 'events';
+import path from 'node:path';
 
 /**
  * Security levels for tool execution
@@ -385,11 +386,11 @@ export class ToolSandboxSecurityManager extends EventEmitter {
     const policy = this.getSecurityPolicy(context.securityLevel);
 
     // Normalize path
-    const normalizedPath = require('path').resolve(path);
+    const normalizedPath = path.resolve(path);
 
     // Check denied paths
     for (const deniedPath of policy.deniedPaths) {
-      if (normalizedPath.startsWith(require('path').resolve(deniedPath))) {
+      if (normalizedPath.startsWith(path.resolve(deniedPath))) {
         violations.push({
           type: 'path_access',
           severity: 'critical',
@@ -402,7 +403,7 @@ export class ToolSandboxSecurityManager extends EventEmitter {
 
     // Check if path is in allowed paths
     const isAllowed = policy.allowedPaths.some(allowedPath =>
-      normalizedPath.startsWith(require('path').resolve(allowedPath))
+      normalizedPath.startsWith(path.resolve(allowedPath))
     );
 
     if (!isAllowed) {

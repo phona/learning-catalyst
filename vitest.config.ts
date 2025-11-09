@@ -22,12 +22,11 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: [
-      './src/__tests__/setup/global-mocks.ts',
-      './src/__tests__/setup/integration-setup.ts',
-      './src/renderer/__tests__/setup.ts'  // Add the renderer test setup for Testing Library matchers
+      './src/test/setup/global/setup.ts',
+      './src/test/setup/renderer/setup.ts'
     ],
     css: true,
-    include: ['src/**/__tests__/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+    include: ['src/**/__tests__/**/*.{test,spec}.{js,ts,jsx,tsx}', 'src/test/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: ['node_modules', 'dist', 'dist-electron'],
   },
   resolve: {

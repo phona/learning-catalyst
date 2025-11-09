@@ -1,41 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { KnowledgeGraphVisualization, ConceptManager, RelationshipManager, KnowledgeSearch } from '../Knowledge';
-import { KnowledgeGraphModule, Concept } from '../../modules/knowledge-graph/knowledge-graph';
-import { useService } from '../../hooks/useAppServices';
+import type { Concept } from '../../../shared/types/knowledge';
 
 export const KnowledgeMap: React.FC = () => {
-  const knowledgeGraphService = useService('knowledgeGraph');
+  // TODO: Refactor to use IPC-based knowledge service
+  // This component should use window.electronAPI.knowledge methods for communication
   const [selectedConcept, setSelectedConcept] = useState<Concept | null>(null);
   const [showManager, setShowManager] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'relationships'>('concepts');
 
-  useEffect(() => {
-    if (knowledgeGraphService) {
-      setupKnowledgeGraph();
-    }
-  }, [knowledgeGraphService]);
-
-  const setupKnowledgeGraph = async () => {
-    try {
-      if (!knowledgeGraphService) {
-        throw new Error('Knowledge graph service not available');
-      }
-
-      console.log('[KnowledgeMap] Starting knowledge graph service...');
-      await knowledgeGraphService.start();
-      console.log('Knowledge graph setup successfully with dependency injection');
-    } catch (err) {
-      console.error('Failed to setup knowledge graph:', err);
-    }
-  };
-
-  const handleConceptSelect = (concept: Concept) => {
-    setSelectedConcept(concept);
+  const handleConceptSelect = (conceptId: string) => {
+    // TODO: Get concept from IPC when implementing full functionality
+    console.log('Selected concept ID:', conceptId);
   };
 
   const handleConceptCreated = (concept: Concept) => {
     console.log('Concept created:', concept);
-    // Note: Visualization will refresh automatically through data updates
+    setSelectedConcept(concept);
   };
 
   const handleConceptUpdated = (concept: Concept) => {
@@ -44,22 +25,6 @@ export const KnowledgeMap: React.FC = () => {
       setSelectedConcept(concept);
     }
   };
-
-  if (!knowledgeGraphService) {
-    return (
-      <div className="h-full flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Loading Knowledge Graph
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Initializing services...
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="h-full flex flex-col">
@@ -96,7 +61,6 @@ export const KnowledgeMap: React.FC = () => {
         <div className="w-80 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
           <div className="p-4">
             <KnowledgeSearch
-              knowledgeGraph={knowledgeGraphService}
               onConceptSelect={handleConceptSelect}
             />
           </div>
@@ -106,7 +70,6 @@ export const KnowledgeMap: React.FC = () => {
         <div className={`flex-1 ${showManager ? 'border-r border-gray-200 dark:border-gray-700' : ''}`}>
           <div className="h-full p-6">
             <KnowledgeGraphVisualization
-              knowledgeGraph={knowledgeGraphService}
               onConceptSelect={handleConceptSelect}
             />
           </div>
@@ -145,18 +108,15 @@ export const KnowledgeMap: React.FC = () => {
             <div className="p-6">
               {activeTab === 'concepts' && (
                 <ConceptManager
-                  knowledgeGraph={knowledgeGraphService}
                   onConceptCreated={handleConceptCreated}
                   onConceptUpdated={handleConceptUpdated}
                 />
               )}
               {activeTab === 'relationships' && (
                 <RelationshipManager
-                  knowledgeGraph={knowledgeGraphService}
                   selectedConcept={selectedConcept}
                   onRelationshipCreated={(relationship) => {
                     console.log('Relationship created:', relationship);
-                    // Note: Visualization will refresh automatically through data updates
                   }}
                 />
               )}

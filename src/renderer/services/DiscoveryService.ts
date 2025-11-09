@@ -3,9 +3,11 @@
  *
  * Provides a simple interface for content discovery functionality that
  * abstracts away the complexity of the multi-agent processing.
+ *
+ * Implements proper dependency injection pattern for testability and maintainability.
  */
 
-import { catalystService } from './CatalystService';
+import type { ICatalystService } from './interfaces/ICatalystService';
 
 export interface DiscoveryRequest {
   content: string;
@@ -21,14 +23,18 @@ export interface DiscoveryResult {
 
 /**
  * Simple discovery service that abstracts away complexity
+ *
+ * Uses dependency injection for the Catalyst service to ensure testability
+ * and loose coupling with the main process communication layer.
  */
 export class DiscoveryService {
+  constructor(private catalystService: ICatalystService) {}
   /**
    * Parse concepts from content
    */
   async parseConcepts(content: string, sessionId?: string): Promise<DiscoveryResult> {
     try {
-      const result = await catalystService.sendChat(
+      const result = await this.catalystService.sendChat(
         `Please analyze the following content and extract the key concepts:\n\n${content}`,
         {
           agentId: 'concept-parser',
@@ -70,7 +76,7 @@ export class DiscoveryService {
     sessionId?: string
   ): Promise<DiscoveryResult> {
     try {
-      const result = await catalystService.sendChat(
+      const result = await this.catalystService.sendChat(
         `Generate a learning path from ${currentLevel} to ${targetLevel} level for the topic: ${topic}`,
         {
           agentId: 'learning-coach',
@@ -117,7 +123,7 @@ export class DiscoveryService {
     sessionId?: string
   ): Promise<DiscoveryResult> {
     try {
-      const result = await catalystService.sendChat(
+      const result = await this.catalystService.sendChat(
         `Create ${count} ${difficulty} practice exercises for the topic: ${topic}`,
         {
           agentId: 'practice-agent',
@@ -163,7 +169,7 @@ export class DiscoveryService {
     sessionId?: string
   ): Promise<DiscoveryResult> {
     try {
-      const result = await catalystService.sendChat(
+      const result = await this.catalystService.sendChat(
         `Assess the current understanding of ${topic} based on: ${currentUnderstanding}`,
         {
           agentId: 'assessment-agent',
@@ -199,5 +205,3 @@ export class DiscoveryService {
     }
   }
 }
-
-export const discoveryService = new DiscoveryService();

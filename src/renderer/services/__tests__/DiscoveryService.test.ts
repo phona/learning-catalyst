@@ -6,33 +6,32 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DiscoveryService, discoveryService } from '@/renderer/services/DiscoveryService';
+import { DiscoveryService } from '@/renderer/services/DiscoveryService';
 import type { DiscoveryRequest, DiscoveryResult } from '@/renderer/services/DiscoveryService';
+import type { ICatalystService } from '@/renderer/services/interfaces/ICatalystService';
 
-// Mock module with vi.hoisted to handle variable references
-const { mockCatalystService } = vi.hoisted(() => {
-  const mockService = {
-    sendChat: vi.fn(),
-  };
-  return { mockCatalystService: mockService };
-});
-
-vi.mock('@/renderer/services/CatalystService', () => ({
-  catalystService: mockCatalystService,
-}));
+// Mock Catalyst service interface for dependency injection
+const mockCatalystService: ICatalystService = {
+  sendChat: vi.fn(),
+  sendChatStream: vi.fn(),
+  getAvailableAgents: vi.fn(),
+  getSession: vi.fn(),
+  cancelExecution: vi.fn(),
+  getActiveExecutions: vi.fn(),
+};
 
 describe('DiscoveryService', () => {
   let service: DiscoveryService;
 
   beforeEach(() => {
-    service = new DiscoveryService();
+    service = new DiscoveryService(mockCatalystService);
     vi.clearAllMocks();
     mockCatalystService.sendChat = vi.fn();
   });
 
   describe('Concept Parsing', () => {
     it('should parse concepts from content successfully', async () => {
-      const mockResult = { success: true, messageId: 'msg-123', executionId: 'exec-456' };
+      const mockResult = { success: true, messageId: 'msg-123' };
       mockCatalystService.sendChat.mockResolvedValue(mockResult);
 
       const result = await service.parseConcepts('React is a JavaScript library for building user interfaces...', 'session-123');
@@ -434,15 +433,5 @@ describe('DiscoveryService', () => {
         })
       );
     });
-  });
-});
-
-describe('DiscoveryService Singleton', () => {
-  it('should export a singleton instance', () => {
-    expect(discoveryService).toBeInstanceOf(DiscoveryService);
-  });
-
-  it('should return the same instance', () => {
-    expect(discoveryService).toBe(discoveryService);
   });
 });

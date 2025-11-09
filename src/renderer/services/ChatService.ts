@@ -3,9 +3,10 @@
  *
  * Provides a very simple interface for chat functionality that hides all
  * the complexity of agent management, sessions, and streaming.
+ * Now uses proper dependency injection pattern.
  */
 
-import { catalystService } from './CatalystService';
+import { ICatalystService } from './interfaces/ICatalystService';
 
 export interface ChatMessage {
   id: string;
@@ -23,8 +24,11 @@ export interface ChatStreamChunk {
 
 /**
  * Simple chat service that abstracts away complexity
+ * Uses dependency injection for the catalyst service
  */
 export class ChatService {
+  constructor(private catalystService: ICatalystService) {}
+
   /**
    * Send a message and get a simple response
    */
@@ -32,7 +36,7 @@ export class ChatService {
     sessionId?: string;
     agentId?: string;
   } = {}): Promise<ChatMessage> {
-    const result = await catalystService.sendChat(message, {
+    const result = await this.catalystService.sendChat(message, {
       sessionId: options.sessionId,
       agentId: options.agentId
     });
@@ -44,7 +48,7 @@ export class ChatService {
     return {
       id: result.messageId || 'unknown',
       role: 'assistant',
-      content: 'Message sent successfully',
+      content: result.response || 'Message sent successfully',
       timestamp: new Date()
     };
   }
@@ -60,7 +64,7 @@ export class ChatService {
       agentId?: string;
     } = {}
   ): Promise<ChatMessage> {
-    const result = await catalystService.sendChatStream(
+    const result = await this.catalystService.sendChatStream(
       message,
       {
         sessionId: options.sessionId,
@@ -84,7 +88,7 @@ export class ChatService {
     return {
       id: result.messageId || 'unknown',
       role: 'assistant',
-      content: 'Streaming completed',
+      content: result.response || 'Streaming completed',
       timestamp: new Date()
     };
   }
@@ -93,15 +97,13 @@ export class ChatService {
    * Get available agents
    */
   async getAvailableAgents() {
-    return catalystService.getAvailableAgents();
+    return this.catalystService.getAvailableAgents();
   }
 
   /**
    * Cancel current execution
    */
   async cancelExecution(executionId: string) {
-    return catalystService.cancelExecution(executionId);
+    return this.catalystService.cancelExecution(executionId);
   }
 }
-
-export const chatService = new ChatService();

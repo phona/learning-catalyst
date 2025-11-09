@@ -1,192 +1,42 @@
 /**
- * Service Container
+ * Pure Service Interfaces
  *
- * Proper dependency injection container for managing services.
- * No global state - services are created and injected explicitly.
+ * Pure TypeScript interfaces that can be used across processes.
+ * No implementation details or process-specific imports.
  */
 
-import { Kysely } from 'kysely';
-import { Database, createDatabase, runMigrations } from '@/main/services/database/kysely-database';
-import { KnowledgeGraphModule } from '@/shared/utils/knowledge-graph';
-import { SimpleAnalyticsModule } from '@/shared/utils/simple-analytics';
-import { VectorDatabaseModule } from '@/main/services/database/vector-database';
-import SessionService from '@/renderer/services/sessionService';
-import { ContentDiscoveryService } from '@/renderer/services/ContentDiscoveryService';
-import { ConceptParsingService } from '@/renderer/services/ConceptParsingService';
-import { AgentManager } from '@/main/services/catalyst/AgentManager';
-import { createConfigService, ConfigService } from '@/main/services/configService';
-import type { AppConfig } from '@/shared/types/config';
+// Export only pure interfaces and types that are safe for shared use
+export type {
+  ServiceMethodError
+} from './type-utils';
 
-export interface ServiceContainer {
-  database: Kysely<Database>;
-  analytics: SimpleAnalyticsModule;
-  knowledgeGraph: KnowledgeGraphModule;
-  vectorDatabase: VectorDatabaseModule;
-  sessionService: SessionService;
-  contentDiscovery: ContentDiscoveryService;
-  conceptParsing: ConceptParsingService;
-  agentManager: AgentManager;
-  configService: ConfigService;
+// Pure interface for renderer service discovery
+export interface RendererServiceInterface {
+  // This will be implemented by renderer services
+  name: string;
+  version: string;
+  initialize(): Promise<void>;
+  dispose(): Promise<void>;
 }
 
-export interface ServiceContainerOptions {
-  databasePath: string;
-  config: AppConfig;
+// Generic service interface for cross-process communication
+export interface ProcessService<T = any> {
+  name: string;
+  execute(method: string, params?: any): Promise<T>;
+  isAvailable(): boolean;
 }
 
-/**
- * Create a new service container with dependency injection.
- * This function creates fresh service instances with proper DI.
- */
-export async function createServiceContainer(): Promise<ServiceContainer> {
-  console.log('Creating service container...');
-
-  // Create database first - it's the root dependency
-  const database = await createDatabase();
-  if (!database) {
-    throw new Error('Failed to create database');
-  }
-
-  // Run migrations to ensure database schema is up to date
-  console.log('Running database migrations...');
-  try {
-    await runMigrations();
-    console.log('Database migrations completed successfully');
-  } catch (error) {
-    console.error('Failed to run database migrations:', error);
-    throw new Error(`Database migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-
-  // Create services with constructor injection
-  const vectorDatabase = new VectorDatabaseModule(database);
-  await vectorDatabase.initialize();
-
-  const knowledgeGraph = new KnowledgeGraphModule(database, vectorDatabase);
-  await knowledgeGraph.initialize();
-
-  const analytics = new SimpleAnalyticsModule(database);
-  await analytics.initialize();
-
-  const configService = await createConfigService();
-
-  // Create agent manager with service injection
-  const agentManager = new AgentManager(configService);
-  await agentManager.initialize();
-
-  // Update dependent services to use AgentManager instead of ChatService
-  const sessionService = new SessionService(database, agentManager);
-  const contentDiscovery = new ContentDiscoveryService(database);
-  const conceptParsing = new ConceptParsingService(agentManager, configService);
-
-  console.log('Service container created successfully');
-
-  return {
-    database,
-    analytics,
-    knowledgeGraph,
-    vectorDatabase,
-    sessionService,
-    contentDiscovery,
-    conceptParsing,
-    agentManager,
-    configService,
-  };
+// Pure dependency injection interface
+export interface ServiceDependency<T> {
+  name: string;
+  factory: () => T;
+  singleton?: boolean;
 }
 
-/**
- * Service container manager for React context.
- * This manages the lifecycle of service containers.
- */
-export class ServiceContainerManager {
-  private container: ServiceContainer | null = null;
-  private initializationPromise: Promise<ServiceContainer> | null = null;
-
-  /**
-   * Get or create the service container.
-   * Uses lazy initialization pattern.
-   */
-  async getContainer(options: ServiceContainerOptions): Promise<ServiceContainer> {
-    if (this.container) {
-      return this.container;
-    }
-
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
-
-    this.initializationPromise = this.createContainer(options);
-    return this.initializationPromise;
-  }
-
-  private async createContainer(options: ServiceContainerOptions): Promise<ServiceContainer> {
-    try {
-      this.container = await createServiceContainer();
-      return this.container;
-    } catch (error) {
-      this.initializationPromise = null;
-      throw error;
-    }
-  }
-
-  /**
-   * Check if container is initialized.
-   */
-  isInitialized(): boolean {
-    return this.container !== null;
-  }
-
-  /**
-   * Get the current container without initialization.
-   * Returns null if not initialized.
-   */
-  getCurrentContainer(): ServiceContainer | null {
-    return this.container;
-  }
-
-  /**
-   * Cleanup the service container.
-   */
-  async cleanup(): Promise<void> {
-    try {
-      console.log('Cleaning up service container...');
-
-      if (this.container?.analytics) {
-        await this.container.analytics.cleanup();
-      }
-
-      if (this.container?.knowledgeGraph) {
-        await this.container.knowledgeGraph.cleanup();
-      }
-
-      if (this.container?.vectorDatabase) {
-        await this.container.vectorDatabase.cleanup();
-      }
-
-      if (this.container?.database) {
-        console.log('Database cleanup complete (Kysely instance)');
-      }
-
-      if (this.container?.conceptParsing) {
-        // ConceptParsingService doesn't have explicit cleanup method, but we can cancel active jobs
-        const activeJobs = this.container.conceptParsing.getActiveJobs();
-        for (const job of activeJobs) {
-          this.container.conceptParsing.cancelJob(job.id);
-        }
-        console.log('ConceptParsing service cleanup complete');
-      }
-
-      if (this.container?.agentManager) {
-        this.container.agentManager.cleanup();
-        console.log('AgentManager cleanup complete');
-      }
-
-      this.container = null;
-      this.initializationPromise = null;
-
-      console.log('Service container cleaned up successfully');
-    } catch (error) {
-      console.error('Error during service container cleanup:', error);
-      throw error;
-    }
-  }
+// Service configuration interface
+export interface ServiceConfig {
+  enableService: boolean;
+  timeout?: number;
+  retryCount?: number;
+  maxMemoryMB?: number;
 }

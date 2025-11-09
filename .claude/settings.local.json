@@ -58,15 +58,21 @@
       "mcp__context7__get-library-docs",
       "Bash(xargs:*)",
       "WebFetch(domain:stackoverflow.com)",
-      "mcp__langchain__SearchDocsByLangChain"
+      "mcp__langchain__SearchDocsByLangChain",
+      "Bash(npm run test:renderer:*)",
+      "Bash(npm run test:main:memory:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "langchain",
     "context7",
     "magic",
-    "sequential-thinking"
+    "sequential-thinking",
+    "langchain"
   ]
 }

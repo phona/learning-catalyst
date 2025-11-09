@@ -66,9 +66,9 @@ describe('LearningTrends', () => {
     render(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Learning Trends')).toBeInTheDocument();
-    expect(screen.getByText('45m')).toBeInTheDocument();
-    expect(screen.getByText('3.2')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument(); // Total sessions: 5 study + 2 review
+    expect(screen.getByTestId('avg-study-time')).toHaveTextContent('45m');
+    expect(screen.getByTestId('mastery-trend')).toHaveTextContent('3.2');
+    expect(screen.getByTestId('total-sessions')).toHaveTextContent('7'); // Total sessions: 5 study + 2 review
   });
 
   it('renders period selector buttons', async () => {
@@ -117,7 +117,7 @@ describe('LearningTrends', () => {
     render(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Avg Daily Study')).toBeInTheDocument();
-    expect(screen.getByText('60m')).toBeInTheDocument(); // Average of 30, 60, 90
+    expect(screen.getByTestId('avg-study-time')).toHaveTextContent('60m'); // Average of 30, 60, 90
   });
 
   it('displays session types breakdown', async () => {
@@ -168,9 +168,9 @@ describe('LearningTrends', () => {
 
     // Should show the last 7 days in reverse order
     expect(screen.getByText('Jan 22, 2025')).toBeInTheDocument();
-    expect(screen.getByText('60m')).toBeInTheDocument();
+    expect(screen.getAllByText('60m')).toHaveLength(2); // One in avg study time, one in recent activity
     expect(screen.getByText('Jan 21, 2025')).toBeInTheDocument();
-    expect(screen.getByText('45m')).toBeInTheDocument();
+    expect(screen.getAllByText('45m')).toHaveLength(2); // One in avg study time, one in recent activity
   });
 
   it('calls analytics.getLearningTrends with correct period when period changes', async () => {

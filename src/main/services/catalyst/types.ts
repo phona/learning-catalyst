@@ -53,7 +53,7 @@ export interface CatalystServiceDependencies {
   database: Database;
   toolExecutor: ToolExecutorService;
   agentManager: AgentManagerMain;
-  sessionService: SessionServiceMain;
+  sessionService: SessionService;
   config: ServiceConfigManager;
   loggerFactory: LoggerFactory;
   logger: Logger;
@@ -77,7 +77,7 @@ interface AgentManagerMain {
   dispose(): void;
 }
 
-interface SessionServiceMain {
+interface SessionService {
   // Add session service methods as needed
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChatStore } from '../stores/chat/chatStore';
 import { useConfigStore } from '../stores/useConfigStore';
-import { catalystService } from '../services/CatalystService';
+import { getCatalystService } from '../services/ServiceContainer';
 
 /**
  * 🚀 Session Initialization Hook
@@ -58,6 +58,7 @@ export const useSessionInit = () => {
   } = chatStore();
 
   const { config } = useConfigStore();
+  const catalystService = getCatalystService();
 
   // Initialize chat settings from config
   useEffect(() => {

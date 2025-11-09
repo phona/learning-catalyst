@@ -2,13 +2,13 @@
  * Use Chat Hook - Simplified Chat Interface
  *
  * React hook that provides a simple interface for chat functionality using the new
- * high-level ChatService. This replaces the complex useChatStore with a cleaner
- * implementation that abstracts away the multi-agent architecture complexity.
+ * high-level ChatService with dependency injection. This replaces the complex useChatStore
+ * with a cleaner implementation that abstracts away the multi-agent architecture complexity.
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { chatService, type ChatMessage, type ChatStreamChunk } from '@/renderer/services/ChatService';
-import type { SessionInfo } from '@/renderer/services/CatalystService';
+import { useChatService } from './useServices';
+import type { ChatMessage, ChatStreamChunk } from '@/renderer/services/ChatService';
 
 export interface UseChatOptions {
   sessionId?: string;
@@ -52,10 +52,11 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentSession, setCurrentSession] = useState<SessionInfo | null>(null);
+  const [currentSession, setCurrentSession] = useState<any | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(options.agentId || null);
 
   const streamingExecutionRef = useRef<string | null>(null);
+  const chatService = useChatService();
 
   // Load initial session if provided
   useEffect(() => {

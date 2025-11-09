@@ -40,10 +40,8 @@ export class VectorDatabaseModule {
   public readonly version = "1.0.0";
   private _isInitialized = false;
   private mockDocuments: VectorDocument[] = [];
-  private db: Kysely<Database>;
 
-  constructor(db: Kysely<Database>) {
-    this.db = db;
+  constructor() {
     // Mock implementation for MVP
     console.log('Vector database module created (mock mode)');
   }
@@ -62,12 +60,12 @@ export class VectorDatabaseModule {
       console.log('Initializing vector database (mock mode)...');
 
       // Mock initialization - in real implementation this would:
-      // 1. Connect to Qdrant
+      // 1. Connect to Qdrant client
       // 2. Load embedding model
       // 3. Create collections
 
       // Simulate initialization delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       this._isInitialized = true;
       console.log('Vector database initialized successfully (mock mode)');

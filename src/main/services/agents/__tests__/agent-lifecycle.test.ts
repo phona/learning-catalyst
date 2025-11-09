@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AgentLifecycleManager } from '../agent-lifecycle-manager';
 import { AgentRegistry } from '../agent-registry';
 import { AgentType } from '../../catalyst/AgentManager';
-import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '../../setup';
+import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/setup/main-process/setup';
 
 // Mock AgentRegistry
 const mockAgentRegistry = {

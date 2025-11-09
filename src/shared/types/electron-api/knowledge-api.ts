@@ -65,6 +65,30 @@ export interface KnowledgeAPI {
     conceptId: string;
     difficulty: 'beginner' | 'intermediate' | 'advanced';
   }) => Promise<ExerciseDisplay[]>;
+
+  /**
+   * Parse concepts from files and content using AI
+   * Extracts learning concepts from markdown files and content
+   * @param params - Parsing parameters including files, content, and options
+   * @returns Promise<ConceptParsingResult> - Extracted concepts and relationships
+   */
+  parseConcepts: (params: {
+    files?: Array<{
+      fileName: string;
+      filePath: string;
+      content: string;
+      title?: string;
+      materialId?: string;
+    }>;
+    content?: string;
+    materialId?: string;
+    title?: string;
+    format?: 'markdown' | 'text' | 'html';
+    options?: {
+      confidenceThreshold?: number;
+      maxConceptsPerFile?: number;
+    };
+  }) => Promise<ConceptParsingResult>;
 }
 
 // ============================================================================
@@ -229,4 +253,61 @@ export interface ExerciseDisplay {
   hints?: string[];
   solution?: string;
   feedback?: string;
+}
+
+/**
+ * Concept parsing result display
+ */
+export interface ConceptParsingResult {
+  success: boolean;
+  concepts: ParsedConcept[];
+  relationships: ParsedRelationship[];
+  statistics: {
+    totalConcepts: number;
+    validConcepts: number;
+    totalRelationships: number;
+    confidenceDistribution: Record<string, number>;
+    difficultyDistribution: Record<number, number>;
+    typeDistribution: Record<string, number>;
+    processingTime: number;
+    modelUsage: Record<string, number>;
+  };
+  errors: string[];
+  metadata: {
+    processingTime: number;
+    processedAt: string;
+    inputFiles: number;
+    aiProvider?: string;
+    aiModel?: string;
+  };
+}
+
+/**
+ * Parsed concept display
+ */
+export interface ParsedConcept {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  confidence: number;
+  difficulty: number;
+  evidence: Array<{
+    type: string;
+    text: string;
+    relevance: number;
+  }>;
+  metadata: Record<string, any>;
+}
+
+/**
+ * Parsed relationship display
+ */
+export interface ParsedRelationship {
+  sourceId: string;
+  targetId: string;
+  type: string;
+  strength: number;
+  confidence: number;
+  description?: string;
 }

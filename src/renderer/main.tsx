@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { ConfigServiceProvider } from './hooks/useAppServices';
-import './index.css';
+import { ServiceProvider } from './hooks/useServices';
+import '../index.css';
 
 // Create a client for React Query
 const queryClient = new QueryClient({
@@ -81,7 +82,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ConfigServiceProvider>
         <QueryClientProvider client={queryClient}>
           <BrowserRouter>
-            <App />
+            <ServiceProvider>
+              <App />
+            </ServiceProvider>
             <Toaster
               position="top-right"
               toastOptions={{

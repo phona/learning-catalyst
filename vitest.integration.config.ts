@@ -11,26 +11,33 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      // Configure React plugin for integration testing to avoid preamble detection issues
+      jsxImportSource: undefined,
+      include: '**/*.{jsx,tsx}',
+      exclude: ['node_modules', '**/node_modules/**'],
+      // Test environment doesn't need Fast Refresh
+      fastRefresh: false
+    })
+  ],
   test: {
     name: 'integration',
     environment: 'jsdom',
     include: [
-      'src/**/__tests__/integration/**/*.{test,spec}.{js,ts,jsx,tsx}',
-      'test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'
+      'src/test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'
     ],
     exclude: [
       'node_modules',
       'dist',
       'src/main/**/__tests__/**',
       'src/renderer/**/__tests__/**',
-      'src/**/__tests__/performance/**',
-      'test/performance'
+      'src/test/performance/**'
     ],
     globals: true,
     setupFiles: [
-      'test/setup/integration-setup.ts',
-      'src/main/__tests__/setup.ts'
+      './src/test/setup/integration/setup.ts',
+      './src/test/setup/main-process/setup.ts'
     ],
     testTimeout: 60000, // 60 seconds for integration tests
     hookTimeout: 15000,

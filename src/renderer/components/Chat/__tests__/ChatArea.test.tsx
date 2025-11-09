@@ -14,7 +14,7 @@ import { ChatArea } from '../ChatArea';
 import type { Message } from '@/shared/types/ai';
 
 // Mock the chat store
-vi.mock('../../hooks/useChatStore', () => ({
+vi.mock('../../../hooks/useChatStore', () => ({
   useChatStore: vi.fn(),
 }));
 
@@ -26,7 +26,7 @@ vi.mock('./MessageBubble', () => ({
   ),
 }));
 
-import { useChatStore } from '../../hooks/useChatStore';
+import { useChatStore } from '../../../hooks/useChatStore';
 
 describe('ChatArea - Critical Reliability Tests', () => {
   const mockMessages: Message[] = [

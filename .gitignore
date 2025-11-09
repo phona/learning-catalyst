@@ -65,5 +65,6 @@ external/qdrant/storage/
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
-null
+nul
 .tmp
+test-results

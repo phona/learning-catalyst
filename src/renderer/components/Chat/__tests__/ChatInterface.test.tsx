@@ -13,7 +13,7 @@ import { render, screen } from '@testing-library/react';
 import { ChatInterface } from '../ChatInterface';
 
 // Mock the hooks and components
-vi.mock('../../hooks/useSessionInit', () => ({
+vi.mock('../../../hooks/useSessionInit', () => ({
   useSessionInit: vi.fn(),
 }));
 
@@ -33,7 +33,7 @@ vi.mock('./ChatInput', () => ({
   ChatInput: () => <div data-testid="chat-input">Chat Input</div>,
 }));
 
-import { useSessionInit } from '../../hooks/useSessionInit';
+import { useSessionInit } from '../../../hooks/useSessionInit';
 
 describe('ChatInterface - Error Prevention Tests', () => {
   beforeEach(() => {

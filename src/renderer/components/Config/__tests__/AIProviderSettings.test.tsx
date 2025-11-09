@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AIProviderSettings } from '@/renderer/components/Config/AIProviderSettings';
-import { createMockConfig } from '@/__tests__/utils/helpers/test-utils';
+import { createMockConfig } from '@/test/utils/helpers/test-utils';
 import { useService } from '@/renderer/hooks/useAppServices';
 import { utilityToasts } from '@/renderer/utils/toast';
 

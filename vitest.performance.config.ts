@@ -14,19 +14,16 @@ export default defineConfig({
     name: 'performance',
     environment: 'node',
     include: [
-      'test/performance/**/*.{test,spec}.{js,ts}',
       'src/test/performance/**/*.{test,spec}.{js,ts}'
     ],
     exclude: [
       'node_modules',
       'dist',
-      'src/test/main-thread',
-      'src/test/renderer-thread',
-      'test/integration'
+      'src/test/integration'
     ],
     globals: true,
     setupFiles: [
-      'test/setup/performance-setup.ts'
+      './src/test/setup/performance/setup.ts'
     ],
     testTimeout: 300000, // 5 minutes for performance tests
     hookTimeout: 30000,

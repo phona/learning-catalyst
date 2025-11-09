@@ -14,7 +14,7 @@
  * 7. Settings & Configuration API
  */
 
-// Import individual API interfaces from the 7-domain structure
+// Import individual API interfaces from the 8-domain structure
 import type { ChatAPI } from './chat-api'
 import type { LearningAPI } from './learning-api'
 import type { KnowledgeAPI } from './knowledge-api'
@@ -22,6 +22,7 @@ import type { AnalyticsAPI } from './analytics-api'
 import type { AgentsAPI } from './agent-api'
 import type { ContentAPI } from './content-api'
 import type { SettingsAPI } from './settings-api'
+import type { CatalystAPI } from './catalyst-api'
 
 // Re-export individual API interfaces
 export type {
@@ -31,7 +32,8 @@ export type {
   AnalyticsAPI,
   AgentsAPI,
   ContentAPI,
-  SettingsAPI
+  SettingsAPI,
+  CatalystAPI
 }
 
 // Export key display-optimized types for convenience
@@ -90,9 +92,9 @@ export type {
 } from './settings-api'
 
 /**
- * Main ElectronAPI interface - 7 Complete Domains
+ * Main ElectronAPI interface - 8 Complete Domains
  *
- * This composite interface combines all 7 API domains to provide a unified
+ * This composite interface combines all 8 API domains to provide a unified
  * interface that matches the documented electronAPI specification.
  *
  * Features:
@@ -111,6 +113,9 @@ export interface ElectronAPI {
   agents: AgentsAPI;
   content: ContentAPI;
   settings: SettingsAPI;
+
+  // Catalyst API for main process service communication
+  catalyst: CatalystAPI;
 
   // Utility methods for better error handling and debugging
 

@@ -11,7 +11,7 @@ import { AgentRegistry } from '../agent-registry';
 import { AgentType } from '../../catalyst/AgentManager';
 import type { Kysely } from 'kysely';
 import type { Database } from '@/shared/types/database';
-import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '../setup';
+import { createMockLogger, createMockDatabase, createMockAsyncLocalStorage } from '@/test/setup/main-process/setup';
 
 // Mock AgentManager for testing
 vi.mock('../../catalyst/AgentManager', () => ({

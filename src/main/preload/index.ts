@@ -276,7 +276,7 @@ const knowledgeAPI: KnowledgeAPI = {
    * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
    */
   searchKnowledge: (query: string) =>
-    ipcRenderer.invoke('knowledge:search', query),
+    ipcRenderer.invoke('knowledge:searchGraph', query),
 
   /**
    * Gets explanation for a concept in specific style
@@ -302,7 +302,32 @@ const knowledgeAPI: KnowledgeAPI = {
     conceptId: string;
     difficulty: 'beginner' | 'intermediate' | 'advanced';
   }) =>
-    ipcRenderer.invoke('knowledge:getPracticeExercises', params)
+    ipcRenderer.invoke('knowledge:getPracticeExercises', params),
+
+  /**
+   * Parse concepts from files and content using AI
+   * Extracts learning concepts from markdown files and content
+   * @param params - Parsing parameters including files, content, and options
+   * @returns Promise<ConceptParsingResult> - Extracted concepts and relationships
+   */
+  parseConcepts: (params: {
+    files?: Array<{
+      fileName: string;
+      filePath: string;
+      content: string;
+      title?: string;
+      materialId?: string;
+    }>;
+    content?: string;
+    materialId?: string;
+    title?: string;
+    format?: 'markdown' | 'text' | 'html';
+    options?: {
+      confidenceThreshold?: number;
+      maxConceptsPerFile?: number;
+    };
+  }) =>
+    ipcRenderer.invoke('knowledge:parseConcepts', params)
 };
 
 // ============================================================================
@@ -357,20 +382,110 @@ const analyticsAPI: AnalyticsAPI = {
   /**
    * Gets detailed usage statistics
    * Provides insights into learning patterns and habits
-   * @param timeRange - Time range for statistics
+   * @param params - Statistics request parameters
    * @returns Promise<UsageStatsDisplay> - Detailed usage analytics
    */
-  getUsageStats: (timeRange: '7days' | '30days' | '90days' | '1year') =>
-    ipcRenderer.invoke('analytics:getUsageStats', timeRange),
+  getUsageStats: (params: { timeRange: '7days' | '30days' | '90days' | '1year'; includePatterns?: boolean; includeEngagement?: boolean; detailed?: boolean }) =>
+    ipcRenderer.invoke('analytics:getUsageStats', params),
 
   /**
    * Gets token usage and cost information
    * Important for monitoring API usage and costs
-   * @param timeRange - Time range for token statistics
+   * @param params - Token usage request parameters
    * @returns Promise<TokenUsageDisplay> - Token usage breakdown
    */
-  getTokenUsage: (timeRange: '7days' | '30days' | '90days' | '1year') =>
-    ipcRenderer.invoke('analytics:getTokenUsage', timeRange)
+  getTokenUsage: (params: { timeRange: '7days' | '30days' | '90days' | '1year'; includeByProvider?: boolean; includeByFeature?: boolean; includeProjections?: boolean }) =>
+    ipcRenderer.invoke('analytics:getTokenUsage', params),
+
+  /**
+   * Tracks a learning session
+   * Creates or updates a learning session record
+   * @param session - Session data to track
+   * @returns Promise<string> - Session ID
+   */
+  trackSession: (session: any) =>
+    ipcRenderer.invoke('analytics:trackSession', session),
+
+  /**
+   * Updates concept progress
+   * Records progress updates for specific concepts
+   * @param conceptId - ID of the concept
+   * @param update - Progress update data
+   * @returns Promise<void> - Update confirmation
+   */
+  updateConceptProgress: (conceptId: string, update: any) =>
+    ipcRenderer.invoke('analytics:updateConceptProgress', conceptId, update),
+
+  /**
+   * Gets concept progress details
+   * Returns detailed progress information for a specific concept
+   * @param conceptId - ID of the concept
+   * @returns Promise<any> - Concept progress data
+   */
+  getConceptProgress: (conceptId: string) =>
+    ipcRenderer.invoke('analytics:getConceptProgress', conceptId),
+
+  /**
+   * Gets session history
+   * Returns paginated list of learning sessions
+   * @param params - Session history request parameters
+   * @returns Promise<any[]> - Session list
+   */
+  getSessionHistory: (params?: any) =>
+    ipcRenderer.invoke('analytics:getSessionHistory', params),
+
+  /**
+   * Checks for new achievements
+   * Evaluates and returns any newly unlocked achievements
+   * @param sessionId - Optional session ID to check achievements for
+   * @returns Promise<any[]> - New achievements
+   */
+  checkAchievements: (sessionId?: string) =>
+    ipcRenderer.invoke('analytics:checkAchievements', sessionId),
+
+  /**
+   * Gets learning trends data
+   * Returns learning trend analysis for specified periods
+   * @param params - Trends request parameters
+   * @returns Promise<any> - Trends data
+   */
+  getLearningTrends: (params: any) =>
+    ipcRenderer.invoke('analytics:getLearningTrends', params),
+
+  /**
+   * Gets study streak information
+   * Returns current and historical study streak data
+   * @returns Promise<any> - Streak information
+   */
+  getStudyStreak: () =>
+    ipcRenderer.invoke('analytics:getStudyStreak'),
+
+  /**
+   * Gets time statistics
+   * Returns detailed time-based learning statistics
+   * @param params - Time stats request parameters
+   * @returns Promise<any> - Time statistics
+   */
+  getTimeStats: (params?: any) =>
+    ipcRenderer.invoke('analytics:getTimeStats', params),
+
+  /**
+   * Exports analytics data
+   * Exports user analytics data in specified format
+   * @param params - Export request parameters
+   * @returns Promise<string> - Exported data
+   */
+  exportData: (params: any) =>
+    ipcRenderer.invoke('analytics:exportData', params),
+
+  /**
+   * Imports analytics data
+   * Imports analytics data from specified format
+   * @param params - Import request parameters
+   * @returns Promise<any> - Import result
+   */
+  importData: (params: any) =>
+    ipcRenderer.invoke('analytics:importData', params)
 };
 
 // ============================================================================

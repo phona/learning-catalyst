@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
-import { useAppServices } from './useAppServices';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { Message, StreamChunk, ChatOptions } from '@/shared/types/ai';
 import type { Session, ConversationMessage, MemorySession, SessionSaveResult } from '@/shared/types/session';
-import type { SessionService } from '@/renderer/services/sessionService';
+import { useAppServices } from './useAppServices';
 
 interface ChatStore {
   // Current session

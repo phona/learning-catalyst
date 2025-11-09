@@ -44,14 +44,15 @@ export interface AgentExecutionRequest {
 }
 
 export interface AgentExecutionChunk {
-  type: 'error' | 'data' | 'start' | 'progress' | 'complete' | 'tool-call' | 'tool-result';
+  type: 'error' | 'data' | 'start' | 'progress' | 'complete' | 'tool-call' | 'tool-result' |
+       'workflow_start' | 'workflow_complete' | 'workflow_error' | 'step_start' | 'step_complete' | 'step_retry';
   content: any;
   timestamp: number;
 }
 
 export interface ServiceExecutionContext {
   id: string;
-  sessionId?: string;
+  sessionId: string;
   userId?: string;
   timestamp: number;
   requestId: string;

@@ -8,18 +8,21 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { CatalystServiceMain, initializeCatalystService, disposeCatalystService, getCatalystService } from '../catalyst-service'
-import { DatabaseMocks } from '../../../../__tests__/utils/mocks/mock-database'
+import { createMockDatabase } from '../../../../test/setup/main-process/setup'
 import type { BrowserWindow } from 'electron'
 
 describe('CatalystServiceMain', () => {
   let catalystService: CatalystServiceMain
   let mockMainWindow: BrowserWindow | null
   let mockWorkspacePath: string
+  let mockDatabase: any
 
   beforeEach(() => {
     // Reset all mocks
-    DatabaseMocks.Database._resetMocks()
     vi.clearAllMocks()
+
+    // Create mock database
+    mockDatabase = createMockDatabase()
 
     // Create mock main window
     mockMainWindow = {
@@ -52,7 +55,7 @@ describe('CatalystServiceMain', () => {
 
     it('should initialize successfully with valid parameters', async () => {
       // Arrange
-      const mockCreateDatabase = vi.fn().mockResolvedValue(DatabaseMocks.Database)
+      const mockCreateDatabase = vi.fn().mockResolvedValue(mockDatabase)
       const mockRunMigrations = vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
 
       // Mock the database creation and migration
@@ -62,8 +65,8 @@ describe('CatalystServiceMain', () => {
         getMigrationStatus: vi.fn().mockResolvedValue({ executed: [], pending: [], total: 0 }),
         rollbackMigrations: vi.fn().mockResolvedValue([]),
         DatabaseFactory: {
-          createElectronDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
-          createCustomDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
+          createElectronDB: vi.fn().mockReturnValue(mockDatabase),
+          createCustomDB: vi.fn().mockReturnValue(mockDatabase),
         }
       }))
 
@@ -78,7 +81,7 @@ describe('CatalystServiceMain', () => {
     it('should prevent multiple initializations', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -92,7 +95,7 @@ describe('CatalystServiceMain', () => {
     it('should prevent initialization of disposed service', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -121,7 +124,7 @@ describe('CatalystServiceMain', () => {
 
     it('should handle migration failure', async () => {
       // Arrange
-      const mockCreateDatabase = vi.fn().mockResolvedValue(DatabaseMocks.Database)
+      const mockCreateDatabase = vi.fn().mockResolvedValue(mockDatabase)
       const mockRunMigrations = vi.fn().mockRejectedValue(new Error('Migration failed'))
 
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
@@ -130,8 +133,8 @@ describe('CatalystServiceMain', () => {
         getMigrationStatus: vi.fn().mockResolvedValue({ executed: [], pending: [], total: 0 }),
         rollbackMigrations: vi.fn().mockResolvedValue([]),
         DatabaseFactory: {
-          createElectronDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
-          createCustomDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
+          createElectronDB: vi.fn().mockReturnValue(mockDatabase),
+          createCustomDB: vi.fn().mockReturnValue(mockDatabase),
         }
       }))
 
@@ -143,7 +146,7 @@ describe('CatalystServiceMain', () => {
   describe('Service Registry and Dependency Injection', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -216,7 +219,7 @@ describe('CatalystServiceMain', () => {
   describe('Execution Context Management', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -261,7 +264,7 @@ describe('CatalystServiceMain', () => {
   describe('Health Monitoring', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -270,8 +273,8 @@ describe('CatalystServiceMain', () => {
 
     it('should return healthy status for all services', async () => {
       // Arrange
-      DatabaseMocks.Database.connected = true
-      DatabaseMocks.Database.fetchOne.mockResolvedValue({ test: 1 })
+      mockDatabase.connected = true
+      mockDatabase.fetchOne.mockResolvedValue({ test: 1 })
 
       // Act
       const health = await catalystService.getHealth()
@@ -286,7 +289,7 @@ describe('CatalystServiceMain', () => {
 
     it('should detect database health issues', async () => {
       // Arrange
-      DatabaseMocks.Database._simulateConnectionFailure()
+      mockDatabase._simulateConnectionFailure()
 
       // Act
       const health = await catalystService.getHealth()
@@ -315,7 +318,7 @@ describe('CatalystServiceMain', () => {
 
     it('should handle health check errors gracefully', async () => {
       // Arrange
-      DatabaseMocks.Database.fetchOne.mockRejectedValue(new Error('Health check failed'))
+      mockDatabase.fetchOne.mockRejectedValue(new Error('Health check failed'))
 
       // Act
       const health = await catalystService.getHealth()
@@ -329,7 +332,7 @@ describe('CatalystServiceMain', () => {
   describe('Service Statistics', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -376,7 +379,7 @@ describe('CatalystServiceMain', () => {
     it('should dispose all services properly', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -394,7 +397,7 @@ describe('CatalystServiceMain', () => {
     it('should handle multiple disposal calls gracefully', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -411,7 +414,7 @@ describe('CatalystServiceMain', () => {
     it('should handle disposal errors gracefully', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -441,7 +444,7 @@ describe('CatalystServiceMain', () => {
     it('should allow force reinitialization in development', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -461,7 +464,7 @@ describe('CatalystServiceMain', () => {
       // Arrange
       process.env.NODE_ENV = 'production'
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -474,7 +477,7 @@ describe('CatalystServiceMain', () => {
     it('should handle force reinitialization errors', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -511,7 +514,7 @@ describe('CatalystServiceMain', () => {
 
     it('should handle tool executor initialization failure', async () => {
       // Arrange
-      const mockCreateDatabase = vi.fn().mockResolvedValue(DatabaseMocks.Database)
+      const mockCreateDatabase = vi.fn().mockResolvedValue(mockDatabase)
       const mockRunMigrations = vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
 
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
@@ -520,8 +523,8 @@ describe('CatalystServiceMain', () => {
         getMigrationStatus: vi.fn().mockResolvedValue({ executed: [], pending: [], total: 0 }),
         rollbackMigrations: vi.fn().mockResolvedValue([]),
         DatabaseFactory: {
-          createElectronDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
-          createCustomDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
+          createElectronDB: vi.fn().mockReturnValue(mockDatabase),
+          createCustomDB: vi.fn().mockReturnValue(mockDatabase),
         }
       }))
 
@@ -538,7 +541,7 @@ describe('CatalystServiceMain', () => {
 
     it('should handle agent manager initialization failure', async () => {
       // Arrange
-      const mockCreateDatabase = vi.fn().mockResolvedValue(DatabaseMocks.Database)
+      const mockCreateDatabase = vi.fn().mockResolvedValue(mockDatabase)
       const mockRunMigrations = vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
 
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
@@ -547,8 +550,8 @@ describe('CatalystServiceMain', () => {
         getMigrationStatus: vi.fn().mockResolvedValue({ executed: [], pending: [], total: 0 }),
         rollbackMigrations: vi.fn().mockResolvedValue([]),
         DatabaseFactory: {
-          createElectronDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
-          createCustomDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
+          createElectronDB: vi.fn().mockReturnValue(mockDatabase),
+          createCustomDB: vi.fn().mockReturnValue(mockDatabase),
         }
       }))
 
@@ -569,7 +572,7 @@ describe('CatalystServiceMain', () => {
       // Arrange
       const mockCreateDatabase = vi.fn().mockImplementation(async () => {
         await new Promise(resolve => setTimeout(resolve, 50))
-        return DatabaseMocks.Database
+        return mockDatabase
       })
       const mockRunMigrations = vi.fn().mockImplementation(async () => {
         await new Promise(resolve => setTimeout(resolve, 30))
@@ -582,8 +585,8 @@ describe('CatalystServiceMain', () => {
         getMigrationStatus: vi.fn().mockResolvedValue({ executed: [], pending: [], total: 0 }),
         rollbackMigrations: vi.fn().mockResolvedValue([]),
         DatabaseFactory: {
-          createElectronDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
-          createCustomDB: vi.fn().mockReturnValue(DatabaseMocks.Database),
+          createElectronDB: vi.fn().mockReturnValue(mockDatabase),
+          createCustomDB: vi.fn().mockReturnValue(mockDatabase),
         }
       }))
 
@@ -601,12 +604,12 @@ describe('CatalystServiceMain', () => {
     it('should complete health checks quickly', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
       await catalystService.initialize(mockMainWindow, mockWorkspacePath)
-      DatabaseMocks.Database.fetchOne.mockResolvedValue({ test: 1 })
+      mockDatabase.fetchOne.mockResolvedValue({ test: 1 })
 
       const performanceThreshold = 100 // ms
 
@@ -623,7 +626,7 @@ describe('CatalystServiceMain', () => {
     it('should handle concurrent service access efficiently', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -654,7 +657,7 @@ describe('CatalystServiceMain', () => {
     it('should initialize global catalyst service', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -669,7 +672,7 @@ describe('CatalystServiceMain', () => {
     it('should prevent multiple global service initialization', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -683,7 +686,7 @@ describe('CatalystServiceMain', () => {
     it('should dispose global catalyst service', async () => {
       // Arrange
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -713,7 +716,7 @@ describe('CatalystServiceMain', () => {
   describe('Integration with Other Services', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -745,7 +748,7 @@ describe('CatalystServiceMain', () => {
 
       // Assert
       expect(database).toBeDefined()
-      expect(database).toBe(DatabaseMocks.Database)
+      expect(database).toBe(mockDatabase)
     })
 
     it('should provide access to logging infrastructure', () => {
@@ -764,7 +767,7 @@ describe('CatalystServiceMain', () => {
   describe('Configuration Management', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 
@@ -794,7 +797,7 @@ describe('CatalystServiceMain', () => {
   describe('AsyncLocalStorage Integration', () => {
     beforeEach(async () => {
       vi.doMock('../../../src/main/services/database/kysely-database', () => ({
-        createDatabase: vi.fn().mockResolvedValue(DatabaseMocks.Database),
+        createDatabase: vi.fn().mockResolvedValue(mockDatabase),
         runMigrations: vi.fn().mockResolvedValue({ applied: 1, skipped: 0, failed: 0 })
       }))
 

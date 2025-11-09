@@ -1,19 +1,118 @@
 /**
- * Learning Catalyst Modules
+ * Shared Utilities Index
  *
- * Pure module definitions and barrel exports.
- * Each module manages its own lifecycle and dependencies.
+ * Centralized exports for all shared utilities across the Learning Catalyst application.
+ * Provides a clean import interface for performance optimization, type safety,
+ * and common patterns used throughout the application.
  */
 
-// Database modules - Note: LocalDatabaseModule has been deprecated
-// The new database implementation uses DatabaseFactory from src/main/services/database/kysely-database.ts
-// Database types are now available from src/main/services/database/kysely-schema.ts
-export type { Database } from '../../main/services/database/kysely-schema';
+// Performance Optimization Utilities
+export {
+  LRUCache,
+  PromiseCache,
+  PerformanceMonitor,
+  WeakReference,
+  MemoryPool,
+  Debounced,
+  Throttled,
+  memoizeAsync,
+  EventBatcher,
+  OptimizedScrollHandler
+} from './performance-utils';
 
-// Knowledge graph modules
+// Performance Monitoring
+export {
+  AppPerformanceMonitor,
+  appPerformanceMonitor,
+  type PerformanceTrend,
+  type PerformanceBottleneck,
+  type MemoryStats
+} from './performance-monitor';
+
+// Optimization Patterns
+export {
+  DataProcessor,
+  StreamProcessor,
+  MultiLevelCache,
+  RequestDeduplicator,
+  CircuitBreaker,
+  MemoryEfficientQueue,
+  createRetryPolicy
+} from './optimization-patterns';
+
+// Type Utilities
+export {
+  createServiceClient,
+  ServiceMethodError,
+  createTypeGuard,
+  createUnionGuard,
+  createIntersectionGuard,
+  brand,
+  isBranded,
+  createTimeoutPromise,
+  withTimeout,
+  retryAsync,
+  createTypedEventEmitter,
+  createTypeSafeCache,
+  createPerformanceMonitor,
+  type ExtractPromiseType,
+  type ExtractArrayElement,
+  type ServiceMethod,
+  type ServiceReturn,
+  type ServiceParams,
+  type DeepPartial,
+  type DeepRequired,
+  type Branded,
+  type ID,
+  type Email,
+  type URL,
+  type Timestamp,
+  type Percentage,
+  type TypedEventEmitter,
+  type CacheEntry,
+  type TypeSafeCache,
+  type PerformanceMetrics
+} from './type-utils';
+
+// IPC Types
+export type {
+  IPCRequest,
+  IPCResponse,
+  ServiceError,
+  IPCHandler,
+  BatchIPCRequest,
+  BatchIPCResponse,
+  StreamingIPCRequest,
+  IPCEvent,
+  RequestContext,
+  ContextualIPCRequest,
+  ResponseMetadata,
+  IPCServiceRegistry,
+  RegistryStats,
+  IPCEventEmitter,
+  IPCChannelConfig,
+  IPCChannelOptions,
+  RateLimitOptions,
+  IPCMiddleware,
+  ServiceHealthCheck,
+  ValidationOptions,
+  IPCHandlerOptions,
+  StreamOptions
+} from '../types/ipc/base-types';
+
+// IPC Utility Functions
+export {
+  isSuccessResponse,
+  isErrorResponse,
+  createSuccessResponse,
+  createErrorResponse,
+  createServiceError
+} from '../types/ipc/base-types';
+
+// Knowledge graph modules (legacy)
 export { KnowledgeGraphModule } from './knowledge-graph';
 
-// Module type definitions for convenience
+// Module type definitions for convenience (legacy)
 export type {
   Concept,
   Relationship,

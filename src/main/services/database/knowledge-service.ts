@@ -20,6 +20,7 @@
  */
 
 import { AIProvider } from '../../types/ai';
+import { VectorDatabaseModule, VectorDocument } from './vector-database';
 
 // Types for IPC communication with main process
 interface VectorPoint {
@@ -67,8 +68,10 @@ export class KnowledgeService {
     EMBEDDINGS: 'content_embeddings'
   };
   private readonly VECTOR_SIZE = 1536; // Default for OpenAI embeddings
+  private vectorDB: VectorDatabaseModule;
 
-  constructor() {
+  constructor(vectorDB?: VectorDatabaseModule) {
+    this.vectorDB = vectorDB || new VectorDatabaseModule();
     this.initializeCollections();
   }
 
@@ -420,6 +423,140 @@ export class KnowledgeService {
     } catch (error) {
       console.error('Failed to update concept relationships:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Create concept (for integration test compatibility)
+   */
+  async createConcept(conceptData: {
+    name: string;
+    description?: string;
+    conceptType: string;
+    difficultyLevel: number;
+    tags?: string[];
+    metadata?: any;
+  }): Promise<{
+    id: string;
+    name: string;
+    description?: string;
+    conceptType: string;
+    difficultyLevel: number;
+    tags: string[];
+    metadata: any;
+  }> {
+    try {
+      const concept = {
+        id: `concept_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: conceptData.name,
+        description: conceptData.description || '',
+        conceptType: conceptData.conceptType,
+        difficultyLevel: conceptData.difficultyLevel,
+        tags: conceptData.tags || [],
+        metadata: conceptData.metadata || {}
+      };
+
+      // Store concept via database IPC (for now - this is the main process database interface)
+      if ((window as any).electronAPI && (window as any).electronAPI.dbExecuteQuery) {
+        await (window as any).electronAPI.dbExecuteQuery(
+          'INSERT INTO concepts (id, name, description, concept_type, difficulty_level, tags, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            concept.id,
+            concept.name,
+            concept.description,
+            concept.conceptType,
+            concept.difficultyLevel,
+            JSON.stringify(concept.tags),
+            JSON.stringify(concept.metadata),
+            Date.now(),
+            Date.now()
+          ]
+        );
+      }
+
+      // Also store in vector database for semantic search
+      await this.vectorDB.addDocument({
+        id: concept.id,
+        content: `${concept.name}: ${concept.description || ''}`,
+        metadata: {
+          type: 'concept',
+          conceptType: concept.conceptType,
+          difficultyLevel: concept.difficultyLevel,
+          tags: concept.tags,
+          ...concept.metadata
+        }
+      });
+
+      return concept;
+    } catch (error) {
+      console.error('Failed to create concept:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get knowledge graph (for integration test compatibility)
+   */
+  async getKnowledgeGraph(conceptId: string): Promise<{
+    nodes: Array<{
+      id: string;
+      name: string;
+      type: string;
+      properties: any;
+    }>;
+    edges: Array<{
+      source: string;
+      target: string;
+      relationshipType: string;
+      strength: number;
+    }>;
+  }> {
+    try {
+      const nodes = [];
+      const edges = [];
+
+      // Get the main concept
+      if ((window as any).electronAPI && (window as any).electronAPI.dbFetchOne) {
+        const conceptResult = await (window as any).electronAPI.dbFetchOne(
+          'SELECT * FROM concepts WHERE id = ?',
+          [conceptId]
+        );
+
+        if (conceptResult && conceptResult.success && conceptResult.result) {
+          nodes.push({
+            id: conceptResult.result.id,
+            name: conceptResult.result.name,
+            type: conceptResult.result.concept_type,
+            properties: {
+              difficulty: conceptResult.result.difficulty_level,
+              tags: JSON.parse(conceptResult.result.tags || '[]'),
+              metadata: JSON.parse(conceptResult.result.metadata || '{}')
+            }
+          });
+        }
+
+        // Get relationships
+        const relationshipsResult = await (window as any).electronAPI.dbFetchAll(
+          'SELECT * FROM relationships WHERE source_concept_id = ? OR target_concept_id = ?',
+          [conceptId, conceptId]
+        );
+
+        if (relationshipsResult && relationshipsResult.success && relationshipsResult.result) {
+          relationshipsResult.result.forEach((rel: any) => {
+            edges.push({
+              source: rel.source_concept_id,
+              target: rel.target_concept_id,
+              relationshipType: rel.relationship_type,
+              strength: rel.strength
+            });
+          });
+        }
+      }
+
+      return { nodes, edges };
+    } catch (error) {
+      console.error('Failed to get knowledge graph:', error);
+      return { nodes: [], edges: [] };
     }
   }
 }

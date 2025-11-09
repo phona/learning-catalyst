@@ -13,7 +13,7 @@ import { AIProvider } from '@/shared/types/ai';
 import { Concept, ProposedRelationship } from '@/shared/types/concept-parsing';
 import { ToolExecutorService } from './tool-executor';
 import { AgentManagerMain } from './agents/agent-manager';
-import { SessionServiceMain } from './session/session-service';
+import { SessionService } from './session/session-service';
 import { ServiceConfigManager } from './config';
 import { LoggerFactory } from './logger';
 import { MainThreadServiceRegistry } from './registry';
@@ -85,7 +85,8 @@ export interface AgentExecutionRequest {
 }
 
 export interface AgentExecutionChunk {
-  readonly type: 'start' | 'progress' | 'tool-call' | 'tool-result' | 'data' | 'error' | 'complete';
+  readonly type: 'error' | 'data' | 'start' | 'progress' | 'complete' | 'tool-call' | 'tool-result' |
+       'workflow_start' | 'workflow_complete' | 'workflow_error' | 'step_start' | 'step_complete' | 'step_retry';
   readonly content: any;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
@@ -126,7 +127,7 @@ export interface CatalystServiceDependencies {
   readonly database: Database;
   readonly toolExecutor: ToolExecutorService;
   readonly agentManager: AgentManagerMain;
-  readonly sessionService: SessionServiceMain;
+  readonly sessionService: SessionService;
   readonly config: ServiceConfigManager;
   readonly loggerFactory: LoggerFactory;
   readonly logger: ServiceLogger;

@@ -38,10 +38,21 @@ export default defineConfig(({ command }) => {
     },
     plugins: [
       react({
-        // Minimal configuration to avoid preamble detection issues
+        // Explicit JSX runtime configuration to avoid preamble detection issues
+        jsxRuntime: 'automatic',
         jsxImportSource: undefined,
         include: '**/*.{jsx,tsx}',
-        exclude: ['node_modules', '**/node_modules/**']
+        exclude: ['node_modules', '**/node_modules/**'],
+        // Add Babel configuration to handle semicolon imports correctly
+        babel: {
+          presets: [
+            ['@babel/preset-react', {
+              runtime: 'automatic',
+              development: isServe,
+              importSource: undefined
+            }]
+          ]
+        }
       }),
       // Node.js polyfills for LangChain compatibility
       nodePolyfills({
@@ -124,7 +135,7 @@ export default defineConfig(({ command }) => {
                 ],
                 output: {
                   format: 'cjs',
-                  entryFileNames: '[name].js'
+                  entryFileNames: '[name].cjs'
                 }
               },
             },

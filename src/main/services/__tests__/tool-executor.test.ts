@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ToolExecutorService, BuiltinTools } from '@/main/services/tool-executor';
 import { LoggerFactory } from '@/main/services/logger';
 import { ServiceConfigManager } from '@/main/services/config';
-import { TestUtils, mockDatabase } from '../setup';
+import { TestUtils, createMockDatabase } from '@/test/setup/main-process/setup';
 
 // Mock fs/promises to avoid import issues
 const mockFs = {
@@ -49,10 +49,12 @@ describe('ToolExecutorService', () => {
     mockFs.readFile.mockResolvedValue('Default test content');
     mockFs.exists.mockResolvedValue(true);
 
+    const mockDb = createMockDatabase();
+
     // Reset database mocks
-    mockDatabase.fetchAll = vi.fn().mockResolvedValue([]);
-    mockDatabase.fetchOne = vi.fn().mockResolvedValue(null);
-    mockDatabase.executeQuery = vi.fn().mockResolvedValue([]);
+    mockDb.fetchAll = vi.fn().mockResolvedValue([]);
+    mockDb.fetchOne = vi.fn().mockResolvedValue(null);
+    mockDb.executeQuery = vi.fn().mockResolvedValue([]);
 
     // Set up test dependencies
     const loggerFactory = LoggerFactory.getInstance();
@@ -61,7 +63,7 @@ describe('ToolExecutorService', () => {
     const als = loggerFactory.getAsyncLocalStorage();
 
     mockDependencies = {
-      database: mockDatabase,
+      database: mockDb,
       als,
       logger,
       config: config.getConfig()
@@ -143,8 +145,8 @@ describe('ToolExecutorService', () => {
       };
 
       // Mock database to return a result
-      mockDatabase.fetchAll = vi.fn().mockResolvedValue([{ test: 1 }]);
-      mockDatabase.fetchOne = vi.fn().mockResolvedValue(null);
+      mockDependencies.database.fetchAll = vi.fn().mockResolvedValue([{ test: 1 }]);
+      mockDependencies.database.fetchOne = vi.fn().mockResolvedValue(null);
 
       const result = await toolExecutor.executeTool(request);
 

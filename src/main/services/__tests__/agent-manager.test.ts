@@ -10,7 +10,7 @@ import { AgentManagerMain } from '@/main/services/agents/agent-manager';
 import { ToolExecutorService } from '@/main/services/tool-executor';
 import { LoggerFactory } from '@/main/services/logger';
 import { ServiceConfigManager } from '@/main/services/config';
-import { TestUtils, mockDatabase } from '../setup';
+import { TestUtils, mockElectron, createMockDatabase } from '@/test/setup/main-process/setup';
 
 
 // Mock the LangChainProviderAdapter
@@ -52,7 +52,7 @@ describe('AgentManagerMain', () => {
     const als = loggerFactory.getAsyncLocalStorage();
 
     mockDependencies = {
-      database: mockDatabase,
+      database: createMockDatabase(),
       als,
       logger,
       config: config.getConfig()

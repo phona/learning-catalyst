@@ -7,11 +7,72 @@
 
 import { useState, useEffect, useContext, createContext, ReactNode } from 'react';
 import {
-  createServiceContainer,
-  ServiceContainer,
-  ServiceContainerManager,
-  type ServiceContainerOptions
-} from '@/shared/utils/container';
+  rendererServiceContainer
+} from '@/renderer/services/ServiceContainer';
+
+// Define local interfaces since they're not exported from shared container
+export interface ServiceContainer {
+  database: any;
+  analytics: any;
+  knowledgeGraph: any;
+  vectorDatabase: any;
+  sessionService: any;
+  conceptParsing: any;
+  contentDiscovery: any;
+  agentManager: any;
+  configService: any;
+}
+
+export interface ServiceContainerOptions {
+  config?: any;
+  enableMockMode?: boolean;
+  timeout?: number;
+}
+
+// Simple ServiceContainerManager implementation
+export class ServiceContainerManager {
+  private container: ServiceContainer | null = null;
+
+  getCurrentContainer(): ServiceContainer | null {
+    return this.container;
+  }
+
+  isInitialized(): boolean {
+    return this.container !== null;
+  }
+
+  async getContainer(options?: ServiceContainerOptions): Promise<ServiceContainer> {
+    if (!this.container) {
+      this.container = {
+        database: null,
+        analytics: rendererServiceContainer.get('analyticsService'),
+        knowledgeGraph: null,
+        vectorDatabase: null,
+        sessionService: rendererServiceContainer.get('sessionService'),
+        conceptParsing: null,
+        contentDiscovery: null,
+        agentManager: null,
+        configService: null,
+      };
+    }
+    return this.container;
+  }
+}
+
+// Create service container function
+function createServiceContainer(options?: ServiceContainerOptions): ServiceContainer {
+  return {
+    database: null,
+    analytics: rendererServiceContainer.get('analyticsService'),
+    knowledgeGraph: null,
+    vectorDatabase: null,
+    sessionService: rendererServiceContainer.get('sessionService'),
+    conceptParsing: null,
+    contentDiscovery: null,
+    agentManager: null,
+    configService: null,
+  };
+}
 import { LoadingScreen } from '../components/UI/LoadingScreen';
 
 // Context for providing services to the component tree

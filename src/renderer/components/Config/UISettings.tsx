@@ -20,11 +20,13 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
               Theme
             </label>
             <select
+              id="theme-selector"
               value={config.ui.theme}
               onChange={(e) => onConfigChange({
                 ui: { ...config.ui, theme: e.target.value as any }
               })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              aria-label="Theme"
             >
               <option value="light">Light</option>
               <option value="dark">Dark</option>
@@ -37,11 +39,13 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
               Font Size
             </label>
             <select
+              id="font-size-selector"
               value={config.ui.font_size}
               onChange={(e) => onConfigChange({
                 ui: { ...config.ui, font_size: e.target.value as any }
               })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              aria-label="Font Size"
             >
               <option value="small">Small</option>
               <option value="medium">Medium</option>
@@ -64,6 +68,10 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
                   <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
                 </div>
                 <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config.ui[key as keyof typeof config.ui]}
+                  aria-label={label}
                   onClick={() => onConfigChange({
                     ui: { ...config.ui, [key]: !config.ui[key as keyof typeof config.ui] }
                   })}
@@ -75,6 +83,7 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       config.ui[key as keyof typeof config.ui] ? 'translate-x-6' : 'translate-x-1'
                     }`}
+                    aria-hidden="true"
                   />
                 </button>
               </div>

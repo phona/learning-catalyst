@@ -14,7 +14,7 @@ import { LoggerFactory } from '../logger';
 import { ServiceConfigManager } from '../config';
 import { ToolExecutorService } from '../tool-executor';
 import { AgentManagerMain } from '../agents/agent-manager';
-import { SessionServiceMain } from '../session/session-service';
+import { SessionService } from '../session/session-service';
 import { Database, createDatabase, runMigrations } from '../database/kysely-database';
 
 /**
@@ -29,7 +29,7 @@ export class CatalystServiceMain {
   private database: Database | null = null;
   private toolExecutor: ToolExecutorService | null = null;
   private agentManager: AgentManagerMain | null = null;
-  private sessionService: SessionServiceMain | null = null;
+  private sessionService: SessionService | null = null;
   private initialized = false;
   private disposed = false;
 
@@ -211,7 +211,7 @@ export class CatalystServiceMain {
     }
 
     // Create session service
-    this.sessionService = new SessionServiceMain({
+    this.sessionService = new SessionService({
       database: this.database,
       logger: this.logger,
       als: this.als

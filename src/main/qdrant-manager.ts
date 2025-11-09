@@ -23,7 +23,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import axios from 'axios';
 
-// For CommonJS compatibility, use __dirname directly if available, otherwise calculate it
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Inline Qdrant service for main process

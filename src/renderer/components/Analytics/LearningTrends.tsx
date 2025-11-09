@@ -41,7 +41,7 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
   }, [analytics, selectedPeriod]);
 
   const formatTime = (minutes: number) => {
-    if (minutes < 60) return `${minutes}m`;
+    if (minutes <= 60) return `${minutes}m`;
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
@@ -67,19 +67,19 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
     switch (direction) {
       case 'up':
         return (
-          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Trending up">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
           </svg>
         );
       case 'down':
         return (
-          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Trending down">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
           </svg>
         );
       default:
         return (
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Stable trend">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
           </svg>
         );
@@ -90,7 +90,8 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
     return (
       <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
+          <span className="text-gray-600 dark:text-gray-400" aria-live="polite">Loading trends...</span>
         </div>
       </div>
     );
@@ -149,7 +150,7 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-blue-600 dark:text-blue-400 mb-1">Avg Daily Study</div>
-              <div className="text-xl font-bold text-blue-900 dark:text-blue-100">
+              <div className="text-xl font-bold text-blue-900 dark:text-blue-100" data-testid="avg-study-time">
                 {formatTime(getAverageStudyTime)}
               </div>
             </div>
@@ -161,7 +162,7 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-green-600 dark:text-green-400 mb-1">Mastery Trend</div>
-              <div className="text-xl font-bold text-green-900 dark:text-green-100">
+              <div className="text-xl font-bold text-green-900 dark:text-green-100" data-testid="mastery-trend">
                 {trends.masteryProgress.length > 0
                   ? Math.round(trends.masteryProgress[trends.masteryProgress.length - 1].avgMastery * 100) / 100
                   : 0}
@@ -175,7 +176,7 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-purple-600 dark:text-purple-400 mb-1">Total Sessions</div>
-              <div className="text-xl font-bold text-purple-900 dark:text-purple-100">
+              <div className="text-xl font-bold text-purple-900 dark:text-purple-100" data-testid="total-sessions">
                 {Object.values(trends.sessionTypes).reduce((sum, count) => sum + count, 0)}
               </div>
             </div>
@@ -217,9 +218,9 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
               <div key={day.date} className="flex items-center justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">
                   {new Date(day.date).toLocaleDateString('en-US', {
-                    weekday: 'short',
                     month: 'short',
-                    day: 'numeric'
+                    day: 'numeric',
+                    year: 'numeric'
                   })}
                 </span>
                 <span className="text-gray-900 dark:text-gray-100 font-medium">
@@ -228,6 +229,13 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Show no data message when all sections are empty */}
+      {!trends.dailyStudyTime.length && !trends.masteryProgress.length && !Object.keys(trends.sessionTypes).length && (
+        <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
+          <p>No trend data available</p>
         </div>
       )}
     </div>

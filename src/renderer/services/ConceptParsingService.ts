@@ -30,17 +30,7 @@ import type { Session } from '@/shared/types/session';
 import type { AppConfig } from '@/shared/types/config';
 import type { ConfigService } from '@/renderer/services/configService';
 
-// Import the concept parsing module
-import {
-  createConceptPipeline,
-  extractConceptsFromContent,
-  ConceptProcessingPipeline,
-  type PipelineConfig,
-  type ProcessingOptions,
-  type PipelineResult
-} from '@/main/services/concept-parsing';
-import { LangChainModelFactory } from '@/main/services/concept-parsing/langchain-adapter';
-import type { AIProvider } from '@/shared/types/ai';
+// No main process imports - using high-level API instead
 
 export interface ParsingOptions {
   confidenceThreshold: number;
@@ -68,7 +58,6 @@ export interface FileParsingResult {
 
 export class ConceptParsingService {
   private activeJobs: Map<string, ParsingJob> = new Map();
-  private pipeline: ConceptProcessingPipeline | null = null;
   private readonly DEFAULT_OPTIONS: ParsingOptions = {
     confidenceThreshold: 0.6,
     maxConceptsPerFile: 50,
@@ -78,56 +67,10 @@ export class ConceptParsingService {
   };
 
   constructor(
-    private readonly agentManager: AgentManager,
     private readonly configService: ConfigService
   ) {}
 
-  /**
-   * Initialize the concept parsing pipeline
-   */
-  private async initializePipeline(options: ParsingOptions): Promise<void> {
-    if (this.pipeline) {
-      return; // Already initialized
-    }
-
-    const globalConfig = await this.getGlobalAIConfig();
-
-    const pipelineConfig: Partial<PipelineConfig> = {
-      enableAIExtraction: true, // Always use AI
-      enableRuleExtraction: false, // Remove rule-based extraction
-      enableDeduplication: true,
-      enableValidation: true,
-      aiConfidenceThreshold: options.confidenceThreshold,
-      maxConceptsPerDocument: options.maxConceptsPerFile,
-      enableParallelProcessing: true,
-      maxConcurrency: 3,
-      timeout: 300000
-    };
-
-    try {
-      await this.ensureAIProviderInitialized();
-      const providerInfo = await this.agentManager.getProviderInfo();
-
-      if (providerInfo) {
-          console.log(`Creating concept pipeline with global AI config: Provider: ${providerInfo.type} | Model: ${globalConfig.model} | Temperature: ${globalConfig.temperature} | Max Tokens: ${globalConfig.maxTokens}`);
-
-          // Create LangChain adapter for the AI provider using electronAPI
-          const adapter = await window.electronAPI.ai.createModelAdapter({
-              type: providerInfo.type,
-              model: globalConfig.model,
-              temperature: globalConfig.temperature,
-              max_tokens: globalConfig.maxTokens
-          });
-
-          this.pipeline = new ConceptProcessingPipeline([adapter], pipelineConfig);
-        } else {
-          throw new Error('AI provider not initialized');
-        }
-    } catch (error) {
-      console.error('Failed to initialize AI pipeline:', error);
-      throw new Error(`AI provider initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please configure AI provider in settings.`);
-    }
-  }
+  // No pipeline initialization needed - using high-level knowledge API
 
   /**
    * Parse local markdown files to extract concepts
@@ -195,13 +138,6 @@ export class ConceptParsingService {
       job.status = 'processing';
       await this.updateJobProgress(job, 0.05, 'Starting file collection...');
 
-      // Always validate AI provider since we only support AI extraction
-      await this.updateJobProgress(job, 0.07, 'Validating AI provider...');
-      const providerInfo = await this.agentManager.getProviderInfo();
-      if (!providerInfo) {
-        throw new Error('AI provider not configured. Please configure an AI provider in Settings > AI Providers.');
-      }
-
       // Collect all files to process
       await this.updateJobProgress(job, 0.1, 'Collecting files...');
       const allFiles = await this.collectFiles(request);
@@ -210,40 +146,46 @@ export class ConceptParsingService {
         throw new Error('No valid markdown files found to parse. Please check that selected files exist and contain markdown content.');
       }
 
-      await this.updateJobProgress(job, 0.15, `Found ${allFiles.length} files to process`);
+      await this.updateJobProgress(job, 0.2, `Found ${allFiles.length} files to process`);
 
       // Pre-validate files
-      await this.updateJobProgress(job, 0.2, 'Validating files...');
+      await this.updateJobProgress(job, 0.3, 'Validating files...');
       const validFiles = await this.preValidateFiles(allFiles);
 
       if (validFiles.length === 0) {
         throw new Error('No files passed validation. Files may be empty, unreadable, or not contain markdown content.');
       }
 
-      // Process files in batches
-      const results: FileParsingResult[] = [];
-      const batchSize = 3; // Smaller batch size for better progress tracking
-      let totalConceptsExtracted = 0;
-
-      for (let i = 0; i < validFiles.length; i += batchSize) {
-        const batch = validFiles.slice(i, i + batchSize);
-
-        await this.updateJobProgress(job, 0.2 + (i / validFiles.length) * 0.7,
-          `Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(validFiles.length/batchSize)} (${i}/${validFiles.length} files)...`);
-
-        const batchResults = await this.processFileBatch(batch, request.options);
-        results.push(...batchResults);
-
-        // Count concepts extracted so far
-        totalConceptsExtracted += batchResults.reduce((sum, result) => sum + result.concepts.length, 0);
-
-        await this.updateJobProgress(job, 0.2 + ((i + batch.length) / validFiles.length) * 0.7,
-          `Processed ${i + batch.length}/${validFiles.length} files, ${totalConceptsExtracted} concepts found...`);
+      // Prepare files for API call
+      await this.updateJobProgress(job, 0.4, 'Reading file contents...');
+      const filesForAPI = [];
+      for (const filePath of validFiles) {
+        const content = await window.electronAPI.readFile(filePath);
+        const fileName = filePath.split(/[\/\\]/).pop() || '';
+        filesForAPI.push({
+          fileName,
+          filePath,
+          content,
+          title: fileName.replace(/\.(md|markdown)$/, '').replace(/[-_]/g, ' ')
+        });
       }
 
-      // Compile final results
-      await this.updateJobProgress(job, 0.9, 'Compiling results...');
-      const parsingResult = await this.compileResults(results, request);
+      // Call knowledge API for concept parsing
+      await this.updateJobProgress(job, 0.5, 'Extracting concepts using AI...');
+
+      const parsingResult = await window.electronAPI.knowledge.parseConcepts({
+        files: filesForAPI,
+        options: {
+          confidenceThreshold: request.options.confidenceThreshold,
+          maxConceptsPerFile: request.options.maxConceptsPerFile
+        }
+      });
+
+      if (!parsingResult.success) {
+        throw new Error(`Concept parsing failed: ${parsingResult.errors.join(', ')}`);
+      }
+
+      await this.updateJobProgress(job, 0.9, 'Finalizing results...');
 
       // Validate final results
       if (!parsingResult.concepts || parsingResult.concepts.length === 0) {
@@ -252,8 +194,39 @@ export class ConceptParsingService {
 
       await this.updateJobProgress(job, 0.95, `Finalizing: ${parsingResult.concepts.length} concepts extracted`);
 
+      // Convert API result to ParsingResult format
+      const finalResult = {
+        concepts: parsingResult.concepts.map(c => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          type: c.type,
+          confidence: c.confidence,
+          difficulty: c.difficulty,
+          evidence: c.evidence,
+          metadata: c.metadata
+        })),
+        relationships: parsingResult.relationships.map(r => ({
+          sourceId: r.sourceId,
+          targetId: r.targetId,
+          type: r.type,
+          strength: r.strength,
+          confidence: r.confidence,
+          description: r.description
+        })),
+        learningPath: this.generateBasicLearningPath(parsingResult.concepts),
+        assessments: [], // TODO: Implement assessment generation
+        statistics: parsingResult.statistics,
+        errors: parsingResult.errors.map((error, index) => ({
+          type: 'parsing' as const,
+          message: error,
+          severity: 'medium' as const,
+          timestamp: new Date()
+        }))
+      };
+
       // Complete job successfully
-      job.result = parsingResult;
+      job.result = finalResult;
       job.status = 'completed';
       job.progress = 1.0;
       job.completedAt = new Date();
@@ -377,223 +350,7 @@ export class ConceptParsingService {
     return markdownPatterns.some(pattern => pattern.test(content));
   }
 
-  private async processFileBatch(filePaths: string[], options: ParsingOptions): Promise<FileParsingResult[]> {
-    const results: FileParsingResult[] = [];
-
-    for (const filePath of filePaths) {
-      const startTime = Date.now();
-      try {
-        const result = await this.parseSingleFile(filePath, options);
-        results.push({
-          filePath,
-          success: true,
-          concepts: result.concepts,
-          relationships: result.relationships,
-          errors: [],
-          processingTime: Date.now() - startTime
-        });
-      } catch (error) {
-        results.push({
-          filePath,
-          success: false,
-          concepts: [],
-          relationships: [],
-          errors: [error instanceof Error ? error.message : 'Unknown error'],
-          processingTime: Date.now() - startTime
-        });
-      }
-    }
-
-    return results;
-  }
-
-  private async parseSingleFile(filePath: string, options: ParsingOptions): Promise<ParsingResult> {
-    try {
-      // Initialize pipeline if not already done
-      await this.initializePipeline(options);
-
-      if (!this.pipeline) {
-        throw new Error('Failed to initialize concept parsing pipeline');
-      }
-
-      // Read file content
-      const content = await window.electronAPI.readFile(filePath);
-      const fileName = filePath.split(/[\/\\]/).pop() || '';
-
-      // Create processing options for the module
-      const processingOptions: ProcessingOptions = {
-        materialId: `file_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
-        title: fileName,
-        content,
-        filePath,
-        format: 'markdown',
-        onProgress: (stage, progress) => {
-          // Progress tracking could be implemented here if needed
-          console.log(`Processing ${fileName}: ${stage.name} - ${Math.round(progress * 100)}%`);
-        }
-      };
-
-      // Use the concept parsing module
-      const pipelineResult: PipelineResult = await this.pipeline.processContent(processingOptions);
-
-      if (!pipelineResult.success) {
-        throw new Error(`Pipeline processing failed: ${pipelineResult.errors.map(e => e.message).join(', ')}`);
-      }
-
-      // Convert pipeline result to ParsingResult format
-      return {
-        concepts: pipelineResult.concepts,
-        relationships: pipelineResult.relationships,
-        learningPath: pipelineResult.material?.learningPath || this.generateBasicLearningPath(pipelineResult.concepts),
-        assessments: pipelineResult.material?.assessments || [],
-        statistics: pipelineResult.statistics,
-        errors: pipelineResult.errors.map(e => ({
-          type: e.type as any,
-          message: e.message,
-          severity: e.severity as any,
-          timestamp: e.timestamp
-        }))
-      };
-
-    } catch (error) {
-      throw new ConceptParsingError(
-        `Failed to parse file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'parsing',
-        filePath,
-        error instanceof Error ? error : undefined
-      );
-    }
-  }
-
-  /**
-   * Ensure AI provider is initialized with global configuration
-   */
-  private async ensureAIProviderInitialized(): Promise<void> {
-    const globalConfig = await this.getGlobalAIConfig();
-    const config = await this.configService.getConfig();
-
-    // Check if provider is already initialized and matches global config
-    const currentProviderInfo = await this.agentManager.getProviderInfo();
-    if (currentProviderInfo && currentProviderInfo.type === globalConfig.provider) {
-      console.log(`AI provider '${globalConfig.provider}' already initialized`);
-      return;
-    }
-
-    // Get provider configuration from global config
-    const providerConfig = config.ai.providers?.[globalConfig.provider as keyof typeof config.ai.providers];
-
-    try {
-      console.log(`AI provider '${globalConfig.provider}' configuration ready`);
-      // AgentManager handles model initialization automatically
-      console.log(`AI provider '${globalConfig.provider}' available through AgentManager`);
-    } catch (error) {
-      throw new Error(`Failed to prepare AI provider '${globalConfig.provider}': ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Navigate to settings page for AI configuration
-   */
-  public static navigateToSettings(): void {
-    window.location.hash = '/settings';
-  }
-
-  /**
-   * Get global AI configuration for concept parsing
-   */
-  private async getGlobalAIConfig(): Promise<{
-    provider: string;
-    model: string;
-    temperature: number;
-    maxTokens: number;
-    enableThinking: boolean;
-  }> {
-    // Get current config from configService
-    const config = await this.configService.getConfig();
-
-    if (!config?.ai) {
-      throw new Error('AI configuration is required but not available');
-    }
-
-    const chatConfig = config.ai.model_types.chat;
-    const globalConfig = {
-      provider: chatConfig.default_provider,
-      model: chatConfig.default_model,
-      temperature: chatConfig.settings.temperature || 0.7,
-      maxTokens: chatConfig.settings.max_tokens || 2000,
-      enableThinking: chatConfig.capabilities.thinking || false
-    };
-
-    // Validate that all required fields are present
-    if (!globalConfig.provider || !globalConfig.model) {
-      throw new Error('Incomplete AI configuration provided to ConceptParsingService');
-    }
-
-    console.log('Global AI Config:', `${globalConfig.provider}/${globalConfig.model}`);
-    console.log('Full global AI config details:', globalConfig);
-
-    return globalConfig;
-  }
-
-  private async compileResults(results: FileParsingResult[], request: FileParsingRequest): Promise<ParsingResult> {
-    const allConcepts: Concept[] = [];
-    const allRelationships: ProposedRelationship[] = [];
-    const allErrors: string[] = [];
-    let totalProcessingTime = 0;
-
-    // Aggregate results
-    for (const result of results) {
-      if (result.success) {
-        allConcepts.push(...result.concepts);
-        allRelationships.push(...result.relationships);
-      } else {
-        allErrors.push(...result.errors);
-      }
-      totalProcessingTime += result.processingTime;
-    }
-
-    // Remove duplicate concepts (by name)
-    const uniqueConcepts = this.deduplicateConcepts(allConcepts);
-
-    // Generate statistics
-    const statistics: ParsingStatistics = {
-      totalConcepts: allConcepts.length,
-      validConcepts: uniqueConcepts.length,
-      totalRelationships: allRelationships.length,
-      confidenceDistribution: this.calculateConfidenceDistribution(uniqueConcepts),
-      difficultyDistribution: this.calculateDifficultyDistribution(uniqueConcepts),
-      typeDistribution: this.calculateTypeDistribution(uniqueConcepts),
-      processingTime: totalProcessingTime,
-      modelUsage: true ? { 'AI': results.length } : {}
-    };
-
-    return {
-      concepts: uniqueConcepts,
-      relationships: allRelationships,
-      learningPath: this.generateBasicLearningPath(uniqueConcepts),
-      assessments: [], // TODO: Implement assessment generation
-      statistics,
-      errors: allErrors.map((error, index) => ({
-        type: 'parsing' as const,
-        message: error,
-        severity: 'medium' as const,
-        timestamp: new Date()
-      }))
-    };
-  }
-
-  private deduplicateConcepts(concepts: Concept[]): Concept[] {
-    const seen = new Map<string, Concept>();
-
-    for (const concept of concepts) {
-      const key = concept.name.toLowerCase();
-      if (!seen.has(key) || concept.confidence > seen.get(key)!.confidence) {
-        seen.set(key, concept);
-      }
-    }
-
-    return Array.from(seen.values());
-  }
+  // Unused methods removed - using knowledge API instead
 
   private generateBasicLearningPath(concepts: Concept[]): any {
     // Use the concept parsing module's learning path generation

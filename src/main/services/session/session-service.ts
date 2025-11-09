@@ -76,7 +76,7 @@ export interface SessionSearchResult {
 /**
  * Main process session service
  */
-export class SessionServiceMain {
+export class SessionService {
   private database: Database;
   private logger: any;
   private als: AsyncLocalStorage<any>;
@@ -158,7 +158,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to create session: ${(error as Error).message}`,
           'SESSION_CREATE_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -240,7 +240,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to get session: ${(error as Error).message}`,
           'SESSION_GET_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -266,7 +266,7 @@ export class SessionServiceMain {
           throw new ServiceError(
             'Session not found',
             'SESSION_NOT_FOUND',
-            'SessionServiceMain'
+            'SessionService'
           );
         }
 
@@ -307,7 +307,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to update session: ${(error as Error).message}`,
           'SESSION_UPDATE_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -333,7 +333,7 @@ export class SessionServiceMain {
           throw new ServiceError(
             'Session not found',
             'SESSION_NOT_FOUND',
-            'SessionServiceMain'
+            'SessionService'
           );
         }
 
@@ -355,7 +355,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to update session title: ${(error as Error).message}`,
           'SESSION_TITLE_UPDATE_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -416,7 +416,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to get recent sessions: ${(error as Error).message}`,
           'SESSION_RECENT_GET_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -523,7 +523,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to search sessions: ${(error as Error).message}`,
           'SESSION_SEARCH_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -559,7 +559,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to delete session: ${(error as Error).message}`,
           'SESSION_DELETE_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -585,7 +585,7 @@ export class SessionServiceMain {
           throw new ServiceError(
             'Session not found',
             'SESSION_NOT_FOUND',
-            'SessionServiceMain'
+            'SessionService'
           );
         }
 
@@ -638,7 +638,7 @@ export class SessionServiceMain {
         throw new ServiceError(
           `Failed to save message: ${(error as Error).message}`,
           'MESSAGE_SAVE_FAILED',
-          'SessionServiceMain',
+          'SessionService',
           undefined,
           error as Error
         );
@@ -691,6 +691,115 @@ export class SessionServiceMain {
     };
 
     return this.als.run(context, fn);
+  }
+
+  /**
+   * Transform session to display format
+   */
+  transformToDisplaySession(session: any): any {
+    // Transform complex session object to display-optimized format
+    return {
+      id: session.id,
+      title: session.title,
+      preview: this.generatePreview(session),
+      messageCount: session.messageCount || session.statistics?.totalMessages || 0,
+      lastActivity: this.formatRelativeTime(session.updated_at),
+      duration: this.formatDuration(session.statistics?.sessionDuration || 0),
+      difficulty: session.metadata?.difficulty || 'medium',
+      tags: session.metadata?.tags || [],
+      isActive: session.isActive || false,
+      hasUnreadMessages: (session.unreadCount || 0) > 0,
+      agentType: session.metadata?.agent_mode || 'single',
+      color: this.getAgentColor(session.metadata?.agent_mode || 'single'),
+      learningProgress: this.calculateLearningProgress(session),
+      masteryLevel: this.calculateMasteryLevel(session),
+      isBookmarked: session.metadata?.pinned || false,
+      isArchived: session.metadata?.archived || false,
+      ...session
+    };
+  }
+
+  /**
+   * Generate preview text for session
+   */
+  private generatePreview(session: any): string {
+    // Generate a preview of the session content
+    return session.description || 'Start a conversation to see a preview...';
+  }
+
+  /**
+   * Format relative time
+   */
+  private formatRelativeTime(date: Date | string): string {
+    const sessionDate = typeof date === 'string' ? new Date(date) : date;
+    const now = new Date();
+    const diffMs = now.getTime() - sessionDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)} hours ago`;
+    return `${Math.floor(diffMins / 1440)} days ago`;
+  }
+
+  /**
+   * Format duration
+   */
+  private formatDuration(milliseconds: number): string {
+    const minutes = Math.floor(milliseconds / 60000);
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  /**
+   * Get agent color based on agent type
+   */
+  private getAgentColor(agentType: string): string {
+    const colors = {
+      single: '#3B82F6',
+      orchestration: '#10B981',
+      collaborative: '#F59E0B',
+      learning: '#8B5CF6',
+      tutoring: '#10B981',
+      assessment: '#F59E0B',
+      practice: '#EF4444',
+      research: '#8B5CF6'
+    };
+    return colors[agentType] || '#6B7280';
+  }
+
+  /**
+   * Calculate learning progress for a session
+   */
+  private calculateLearningProgress(session: any): number {
+    // Calculate learning progress based on various metrics
+    const statistics = session.statistics || {};
+    const metadata = session.metadata || {};
+
+    // Factors: messages, concepts learned, duration, engagement
+    const messageScore = Math.min((statistics.totalMessages || 0) / 10, 1) * 0.3;
+    const conceptScore = Math.min((statistics.conceptsLearned || 0) / 5, 1) * 0.4;
+    const durationScore = Math.min((statistics.sessionDuration || 0) / (30 * 60 * 1000), 1) * 0.2; // 30 min max
+    const engagementScore = Math.min((statistics.engagementScore || 0) / 100, 1) * 0.1;
+
+    return Math.round((messageScore + conceptScore + durationScore + engagementScore) * 100);
+  }
+
+  /**
+   * Calculate mastery level for a session
+   */
+  private calculateMasteryLevel(session: any): number {
+    // Calculate mastery level based on performance metrics
+    const statistics = session.statistics || {};
+
+    // Factors: response time, success rate, concepts learned
+    const speedScore = Math.min(1, 30000 / Math.max(statistics.averageResponseTime || 1000, 1000)) * 0.3;
+    const conceptScore = Math.min((statistics.conceptsLearned || 0) / 10, 1) * 0.5;
+    const qualityScore = Math.min((statistics.productivityScore || 0) / 100, 1) * 0.2;
+
+    return Math.min(5, Math.round((speedScore + conceptScore + qualityScore) * 5));
   }
 
   /**

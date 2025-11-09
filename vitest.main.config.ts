@@ -1,8 +1,8 @@
 /**
- * Vitest Configuration for Main Thread Testing
+ * Vitest Configuration for Main Process Tests
  *
- * Separate configuration for testing main thread services with proper
- * environment setup, mocking, and test isolation.
+ * Optimized configuration for Node.js environment testing of main process services
+ * with comprehensive coverage reporting and performance monitoring.
  */
 
 import { defineConfig } from 'vitest/config';
@@ -10,73 +10,162 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    name: 'main-thread',
+    name: 'main-process',
     environment: 'node',
+    globals: true,
+
+    // Test discovery
     include: [
-      'src/main/**/__tests__/**/*.{test,spec}.{js,ts}',
-      'src/main/services/**/__tests__/**/*.{test,spec}.{js,ts}'
+      'src/main/**/*.test.ts',
+      'src/main/**/*.spec.ts',
+      'src/main/**/__tests__/**/*.{test,spec}.{js,ts}'
     ],
     exclude: [
       'node_modules',
       'dist',
       'src/renderer/**',
-      'src/**/__tests__/integration/**',
-      'src/**/__tests__/performance/**'
+      'src/shared/**/__tests__/integration/**',
+      'src/test/fixtures/**',
+      'src/test/mocks/**'
     ],
-    globals: true,
-    setupFiles: ['src/main/__tests__/setup.ts'],
+
+    // Test execution settings
     testTimeout: 30000, // 30 seconds for async operations
     hookTimeout: 10000,
+    bail: 5, // Stop after 5 test failures
+    retries: process.env.CI ? 2 : 0, // Retry flaky tests in CI
     isolate: true,
+    passWithNoTests: false,
+
+    // Concurrency configuration
     pool: 'threads',
     poolOptions: {
       threads: {
+        isolate: true,
         singleThread: false,
         minThreads: 1,
         maxThreads: 4
       }
     },
-    reporters: ['verbose'],
+
+    // File watching
+    watch: false,
+    watchExclude: [
+      'node_modules/**',
+      'dist/**',
+      'src/test/fixtures/**',
+      'src/test/mocks/**'
+    ],
+
+    // Setup files
+    setupFiles: [
+      './src/test/setup/main-process/setup.ts'
+    ],
+    globalSetup: [
+      './src/test/setup/main-process/global-setup.ts'
+    ],
+
+    // Reporting configuration
+    reporters: ['verbose', 'json', 'html'],
     outputFile: {
-      'junit': 'test-results/main-thread/junit.xml',
-      'json': 'test-results/main-thread/results.json'
+      json: 'test-results/main-process/results.json',
+      html: 'test-results/main-process/index.html',
+      junit: 'test-results/main-process/junit.xml'
     },
+
+    // Enhanced coverage configuration
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      reportsDirectory: 'coverage/main-thread',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      reportsDirectory: 'coverage/main-process',
       include: [
-        'src/main/services/**/*.{js,ts}',
-        'src/main/handlers/**/*.{js,ts}'
+        'src/main/**/*.{js,ts}',
+        'src/shared/modules/**/*.{js,ts}'
       ],
       exclude: [
-        '**/*.test.{js,ts}',
-        '**/*.spec.{js,ts}',
-        '**/node_modules/**',
-        '**/dist/**'
+        'src/main/**/*.test.{js,ts}',
+        'src/main/**/*.spec.{js,ts}',
+        'src/main/**/*.d.ts',
+        'src/main/index.ts', // Entry point tested separately
+        '**/__tests__/**',
+        '**/__mocks__/**',
+        'node_modules/**',
+        'dist/**'
       ],
       thresholds: {
         global: {
-          branches: 70,
-          functions: 75,
-          lines: 80,
-          statements: 80
+          branches: 80,
+          functions: 85,
+          lines: 85,
+          statements: 85
+        },
+        // Service-specific higher thresholds
+        'src/main/services/agents/': {
+          branches: 90,
+          functions: 90,
+          lines: 90,
+          statements: 90
+        },
+        'src/main/services/langchain/': {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85
+        },
+        'src/main/services/catalyst/': {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85
+        },
+        'src/main/services/database/': {
+          branches: 85,
+          functions: 85,
+          lines: 85,
+          statements: 85
         }
-      }
+      },
+      clean: true,
+      cleanOnRerun: true
+    },
+
+    // Performance and memory monitoring
+    logHeapUsage: true,
+    dangerouslyIgnoreUnhandledErrors: false,
+
+    // TypeScript checking
+    typecheck: {
+      enabled: true,
+      tsconfig: './tsconfig.json',
+      only: true
     }
   },
+
+  // Path resolution
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@/main': path.resolve(__dirname, './src/main'),
       '@/shared': path.resolve(__dirname, './src/shared'),
-      '@test': path.resolve(__dirname, './test')
+      '@/test': path.resolve(__dirname, './src/test')
     }
   },
+
+  // Environment variables
   define: {
-    'process.env.NODE_ENV': '"test"'
+    'process.env.NODE_ENV': '"test"',
+    __TEST__: 'true',
+    __MAIN_PROCESS__: 'true'
   },
+
+  // Build optimization for Node.js testing
   esbuild: {
-    target: 'node18'
+    target: 'node18',
+    format: 'esm'
+  },
+
+  // Optimize dependencies
+  optimizeDeps: {
+    disabled: true
   }
 });

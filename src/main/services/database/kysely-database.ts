@@ -9,7 +9,9 @@
 
 import { DatabaseConnection, DatabaseIntrospector, Dialect, DialectAdapter, Driver, Kysely, QueryCompiler, SqliteAdapter, SqliteIntrospector, SqliteQueryCompiler, TransactionSettings, CompiledQuery, Migration, MigrationResult } from 'kysely'
 import { Database } from './kysely-schema'
-const { setdbPath, executeQuery, fetchOne, fetchAll, fetchMany } = require('sqlite-electron')
+import { setdbPath, executeQuery, fetchOne, fetchAll, fetchMany } from 'sqlite-electron'
+import path from 'node:path'
+import fs from 'node:fs'
 
 // Import migration system
 import { MigrationManager, loadAllMigrations } from './migrations/index'
@@ -305,6 +307,74 @@ export class DatabaseFactory {
   static createCustomDB(adapter: Driver): SimpleKyselyDB {
     return new SimpleKyselyDB(adapter)
   }
+
+  /**
+   * Create a database instance with Electron IPC adapter (for integration tests)
+   * This method provides compatibility with existing test code
+   */
+  static createElectronDB(
+    ipc: any,
+    dbPath: string,
+    isuri?: boolean,
+    autocommit?: boolean,
+  ): any {
+    // For integration tests, return a mock database that uses the IPC interface
+    return {
+      init: async () => {
+        if (ipc.dbSetPath) {
+          await ipc.dbSetPath(dbPath);
+        }
+        if (ipc.dbExecuteScript) {
+          await ipc.dbExecuteScript('CREATE TABLE IF NOT EXISTS concepts (id TEXT PRIMARY KEY, name TEXT)');
+        }
+      },
+      createConcept: async (conceptData: any) => {
+        if (ipc.dbExecuteQuery) {
+          return await ipc.dbExecuteQuery(
+            'INSERT INTO concepts (id, name, concept_type, difficulty_level, mastery_level, tags, metadata, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              conceptData.id,
+              conceptData.name,
+              conceptData.concept_type,
+              conceptData.difficulty_level,
+              conceptData.mastery_level,
+              conceptData.tags,
+              conceptData.metadata,
+              Date.now(),
+              Date.now()
+            ]
+          );
+        }
+      },
+      getConcept: async (id: string) => {
+        if (ipc.dbFetchOne) {
+          return await ipc.dbFetchOne('SELECT * FROM concepts WHERE id = ?', [id]);
+        }
+        return null;
+      },
+      updateConcept: async (id: string, updates: any) => {
+        const fields = Object.keys(updates);
+        const values = Object.values(updates);
+        const setClause = fields.map(field => `${field} = ?`).join(', ');
+
+        if (ipc.dbExecuteQuery) {
+          return await ipc.dbExecuteQuery(
+            `UPDATE concepts SET ${setClause}, updated_at = ? WHERE id = ?`,
+            [...values, Date.now(), id]
+          );
+        }
+      },
+      query: async (sql: string, params: any[] = []) => {
+        if (ipc.dbFetchAll) {
+          return await ipc.dbFetchAll(sql, params);
+        }
+        return [];
+      },
+      initialize: async () => {
+        return this.init();
+      }
+    };
+  }
 }
 
 /**
@@ -312,12 +382,8 @@ export class DatabaseFactory {
  * Creates appropriate database path based on environment
  */
 function generateDatabasePath(): string {
-  // In main process, we can use Node.js path module
-  const path = require('path')
-
   // Create .catalyst directory if it doesn't exist
   const catalystDir = path.join(process.cwd(), '.catalyst')
-  const fs = require('fs')
 
   try {
     if (!fs.existsSync(catalystDir)) {

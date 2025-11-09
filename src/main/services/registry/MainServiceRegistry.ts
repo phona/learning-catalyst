@@ -1,0 +1,164 @@
+import { ServiceRegistry } from './ServiceRegistry';
+import { MAIN_SERVICE_TOKENS, ILogger, IEventBus } from './ServiceTokens';
+import { ElectronStoreConfigStorage } from '../config/ElectronStoreStorage';
+import { createConfigService } from '../configService';
+
+/**
+ * Main process service registry instance
+ * Provides centralized dependency injection for main process services
+ */
+class MainServiceRegistry extends ServiceRegistry {
+  private static instance: MainServiceRegistry | null = null;
+
+  private constructor() {
+    super();
+    this.initializeCoreServices();
+  }
+
+  /**
+   * Get singleton instance of main service registry
+   */
+  static getInstance(): MainServiceRegistry {
+    if (!MainServiceRegistry.instance) {
+      MainServiceRegistry.instance = new MainServiceRegistry();
+    }
+    return MainServiceRegistry.instance;
+  }
+
+  /**
+   * Initialize core services with proper dependency injection
+   */
+  private initializeCoreServices(): void {
+    // Configuration storage
+    this.register(
+      MAIN_SERVICE_TOKENS.CONFIG_STORAGE,
+      () => new ElectronStoreConfigStorage('learning-catalyst-main')
+    );
+
+    // Logger service (simple console implementation for now)
+    this.register(
+      MAIN_SERVICE_TOKENS.LOGGER,
+      () => new ConsoleLogger(),
+      true // singleton
+    );
+
+    // Event bus service (simple implementation for now)
+    this.register(
+      MAIN_SERVICE_TOKENS.EVENT_BUS,
+      () => new SimpleEventBus(),
+      true // singleton
+    );
+
+    // Configuration service with dependencies
+    this.register(
+      MAIN_SERVICE_TOKENS.CONFIG_SERVICE,
+      () => {
+        const storage = this.get(MAIN_SERVICE_TOKENS.CONFIG_STORAGE);
+        const logger = this.get(MAIN_SERVICE_TOKENS.LOGGER);
+        const eventBus = this.get(MAIN_SERVICE_TOKENS.EVENT_BUS);
+        return createConfigService(storage, logger, eventBus);
+      },
+      true // singleton
+    );
+  }
+
+  /**
+   * Initialize all registered services
+   * Call this during application startup
+   */
+  async initialize(): Promise<void> {
+    try {
+      // Initialize config service to load configuration
+      const configService = this.get(MAIN_SERVICE_TOKENS.CONFIG_SERVICE);
+      await configService.getConfig();
+
+      console.log('✅ Main service registry initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize main service registry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Dispose all services
+   * Call this during application shutdown
+   */
+  async dispose(): Promise<void> {
+    try {
+      // Clear all services
+      this.clear();
+      console.log('✅ Main service registry disposed successfully');
+    } catch (error) {
+      console.error('❌ Failed to dispose main service registry:', error);
+    }
+  }
+}
+
+/**
+ * Simple console logger implementation
+ */
+class ConsoleLogger implements ILogger {
+  debug(message: string, ...args: unknown[]): void {
+    console.debug(`[DEBUG] ${message}`, ...args);
+  }
+
+  info(message: string, ...args: unknown[]): void {
+    console.info(`[INFO] ${message}`, ...args);
+  }
+
+  warn(message: string, ...args: unknown[]): void {
+    console.warn(`[WARN] ${message}`, ...args);
+  }
+
+  error(message: string, error?: Error | unknown, ...args: unknown[]): void {
+    console.error(`[ERROR] ${message}`, error, ...args);
+  }
+}
+
+/**
+ * Simple event bus implementation
+ */
+class SimpleEventBus implements IEventBus {
+  private listeners = new Map<string, Set<(data?: unknown) => void>>();
+
+  emit(event: string, data?: unknown): void {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.forEach(listener => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    }
+  }
+
+  on(event: string, listener: (data?: unknown) => void): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(listener);
+  }
+
+  off(event: string, listener: (data?: unknown) => void): void {
+    const eventListeners = this.listeners.get(event);
+    if (eventListeners) {
+      eventListeners.delete(listener);
+      if (eventListeners.size === 0) {
+        this.listeners.delete(event);
+      }
+    }
+  }
+
+  once(event: string, listener: (data?: unknown) => void): void {
+    const onceListener = (data?: unknown) => {
+      listener(data);
+      this.off(event, onceListener);
+    };
+    this.on(event, onceListener);
+  }
+}
+
+// Export singleton instance
+export const mainServiceRegistry = MainServiceRegistry.getInstance();

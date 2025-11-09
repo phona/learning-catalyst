@@ -1,8 +1,25 @@
 import React from 'react';
-import { SimpleAnalyticsModule, LearningSession } from '../../modules/analytics/simple-analytics';
+import type { LearningSession } from '@/shared/utils/simple-analytics';
+
+// Interface for the analytics service in renderer context
+interface RendererAnalyticsService {
+  getStudyMetrics: () => Promise<{
+    totalStudyTime: number;
+    sessionsCompleted: number;
+    averageSessionLength: number;
+    conceptsStudied: number;
+    questionsAsked: number;
+    correctAnswers: number;
+    accuracyRate: number;
+    focusScore: number;
+    streakDays: number;
+    lastStudyDate?: Date;
+  }>;
+  // Add other methods as needed
+}
 
 interface SessionTrackingProps {
-  analytics: SimpleAnalyticsModule;
+  analytics: RendererAnalyticsService;
   className?: string;
 }
 

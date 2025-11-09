@@ -27,11 +27,11 @@ export default defineConfig({
       'node_modules',
       'dist',
       'src/main/**',
-      'src/__tests__/integration/**',
-      'src/__tests__/performance/**'
+      'src/test/integration/**',
+      'src/test/performance/**'
     ],
     globals: true,
-    setupFiles: ['src/renderer/__tests__/setup.ts'],
+    setupFiles: ['./src/test/setup/renderer/setup.ts'],
     testTimeout: 10000,
     hookTimeout: 5000,
     isolate: true,

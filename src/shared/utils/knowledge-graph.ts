@@ -7,8 +7,22 @@
 
 import type { Database } from '../../main/services/database/kysely-schema';
 import { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
-import { VectorDatabaseModule, SearchResult } from '../vector-database/vector-database';
+// Vector database will be injected via constructor or optional import
+// import { VectorDatabaseModule, SearchResult } from '../../renderer/services/vector-database';
 import { Kysely } from 'kysely';
+
+// Type definition for vector database module
+interface VectorDatabaseModule {
+  readonly isInitialized: boolean;
+  addDocument: (doc: { id: string; content: string; metadata?: any }) => Promise<void>;
+  search: (query: string, limit?: number) => Promise<Array<{ id: string; score: number; metadata?: any }>>;
+}
+
+interface SearchResult {
+  id: string;
+  score: number;
+  metadata?: any;
+}
 
 export interface Concept {
   id: string;

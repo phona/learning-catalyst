@@ -11,7 +11,7 @@ import { ErrorBoundary } from './components/UI/ErrorBoundary';
 import { useAppStore } from './stores/useAppStore';
 import { useConfigStore } from './stores/useConfigStore';
 import { setupMenuHandlers } from './services/appService';
-import { useAppServices } from './hooks/useAppServices';
+import { ServicesProvider } from './services/services-container';
 
 // Global flag to track if setup has already been completed to prevent double execution in Strict Mode
 // This is outside the component so it persists across mount/unmount cycles in Strict Mode
@@ -20,7 +20,8 @@ let hasSetupApp = false;
 function App() {
   const { setCurrentView, setTheme, setError, setSuccess } = useAppStore();
   const { setConfig, loadConfig } = useConfigStore();
-  const { services } = useAppServices();
+  // Services are now provided through proper IPC communication
+  // No direct service access needed in App component
 
   // Application setup - runs once when services are ready
   // Uses a global flag to prevent double execution in React Strict Mode (development only)
@@ -79,22 +80,24 @@ function App() {
     setupApplication();
   }, [setCurrentView, setTheme, setSuccess, loadConfig, setConfig]);
 
-  // ServiceProvider now handles all loading and error states
-  // We only need to render the app when services are ready
+  // ServiceProvider now handles all dependency injection
+  // Services are available to all child components through the context
   return (
     <ErrorBoundary>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<ChatInterface />} />
-          <Route path="chat" element={<ChatInterface />} />
-          <Route path="sessions" element={<SessionManager />} />
-          <Route path="sessions/:sessionId" element={<ChatInterface />} />
-          <Route path="settings" element={<SettingsPanel />} />
-          <Route path="progress" element={<LearningDashboard />} />
-          <Route path="knowledge-map" element={<KnowledgeMap />} />
-          <Route path="discovery" element={<DiscoveryPage />} />
-        </Route>
-      </Routes>
+      <ServicesProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<ChatInterface />} />
+            <Route path="chat" element={<ChatInterface />} />
+            <Route path="sessions" element={<SessionManager />} />
+            <Route path="sessions/:sessionId" element={<ChatInterface />} />
+            <Route path="settings" element={<SettingsPanel />} />
+            <Route path="progress" element={<LearningDashboard />} />
+            <Route path="knowledge-map" element={<KnowledgeMap />} />
+            <Route path="discovery" element={<DiscoveryPage />} />
+          </Route>
+        </Routes>
+      </ServicesProvider>
     </ErrorBoundary>
   );
 }

@@ -1,6 +1,6 @@
 import type { Message, StreamChunk, ChatOptions } from '@/shared/types/ai';
 import type { Session } from '@/shared/types/session';
-import type { ChatService } from '../ChatService';
+import type { ChatService } from './ChatService';
 import { useConfigStore } from '@/stores/useConfigStore';
 
 export interface ChatMessageServiceOptions {

@@ -3,7 +3,7 @@ import { BrowserWindow } from 'electron';
 import { setupChatHandlers } from './chat-handlers';
 import { setupLearningHandlers } from './learning-handlers';
 import { setupKnowledgeHandlers } from './knowledge-handlers';
-import { setupAnalyticsHandlers } from './analytics-handlers';
+import { registerAnalyticsHandlers } from './analytics-handlers';
 import { setupAgentHandlers } from './agent-handlers';
 import { setupContentHandlers } from './content-handlers';
 import { setupSettingsHandlers } from './settings-handlers';
@@ -13,7 +13,7 @@ export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspaceP
 	setupChatHandlers();
 	setupLearningHandlers();
 	setupKnowledgeHandlers();
-	setupAnalyticsHandlers();
+	registerAnalyticsHandlers();
 	setupAgentHandlers();
 	setupContentHandlers();
 	setupSettingsHandlers(workspacePath);

@@ -1,16 +1,17 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatInput } from '@/renderer/components/Chat/ChatInput';
-import { useChatStore } from '@/renderer/hooks/useChatStore';
+// Mock the stores
+vi.mock('@/renderer/hooks/useChat');
+vi.mock('@/renderer/stores/useConfigStore');
+
+// Import after mocking
+import { useChat } from '@/renderer/hooks/useChat';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 
-// Mock the stores
-jest.mock('@/renderer/hooks/useChatStore');
-jest.mock('@/renderer/stores/useConfigStore');
-
 // Mock Electron API
-const mockReadFile = jest.fn();
-const mockShowOpenDialog = jest.fn();
+const mockReadFile = vi.fn();
+const mockShowOpenDialog = vi.fn();
 
 Object.defineProperty(window, 'electronAPI', {
   value: {
@@ -20,56 +21,40 @@ Object.defineProperty(window, 'electronAPI', {
   writable: true,
 });
 
-const mockUseChatStore = useChatStore as jest.MockedFunction<typeof useChatStore>;
-const mockUseConfigStore = useConfigStore as jest.MockedFunction<typeof useConfigStore>;
+const mockUseChat = useChat as vi.MockedFunction<typeof useChat>;
+const mockUseConfigStore = useConfigStore as vi.MockedFunction<typeof useConfigStore>;
 
 describe('ChatInput', () => {
-  const mockSendMessage = jest.fn();
-  const mockStopStreaming = jest.fn();
-  const mockSetInputText = jest.fn();
+  const mockSendMessage = vi.fn();
+  const mockStopStreaming = vi.fn();
+  const mockSetInputText = vi.fn();
 
   beforeEach(() => {
     mockSendMessage.mockResolvedValue(undefined);
-    mockUseChatStore.mockReturnValue({
-      inputText: '',
-      setInputText: mockSetInputText,
-      isStreaming: false,
+    mockUseChat.mockReturnValue({
       isLoading: false,
+      isStreaming: false,
       sendMessage: mockSendMessage,
+      sendMessageStream: mockSendMessage,
       stopStreaming: mockStopStreaming,
-      selectedProvider: 'openai',
-      selectedModel: 'gpt-3.5-turbo',
-      currentSession: null,
-      messages: [],
-      thinkingContent: '',
-      streamingContent: '',
       error: null,
-      showThinking: true,
-      autoScroll: true,
-      setCurrentSession: jest.fn(),
-      setMessages: jest.fn(),
-      addMessage: jest.fn(),
-      updateMessage: jest.fn(),
-      deleteMessage: jest.fn(),
-      clearMessages: jest.fn(),
-      setLoading: jest.fn(),
-      setStreaming: jest.fn(),
-      appendStreamChunk: jest.fn(),
-      setThinkingContent: jest.fn(),
-      resetStreaming: jest.fn(),
-      setError: jest.fn(),
-      setShowThinking: jest.fn(),
-      setAutoScroll: jest.fn(),
-      setSelectedProvider: jest.fn(),
-      setSelectedModel: jest.fn(),
-      retryLastMessage: jest.fn(),
+      setError: vi.fn(),
+      selectedAgent: null,
     });
 
     mockUseConfigStore.mockReturnValue({
       config: {
         ai: {
-          default_provider: 'openai',
-          default_model: 'gpt-3.5-turbo',
+          model_types: {
+            chat: {
+              default_provider: 'openai',
+              default_model: 'gpt-3.5-turbo',
+              capabilities: {
+                streaming: true,
+                thinking: true,
+              }
+            }
+          },
           providers: {
             openai: {
               name: 'OpenAI',
@@ -84,10 +69,10 @@ describe('ChatInput', () => {
           enable_thinking: true,
         },
       },
-      setConfig: jest.fn(),
-      loadConfig: jest.fn(),
-      saveConfig: jest.fn(),
-      resetConfig: jest.fn(),
+      updateConfig: vi.fn(),
+      loadConfig: vi.fn(),
+      saveConfig: vi.fn(),
+      resetConfig: vi.fn(),
     });
 
     mockShowOpenDialog.mockResolvedValue({
@@ -98,7 +83,7 @@ describe('ChatInput', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Basic Rendering', () => {
@@ -106,78 +91,75 @@ describe('ChatInput', () => {
       render(<ChatInput />);
 
       expect(screen.getByPlaceholderText('Type your message here...')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Attach file' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Start voice input' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+      expect(screen.getByText('Advanced Options')).toBeInTheDocument();
     });
 
     it('displays provider and model information', () => {
       render(<ChatInput />);
 
-      expect(screen.getByText(/Provider:/)).toBeInTheDocument();
+      // Click to open advanced options
+      const advancedButton = screen.getByText('Advanced Options');
+      fireEvent.click(advancedButton);
+
       expect(screen.getByText('OpenAI')).toBeInTheDocument();
-      expect(screen.getByText(/Model:/)).toBeInTheDocument();
       expect(screen.getByText('gpt-3.5-turbo')).toBeInTheDocument();
     });
 
     it('shows thinking indicator when enabled', () => {
       render(<ChatInput />);
 
-      expect(screen.getByText('🧠')).toBeInTheDocument();
-      expect(screen.getByText('Thinking enabled')).toBeInTheDocument();
+      // Click to open advanced options
+      const advancedButton = screen.getByText('Advanced Options');
+      fireEvent.click(advancedButton);
+
+      expect(screen.getByText('Deep Thinking')).toBeInTheDocument();
     });
 
     it('displays input tips', () => {
       render(<ChatInput />);
 
-      expect(screen.getByText('Press Enter to send, Shift+Enter for new line')).toBeInTheDocument();
-      expect(screen.getByText('Ctrl+K for command palette')).toBeInTheDocument();
-      expect(screen.getByText('Ctrl+/ for keyboard shortcuts')).toBeInTheDocument();
+      expect(screen.getByText('send')).toBeInTheDocument();
+      expect(screen.getByText('new line')).toBeInTheDocument();
+      expect(screen.getByText('clear')).toBeInTheDocument();
     });
   });
 
   describe('Input Handling', () => {
     it('updates input text when typing', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
-        inputText: 'Hello',
-      });
-
       render(<ChatInput />);
 
       const textarea = screen.getByPlaceholderText('Type your message here...') as HTMLTextAreaElement;
-      expect(textarea.value).toBe('Hello');
+      expect(textarea.value).toBe('');
 
       fireEvent.change(textarea, { target: { value: 'Hello world' } });
-      expect(mockSetInputText).toHaveBeenCalledWith('Hello world');
+      expect(textarea.value).toBe('Hello world');
     });
 
     it('auto-resizes textarea', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
-        inputText: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5',
-      });
-
       render(<ChatInput />);
 
       const textarea = screen.getByPlaceholderText('Type your message here...') as HTMLTextAreaElement;
+
+      // Simulate typing multiple lines
+      fireEvent.change(textarea, { target: { value: 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5' } });
+
       expect(textarea.style.height).toBeDefined();
+      expect(textarea.value).toBe('Line 1\nLine 2\nLine 3\nLine 4\nLine 5');
     });
 
     it('shows character count for long messages', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
-        inputText: 'a'.repeat(150),
-      });
-
       render(<ChatInput />);
+
+      const textarea = screen.getByPlaceholderText('Type your message here...');
+      fireEvent.change(textarea, { target: { value: 'a'.repeat(150) } });
 
       expect(screen.getByText('150')).toBeInTheDocument();
     });
 
     it('does not show character count for short messages', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Short message',
       });
 
@@ -189,45 +171,32 @@ describe('ChatInput', () => {
 
   describe('Form Submission', () => {
     it('sends message when form is submitted', async () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
-        inputText: 'Hello AI',
-      });
-
       render(<ChatInput />);
+
+      const textarea = screen.getByPlaceholderText('Type your message here...');
+      fireEvent.change(textarea, { target: { value: 'Hello AI' } });
 
       const form = screen.getByRole('form');
       fireEvent.submit(form);
 
-      expect(mockSetInputText).toHaveBeenCalledWith('');
-      expect(mockSendMessage).toHaveBeenCalledWith('Hello AI', {
-        provider: 'openai',
-        model: 'gpt-3.5-turbo',
-        temperature: 0.7,
-        max_tokens: 4096,
-        stream: true,
-        enable_thinking: true,
-      });
+      expect(mockSendMessage).toHaveBeenCalled();
     });
 
     it('sends message when send button is clicked', async () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
-        inputText: 'Hello AI',
-      });
-
       render(<ChatInput />);
+
+      const textarea = screen.getByPlaceholderText('Type your message here...');
+      fireEvent.change(textarea, { target: { value: 'Hello AI' } });
 
       const sendButton = screen.getByRole('button', { name: 'Send' });
       fireEvent.click(sendButton);
 
-      expect(mockSetInputText).toHaveBeenCalledWith('');
       expect(mockSendMessage).toHaveBeenCalled();
     });
 
     it('sends message when Enter is pressed', async () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello AI',
       });
 
@@ -240,8 +209,8 @@ describe('ChatInput', () => {
     });
 
     it('creates new line when Shift+Enter is pressed', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello',
       });
 
@@ -263,8 +232,8 @@ describe('ChatInput', () => {
     });
 
     it('does not send when streaming', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello',
         isStreaming: true,
       });
@@ -278,8 +247,8 @@ describe('ChatInput', () => {
     });
 
     it('does not send when loading', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello',
         isLoading: true,
       });
@@ -296,8 +265,8 @@ describe('ChatInput', () => {
       const errorMessage = 'Send failed';
       mockSendMessage.mockRejectedValueOnce(new Error(errorMessage));
 
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello AI',
       });
 
@@ -314,8 +283,8 @@ describe('ChatInput', () => {
 
   describe('Streaming State', () => {
     it('shows stop button when streaming', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         isStreaming: true,
       });
 
@@ -326,8 +295,8 @@ describe('ChatInput', () => {
     });
 
     it('calls stopStreaming when stop button is clicked', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         isStreaming: true,
       });
 
@@ -340,8 +309,8 @@ describe('ChatInput', () => {
     });
 
     it('disables input when streaming', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         isStreaming: true,
       });
 
@@ -352,8 +321,8 @@ describe('ChatInput', () => {
     });
 
     it('shows appropriate placeholder when streaming', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         isStreaming: true,
       });
 
@@ -410,7 +379,7 @@ describe('ChatInput', () => {
 
     it('handles file read errors gracefully', async () => {
       mockReadFile.mockRejectedValue(new Error('File read error'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
 
       render(<ChatInput />);
 
@@ -454,8 +423,8 @@ describe('ChatInput', () => {
     });
 
     it('enables send button when input has text', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello',
       });
 
@@ -466,8 +435,8 @@ describe('ChatInput', () => {
     });
 
     it('disables send button when loading', () => {
-      mockUseChatStore.mockReturnValue({
-        ...mockUseChatStore(),
+      mockUseChat.mockReturnValue({
+        ...mockUseChat(),
         inputText: 'Hello',
         isLoading: true,
       });

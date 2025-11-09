@@ -7,7 +7,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CatalystServiceMain } from '@/main/services/catalyst/catalyst-service';
-import { TestUtils, mockDatabase } from '../setup';
+import { TestUtils, createMockDatabase } from '@/test/setup/main-process/setup';
+import * as kyselyDatabase from '@/main/services/database/kysely-database';
 
 // Mock BrowserWindow
 const mockBrowserWindow = {
@@ -21,13 +22,13 @@ const mockBrowserWindow = {
 
 // Mock the createDatabase function
 jest.mock('@/main/services/database/kysely-database', () => ({
-  createDatabase: async () => mockDatabase,
+  createDatabase: async () => createMockDatabase(),
   runMigrations: async () => {},
   getMigrationStatus: async () => ({ executed: [], pending: [], total: 0 }),
   rollbackMigrations: async () => [],
   DatabaseFactory: {
-    createElectronDB: () => mockDatabase,
-    createCustomDB: () => mockDatabase,
+    createElectronDB: () => createMockDatabase(),
+    createCustomDB: () => createMockDatabase(),
   }
 }));
 
@@ -247,10 +248,13 @@ describe('CatalystServiceMain', () => {
   describe('Error Handling', () => {
     it('should handle initialization errors gracefully', async () => {
       // Mock database initialization to fail
-      const originalCreateDatabase = require('@/main/services/database/kysely-database').createDatabase;
-      require('@/main/services/database/kysely-database').createDatabase = async () => {
+      const originalCreateDatabase = kyselyDatabase.createDatabase;
+      const mockCreateDatabase = async () => {
         throw new Error('Database initialization failed');
       };
+
+      // Mock the module temporarily
+      kyselyDatabase.createDatabase = mockCreateDatabase;
 
       const faultyService = new CatalystServiceMain();
 
@@ -262,7 +266,7 @@ describe('CatalystServiceMain', () => {
       expect(faultyService.getStats().disposed).toBe(true);
 
       // Restore original function
-      require('@/main/services/database/kysely-database').createDatabase = originalCreateDatabase;
+      kyselyDatabase.createDatabase = originalCreateDatabase;
     });
 
     it('should handle context execution errors', async () => {

@@ -190,8 +190,8 @@ export class HybridAgent {
       `- ${agent.name} (${agent.id}, type: ${agent.type}): ${agent.description || `Agent of type ${agent.type}`}\n  Capabilities: ${(agent.capabilities || []).join(', ')}`
     ).join('\n');
 
-    const toolDescriptions = availableTools.map(tool =>
-      `- ${tool.name}: ${tool.description}`
+    const toolDescriptions = availableTools.map(toolId =>
+      `- ${toolId}: Available tool for processing and data manipulation`
     ).join('\n');
 
     const currentInput = typeof input === 'string' ? input : JSON.stringify(input);
@@ -602,8 +602,7 @@ Response format:
           agentId: step.agentId,
           context: {
             ...request.context,
-            workflowId: workflowExecution.id,
-            stepId: step.id
+            sessionId: request.context.sessionId || executionContext.sessionId
           }
         };
         return yield* this.handoffAgent.execute(handoffRequest, stepExecutionContext);

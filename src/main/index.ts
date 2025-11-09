@@ -1,15 +1,21 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { setupAllIpcHandlers } from './handlers'
 import { createAppMenu } from './menu'
 import { getQdrantManager } from './qdrant-manager'
 import { QdrantManager } from './qdrant-manager'
 import { initializeCatalystService, disposeCatalystService } from './services/catalyst/catalyst-service'
+import { mainServiceRegistry } from './services/registry/MainServiceRegistry'
+import { mainServiceContainerManager } from './services/container/service-container'
 // import { getMockQdrantManager } from './mock-qdrant-manager'
 // import { getMockDatabase } from './mock-database' // Using real SQLite now
 // Memory debugging utility for development
 import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
 
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // The built directory structure
 //
@@ -34,7 +40,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 let win: BrowserWindow | null = null
 let isShuttingDown = false
 
-const preload = path.join(__dirname, '../preload/index.js')
+const preload = path.join(__dirname, '../preload/index.cjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
 
 async function createWindow(): Promise<void> {
@@ -146,6 +152,22 @@ async function cleanup() {
   // Clean up memory debugging
   cleanupMemoryDebug();
 
+  // Clean up main process service registry
+  try {
+    await mainServiceRegistry.dispose()
+    console.log('✅ Main process service registry disposed successfully')
+  } catch (error) {
+    console.warn('Failed to dispose main process service registry:', error)
+  }
+
+  // Clean up main process service container
+  try {
+    await mainServiceContainerManager.dispose()
+    console.log('✅ Main process service container disposed successfully')
+  } catch (error) {
+    console.warn('Failed to dispose main process service container:', error)
+  }
+
   // Clean up Catalyst service
   try {
     await disposeCatalystService()
@@ -154,7 +176,6 @@ async function cleanup() {
     console.warn('Failed to dispose Catalyst service:', error)
   }
 
-  
   // Clean up Qdrant manager
   const qdrantManager = getQdrantManager()
   if (qdrantManager && typeof qdrantManager.shutdown === 'function') {
@@ -178,6 +199,26 @@ async function cleanup() {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
   console.log('🚀 Learning Catalyst starting...')
+
+  // Initialize main process service registry first
+  try {
+    await mainServiceRegistry.initialize()
+    console.log('✅ Main process service registry initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize main process service registry:', error)
+    // Continue with startup but log the error
+  }
+
+  // Initialize main process service container
+  try {
+    await mainServiceContainerManager.initialize({
+      databasePath: path.join(process.env.APP_ROOT || '', 'data', 'learning-catalyst.db')
+    })
+    console.log('✅ Main process service container initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize main process service container:', error)
+    // Continue with startup but log the error
+  }
 
   // Initialize memory debugging for development
   startMemoryDebug();

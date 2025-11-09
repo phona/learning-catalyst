@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ChatService, chatService } from '@/renderer/services/ChatService';
+import { ChatService } from '@/renderer/services/ChatService';
+import { ICatalystService } from '@/renderer/services/interfaces/ICatalystService';
 import type { ChatMessage, ChatStreamChunk } from '@/renderer/services/ChatService';
 
 // Mock module with vi.hoisted to handle variable references
@@ -28,7 +29,7 @@ describe('ChatService', () => {
   let service: ChatService;
 
   beforeEach(() => {
-    service = new ChatService();
+    service = new ChatService(mockCatalystService as ICatalystService);
     vi.clearAllMocks();
     Object.assign(mockCatalystService, {
       sendChat: vi.fn(),
@@ -232,12 +233,20 @@ describe('ChatService', () => {
   });
 });
 
-describe('ChatService Singleton', () => {
-  it('should export a singleton instance', () => {
-    expect(chatService).toBeInstanceOf(ChatService);
+describe('ChatService Dependency Injection', () => {
+  it('should create instance with dependency injection', () => {
+    const service = new ChatService(mockCatalystService as ICatalystService);
+    expect(service).toBeInstanceOf(ChatService);
   });
 
-  it('should return the same instance', () => {
-    expect(chatService).toBe(chatService);
+  it('should use injected dependency', async () => {
+    const service = new ChatService(mockCatalystService as ICatalystService);
+    const mockResult = { success: true, messageId: 'msg-123', response: 'Hello' };
+    mockCatalystService.sendChat.mockResolvedValue(mockResult);
+
+    const result = await service.sendMessage('Test');
+
+    expect(result.id).toBe('msg-123');
+    expect(mockCatalystService.sendChat).toHaveBeenCalledWith('Test', {});
   });
 });

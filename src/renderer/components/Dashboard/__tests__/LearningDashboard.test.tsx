@@ -8,11 +8,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
-import { SimpleAnalyticsModule } from '@/shared/modules/analytics/simple-analytics';
 import { catalystService } from '@/renderer/services/CatalystService';
 
 // Mock analytics module
-vi.mock('@/shared/modules/analytics/simple-analytics', () => ({
+vi.mock('@/shared/utils/simple-analytics', () => ({
   SimpleAnalyticsModule: vi.fn().mockImplementation(() => ({
     start: vi.fn().mockResolvedValue(true),
     getStudyMetrics: vi.fn().mockResolvedValue({
@@ -44,7 +43,21 @@ vi.mock('@/hooks/useAppServices', () => ({
 }));
 
 describe('LearningDashboard', () => {
-  const mockAnalyticsService = new SimpleAnalyticsModule();
+  const mockAnalyticsService = {
+    start: vi.fn().mockResolvedValue(true),
+    getStudyMetrics: vi.fn().mockResolvedValue({
+      totalStudyTime: 120, // 2 hours
+      sessionsCompleted: 15,
+      conceptsStudied: 25,
+      accuracyRate: 0.85,
+      streakDays: 5,
+      lastStudyDate: new Date('2025-01-01'),
+      averageSessionLength: 45,
+      focusScore: 92,
+      questionsAsked: 120,
+      correctAnswers: 102,
+    }),
+  };
   const mockUseService = vi.fn(() => mockAnalyticsService);
 
   beforeEach(() => {

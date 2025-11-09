@@ -2,7 +2,7 @@ import { tool } from "langchain";
 import { z } from "zod";
 import { ConceptProcessingPipeline } from "../concept-parsing";
 import { ConfigService } from "../configService";
-import { SessionService } from "../sessions/SessionService";
+import { SessionService, type SessionSearchQuery } from "../session/session-service";
 
 /**
  * Learning-specific tools for the agentic AgentManager
@@ -74,13 +74,13 @@ export function createLearningTools(
   const searchSessions = tool(
     async ({ query, tags, limit }: { query?: string; tags?: string[]; limit?: number }) => {
       try {
-        const searchQuery = {
+        const searchQuery: SessionSearchQuery = {
           query,
           tags,
           limit: limit || 10,
         };
 
-        const result = await sessionService.listSessions(searchQuery);
+        const result = await sessionService.searchSessions(searchQuery);
 
         return {
           success: true,
@@ -96,7 +96,7 @@ export function createLearningTools(
             message_count: session.messageCount || 0,
           })),
           total: result.total,
-          has_more: result.hasMore,
+          has_more: result.has_more,
         };
       } catch (error) {
         return {
