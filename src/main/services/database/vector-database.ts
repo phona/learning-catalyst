@@ -10,8 +10,6 @@
 import { Kysely } from 'kysely';
 import type { Database } from '@/main/services/database/kysely-schema';
 
-// import { QdrantClient } from 'qdrant-client';
-// import { pipeline } from '@xenova/transformers';
 
 export interface VectorDocument {
   id: string;

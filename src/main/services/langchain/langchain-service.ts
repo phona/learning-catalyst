@@ -83,6 +83,11 @@ export class LangChainServiceMain {
       // Validate configurations
       await this.validateConfigurations();
 
+      // Validate that default provider exists
+      if (!this.providers.has(this.config.defaultProvider)) {
+        throw new Error(`Default provider '${this.config.defaultProvider}' not found. Available providers: ${Array.from(this.providers.keys()).join(', ')}`);
+      }
+
       this.initialized = true;
       this.logger.info('✅ LangChain service initialized successfully');
 
@@ -158,8 +163,17 @@ export class LangChainServiceMain {
 
     // Add custom providers from config
     if (this.config.modelConfigs) {
+      this.logger.info(`Processing ${Object.keys(this.config.modelConfigs).length} custom providers from config`);
       for (const [name, config] of Object.entries(this.config.modelConfigs)) {
         try {
+          this.logger.info(`Processing custom provider: ${name} with modelId: "${config.modelId}"`);
+
+          // Validate provider configuration before creating model
+          if (!config.modelId || config.modelId.trim() === '') {
+            this.logger.warn(`Provider ${name} missing modelId - skipping registration`);
+            continue; // Skip this provider and continue with others
+          }
+
           // Determine provider type from config or detect from base URL
           let providerType: ProviderType = 'openai-compatible';
           if (config.providerType) {
@@ -199,6 +213,7 @@ export class LangChainServiceMain {
           this.logger.info(`✅ Registered custom provider: ${name} with model: ${provider.modelId}`);
         } catch (error) {
           this.logger.warn(`Failed to initialize custom provider ${name}:`, error);
+          this.logger.info(`Error details for provider ${name}:`, { modelName: config.modelId, hasApiKey: !!config.apiKey, error: error.message });
         }
       }
     }
@@ -289,18 +304,22 @@ export class LangChainServiceMain {
         const endTime = Date.now();
 
         // Extract content and estimate tokens
-        const content = typeof response.content === 'string' ? response.content : response.content.toString();
+        const rawContent = typeof response.content === 'string' ? response.content : response.content?.toString() || '';
+        const content = rawContent || 'Error: No content generated';
         const tokensUsed = this.estimateTokens(content);
+
+        // Create defensive metadata with defaults
+        const metadata = {
+          model: provider.modelId || 'unknown',
+          tokensUsed,
+          provider: providerName,
+          timestamp: Date.now(),
+          responseTime: endTime - startTime
+        };
 
         const result: StreamingResponse = {
           content,
-          metadata: {
-            model: provider.modelId,
-            tokensUsed,
-            provider: providerName,
-            timestamp: Date.now(),
-            responseTime: endTime - startTime
-          },
+          metadata,
           isComplete: true
         };
 
@@ -417,7 +436,7 @@ export class LangChainServiceMain {
       throw new Error(`Provider ${providerName} not found or not properly initialized`);
     }
 
-    yield* this.runWithContext('execute-agent-stream', async function* () {
+    yield* this.runWithContextGenerator('execute-agent-stream', async function* () {
       this.logger.info(`Executing agent stream using provider: ${providerName}`);
 
       try {
@@ -464,7 +483,7 @@ export class LangChainServiceMain {
       throw new Error(`Provider ${providerName} not found or not properly initialized`);
     }
 
-    yield* this.runWithContext('generate-streaming-chat-response', async function* () {
+    yield* this.runWithContextGenerator('generate-streaming-chat-response', async function* () {
       this.logger.info(`Generating streaming chat response using provider: ${providerName}`);
 
       try {
@@ -585,6 +604,34 @@ export class LangChainServiceMain {
   }
 
   /**
+   * Execute async generator within execution context
+   */
+  async *runWithContextGenerator<T>(
+    operation: string,
+    fn: () => AsyncGenerator<T>
+  ): AsyncGenerator<T> {
+    if (!this.initialized) {
+      throw new Error('LangChain service not initialized');
+    }
+
+    const context = { service: 'langchain-service', operation };
+
+    // Run the generator function within context and yield from it
+    const generator = await new Promise<AsyncGenerator<T>>((resolve, reject) => {
+      this.als.run(context, async () => {
+        try {
+          const gen = fn();
+          resolve(gen);
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    yield* generator;
+  }
+
+  /**
    * Get service configuration
    */
   getConfig(): LangChainServiceConfig {
@@ -694,28 +741,42 @@ export class LangChainServiceMain {
     lastCheck: number;
     details: Record<string, any>;
   }> {
-    const providerCount = this.providers.size;
-    const hasDefaultProvider = this.providers.has(this.config.defaultProvider);
-    const workingProviders = Array.from(this.providers.values()).filter(p => p.langchainModel).length;
+    try {
+      const providerCount = this.providers.size;
+      const hasDefaultProvider = this.providers.has(this.config.defaultProvider);
+      const workingProviders = Array.from(this.providers.values()).filter(p => p.langchainModel).length;
 
-    let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    if (!hasDefaultProvider || workingProviders === 0) {
-      status = 'unhealthy';
-    } else if (workingProviders < providerCount) {
-      status = 'degraded';
-    }
-
-    return {
-      status,
-      providers: providerCount,
-      lastCheck: Date.now(),
-      details: {
-        defaultProvider: this.config.defaultProvider,
-        availableProviders: this.getProviders(),
-        workingProviders,
-        initialized: this.initialized
+      let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+      if (!hasDefaultProvider || workingProviders === 0) {
+        status = 'unhealthy';
+      } else if (workingProviders < providerCount) {
+        status = 'degraded';
       }
-    };
+
+      return {
+        status,
+        providers: providerCount,
+        lastCheck: Date.now(),
+        details: {
+          defaultProvider: this.config.defaultProvider,
+          availableProviders: this.getProviders(),
+          workingProviders,
+          initialized: this.initialized
+        }
+      };
+    } catch (error) {
+      // Handle health check failures gracefully
+      this.logger.warn('Health check failed', error as Error);
+      return {
+        status: 'unhealthy',
+        providers: 0,
+        lastCheck: Date.now(),
+        details: {
+          error: (error as Error).message,
+          initialized: this.initialized
+        }
+      };
+    }
   }
 
   /**

@@ -68,3 +68,4 @@ tsconfig.tsbuildinfo
 nul
 .tmp
 test-results
+coverage

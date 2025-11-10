@@ -6,6 +6,7 @@
  */
 
 import { Kysely, sql } from 'kysely'
+import { generateSimpleTitle, generateSessionId, validateSessionData } from '@/shared/utils/session-utils'
 import type {
   SessionDatabase,
   Session,
@@ -821,7 +822,7 @@ export class SessionService {
    * Generate unique session ID
    */
   generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+    return generateSessionId();
   }
 
   /**
@@ -834,12 +835,12 @@ export class SessionService {
       // For now, use simple title generation
       // TODO: Could integrate with AI service via electronAPI in the future
       console.warn('[SessionService] Using simple title generation (AI integration not available)');
-      return this.generateSimpleTitle(userMessage);
+      return generateSimpleTitle(userMessage);
 
     } catch (error) {
       console.error('[SessionService] Failed to generate AI title:', error);
       // Fallback to simple title based on message content
-      return this.generateSimpleTitle(userMessage);
+      return generateSimpleTitle(userMessage);
     }
   }
 
@@ -938,27 +939,6 @@ export class SessionService {
       console.error('[SessionService] Failed to get global statistics:', error);
       throw new Error(`Failed to get global statistics: ${error}`);
     }
-  }
-
-  /**
-   * Generate a simple title based on message content (fallback)
-   */
-  private generateSimpleTitle(message: string): string {
-    const words = message
-      .replace(/[^\w\s]/g, '') // Remove punctuation
-      .split(/\s+/) // Split by whitespace
-      .filter(word => word.length > 2) // Remove very short words
-      .slice(0, 4); // Take first 4 meaningful words
-
-    if (words.length === 0) {
-      return 'Untitled Session';
-    }
-
-    const title = words.map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
-
-    return title.length > 30 ? title.substring(0, 27) + '...' : title;
   }
 }
 

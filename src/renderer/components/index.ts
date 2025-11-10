@@ -3,14 +3,11 @@
  * Exports all components organized by their architectural layer
  */
 
-// View Components (Full-page layouts)
-export * from './views';
+// View Components (Full-page layouts) - REMOVED: All views were unused and deleted
 
-// Feature Components (Reusable feature-specific components)
-export * from './features';
+// Feature Components (Reusable feature-specific components) - REMOVED: Empty folder with no actual components
 
-// Shared Components (Pure UI components)
-export * from './shared';
+// Shared Components (Pure UI components) - REMOVED: Folder was completely unused
 
 // Legacy Components (being migrated)
 export * from './Analytics';

@@ -75,3 +75,6 @@ export type {
   Database,
   SessionDatabase
 } from './database';
+
+// Export practice types for context-aware practice system
+export * from './practice';

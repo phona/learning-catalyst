@@ -63,7 +63,9 @@
       "Bash(npm run test:main:memory:*)",
       "Bash(npm run dev:*)",
       "Bash(npm:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Read(//d/**)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,171 +1,314 @@
 /**
- * Button Component Tests - Focused on Reliability
+ * Button Component Tests - Real React Testing Library Tests
  *
- * Testing critical user interactions that can cause real bugs:
- * - Click handlers work correctly
- * - Loading state prevents double-clicks
- * - Disabled state is respected
- * - Basic functionality doesn't break
+ * Testing actual component rendering, accessibility, and user interactions
+ * with proper React Testing Library approach.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Button } from '../Button';
 
-describe('Button - Critical Reliability Tests', () => {
-  it('should call click handler when clicked', () => {
-    const handleClick = vi.fn();
-    render(<Button onClick={handleClick}>Click me</Button>);
+describe('Button Component', () => {
+  let user: ReturnType<typeof userEvent.setup>;
 
-    const button = screen.getByRole('button', { name: 'Click me' });
-    fireEvent.click(button);
-
-    expect(handleClick).toHaveBeenCalledTimes(1);
+  beforeEach(() => {
+    user = userEvent.setup();
   });
 
-  it('should not call click handler when disabled', () => {
-    const handleClick = vi.fn();
-    render(<Button disabled onClick={handleClick}>Disabled button</Button>);
+  describe('Basic Rendering', () => {
+    it('should render with default props', () => {
+      render(<Button>Click me</Button>);
 
-    const button = screen.getByRole('button', { name: 'Disabled button' });
-    fireEvent.click(button);
+      const button = screen.getByRole('button', { name: 'Click me' });
+      expect(button).toBeInTheDocument();
+      expect(button).toHaveAttribute('type', 'button');
+      expect(button).not.toBeDisabled();
+    });
 
-    expect(handleClick).not.toHaveBeenCalled();
-  });
+    it('should render children correctly', () => {
+      render(<Button>Submit Form</Button>);
 
-  it('should not call click handler when loading', () => {
-    const handleClick = vi.fn();
-    render(<Button loading onClick={handleClick}>Loading button</Button>);
+      expect(screen.getByText('Submit Form')).toBeInTheDocument();
+    });
 
-    const button = screen.getByRole('button');
-    fireEvent.click(button);
+    it('should accept custom className', () => {
+      render(<Button className="custom-class">Button</Button>);
 
-    expect(handleClick).not.toHaveBeenCalled();
-  });
-
-  it('should show loading spinner and prevent double-clicks', () => {
-    const handleClick = vi.fn();
-    render(<Button loading onClick={handleClick}>Save</Button>);
-
-    // Check for loading spinner using querySelector
-    const spinner = document.querySelector('.animate-spin');
-    expect(spinner).toBeInTheDocument();
-
-    // Try to click multiple times
-    const button = screen.getByRole('button');
-    fireEvent.click(button);
-    fireEvent.click(button);
-    fireEvent.click(button);
-
-    // Handler should never be called during loading
-    expect(handleClick).not.toHaveBeenCalled();
-  });
-
-  it('should handle custom props without breaking', () => {
-    const handleClick = vi.fn();
-    render(
-      <Button
-        variant="secondary"
-        size="lg"
-        onClick={handleClick}
-        data-testid="custom-button"
-        aria-label="Custom button"
-      >
-        Custom button
-      </Button>
-    );
-
-    const button = screen.getByLabelText('Custom button');
-    fireEvent.click(button);
-
-    expect(handleClick).toHaveBeenCalledTimes(1);
-    expect(button).toHaveAttribute('data-testid', 'custom-button');
-  });
-
-  it('should handle icon positioning without breaking', () => {
-    const mockIcon = <span data-testid="test-icon">Icon</span>;
-    const handleClick = vi.fn();
-
-    // Test left icon
-    const { unmount } = render(
-      <Button icon={mockIcon} iconPosition="left" onClick={handleClick}>
-        With icon
-      </Button>
-    );
-
-    const button = screen.getByRole('button', { name: /With icon/ });
-    fireEvent.click(button);
-    expect(handleClick).toHaveBeenCalledTimes(1);
-    unmount();
-
-    // Test right icon
-    render(
-      <Button icon={mockIcon} iconPosition="right" onClick={handleClick}>
-        With icon
-      </Button>
-    );
-
-    const button2 = screen.getByRole('button', { name: /With icon/ });
-    fireEvent.click(button2);
-    expect(handleClick).toHaveBeenCalledTimes(2);
-  });
-
-  it('should be keyboard accessible', () => {
-    const handleClick = vi.fn();
-    render(<Button onClick={handleClick}>Submit</Button>);
-
-    const button = screen.getByRole('button', { name: 'Submit' });
-
-    // Test keyboard accessibility - buttons should be focusable
-    expect(button).not.toBeDisabled();
-
-    // Test focus ability
-    button.focus();
-    expect(button).toHaveFocus();
-
-    // Test that click works programmatically
-    fireEvent.click(button);
-    expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-
-  it('should handle edge cases gracefully', () => {
-    // Empty button - use render with cleanup to avoid multiple buttons
-    const { unmount } = render(<Button></Button>);
-    expect(screen.getByRole('button')).toBeInTheDocument();
-    unmount();
-
-    // Button with only icon
-    const mockIcon = <span>Icon</span>;
-    render(<Button icon={mockIcon}></Button>);
-    expect(screen.getByRole('button')).toBeInTheDocument();
-  });
-
-  it('should respect disabled state even with other props', () => {
-    const handleClick = vi.fn();
-    render(
-      <Button
-        disabled
-        loading={false}
-        variant="primary"
-        onClick={handleClick}
-      >
-        Disabled but styled
-      </Button>
-    );
-
-    const button = screen.getByRole('button');
-    expect(button).toBeDisabled();
-
-    fireEvent.click(button);
-    expect(handleClick).not.toHaveBeenCalled();
-  });
-
-  it('should handle missing onClick gracefully', () => {
-    // Should not throw error when no onClick provided
-    expect(() => {
-      render(<Button>No handler</Button>);
       const button = screen.getByRole('button');
-      fireEvent.click(button);
-    }).not.toThrow();
+      expect(button).toHaveClass('custom-class');
+    });
+  });
+
+  describe('Click Behavior', () => {
+    it('should handle click events', async () => {
+      const handleClick = vi.fn();
+      render(<Button onClick={handleClick}>Click me</Button>);
+
+      const button = screen.getByRole('button');
+      await user.click(button);
+
+      expect(handleClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not trigger when disabled', async () => {
+      const handleClick = vi.fn();
+      render(<Button disabled onClick={handleClick}>Disabled</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toBeDisabled();
+
+      await user.click(button);
+      expect(handleClick).not.toHaveBeenCalled();
+    });
+
+    it('should not trigger when loading', async () => {
+      const handleClick = vi.fn();
+      render(<Button loading onClick={handleClick}>Loading</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toBeDisabled();
+
+      await user.click(button);
+      expect(handleClick).not.toHaveBeenCalled();
+    });
+
+    it('should handle multiple clicks', async () => {
+      const handleClick = vi.fn();
+      render(<Button onClick={handleClick}>Multi-click</Button>);
+
+      const button = screen.getByRole('button');
+
+      await user.click(button);
+      await user.click(button);
+      await user.click(button);
+
+      expect(handleClick).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('Variants', () => {
+    it('should render primary variant by default', () => {
+      render(<Button>Primary</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('bg-primary-600');
+    });
+
+    it('should render secondary variant', () => {
+      render(<Button variant="secondary">Secondary</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('bg-gray-100');
+    });
+
+    it('should render ghost variant', () => {
+      render(<Button variant="ghost">Ghost</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('hover:bg-gray-100');
+    });
+
+    it('should render danger variant', () => {
+      render(<Button variant="danger">Danger</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('bg-red-600');
+    });
+
+    it('should render success variant', () => {
+      render(<Button variant="success">Success</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('bg-green-600');
+    });
+  });
+
+  describe('Sizes', () => {
+    it('should render medium size by default', () => {
+      render(<Button>Default</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('px-4', 'py-2', 'text-sm');
+    });
+
+    it('should render small size', () => {
+      render(<Button size="sm">Small</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('px-3', 'py-1.5', 'text-sm');
+    });
+
+    it('should render large size', () => {
+      render(<Button size="lg">Large</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('px-6', 'py-3', 'text-base');
+    });
+
+    it('should render icon size', () => {
+      render(<Button size="icon">Icon</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('p-2');
+    });
+  });
+
+  describe('Loading State', () => {
+    it('should show loading spinner when loading', () => {
+      render(<Button loading>Loading</Button>);
+
+      const button = screen.getByRole('button');
+      const spinner = button.querySelector('svg');
+
+      expect(spinner).toBeInTheDocument();
+      expect(spinner).toHaveClass('animate-spin');
+      expect(button).toBeDisabled();
+    });
+
+    it('should display text alongside spinner', () => {
+      render(<Button loading>Processing...</Button>);
+
+      expect(screen.getByText('Processing...')).toBeInTheDocument();
+      const spinner = screen.getByRole('button').querySelector('svg');
+      expect(spinner).toBeInTheDocument();
+    });
+  });
+
+  describe('Icon Support', () => {
+    it('should render icon on left by default', () => {
+      const icon = <span data-testid="icon">🔵</span>;
+      render(<Button icon={icon}>With Icon</Button>);
+
+      const button = screen.getByRole('button');
+      const iconElement = screen.getByTestId('icon');
+
+      expect(iconElement).toBeInTheDocument();
+      expect(button).toContainElement(iconElement);
+    });
+
+    it('should render icon on right when specified', () => {
+      const icon = <span data-testid="icon">🔵</span>;
+      render(<Button icon={icon} iconPosition="right">With Icon</Button>);
+
+      const button = screen.getByRole('button');
+      const iconElement = screen.getByTestId('icon');
+
+      expect(iconElement).toBeInTheDocument();
+      expect(button).toContainElement(iconElement);
+    });
+
+    it('should render without icon when not provided', () => {
+      render(<Button>No Icon</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button.querySelector('[data-testid="icon"]')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have proper button role', () => {
+      render(<Button>Accessible</Button>);
+
+      expect(screen.getByRole('button')).toBeInTheDocument();
+    });
+
+    it('should respect disabled state accessibility', () => {
+      render(<Button disabled>Disabled</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('disabled');
+      expect(button).toBeDisabled();
+    });
+
+    it('should respect aria-label', () => {
+      render(<Button aria-label="Custom label">Button</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('aria-label', 'Custom label');
+    });
+
+    it('should handle aria-busy when loading', () => {
+      render(<Button loading>Loading</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('should be keyboard accessible', async () => {
+      const handleClick = vi.fn();
+      render(<Button onClick={handleClick}>Keyboard Test</Button>);
+
+      const button = screen.getByRole('button');
+      button.focus();
+      expect(button).toHaveFocus();
+
+      await user.keyboard('{Enter}');
+      expect(handleClick).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Form Integration', () => {
+    it('should submit form when type is submit', async () => {
+      const handleSubmit = vi.fn((e) => e.preventDefault());
+
+      render(
+        <form onSubmit={handleSubmit}>
+          <Button type="submit">Submit</Button>
+        </form>
+      );
+
+      const button = screen.getByRole('button');
+      await user.click(button);
+
+      expect(handleSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle custom button types', () => {
+      render(<Button type="reset">Reset</Button>);
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('type', 'reset');
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle missing onClick gracefully', () => {
+      expect(() => {
+        render(<Button>No handler</Button>);
+      }).not.toThrow();
+    });
+
+    it('should handle onClick errors without crashing', async () => {
+      const handleError = vi.fn();
+      const originalConsoleError = console.error;
+      console.error = handleError;
+
+      const faultyClick = vi.fn(() => {
+        throw new Error('Click failed');
+      });
+
+      render(<Button onClick={faultyClick}>Faulty</Button>);
+
+      const button = screen.getByRole('button');
+
+      // Should not crash the component
+      expect(() => {
+        fireEvent.click(button);
+      }).not.toThrow();
+
+      console.error = originalConsoleError;
+    });
+  });
+
+  describe('Forward Ref', () => {
+    it('should forward ref to button element', () => {
+      const ref = { current: null };
+      render(<Button ref={ref}>Ref Button</Button>);
+
+      expect(ref.current).toBeInstanceOf(HTMLButtonElement);
+      expect(ref.current).toHaveTextContent('Ref Button');
+    });
   });
 });

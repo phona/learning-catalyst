@@ -3,6 +3,7 @@
  * Clean interface with proper error handling and caching
  */
 
+import { validateSessionData as validateSessionDataUtil } from '@/shared/utils/session-utils';
 import type { SessionDisplay, SessionCreateRequest, SessionUpdateRequest, SessionSearchFilters } from '../../types';
 
 interface SessionCache {
@@ -337,36 +338,7 @@ export class SessionClient {
    * Validate session data
    */
   validateSessionData(data: SessionCreateRequest): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    if (data.title && typeof data.title !== 'string') {
-      errors.push('Title must be a string');
-    }
-
-    if (data.title && data.title.length > 200) {
-      errors.push('Title must be less than 200 characters');
-    }
-
-    if (data.description && data.description.length > 1000) {
-      errors.push('Description must be less than 1000 characters');
-    }
-
-    if (data.tags && !Array.isArray(data.tags)) {
-      errors.push('Tags must be an array');
-    }
-
-    if (data.tags && data.tags.some(tag => typeof tag !== 'string')) {
-      errors.push('All tags must be strings');
-    }
-
-    if (data.difficulty && !['easy', 'medium', 'hard'].includes(data.difficulty)) {
-      errors.push('Difficulty must be easy, medium, or hard');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    return validateSessionDataUtil(data);
   }
 
   // Private cache methods

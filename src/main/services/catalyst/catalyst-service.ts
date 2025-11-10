@@ -16,6 +16,7 @@ import { ToolExecutorService } from '../tool-executor';
 import { AgentManagerMain } from '../agents/agent-manager';
 import { SessionService } from '../session/session-service';
 import { Database, createDatabase, runMigrations } from '../database/kysely-database';
+import { NaturalPracticeFlow } from '../practice/natural-practice-flow';
 
 /**
  * Main service orchestrator for Learning Catalyst
@@ -30,6 +31,7 @@ export class CatalystServiceMain {
   private toolExecutor: ToolExecutorService | null = null;
   private agentManager: AgentManagerMain | null = null;
   private sessionService: SessionService | null = null;
+  private naturalPracticeFlow: NaturalPracticeFlow | null = null;
   private initialized = false;
   private disposed = false;
 
@@ -74,6 +76,7 @@ export class CatalystServiceMain {
       await this.initializeToolExecutor();
       await this.initializeAgentManager();
       await this.initializeSessionService();
+      await this.initializePracticeServices();
       await this.registerServices();
 
       this.initialized = true;
@@ -221,6 +224,69 @@ export class CatalystServiceMain {
     this.registry.register('sessionService', this.sessionService);
 
     this.logger.info('Session service initialized');
+  }
+
+  /**
+   * Initialize practice services
+   */
+  private async initializePracticeServices(): Promise<void> {
+    this.logger.info('Initializing practice services...');
+
+    if (!this.agentManager) {
+      throw new ServiceError(
+        'Agent manager must be initialized before practice services',
+        'MISSING_DEPENDENCY',
+        'CatalystServiceMain'
+      );
+    }
+
+    try {
+      // Import services dynamically to avoid circular dependencies
+      const { UserContextTracker } = await import('../context/user-context-tracker');
+      const { ConversationAnalyzer } = await import('../analysis/conversation-analyzer');
+      const { NaturalPracticeFlow } = await import('../practice/natural-practice-flow');
+      const { PracticeAgent } = await import('../agents/specialized/practice-agent');
+
+      // Create UserContextTracker
+      const userContextTracker = new UserContextTracker({
+        database: this.database!,
+        logger: this.logger,
+        als: this.als
+      });
+
+      // Create ConversationAnalyzer
+      const conversationAnalyzer = new ConversationAnalyzer({
+        logger: this.logger,
+        als: this.als
+      });
+
+      // Get a practice agent instance
+      const practiceAgent = await this.agentManager.getAgent('practice');
+      if (!practiceAgent) {
+        this.logger.warn('Practice agent not found, practice services will have limited functionality');
+      }
+
+      // Create NaturalPracticeFlow
+      this.naturalPracticeFlow = new NaturalPracticeFlow({
+        als: this.als,
+        logger: this.logger,
+        practiceAgent: practiceAgent || ({} as any), // Empty fallback if practice agent not available
+        userContextTracker,
+        conversationAnalyzer
+      });
+
+      // Register practice services
+      this.registry.register('userContextTracker', userContextTracker);
+      this.registry.register('conversationAnalyzer', conversationAnalyzer);
+      this.registry.register('naturalPracticeFlow', this.naturalPracticeFlow);
+
+      this.logger.info('Practice services initialized successfully');
+
+    } catch (error) {
+      this.logger.error('Failed to initialize practice services', error as Error);
+      // Don't throw error - practice services are optional for basic functionality
+      this.logger.warn('Continuing without practice services');
+    }
   }
 
   /**

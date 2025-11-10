@@ -102,6 +102,30 @@ export interface ChatAPI {
    * @returns Promise<ConversationSummary> - Summary and key takeaways
    */
   endConversation: (conversationId: string) => Promise<ConversationSummary>;
+
+  /**
+   * Checks for practice opportunities in conversation
+   * Analyzes conversation context to suggest relevant practice moments
+   * @param params.conversationId - Active conversation ID
+   * @param params.userMessage - Latest user message for context
+   * @returns Promise<PracticeOpportunityResult> - Practice suggestion or null
+   */
+  checkPracticeOpportunity: (params: {
+    conversationId: string;
+    userMessage: string;
+  }) => Promise<PracticeOpportunityResult>;
+
+  /**
+   * Gets natural practice suggestion based on conversation context
+   * Returns a conversational practice suggestion that feels natural
+   * @param params.opportunity - Practice opportunity from checkPracticeOpportunity
+   * @param params.userContext - User's learning context and preferences
+   * @returns Promise<NaturalPracticeSuggestion> - Contextual practice suggestion
+   */
+  getPracticeSuggestion: (params: {
+    opportunity: PracticeOpportunity;
+    userContext?: UserLearningContext;
+  }) => Promise<NaturalPracticeSuggestion>;
 }
 
 // ============================================================================
@@ -235,4 +259,128 @@ export interface ConversationSummary {
   suggestedFollowUps: string[];
   achievements?: string[];
   nextSteps?: string[];
+}
+
+// ============================================================================
+// Practice Opportunity Types
+// ============================================================================
+
+/**
+ * Practice opportunity detected in conversation
+ */
+export interface PracticeOpportunity {
+  id: string;
+  type: 'understanding' | 'confused' | 'breakthrough' | 'practicing' | 'misunderstanding';
+  confidence: number; // 0-1
+  timing: 'immediate' | 'soon' | 'later';
+  concept: string;
+  reasoning: string;
+  detectedFrom: string[];
+  practiceReadiness: number; // 0-1
+  suggestedTopics: string[];
+  naturalPrompt?: string;
+  estimatedTime?: number; // minutes
+  difficulty?: 'easy' | 'medium' | 'hard';
+}
+
+/**
+ * Result of practice opportunity check
+ */
+export interface PracticeOpportunityResult {
+  hasOpportunity: boolean;
+  opportunity?: PracticeOpportunity;
+  shouldSuggest: boolean;
+  reason: string;
+  timing: 'immediate' | 'wait' | 'not-appropriate';
+  confidence: number;
+}
+
+/**
+ * User learning context for practice suggestions
+ */
+export interface UserLearningContext {
+  id: string;
+  sessionId: string;
+  confidenceLevel: number;
+  learningVelocity: number;
+  stuckPoints: string[];
+  recentConcepts: Array<{
+    concept: string;
+    confidence: number;
+    firstSeen: number;
+    lastSeen: number;
+    practiceCount: number;
+  }>;
+  practiceHistory: Array<{
+    concept: string;
+    completedAt: number;
+    success: boolean;
+    difficulty: string;
+    timeSpent: number;
+  }>;
+  lastPracticeTime?: number;
+  engagementLevel: number;
+  preferences: {
+    practiceFrequency: 'low' | 'medium' | 'high';
+    difficultyPreference: 'easy' | 'medium' | 'hard';
+    feedbackStyle: 'encouraging' | 'direct' | 'gentle';
+  };
+  statistics: {
+    totalPracticeSessions: number;
+    successRate: number;
+    averageSessionLength: number;
+    preferredPracticeTimes: number[];
+  };
+}
+
+/**
+ * Natural practice suggestion that feels conversational
+ */
+export interface NaturalPracticeSuggestion {
+  id: string;
+  type: 'gentle-nudge' | 'direct-suggestion' | 'collaborative-invite' | 'challenge';
+  introduction: string; // Natural opening line
+  challenge: string; // The actual practice suggestion
+  context: string; // How it relates to current conversation
+  estimatedTime: number; // minutes
+  difficulty: 'easy' | 'medium' | 'hard';
+  vibe: 'understanding' | 'confused' | 'breakthrough' | 'practicing' | 'misunderstanding';
+  timing: {
+    when: string; // "right now", "in a few minutes", "when you're ready"
+    urgency: 'low' | 'medium' | 'high';
+  };
+  options: {
+    accept: string; // What to say if they want to practice
+    decline: string; // What to say if they want to skip
+    postpone: string; // What to say if they want to practice later
+  };
+  metadata: {
+    concept: string;
+    relatedTopics: string[];
+    prerequisites: string[];
+    nextSteps: string[];
+  };
+}
+
+/**
+ * Practice session flow management
+ */
+export interface PracticeFlow {
+  id: string;
+  conversationId: string;
+  status: 'suggested' | 'accepted' | 'active' | 'completed' | 'declined';
+  suggestion: NaturalPracticeSuggestion;
+  startTime?: number;
+  endTime?: number;
+  progress: {
+    currentStep: number;
+    totalSteps: number;
+    completedSteps: string[];
+  };
+  userResponses: Array<{
+    step: number;
+    response: string;
+    timestamp: number;
+    feedback?: string;
+  }>;
 }

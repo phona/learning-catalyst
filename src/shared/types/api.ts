@@ -34,14 +34,8 @@ export interface ChatRequest {
   session_id?: string;
 }
 
-export interface ChatResponse {
+export interface ChatResponse extends import('./ai').ChatResponse {
   id: string;
-  content: string;
-  reasoning_content?: string;
-  provider: string;
-  model: string;
-  usage?: TokenUsage;
-  timestamp: Date;
   session_id?: string;
 }
 

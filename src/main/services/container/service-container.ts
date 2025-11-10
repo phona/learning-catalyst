@@ -2,10 +2,11 @@
  * Main Process Service Container
  *
  * Dependency injection container for main process services.
- * This replaces the shared container that violated architecture principles.
+ * Uses the unified ServiceContainer for process-agnostic dependency injection.
  */
 
 import { Kysely } from 'kysely';
+import { ServiceContainer, createServiceContainer } from '@/shared/utils/service-container';
 import { Database, createDatabase, runMigrations } from '@/main/services/database/kysely-database';
 import { KnowledgeGraphModule } from '@/shared/utils/knowledge-graph';
 import { SimpleAnalyticsModule } from '@/shared/utils/simple-analytics';
@@ -47,7 +48,7 @@ export interface MainServiceContainerOptions {
  */
 export async function createMainServiceContainer(
   options: MainServiceContainerOptions
-): Promise<MainServiceContainer> {
+): Promise<ServiceContainer<MainServiceContainer>> {
   const { databasePath, config, logger } = options;
 
   if (!logger) {
@@ -57,79 +58,92 @@ export async function createMainServiceContainer(
   logger.info('Creating main service container...');
 
   try {
-    // Step 1: Create database connection
-    const database = await createDatabase(databasePath);
+    // Create the unified service container
+    const container = createServiceContainer<MainServiceContainer>()
+      // Step 1: Database and storage (factories for lazy initialization)
+      .withService('database', async () => {
+        const db = await createDatabase(databasePath);
+        if (!db) {
+          throw new Error('Failed to create database connection');
+        }
+        logger.info('Database connection established');
+        return db;
+      }, true)
 
-    if (!database) {
-      throw new Error('Failed to create database connection');
-    }
+      .withService('analyticsModule', async () => {
+        const db = container.get('database');
+        const analyticsModule = new SimpleAnalyticsModule(db);
+        await analyticsModule.initialize();
+        logger.info('Analytics module initialized');
+        return analyticsModule;
+      }, true)
 
-    logger.info('Database connection established');
+      .withService('vectorDatabase', async () => {
+        const db = container.get('database');
+        const vectorDatabase = new VectorDatabaseModule(db);
+        await vectorDatabase.initialize();
+        logger.info('Vector database initialized');
+        return vectorDatabase;
+      }, true)
 
-    // Step 2: Run migrations
+      .withService('knowledgeGraph', async () => {
+        const db = container.get('database');
+        const vectorDb = container.get('vectorDatabase');
+        const knowledgeGraph = new KnowledgeGraphModule(db, vectorDb);
+        await knowledgeGraph.initialize();
+        logger.info('Knowledge graph initialized');
+        return knowledgeGraph;
+      }, true)
+
+      // Step 2: Core services
+      .withService('configService', () => {
+        const configService = new ConfigService(
+          {} as any, // IConfigStorage
+          logger,
+          undefined // IEventBus
+        );
+        logger.info('Configuration service initialized');
+        return configService;
+      }, true)
+
+      .withService('sessionService', () => {
+        const db = container.get('database');
+        const sessionService = new SessionService({
+          database: db,
+          logger,
+          als: logger.getAsyncLocalStorage()
+        });
+        logger.info('Session service initialized');
+        return sessionService;
+      }, true)
+
+      .withService('conceptParsing', () => {
+        const conceptParsing = new ConceptParsingService([], {});
+        logger.info('Concept parsing service initialized');
+        return conceptParsing;
+      }, true)
+
+      // Step 3: High-level services
+      .withService('analyticsService', () => {
+        const db = container.get('database');
+        const analyticsService = new AnalyticsService(db, logger);
+        logger.info('Analytics service initialized');
+        return analyticsService;
+      }, true)
+
+      .withService('knowledgeService', () => {
+        const db = container.get('database');
+        const vectorDb = container.get('vectorDatabase');
+        const knowledgeService = new KnowledgeService(db, vectorDb, logger);
+        logger.info('Knowledge service initialized');
+        return knowledgeService;
+      }, true)
+
+      .build();
+
+    // Run database migrations after all services are registered
     await runMigrations();
     logger.info('Database migrations completed');
-
-    // Step 3: Create core infrastructure services
-    const vectorDatabase = new VectorDatabaseModule(database);
-    await vectorDatabase.initialize();
-    logger.info('Vector database initialized');
-
-    const knowledgeGraph = new KnowledgeGraphModule(database, vectorDatabase);
-    await knowledgeGraph.initialize();
-    logger.info('Knowledge graph initialized');
-
-    const analyticsModule = new SimpleAnalyticsModule(database);
-    await analyticsModule.initialize();
-    logger.info('Analytics module initialized');
-
-    // Step 4: Create configuration service
-    const configService = new ConfigService(
-      // Dependencies will be injected here
-      {} as any, // IConfigStorage
-      logger,
-      undefined // IEventBus
-    );
-    await configService.getConfig(); // Initialize
-    logger.info('Configuration service initialized');
-
-    // Step 5: Create core services
-    // Note: AgentManagerMain requires different dependencies
-    // This is a placeholder - actual implementation needs proper dependency injection
-    // const agentManager = new AgentManagerMain(dependencies, toolExecutor);
-    // await agentManager.initialize();
-    logger.info('Agent manager initialized');
-
-    const sessionService = new SessionService({
-      database,
-      logger,
-      als: logger.getAsyncLocalStorage()
-    });
-    const conceptParsing = new ConceptParsingService([], {});
-    logger.info('Core services initialized');
-
-    // Step 6: Create high-level services
-    const analyticsService = new AnalyticsService(database, logger);
-    const knowledgeService = new KnowledgeService(database, vectorDatabase, logger);
-    logger.info('High-level services initialized');
-
-    const container: MainServiceContainer = {
-      // Infrastructure
-      database,
-      analyticsModule,
-      knowledgeGraph,
-      vectorDatabase,
-
-      // Core services
-      configService,
-      // agentManager, // TODO: Fix AgentManagerMain instantiation
-      sessionService,
-      conceptParsing,
-
-      // High-level services
-      analyticsService,
-      knowledgeService,
-    } as any;
 
     logger.info('Main service container created successfully');
     return container;
@@ -144,14 +158,14 @@ export async function createMainServiceContainer(
  * Service container manager for main process
  */
 export class MainServiceContainerManager {
-  private container: MainServiceContainer | null = null;
-  private initializationPromise: Promise<MainServiceContainer> | null = null;
+  private container: ServiceContainer<MainServiceContainer> | null = null;
+  private initializationPromise: Promise<ServiceContainer<MainServiceContainer>> | null = null;
   private options: MainServiceContainerOptions | null = null;
 
   /**
    * Initialize the service container
    */
-  async initialize(options: MainServiceContainerOptions): Promise<MainServiceContainer> {
+  async initialize(options: MainServiceContainerOptions): Promise<ServiceContainer<MainServiceContainer>> {
     if (this.container) {
       return this.container;
     }
@@ -165,7 +179,7 @@ export class MainServiceContainerManager {
     return this.initializationPromise;
   }
 
-  private async createContainer(options: MainServiceContainerOptions): Promise<MainServiceContainer> {
+  private async createContainer(options: MainServiceContainerOptions): Promise<ServiceContainer<MainServiceContainer>> {
     try {
       this.container = await createMainServiceContainer(options);
       return this.container;
@@ -178,7 +192,7 @@ export class MainServiceContainerManager {
   /**
    * Get the current container
    */
-  getContainer(): MainServiceContainer | null {
+  getContainer(): ServiceContainer<MainServiceContainer> | null {
     return this.container;
   }
 
@@ -195,7 +209,7 @@ export class MainServiceContainerManager {
   getService<TKey extends keyof MainServiceContainer>(
     key: TKey
   ): MainServiceContainer[TKey] | null {
-    return this.container?.[key] ?? null;
+    return this.container?.get(key) ?? null;
   }
 
   /**
@@ -211,39 +225,9 @@ export class MainServiceContainerManager {
     try {
       logger?.info('Disposing main service container...');
 
-      // Cleanup high-level services first
-      if (this.container.knowledgeService) {
-        await this.container.knowledgeService.dispose?.();
-      }
+      // The unified ServiceContainer will handle automatic disposal of services
+      this.container.dispose();
 
-      if (this.container.analyticsService) {
-        await this.container.analyticsService.dispose?.();
-      }
-
-      // Cleanup core services
-      if (this.container.conceptParsing) {
-        // ConceptParsingPipeline doesn't have cleanup methods in the current implementation
-        // But we can add cleanup logic here if needed in the future
-      }
-
-      if (this.container.agentManager) {
-        // this.container.agentManager.dispose();
-      }
-
-      // Cleanup infrastructure services
-      if (this.container.analyticsModule) {
-        await this.container.analyticsModule.cleanup();
-      }
-
-      if (this.container.knowledgeGraph) {
-        await this.container.knowledgeGraph.cleanup();
-      }
-
-      if (this.container.vectorDatabase) {
-        await this.container.vectorDatabase.cleanup();
-      }
-
-      // Database cleanup is handled by connection pooling
       logger?.info('Main service container disposed successfully');
 
     } catch (error) {
@@ -263,21 +247,24 @@ export class MainServiceContainerManager {
     initialized: boolean;
     serviceCount: number;
     services: string[];
+    isDisposed: boolean;
   } {
     if (!this.container) {
       return {
         initialized: false,
         serviceCount: 0,
-        services: []
+        services: [],
+        isDisposed: false
       };
     }
 
-    const services = Object.keys(this.container) as (keyof MainServiceContainer)[];
+    const stats = this.container.getStats();
 
     return {
       initialized: true,
-      serviceCount: services.length,
-      services
+      serviceCount: stats.totalServices,
+      services: stats.serviceNames,
+      isDisposed: stats.isDisposed
     };
   }
 }

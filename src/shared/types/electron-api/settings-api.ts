@@ -273,23 +273,18 @@ export type ProviderCapability = 'chat' | 'completion' | 'embedding' | 'image' |
 
 /**
  * Provider configuration object
+ * Re-exported from config types for consistency
  */
-export interface ProviderConfig {
+export type ProviderConfig = import('../../config').ProviderConfig & {
   apiKey: string;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
   systemPrompt?: string;
   isDefault?: boolean;
-  endpoint?: string;
-  timeout?: number;
-  retries?: number;
   customSettings?: Record<string, any>;
   rateLimit?: {
     requestsPerMinute: number;
     tokensPerMinute: number;
   };
-}
+};
 
 /**
  * Learning settings display

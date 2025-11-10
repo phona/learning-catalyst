@@ -8,8 +8,6 @@ import { QdrantManager } from './qdrant-manager'
 import { initializeCatalystService, disposeCatalystService } from './services/catalyst/catalyst-service'
 import { mainServiceRegistry } from './services/registry/MainServiceRegistry'
 import { mainServiceContainerManager } from './services/container/service-container'
-// import { getMockQdrantManager } from './mock-qdrant-manager'
-// import { getMockDatabase } from './mock-database' // Using real SQLite now
 // Memory debugging utility for development
 import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
 

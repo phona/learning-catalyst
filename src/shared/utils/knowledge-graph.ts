@@ -7,8 +7,7 @@
 
 import type { Database } from '../../main/services/database/kysely-schema';
 import { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
-// Vector database will be injected via constructor or optional import
-// import { VectorDatabaseModule, SearchResult } from '../../renderer/services/vector-database';
+// Vector database will be injected via constructor
 import { Kysely } from 'kysely';
 
 // Type definition for vector database module

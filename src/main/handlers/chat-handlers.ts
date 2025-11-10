@@ -9,6 +9,15 @@ import { ipcMain, MessageChannelMain } from 'electron';
 import { getCatalystService } from '../services/catalyst/catalyst-service';
 import { LoggerFactory } from '../services/logger';
 import { ServiceError } from '../services/types';
+import type {
+  PracticeOpportunity,
+  PracticeOpportunityResult,
+  NaturalPracticeSuggestion,
+  UserLearningContext
+} from '../../shared/types/electron-api/chat-api';
+
+// Import NaturalPracticeFlow for direct use (will be injected in production)
+import { NaturalPracticeFlow } from '../services/practice/natural-practice-flow';
 
 /**
  * Setup chat and conversation IPC handlers
@@ -115,6 +124,13 @@ export function setupChatHandlers(): void {
             }
           };
 
+          // Check for practice opportunity asynchronously
+          // This runs in the background and doesn't block the response
+          checkPracticeOpportunityAsync(params.conversationId, params.message, params.sessionId)
+            .catch(error => {
+              logger.warn('Practice opportunity check failed', error as Error);
+            });
+
           return {
             success: true,
             message: aiResponse
@@ -134,6 +150,87 @@ export function setupChatHandlers(): void {
       throw error;
     }
   });
+
+  /**
+   * Asynchronously check for practice opportunities
+   * This function runs in the background after a message is sent
+   */
+  async function checkPracticeOpportunityAsync(
+    conversationId: string,
+    userMessage: string,
+    sessionId?: string
+  ): Promise<void> {
+    try {
+      const catalystService = getCatalystService();
+      if (!catalystService) return;
+
+      // Simple heuristic to determine when to check for practice opportunities
+      // Check every 5-10 messages or when user shows understanding
+      const messageCount = Math.floor(Math.random() * 10) + 1; // Mock message count
+
+      if (messageCount % 7 !== 0 && !containsUnderstandingCues(userMessage)) {
+        logger.debug('Skipping practice opportunity check', {
+          conversationId,
+          messageCount,
+          hasUnderstandingCues: containsUnderstandingCues(userMessage)
+        });
+        return;
+      }
+
+      logger.info('Checking for practice opportunities', { conversationId });
+
+      // Get agent manager for practice detection
+      const agentManager = catalystService.getService('agentManager');
+      if (!agentManager) {
+        logger.debug('Agent manager not available for practice check');
+        return;
+      }
+
+      // Get NaturalPracticeFlow service if available
+      const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow');
+      if (naturalPracticeFlow) {
+        const practiceResult = await naturalPracticeFlow.checkPracticeOpportunity(
+          conversationId,
+          userMessage,
+          sessionId
+        );
+
+        if (practiceResult.shouldSuggest && practiceResult.opportunity) {
+          // Generate practice suggestion
+          const suggestion = await naturalPracticeFlow.generatePracticeSuggestion(
+            practiceResult.opportunity
+          );
+
+          // TODO: Send suggestion to renderer via IPC
+          logger.info('Practice suggestion generated', {
+            conversationId,
+            suggestionId: suggestion.id,
+            type: suggestion.type
+          });
+        }
+      } else {
+        logger.debug('NaturalPracticeFlow service not available');
+      }
+
+    } catch (error) {
+      logger.error('Practice opportunity check failed', error as Error, { conversationId });
+    }
+  }
+
+  /**
+   * Check if user message contains understanding cues
+   */
+  function containsUnderstandingCues(message: string): boolean {
+    const understandingKeywords = [
+      'i understand', 'i get it', 'got it', 'makes sense', 'i see',
+      'that makes sense', 'i think i understand', 'now i get it',
+      'that clears it up', 'ah i see', 'oh right', 'i get that',
+      'understood', 'makes perfect sense', 'i follow', 'i see what you mean'
+    ];
+
+    const lowerMessage = message.toLowerCase();
+    return understandingKeywords.some(keyword => lowerMessage.includes(keyword));
+  }
 
   /**
    * Get conversation history
@@ -395,6 +492,129 @@ export function setupChatHandlers(): void {
       } catch (closeError) {
         logger.error('Failed to close port', closeError as Error);
       }
+    }
+  });
+
+  /**
+   * Check for practice opportunities in conversation
+   */
+  ipcMain.handle('chat:checkPracticeOpportunity', async (event, params) => {
+    logger.info('Checking practice opportunity', {
+      conversationId: params.conversationId,
+      userMessageLength: params.userMessage?.length
+    });
+
+    try {
+      const catalystService = getCatalystService();
+      if (!catalystService) {
+        throw new ServiceError(
+          'Catalyst service not initialized',
+          'SERVICE_NOT_INITIALIZED',
+          'ChatHandlers'
+        );
+      }
+
+      const result = await catalystService.runWithContext(
+        params.sessionId || 'system',
+        'chat:checkPracticeOpportunity',
+        async () => {
+          // Get NaturalPracticeFlow service
+          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow');
+          if (!naturalPracticeFlow) {
+            throw new ServiceError(
+              'NaturalPracticeFlow service not available',
+              'SERVICE_UNAVAILABLE',
+              'ChatHandlers'
+            );
+          }
+
+          // Use NaturalPracticeFlow to check for practice opportunities
+          const practiceResult = await naturalPracticeFlow.checkPracticeOpportunity(
+            params.conversationId,
+            params.userMessage,
+            params.sessionId
+          );
+
+          return {
+            success: true,
+            practiceOpportunity: practiceResult
+          };
+        },
+        {
+          operation: 'chat:checkPracticeOpportunity',
+          conversationId: params.conversationId,
+          source: 'ipc_handler'
+        }
+      );
+
+      return result;
+
+    } catch (error) {
+      logger.error('Failed to check practice opportunity', error as Error, {
+        conversationId: params.conversationId
+      });
+      throw error;
+    }
+  });
+
+  /**
+   * Get natural practice suggestion
+   */
+  ipcMain.handle('chat:getPracticeSuggestion', async (event, params) => {
+    logger.info('Getting practice suggestion', {
+      opportunityId: params.opportunity?.id,
+      userContextId: params.userContext?.id
+    });
+
+    try {
+      const catalystService = getCatalystService();
+      if (!catalystService) {
+        throw new ServiceError(
+          'Catalyst service not initialized',
+          'SERVICE_NOT_INITIALIZED',
+          'ChatHandlers'
+        );
+      }
+
+      const result = await catalystService.runWithContext(
+        params.sessionId || 'system',
+        'chat:getPracticeSuggestion',
+        async () => {
+          // Get NaturalPracticeFlow service
+          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow');
+          if (!naturalPracticeFlow) {
+            throw new ServiceError(
+              'NaturalPracticeFlow service not available',
+              'SERVICE_UNAVAILABLE',
+              'ChatHandlers'
+            );
+          }
+
+          // Use NaturalPracticeFlow to generate suggestion
+          const suggestion = await naturalPracticeFlow.generatePracticeSuggestion(
+            params.opportunity,
+            params.userContext
+          );
+
+          return {
+            success: true,
+            suggestion
+          };
+        },
+        {
+          operation: 'chat:getPracticeSuggestion',
+          opportunityId: params.opportunity?.id,
+          source: 'ipc_handler'
+        }
+      );
+
+      return result;
+
+    } catch (error) {
+      logger.error('Failed to get practice suggestion', error as Error, {
+        opportunityId: params.opportunity?.id
+      });
+      throw error;
     }
   });
 

@@ -221,7 +221,7 @@ export function createMockDatabase(): Kysely<Database> {
  * Create comprehensive logger mock
  */
 export function createMockLogger() {
-  return {
+  const logger = {
     info: vi.fn().mockReturnValue(undefined),
     error: vi.fn().mockReturnValue(undefined),
     warn: vi.fn().mockReturnValue(undefined),
@@ -243,27 +243,11 @@ export function createMockLogger() {
       })
     }
   }
+  return logger;
 }
 
-/**
- * Create AsyncLocalStorage mock
- */
-export function createMockAsyncLocalStorage(): any {
-  const store = new Map()
-  const mockAls = {
-    getStore: vi.fn().mockReturnValue(store),
-    run: vi.fn().mockImplementation((store, callback) => {
-      return callback(store)
-    }),
-    enterWith: vi.fn(),
-    exit: vi.fn(),
-    disable: vi.fn(),
-    get: vi.fn().mockImplementation((key) => store.get(key)),
-    set: vi.fn().mockImplementation((key, value) => store.set(key, value))
-  }
-
-  return mockAls
-}
+// AsyncLocalStorage is a native Node.js API - no need to mock it
+// It should be tested through its behavior, not implementation
 
 // ==================== TEST UTILITIES ====================
 

@@ -333,8 +333,24 @@ describe('IPC Communication Integration', () => {
       });
 
       // Import and test analytics service
-      const { AnalyticsService } = await import('../../renderer/services/analytics/analytics-service');
-      const analyticsService = new AnalyticsService();
+      const { AnalyticsService } = await import('../../renderer/services/AnalyticsService');
+      // AnalyticsService requires electronAPI parameter, create a mock
+      const mockElectronAPI = {
+        getDashboard: vi.fn().mockResolvedValue({ success: true, data: {} }),
+        getProgressChart: vi.fn().mockResolvedValue({ success: true, data: {} }),
+        getConceptProgress: vi.fn().mockResolvedValue({ success: true, data: {} }),
+        updateConceptProgress: vi.fn().mockResolvedValue({ success: true }),
+        trackSession: vi.fn().mockResolvedValue({ success: true, data: 'session-id' }),
+        getSessionHistory: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        getAchievements: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        checkAchievements: vi.fn().mockResolvedValue({ success: true, data: [] }),
+        getLearningTrends: vi.fn().mockResolvedValue({ success: true, data: {} }),
+        getStudyStreak: vi.fn().mockResolvedValue({ success: true, data: {} }),
+        getTimeStats: vi.fn().mockResolvedValue({ success: true, data: {} }),
+        exportData: vi.fn().mockResolvedValue({ success: true, data: 'export-data' }),
+        importData: vi.fn().mockResolvedValue({ success: true })
+      };
+      const analyticsService = new AnalyticsService(mockElectronAPI);
 
       // Get statistics
       let stats;
