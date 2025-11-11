@@ -8,7 +8,7 @@
 
 import { AsyncLocalStorage } from 'async_hooks';
 import { MessagePortMain } from 'electron';
-import { Database } from '../database';
+import { Database } from './database/kysely-schema';
 import { AIProvider } from '@/shared/types/ai';
 import { Concept, ProposedRelationship } from '@/shared/types/concept-parsing';
 import { ToolExecutorService } from './tool-executor';

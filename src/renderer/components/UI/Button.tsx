@@ -36,6 +36,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     iconPosition = 'left',
     children,
     disabled,
+    type = 'button',
     ...props
   }, ref) => {
     const baseClasses = [
@@ -110,6 +111,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(...baseClasses, className)}
         ref={ref}
         disabled={disabled || loading}
+        type={type}
         {...props}
       >
         {renderContent()}

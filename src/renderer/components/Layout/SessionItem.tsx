@@ -103,7 +103,7 @@ export const SessionItem = memo<SessionItemProps>(({
             {messageCount > 0 && (
               <span className="text-gray-500 dark:text-gray-400 flex items-center space-x-1">
                 <ChatBubbleLeftRightIcon className="w-3 h-3" aria-hidden="true" />
-                <span>{messageCount}</span>
+                <span>{messageCount} message{messageCount !== 1 ? 's' : ''}</span>
               </span>
             )}
             {/* Active status indicator */}

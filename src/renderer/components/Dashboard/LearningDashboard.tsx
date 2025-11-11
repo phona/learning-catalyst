@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ProgressChart, StudyStreak, LearningTrends, Achievements, SessionTracking } from '../Analytics';
-import type { StudyMetrics } from '@/shared/utils/simple-analytics';
+import type { StudyMetrics, LearningSession } from '@/shared/utils/simple-analytics';
 import { useCatalystService, useAnalyticsService } from '../../hooks/useServices';
 import type { AgentDisplay, ActiveExecution } from '@/shared/types/electron-api';
 
-const REFRESH_INTERVAL = 10000; // 10 seconds
+// Manual refresh instead of automatic interval for better user control
 
 export const LearningDashboard: React.FC = () => {
   const catalystService = useCatalystService();
@@ -40,7 +40,12 @@ export const LearningDashboard: React.FC = () => {
       console.error('Failed to load agent information:', err);
       setError(errorMessage);
     }
-  }, [catalystService]);
+  }, [catalystService]); // Keep catalystService dependency - it's stable in production
+
+  const loadDashboardSessions = useCallback(async () => {
+    const sessions = await analyticsService.getRecentSessions(10);
+    return sessions as unknown as LearningSession[];
+  }, [analyticsService]);
 
   // Setup dashboard and load initial data
   const setupDashboard = useCallback(async () => {
@@ -63,21 +68,18 @@ export const LearningDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [loadAgentInformation]);
+  }, [analyticsService, loadAgentInformation]);
 
-  // Initial setup effect
+  // Initial setup effect - run only once on mount
   useEffect(() => {
     setupDashboard();
-  }, [setupDashboard]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - run only on mount
 
-  // Periodic refresh effect with proper cleanup
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadAgentInformation();
-    }, REFRESH_INTERVAL);
-
-    return () => clearInterval(interval);
-  }, [loadAgentInformation]);
+  // Manual refresh handler - user clicks to refresh agent information
+  const handleRefresh = async () => {
+    await loadAgentInformation();
+  };
 
   // Error state display
   if (error) {
@@ -119,12 +121,26 @@ export const LearningDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-            Learning Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Track your learning progress and achievements
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Learning Dashboard
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Track your learning progress and achievements
+              </p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              title="Refresh agent status and execution data"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
 
         {/* Overview Stats */}
@@ -342,6 +358,7 @@ export const LearningDashboard: React.FC = () => {
               getLearningTrends: () => analyticsService.getLearningTrends(),
               getRecentSessions: (limit?: number) => analyticsService.getRecentSessions(limit)
             }}
+            loadSessions={loadDashboardSessions}
           />
         </div>
 

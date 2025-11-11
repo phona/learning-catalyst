@@ -220,7 +220,7 @@ export class AgentManagerMain {
         },
         timestamp: Date.now()
       };
-      throw error;
+      // Don't throw - let the generator complete gracefully after emitting error chunk
     } finally {
       this.executions.delete(executionContext.id);
     }
@@ -304,13 +304,16 @@ export class AgentManagerMain {
       };
 
     } catch (error) {
-      throw new AgentExecutionError(
-        `Concept parser execution failed: ${(error as Error).message}`,
-        agent.id,
-        'execution',
-        executionContext,
-        error as Error
-      );
+      // Emit error chunk instead of throwing
+      yield {
+        type: 'error',
+        content: {
+          agentId: agent.id,
+          error: `Concept parser execution failed: ${(error as Error).message}`,
+          stack: (error as Error).stack
+        },
+        timestamp: Date.now()
+      };
     }
   }
 
@@ -362,13 +365,16 @@ export class AgentManagerMain {
       }
 
     } catch (error) {
-      throw new AgentExecutionError(
-        `Chat agent execution failed: ${(error as Error).message}`,
-        agent.id,
-        'execution',
-        executionContext,
-        error as Error
-      );
+      // Emit error chunk instead of throwing
+      yield {
+        type: 'error',
+        content: {
+          agentId: agent.id,
+          error: `Chat agent execution failed: ${(error as Error).message}`,
+          stack: (error as Error).stack
+        },
+        timestamp: Date.now()
+      };
     }
   }
 
@@ -401,13 +407,16 @@ export class AgentManagerMain {
       };
 
     } catch (error) {
-      throw new AgentExecutionError(
-        `Streaming chat failed: ${(error as Error).message}`,
-        executionContext.agentId,
-        'execution',
-        executionContext,
-        error as Error
-      );
+      // Emit error chunk instead of throwing
+      yield {
+        type: 'error',
+        content: {
+          agentId: executionContext.agentId,
+          error: `Streaming chat failed: ${(error as Error).message}`,
+          stack: (error as Error).stack
+        },
+        timestamp: Date.now()
+      };
     }
   }
 
@@ -438,13 +447,16 @@ export class AgentManagerMain {
       };
 
     } catch (error) {
-      throw new AgentExecutionError(
-        `Chat execution failed: ${(error as Error).message}`,
-        executionContext.agentId,
-        'execution',
-        executionContext,
-        error as Error
-      );
+      // Emit error chunk instead of throwing
+      yield {
+        type: 'error',
+        content: {
+          agentId: executionContext.agentId,
+          error: `Chat execution failed: ${(error as Error).message}`,
+          stack: (error as Error).stack
+        },
+        timestamp: Date.now()
+      };
     }
   }
 

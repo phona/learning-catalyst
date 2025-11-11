@@ -14,6 +14,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type { BufferEncoding } from 'node:buffer';
 import {
   ElectronAPI,
   ChatAPI,
@@ -25,6 +26,7 @@ import {
   SettingsAPI,
   SessionsAPI
 } from '@/shared/types/electron-api';
+import type { DirectoryFilterConfig } from '@/shared/types/filesystem';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -783,6 +785,33 @@ const electronAPI = {
   agents: agentsAPI,
   content: contentAPI,
   settings: settingsAPI,
+  getWorkspacePath: () => ipcRenderer.invoke('filesystem:get-workspace-path'),
+  readDirectory: (
+    dirPath: string,
+    recursive: boolean = true,
+    maxDepth: number = 3,
+    filterConfig?: DirectoryFilterConfig
+  ) => ipcRenderer.invoke('filesystem:read-directory', dirPath, recursive, maxDepth, filterConfig),
+  readFile: (filePath: string, encoding: BufferEncoding = 'utf-8') =>
+    ipcRenderer.invoke('filesystem:read-file', filePath, encoding),
+  writeFile: (filePath: string, content: string, encoding: BufferEncoding = 'utf-8') =>
+    ipcRenderer.invoke('filesystem:write-file', filePath, content, encoding),
+  existsFile: (filePath: string) => ipcRenderer.invoke('filesystem:path-exists', filePath),
+  showOpenDialog: (options?: Electron.OpenDialogOptions) =>
+    ipcRenderer.invoke('dialog:show-open', options),
+  showSaveDialog: (options?: Electron.SaveDialogOptions) =>
+    ipcRenderer.invoke('dialog:show-save', options),
+  getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
+  quit: () => ipcRenderer.invoke('settings:quitApp'),
+  getConfig: () => ipcRenderer.invoke('settings:getWorkspaceConfig'),
+  setConfig: (config: unknown) => ipcRenderer.invoke('settings:setWorkspaceConfig', config),
+  onMenuAction: (handler: (action: string, data?: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, action: string, payload?: unknown) => {
+      handler(action, payload);
+    };
+    ipcRenderer.on('menu:action', listener);
+    return () => ipcRenderer.removeListener('menu:action', listener);
+  },
 
   // Utility methods for better error handling and debugging
 

@@ -77,11 +77,11 @@ export class ElectronIPCClient implements ICatalystIPCClient {
   }
 
   async getSession(request: { sessionId: string }): Promise<unknown> {
-    if (!window.electronAPI?.session?.get) {
+    if (!window.electronAPI?.sessions?.get) {
       throw new Error('Electron API not available');
     }
 
-    return await window.electronAPI.session.get(request.sessionId);
+    return await window.electronAPI.sessions.get(request.sessionId);
   }
 
   async cancelExecution(request: { executionId: string }): Promise<unknown> {

@@ -19,7 +19,7 @@ class MockVibeModel {
     const content = lastMessage.content as string;
 
     // Mock responses based on prompt content
-    if (content.includes('vibe_type") || content.includes('vibe_type')) {
+    if (content.includes('vibe_type') || content.includes('vibe_type')) {
       // Test for different vibe scenarios
       if (content.includes('I understand') || content.includes('got it')) {
         return {

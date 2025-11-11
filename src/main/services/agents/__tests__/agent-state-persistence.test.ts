@@ -14,90 +14,28 @@ import type { Kysely } from 'kysely';
 import type { Database } from '@/shared/types/database';
 import { mockDatabaseService } from '@/__tests__/utils/mocks/mock-services';
 
-describe('AgentStatePersistence', () => {
-  let statePersistence: AgentStatePersistence;
-  let mockDb: Kysely<Database>;
-  let mockLogger: any;
-  let mockAls: any;
-  let mockCheckpointSaver: SQLiteCheckpointSaver;
+// Mock compression utilities
+vi.mock('@/shared/utils/compression', () => ({
+  compress: vi.fn().mockResolvedValue('compressed-data'),
+  decompress: vi.fn().mockResolvedValue('original-data')
+}));
 
-  // Create mock functions
-  const createMockDatabase = () => ({
-    insertInto: vi.fn(),
-    selectFrom: vi.fn(),
-    updateTable: vi.fn(),
-    deleteFrom: vi.fn(),
-    transaction: vi.fn(),
-    fetchOne: vi.fn(),
-    fetchAll: vi.fn()
-  });
-
-  const createMockLogger = () => ({
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn().mockReturnThis()
-  });
-
-  const createMockAsyncLocalStorage = () => ({
-    run: vi.fn(),
-    getStore: vi.fn().mockReturnValue({
-      get: vi.fn(),
-      set: vi.fn()
-    })
-  });
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Setup comprehensive mocks
-    mockDb = createMockDatabase();
-    mockLogger = createMockLogger();
-    mockAls = createMockAsyncLocalStorage();
-    mockCheckpointSaver = {
-      put: vi.fn(),
-      get: vi.fn(),
-      list: vi.fn(),
-      delete: vi.fn()
-    } as any;
-
-    // Create AgentStatePersistence instance
-    statePersistence = new AgentStatePersistence(
-      mockDb,
-      mockCheckpointSaver,
-      mockLogger,
-      mockAls
-    );
-
-    // Setup default mock behaviors
-    mockDb.transaction.mockImplementation(async (fn) => {
-      return fn(mockDb);
-    });
-
-    mockLogger.info.mockReturnValue(undefined);
-    mockLogger.error.mockReturnValue(undefined);
-    mockLogger.warn.mockReturnValue(undefined);
-    mockLogger.debug.mockReturnValue(undefined);
-
-    // Setup checkpoint saver defaults
-    mockCheckpointSaver.put.mockResolvedValue(undefined);
-    mockCheckpointSaver.get.mockResolvedValue({
+// Mock SQLiteCheckpointSaver
+vi.mock('../checkpoints/SQLiteCheckpointSaver', () => ({
+  SQLiteCheckpointSaver: vi.fn().mockImplementation(() => ({
+    put: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue({
       id: 'checkpoint-id',
       checkpoint: {
         v: 1,
         id: 'checkpoint-id',
         ts: Date.now(),
-        channel_values: {
-          messages: [],
-          agent_state: { status: 'active', lastActivity: Date.now() }
-        },
+        channel_values: { messages: [] },
         channel_versions: {},
         versions_seen: {}
       }
-    });
-
-    mockCheckpointSaver.list.mockImplementation(async function* () {
+    }),
+    list: vi.fn().mockImplementation(async function* () {
       yield {
         id: 'checkpoint-1',
         checkpoint: {
@@ -109,18 +47,168 @@ describe('AgentStatePersistence', () => {
           versions_seen: {}
         }
       };
-      yield {
-        id: 'checkpoint-2',
-        checkpoint: {
-          v: 1,
-          id: 'checkpoint-2',
-          ts: Date.now() - 5000,
-          channel_values: { messages: [] },
-          channel_versions: {},
-          versions_seen: {}
-        }
-      };
+    }),
+    delete: vi.fn().mockResolvedValue(undefined)
+  }))
+}));
+
+describe('AgentStatePersistence', () => {
+  let statePersistence: AgentStatePersistence;
+  let mockDb: Kysely<Database>;
+  let mockLogger: any;
+  let mockAls: any;
+
+  // Create mock functions
+  const createMockDatabase = () => {
+    const createQueryBuilder = () => ({
+      values: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue([]),
+        executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 }),
+        executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 }),
+        returning: vi.fn().mockReturnValue({
+          execute: vi.fn().mockResolvedValue([]),
+          executeTakeFirst: vi.fn().mockResolvedValue(null),
+          executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+        }),
+        returningAll: vi.fn().mockReturnValue({
+          execute: vi.fn().mockResolvedValue([]),
+          executeTakeFirst: vi.fn().mockResolvedValue(null),
+          executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+        })
+      })
     });
+
+    return {
+      insertInto: vi.fn().mockReturnValue(createQueryBuilder()),
+      selectFrom: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        offset: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue([]),
+        executeTakeFirst: vi.fn().mockResolvedValue(null),
+        executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+      }),
+      updateTable: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            execute: vi.fn().mockResolvedValue([])
+          })
+        })
+      }),
+      deleteFrom: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          execute: vi.fn().mockResolvedValue([])
+        })
+      }),
+      transaction: vi.fn().mockImplementation((fn?: any) => {
+        if (!fn) {
+          return {
+            execute: vi.fn().mockImplementation(async (executeFn: any) => {
+              const tx = {
+                insertInto: vi.fn().mockReturnValue(createQueryBuilder()),
+                selectFrom: vi.fn().mockReturnValue({
+                  where: vi.fn().mockReturnThis(),
+                  orderBy: vi.fn().mockReturnThis(),
+                  limit: vi.fn().mockReturnThis(),
+                  execute: vi.fn().mockResolvedValue([]),
+                  executeTakeFirst: vi.fn().mockResolvedValue(null)
+                }),
+                updateTable: vi.fn().mockReturnValue({
+                  set: vi.fn().mockReturnThis()
+                }),
+                deleteFrom: vi.fn().mockReturnThis()
+              };
+              return await executeFn(tx);
+            })
+          };
+        }
+        // Support transaction(fn) pattern
+        return fn(createQueryBuilder());
+      }),
+      fetchOne: vi.fn(),
+      fetchAll: vi.fn()
+    };
+  };
+
+  const createMockLogger = () => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn().mockReturnThis(),
+    createContext: vi.fn((sessionId: string, operation: string, metadata: Record<string, any> = {}) => ({
+      correlationId: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sessionId,
+      operation,
+      timestamp: Date.now(),
+      metadata
+    }))
+  });
+
+  const createMockAsyncLocalStorage = () => {
+    const currentStore = new Map();
+    return {
+      getStore: () => {
+        const obj: any = {};
+        currentStore.forEach((value, key) => {
+          obj[key] = value;
+        });
+        return obj;
+      },
+      run: (context: any, fn: Function) => {
+        const previousEntries = Array.from(currentStore.entries());
+        currentStore.clear();
+
+        if (typeof context === 'object' && context !== null) {
+          Object.entries(context).forEach(([key, value]) => {
+            currentStore.set(key, value);
+          });
+        }
+
+        try {
+          const result = fn();
+          return result instanceof Promise ? result : Promise.resolve(result);
+        } finally {
+          currentStore.clear();
+          previousEntries.forEach(([key, value]) => {
+            currentStore.set(key, value);
+          });
+        }
+      },
+      enterWith: (context: any) => {
+        if (typeof context === 'object' && context !== null) {
+          currentStore.clear();
+          Object.entries(context).forEach(([key, value]) => {
+            currentStore.set(key, value);
+          });
+        }
+        return context;
+      },
+      exit: (fn: Function) => fn()
+    };
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Setup comprehensive mocks
+    mockDb = createMockDatabase();
+    mockLogger = createMockLogger();
+    mockAls = createMockAsyncLocalStorage();
+
+    // Create AgentStatePersistence instance
+    statePersistence = new AgentStatePersistence(
+      mockDb,
+      mockLogger,
+      mockAls
+    );
+
+    // Setup default mock behaviors
+    mockLogger.info.mockReturnValue(undefined);
+    mockLogger.error.mockReturnValue(undefined);
+    mockLogger.warn.mockReturnValue(undefined);
+    mockLogger.debug.mockReturnValue(undefined);
   });
 
   afterEach(async () => {

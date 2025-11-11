@@ -8,6 +8,7 @@ interface ComponentErrorBoundaryProps {
   variant?: 'minimal' | 'inline';
   onRetry?: () => void;
   showErrorDetails?: boolean;
+  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 /**
@@ -19,10 +20,13 @@ export const ComponentErrorBoundary: React.FC<ComponentErrorBoundaryProps> = ({
   componentName = 'Component',
   variant = 'minimal',
   onRetry,
-  showErrorDetails = false
+  showErrorDetails = false,
+  onError
 }) => {
-  const handleError = (error: Error) => {
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
     console.error(`${componentName} error:`, error);
+    // Call the provided onError callback if it exists
+    onError?.(error, errorInfo);
   };
 
   const customFallback = variant === 'minimal' ? (
@@ -69,7 +73,7 @@ export const ComponentErrorBoundary: React.FC<ComponentErrorBoundaryProps> = ({
       variant={variant}
       title={`${componentName} Error`}
       fallback={customFallback}
-      onError={handleError}
+      onError={onError || handleError}
       onRetry={onRetry}
       showRetry={!!onRetry}
     >

@@ -18,6 +18,7 @@ import { ConfigService } from '@/main/services/configService';
 import { MainAnalyticsService as AnalyticsService } from '@/main/services/analytics/analytics-service';
 import { KnowledgeService, initializeKnowledgeService } from '@/main/services/database/knowledge-service';
 import { ILogger } from '@/main/services/registry/ServiceTokens';
+import { RawSQLDatabase } from '@/main/services/database/kysely-wrapper';
 
 export interface MainServiceContainer {
   // Database and storage

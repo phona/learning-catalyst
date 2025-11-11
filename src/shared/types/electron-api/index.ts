@@ -15,6 +15,8 @@
  */
 
 // Import individual API interfaces from the 8-domain structure
+import type { BufferEncoding } from 'node:buffer'
+import type { OpenDialogOptions, OpenDialogReturnValue, SaveDialogOptions, SaveDialogReturnValue } from 'electron'
 import type { ChatAPI } from './chat-api'
 import type { LearningAPI } from './learning-api'
 import type { KnowledgeAPI } from './knowledge-api'
@@ -24,6 +26,7 @@ import type { ContentAPI } from './content-api'
 import type { SettingsAPI } from './settings-api'
 import type { CatalystAPI } from './catalyst-api'
 import type { SessionsAPI } from './sessions-api'
+import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
 
 // Re-export individual API interfaces
 export type {
@@ -116,6 +119,23 @@ export interface ElectronAPI {
   agents: AgentsAPI;
   content: ContentAPI;
   settings: SettingsAPI;
+  getWorkspacePath: () => Promise<string>;
+  readDirectory: (
+    path: string,
+    recursive?: boolean,
+    maxDepth?: number,
+    filterConfig?: DirectoryFilterConfig
+  ) => Promise<DirectoryScanResult[]>;
+  readFile: (filePath: string, encoding?: BufferEncoding) => Promise<string>;
+  writeFile: (filePath: string, content: string, encoding?: BufferEncoding) => Promise<void>;
+  existsFile: (filePath: string) => Promise<boolean>;
+  showOpenDialog: (options?: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
+  showSaveDialog: (options?: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
+  getAppVersion: () => Promise<string>;
+  quit: () => Promise<void>;
+  getConfig: () => Promise<any>;
+  setConfig: (config: any) => Promise<void>;
+  onMenuAction: (handler: (action: string, data?: unknown) => void) => void;
 
   // Catalyst API for main process service communication
   catalyst: CatalystAPI;

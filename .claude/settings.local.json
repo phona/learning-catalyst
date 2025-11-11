@@ -65,7 +65,8 @@
       "Bash(npm:*)",
       "Bash(dir:*)",
       "Read(//d/**)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []

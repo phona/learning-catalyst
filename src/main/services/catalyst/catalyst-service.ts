@@ -340,6 +340,14 @@ export class CatalystServiceMain {
    * Get a registered service
    */
   getService<T>(name: string): T | undefined {
+    if (this.disposed) {
+      throw new ServiceError(
+        'Catalyst service has been disposed',
+        'SERVICE_DISPOSED',
+        'CatalystServiceMain'
+      );
+    }
+
     if (!this.initialized) {
       throw new ServiceError(
         'Catalyst service has not been initialized',
@@ -360,6 +368,14 @@ export class CatalystServiceMain {
     fn: () => Promise<T>,
     metadata: Record<string, any> = {}
   ): Promise<T> {
+    if (this.disposed) {
+      throw new ServiceError(
+        'Catalyst service has been disposed',
+        'SERVICE_DISPOSED',
+        'CatalystServiceMain'
+      );
+    }
+
     if (!this.initialized) {
       throw new ServiceError(
         'Catalyst service has not been initialized',
@@ -542,6 +558,10 @@ export class CatalystServiceMain {
     this.logger.warn('Force reinitializing Catalyst service main...');
 
     await this.dispose();
+
+    // Reset the disposed flag to allow reinitialization
+    this.disposed = false;
+    this.initialized = false;
 
     // Create new instances
     this.registry = new MainThreadServiceRegistry();

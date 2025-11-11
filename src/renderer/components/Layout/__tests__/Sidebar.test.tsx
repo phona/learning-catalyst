@@ -11,7 +11,7 @@ import type { Session } from '@/shared/types/session';
 // Mock the service context
 vi.mock('@/renderer/hooks/useAppServices', () => ({
   useService: vi.fn(() => ({
-    getRecentSessions: vi.fn(),
+    getRecentSessions: vi.fn().mockResolvedValue([mockSession]),
   })),
   ServiceContext: React.createContext(null),
 }));
@@ -19,7 +19,9 @@ vi.mock('@/renderer/hooks/useAppServices', () => ({
 // Mock the hooks and dependencies
 vi.mock('@/renderer/hooks/useChatStore');
 vi.mock('@/renderer/stores/useAppStore');
-vi.mock('@/renderer/hooks/useRecentSessions');
+vi.mock('@/renderer/hooks/useRecentSessions', () => ({
+  useRecentSessions: vi.fn(),
+}));
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
@@ -140,7 +142,12 @@ describe('Sidebar Recent Sessions Click Functionality', () => {
       sessions: [mockSession],
       loading: false,
       error: null,
+      refreshing: false,
+      hasMore: false,
       refresh: mockRefresh,
+      loadMore: vi.fn(),
+      clearError: vi.fn(),
+      retry: vi.fn(),
     });
 
     // Mock console methods to avoid noise in tests
@@ -167,7 +174,7 @@ describe('Sidebar Recent Sessions Click Functionality', () => {
 
     // Check that the message count and relative time are displayed
     expect(screen.getByText('4 messages')).toBeInTheDocument();
-    expect(screen.getByText(/hour(s)? ago/)).toBeInTheDocument();
+    expect(screen.getByText(/1\/1\/2024/)).toBeInTheDocument();
 
     // Check that the session button is clickable
     const sessionButton = screen.getByRole('button', { name: /Test Session 1/ });

@@ -5,11 +5,13 @@
  * the database and integrates with the agent manager for agent-aware sessions.
  */
 
-import { Database } from '../../database';
+import { Kysely } from 'kysely';
+import { Database } from '../database/kysely-schema';
 import { AsyncLocalStorage } from 'async_hooks';
 import { LoggerFactory } from '../logger';
 import { ServiceError } from '../types';
 import type { ConversationMessage, MemorySession } from '@/shared/types/session';
+import { ILogger } from '../registry/ServiceTokens';
 
 /**
  * Session creation request with agent configuration
@@ -78,13 +80,13 @@ export interface SessionSearchResult {
  * Main process session service
  */
 export class SessionService {
-  private database: Database;
-  private logger: any;
+  private database: Kysely<Database>;
+  private logger: ILogger;
   private als: AsyncLocalStorage<any>;
 
   constructor(dependencies: {
-    database: Database;
-    logger: any;
+    database: Kysely<Database>;
+    logger: ILogger;
     als: AsyncLocalStorage<any>;
   }) {
     this.database = dependencies.database;
@@ -128,28 +130,23 @@ export class SessionService {
           updated_at: now
         };
 
-        // Insert session into database
-        await this.database.fetchOne(
-          `INSERT INTO learning_sessions (
-            id, title, description, start_time, duration_seconds,
-            total_messages, concepts_studied, difficulty_level,
-            session_type, metadata, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
+        // Insert session into database using Kysely
+        await this.database.insertInto('learning_sessions')
+          .values({
             id,
-            request.title,
-            request.description || '',
-            now,
-            0,
-            0,
-            0,
-            1,
-            'general',
-            JSON.stringify(metadata),
-            now,
-            now
-          ]
-        );
+            title: request.title,
+            description: request.description || '',
+            start_time: now,
+            duration_seconds: 0,
+            total_messages: 0,
+            concepts_studied: 0,
+            difficulty_level: 1,
+            session_type: 'general',
+            metadata: JSON.stringify(metadata),
+            created_at: now,
+            updated_at: now
+          })
+          .execute();
 
         this.logger.info('Session created successfully', { sessionId: id });
         return id;
@@ -173,20 +170,23 @@ export class SessionService {
   async getSessionById(sessionId: string): Promise<any | null> {
     return this.runWithContext('session:get', async () => {
       try {
-        const row = await this.database.fetchOne(
-          `SELECT * FROM learning_sessions WHERE id = ?`,
-          [sessionId]
-        );
+        const row = await this.database
+          .selectFrom('learning_sessions')
+          .selectAll()
+          .where('id', '=', sessionId)
+          .executeTakeFirst();
 
         if (!row) {
           return null;
         }
 
         // Get messages for the session
-        const messages = await this.database.fetchAll(
-          `SELECT * FROM messages WHERE session_id = ? ORDER BY message_order ASC`,
-          [sessionId]
-        );
+        const messages = await this.database
+          .selectFrom('messages')
+          .selectAll()
+          .where('session_id', '=', sessionId)
+          .orderBy('message_order', 'asc')
+          .execute();
 
         // Parse metadata
         const metadata = JSON.parse(row.metadata || '{}');
@@ -258,10 +258,11 @@ export class SessionService {
         this.logger.info('Updating session', { sessionId: request.sessionId });
 
         // Get current session
-        const currentSession = await this.database.fetchOne(
-          `SELECT metadata FROM learning_sessions WHERE id = ?`,
-          [request.sessionId]
-        );
+        const currentSession = await this.database
+          .selectFrom('learning_sessions')
+          .select(['metadata'])
+          .where('id', '=', request.sessionId)
+          .executeTakeFirst();
 
         if (!currentSession) {
           throw new ServiceError(
@@ -284,22 +285,17 @@ export class SessionService {
           updated_at: new Date().toISOString()
         };
 
-        // Update session
-        await this.database.fetchOne(
-          `UPDATE learning_sessions SET
-            title = COALESCE(?, title),
-            description = COALESCE(?, description),
-            metadata = ?,
-            updated_at = ?
-           WHERE id = ?`,
-          [
-            request.title,
-            request.description,
-            JSON.stringify(updatedMetadata),
-            new Date().toISOString(),
-            request.sessionId
-          ]
-        );
+        // Update session using Kysely
+        await this.database
+          .updateTable('learning_sessions')
+          .set({
+            ...(request.title && { title: request.title }),
+            ...(request.description && { description: request.description }),
+            metadata: JSON.stringify(updatedMetadata),
+            updated_at: new Date().toISOString()
+          })
+          .where('id', '=', request.sessionId)
+          .execute();
 
         this.logger.info('Session updated successfully', { sessionId: request.sessionId });
 
@@ -325,10 +321,11 @@ export class SessionService {
         this.logger.info('Updating session title', { sessionId, title });
 
         // Get current metadata
-        const currentSession = await this.database.fetchOne(
-          `SELECT metadata FROM learning_sessions WHERE id = ?`,
-          [sessionId]
-        );
+        const currentSession = await this.database
+          .selectFrom('learning_sessions')
+          .select(['metadata'])
+          .where('id', '=', sessionId)
+          .executeTakeFirst();
 
         if (!currentSession) {
           throw new ServiceError(
@@ -344,10 +341,15 @@ export class SessionService {
         metadata.updated_at = new Date().toISOString();
 
         // Update session
-        await this.database.fetchOne(
-          `UPDATE learning_sessions SET title = ?, metadata = ?, updated_at = ? WHERE id = ?`,
-          [title, JSON.stringify(metadata), new Date().toISOString(), sessionId]
-        );
+        await this.database
+          .updateTable('learning_sessions')
+          .set({
+            title: title,
+            metadata: JSON.stringify(metadata),
+            updated_at: new Date().toISOString()
+          })
+          .where('id', '=', sessionId)
+          .execute();
 
         this.logger.info('Session title updated successfully', { sessionId, title });
 
@@ -372,20 +374,25 @@ export class SessionService {
       try {
         this.logger.debug('Getting recent sessions', { limit });
 
-        const rows = await this.database.fetchAll(
-          `SELECT * FROM learning_sessions ORDER BY updated_at DESC LIMIT ?`,
-          [limit]
-        );
+        const rows = await this.database
+          .selectFrom('learning_sessions')
+          .selectAll()
+          .orderBy('updated_at', 'desc')
+          .limit(limit)
+          .execute();
 
         const sessions = [];
         for (const row of rows) {
           const metadata = JSON.parse(row.metadata || '{}');
 
-          // Get message count for the session
-          const messageCount = await this.database.fetchOne(
-            `SELECT COUNT(*) as count FROM messages WHERE session_id = ?`,
-            [row.id]
-          );
+          // Get message count for the session using Kysely
+          const messageCountResult = await this.database
+            .selectFrom('messages')
+            .select(eb => eb.fn.countAll<number>().as('count'))
+            .where('session_id', '=', row.id)
+            .executeTakeFirst();
+
+          const messageCount = messageCountResult?.count || 0;
 
           sessions.push({
             id: row.id,
@@ -403,7 +410,7 @@ export class SessionService {
               agent_mode: metadata.agent_mode
             },
             statistics: {
-              total_messages: messageCount?.count || 0,
+              total_messages: messageCount,
               session_duration: row.duration_seconds || 0,
               concepts_learned: row.concepts_studied || 0
             }
@@ -433,59 +440,64 @@ export class SessionService {
       try {
         this.logger.debug('Searching sessions', { query });
 
-        let sql = `SELECT * FROM learning_sessions WHERE 1=1`;
-        const params: any[] = [];
+        // Build the main query
+        let queryBuilder = this.database
+          .selectFrom('learning_sessions')
+          .selectAll();
 
         // Add search conditions
         if (query.query) {
-          sql += ` AND (title LIKE ? OR description LIKE ?)`;
           const searchTerm = `%${query.query}%`;
-          params.push(searchTerm, searchTerm);
+          queryBuilder = queryBuilder.where((eb) => 
+            eb.or([
+              eb('title', 'like', searchTerm),
+              eb('description', 'like', searchTerm)
+            ])
+          );
         }
 
         if (query.date_range) {
-          sql += ` AND start_time >= ? AND start_time <= ?`;
-          params.push(
-            query.date_range.start.toISOString(),
-            query.date_range.end.toISOString()
-          );
+          queryBuilder = queryBuilder
+            .where('start_time', '>=', query.date_range.start.toISOString())
+            .where('start_time', '<=', query.date_range.end.toISOString());
         }
 
         // Add ordering and pagination
-        sql += ` ORDER BY updated_at DESC`;
+        queryBuilder = queryBuilder.orderBy('updated_at', 'desc');
 
         if (query.limit) {
-          sql += ` LIMIT ?`;
-          params.push(query.limit);
+          queryBuilder = queryBuilder.limit(query.limit);
         }
 
         if (query.offset) {
-          sql += ` OFFSET ?`;
-          params.push(query.offset);
+          queryBuilder = queryBuilder.offset(query.offset);
         }
 
-        const rows = await this.database.fetchAll(sql, params);
+        const rows = await queryBuilder.execute();
 
         // Get total count
-        let countSql = `SELECT COUNT(*) as total FROM learning_sessions WHERE 1=1`;
-        const countParams: any[] = [];
+        let countBuilder = this.database
+          .selectFrom('learning_sessions')
+          .select(eb => eb.fn.countAll<number>().as('total'));
 
         if (query.query) {
-          countSql += ` AND (title LIKE ? OR description LIKE ?)`;
           const searchTerm = `%${query.query}%`;
-          countParams.push(searchTerm, searchTerm);
-        }
-
-        if (query.date_range) {
-          countSql += ` AND start_time >= ? AND start_time <= ?`;
-          countParams.push(
-            query.date_range.start.toISOString(),
-            query.date_range.end.toISOString()
+          countBuilder = countBuilder.where((eb) => 
+            eb.or([
+              eb('title', 'like', searchTerm),
+              eb('description', 'like', searchTerm)
+            ])
           );
         }
 
-        const countResult = await this.database.fetchOne(countSql, countParams);
-        const total = countResult?.total || 0;
+        if (query.date_range) {
+          countBuilder = countBuilder
+            .where('start_time', '>=', query.date_range.start.toISOString())
+            .where('start_time', '<=', query.date_range.end.toISOString());
+        }
+
+        const countResult = await countBuilder.executeTakeFirst();
+        const total = countResult?.total ? Number(countResult.total) : 0;
 
         // Convert rows to session objects
         const sessions = rows.map((row: any) => {
@@ -541,16 +553,16 @@ export class SessionService {
         this.logger.info('Deleting session', { sessionId });
 
         // Delete messages first (foreign key constraint)
-        await this.database.fetchOne(
-          `DELETE FROM messages WHERE session_id = ?`,
-          [sessionId]
-        );
+        await this.database
+          .deleteFrom('messages')
+          .where('session_id', '=', sessionId)
+          .execute();
 
         // Delete the session
-        const result = await this.database.fetchOne(
-          `DELETE FROM learning_sessions WHERE id = ?`,
-          [sessionId]
-        );
+        await this.database
+          .deleteFrom('learning_sessions')
+          .where('id', '=', sessionId)
+          .execute();
 
         this.logger.info('Session deleted successfully', { sessionId });
         return true;
@@ -591,85 +603,73 @@ export class SessionService {
           updated_at: now
         };
 
-        const existingSession = await this.database.fetchOne(
-          `SELECT id FROM learning_sessions WHERE id = ?`,
-          [sessionId]
-        );
+        const existingSession = await this.database
+          .selectFrom('learning_sessions')
+          .select('id')
+          .where('id', '=', sessionId)
+          .executeTakeFirst();
 
         if (existingSession) {
-          await this.database.fetchOne(
-            `UPDATE learning_sessions SET
-              title = ?,
-              description = ?,
-              total_messages = ?,
-              metadata = ?,
-              updated_at = ?
-             WHERE id = ?`,
-            [
-              memorySession.title,
-              memorySession.metadata?.description || '',
-              messages.length,
-              JSON.stringify(metadata),
-              now,
-              sessionId
-            ]
-          );
+          await this.database
+            .updateTable('learning_sessions')
+            .set({
+              title: memorySession.title,
+              description: memorySession.metadata?.description || '',
+              total_messages: messages.length,
+              metadata: JSON.stringify(metadata),
+              updated_at: now
+            })
+            .where('id', '=', sessionId)
+            .execute();
 
-          await this.database.fetchOne(
-            `DELETE FROM messages WHERE session_id = ?`,
-            [sessionId]
-          );
+          await this.database
+            .deleteFrom('messages')
+            .where('session_id', '=', sessionId)
+            .execute();
         } else {
-          await this.database.fetchOne(
-            `INSERT INTO learning_sessions (
-              id, title, description, start_time, duration_seconds,
-              total_messages, concepts_studied, difficulty_level,
-              session_type, metadata, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              sessionId,
-              memorySession.title,
-              memorySession.metadata?.description || '',
-              now,
-              0,
-              messages.length,
-              memorySession.metadata?.concepts_studied || 0,
-              memorySession.metadata?.difficulty_level || 1,
-              memorySession.metadata?.session_type || 'general',
-              JSON.stringify(metadata),
-              now,
-              now
-            ]
-          );
+          await this.database
+            .insertInto('learning_sessions')
+            .values({
+              id: sessionId,
+              title: memorySession.title,
+              description: memorySession.metadata?.description || '',
+              start_time: now,
+              duration_seconds: 0,
+              total_messages: messages.length,
+              concepts_studied: memorySession.metadata?.concepts_studied || 0,
+              difficulty_level: memorySession.metadata?.difficulty_level || 1,
+              session_type: memorySession.metadata?.session_type || 'general',
+              metadata: JSON.stringify(metadata),
+              created_at: now,
+              updated_at: now
+            })
+            .execute();
         }
 
         for (let index = 0; index < messages.length; index++) {
           const message = messages[index];
-          await this.database.fetchOne(
-            `INSERT INTO messages (
-              id, session_id, role, content, thinking_content,
-              provider, model, tokens_used, timestamp, message_order, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              message.id,
-              sessionId,
-              message.role,
-              message.content,
-              message.thinking_content,
-              message.provider,
-              message.model,
-              message.tokens_used
+          await this.database
+            .insertInto('messages')
+            .values({
+              id: message.id,
+              session_id: sessionId,
+              role: message.role,
+              content: message.content,
+              thinking_content: message.thinking_content,
+              provider: message.provider,
+              model: message.model,
+              tokens_used: message.tokens_used
                 ? JSON.stringify({
                     prompt_tokens: 0,
                     completion_tokens: 0,
                     total_tokens: message.tokens_used
                   })
                 : '{}',
-              (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
-              index + 1,
-              now
-            ]
-          );
+              timestamp: (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
+              message_order: index + 1,
+              created_at: now
+            })
+            .execute();
         }
 
         return sessionId;
@@ -699,10 +699,11 @@ export class SessionService {
         this.logger.debug('Saving message', { sessionId, messageId: message.id });
 
         // Check if session exists
-        const sessionExists = await this.database.fetchOne(
-          `SELECT id FROM learning_sessions WHERE id = ?`,
-          [sessionId]
-        );
+        const sessionExists = await this.database
+          .selectFrom('learning_sessions')
+          .select('id')
+          .where('id', '=', sessionId)
+          .executeTakeFirst();
 
         if (!sessionExists) {
           throw new ServiceError(
@@ -713,46 +714,45 @@ export class SessionService {
         }
 
         // Get next message order
-        const lastMessage = await this.database.fetchOne(
-          `SELECT MAX(message_order) as max_order FROM messages WHERE session_id = ?`,
-          [sessionId]
-        );
+        const lastMessage = await this.database
+          .selectFrom('messages')
+          .select(eb => eb.fn.max<number>('message_order').as('max_order'))
+          .where('session_id', '=', sessionId)
+          .executeTakeFirst();
 
         const messageOrder = (lastMessage?.max_order || 0) + 1;
 
         // Insert message
-        await this.database.fetchOne(
-          `INSERT INTO messages (
-            id, session_id, role, content, thinking_content,
-            provider, model, tokens_used, timestamp, message_order, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            message.id,
-            sessionId,
-            message.role,
-            message.content,
-            message.thinking_content,
-            message.provider,
-            message.model,
-            message.tokens_used ? JSON.stringify({
+        await this.database
+          .insertInto('messages')
+          .values({
+            id: message.id,
+            session_id: sessionId,
+            role: message.role,
+            content: message.content,
+            thinking_content: message.thinking_content,
+            provider: message.provider,
+            model: message.model,
+            tokens_used: message.tokens_used ? JSON.stringify({
               prompt_tokens: 0,
               completion_tokens: 0,
               total_tokens: message.tokens_used
             }) : '{}',
-            (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
-            messageOrder,
-            new Date().toISOString()
-          ]
-        );
+            timestamp: (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
+            message_order: messageOrder,
+            created_at: new Date().toISOString()
+          })
+          .execute();
 
         // Update session message count
-        await this.database.fetchOne(
-          `UPDATE learning_sessions SET
-            total_messages = total_messages + 1,
-            updated_at = ?
-           WHERE id = ?`,
-          [new Date().toISOString(), sessionId]
-        );
+        await this.database
+          .updateTable('learning_sessions')
+          .set({
+            total_messages: eb => eb('total_messages', '+', 1),
+            updated_at: new Date().toISOString()
+          })
+          .where('id', '=', sessionId)
+          .execute();
 
         this.logger.debug('Message saved successfully', { sessionId, messageId: message.id });
 
@@ -829,19 +829,26 @@ export class SessionService {
   }> {
     return this.runWithContext('session:get-stats', async () => {
       try {
-        const totalSessionsRow = await this.database.fetchOne(
-          `SELECT COUNT(*) as total FROM learning_sessions`
-        );
-        const messageStats = await this.database.fetchOne(
-          `SELECT
-             COUNT(*) as total_messages,
-             SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) as user_messages,
-             SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) as assistant_messages
-           FROM messages`
-        );
-        const tokenRows = await this.database.fetchAll(
-          `SELECT tokens_used FROM messages WHERE tokens_used IS NOT NULL AND tokens_used != ''`
-        );
+        const totalSessionsRow = await this.database
+          .selectFrom('learning_sessions')
+          .select(eb => eb.fn.countAll<number>().as('total'))
+          .executeTakeFirst();
+          
+        const messageStats = await this.database
+          .selectFrom('messages')
+          .select([
+            eb => eb.fn.countAll<number>().as('total_messages'),
+            eb => eb.fn.sum<number>(eb.case().when('role', '=', 'user').then(1).else(0).end()).as('user_messages'),
+            eb => eb.fn.sum<number>(eb.case().when('role', '=', 'assistant').then(1).else(0).end()).as('assistant_messages')
+          ])
+          .executeTakeFirst();
+          
+        const tokenRows = await this.database
+          .selectFrom('messages')
+          .select(['tokens_used'])
+          .where('tokens_used', 'is not', null)
+          .where('tokens_used', '!=', '')
+          .execute();
 
         let totalTokensUsed = 0;
         for (const row of tokenRows) {

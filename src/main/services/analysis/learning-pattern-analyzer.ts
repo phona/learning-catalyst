@@ -385,7 +385,7 @@ export class LearningPatternAnalyzer {
       if (practicePreferenceWords.some(word => message.includes(word))) {
         practicePreferenceCount++;
       }
-      if (practiceAvoidanceWords.some(word => message.includes(word))) {
+      if (avoidanceWords.some(word => message.includes(word))) {
         practiceAvoidanceCount++;
       }
     });

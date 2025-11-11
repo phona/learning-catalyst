@@ -6,7 +6,7 @@ type SessionsAPI = typeof window.electronAPI.sessions;
 
 function ensureSessionsAPI(): SessionsAPI {
   if (!window?.electronAPI?.sessions) {
-    throw new Error('Sessions API is not available. Ensure preload exposes sessions domain.');
+    throw new Error('Sessions API is not available. Ensure preload exposes sessions domain and the application is properly initialized.');
   }
   return window.electronAPI.sessions;
 }
@@ -17,12 +17,30 @@ function assertSuccess<R extends { success: boolean; error?: string }>(response:
   }
 }
 
+/**
+ * Wait for the sessions API to be available
+ * @param timeoutMs - Maximum time to wait in milliseconds
+ * @param intervalMs - Interval to check availability
+ */
+async function waitForSessionsAPI(timeoutMs: number = 5000, intervalMs: number = 100): Promise<SessionsAPI> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    if (window?.electronAPI?.sessions) {
+      return window.electronAPI.sessions;
+    }
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  
+  throw new Error('Sessions API is not available. Ensure the application is properly initialized and Electron preload script is loaded.');
+}
+
 export class SessionService {
   /**
    * Persist all messages for a session via IPC
    */
   async saveSessionWithMessages(memorySession: MemorySession, messages: ConversationMessage[]): Promise<string> {
-    const api = ensureSessionsAPI();
+    const api = await waitForSessionsAPI(5000, 100);
     const response = await api.saveSessionWithMessages(memorySession, messages);
     assertSuccess(response);
     return response.sessionId || memorySession.id || createSessionId();
@@ -32,7 +50,7 @@ export class SessionService {
    * Save a single message for streaming updates
    */
   async saveMessage(sessionId: string, message: ConversationMessage): Promise<void> {
-    const api = ensureSessionsAPI();
+    const api = await waitForSessionsAPI(5000, 100);
     const response = await api.saveMessage(sessionId, message);
     assertSuccess(response);
   }
@@ -41,7 +59,7 @@ export class SessionService {
    * Update the session title
    */
   async updateSessionTitle(sessionId: string, title: string): Promise<void> {
-    const api = ensureSessionsAPI();
+    const api = await waitForSessionsAPI(5000, 100);
     const response = await api.updateTitle(sessionId, title);
     assertSuccess(response);
   }
@@ -50,7 +68,8 @@ export class SessionService {
    * Fetch recent sessions for the UI
    */
   async getRecentSessions(limit = 10): Promise<SessionDisplay[]> {
-    const api = ensureSessionsAPI();
+    // Use the more robust wait function to ensure API availability
+    const api = await waitForSessionsAPI(5000, 100);
     const response = await api.getRecentSessions({ limit });
     assertSuccess(response);
     return response.sessions;
@@ -60,7 +79,7 @@ export class SessionService {
    * Fetch global session statistics for dashboards
    */
   async getGlobalStatistics(): Promise<SessionStatistics> {
-    const api = ensureSessionsAPI();
+    const api = await waitForSessionsAPI(5000, 100);
     const response = await api.getStatistics();
     assertSuccess(response);
     return response.statistics;
@@ -70,7 +89,7 @@ export class SessionService {
    * List sessions with optional filters
    */
   async listSessions(options?: { query?: string; limit?: number; offset?: number }): Promise<SessionListResponse> {
-    const api = ensureSessionsAPI();
+    const api = await waitForSessionsAPI(5000, 100);
     const response = await api.list(options);
     assertSuccess(response);
     return response;

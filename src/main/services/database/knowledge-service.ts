@@ -400,8 +400,8 @@ export class KnowledgeService {
         type: concept.concept_type,
         properties: {
           difficulty: concept.difficulty_level,
-          tags: JSON.parse(concept.tags || '[]'),
-          metadata: JSON.parse(concept.metadata || '{}')
+          tags: this.safeParseJSON(concept.tags || '[]', []),
+          metadata: this.safeParseJSON(concept.metadata || '{}', {})
         }
       });
     }
@@ -409,10 +409,10 @@ export class KnowledgeService {
     const relationships = await this.database
       .selectFrom('relationships')
       .selectAll()
-      .where(qb =>
-        qb.or([
-          qb('source_concept_id', '=', conceptId),
-          qb('target_concept_id', '=', conceptId)
+      .where((eb) =>
+        eb.or([
+          eb('source_concept_id', '=', conceptId),
+          eb('target_concept_id', '=', conceptId)
         ])
       )
       .execute();
@@ -444,27 +444,26 @@ export class KnowledgeService {
     if (similarity >= 0.6) return 'Low';
     return 'Very Low';
   }
-}
 
-// Singleton helper for legacy callers
-let knowledgeServiceSingleton: KnowledgeService | null = null;
-
-export function getKnowledgeService(): KnowledgeService {
-  if (!knowledgeServiceSingleton) {
-    throw new Error('KnowledgeService singleton has not been initialized');
+  private safeParseJSON<T>(jsonString: string, defaultValue: T): T {
+    try {
+      return JSON.parse(jsonString);
+    } catch (error) {
+      this.logger?.warn?.(`Failed to parse JSON: ${jsonString}`, error);
+      return defaultValue;
+    }
   }
-  return knowledgeServiceSingleton;
 }
 
+/**
+ * Factory function to initialize a KnowledgeService instance
+ */
 export function initializeKnowledgeService(
   database: Kysely<Database>,
   vectorDB: VectorDatabaseModule,
   logger?: ILogger
 ): KnowledgeService {
-  if (!knowledgeServiceSingleton) {
-    knowledgeServiceSingleton = new KnowledgeService(database, vectorDB, logger);
-  }
-  return knowledgeServiceSingleton;
+  return new KnowledgeService(database, vectorDB, logger);
 }
 
 export default KnowledgeService;

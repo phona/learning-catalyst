@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { ToolExecutorService, BuiltinTools } from '../../tool-executor'
-import { DatabaseMocks } from '../../../test/utils/mocks/mock-database'
+import { DatabaseMocks } from '@/test/utils/mocks/mock-database'
 import type { ServiceDependencies, ToolExecutionRequest, ToolExecutionResult } from '../../types'
 
 describe('ToolExecutorService', () => {

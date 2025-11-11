@@ -12,13 +12,12 @@ import { ServiceConfigManager } from '@/main/services/config';
 import { TestUtils, createMockDatabase } from '@/test/setup/main-process/setup';
 
 // Mock fs/promises to avoid import issues
-const mockFs = {
+vi.mock('fs/promises', () => ({
   readFile: vi.fn(),
   writeFile: vi.fn(),
   exists: vi.fn(),
-};
-
-vi.mock('fs/promises', () => mockFs);
+  access: vi.fn(),
+}));
 
 // Helper function to create mock tool request
 function createMockToolRequest(toolId: string = 'test-tool', operation: string = 'test') {
@@ -41,13 +40,15 @@ describe('ToolExecutorService', () => {
   let toolExecutor: ToolExecutorService;
   let mockDependencies: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset mocks
     vi.clearAllMocks();
 
     // Reset fs mocks to default successful behavior
-    mockFs.readFile.mockResolvedValue('Default test content');
-    mockFs.exists.mockResolvedValue(true);
+    const { readFile, writeFile, exists, access } = await vi.importMock('fs/promises');
+    readFile.mockResolvedValue('Default test content');
+    exists.mockResolvedValue(true);
+    access.mockResolvedValue(undefined);
 
     const mockDb = createMockDatabase();
 
@@ -120,9 +121,14 @@ describe('ToolExecutorService', () => {
 
   describe('Tool Execution', () => {
     it('should execute file-read tool successfully', async () => {
-      // Mock successful file read
-      mockFs.readFile.mockResolvedValue('Test file content');
-      mockFs.exists.mockResolvedValue(true);
+      // Get fs mocks and set up specific behavior for this test
+      const { readFile, exists } = await vi.importMock('fs/promises');
+      // Add a small delay to ensure executionTime > 0
+      readFile.mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 1));
+        return 'Test file content';
+      });
+      exists.mockResolvedValue(true);
 
       const request = createMockToolRequest('file-read', 'read');
       request.parameters = { path: './test-file.txt' };
@@ -144,15 +150,15 @@ describe('ToolExecutorService', () => {
         operation: 'select'
       };
 
-      // Mock database to return a result
-      mockDependencies.database.fetchAll = vi.fn().mockResolvedValue([{ test: 1 }]);
-      mockDependencies.database.fetchOne = vi.fn().mockResolvedValue(null);
+      // Mock database executeQuery to return a result
+      mockDependencies.database.executeQuery = vi.fn().mockResolvedValue([{ test: 1 }]);
 
       const result = await toolExecutor.executeTool(request);
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual([{ test: 1 }]);
       expect(result.metadata).toHaveProperty('operation', 'select');
+      expect(mockDependencies.database.executeQuery).toHaveBeenCalledWith('SELECT 1 as test', []);
     });
 
     it('should handle tool execution errors gracefully', async () => {
@@ -173,11 +179,12 @@ describe('ToolExecutorService', () => {
     });
 
     it('should execute multiple tools in parallel', async () => {
-      // Mock successful file reads
-      mockFs.readFile
+      // Get fs mocks and set up specific behavior for this test
+      const { readFile, exists } = await vi.importMock('fs/promises');
+      readFile
         .mockResolvedValueOnce('Test content 1')
         .mockResolvedValueOnce('Test content 2');
-      mockFs.exists.mockResolvedValue(true);
+      exists.mockResolvedValue(true);
 
       const requests = [
         createMockToolRequest('file-read', 'read'),

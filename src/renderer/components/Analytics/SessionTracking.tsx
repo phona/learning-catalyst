@@ -18,68 +18,76 @@ interface RendererAnalyticsService {
   // Add other methods as needed
 }
 
+type SessionLoader = () => Promise<LearningSession[]>;
+
 interface SessionTrackingProps {
   analytics: RendererAnalyticsService;
   className?: string;
+  loadSessions?: SessionLoader;
 }
 
-export const SessionTracking: React.FC<SessionTrackingProps> = ({ analytics, className = '' }) => {
+const defaultSessionLoader: SessionLoader = async () => [
+  {
+    id: 'session_1',
+    title: 'React Fundamentals',
+    startTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    endTime: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+    durationMinutes: 60,
+    aiProvider: 'OpenAI',
+    aiModel: 'gpt-4',
+    conceptsCovered: ['react-hooks', 'state-management', 'components'],
+    sessionType: 'study',
+    status: 'completed'
+  },
+  {
+    id: 'session_2',
+    title: 'JavaScript Async Patterns',
+    startTime: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    endTime: new Date(Date.now() - 23 * 60 * 60 * 1000),
+    durationMinutes: 45,
+    aiProvider: 'ChatGLM',
+    aiModel: 'glm-4',
+    conceptsCovered: ['promises', 'async-await', 'callbacks'],
+    sessionType: 'study',
+    status: 'completed'
+  },
+  {
+    id: 'session_3',
+    title: 'TypeScript Basics',
+    startTime: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
+    endTime: new Date(Date.now() - 47 * 60 * 60 * 1000),
+    durationMinutes: 30,
+    aiProvider: 'DeepSeek',
+    aiModel: 'deepseek-chat',
+    conceptsCovered: ['types', 'interfaces', 'generics'],
+    sessionType: 'review',
+    status: 'completed'
+  }
+];
+
+export const SessionTracking: React.FC<SessionTrackingProps> = ({
+  analytics,
+  className = '',
+  loadSessions = defaultSessionLoader
+}) => {
   const [sessions, setSessions] = React.useState<LearningSession[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     loadRecentSessions();
-  }, [analytics]);
+  }, [analytics, loadSessions]);
 
   const loadRecentSessions = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get recent sessions (mock data for now since the SimpleAnalyticsModule doesn't have a getRecentSessions method yet)
-      const mockSessions: LearningSession[] = [
-        {
-          id: 'session_1',
-          title: 'React Fundamentals',
-          startTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          endTime: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-          durationMinutes: 60,
-          aiProvider: 'OpenAI',
-          aiModel: 'gpt-4',
-          conceptsCovered: ['react-hooks', 'state-management', 'components'],
-          sessionType: 'study',
-          status: 'completed'
-        },
-        {
-          id: 'session_2',
-          title: 'JavaScript Async Patterns',
-          startTime: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-          endTime: new Date(Date.now() - 23 * 60 * 60 * 1000),
-          durationMinutes: 45,
-          aiProvider: 'ChatGLM',
-          aiModel: 'glm-4',
-          conceptsCovered: ['promises', 'async-await', 'callbacks'],
-          sessionType: 'study',
-          status: 'completed'
-        },
-        {
-          id: 'session_3',
-          title: 'TypeScript Basics',
-          startTime: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
-          endTime: new Date(Date.now() - 47 * 60 * 60 * 1000),
-          durationMinutes: 30,
-          aiProvider: 'DeepSeek',
-          aiModel: 'deepseek-chat',
-          conceptsCovered: ['types', 'interfaces', 'generics'],
-          sessionType: 'review',
-          status: 'completed'
-        }
-      ];
-
-      setSessions(mockSessions);
+      const sessionData = await loadSessions();
+      setSessions(sessionData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load sessions');
+      setSessions([]);
     } finally {
       setLoading(false);
     }
@@ -165,13 +173,19 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({ analytics, cla
       {/* Summary Stats */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <div
+            className="text-2xl font-bold text-gray-900 dark:text-gray-100"
+            data-testid="session-total-time"
+          >
             {formatDuration(totalStudyTime)}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Total Time</div>
         </div>
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <div
+            className="text-2xl font-bold text-gray-900 dark:text-gray-100"
+            data-testid="session-average-length"
+          >
             {formatDuration(Math.round(averageSessionLength))}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Average Session</div>

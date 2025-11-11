@@ -173,7 +173,61 @@ export function createMockDatabase(): Kysely<any> {
         // Return object with execute method for transaction().execute(fn) pattern
         return {
           execute: vi.fn().mockImplementation(async (executeFn: any) => {
-            const tx = createQueryBuilder();
+            // Create transaction object with full database interface
+            const tx = {
+              // Query builder methods
+              select: vi.fn().mockReturnThis(),
+              selectAll: vi.fn().mockReturnThis(),
+              selectFrom: vi.fn().mockReturnThis(),
+              where: vi.fn().mockReturnThis(),
+              whereRef: vi.fn().mockReturnThis(),
+              orderBy: vi.fn().mockReturnThis(),
+              orderByDesc: vi.fn().mockReturnThis(),
+              limit: vi.fn().mockReturnThis(),
+              offset: vi.fn().mockReturnThis(),
+              innerJoin: vi.fn().mockReturnThis(),
+              leftJoin: vi.fn().mockReturnThis(),
+              groupBy: vi.fn().mockReturnThis(),
+              having: vi.fn().mockReturnThis(),
+              execute: vi.fn().mockResolvedValue([]),
+              executeTakeFirst: vi.fn().mockResolvedValue(null),
+              executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null),
+              returning: vi.fn().mockReturnThis(),
+              returningAll: vi.fn().mockReturnThis(),
+
+              // Database operations
+              insertInto: vi.fn().mockReturnValue({
+                values: vi.fn().mockReturnValue({
+                  execute: vi.fn().mockResolvedValue({ insertId: 1 }),
+                  executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 }),
+                  executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 }),
+                  returning: vi.fn().mockReturnValue({
+                    execute: vi.fn().mockResolvedValue([]),
+                    executeTakeFirst: vi.fn().mockResolvedValue(null),
+                    executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+                  }),
+                  returningAll: vi.fn().mockReturnValue({
+                    execute: vi.fn().mockResolvedValue([]),
+                    executeTakeFirst: vi.fn().mockResolvedValue(null),
+                    executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+                  }),
+                  onConflict: vi.fn().mockReturnValue({
+                    column: vi.fn().mockReturnValue({
+                      doUpdateSet: vi.fn().mockReturnValue({
+                        execute: vi.fn().mockResolvedValue({ insertId: 1 }),
+                        executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 }),
+                        executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 })
+                      })
+                    })
+                  })
+                })
+              }),
+              updateTable: vi.fn().mockReturnValue({
+                set: vi.fn().mockReturnThis()
+              }),
+              deleteFrom: vi.fn().mockReturnThis()
+            };
+
             try {
               return await executeFn(tx);
             } catch (error) {
@@ -250,16 +304,49 @@ export function createMockLogger() {
  * Create mock AsyncLocalStorage
  */
 export function createMockAsyncLocalStorage() {
-  const store = new Map();
+  const currentStore = new Map();
   return {
-    getStore: () => ({
-      get: (key: string) => store.get(key),
-      set: (key: string, value: any) => store.set(key, value),
-      delete: (key: string) => store.delete(key),
-      clear: () => store.clear()
-    }),
-    run: (store: any, fn: Function) => fn(),
-    enterWith: (store: any) => store,
+    getStore: () => {
+      // Return a plain object representation of the store
+      const obj: any = {};
+      currentStore.forEach((value, key) => {
+        obj[key] = value;
+      });
+      return obj;
+    },
+    run: (context: any, fn: Function) => {
+      // Store the context temporarily
+      const previousEntries = Array.from(currentStore.entries());
+      currentStore.clear();
+
+      // Add context properties to store
+      if (typeof context === 'object' && context !== null) {
+        Object.entries(context).forEach(([key, value]) => {
+          currentStore.set(key, value);
+        });
+      }
+
+      try {
+        const result = fn();
+        // Handle both sync and async functions
+        return result instanceof Promise ? result : Promise.resolve(result);
+      } finally {
+        // Restore previous store
+        currentStore.clear();
+        previousEntries.forEach(([key, value]) => {
+          currentStore.set(key, value);
+        });
+      }
+    },
+    enterWith: (context: any) => {
+      if (typeof context === 'object' && context !== null) {
+        currentStore.clear();
+        Object.entries(context).forEach(([key, value]) => {
+          currentStore.set(key, value);
+        });
+      }
+      return context;
+    },
     exit: (fn: Function) => fn()
   };
 }
@@ -267,15 +354,27 @@ export function createMockAsyncLocalStorage() {
 // Mock LoggerFactory and related logger classes
 const mockLogger = createMockLogger();
 
+// Create singleton mock AsyncLocalStorage and factory
+const mockAls = createMockAsyncLocalStorage();
+
 // Mock LoggerFactory with getLogger method
 const mockLoggerFactory = {
   getInstance: vi.fn(() => ({
-    getAsyncLocalStorage: vi.fn(() => createMockAsyncLocalStorage()),
+    getAsyncLocalStorage: vi.fn(() => mockAls),
     createLogger: vi.fn(() => mockLogger),
     createContextAwareLogger: vi.fn(() => mockLogger),
-    runWithContext: vi.fn(),
-    getCurrentContext: vi.fn(),
-    createContext: vi.fn(),
+    runWithContext: vi.fn().mockImplementation((context, fn) => {
+      return mockAls.run(context, fn);
+    }),
+    getCurrentContext: vi.fn(() => mockAls.getStore()),
+    createContext: vi.fn((sessionId: string, operation: string, metadata: Record<string, any> = {}) => ({
+      id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sessionId,
+      requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      operation,
+      metadata
+    })),
   })),
   getLogger: vi.fn(() => mockLogger),
 };

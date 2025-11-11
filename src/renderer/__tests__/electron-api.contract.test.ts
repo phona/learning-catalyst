@@ -1,26 +1,62 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
-describe('electronAPI contract (renderer baseline)', () => {
-  it('exposes settings and basic methods that return promises', async () => {
-    expect(window.electronAPI).toBeDefined();
-    expect(window.electronAPI.settings).toBeDefined();
-    expect(typeof window.electronAPI.settings.getUserPreferences).toBe('function');
-    expect(typeof window.electronAPI.settings.updatePreferences).toBe('function');
+describe('electronAPI contract', () => {
+  it('exposes core domain modules with callable methods', async () => {
+    const api = window.electronAPI;
+    expect(api).toBeDefined();
 
-    const prefs = await window.electronAPI.settings.getUserPreferences();
-    expect(prefs).toBeDefined();
-    const updateRes = await window.electronAPI.settings.updatePreferences({ interface: { theme: 'dark' } } as any);
-    expect(updateRes).toBeDefined();
+    expect(api.chat).toBeDefined();
+    expect(typeof api.chat.sendMessage).toBe('function');
+
+    expect(api.learning).toBeDefined();
+    expect(typeof api.learning.startSession).toBe('function');
+
+    expect(api.knowledge).toBeDefined();
+    expect(typeof api.knowledge.exploreConcept).toBe('function');
+
+    expect(api.analytics).toBeDefined();
+    expect(typeof api.analytics.getDashboard).toBe('function');
+
+    expect(api.sessions).toBeDefined();
+    expect(typeof api.sessions.list).toBe('function');
+    await expect(api.sessions.list()).resolves.toBeDefined();
+
+    expect(api.agents).toBeDefined();
+    expect(typeof api.agents.list).toBe('function');
+
+    expect(api.content).toBeDefined();
+    expect(typeof api.content.exploreLocalProjects).toBe('function');
+
+    expect(api.settings).toBeDefined();
+    await expect(api.settings.getUserPreferences()).resolves.toBeDefined();
+
+    expect(api.catalyst).toBeDefined();
+    expect(typeof api.catalyst.executeAgent).toBe('function');
   });
 
-  it('exposes session and catalyst namespaces used by renderer code', async () => {
-    expect(window.electronAPI.session).toBeDefined();
-    expect(typeof window.electronAPI.session.list).toBe('function');
-    const listRes = await window.electronAPI.session.list();
-    expect(listRes).toBeDefined();
+  it('exposes filesystem utilities used by renderer code', async () => {
+    const api = window.electronAPI;
 
-    expect(window.electronAPI.catalyst).toBeDefined();
-    expect(typeof window.electronAPI.catalyst.sendChat).toBe('function');
+    await expect(api.getWorkspacePath()).resolves.toBeDefined();
+    await expect(api.readDirectory('/tmp')).resolves.toBeInstanceOf(Array);
+    await expect(api.readFile('mock.md')).resolves.toBeDefined();
+    await expect(api.writeFile('mock.md', '# Title')).resolves.toBeUndefined();
+    await expect(api.existsFile('mock.md')).resolves.toBe(true);
+  });
+
+  it('exposes dialog and lifecycle helpers', async () => {
+    const api = window.electronAPI;
+
+    await expect(api.showOpenDialog()).resolves.toHaveProperty('canceled');
+    await expect(api.showSaveDialog()).resolves.toHaveProperty('canceled');
+    await expect(api.getAppVersion()).resolves.toBeDefined();
+    await expect(api.quit()).resolves.toBeUndefined();
+    expect(typeof api.onMenuAction).toBe('function');
+
+    const handler = vi.fn();
+    const unsubscribe = api.onMenuAction(handler);
+    if (typeof unsubscribe === 'function') {
+      unsubscribe();
+    }
   });
 });
-

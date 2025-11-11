@@ -23,7 +23,51 @@ process.env.NODE_ENV = 'test';
 Object.defineProperty(window, 'electronAPI', {
   value: {
     getConfig: vi.fn().mockResolvedValue({}),
+    chat: {
+      sendMessage: vi.fn().mockResolvedValue({ success: true }),
+      sendMessageStream: vi.fn(),
+      startConversation: vi.fn().mockResolvedValue({}),
+      getConversationHistory: vi.fn().mockResolvedValue([])
+    },
+    learning: {
+      startSession: vi.fn().mockResolvedValue({}),
+      getProgress: vi.fn().mockResolvedValue({}),
+      listSessions: vi.fn().mockResolvedValue([])
+    },
+    knowledge: {
+      exploreConcept: vi.fn().mockResolvedValue({}),
+      parseConcepts: vi.fn().mockResolvedValue({ concepts: [] })
+    },
+    analytics: {
+      getDashboard: vi.fn().mockResolvedValue({}),
+      getProgressChart: vi.fn().mockResolvedValue({}),
+      getAchievements: vi.fn().mockResolvedValue([]),
+      trackSession: vi.fn().mockResolvedValue({ success: true })
+    },
+    agents: {
+      list: vi.fn().mockResolvedValue([]),
+      getStatus: vi.fn().mockResolvedValue({ status: 'idle' })
+    },
+    content: {
+      exploreLocalProjects: vi.fn().mockResolvedValue([]),
+      importLearningContent: vi.fn().mockResolvedValue({ success: true })
+    },
+    getWorkspacePath: vi.fn().mockResolvedValue('/mock/workspace'),
+    readDirectory: vi.fn().mockResolvedValue([]),
+    readFile: vi.fn().mockResolvedValue('# mock file'),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    existsFile: vi.fn().mockResolvedValue(true),
+    showOpenDialog: vi.fn().mockResolvedValue({ canceled: true, filePaths: [] }),
+    showSaveDialog: vi.fn().mockResolvedValue({ canceled: true, filePath: '' }),
+    getAppVersion: vi.fn().mockResolvedValue('0.0.0'),
+    quit: vi.fn().mockResolvedValue(undefined),
+    setConfig: vi.fn().mockResolvedValue(undefined),
+    onMenuAction: vi.fn(),
     catalyst: {
+      executeAgent: vi.fn().mockResolvedValue({ success: true }),
+      executeAgentStream: vi.fn(),
+      listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+      cancelAgent: vi.fn().mockResolvedValue({ success: true }),
       sendChat: vi.fn().mockResolvedValue({
         success: true,
         messageId: 'test-message-id',
@@ -68,7 +112,7 @@ Object.defineProperty(window, 'electronAPI', {
         success: true
       }),
     },
-    session: {
+    sessions: {
       create: vi.fn().mockResolvedValue({
         success: true,
         session: { id: 'test-new-session', title: 'New Session' }
@@ -99,27 +143,6 @@ Object.defineProperty(window, 'electronAPI', {
       getAgents: vi.fn().mockResolvedValue({
         success: true,
         agents: []
-      }),
-    },
-    filesystem: {
-      selectFiles: vi.fn().mockResolvedValue({
-        success: true,
-        files: [
-          { path: '/test/file1.txt', name: 'file1.txt' },
-          { path: '/test/file2.txt', name: 'file2.txt' }
-        ]
-      }),
-      selectDirectory: vi.fn().mockResolvedValue({
-        success: true,
-        path: '/test/directory'
-      }),
-      readFile: vi.fn().mockResolvedValue({
-        success: true,
-        content: 'Mock file content'
-      }),
-      listDirectory: vi.fn().mockResolvedValue({
-        success: true,
-        files: ['file1.txt', 'file2.txt']
       }),
     },
     settings: {

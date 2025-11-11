@@ -62,6 +62,11 @@ export function createSessionId(): string {
 }
 
 /**
+ * Alias for createSessionId to maintain compatibility
+ */
+export const generateSessionId = createSessionId;
+
+/**
  * Create an execution ID for agent operations
  */
 export function createExecutionId(): string {

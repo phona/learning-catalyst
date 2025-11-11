@@ -144,4 +144,33 @@ describe('ChatInput', () => {
     const textarea = screen.getByPlaceholderText('Type your message here...') as HTMLTextAreaElement;
     expect(textarea.value).toContain('Example file');
   });
+
+  it('toggles deep thinking mode via updateConfig when advanced panel open', () => {
+    const updateConfigMock = vi.fn();
+    mockUseConfigStore.mockReturnValue({
+      config: baseConfig,
+      updateConfig: updateConfigMock,
+    } as any);
+
+    render(<ChatInput />);
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
+
+    const deepThinkingButton = screen.getByRole('button', { name: /deep thinking/i });
+    fireEvent.click(deepThinkingButton);
+
+    expect(updateConfigMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ai: expect.objectContaining({
+          model_types: expect.objectContaining({
+            chat: expect.objectContaining({
+              capabilities: expect.objectContaining({
+                thinking: true,
+              }),
+            }),
+          }),
+        }),
+      })
+    );
+  });
 });

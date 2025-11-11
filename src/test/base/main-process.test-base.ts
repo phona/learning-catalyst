@@ -204,7 +204,7 @@ export abstract class MainProcessTestBase {
     const mockAls = {
       getStore: vi.fn().mockReturnValue(store),
       run: vi.fn().mockImplementation((store, callback) => {
-        return callback(store)
+        return callback()
       }),
       enterWith: vi.fn(),
       exit: vi.fn(),

@@ -37,8 +37,9 @@ describe('UISettings', () => {
   it('should render theme selector', () => {
     render(<UISettings {...defaultProps} />);
 
-    expect(screen.getByLabelText('Theme')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('dark')).toBeInTheDocument();
+    const themeSelect = screen.getByLabelText('Theme');
+    expect(themeSelect).toBeInTheDocument();
+    expect(themeSelect).toHaveValue('dark');
   });
 
   it('should handle theme change', async () => {
@@ -60,8 +61,9 @@ describe('UISettings', () => {
   it('should render font size selector', () => {
     render(<UISettings {...defaultProps} />);
 
-    expect(screen.getByLabelText('Font Size')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('medium')).toBeInTheDocument();
+    const fontSizeSelect = screen.getByLabelText('Font Size');
+    expect(fontSizeSelect).toBeInTheDocument();
+    expect(fontSizeSelect).toHaveValue('medium');
   });
 
   it('should handle font size change', async () => {

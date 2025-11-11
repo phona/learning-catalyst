@@ -125,8 +125,10 @@ export function useRecentSessions(limit: number = 10): RecentSessionsState & Rec
       let errorMessage = error.message || 'Failed to load sessions';
       if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
         errorMessage = 'Database is still initializing. Please wait a moment and try again.';
-      } else if (errorMessage.includes('Session service not available')) {
+      } else if (errorMessage.includes('Session service not available') || errorMessage.includes('Sessions API is not available')) {
         errorMessage = 'Session service is initializing. Please wait...';
+      } else if (errorMessage.includes('Session service is not initialized')) {
+        errorMessage = 'Session service is still initializing. The application may still be starting up. Please wait a moment.';
       }
 
       setState(prev => ({

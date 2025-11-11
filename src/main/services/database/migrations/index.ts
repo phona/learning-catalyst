@@ -15,6 +15,12 @@ import createKnowledgeGraphCache from './20251029_create_knowledge_graph_cache'
 import createCategories from './20251029_create_categories'
 import createUserStats from './20251029_create_user_stats'
 import insertDefaultData from './20251029_insert_default_data'
+import createCheckpoints from './20251102_create_checkpoints'
+import createAgents from './20251107_create_agents'
+import createAgentStates from './20251107_create_agent_states'
+import createAgentLifecycleEvents from './20251107_create_agent_lifecycle_events'
+import createAgentArchives from './20251107_create_agent_archives'
+import createMemorySystemTables from './20251111_create_memory_system_tables'
 
 /**
  * Load all migration files from the migrations directory
@@ -34,6 +40,12 @@ export async function loadAllMigrations(): Promise<Record<string, Migration>> {
     '20251029_create_categories': createCategories,
     '20251029_create_user_stats': createUserStats,
     '20251029_insert_default_data': insertDefaultData,
+    '20251102_create_checkpoints': createCheckpoints,
+    '20251107_create_agents': createAgents,
+    '20251107_create_agent_states': createAgentStates,
+    '20251107_create_agent_lifecycle_events': createAgentLifecycleEvents,
+    '20251107_create_agent_archives': createAgentArchives,
+    '20251111_create_memory_system_tables': createMemorySystemTables,
   }
 }
 

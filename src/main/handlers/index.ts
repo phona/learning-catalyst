@@ -6,6 +6,7 @@ import { setupKnowledgeHandlers } from './knowledge-handlers';
 import { registerAnalyticsHandlers } from './analytics-handlers';
 import { setupAgentHandlers } from './agent-handlers';
 import { setupContentHandlers } from './content-handlers';
+import { setupFilesystemHandlers } from './filesystem-handlers';
 import { setupSettingsHandlers } from './settings-handlers';
 import { setupSessionHandlers } from './session-handlers';
 
@@ -19,6 +20,7 @@ export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspaceP
 	setupContentHandlers();
 	setupSettingsHandlers(workspacePath);
 	setupSessionHandlers();
+	setupFilesystemHandlers(workspacePath);
 
 	console.log('✅ 7-domain IPC handlers registered successfully');
 }

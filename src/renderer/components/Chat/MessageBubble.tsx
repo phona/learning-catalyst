@@ -87,12 +87,23 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     return 'AI Assistant';
   };
 
-  const formatTimestamp = (timestamp?: Date) => {
+  const formatTimestamp = (timestamp?: Date | string) => {
     if (!timestamp) return '';
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+
+    try {
+      const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      // Check if the date is invalid
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (error) {
+      console.warn('Invalid timestamp:', timestamp);
+      return '';
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -204,7 +215,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {message.provider}
               </span>
             )}
-            <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={message.timestamp?.toISOString()}>
+            <time className="text-xs text-gray-500 dark:text-gray-400" dateTime={(() => {
+              if (!message.timestamp) return undefined;
+              try {
+                const date = new Date(message.timestamp);
+                return isNaN(date.getTime()) ? undefined : date.toISOString();
+              } catch {
+                return undefined;
+              }
+            })()}>
               {formatTimestamp(message.timestamp)}
             </time>
           </div>
