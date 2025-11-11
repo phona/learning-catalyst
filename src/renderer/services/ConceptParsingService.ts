@@ -28,7 +28,7 @@ import type { FileSystemItem } from '@/shared/types/filesystem';
 import type { Message, ChatOptions } from '@/shared/types/ai';
 import type { Session } from '@/shared/types/session';
 import type { AppConfig } from '@/shared/types/config';
-import type { ConfigService } from '@/renderer/services/configService';
+import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
 // No main process imports - using high-level API instead
 
@@ -67,7 +67,7 @@ export class ConceptParsingService {
   };
 
   constructor(
-    private readonly configService: ConfigService
+    private readonly configService: ConfigurationService
   ) {}
 
   // No pipeline initialization needed - using high-level knowledge API

@@ -1,3 +1,12 @@
+import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';
+import type {
+  AppConfig,
+  ProviderValidationResult,
+  SelectedModel,
+  ModelTypeConfig,
+} from '@/shared/types/config';
+import { ModelType } from '@/shared/types/ai';
+
 /**
  * Configuration Service
  *
@@ -20,6 +29,7 @@ export interface ConfigurationSection {
  */
 export class ConfigurationService {
   private cache: Map<string, ConfigurationValue> = new Map();
+  private currentConfig: AppConfig | null = null;
 
   /**
    * Get configuration value
@@ -79,6 +89,79 @@ export class ConfigurationService {
     } catch (error) {
       console.error('Failed to set configuration:', error);
       return false;
+    }
+  }
+
+  /**
+   * Save full application configuration.
+   * Keeps a local copy and updates persisted preferences via Electron API when available.
+   */
+  async saveConfig(config: AppConfig): Promise<void> {
+    try {
+      this.currentConfig = config;
+      // Best-effort bridge to preload settings API
+      if (window?.electronAPI?.settings?.updatePreferences) {
+        // Map a minimal subset to user preferences; the main store handles full shape
+        const preferences = {
+          interface: {
+            theme: config.ui?.theme,
+            fontSize: config.ui?.font_size,
+            compactMode: config.ui?.compact_mode,
+            showProgressIndicators: config.ui?.show_token_usage,
+          },
+          learning: {
+            preferredDifficulty: config.learning?.difficulty,
+            learningStyle: config.learning?.learning_style,
+          },
+          privacy: {
+            saveConversationHistory: config.privacy?.store_conversations,
+            shareAnalytics: config.privacy?.anonymous_analytics,
+          },
+        } as any;
+        await window.electronAPI.settings.updatePreferences(preferences);
+      }
+    } catch (err) {
+      // Surface consistent error behavior for callers
+      const message = err instanceof Error ? err.message : 'Failed to save configuration';
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * Update a specific model type assignment and persist into currentConfig (if any).
+   * Accepts either SelectedModel or a ModelTypeConfig-like shape.
+   */
+  async updateModelTypeConfig(
+    modelType: ModelType,
+    modelConfig: SelectedModel | ModelTypeConfig
+  ): Promise<void> {
+    // Normalize input to SelectedModel
+    const normalized: SelectedModel = (
+      (modelConfig as any).provider && (modelConfig as any).model
+    )
+      ? { provider: (modelConfig as any).provider, model: (modelConfig as any).model }
+      : {
+          provider: (modelConfig as any).default_provider ?? '',
+          model: (modelConfig as any).default_model ?? '',
+        };
+
+    if (!normalized.provider || !normalized.model) {
+      throw new Error('Provider and model are required to update model type configuration');
+    }
+
+    // Update local copy if available
+    if (this.currentConfig) {
+      const next: AppConfig = {
+        ...this.currentConfig,
+        ai: {
+          ...this.currentConfig.ai,
+          model_types: {
+            ...this.currentConfig.ai.model_types,
+            [modelType]: normalized,
+          },
+        },
+      };
+      this.currentConfig = next;
     }
   }
 
@@ -195,5 +278,123 @@ export class ConfigurationService {
    */
   clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Validate provider credentials and connectivity.
+   */
+  async validateProvider(
+    providerType: string,
+    apiKey: string,
+    baseUrl?: string
+  ): Promise<ProviderValidationResult> {
+    const endpoint = this.resolveProviderEndpoint(providerType, baseUrl);
+    if (!endpoint) {
+      return { success: false, error: `Unknown provider: ${providerType}` };
+    }
+
+    try {
+      const response = await fetch(`${endpoint}/models`, {
+        method: 'GET',
+        headers: this.buildProviderHeaders(apiKey),
+      });
+
+      if (response.ok) {
+        return { success: true };
+      }
+
+      const payload = await response.json().catch(() => null);
+      const errorMessage =
+        payload?.error?.message ||
+        `${response.status} ${response.statusText}` ||
+        'Unknown provider validation error';
+
+      return { success: false, error: errorMessage };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to reach provider',
+      };
+    }
+  }
+
+  /**
+   * Fetch available models for a provider.
+   */
+  async getProviderModels(
+    providerType: string,
+    apiKey: string,
+    baseUrl?: string
+  ): Promise<string[]> {
+    const endpoint = this.resolveProviderEndpoint(providerType, baseUrl);
+    if (!endpoint) {
+      throw new Error(`Unknown provider: ${providerType}`);
+    }
+
+    const response = await fetch(`${endpoint}/models`, {
+      method: 'GET',
+      headers: this.buildProviderHeaders(apiKey),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const errorMessage =
+        payload?.error?.message ||
+        `${response.status} ${response.statusText}` ||
+        'Failed to fetch models';
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json().catch(() => null);
+
+    if (!data) {
+      return [];
+    }
+
+    if (Array.isArray(data)) {
+      return this.extractModelIdentifiers(data);
+    }
+
+    if (Array.isArray(data.data)) {
+      return this.extractModelIdentifiers(data.data);
+    }
+
+    if (Array.isArray(data.models)) {
+      return this.extractModelIdentifiers(data.models);
+    }
+
+    return [];
+  }
+
+  private resolveProviderEndpoint(providerType: string, override?: string): string | null {
+    const rawUrl = override?.trim() || PREDEFINED_PROVIDERS[providerType]?.base_url;
+    if (!rawUrl) {
+      return null;
+    }
+
+    return rawUrl.replace(/\/+$/, '');
+  }
+
+  private buildProviderHeaders(apiKey: string): HeadersInit {
+    return {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  private extractModelIdentifiers(models: Array<any>): string[] {
+    return models
+      .map((model) => {
+        if (typeof model === 'string') {
+          return model;
+        }
+
+        if (model && typeof model === 'object') {
+          return model.id || model.name || model.model || null;
+        }
+
+        return null;
+      })
+      .filter((value): value is string => Boolean(value));
   }
 }

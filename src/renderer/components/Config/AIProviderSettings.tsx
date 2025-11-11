@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CubeIcon, AcademicCapIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { utilityToasts } from '@/renderer/utils/toast';
 import { useService } from '@/renderer/hooks/useAppServices';
@@ -36,6 +36,10 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [baseUrlInput, setBaseUrlInput] = useState('');
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setConfiguredProviders(providerConfigs);
+  }, [providerConfigs]);
 
   
   // Section expansion handlers

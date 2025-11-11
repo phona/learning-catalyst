@@ -1,8 +1,8 @@
 import React, { createContext, useContext } from 'react';
-import { ICatalystService } from '../services/interfaces/ICatalystService.js';
-import { ChatService } from '../services/ChatService.js';
-import { IAnalyticsService } from '../services/interfaces/IAnalyticsService.js';
-import { rendererServiceContainer, RENDERER_SERVICE_NAMES } from '../services/ServiceContainer.js';
+import { ICatalystService } from '../services/interfaces/ICatalystService';
+import { ChatService } from '../services/ChatService';
+import { IAnalyticsService } from '../services/interfaces/IAnalyticsService';
+import { rendererServiceContainer, RENDERER_SERVICE_NAMES } from '../services/ServiceContainer';
 
 const ServiceContext = createContext<{
   catalystService: ICatalystService;

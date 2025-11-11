@@ -23,6 +23,7 @@ import type { AgentsAPI } from './agent-api'
 import type { ContentAPI } from './content-api'
 import type { SettingsAPI } from './settings-api'
 import type { CatalystAPI } from './catalyst-api'
+import type { SessionsAPI } from './sessions-api'
 
 // Re-export individual API interfaces
 export type {
@@ -33,6 +34,7 @@ export type {
   AgentsAPI,
   ContentAPI,
   SettingsAPI,
+  SessionsAPI,
   CatalystAPI
 }
 
@@ -110,6 +112,7 @@ export interface ElectronAPI {
   learning: LearningAPI;
   knowledge: KnowledgeAPI;
   analytics: AnalyticsAPI;
+  sessions: SessionsAPI;
   agents: AgentsAPI;
   content: ContentAPI;
   settings: SettingsAPI;
@@ -174,7 +177,7 @@ export type ExtractAPI<T> = T extends keyof ElectronAPI
 /**
  * Type-safe API domain selector
  */
-export type APIDomain = 'chat' | 'learning' | 'knowledge' | 'analytics' | 'agents' | 'content' | 'settings'
+export type APIDomain = 'chat' | 'learning' | 'knowledge' | 'analytics' | 'sessions' | 'agents' | 'content' | 'settings'
 
 /**
  * API response wrapper for consistent error handling

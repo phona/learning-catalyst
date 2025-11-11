@@ -8,8 +8,7 @@ import { sessionToasts, utilityToasts } from '@/renderer/utils/toast';
 export const SessionManager: React.FC = () => {
   const { sessions, loading, error, refresh, clearError } = useRecentSessions(20);
   const navigate = useNavigate();
-  const chatStore = useChatStore();
-  const { setCurrentSession, clearMessages } = chatStore();
+  const { setCurrentSession, clearMessages } = useChatStore();
   const { setCurrentView } = useAppStore();
 
   const formatRelativeTime = (date: Date): string => {

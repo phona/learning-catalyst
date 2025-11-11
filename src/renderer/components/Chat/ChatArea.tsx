@@ -5,7 +5,6 @@ import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 
 export const ChatArea: React.FC = () => {
-  const chatStore = useChatStore();
   const {
     messages,
     isStreaming,
@@ -14,7 +13,7 @@ export const ChatArea: React.FC = () => {
     autoScroll,
     selectedProvider,
     updateMessage,
-  } = chatStore();
+  } = useChatStore();
 
   // Simple toggle function for individual message thinking visibility
   const handleToggleThinking = (messageId: string) => {

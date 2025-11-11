@@ -22,6 +22,7 @@ process.env.NODE_ENV = 'test';
 // Mock window.electronAPI for IPC communication
 Object.defineProperty(window, 'electronAPI', {
   value: {
+    getConfig: vi.fn().mockResolvedValue({}),
     catalyst: {
       sendChat: vi.fn().mockResolvedValue({
         success: true,
@@ -121,10 +122,57 @@ Object.defineProperty(window, 'electronAPI', {
         files: ['file1.txt', 'file2.txt']
       }),
     },
+    settings: {
+      getUserPreferences: vi.fn().mockResolvedValue({
+        interface: {
+          theme: 'dark',
+          fontSize: 'medium',
+          compactMode: false,
+          showProgressIndicators: true,
+        },
+        learning: {
+          preferredDifficulty: 'intermediate',
+          learningStyle: 'visual',
+          preferredSessionDuration: '45',
+          tracking: {
+            enableAnalytics: true,
+          },
+        },
+        privacy: {
+          saveConversationHistory: true,
+          shareAnalytics: false,
+        },
+      }),
+      updatePreferences: vi.fn().mockResolvedValue({
+        success: true,
+      }),
+    },
     onAgentEvent: vi.fn(),
   },
   writable: true,
 });
+
+// ==================== GLOBAL FETCH MOCK ====================
+
+// Prevent real network calls in renderer tests; provide a default stub.
+if (!(global as any).fetch) {
+  (global as any).fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    // Minimal provider models endpoint simulation
+    if (url.includes('/models')) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: [] }),
+      } as any;
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    } as any;
+  });
+}
 
 // ==================== BROWSER API MOCKS ====================
 
@@ -220,6 +268,7 @@ Object.defineProperty(navigator, 'clipboard', {
     read: vi.fn().mockResolvedValue([]),
   },
   writable: true,
+  configurable: true,
 });
 
 // Mock user agent

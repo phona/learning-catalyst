@@ -40,7 +40,6 @@ interface ToolResult {
  */
 interface ToolCallingContext extends ServiceExecutionContext {
   agentId: string;
-  sessionId?: string;
   maxToolCalls: number;
   maxIterations: number;
   currentIteration: number;

@@ -8,6 +8,7 @@ import { QdrantManager } from './qdrant-manager'
 import { initializeCatalystService, disposeCatalystService } from './services/catalyst/catalyst-service'
 import { mainServiceRegistry } from './services/registry/MainServiceRegistry'
 import { mainServiceContainerManager } from './services/container/service-container'
+import { MAIN_SERVICE_TOKENS } from './services/registry/ServiceTokens'
 // Memory debugging utility for development
 import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
 
@@ -209,8 +210,10 @@ app.whenReady().then(async () => {
 
   // Initialize main process service container
   try {
+    const logger = mainServiceRegistry.get(MAIN_SERVICE_TOKENS.LOGGER);
     await mainServiceContainerManager.initialize({
-      databasePath: path.join(process.env.APP_ROOT || '', 'data', 'learning-catalyst.db')
+      databasePath: path.join(process.env.APP_ROOT || '', 'data', 'learning-catalyst.db'),
+      logger
     })
     console.log('✅ Main process service container initialized successfully')
   } catch (error) {

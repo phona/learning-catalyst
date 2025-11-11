@@ -2,6 +2,9 @@ import { ServiceRegistry } from './ServiceRegistry';
 import { MAIN_SERVICE_TOKENS, ILogger, IEventBus } from './ServiceTokens';
 import { ElectronStoreConfigStorage } from '../config/ElectronStoreStorage';
 import { createConfigService } from '../configService';
+import { LoggerFactory } from '../logger';
+import { ServiceLogger } from '../types';
+import { AsyncLocalStorage } from 'async_hooks';
 
 /**
  * Main process service registry instance
@@ -35,10 +38,10 @@ class MainServiceRegistry extends ServiceRegistry {
       () => new ElectronStoreConfigStorage('learning-catalyst-main')
     );
 
-    // Logger service (simple console implementation for now)
+    // Logger service using LoggerFactory with adapter
     this.register(
       MAIN_SERVICE_TOKENS.LOGGER,
-      () => new ConsoleLogger(),
+      () => new LoggerAdapter(LoggerFactory.getInstance().createContextAwareLogger()),
       true // singleton
     );
 
@@ -95,23 +98,35 @@ class MainServiceRegistry extends ServiceRegistry {
 }
 
 /**
- * Simple console logger implementation
+ * Logger adapter to bridge ServiceLogger and ILogger interfaces
  */
-class ConsoleLogger implements ILogger {
+class LoggerAdapter implements ILogger {
+  constructor(private readonly serviceLogger: ServiceLogger) {}
+
   debug(message: string, ...args: unknown[]): void {
-    console.debug(`[DEBUG] ${message}`, ...args);
+    this.serviceLogger.debug(message, args.length > 0 ? { args } : undefined);
   }
 
   info(message: string, ...args: unknown[]): void {
-    console.info(`[INFO] ${message}`, ...args);
+    this.serviceLogger.info(message, args.length > 0 ? { args } : undefined);
   }
 
   warn(message: string, ...args: unknown[]): void {
-    console.warn(`[WARN] ${message}`, ...args);
+    this.serviceLogger.warn(message, args.length > 0 ? { args } : undefined);
   }
 
   error(message: string, error?: Error | unknown, ...args: unknown[]): void {
-    console.error(`[ERROR] ${message}`, error, ...args);
+    this.serviceLogger.error(
+      message,
+      error instanceof Error ? error : (error ? new Error(String(error)) : undefined),
+      args.length > 0 ? { args } : undefined
+    );
+  }
+
+  // Add getAsyncLocalStorage method for compatibility
+  getAsyncLocalStorage(): AsyncLocalStorage<any> {
+    // Return a simple ALS instance for compatibility
+    return new AsyncLocalStorage();
   }
 }
 

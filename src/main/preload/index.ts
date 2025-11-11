@@ -22,7 +22,8 @@ import {
   AnalyticsAPI,
   AgentsAPI,
   ContentAPI,
-  SettingsAPI
+  SettingsAPI,
+  SessionsAPI
 } from '@/shared/types/electron-api';
 
 // ============================================================================
@@ -137,7 +138,37 @@ const chatAPI: ChatAPI = {
    * @returns Promise<ConversationSummary> - Summary and key takeaways
    */
   endConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:endConversation', conversationId)
+    ipcRenderer.invoke('chat:endConversation', conversationId),
+
+  /**
+   * Checks for practice opportunities in conversation
+   * Analyzes conversation context to suggest relevant practice moments
+   * @param params.conversationId - Active conversation ID
+   * @param params.userMessage - Latest user message for context
+   * @param params.sessionId - Optional session ID for context
+   * @returns Promise<PracticeOpportunityResult> - Practice suggestion or null
+   */
+  checkPracticeOpportunity: (params: {
+    conversationId: string;
+    userMessage: string;
+    sessionId?: string;
+  }) =>
+    ipcRenderer.invoke('chat:checkPracticeOpportunity', params),
+
+  /**
+   * Gets natural practice suggestion based on conversation context
+   * Returns a conversational practice suggestion that feels natural
+   * @param params.opportunity - Practice opportunity from checkPracticeOpportunity
+   * @param params.userContext - User's learning context and preferences
+   * @param params.sessionId - Optional session ID for context
+   * @returns Promise<NaturalPracticeSuggestion> - Contextual practice suggestion
+   */
+  getPracticeSuggestion: (params: {
+    opportunity: any;
+    userContext?: any;
+    sessionId?: string;
+  }) =>
+    ipcRenderer.invoke('chat:getPracticeSuggestion', params)
 
   };
 
@@ -489,7 +520,36 @@ const analyticsAPI: AnalyticsAPI = {
 };
 
 // ============================================================================
-// 5. Agent Management API
+// 5. Session Management API
+// ============================================================================
+
+/**
+ * Session Management API
+ *
+ * Provides direct access to session persistence and statistics via IPC.
+ * Ensures all session data flows through the main process.
+ */
+const sessionsAPI: SessionsAPI = {
+  list: (options?: any) => ipcRenderer.invoke('sessions:list', options),
+  create: (payload: any) => ipcRenderer.invoke('sessions:create', payload),
+  get: (sessionId: string) => ipcRenderer.invoke('sessions:get', sessionId),
+  update: (sessionId: string, updates: any) =>
+    ipcRenderer.invoke('sessions:update', sessionId, updates),
+  delete: (sessionId: string) => ipcRenderer.invoke('sessions:delete', sessionId),
+  saveMessage: (sessionId: string, message: any) =>
+    ipcRenderer.invoke('sessions:save-message', sessionId, message),
+  saveSessionWithMessages: (session: any, messages: any[]) =>
+    ipcRenderer.invoke('sessions:save-with-messages', session, messages),
+  updateTitle: (sessionId: string, title: string) =>
+    ipcRenderer.invoke('sessions:update-title', sessionId, title),
+  getRecentSessions: (options?: any) =>
+    ipcRenderer.invoke('sessions:get-recent', options),
+  search: (query: any) => ipcRenderer.invoke('sessions:search', query),
+  getStatistics: () => ipcRenderer.invoke('sessions:get-stats')
+};
+
+// ============================================================================
+// 6. Agent Management API
 // ============================================================================
 
 /**
@@ -719,6 +779,7 @@ const electronAPI = {
   learning: learningAPI,
   knowledge: knowledgeAPI,
   analytics: analyticsAPI,
+  sessions: sessionsAPI,
   agents: agentsAPI,
   content: contentAPI,
   settings: settingsAPI,

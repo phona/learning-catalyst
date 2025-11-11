@@ -5,6 +5,7 @@
  * Provides default values and environment-based overrides.
  */
 
+import Store from 'electron-store';
 import { ServiceConfig } from './types';
 
 /**
@@ -38,9 +39,24 @@ const DEFAULT_CONFIG: ServiceConfig = {
 export class ServiceConfigManager {
   private static instance: ServiceConfigManager;
   private config: ServiceConfig;
+  private store: Store<ServiceConfig>;
+  private static readonly STORE_KEY = 'service-config';
+  private static readonly STORE_NAME = 'learning-catalyst-service-config';
 
   private constructor(config?: Partial<ServiceConfig>) {
-    this.config = this.mergeConfig(DEFAULT_CONFIG, config || {});
+    this.store = new Store<ServiceConfig>({
+      name: ServiceConfigManager.STORE_NAME,
+      clearInvalidConfig: true
+    });
+
+    const persistedConfig = this.store.get(ServiceConfigManager.STORE_KEY);
+    const initialConfig = this.mergeConfig(
+      DEFAULT_CONFIG,
+      persistedConfig ?? {}
+    );
+
+    this.config = this.mergeConfig(initialConfig, config || {});
+    this.persist();
   }
 
   /**
@@ -68,6 +84,7 @@ export class ServiceConfigManager {
       throw new Error('Configuration updates are not allowed in production');
     }
     this.config = this.mergeConfig(this.config, updates);
+    this.persist();
   }
 
   /**
@@ -112,98 +129,8 @@ export class ServiceConfigManager {
       logging: { ...base.logging, ...overrides.logging },
     };
   }
-
-  /**
-   * Load configuration from environment variables
-   */
-  static loadFromEnvironment(): Partial<ServiceConfig> {
-    const config: Partial<ServiceConfig> = {};
-
-    // Database configuration
-    if (process.env.LC_DB_MAX_CONNECTIONS) {
-      config.database = {
-        ...config.database,
-        maxConnections: parseInt(process.env.LC_DB_MAX_CONNECTIONS, 10),
-      };
-    }
-
-    if (process.env.LC_DB_CONNECTION_TIMEOUT) {
-      config.database = {
-        ...config.database,
-        connectionTimeout: parseInt(process.env.LC_DB_CONNECTION_TIMEOUT, 10),
-      };
-    }
-
-    if (process.env.LC_DB_QUERY_TIMEOUT) {
-      config.database = {
-        ...config.database,
-        queryTimeout: parseInt(process.env.LC_DB_QUERY_TIMEOUT, 10),
-      };
-    }
-
-    // Agents configuration
-    if (process.env.LC_AGENTS_MAX_CONCURRENT) {
-      config.agents = {
-        ...config.agents,
-        maxConcurrent: parseInt(process.env.LC_AGENTS_MAX_CONCURRENT, 10),
-      };
-    }
-
-    if (process.env.LC_AGENTS_DEFAULT_TIMEOUT) {
-      config.agents = {
-        ...config.agents,
-        defaultTimeout: parseInt(process.env.LC_AGENTS_DEFAULT_TIMEOUT, 10),
-      };
-    }
-
-    if (process.env.LC_AGENTS_MAX_ITERATIONS) {
-      config.agents = {
-        ...config.agents,
-        maxIterations: parseInt(process.env.LC_AGENTS_MAX_ITERATIONS, 10),
-      };
-    }
-
-    // Tools configuration
-    if (process.env.LC_TOOLS_DEFAULT_TIMEOUT) {
-      config.tools = {
-        ...config.tools,
-        defaultTimeout: parseInt(process.env.LC_TOOLS_DEFAULT_TIMEOUT, 10),
-      };
-    }
-
-    if (process.env.LC_TOOLS_ENABLE_SANDBOX) {
-      config.tools = {
-        ...config.tools,
-        enableSandbox: process.env.LC_TOOLS_ENABLE_SANDBOX === 'true',
-      };
-    }
-
-    // Logging configuration
-    if (process.env.LC_LOG_LEVEL) {
-      const level = process.env.LC_LOG_LEVEL.toLowerCase();
-      if (['debug', 'info', 'warn', 'error'].includes(level)) {
-        config.logging = {
-          ...config.logging,
-          level: level as 'debug' | 'info' | 'warn' | 'error',
-        };
-      }
-    }
-
-    if (process.env.LC_LOG_MAX_SIZE) {
-      config.logging = {
-        ...config.logging,
-        maxLogSize: parseInt(process.env.LC_LOG_MAX_SIZE, 10),
-      };
-    }
-
-    if (process.env.LC_LOG_ENABLE_CONSOLE) {
-      config.logging = {
-        ...config.logging,
-        enableConsole: process.env.LC_LOG_ENABLE_CONSOLE === 'true',
-      };
-    }
-
-    return config;
+  private persist(): void {
+    this.store.set(ServiceConfigManager.STORE_KEY, this.config);
   }
 
   /**
@@ -262,6 +189,7 @@ export class ServiceConfigManager {
       throw new Error('Configuration reset is not allowed in production');
     }
     this.config = { ...DEFAULT_CONFIG };
+    this.persist();
   }
 }
 
@@ -269,8 +197,7 @@ export class ServiceConfigManager {
  * Initialize service configuration with environment-based overrides
  */
 export function initializeServiceConfig(): ServiceConfigManager {
-  const envConfig = ServiceConfigManager.loadFromEnvironment();
-  const configManager = ServiceConfigManager.getInstance(envConfig);
+  const configManager = ServiceConfigManager.getInstance();
 
   // Validate configuration
   configManager.validateConfig(configManager.getConfig());

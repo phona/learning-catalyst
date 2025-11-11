@@ -1,5 +1,6 @@
 import { ServiceToken } from './ServiceToken';
 import type { IConfigService } from '../config/interfaces';
+import { AsyncLocalStorage } from 'async_hooks';
 
 // Forward declarations for service interfaces
 interface IAgentManager {
@@ -46,6 +47,7 @@ export interface ILogger {
   info(message: string, ...args: unknown[]): void;
   warn(message: string, ...args: unknown[]): void;
   error(message: string, error?: Error | unknown, ...args: unknown[]): void;
+  getAsyncLocalStorage(): AsyncLocalStorage<any>;
 }
 
 /**

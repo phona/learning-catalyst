@@ -187,7 +187,7 @@ export function setupChatHandlers(): void {
       }
 
       // Get NaturalPracticeFlow service if available
-      const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow');
+      const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow') as NaturalPracticeFlow;
       if (naturalPracticeFlow) {
         const practiceResult = await naturalPracticeFlow.checkPracticeOpportunity(
           conversationId,
@@ -519,7 +519,7 @@ export function setupChatHandlers(): void {
         'chat:checkPracticeOpportunity',
         async () => {
           // Get NaturalPracticeFlow service
-          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow');
+          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow') as NaturalPracticeFlow;
           if (!naturalPracticeFlow) {
             throw new ServiceError(
               'NaturalPracticeFlow service not available',
@@ -581,7 +581,7 @@ export function setupChatHandlers(): void {
         'chat:getPracticeSuggestion',
         async () => {
           // Get NaturalPracticeFlow service
-          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow');
+          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow') as NaturalPracticeFlow;
           if (!naturalPracticeFlow) {
             throw new ServiceError(
               'NaturalPracticeFlow service not available',

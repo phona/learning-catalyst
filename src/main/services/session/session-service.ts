@@ -9,6 +9,7 @@ import { Database } from '../../database';
 import { AsyncLocalStorage } from 'async_hooks';
 import { LoggerFactory } from '../logger';
 import { ServiceError } from '../types';
+import type { ConversationMessage, MemorySession } from '@/shared/types/session';
 
 /**
  * Session creation request with agent configuration
@@ -568,9 +569,131 @@ export class SessionService {
   }
 
   /**
+   * Save session and associated messages atomically
+   */
+  async saveSessionWithMessages(
+    memorySession: MemorySession,
+    messages: ConversationMessage[]
+  ): Promise<string> {
+    return this.runWithContext('session:save-with-messages', async () => {
+      try {
+        const sessionId =
+          memorySession.id ||
+          `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        const now = new Date().toISOString();
+
+        const metadata = {
+          ...(memorySession.metadata || {}),
+          system_prompt: memorySession.context?.system_prompt,
+          notes: memorySession.context?.notes,
+          learning_objectives: memorySession.context?.learning_objectives || [],
+          checkpoints: memorySession.checkpoints || [],
+          updated_at: now
+        };
+
+        const existingSession = await this.database.fetchOne(
+          `SELECT id FROM learning_sessions WHERE id = ?`,
+          [sessionId]
+        );
+
+        if (existingSession) {
+          await this.database.fetchOne(
+            `UPDATE learning_sessions SET
+              title = ?,
+              description = ?,
+              total_messages = ?,
+              metadata = ?,
+              updated_at = ?
+             WHERE id = ?`,
+            [
+              memorySession.title,
+              memorySession.metadata?.description || '',
+              messages.length,
+              JSON.stringify(metadata),
+              now,
+              sessionId
+            ]
+          );
+
+          await this.database.fetchOne(
+            `DELETE FROM messages WHERE session_id = ?`,
+            [sessionId]
+          );
+        } else {
+          await this.database.fetchOne(
+            `INSERT INTO learning_sessions (
+              id, title, description, start_time, duration_seconds,
+              total_messages, concepts_studied, difficulty_level,
+              session_type, metadata, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              sessionId,
+              memorySession.title,
+              memorySession.metadata?.description || '',
+              now,
+              0,
+              messages.length,
+              memorySession.metadata?.concepts_studied || 0,
+              memorySession.metadata?.difficulty_level || 1,
+              memorySession.metadata?.session_type || 'general',
+              JSON.stringify(metadata),
+              now,
+              now
+            ]
+          );
+        }
+
+        for (let index = 0; index < messages.length; index++) {
+          const message = messages[index];
+          await this.database.fetchOne(
+            `INSERT INTO messages (
+              id, session_id, role, content, thinking_content,
+              provider, model, tokens_used, timestamp, message_order, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              message.id,
+              sessionId,
+              message.role,
+              message.content,
+              message.thinking_content,
+              message.provider,
+              message.model,
+              message.tokens_used
+                ? JSON.stringify({
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    total_tokens: message.tokens_used
+                  })
+                : '{}',
+              (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
+              index + 1,
+              now
+            ]
+          );
+        }
+
+        return sessionId;
+      } catch (error) {
+        this.logger.error(
+          'Failed to save session with messages',
+          error as Error,
+          { sessionId: memorySession.id }
+        );
+        throw new ServiceError(
+          `Failed to save session with messages: ${(error as Error).message}`,
+          'SESSION_SAVE_FAILED',
+          'SessionService',
+          undefined,
+          error as Error
+        );
+      }
+    });
+  }
+
+  /**
    * Save a message to a session
    */
-  async saveMessage(sessionId: string, message: any): Promise<void> {
+  async saveMessage(sessionId: string, message: ConversationMessage): Promise<void> {
     return this.runWithContext('session:save-message', async () => {
       try {
         this.logger.debug('Saving message', { sessionId, messageId: message.id });
@@ -616,7 +739,7 @@ export class SessionService {
               completion_tokens: 0,
               total_tokens: message.tokens_used
             }) : '{}',
-            message.timestamp.toISOString(),
+            (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
             messageOrder,
             new Date().toISOString()
           ]
@@ -691,6 +814,69 @@ export class SessionService {
     };
 
     return this.als.run(context, fn);
+  }
+
+  /**
+   * Get aggregated session statistics
+   */
+  async getGlobalStatistics(): Promise<{
+    totalSessions: number;
+    totalMessages: number;
+    totalUserMessages: number;
+    totalAssistantMessages: number;
+    totalTokensUsed: number;
+    averageMessagesPerSession: number;
+  }> {
+    return this.runWithContext('session:get-stats', async () => {
+      try {
+        const totalSessionsRow = await this.database.fetchOne(
+          `SELECT COUNT(*) as total FROM learning_sessions`
+        );
+        const messageStats = await this.database.fetchOne(
+          `SELECT
+             COUNT(*) as total_messages,
+             SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END) as user_messages,
+             SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END) as assistant_messages
+           FROM messages`
+        );
+        const tokenRows = await this.database.fetchAll(
+          `SELECT tokens_used FROM messages WHERE tokens_used IS NOT NULL AND tokens_used != ''`
+        );
+
+        let totalTokensUsed = 0;
+        for (const row of tokenRows) {
+          try {
+            const parsed = JSON.parse(row.tokens_used || '{}');
+            totalTokensUsed += parsed.total_tokens || 0;
+          } catch {
+            // Ignore invalid JSON entries
+          }
+        }
+
+        const totalSessions = Number(totalSessionsRow?.total) || 0;
+        const totalMessages = Number(messageStats?.total_messages) || 0;
+        const totalUserMessages = Number(messageStats?.user_messages) || 0;
+        const totalAssistantMessages = Number(messageStats?.assistant_messages) || 0;
+
+        return {
+          totalSessions,
+          totalMessages,
+          totalUserMessages,
+          totalAssistantMessages,
+          totalTokensUsed,
+          averageMessagesPerSession: totalSessions > 0 ? totalMessages / totalSessions : 0
+        };
+      } catch (error) {
+        this.logger.error('Failed to get session statistics', error as Error);
+        throw new ServiceError(
+          `Failed to get session statistics: ${(error as Error).message}`,
+          'SESSION_STATS_FAILED',
+          'SessionService',
+          undefined,
+          error as Error
+        );
+      }
+    });
   }
 
   /**

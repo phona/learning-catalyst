@@ -248,11 +248,18 @@ export class CatalystServiceMain {
       const { PracticeAgent } = await import('../agents/specialized/practice-agent');
 
       // Create UserContextTracker
-      const userContextTracker = new UserContextTracker({
+      const logger = this.registry.get('logger');
+      const dependencies = {
         database: this.database!,
-        logger: this.logger,
-        als: this.als
-      });
+        logger: logger,
+        als: this.als,
+        config: this.config.getConfig()
+      };
+      const userContextTracker = new UserContextTracker(
+        'default-user',
+        'default-session',
+        dependencies
+      );
 
       // Create ConversationAnalyzer
       const conversationAnalyzer = new ConversationAnalyzer({

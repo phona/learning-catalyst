@@ -532,7 +532,7 @@ export function setupKnowledgeHandlers(): void {
             const configStorage = new ElectronStoreConfigStorage('learning-catalyst-config');
             const loggerFactory = LoggerFactory.getInstance();
             const logger = loggerFactory.createContextAwareLogger();
-            const configService = createConfigService(configStorage, logger);
+            const configService = createConfigService(configStorage, logger as any);
 
             const appConfig = await configService.getConfig();
             if (!appConfig?.ai?.model_types?.chat) {

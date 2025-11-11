@@ -2,11 +2,37 @@ import React from 'react';
 import type { AppConfig } from '@/shared/types/config';
 
 interface ResponseSettingsProps {
-  config: AppConfig;
+  config: AppConfig | null;
   onConfigChange: (updates: Partial<AppConfig>) => void;
 }
 
 export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onConfigChange }) => {
+  const chatConfig = config?.ai?.model_types?.chat;
+  const capabilities = chatConfig?.capabilities ?? { streaming: false, thinking: false };
+  const controlsDisabled = !config || !chatConfig;
+
+  const toggleCapability = (key: 'streaming' | 'thinking') => {
+    if (!config || !chatConfig) {
+      return;
+    }
+
+    onConfigChange({
+      ai: {
+        ...config.ai,
+        model_types: {
+          ...config.ai.model_types,
+          chat: {
+            ...chatConfig,
+            capabilities: {
+              ...capabilities,
+              [key]: !capabilities[key]
+            }
+          }
+        }
+      }
+    });
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -23,28 +49,15 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
             </p>
           </div>
           <button
-            onClick={() => onConfigChange({
-              ai: {
-                ...config.ai,
-                model_types: {
-                  ...config.ai.model_types,
-                  chat: {
-                    ...config.ai.model_types.chat,
-                    capabilities: {
-                      ...config.ai.model_types.chat.capabilities,
-                      streaming: !config.ai.model_types.chat.capabilities.streaming
-                    }
-                  }
-                }
-              }
-            })}
+            onClick={() => toggleCapability('streaming')}
+            disabled={controlsDisabled}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.ai.model_types.chat.capabilities.streaming ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              capabilities.streaming ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.ai.model_types.chat.capabilities.streaming ? 'translate-x-6' : 'translate-x-1'
+                capabilities.streaming ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
@@ -60,32 +73,25 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
             </p>
           </div>
           <button
-            onClick={() => onConfigChange({
-              ai: {
-                ...config.ai,
-                model_types: {
-                  ...config.ai.model_types,
-                  chat: {
-                    ...config.ai.model_types.chat,
-                    capabilities: {
-                      ...config.ai.model_types.chat.capabilities,
-                      thinking: !config.ai.model_types.chat.capabilities.thinking
-                    }
-                  }
-                }
-              }
-            })}
+            onClick={() => toggleCapability('thinking')}
+            disabled={controlsDisabled}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.ai.model_types.chat.capabilities.thinking ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+              capabilities.thinking ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.ai.model_types.chat.capabilities.thinking ? 'translate-x-6' : 'translate-x-1'
+                capabilities.thinking ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
         </div>
+
+        {controlsDisabled && (
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            Chat model configuration is unavailable. Configure a chat provider to enable these controls.
+          </p>
+        )}
       </div>
     </div>
   );

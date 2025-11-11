@@ -7,6 +7,8 @@ import { ElectronCatalystIPCClient } from './ipc/ElectronCatalystIPCClient';
 import { MockCatalystIPCClient } from './ipc/MockCatalystIPCClient';
 import { ICatalystService } from './interfaces/ICatalystService';
 import { IAnalyticsService } from './interfaces/IAnalyticsService';
+import { ConfigurationService } from './configuration/configuration-service';
+import { SessionService } from './sessionService';
 
 /**
  * Renderer service types
@@ -18,6 +20,7 @@ export interface RendererServices {
   analyticsService: IAnalyticsService;
   discoveryService: DiscoveryService;
   sessionService: any;
+  configService: ConfigurationService;
 }
 
 /**
@@ -81,46 +84,13 @@ function createRendererServiceContainer(): ServiceContainer<RendererServices> {
       return new DiscoveryService(catalystService);
     }, true)
 
-    // Session Service (renderer-compatible version)
-    .withService('sessionService', () => {
-      // In the renderer process, we create a mock SessionService that provides the required interface
-      return {
-        saveSession: async () => {},
-        getSession: async () => null,
-        deleteSession: async () => false,
-        generateAITitle: async (message: string) => {
-          const { generateSimpleTitle } = require('@/shared/utils/session-utils');
-          return generateSimpleTitle(message);
-        },
-        searchSessions: async () => ({ sessions: [], total: 0, has_more: false }),
-        getRecentSessions: async () => [],
-        createSession: async () => {
-          const { generateSessionId } = require('@/shared/utils/session-utils');
-          return generateSessionId();
-        },
-        saveMessage: async () => {},
-        saveMessages: async () => {},
-        updateMessage: async () => {},
-        updateSessionTitle: async () => {},
-        saveSessionWithMessages: async () => {
-          const { generateSessionId } = require('@/shared/utils/session-utils');
-          return generateSessionId();
-        },
-        generateSessionId: () => {
-          const { generateSessionId } = require('@/shared/utils/session-utils');
-          return generateSessionId();
-        },
-        getGlobalMessageCount: async () => 0,
-        getGlobalStatistics: async () => ({
-          totalMessages: 0,
-          totalSessions: 0,
-          totalUserMessages: 0,
-          totalAssistantMessages: 0,
-          averageMessagesPerSession: 0,
-          totalTokensUsed: 0,
-        })
-      };
+    // Configuration Service
+    .withService('configService', () => {
+      return new ConfigurationService();
     }, true)
+
+    // Session Service
+    .withService('sessionService', () => new SessionService(), true)
 
     .build();
 }
@@ -141,6 +111,7 @@ export const RENDERER_SERVICE_NAMES = {
   ANALYTICS_SERVICE: 'analyticsService',
   DISCOVERY_SERVICE: 'discoveryService',
   SESSION_SERVICE: 'sessionService',
+  CONFIG_SERVICE: 'configService',
 } as const;
 
 /**
@@ -195,4 +166,8 @@ export function getDiscoveryService(): DiscoveryService {
  */
 export function getSessionService(): any {
   return rendererServiceContainer.get(RENDERER_SERVICE_NAMES.SESSION_SERVICE);
+}
+
+export function getConfigService(): ConfigurationService {
+  return rendererServiceContainer.get(RENDERER_SERVICE_NAMES.CONFIG_SERVICE);
 }

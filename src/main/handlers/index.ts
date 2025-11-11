@@ -7,6 +7,7 @@ import { registerAnalyticsHandlers } from './analytics-handlers';
 import { setupAgentHandlers } from './agent-handlers';
 import { setupContentHandlers } from './content-handlers';
 import { setupSettingsHandlers } from './settings-handlers';
+import { setupSessionHandlers } from './session-handlers';
 
 export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspacePath: string): void {
 	// Setup 7-domain handlers (only communication method with renderer)
@@ -17,6 +18,7 @@ export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspaceP
 	setupAgentHandlers();
 	setupContentHandlers();
 	setupSettingsHandlers(workspacePath);
+	setupSessionHandlers();
 
 	console.log('✅ 7-domain IPC handlers registered successfully');
 }

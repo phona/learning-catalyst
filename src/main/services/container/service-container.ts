@@ -16,7 +16,7 @@ import { AgentManagerMain } from '../agents/agent-manager';
 import { ConceptProcessingPipeline as ConceptParsingService } from '@/main/services/concept-parsing';
 import { ConfigService } from '@/main/services/configService';
 import { MainAnalyticsService as AnalyticsService } from '@/main/services/analytics/analytics-service';
-import { KnowledgeService } from '@/main/services/database/knowledge-service';
+import { KnowledgeService, initializeKnowledgeService } from '@/main/services/database/knowledge-service';
 import { ILogger } from '@/main/services/registry/ServiceTokens';
 
 export interface MainServiceContainer {
@@ -134,7 +134,7 @@ export async function createMainServiceContainer(
       .withService('knowledgeService', () => {
         const db = container.get('database');
         const vectorDb = container.get('vectorDatabase');
-        const knowledgeService = new KnowledgeService(db, vectorDb, logger);
+        const knowledgeService = initializeKnowledgeService(db, vectorDb, logger);
         logger.info('Knowledge service initialized');
         return knowledgeService;
       }, true)

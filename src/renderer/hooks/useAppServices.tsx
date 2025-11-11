@@ -9,6 +9,7 @@ import { useState, useEffect, useContext, createContext, ReactNode } from 'react
 import {
   rendererServiceContainer
 } from '@/renderer/services/ServiceContainer';
+import { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
 // Define local interfaces since they're not exported from shared container
 export interface ServiceContainer {
@@ -20,7 +21,7 @@ export interface ServiceContainer {
   conceptParsing: any;
   contentDiscovery: any;
   agentManager: any;
-  configService: any;
+  configService: ConfigurationService | null;
 }
 
 export interface ServiceContainerOptions {
@@ -52,7 +53,7 @@ export class ServiceContainerManager {
         conceptParsing: null,
         contentDiscovery: null,
         agentManager: null,
-        configService: null,
+        configService: rendererServiceContainer.get('configService'),
       };
     }
     return this.container;
@@ -70,7 +71,7 @@ function createServiceContainer(options?: ServiceContainerOptions): ServiceConta
     conceptParsing: null,
     contentDiscovery: null,
     agentManager: null,
-    configService: null,
+    configService: rendererServiceContainer.get('configService'),
   };
 }
 import { LoadingScreen } from '../components/UI/LoadingScreen';

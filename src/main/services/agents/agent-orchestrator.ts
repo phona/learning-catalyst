@@ -698,7 +698,7 @@ export class AgentOrchestrator {
   private async updateKnowledgeFromExecution(sessionId: string, results: any): Promise<void> {
     // Update knowledge graph with new information from execution
     if (results.newKnowledge) {
-      await this.knowledgeService.addKnowledge(results.newKnowledge, 'openai');
+      await this.knowledgeService.addKnowledgeItem(results.newKnowledge, 'openai');
     }
 
     if (results.concepts && results.concepts.length > 0) {

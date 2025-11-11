@@ -9,7 +9,7 @@
  */
 
 import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
-import type { Kysely, Database } from 'kysely';
+import type { Kysely } from 'kysely';
 import type { AsyncLocalStorage } from 'async_hooks';
 
 // Set test environment
@@ -110,7 +110,7 @@ afterEach(() => {
  * - transaction(fn)
  * - transaction().execute(fn)
  */
-export function createMockDatabase(): Kysely<Database> {
+export function createMockDatabase(): Kysely<any> {
   const createQueryBuilder = () => ({
     select: vi.fn().mockReturnThis(),
     selectAll: vi.fn().mockReturnThis(),
@@ -198,13 +198,13 @@ export function createMockDatabase(): Kysely<Database> {
     },
     _resetMocks: () => {
       Object.values(mockDb).forEach(value => {
-        if (typeof value === 'function') {
-          value.mockReset?.();
+        if (typeof value === 'function' && 'mockReset' in value) {
+          (value as any).mockReset?.();
         }
       });
       Object.values(mockQueryBuilder).forEach(value => {
-        if (typeof value === 'function') {
-          value.mockReset?.();
+        if (typeof value === 'function' && 'mockReset' in value) {
+          (value as any).mockReset?.();
         }
       });
       mockDb.connected = true;
@@ -237,14 +237,84 @@ export function createMockLogger() {
     }),
     reset: () => {
       Object.values(logger).forEach(value => {
-        if (typeof value === 'function') {
-          value.mockReset?.()
+        if (typeof value === 'function' && 'mockReset' in value) {
+          (value as any).mockReset?.()
         }
       })
     }
   }
   return logger;
 }
+
+/**
+ * Create mock AsyncLocalStorage
+ */
+export function createMockAsyncLocalStorage() {
+  const store = new Map();
+  return {
+    getStore: () => ({
+      get: (key: string) => store.get(key),
+      set: (key: string, value: any) => store.set(key, value),
+      delete: (key: string) => store.delete(key),
+      clear: () => store.clear()
+    }),
+    run: (store: any, fn: Function) => fn(),
+    enterWith: (store: any) => store,
+    exit: (fn: Function) => fn()
+  };
+}
+
+// Mock LoggerFactory and related logger classes
+const mockLogger = createMockLogger();
+
+// Mock LoggerFactory with getLogger method
+const mockLoggerFactory = {
+  getInstance: vi.fn(() => ({
+    getAsyncLocalStorage: vi.fn(() => createMockAsyncLocalStorage()),
+    createLogger: vi.fn(() => mockLogger),
+    createContextAwareLogger: vi.fn(() => mockLogger),
+    runWithContext: vi.fn(),
+    getCurrentContext: vi.fn(),
+    createContext: vi.fn(),
+  })),
+  getLogger: vi.fn(() => mockLogger),
+};
+
+// Mock the logger module
+vi.mock('../../../main/services/logger', () => {
+  const actual = vi.importActual('../../../main/services/logger');
+  return {
+    ...actual,
+    LoggerFactory: mockLoggerFactory,
+    MainThreadLogger: vi.fn(() => mockLogger),
+    ContextAwareLogger: vi.fn(() => mockLogger),
+  };
+});
+
+// Mock service container
+vi.mock('../../../shared/utils/service-container', () => ({
+  ServiceContainer: vi.fn(() => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    has: vi.fn(),
+    clear: vi.fn(),
+  })),
+}));
+
+// Mock compression utilities
+vi.mock('../../../shared/utils/compression', () => ({
+  compressData: vi.fn(),
+  decompressData: vi.fn(),
+}));
+
+// Mock concept manager
+vi.mock('../../../shared/utils/concept-manager', () => ({
+  ConceptManager: vi.fn(() => ({
+    extractConcepts: vi.fn(),
+    relateConcepts: vi.fn(),
+    getConceptHierarchy: vi.fn(),
+  })),
+}));
 
 // AsyncLocalStorage is a native Node.js API - no need to mock it
 // It should be tested through its behavior, not implementation

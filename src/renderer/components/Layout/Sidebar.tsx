@@ -27,8 +27,13 @@ const sidebarConfig = {
 } as const;
 
 export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
-  const chatStore = useChatStore();
-  const { createNewSession, setCurrentSession, clearMessages, currentSession, saveCurrentSession } = chatStore();
+  const {
+    createNewSession,
+    setCurrentSession,
+    clearMessages,
+    currentSession,
+    saveCurrentSession
+  } = useChatStore();
   const { sessions, loading, error, refresh, hasMore, loadMore } = useRecentSessions(sidebarConfig.maxInitialSessions);
   const { scrollRef, onNearBottom } = useScrollDetection({
     threshold: sidebarConfig.scrollThreshold,

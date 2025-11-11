@@ -10,7 +10,6 @@ import { DiscoveryPage } from './DiscoveryPage';
 import { ErrorBoundary } from './components/UI/ErrorBoundary';
 import { useAppStore } from './stores/useAppStore';
 import { useConfigStore } from './stores/useConfigStore';
-import { setupMenuHandlers } from './services/AppServiceClient';
 import { ServicesProvider } from './services/services-container';
 
 // Global flag to track if setup has already been completed to prevent double execution in Strict Mode
@@ -55,22 +54,6 @@ function App() {
           }
         }
 
-        // Setup menu handlers
-        setupMenuHandlers({
-          'new-chat': () => setCurrentView('chat'),
-          'open-settings': () => setCurrentView('settings'),
-          'view-progress': () => setCurrentView('progress'),
-          'view-knowledge-map': () => setCurrentView('knowledge-map'),
-          'discover-content': () => setCurrentView('discovery'),
-          'toggle-theme': () => {
-            const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            setTheme(newTheme);
-          },
-          'refresh-modules': () => {
-            setSuccess('Module system refreshed');
-          },
-        });
       } catch (error) {
         console.error('Failed to setup application:', error);
         setError(`Application setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

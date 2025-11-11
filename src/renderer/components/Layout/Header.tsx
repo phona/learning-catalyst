@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
     setTheme,
     toggleFocusMode,
   } = useAppStore();
-  const chatStore = useChatStore();
+  const { currentSession, updateCurrentSessionTitle } = useChatStore();
 
   // State for inline editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -67,9 +67,6 @@ export const Header: React.FC = () => {
         return 'Light';
     }
   };
-
-  // Get current session state and updateCurrentSessionTitle function on every render to ensure reactivity
-  const { currentSession, updateCurrentSessionTitle } = chatStore();
 
   // Focus input when editing starts
   useEffect(() => {

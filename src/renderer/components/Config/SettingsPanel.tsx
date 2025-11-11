@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Cog6ToothIcon,
   SparklesIcon,
@@ -23,19 +23,14 @@ import { ModelType } from '@/shared/types/ai';
 import type {
   AppConfig,
   ModelTypeConfig,
+  ProviderConfig,
 } from '@/shared/types/config';
-import type { ModelList } from '@/shared/types/ai';
 import { useService } from '@/renderer/hooks/useAppServices';
 
 export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<string[]>(['ai-models', 'interface']);
-
-  // Remote models state
-  const [remoteModels, setRemoteModels] = useState<Record<string, ModelList>>({});
-  const [fetchingModels, setFetchingModels] = useState<Record<string, boolean>>({});
-  const [fetchErrors, setFetchErrors] = useState<Record<string, string>>({});
 
   // Local state for configuration
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(null);
@@ -167,40 +162,79 @@ export const SettingsPanel: React.FC = () => {
     }
   };
 
-  /**
-   * Fetch models from provider API
-   */
-  const fetchModelsFromProvider = useCallback(async (modelType: string) => {
-    const config = modelTypeConfigs[modelType];
-    if (!config || !config.default_provider) return;
+  const providerConfigs = useMemo(() => localConfig?.ai?.providers ?? {}, [localConfig]);
 
-    // Validate API key exists and is non-empty
-    const apiKey = config.api_keys?.[config.default_provider as keyof typeof config.api_keys];
-    if (!apiKey || apiKey.trim() === '') {
-      utilityToasts.error(`Please enter an API key for ${config.default_provider} before fetching models`);
-      return;
-    }
+  const modelAssignments = useMemo(() => ({
+    chat: {
+      provider_config_id: localConfig?.ai?.model_types?.chat?.provider || '',
+      model_id: localConfig?.ai?.model_types?.chat?.model || '',
+    },
+    embedding: {
+      provider_config_id: localConfig?.ai?.model_types?.embedding?.provider || '',
+      model_id: localConfig?.ai?.model_types?.embedding?.model || '',
+    },
+    rerank: {
+      provider_config_id: localConfig?.ai?.model_types?.rerank?.provider || '',
+      model_id: localConfig?.ai?.model_types?.rerank?.model || '',
+    },
+  }), [localConfig]);
 
-    const cacheKey = `${config.default_provider}-${modelType}`;
+  const handleProviderConfigChange = (providerId: string, providerConfig: ProviderConfig) => {
+    if (!localConfig) return;
+    const updatedConfig: AppConfig = {
+      ...localConfig,
+      ai: {
+        ...localConfig.ai,
+        providers: {
+          ...(localConfig.ai?.providers ?? {}),
+          [providerId]: providerConfig,
+        },
+      },
+    };
+    setLocalConfig(updatedConfig);
+    debouncedSaveConfig(updatedConfig);
+  };
 
-    setFetchingModels(prev => ({ ...prev, [cacheKey]: true }));
-    setFetchErrors(prev => ({ ...prev, [cacheKey]: '' }));
+  const handleModelAssignmentChange = (
+    modelType: string,
+    providerId: string,
+    modelId: string
+  ) => {
+    if (!localConfig) return;
 
-    try {
-      const models = await configService!.getAvailableModels(config.default_provider, modelType as 'chat' | 'embedding' | 'rerank');
-      setRemoteModels(prev => ({ ...prev, [cacheKey]: { [modelType]: models } }));
-      utilityToasts.success(`Fetched ${models?.length || 0} models from ${config.default_provider}`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch models';
-      setFetchErrors(prev => ({ ...prev, [cacheKey]: errorMessage }));
+    const existingModelTypes = localConfig.ai.model_types ?? {};
+    const previousModelConfig =
+      existingModelTypes[modelType as keyof typeof existingModelTypes] ?? {};
 
-      // Show toast instead of alert
-      utilityToasts.error(`Failed to fetch models from ${config.default_provider}: ${errorMessage}`);
-      console.error(`Failed to fetch models for ${config.default_provider}:`, error);
-    } finally {
-      setFetchingModels(prev => ({ ...prev, [cacheKey]: false }));
-    }
-  }, [modelTypeConfigs]);
+    const updatedModelTypes = {
+      ...existingModelTypes,
+      [modelType]: {
+        ...previousModelConfig,
+        provider: providerId,
+        model: modelId,
+      },
+    };
+
+    const updatedConfig: AppConfig = {
+      ...localConfig,
+      ai: {
+        ...localConfig.ai,
+        model_types: updatedModelTypes,
+      },
+    };
+
+    setLocalConfig(updatedConfig);
+    debouncedSaveConfig(updatedConfig);
+
+    setModelTypeConfigs((prev) => ({
+      ...prev,
+      [modelType]: {
+        ...prev[modelType],
+        default_provider: providerId,
+        default_model: modelId,
+      },
+    }));
+  };
 
   const handleConfigChange = useCallback((updates: Partial<AppConfig>) => {
     if (!localConfig) return;
@@ -299,12 +333,10 @@ export const SettingsPanel: React.FC = () => {
                 <div className="space-y-6">
                   <ComponentErrorBoundary componentName="AI Provider Settings">
                     <AIProviderSettings
-                      modelTypeConfigs={modelTypeConfigs}
-                      onModelTypeConfigChange={handleModelTypeConfigChange}
-                      remoteModels={remoteModels}
-                      fetchingModels={fetchingModels}
-                      fetchErrors={fetchErrors}
-                      onFetchModels={fetchModelsFromProvider}
+                      providerConfigs={providerConfigs}
+                      modelAssignments={modelAssignments}
+                      onProviderConfigChange={handleProviderConfigChange}
+                      onModelAssignmentChange={handleModelAssignmentChange}
                     />
                   </ComponentErrorBoundary>
                   <ComponentErrorBoundary componentName="Response Settings">
