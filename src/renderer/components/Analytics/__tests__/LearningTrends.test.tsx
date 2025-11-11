@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LearningTrends, LearningTrendsType } from '@/renderer/components/Analytics/LearningTrends';
 import { SimpleAnalyticsModule } from '@/renderer/components/Analytics/Achievements';
@@ -147,14 +147,14 @@ describe('LearningTrends', () => {
   it('displays recent activity list', async () => {
     const mockTrends: LearningTrendsType = {
       dailyStudyTime: [
-        { date: '2025-01-22', minutes: 60 },
-        { date: '2025-01-21', minutes: 45 },
-        { date: '2025-01-20', minutes: 30 },
-        { date: '2025-01-19', minutes: 75 },
-        { date: '2025-01-18', minutes: 20 },
-        { date: '2025-01-17', minutes: 50 },
-        { date: '2025-01-16', minutes: 40 },
         { date: '2025-01-15', minutes: 55 },
+        { date: '2025-01-16', minutes: 40 },
+        { date: '2025-01-17', minutes: 50 },
+        { date: '2025-01-18', minutes: 20 },
+        { date: '2025-01-19', minutes: 75 },
+        { date: '2025-01-20', minutes: 30 },
+        { date: '2025-01-21', minutes: 45 },
+        { date: '2025-01-22', minutes: 60 },
       ],
       masteryProgress: [],
       sessionTypes: {},
@@ -167,10 +167,17 @@ describe('LearningTrends', () => {
     expect(await screen.findByText('Recent Activity')).toBeInTheDocument();
 
     // Should show the last 7 days in reverse order
-    expect(screen.getByText('Jan 22, 2025')).toBeInTheDocument();
-    expect(screen.getAllByText('60m')).toHaveLength(2); // One in avg study time, one in recent activity
-    expect(screen.getByText('Jan 21, 2025')).toBeInTheDocument();
-    expect(screen.getAllByText('45m')).toHaveLength(2); // One in avg study time, one in recent activity
+    const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' } as const;
+    const firstDate = new Date('2025-01-22').toLocaleDateString('en-US', dateOptions);
+    const secondDate = new Date('2025-01-21').toLocaleDateString('en-US', dateOptions);
+
+    const activityDates = screen.getAllByTestId('recent-activity-date');
+    const activityDurations = screen.getAllByTestId('recent-activity-duration');
+
+    expect(activityDates[0]).toHaveTextContent(firstDate);
+    expect(activityDurations[0]).toHaveTextContent('60m');
+    expect(activityDates[1]).toHaveTextContent(secondDate);
+    expect(activityDurations[1]).toHaveTextContent('45m');
   });
 
   it('calls analytics.getLearningTrends with correct period when period changes', async () => {
@@ -187,12 +194,13 @@ describe('LearningTrends', () => {
     // Wait for initial render
     await screen.findByText('Learning Trends');
 
-    // Click on 14 days button
     const button14d = screen.getByText('14d');
-    button14d.click();
+    await fireEvent.click(button14d);
 
-    // Should be called with period 14
-    expect(mockAnalytics.getLearningTrends).toHaveBeenCalledWith(14);
+    await waitFor(() => {
+      expect(mockAnalytics.getLearningTrends).toHaveBeenCalledTimes(2);
+      expect(mockAnalytics.getLearningTrends).toHaveBeenLastCalledWith(14);
+    });
   });
 
   it('trend calculations work correctly', async () => {
@@ -217,8 +225,7 @@ describe('LearningTrends', () => {
 
     expect(await screen.findByText('Learning Trends')).toBeInTheDocument();
 
-    // Should show trend icons for increasing patterns
-    expect(screen.getByRole('img', { hidden: true })).toBeInTheDocument(); // Trend icons
+    expect(screen.getAllByLabelText(/trend/i).length).toBeGreaterThan(0);
   });
 
   it('applies className prop correctly', () => {

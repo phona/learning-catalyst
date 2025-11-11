@@ -28,10 +28,22 @@ const mockElectronAPI = {
   }
 };
 
-Object.defineProperty(window, 'electronAPI', {
-  value: mockElectronAPI,
-  writable: true,
-});
+const originalElectronAPIDescriptor = Object.getOwnPropertyDescriptor(window, 'electronAPI');
+
+const setElectronAPI = (value: typeof window.electronAPI | undefined) => {
+  try {
+    Object.defineProperty(window, 'electronAPI', {
+      value,
+      configurable: true,
+      writable: true,
+    });
+  } catch (error) {
+    // Fallback when the property is non-configurable in the current JSDOM context
+    (window as typeof window & { electronAPI?: typeof value }).electronAPI = value;
+  }
+};
+
+setElectronAPI(mockElectronAPI as typeof window.electronAPI);
 
 // Mock the renderer service container to simulate production state
 vi.mock('@/renderer/services/ServiceContainer', () => ({
@@ -52,6 +64,20 @@ vi.mock('@/renderer/services/ServiceContainer', () => ({
 describe('Service Container Initialization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    if (originalElectronAPIDescriptor) {
+      try {
+        Object.defineProperty(window, 'electronAPI', originalElectronAPIDescriptor);
+      } catch {
+        (window as typeof window & { electronAPI?: typeof window.electronAPI }).electronAPI =
+          originalElectronAPIDescriptor.value as typeof window.electronAPI;
+      }
+    } else {
+      // Remove the property entirely if it did not exist originally
+      Reflect.deleteProperty(window, 'electronAPI');
+    }
   });
 
   describe('ServiceContainerManager', () => {
@@ -155,16 +181,7 @@ describe('Service Container Initialization', () => {
     });
 
     it('should handle missing electronAPI gracefully', async () => {
-      // Store original value and descriptor
-      const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'electronAPI');
-      const originalValue = window.electronAPI;
-
-      // Temporarily set electronAPI to undefined using configurable property
-      Object.defineProperty(window, 'electronAPI', {
-        value: undefined,
-        writable: true,
-        configurable: true,
-      });
+      setElectronAPI(undefined);
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -177,17 +194,7 @@ describe('Service Container Initialization', () => {
 
       consoleSpy.mockRestore();
 
-      // Restore original electronAPI after test
-      if (originalDescriptor) {
-        Object.defineProperty(window, 'electronAPI', originalDescriptor);
-      } else {
-        // Fallback if no original descriptor existed
-        Object.defineProperty(window, 'electronAPI', {
-          value: originalValue,
-          writable: true,
-          configurable: true,
-        });
-      }
+      setElectronAPI(mockElectronAPI as typeof window.electronAPI);
     });
   });
 

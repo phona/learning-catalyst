@@ -18,7 +18,7 @@ vi.mock('../../../hooks/useChatStore', () => ({
   useChatStore: vi.fn(),
 }));
 
-vi.mock('./MessageBubble', () => ({
+vi.mock('../MessageBubble', () => ({
   MessageBubble: ({ message }: { message: Message }) => (
     <div data-testid={`message-bubble-${message.id}`}>
       {message.role}: {message.content}

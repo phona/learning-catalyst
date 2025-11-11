@@ -57,8 +57,11 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({
         </p>
         {lastStudyDate && (
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Last studied: {lastStudyDate.toLocaleDateString()}
-            {studiedToday && ' ✓'}
+            Last studied:{' '}
+            <span data-testid="last-study-date">
+              {lastStudyDate.toLocaleDateString('en-US')}
+            </span>
+            {studiedToday && <span aria-label="Studied today"> ✓</span>}
           </p>
         )}
       </div>

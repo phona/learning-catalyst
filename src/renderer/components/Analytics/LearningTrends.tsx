@@ -214,20 +214,24 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
         <div>
           <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Recent Activity</h4>
           <div className="space-y-2 max-h-40 overflow-y-auto">
-            {trends.dailyStudyTime.slice(-7).reverse().map((day) => (
-              <div key={day.date} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">
-                  {new Date(day.date).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  })}
-                </span>
-                <span className="text-gray-900 dark:text-gray-100 font-medium">
-                  {formatTime(day.minutes)}
-                </span>
-              </div>
-            ))}
+            {trends.dailyStudyTime.slice(-7).reverse().map((day) => {
+              const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              });
+
+              return (
+                <div key={day.date} className="flex items-center justify-between text-sm" data-testid="recent-activity-entry">
+                  <span className="text-gray-600 dark:text-gray-400" data-testid="recent-activity-date">
+                    {formattedDate}
+                  </span>
+                  <span className="text-gray-900 dark:text-gray-100 font-medium" data-testid="recent-activity-duration">
+                    {formatTime(day.minutes)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

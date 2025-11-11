@@ -64,12 +64,12 @@ export const useAppStore = create<AppStore>()(
         setLoading: (loading) => set({ loading }, false, 'setLoading'),
 
         setError: (error) => set({
-          error_message: error,
+          error_message: error && error.trim().length > 0 ? error : undefined,
           success_message: undefined
         }, false, 'setError'),
 
         setSuccess: (message) => set({
-          success_message: message,
+          success_message: message && message.trim().length > 0 ? message : undefined,
           error_message: undefined
         }, false, 'setSuccess'),
 

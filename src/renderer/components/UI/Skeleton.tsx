@@ -105,9 +105,21 @@ export const Skeleton: React.FC<SkeletonProps> = ({
  * <MessageSkeleton isUser={true} />  // User message
  * ```
  */
-export const MessageSkeleton: React.FC<{ isUser?: boolean }> = ({ isUser = false }) => {
+type MessageSkeletonProps = React.HTMLAttributes<HTMLDivElement> & {
+  isUser?: boolean;
+};
+
+export const MessageSkeleton: React.FC<MessageSkeletonProps> = ({
+  isUser = false,
+  className,
+  ...props
+}) => {
   return (
-    <div className={cn('flex gap-3 p-4', isUser && 'flex-row-reverse')}>
+    <div
+      className={cn('flex gap-3 p-4', isUser && 'flex-row-reverse', className)}
+      data-testid={props['data-testid'] ?? `message-skeleton-${isUser ? 'user' : 'assistant'}`}
+      {...props}
+    >
       {/* Avatar skeleton */}
       <Skeleton
         variant="circular"

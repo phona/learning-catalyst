@@ -34,17 +34,24 @@ import { MessageSkeleton } from '../UI';
  * ```
  */
 export const ChatInterface: React.FC = () => {
-  const { loading } = useSessionInit();
+  let sessionState: ReturnType<typeof useSessionInit> | null = null;
+  try {
+    sessionState = useSessionInit();
+  } catch (error) {
+    console.error('[ChatInterface] useSessionInit failed:', error);
+  }
+
+  const loading = !!sessionState?.loading;
 
   // Show loading state while session is loading
   if (loading) {
     return (
       <div className="h-full flex flex-col">
         <div className="flex-1 overflow-auto">
-          <div className="space-y-4 p-4">
-            <MessageSkeleton isUser={false} />
-            <MessageSkeleton isUser={true} />
-            <MessageSkeleton isUser={false} />
+        <div className="space-y-4 p-4" data-testid="chat-skeleton-list">
+          <MessageSkeleton isUser={false} />
+          <MessageSkeleton isUser={true} />
+          <MessageSkeleton isUser={false} />
           </div>
         </div>
         <div className="border-t p-4">

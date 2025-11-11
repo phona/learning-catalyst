@@ -79,14 +79,16 @@ describe('StudyStreak Component', () => {
       render(<StudyStreak streakDays={5} lastStudyDate={lastStudyDate} />);
 
       expect(screen.getByText(/Last studied:/)).toBeInTheDocument();
-      expect(screen.getByText('1/14/2024')).toBeInTheDocument();
+      expect(screen.getByTestId('last-study-date')).toHaveTextContent(
+        lastStudyDate.toLocaleDateString('en-US')
+      );
     });
 
     test('shows checkmark when studied today', () => {
       const today = new Date('2024-01-15T10:00:00Z');
       render(<StudyStreak streakDays={5} lastStudyDate={today} />);
 
-      expect(screen.getByText(/✓/)).toBeInTheDocument();
+      expect(screen.getByLabelText('Studied today')).toBeInTheDocument();
     });
 
     test('does not show last study info when date not provided', () => {
@@ -120,14 +122,18 @@ describe('StudyStreak Component', () => {
       const { container } = render(<StudyStreak streakDays={3} goalDays={7} />);
 
       const progressBar = container.querySelector('.bg-orange-500');
-      expect(progressBar).toHaveStyle('width: 42.857%'); // 3/7 * 100
+      expect(progressBar).not.toBeNull();
+      const widthValue = parseFloat(progressBar!.style.width);
+      expect(widthValue).toBeCloseTo((3 / 7) * 100, 5);
     });
 
     test('progress bar caps at 100%', () => {
       const { container } = render(<StudyStreak streakDays={10} goalDays={7} />);
 
       const progressBar = container.querySelector('.bg-orange-500');
-      expect(progressBar).toHaveStyle('width: 100%');
+      expect(progressBar).not.toBeNull();
+      const widthValue = parseFloat(progressBar!.style.width);
+      expect(widthValue).toBeCloseTo(100, 5);
     });
   });
 
@@ -136,10 +142,9 @@ describe('StudyStreak Component', () => {
       render(<StudyStreak streakDays={3} />);
 
       // Check that all weekday labels are present
-      expect(screen.getByText('S')).toBeInTheDocument();
-      expect(screen.getByText('M')).toBeInTheDocument();
-      expect(screen.getByText('T')).toBeInTheDocument();
-      expect(screen.getByText('W')).toBeInTheDocument();
+      ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach((day) => {
+        expect(screen.getAllByText(day).length).toBeGreaterThan(0);
+      });
 
       expect(screen.getByText('This Week')).toBeInTheDocument();
     });
@@ -218,7 +223,9 @@ describe('StudyStreak Component', () => {
 
       const { container } = render(<StudyStreak streakDays={2} goalDays={3} />);
       const progressBar = container.querySelector('.bg-orange-500');
-      expect(progressBar).toHaveStyle('width: 66.667%'); // 2/3 * 100
+      expect(progressBar).not.toBeNull();
+      const widthValue = parseFloat(progressBar!.style.width);
+      expect(widthValue).toBeCloseTo((2 / 3) * 100, 5);
     });
   });
 
@@ -237,7 +244,7 @@ describe('StudyStreak Component', () => {
       // Check that important information is in text, not just icons
       expect(screen.getByText('5')).toBeInTheDocument();
       expect(screen.getByText('days in a row')).toBeInTheDocument();
-      expect(screen.getByText('5 day streak - You\'re on fire!')).toBeInTheDocument();
+      expect(screen.getByText('5 day streak - Building momentum!')).toBeInTheDocument();
     });
 
     test('calendar days have tooltips for context', () => {

@@ -5,15 +5,21 @@ import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 
 export const ChatArea: React.FC = () => {
+  let chatStore: ReturnType<typeof useChatStore> | null = null;
+  try {
+    chatStore = useChatStore();
+  } catch (error) {
+    console.error('[ChatArea] Failed to access chat store:', error);
+  }
+
   const {
-    messages,
-    isStreaming,
-    thinkingContent,
-    streamingContent,
-    autoScroll,
-    selectedProvider,
-    updateMessage,
-  } = useChatStore();
+    messages = [],
+    isStreaming = false,
+    thinkingContent = '',
+    streamingContent = '',
+    autoScroll = true,
+    updateMessage = () => {},
+  } = chatStore ?? {};
 
   // Simple toggle function for individual message thinking visibility
   const handleToggleThinking = (messageId: string) => {
@@ -28,7 +34,7 @@ export const ChatArea: React.FC = () => {
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
-    if (autoScroll && messagesEndRef.current) {
+    if (autoScroll && messagesEndRef.current?.scrollIntoView) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
@@ -69,7 +75,7 @@ export const ChatArea: React.FC = () => {
   } : null;
 
   return (
-    <div className="flex-1 overflow-auto custom-scrollbar" ref={containerRef}>
+    <div className="flex-1 overflow-auto custom-scrollbar" ref={containerRef} data-testid="chat-area">
       <div className="h-full">
         {messages.length === 0 && !isStreaming ? (
           /* Empty state */

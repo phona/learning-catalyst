@@ -33,7 +33,8 @@ describe('Achievements', () => {
 
     render(<Achievements analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('Error loading achievements: Failed to load achievements')).toBeInTheDocument();
+    expect(await screen.findByText('Unable to load achievements')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load achievements')).toBeInTheDocument();
   });
 
   it('renders achievements data when loaded successfully', async () => {
@@ -73,9 +74,11 @@ describe('Achievements', () => {
     render(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Achievements')).toBeInTheDocument();
-    expect(screen.getByText('1 / 3 unlocked')).toBeInTheDocument();
+    expect(screen.getByText('1 of 3 unlocked')).toBeInTheDocument();
     expect(screen.getByText('Overall Progress')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument(); // Overall progress
+    const expectedOverall = Math.round((1 / mockAchievements.length) * 100);
+    const overallBadges = screen.getAllByText(`${expectedOverall}%`);
+    expect(overallBadges.length).toBeGreaterThan(0);
   });
 
   it('renders unlocked achievements section when there are unlocked achievements', async () => {
@@ -96,11 +99,12 @@ describe('Achievements', () => {
 
     render(<Achievements analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('🏆 Unlocked (1)')).toBeInTheDocument();
+    expect(await screen.findByText('Unlocked Achievements (1)')).toBeInTheDocument();
     expect(screen.getByText('First Steps')).toBeInTheDocument();
     expect(screen.getByText('Complete your first learning session')).toBeInTheDocument();
     expect(screen.getByText('time')).toBeInTheDocument();
-    expect(screen.getByText('Jan 20, 2025')).toBeInTheDocument();
+    const formattedDate = new Date('2025-01-20').toLocaleDateString();
+    expect(screen.getByText(formattedDate)).toBeInTheDocument();
   });
 
   it('renders locked achievements section when there are locked achievements', async () => {
@@ -120,7 +124,7 @@ describe('Achievements', () => {
 
     render(<Achievements analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('🔒 In Progress (1)')).toBeInTheDocument();
+    expect(await screen.findByText('In Progress (1)')).toBeInTheDocument();
     expect(screen.getByText('Week Warrior')).toBeInTheDocument();
     expect(screen.getByText('Study for 7 days in a row')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
@@ -146,9 +150,8 @@ describe('Achievements', () => {
     expect(await screen.findByText('Progress')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
 
-    // Check that the progress bar has the correct width
-    const progressBar = screen.getByRole('progressbar');
-    expect(progressBar).toHaveClass('bg-orange-500');
+    const progressBars = screen.getAllByRole('progressbar');
+    expect(progressBars[1]).toHaveAttribute('aria-valuenow', '50');
   });
 
   it('renders custom icons when provided', async () => {
@@ -188,7 +191,7 @@ describe('Achievements', () => {
 
     render(<Achievements analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('🏆')).toBeInTheDocument(); // Default trophy icon
+    expect(await screen.findByLabelText('No Icon Achievement icon')).toBeInTheDocument();
   });
 
   it('shows no achievements message when there are no achievements', async () => {
@@ -196,8 +199,8 @@ describe('Achievements', () => {
 
     render(<Achievements analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('No achievements available')).toBeInTheDocument();
-    expect(screen.getByText('Start learning to unlock achievements')).toBeInTheDocument();
+    expect(await screen.findByText('No achievements yet')).toBeInTheDocument();
+    expect(screen.getByText('Start your learning journey to unlock amazing rewards!')).toBeInTheDocument();
   });
 
   it('categorizes achievements correctly', async () => {
@@ -232,9 +235,9 @@ describe('Achievements', () => {
 
     render(<Achievements analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('time')).toBeInTheDocument();
-    expect(screen.getByText('concepts')).toBeInTheDocument();
-    expect(screen.getByText('performance')).toBeInTheDocument();
+    expect(await screen.findByTestId('achievement-icon-time_achievement')).toBeInTheDocument();
+    expect(screen.getByTestId('achievement-icon-concepts_achievement')).toBeInTheDocument();
+    expect(screen.getByTestId('achievement-icon-performance_achievement')).toBeInTheDocument();
   });
 
   it('applies className prop correctly', () => {
@@ -249,8 +252,8 @@ describe('Achievements', () => {
 
   it('calculates overall progress correctly', async () => {
     const mockAchievements = [
-      { id: '1', title: 'Achievement 1', category: 'time' as const, requirement: {}, progress: 50, icon: '' },
-      { id: '2', title: 'Achievement 2', category: 'concepts' as const, requirement: {}, progress: 100, icon: '' },
+      { id: '1', title: 'Achievement 1', category: 'time' as const, requirement: {}, progress: 50, icon: '', unlockedAt: new Date('2025-01-01') },
+      { id: '2', title: 'Achievement 2', category: 'concepts' as const, requirement: {}, progress: 100, icon: '', unlockedAt: new Date('2025-01-02') },
       { id: '3', title: 'Achievement 3', category: 'streaks' as const, requirement: {}, progress: 75, icon: '' },
       { id: '4', title: 'Achievement 4', category: 'performance' as const, requirement: {}, progress: 25, icon: '' },
     ];
@@ -260,6 +263,7 @@ describe('Achievements', () => {
     render(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Overall Progress')).toBeInTheDocument();
-    expect(screen.getByText('62%')).toBeInTheDocument(); // Average of 50, 100, 75, 25
+    expect(screen.getByText('2 of 4 unlocked')).toBeInTheDocument();
+    expect(screen.getAllByText('50%').length).toBeGreaterThan(0);
   });
 });

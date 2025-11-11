@@ -84,7 +84,11 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
     const color = achievement.unlockedAt ? iconColors[achievement.category] : 'text-gray-400';
 
     return (
-      <div className={`${color} ${achievement.unlockedAt ? 'animate-pulse-soft' : 'opacity-50'}`}>
+      <div
+        className={`${color} ${achievement.unlockedAt ? 'animate-pulse-soft' : 'opacity-50'}`}
+        data-testid={`achievement-icon-${achievement.id}`}
+        aria-label={`${achievement.title} icon`}
+      >
         {achievement.icon ? (
           <span className={`${size === 'small' ? 'text-lg' : size === 'medium' ? 'text-2xl' : 'text-3xl'}`}>
             {achievement.icon}
@@ -153,7 +157,9 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
 
   const unlockedAchievements = achievements.filter(a => a.unlockedAt);
   const lockedAchievements = achievements.filter(a => !a.unlockedAt);
-  const overallProgress = (unlockedAchievements.length / achievements.length) * 100;
+  const overallProgress = achievements.length > 0
+    ? (unlockedAchievements.length / achievements.length) * 100
+    : 0;
 
   return (
     <div className={`bg-gradient-to-br from-white to-gray-50/80 dark:from-gray-800 dark:to-gray-900/80 rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 backdrop-blur-sm shadow-lg ${className}`}>
@@ -209,7 +215,13 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
             )}
           </div>
         </div>
-        <div className="relative w-full bg-gray-200/50 dark:bg-gray-700/50 rounded-full h-3 overflow-hidden">
+        <div
+          className="relative w-full bg-gray-200/50 dark:bg-gray-700/50 rounded-full h-3 overflow-hidden"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(overallProgress)}
+        >
           <div className="absolute inset-0 bg-gradient-to-r from-gray-200/30 to-gray-300/30 dark:from-gray-700/30 dark:to-gray-600/30 animate-shimmer bg-[length:200%_100%]"></div>
           <div
             className={`relative h-full bg-gradient-to-r ${getProgressGradient(overallProgress)} rounded-full transition-all duration-1000 ease-out shadow-lg transform hover:scale-y-110 origin-left`}
@@ -343,7 +355,13 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
                           {achievement.progress}%
                         </span>
                       </div>
-                      <div className="relative w-full bg-gray-200/50 dark:bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="relative w-full bg-gray-200/50 dark:bg-gray-700/50 rounded-full h-2 overflow-hidden"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={achievement.progress}
+                      >
                         <div className="absolute inset-0 bg-gradient-to-r from-gray-200/30 to-gray-300/30 dark:from-gray-700/30 dark:to-gray-600/30 animate-shimmer bg-[length:200%_100%]"></div>
                         <div
                           className={`relative h-full bg-gradient-to-r ${getProgressGradient(achievement.progress)} rounded-full transition-all duration-700 ease-out hover:shadow-lg transform hover:scale-y-110 origin-left`}

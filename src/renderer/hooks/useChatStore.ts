@@ -684,3 +684,12 @@ export function useChatStore() {
   // Use the Zustand store as a hook to get state and actions
   return store();
 }
+
+/**
+ * Test-only helper to clear the cached store between test cases.
+ * Calling this in production code is not recommended.
+ */
+export function resetChatStoreCacheForTests() {
+  cachedStore = null;
+  cachedSessionService = null;
+}

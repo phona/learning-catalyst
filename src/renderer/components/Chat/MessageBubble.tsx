@@ -165,7 +165,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
   if (isSystem) {
     return (
-      <div className="flex justify-center my-4">
+      <div className="flex justify-center my-4" role="alert" aria-live="polite">
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 max-w-md">
           <div className="flex items-start space-x-2">
             <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
@@ -184,6 +184,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     <article
       className={`flex space-x-4 ${isUser ? 'justify-end' : 'justify-start'} mb-6 animate-message-appear`}
       aria-labelledby={`message-${message.id}`}
+      data-testid={`message-bubble-${message.id}`}
     >
       {!isUser && getAvatar()}
 

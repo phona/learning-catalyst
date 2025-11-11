@@ -35,6 +35,7 @@ describe('useAppStore', () => {
     useAppStore.getState().setTheme('dark');
     useAppStore.getState().setError(undefined);
     useAppStore.getState().setSuccess(undefined);
+    useAppStore.getState().setLoading(false);
 
     vi.clearAllMocks();
   });
@@ -350,6 +351,7 @@ describe('useAppStore', () => {
         result.current.setCurrentView('chat');
         result.current.setSidebarOpen(true);
         result.current.setTheme('dark');
+        result.current.setLoading(false);
       });
 
       expect(result.current.current_view).toBe('chat');

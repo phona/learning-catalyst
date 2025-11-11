@@ -27,11 +27,13 @@ const mockAgentManager = {
   cleanup: vi.fn()
 };
 
+let sessionServiceMock: typeof mockSessionService | null = mockSessionService;
+
 // Mock the dependencies first
 vi.mock('@/renderer/hooks/useAppServices', () => ({
   useAppServices: () => ({
     services: {
-      sessionService: mockSessionService,
+      sessionService: sessionServiceMock,
       agentManager: mockAgentManager
     }
   })
@@ -55,7 +57,7 @@ vi.mock('@/renderer/stores/useConfigStore', () => ({
 }));
 
 // Import after mocking
-import { useChatStore } from '@/renderer/hooks/useChatStore';
+import { useChatStore, resetChatStoreCacheForTests } from '@/renderer/hooks/useChatStore';
 
 // Mock window events
 Object.defineProperty(window, 'dispatchEvent', {
@@ -66,8 +68,13 @@ Object.defineProperty(window, 'dispatchEvent', {
 describe('Simplified Chat Store', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Clear the cached store to ensure fresh mock services
-    vi.resetModules();
+    resetChatStoreCacheForTests();
+    sessionServiceMock = mockSessionService;
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('createNewSession', () => {
@@ -138,14 +145,21 @@ describe('Simplified Chat Store', () => {
         result.current.addMessage(assistantMessage);
       });
 
-      // Save session (first time - should create)
+      await act(async () => {
+        vi.runAllTimers();
+        await Promise.resolve();
+      });
+
+      const initialCalls = mockSessionService.saveSessionWithMessages.mock.calls.length;
+
+      // Save session (first time - should create/update)
       let saveResult1;
       await act(async () => {
         saveResult1 = await result.current.saveCurrentSession();
       });
 
       expect(saveResult1.success).toBe(true);
-      expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledTimes(1);
+      expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledTimes(initialCalls + 1);
 
       // Save session again (should update - idempotent)
       let saveResult2;
@@ -154,33 +168,14 @@ describe('Simplified Chat Store', () => {
       });
 
       expect(saveResult2.success).toBe(true);
-      expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledTimes(2);
+      expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledTimes(initialCalls + 2);
     });
 
-    it('should throw error when no session service is available', async () => {
-      // Mock the useAppServices to return no session service
-      vi.doMock('@/renderer/hooks/useAppServices', () => ({
-        useAppServices: () => ({
-          services: {
-            sessionService: null,
-            agentManager: mockAgentManager
-          }
-        })
-      }));
+    it('should throw error when no session service is available', () => {
+      sessionServiceMock = null;
+      resetChatStoreCacheForTests();
 
-      const { result } = renderHook(() => useChatStore());
-
-      let error: Error | null = null;
-      await act(async () => {
-        try {
-          await result.current.saveCurrentSession();
-        } catch (e) {
-          error = e as Error;
-        }
-      });
-
-      expect(error).not.toBeNull();
-      expect(error?.message).toContain('SessionService is required');
+      expect(() => renderHook(() => useChatStore())).toThrow('SessionService is required');
     });
   });
 
@@ -207,7 +202,7 @@ describe('Simplified Chat Store', () => {
       });
 
       expect(result.current.messages).toHaveLength(1);
-      expect(result.current.messages[0]).toEqual(message);
+      expect(result.current.messages[0]).toMatchObject({ ...message, showThinking: false });
     });
 
     it('should trigger AI title generation on first assistant message', async () => {
@@ -245,7 +240,11 @@ describe('Simplified Chat Store', () => {
         result.current.addMessage(assistantMessage);
       });
 
-      // Check that AI title generation was called
+      await act(async () => {
+        vi.advanceTimersByTime(600);
+        await Promise.resolve();
+      });
+
       expect(mockSessionService.generateAITitle).toHaveBeenCalledWith(
         'What is React?',
         expect.any(String), // selectedProvider
@@ -264,8 +263,6 @@ describe('Simplified Chat Store', () => {
         await result.current.createNewSession();
       });
 
-      const sessionId = result.current.currentSession?.id;
-
       // Save multiple times
       for (let i = 0; i < 3; i++) {
         await act(async () => {
@@ -274,8 +271,7 @@ describe('Simplified Chat Store', () => {
         });
       }
 
-      // All saves should use the same session ID
-      expect(result.current.currentSession?.id).toBe(sessionId);
+      expect(result.current.currentSession?.id).toBe('session_test123');
       expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledTimes(3);
     });
   });

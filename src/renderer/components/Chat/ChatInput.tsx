@@ -171,6 +171,8 @@ export const ChatInput: React.FC = () => {
   const currentProviderName = selectedProvider;
   const currentModelName = selectedModel;
 
+  const isActionButtonDisabled = isStreaming ? false : !inputText.trim() || isLoading;
+
   return (
     <div
       className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
@@ -180,7 +182,7 @@ export const ChatInput: React.FC = () => {
 
       {/* Main Input */}
       <div className="p-6">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto" noValidate>
+        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto" noValidate data-testid="chat-input-form">
           <fieldset className="flex items-end space-x-4" disabled={isStreaming || isLoading}>
             <legend className="sr-only">Message input form</legend>
 
@@ -245,11 +247,11 @@ export const ChatInput: React.FC = () => {
               className={`px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                 isStreaming
                   ? 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500'
-                  : inputText.trim()
+                  : !isActionButtonDisabled
                   ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
-              disabled={!inputText.trim() || (!isStreaming && isLoading)}
+              disabled={isActionButtonDisabled}
               aria-label={isStreaming ? 'Stop generating response' : 'Send message'}
             >
               {isStreaming ? (
