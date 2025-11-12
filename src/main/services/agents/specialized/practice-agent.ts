@@ -278,19 +278,19 @@ Response format:
     const topic = practiceRequest.topic || 'the topic';
     const difficulty = practiceRequest.difficulty || this.config.defaultDifficulty;
     const exerciseType = practiceRequest.exerciseType || 'multiple-choice';
-    
+
     // Check if we should use natural language approach
-    const useNaturalLanguage = practiceRequest.useNaturalLanguage || 
-                              practiceRequest.type === 'generate_natural_challenge' ||
-                              practiceRequest.format === 'natural';
+    const useNaturalLanguage = practiceRequest.useNaturalLanguage ||
+      practiceRequest.type === 'generate_natural_challenge' ||
+      practiceRequest.format === 'natural';
 
     yield {
       type: 'progress',
-      content: { 
-        phase: 'generating', 
-        message: useNaturalLanguage 
-          ? `Generating natural practice challenge for ${topic}...` 
-          : `Generating ${exerciseType} exercise for ${topic}...` 
+      content: {
+        phase: 'generating',
+        message: useNaturalLanguage
+          ? `Generating natural practice challenge for ${topic}...`
+          : `Generating ${exerciseType} exercise for ${topic}...`
       },
       timestamp: Date.now()
     };
@@ -412,7 +412,7 @@ Example of natural format:
 
       } catch (error) {
         this.dependencies.logger.error('Natural exercise generation failed', error as Error);
-        
+
         // Fallback: Generate using the original method
         const fallbackResult = await this.fallbackGenerateExercise(topic, difficulty, exerciseType, practiceRequest, executionContext);
         yield* fallbackResult;
@@ -468,80 +468,81 @@ Format your response as:
   "estimatedTime": 20
 }`;
 
-    const messages = [
-      new SystemMessage("You are an expert educational exercise creator."),
-      new HumanMessage(exercisePrompt)
-    ];
+      const messages = [
+        new SystemMessage("You are an expert educational exercise creator."),
+        new HumanMessage(exercisePrompt)
+      ];
 
-    try {
-      const response = await this.model.invoke(messages);
-      const content = response.content as string;
-
-      let exercise: Exercise;
       try {
-        const parsed = JSON.parse(content);
-        exercise = {
-          id: `exercise_${executionContext.id}`,
-          title: parsed.title || `Exercise: ${topic}`,
-          description: parsed.description || 'Practice exercise',
-          type: parsed.type || exerciseType,
-          difficulty: parsed.difficulty || difficulty,
-          topic: parsed.topic || topic,
-          subtopics: parsed.subtopics || [],
-          instructions: parsed.instructions || 'Complete the following exercise',
-          problem: parsed.problem || content,
-          hints: parsed.hints || [],
-          solution: {
-            answer: parsed.solution?.answer || 'See explanation',
-            explanation: parsed.solution?.explanation || 'Solution explanation',
-            steps: parsed.solution?.steps,
-            code: parsed.solution?.code
+        const response = await this.model.invoke(messages);
+        const content = response.content as string;
+
+        let exercise: Exercise;
+        try {
+          const parsed = JSON.parse(content);
+          exercise = {
+            id: `exercise_${executionContext.id}`,
+            title: parsed.title || `Exercise: ${topic}`,
+            description: parsed.description || 'Practice exercise',
+            type: parsed.type || exerciseType,
+            difficulty: parsed.difficulty || difficulty,
+            topic: parsed.topic || topic,
+            subtopics: parsed.subtopics || [],
+            instructions: parsed.instructions || 'Complete the following exercise',
+            problem: parsed.problem || content,
+            hints: parsed.hints || [],
+            solution: {
+              answer: parsed.solution?.answer || 'See explanation',
+              explanation: parsed.solution?.explanation || 'Solution explanation',
+              steps: parsed.solution?.steps,
+              code: parsed.solution?.code
+            },
+            timeLimit: parsed.timeLimit,
+            prerequisites: parsed.prerequisites || [],
+            learningObjectives: parsed.learningObjectives || [],
+            estimatedTime: parsed.estimatedTime || 20
+          };
+        } catch (parseError) {
+          // Fallback exercise
+          exercise = {
+            id: `exercise_${executionContext.id}`,
+            title: `Exercise: ${topic}`,
+            description: 'Practice exercise',
+            type: exerciseType,
+            difficulty,
+            topic,
+            subtopics: [],
+            instructions: 'Complete the following exercise',
+            problem: content,
+            hints: [],
+            solution: {
+              answer: 'See explanation below',
+              explanation: content
+            },
+            prerequisites: [],
+            learningObjectives: [],
+            estimatedTime: 20
+          };
+        }
+
+        yield {
+          type: 'data',
+          content: {
+            type: 'exercise_generated',
+            exercise
           },
-          timeLimit: parsed.timeLimit,
-          prerequisites: parsed.prerequisites || [],
-          learningObjectives: parsed.learningObjectives || [],
-          estimatedTime: parsed.estimatedTime || 20
+          timestamp: Date.now()
         };
-      } catch (parseError) {
-        // Fallback exercise
-        exercise = {
-          id: `exercise_${executionContext.id}`,
-          title: `Exercise: ${topic}`,
-          description: 'Practice exercise',
-          type: exerciseType,
-          difficulty,
-          topic,
-          subtopics: [],
-          instructions: 'Complete the following exercise',
-          problem: content,
-          hints: [],
-          solution: {
-            answer: 'See explanation below',
-            explanation: content
+
+      } catch (error) {
+        yield {
+          type: 'error',
+          content: {
+            error: `Failed to generate exercise: ${(error as Error).message}`
           },
-          prerequisites: [],
-          learningObjectives: [],
-          estimatedTime: 20
+          timestamp: Date.now()
         };
       }
-
-      yield {
-        type: 'data',
-        content: {
-          type: 'exercise_generated',
-          exercise
-        },
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      yield {
-        type: 'error',
-        content: {
-          error: `Failed to generate exercise: ${(error as Error).message}`
-        },
-        timestamp: Date.now()
-      };
     }
   }
 
@@ -1170,7 +1171,7 @@ Format your response as helpful, encouraging, and actionable advice.`;
     try {
       // Use the VibeDetector for actual analysis
       const result = await this.vibeDetector.detectVibe(request);
-      
+
       // Map the result to PracticeVibeResult format
       return {
         vibe: result.vibe,
@@ -1183,7 +1184,7 @@ Format your response as helpful, encouraging, and actionable advice.`;
       };
     } catch (error) {
       this.dependencies.logger.warn(`Enhanced vibe detection failed, falling back to original method`, error);
-      
+
       // Fallback to original method
       const recentMessages = conversationHistory.slice(-this.config.vibeDetection.contextWindow);
       const conversationText = recentMessages.map(m => `${m.role}: ${m.content}`).join('\n');
@@ -1475,7 +1476,7 @@ For each opportunity, provide:
       );
     } catch (error) {
       this.dependencies.logger.warn('Natural prompt generation failed, using fallback', error as Error);
-      
+
       // Fallback to original logic if the generator fails
       const templates = PRACTICE_TEMPLATES[vibe];
       if (templates && templates.length > 0) {
