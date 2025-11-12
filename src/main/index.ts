@@ -152,19 +152,23 @@ async function cleanup() {
   cleanupMemoryDebug();
 
   // Clean up main process service registry
-  try {
-    await mainServiceRegistry.dispose()
-    console.log('✅ Main process service registry disposed successfully')
-  } catch (error) {
-    console.warn('Failed to dispose main process service registry:', error)
+  if (mainServiceRegistry.isInitialized()) {
+    try {
+      await mainServiceRegistry.dispose()
+      console.log('✅ Main process service registry disposed successfully')
+    } catch (error) {
+      console.warn('Failed to dispose main process service registry:', error)
+    }
   }
 
   // Clean up main process service container
-  try {
-    await mainServiceContainerManager.dispose()
-    console.log('✅ Main process service container disposed successfully')
-  } catch (error) {
-    console.warn('Failed to dispose main process service container:', error)
+  if (mainServiceContainerManager.isInitialized()) {
+    try {
+      await mainServiceContainerManager.dispose()
+      console.log('✅ Main process service container disposed successfully')
+    } catch (error) {
+      console.warn('Failed to dispose main process service container:', error)
+    }
   }
 
   // Clean up Catalyst service
@@ -200,26 +204,16 @@ app.whenReady().then(async () => {
   console.log('🚀 Learning Catalyst starting...')
 
   // Initialize main process service registry first
-  try {
-    await mainServiceRegistry.initialize()
-    console.log('✅ Main process service registry initialized successfully')
-  } catch (error) {
-    console.error('❌ Failed to initialize main process service registry:', error)
-    // Continue with startup but log the error
-  }
+  await mainServiceRegistry.initialize()
+  console.log('✅ Main process service registry initialized successfully')
 
   // Initialize main process service container
-  try {
-    const logger = mainServiceRegistry.get(MAIN_SERVICE_TOKENS.LOGGER);
-    await mainServiceContainerManager.initialize({
-      databasePath: path.join(process.env.APP_ROOT || '', 'data', 'learning-catalyst.db'),
-      logger
-    })
-    console.log('✅ Main process service container initialized successfully')
-  } catch (error) {
-    console.error('❌ Failed to initialize main process service container:', error)
-    // Continue with startup but log the error
-  }
+  const logger = mainServiceRegistry.get(MAIN_SERVICE_TOKENS.LOGGER);
+  await mainServiceContainerManager.initialize({
+    databasePath: path.join(process.env.APP_ROOT || '', 'data', 'learning-catalyst.db'),
+    logger
+  })
+  console.log('✅ Main process service container initialized successfully')
 
   // Initialize memory debugging for development
   startMemoryDebug();

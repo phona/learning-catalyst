@@ -15,7 +15,6 @@
  */
 
 // Import individual API interfaces from the 8-domain structure
-import type { BufferEncoding } from 'node:buffer'
 import type { OpenDialogOptions, OpenDialogReturnValue, SaveDialogOptions, SaveDialogReturnValue } from 'electron'
 import type { ChatAPI } from './chat-api'
 import type { LearningAPI } from './learning-api'
@@ -27,6 +26,8 @@ import type { SettingsAPI } from './settings-api'
 import type { CatalystAPI } from './catalyst-api'
 import type { SessionsAPI } from './sessions-api'
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
+
+
 
 // Re-export individual API interfaces
 export type {

@@ -9,6 +9,10 @@ import type {
 import type { ConversationMessage, MemorySession } from '@/shared/types/session';
 
 function getSessionService(): SessionService {
+  if (!mainServiceContainerManager.isInitialized()) {
+    throw new Error('Main service container is not initialized');
+  }
+  
   const service = mainServiceContainerManager.getService('sessionService');
   if (!service) {
     throw new Error('Session service is not initialized');

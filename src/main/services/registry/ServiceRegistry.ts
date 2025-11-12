@@ -113,6 +113,22 @@ export class ServiceRegistry {
     return Array.from(this.factories.keys()).map(token => token.name);
   }
 
+  private initialized = false;
+
+  /**
+   * Check if registry is initialized
+   */
+  isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  /**
+   * Mark registry as initialized
+   */
+  setInitialized(value: boolean): void {
+    this.initialized = value;
+  }
+
   /**
    * Get service registry statistics
    * @returns Statistics object

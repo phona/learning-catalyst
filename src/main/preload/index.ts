@@ -14,7 +14,6 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import type { BufferEncoding } from 'node:buffer';
 import {
   ElectronAPI,
   ChatAPI,

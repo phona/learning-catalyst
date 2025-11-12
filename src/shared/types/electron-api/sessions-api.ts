@@ -1,12 +1,18 @@
 import type {
-  SessionDisplay,
   SessionSearchResult,
   SessionSearchQuery,
   MemorySession,
-  ConversationMessage,
+  ConversationMessage
+} from '@/shared/types/session';
+
+import type {
+  SessionDisplay
+} from './learning-api';
+
+import type {
   SessionUpdateRequest,
   SessionCreateRequest
-} from '@/shared/types/session';
+} from '@/renderer/types/session';
 
 export interface SessionStatistics {
   totalSessions: number;

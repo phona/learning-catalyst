@@ -75,9 +75,11 @@ class MainServiceRegistry extends ServiceRegistry {
       const configService = this.get(MAIN_SERVICE_TOKENS.CONFIG_SERVICE);
       await configService.getConfig();
 
+      this.setInitialized(true);
       console.log('✅ Main service registry initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize main service registry:', error);
+      this.setInitialized(false);
       throw error;
     }
   }
@@ -90,6 +92,7 @@ class MainServiceRegistry extends ServiceRegistry {
     try {
       // Clear all services
       this.clear();
+      this.setInitialized(false);
       console.log('✅ Main service registry disposed successfully');
     } catch (error) {
       console.error('❌ Failed to dispose main service registry:', error);
