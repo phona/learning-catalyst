@@ -51,6 +51,7 @@ node_modules/
 dist
 dist-electron
 release
+release/**
 sqlite-electron-example
 
 # Learning space data
@@ -60,6 +61,22 @@ sqlite-electron-example
 .mypy_cache
 .pytest_cache
 external/qdrant/storage/
+
+# Large files and executables (excluding required project files)
+*.msi
+*.dmg
+*.pkg
+*.zip
+*.tar.gz
+*.app
+*.deb
+*.rpm
+*.snap
+*.msix
+*.msixbundle
+
+# Specific exe exclusions for required binaries
+!external/qdrant/qdrant.exe
 
 # TypeScript build cache
 *.tsbuildinfo
