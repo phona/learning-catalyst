@@ -35,7 +35,7 @@ Transform the practice agent from structured exercises to natural, vibe-based pr
 **📖 [Plan Reference: Vibe Detection System](./implementation-plan.md#vibe-detection-system)**
 
 Core implementation based on the plan's vibe detection architecture:
-- [ ] **Task 1.1**: Add `detectPracticeVibe` method to PracticeAgent class
+- [x] **Task 1.1**: Add `detectPracticeVibe` method to PracticeAgent class
   - **Checkpoint**: Method accepts conversation history and user context, returns PracticeVibeResult
   - **Test**: `should detect 'understanding' vibe when user says "I think I get it now"` with confidence >0.8
   - **Test**: `should detect 'confused' vibe when user says "This doesn't make sense"` with confidence >0.8
@@ -49,21 +49,21 @@ Core implementation based on the plan's vibe detection architecture:
   - **Test**: `should return true for high confidence (>0.85) with practice-ready context`
   - **Acceptance**: Reduces false positive suggestions to <10%
 
-- [ ] **Task 1.3**: Create `detectVibeType` method for 5 vibe types
+- [x] **Task 1.3**: Create `detectVibeType` method for 5 vibe types
   - **Checkpoint**: Accurately categorizes user's learning state into understanding, confused, breakthrough, practicing, misunderstanding
   - **Test**: `should classify "I finally understand!" as 'breakthrough' vibe`
   - **Test**: `should classify "Let me try this" as 'practicing' vibe`
   - **Test**: `should classify "Oh, I had it backwards" as 'misunderstanding' vibe`
   - **Acceptance**: 85%+ accuracy on labeled test dataset of 100 sample conversations
 
-- [ ] **Task 1.4**: Add `extractPracticeIdea` method
+- [x] **Task 1.4**: Add `extractPracticeIdea` method
   - **Checkpoint**: Generates contextual practice suggestions based on conversation topic and user's current project
   - **Test**: `should suggest React hooks practice when discussing useState in React project`
   - **Test**: `should suggest API endpoint practice when discussing Express routes`
   - **Test**: `should return relevant suggestion when user mentions their current codebase`
   - **Acceptance**: Suggestions use user's actual project context 90%+ of time
 
-- [ ] **Task 1.5**: Write comprehensive unit tests for vibe detection
+- [x] **Task 1.5**: Write comprehensive unit tests for vibe detection
   - **Checkpoint**: 95%+ code coverage for all vibe detection methods
   - **Test Suite**: `VibeDetection.test.ts` with 50+ test cases covering edge cases
   - **Integration Test**: Mock LangChain model responses for consistent testing

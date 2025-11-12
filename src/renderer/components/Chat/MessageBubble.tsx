@@ -15,6 +15,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import type { Message } from '@/shared/types/ai';
+import { PracticeSuggestionBubble } from './PracticeSuggestionBubble';
 
 interface MessageBubbleProps {
   message: Message;
@@ -43,6 +44,29 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   agentStatus,
   performanceMetrics,
 }) => {
+  // Check if this is a practice suggestion (we can identify these by specific markers in the content)
+  const isPracticeSuggestion = message.content.toLowerCase().includes('practice') && 
+                               (message.content.toLowerCase().includes('suggest') || 
+                                message.content.toLowerCase().includes('try') || 
+                                message.content.toLowerCase().includes('challenge') ||
+                                message.content.toLowerCase().includes('exercise') ||
+                                message.content.toLowerCase().includes('practice suggestion') ||
+                                message.content.toLowerCase().includes('time to practice') ||
+                                message.content.toLowerCase().includes('ready to practice'));
+
+  // If it's a practice suggestion, render the PracticeSuggestionBubble
+  if (isPracticeSuggestion) {
+    return (
+      <PracticeSuggestionBubble
+        message={message}
+        isStreaming={isStreaming}
+        onAccept={() => console.log('Accepted practice suggestion')}
+        onDecline={() => console.log('Declined practice suggestion')}
+        onPostpone={() => console.log('Postponed practice suggestion')}
+      />
+    );
+  }
+
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
   const isTool = message.role === 'tool';

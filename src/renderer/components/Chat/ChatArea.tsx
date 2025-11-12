@@ -3,6 +3,7 @@ import { MessageBubble } from './MessageBubble';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
+import { usePracticeSuggestions } from '@/renderer/hooks/usePracticeSuggestions';
 
 export const ChatArea: React.FC = () => {
   let chatStore: ReturnType<typeof useChatStore> | null = null;
@@ -12,6 +13,9 @@ export const ChatArea: React.FC = () => {
     console.error('[ChatArea] Failed to access chat store:', error);
   }
 
+  // Initialize practice suggestions
+  const [, practiceActions] = usePracticeSuggestions();
+
   const {
     messages = [],
     isStreaming = false,
@@ -20,6 +24,15 @@ export const ChatArea: React.FC = () => {
     autoScroll = true,
     updateMessage = () => {},
   } = chatStore ?? {};
+
+  // Monitor messages to check for practice opportunities
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'user' && chatStore?.sessionId) {
+      // Check for practice opportunities after user sends a message
+      practiceActions.checkForPracticeOpportunity(chatStore.sessionId, lastMessage.content, chatStore.sessionId);
+    }
+  }, [messages, chatStore?.sessionId, practiceActions]);
 
   // Simple toggle function for individual message thinking visibility
   const handleToggleThinking = (messageId: string) => {

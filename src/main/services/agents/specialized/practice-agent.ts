@@ -23,9 +23,12 @@ import {
   PracticeSuggestionResult,
   VIBE_TYPE_DESCRIPTIONS,
   DEFAULT_VIBE_DETECTION_CONFIG,
-  PRACTICE_TEMPLATES
+  PRACTICE_TEMPLATES,
+  VibeDetectionRequest
 } from '@/shared/types/practice';
 import { contextualExerciseGenerator } from '../../practice/contextual-exercise-generator';
+import { VibeDetector } from '../../analysis/vibe-detector';
+import { NaturalPromptGenerator } from '../../practice/natural-prompt-generator';
 
 export interface Exercise {
   id: string;
@@ -97,6 +100,9 @@ export class PracticeAgent {
   private dependencies: ServiceDependencies;
   private config: PracticeAgentConfig;
   private activeSessions = new Map<string, PracticeSession>();
+  private vibeDetector: VibeDetector;
+
+  private naturalPromptGenerator: NaturalPromptGenerator;
 
   constructor(
     model: BaseLanguageModel,
@@ -108,6 +114,8 @@ export class PracticeAgent {
     this.toolExecutor = toolExecutor;
     this.dependencies = dependencies;
     this.config = config;
+    this.vibeDetector = new VibeDetector(dependencies.logger, model);
+    this.naturalPromptGenerator = new NaturalPromptGenerator(dependencies);
   }
 
   /**
@@ -270,35 +278,156 @@ Response format:
     const topic = practiceRequest.topic || 'the topic';
     const difficulty = practiceRequest.difficulty || this.config.defaultDifficulty;
     const exerciseType = practiceRequest.exerciseType || 'multiple-choice';
+    
+    // Check if we should use natural language approach
+    const useNaturalLanguage = practiceRequest.useNaturalLanguage || 
+                              practiceRequest.type === 'generate_natural_challenge' ||
+                              practiceRequest.format === 'natural';
 
     yield {
       type: 'progress',
-      content: { phase: 'generating', message: `Generating ${exerciseType} exercise for ${topic}...` },
+      content: { 
+        phase: 'generating', 
+        message: useNaturalLanguage 
+          ? `Generating natural practice challenge for ${topic}...` 
+          : `Generating ${exerciseType} exercise for ${topic}...` 
+      },
       timestamp: Date.now()
     };
 
     // Get existing exercises for context
     let existingExercises = [];
     try {
-      const searchResult = await this.toolExecutor.executeTool('searchSessions', {
-        query: `${topic} exercises ${difficulty}`,
-        limit: 5
+      const searchResult = await this.toolExecutor.executeTool({
+        toolId: 'searchSessions',
+        method: 'execute',
+        parameters: {
+          query: `${topic} exercises ${difficulty}`,
+          limit: 5
+        },
+        context: {
+          id: `practice_${Date.now()}`,
+          sessionId: executionContext.sessionId,
+          requestId: `search_${Date.now()}`,
+          timestamp: Date.now(),
+          operation: 'tool_call',
+          metadata: {}
+        }
       });
 
       if (searchResult.success) {
-        existingExercises = searchResult.data;
+        existingExercises = searchResult.result;
       }
     } catch (error) {
       this.dependencies.logger.warn(`Exercise search failed`, error);
     }
 
-    yield {
-      type: 'progress',
-      content: { phase: 'creating', message: 'Creating detailed exercise with solution...' },
-      timestamp: Date.now()
-    };
+    if (useNaturalLanguage) {
+      // Generate natural language practice challenge
+      yield {
+        type: 'progress',
+        content: { phase: 'creating', message: 'Creating natural language practice challenge...' },
+        timestamp: Date.now()
+      };
 
-    const exercisePrompt = `You are an expert educational content creator. Generate a high-quality practice exercise.
+      const naturalPrompt = `You are an expert learning guide. Create a natural, conversational practice suggestion that feels like a continuation of the conversation.
+
+Topic: ${topic}
+Difficulty: ${difficulty}
+Current conversation context: ${practiceRequest.context}
+User level: ${practiceRequest.userLevel || 'intermediate'}
+User project context: ${practiceRequest.userProjectContext || 'None specified'}
+
+Instead of creating a structured exercise, provide a natural language challenge that:
+1. Feels like a natural continuation of the current conversation
+2. Uses conversational language rather than formal exercise format
+3. References the user's current project/context when possible
+4. Includes encouragement and motivation
+5. Provides clear but casual instructions
+6. Suggests a realistic timeframe based on difficulty
+
+Format your response as:
+{
+  "naturalPrompt": "Natural, conversational practice suggestion",
+  "instructions": "Casual instructions on how to approach the challenge",
+  "timeEstimate": "Estimated time in minutes",
+  "encouragement": "Motivational message to inspire the user"
+}
+
+Example of natural format:
+- "Since you're working on that todo app, how about making one of your items actually toggle between complete and incomplete?"
+- "Now that you understand hooks, try implementing a counter component in your project."
+- "Why not take the useEffect you just learned and apply it to the data fetching in your component?"`;
+
+      const messages = [
+        new SystemMessage("You are an expert learning guide creating natural, conversational practice challenges."),
+        new HumanMessage(naturalPrompt)
+      ];
+
+      try {
+        const response = await this.model.invoke(messages);
+        const content = response.content as string;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (parseError) {
+          // If parsing fails, return the raw content as a natural prompt
+          parsed = { naturalPrompt: content, instructions: '', timeEstimate: '10-15 mins', encouragement: '' };
+        }
+
+        // Create a natural exercise response
+        const exercise = {
+          id: `natural_exercise_${executionContext.id}`,
+          title: `Natural Challenge: ${topic}`,
+          description: parsed.naturalPrompt || `Natural practice challenge for ${topic}`,
+          type: 'natural-challenge',
+          difficulty: difficulty,
+          topic: topic,
+          subtopics: [],
+          instructions: parsed.instructions || `Try this challenge: ${parsed.naturalPrompt}`,
+          problem: parsed.naturalPrompt || content,
+          hints: [],
+          solution: {
+            answer: 'Completed based on natural challenge',
+            explanation: parsed.encouragement || 'Great job tackling this natural challenge!',
+            steps: [],
+            code: ''
+          },
+          timeLimit: parsed.timeEstimate ? Math.min(60, Math.max(5, parseInt(parsed.timeEstimate) || 15)) : 15,
+          prerequisites: [],
+          learningObjectives: [`${topic} practical application`],
+          estimatedTime: parsed.timeEstimate ? parseInt(parsed.timeEstimate) || 15 : 15
+        };
+
+        yield {
+          type: 'data',
+          content: {
+            type: 'exercise_generated',
+            exercise,
+            metadata: { format: 'natural-language' }
+          },
+          timestamp: Date.now()
+        };
+
+      } catch (error) {
+        this.dependencies.logger.error('Natural exercise generation failed', error as Error);
+        
+        // Fallback: Generate using the original method
+        const fallbackResult = await this.fallbackGenerateExercise(topic, difficulty, exerciseType, practiceRequest, executionContext);
+        yield* fallbackResult;
+      }
+
+      return;
+    } else {
+      // Original structured exercise generation
+      yield {
+        type: 'progress',
+        content: { phase: 'creating', message: 'Creating detailed exercise with solution...' },
+        timestamp: Date.now()
+      };
+
+      const exercisePrompt = `You are an expert educational content creator. Generate a high-quality practice exercise.
 
 Topic: ${topic}
 Difficulty: ${difficulty}
@@ -390,6 +519,8 @@ Format your response as:
             answer: 'See explanation below',
             explanation: content
           },
+          prerequisites: [],
+          learningObjectives: [],
           estimatedTime: 20
         };
       }
@@ -1011,10 +1142,53 @@ Format your response as helpful, encouraging, and actionable advice.`;
     userContext: UserContext,
     currentTopic?: string
   ): Promise<PracticeVibeResult> {
-    const recentMessages = conversationHistory.slice(-this.config.vibeDetection.contextWindow);
-    const conversationText = recentMessages.map(m => `${m.role}: ${m.content}`).join('\n');
+    // Create a proper VibeDetectionRequest
+    const request: VibeDetectionRequest = {
+      conversationHistory: conversationHistory.map(msg => ({
+        ...msg,
+        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        concepts: [],
+        sentiment: 0,
+        confidence: 0.5
+      })),
+      userContext: {
+        currentTopic: currentTopic,
+        confidenceLevel: userContext.confidenceLevel,
+        learningVelocity: userContext.learningVelocity,
+        stuckPoints: userContext.stuckPoints,
+        recentConcepts: userContext.recentConcepts.map(c => c.concept), // Simplified for now
+        lastPracticeTime: userContext.lastPracticeTime
+      },
+      config: {
+        minMessages: this.config.vibeDetection.minMessagesForDetection,
+        confidenceThreshold: this.config.vibeDetection.confidenceThreshold,
+        maxConversationAge: this.config.vibeDetection.maxConversationAge,
+        contextWindow: this.config.vibeDetection.contextWindow
+      }
+    };
 
-    const vibeDetectionPrompt = `You are an expert learning vibe detector. Analyze the conversation to detect the user's current learning state.
+    try {
+      // Use the VibeDetector for actual analysis
+      const result = await this.vibeDetector.detectVibe(request);
+      
+      // Map the result to PracticeVibeResult format
+      return {
+        vibe: result.vibe,
+        confidence: result.confidence,
+        reasoning: result.reasoning,
+        practiceReadiness: result.practiceReadiness,
+        suggestedTopics: result.suggestedTopics,
+        detectedFrom: result.detectedFrom,
+        timestamp: result.timestamp
+      };
+    } catch (error) {
+      this.dependencies.logger.warn(`Enhanced vibe detection failed, falling back to original method`, error);
+      
+      // Fallback to original method
+      const recentMessages = conversationHistory.slice(-this.config.vibeDetection.contextWindow);
+      const conversationText = recentMessages.map(m => `${m.role}: ${m.content}`).join('\n');
+
+      const vibeDetectionPrompt = `You are an expert learning vibe detector. Analyze the conversation to detect the user's current learning state.
 
 Conversation History (last ${recentMessages.length} messages):
 ${conversationText}
@@ -1049,57 +1223,57 @@ Provide your analysis as:
   "keyIndicators": ["indicator1", "indicator2"]
 }`;
 
-    const messages = [
-      new SystemMessage("You are an expert at detecting learning states and readiness for practice."),
-      new HumanMessage(vibeDetectionPrompt)
-    ];
+      const messages = [
+        new SystemMessage("You are an expert at detecting learning states and readiness for practice."),
+        new HumanMessage(vibeDetectionPrompt)
+      ];
 
-    try {
-      const response = await this.model.invoke(messages);
-      const content = response.content as string;
-
-      let parsed;
       try {
-        parsed = JSON.parse(content);
-      } catch (parseError) {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0]);
-        } else {
-          // Fallback to understanding vibe
-          return {
-            vibe: 'understanding' as VibeType,
-            confidence: 0.5,
-            reasoning: 'Unable to parse AI response, defaulting to understanding vibe',
-            practiceReadiness: 0.6,
-            suggestedTopics: currentTopic ? [currentTopic] : [],
-            detectedFrom: ['fallback'],
-            timestamp: Date.now()
-          };
+        const response = await this.model.invoke(messages);
+        const content = response.content as string;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(content);
+        } catch (parseError) {
+          const jsonMatch = content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            parsed = JSON.parse(jsonMatch[0]);
+          } else {
+            // Fallback to understanding vibe
+            return {
+              vibe: 'understanding' as VibeType,
+              confidence: 0.5,
+              reasoning: 'Unable to parse AI response, defaulting to understanding vibe',
+              practiceReadiness: 0.6,
+              suggestedTopics: currentTopic ? [currentTopic] : [],
+              detectedFrom: ['fallback'],
+              timestamp: Date.now()
+            };
+          }
         }
+
+        return {
+          vibe: parsed.vibe || 'understanding',
+          confidence: Math.min(1, Math.max(0, parsed.confidence || 0.5)),
+          reasoning: parsed.reasoning || 'Vibe detected based on conversation analysis',
+          practiceReadiness: Math.min(1, Math.max(0, parsed.practiceReadiness || 0.5)),
+          suggestedTopics: Array.isArray(parsed.suggestedTopics) ? parsed.suggestedTopics : (currentTopic ? [currentTopic] : []),
+          detectedFrom: Array.isArray(parsed.detectedFrom) ? parsed.detectedFrom : ['ai_analysis'],
+          timestamp: Date.now()
+        };
+      } catch (fallbackError) {
+        this.dependencies.logger.warn(`Fallback vibe detection also failed`, fallbackError);
+        return {
+          vibe: 'understanding' as VibeType,
+          confidence: 0.4,
+          reasoning: 'Both enhanced and fallback vibe detection failed, using default understanding vibe',
+          practiceReadiness: 0.5,
+          suggestedTopics: currentTopic ? [currentTopic] : [],
+          detectedFrom: ['fallback'],
+          timestamp: Date.now()
+        };
       }
-
-      return {
-        vibe: parsed.vibe || 'understanding',
-        confidence: Math.min(1, Math.max(0, parsed.confidence || 0.5)),
-        reasoning: parsed.reasoning || 'Vibe detected based on conversation analysis',
-        practiceReadiness: Math.min(1, Math.max(0, parsed.practiceReadiness || 0.5)),
-        suggestedTopics: Array.isArray(parsed.suggestedTopics) ? parsed.suggestedTopics : (currentTopic ? [currentTopic] : []),
-        detectedFrom: Array.isArray(parsed.detectedFrom) ? parsed.detectedFrom : ['ai_analysis'],
-        timestamp: Date.now()
-      };
-
-    } catch (error) {
-      this.dependencies.logger.warn(`AI vibe detection failed, using fallback`, error);
-      return {
-        vibe: 'understanding' as VibeType,
-        confidence: 0.4,
-        reasoning: 'AI detection failed, using fallback understanding vibe',
-        practiceReadiness: 0.5,
-        suggestedTopics: currentTopic ? [currentTopic] : [],
-        detectedFrom: ['fallback'],
-        timestamp: Date.now()
-      };
     }
   }
 
@@ -1261,24 +1435,67 @@ For each opportunity, provide:
    * Generate natural language prompt based on vibe
    */
   private generateNaturalPrompt(vibe: VibeType, concept?: string): string {
-    const templates = PRACTICE_TEMPLATES[vibe];
-    if (templates && templates.length > 0) {
-      const template = templates[Math.floor(Math.random() * templates.length)];
-      return template
-        .replace('{concept}', concept || 'this concept')
-        .replace('{practice_suggestion}', 'try a small practice exercise');
-    }
-
-    // Fallback templates
-    const fallbacks = {
-      understanding: `Great! Now that you understand ${concept || 'this'}, try applying it in practice.`,
-      confused: `Let's clarify ${concept || 'this concept'} with some hands-on practice.`,
-      breakthrough: `Excellent insight! Let's solidify that understanding of ${concept || 'this'} with practice.`,
-      practicing: `Great work practicing ${concept || 'this'}! Here's a related challenge.`,
-      misunderstanding: `Let's clear up that misunderstanding about ${concept || 'this'} with some practice.`
+    // Create a mock PracticeVibeResult for the generator
+    const vibeResult: PracticeVibeResult = {
+      vibe,
+      confidence: 0.7, // default confidence
+      reasoning: `Natural prompt for ${vibe} vibe`,
+      practiceReadiness: 0.7,
+      suggestedTopics: concept ? [concept] : ['current topic'],
+      detectedFrom: ['practice-agent'],
+      timestamp: Date.now()
     };
 
-    return fallbacks[vibe] || `Try practicing ${concept || 'this concept'}.`;
+    // Use the NaturalPromptGenerator to create the prompt
+    try {
+      return this.naturalPromptGenerator.generatePracticePrompt(
+        vibeResult,
+        {
+          id: 'temp',
+          sessionId: 'temp',
+          currentTopic: concept,
+          confidenceLevel: 0.5,
+          learningVelocity: 1.0,
+          stuckPoints: [],
+          recentConcepts: [],
+          practiceHistory: [],
+          engagementLevel: 0.5,
+          preferences: {
+            practiceFrequency: 'medium',
+            difficultyPreference: 'adaptive',
+            feedbackStyle: 'encouraging'
+          },
+          statistics: {
+            totalPracticeSessions: 0,
+            successRate: 0,
+            averageSessionLength: 0,
+            preferredPracticeTimes: []
+          }
+        } as UserContext
+      );
+    } catch (error) {
+      this.dependencies.logger.warn('Natural prompt generation failed, using fallback', error as Error);
+      
+      // Fallback to original logic if the generator fails
+      const templates = PRACTICE_TEMPLATES[vibe];
+      if (templates && templates.length > 0) {
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        return template
+          .replace('{concept}', concept || 'this concept')
+          .replace('{practice_suggestion}', 'try a small practice exercise');
+      }
+
+      // Ultimate fallback templates
+      const fallbacks = {
+        understanding: `Great! Now that you understand ${concept || 'this'}, try applying it in practice.`,
+        confused: `Let's clarify ${concept || 'this concept'} with some hands-on practice.`,
+        breakthrough: `Excellent insight! Let's solidify that understanding of ${concept || 'this'} with practice.`,
+        practicing: `Great work practicing ${concept || 'this'}! Here's a related challenge.`,
+        misunderstanding: `Let's clear up that misunderstanding about ${concept || 'this'} with some practice.`
+      };
+
+      return fallbacks[vibe] || `Try practicing ${concept || 'this concept'}.`;
+    }
   }
 
   /**
@@ -1629,8 +1846,8 @@ Format your response as:
           code: result.exercise.generatedExercise.solution?.code
         },
         timeLimit: result.exercise.estimatedTime,
-        prerequisites: result.exercise.prerequisites,
-        learningObjectives: result.exercise.learningObjectives,
+        prerequisites: result.exercise.prerequisites || [],
+        learningObjectives: result.exercise.learningObjectives || [],
         estimatedTime: result.exercise.estimatedTime
       };
 
