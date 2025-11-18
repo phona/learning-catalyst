@@ -70,11 +70,11 @@ export interface ResourceMonitor {
 
 // Mock resource monitor
 export class MockResourceMonitor implements ResourceMonitor {
-  private monitoring: boolean = false;
+  private monitoring = false;
   private memorySamples: Array<{ timestamp: number; usage: number }> = [];
   private cpuSamples: Array<{ timestamp: number; usage: number }> = [];
   private monitoringInterval?: NodeJS.Timeout;
-  private initialMemory: number = 0;
+  private initialMemory = 0;
 
   startMonitoring(): void {
     if (this.monitoring) return;
@@ -445,7 +445,7 @@ export class MemoryLeakDetector {
   async detectMemoryLeaks(
     iterations: number,
     operation: () => Promise<any>,
-    operationName: string = 'test'
+    operationName = 'test'
   ): Promise<{
     hasLeak: boolean;
     leakRate: number; // Memory growth per iteration in bytes

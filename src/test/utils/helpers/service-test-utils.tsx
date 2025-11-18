@@ -121,7 +121,7 @@ export const cleanupMockElectronAPI = () => {
 /**
  * Test helper to mock useAppServices hook
  */
-export const mockUseAppServices = (services: any, ready: boolean = true, error: string | null = null) => {
+export const mockUseAppServices = (services: any, ready = true, error: string | null = null) => {
   vi.doMock('@/renderer/hooks/useAppServices', () => ({
     useAppServices: () => ({
       services,

@@ -220,7 +220,7 @@ afterEach(() => {
 })
 
 // Export utilities for integration tests
-export const createMockSession = (id: string = 'test-session') => ({
+export const createMockSession = (id = 'test-session') => ({
   id,
   title: 'Test Session',
   created_at: new Date(),

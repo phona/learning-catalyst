@@ -525,11 +525,11 @@ export const mockDatabaseFactory = {
     return db;
   }),
 
-  getInstance: vi.fn().mockImplementation((instanceId: string = 'default') => {
+  getInstance: vi.fn().mockImplementation((instanceId = 'default') => {
     return this.instances.get(instanceId) || null;
   }),
 
-  closeInstance: vi.fn().mockImplementation(async (instanceId: string = 'default') => {
+  closeInstance: vi.fn().mockImplementation(async (instanceId = 'default') => {
     const instance = this.instances.get(instanceId);
     if (instance) {
       await instance.close();
@@ -577,7 +577,7 @@ export const mockDatabaseHealthMonitor = {
     return { ...this.healthStatus };
   }),
 
-  startMonitoring: vi.fn().mockImplementation((intervalMs: number = 30000) => {
+  startMonitoring: vi.fn().mockImplementation((intervalMs = 30000) => {
     // Mock monitoring start
     return setInterval(() => {
       this.checkHealth();

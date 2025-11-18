@@ -58,7 +58,7 @@ class MockResponseGenerator {
     return providerResponses[Math.floor(Math.random() * providerResponses.length)]
   }
 
-  static getStreamingChunks(provider: string, count: number = 5): string[] {
+  static getStreamingChunks(provider: string, count = 5): string[] {
     const baseResponse = this.getRandomResponse(provider)
     const chunkSize = Math.ceil(baseResponse.length / count)
     const chunks: string[] = []
@@ -202,7 +202,7 @@ export function createProviderMock(provider: string, config: ProviderMockConfig 
       return mockProvider
     },
 
-    withErrorScenario: (scenario: ErrorScenario, probability: number = 1) => {
+    withErrorScenario: (scenario: ErrorScenario, probability = 1) => {
       config.errorScenario = scenario
       config.errorProbability = probability
       return mockProvider
@@ -283,7 +283,7 @@ export class LangChainProviderMockFactory {
   /**
    * Create mock with intermittent errors
    */
-  static createIntermittentErrorProvider(provider: string, scenario: ErrorScenario, errorRate: number = 0.1): any {
+  static createIntermittentErrorProvider(provider: string, scenario: ErrorScenario, errorRate = 0.1): any {
     return createProviderMock(provider, {
       errorScenario: scenario,
       errorProbability: errorRate
@@ -293,7 +293,7 @@ export class LangChainProviderMockFactory {
   /**
    * Create slow provider for performance testing
    */
-  static createSlowProvider(provider: string, responseTimeMs: number = 5000): any {
+  static createSlowProvider(provider: string, responseTimeMs = 5000): any {
     return createProviderMock(provider, {
       responseTime: responseTimeMs
     })

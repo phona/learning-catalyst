@@ -10,130 +10,141 @@
 import { vi } from 'vitest';
 
 // Mock Base Agent Interface
-export const mockBaseAgent = vi.fn().mockImplementation((config: any) => ({
-  id: config?.id || 'mock-agent',
-  name: config?.name || 'Mock Agent',
-  type: config?.type || 'general',
-  status: 'idle',
-  initialized: false,
-  disposed: false,
+export const mockBaseAgent = vi.fn().mockImplementation(function(config: any = {}) {
+  const agent: any = {
+    id: config?.id || 'mock-agent',
+    name: config?.name || 'Mock Agent',
+    type: config?.type || 'general',
+    status: 'idle',
+    initialized: false,
+    disposed: false,
 
-  // Agent configuration
-  config: config || {},
-  modelConfig: config?.modelConfig || {
-    provider: 'openai',
-    modelId: 'gpt-3.5-turbo',
-    temperature: 0.7,
-    maxTokens: 1000,
-    timeout: 30000
-  },
-  tools: config?.tools || [],
-  capabilities: config?.capabilities || ['text-generation'],
-  systemPrompt: config?.systemPrompt || 'You are a helpful AI assistant.',
+    // Agent configuration
+    config: config,
+    modelConfig: config?.modelConfig || {
+      provider: 'openai',
+      modelId: 'gpt-3.5-turbo',
+      temperature: 0.7,
+      maxTokens: 1000,
+      timeout: 30000
+    },
+    tools: config?.tools || [],
+    capabilities: config?.capabilities || ['text-generation'],
+    systemPrompt: config?.systemPrompt || 'You are a helpful AI assistant.',
 
-  // Core agent methods
-  initialize: vi.fn().mockImplementation(async () => {
-    this.initialized = true;
-    this.status = 'ready';
-    return { success: true, message: 'Agent initialized' };
-  }),
+    // Core agent methods
+    initialize: vi.fn().mockImplementation(async function(this: any) {
+      this.initialized = true;
+      this.status = 'ready';
+      return { success: true, message: 'Agent initialized' };
+    }),
 
-  dispose: vi.fn().mockImplementation(async () => {
-    this.disposed = true;
-    this.status = 'disposed';
-    return { success: true, message: 'Agent disposed' };
-  }),
+    dispose: vi.fn().mockImplementation(async function(this: any) {
+      this.disposed = true;
+      this.status = 'disposed';
+      return { success: true, message: 'Agent disposed' };
+    }),
 
-  // Processing methods
-  process: vi.fn().mockImplementation(async (input: string, context?: any) => {
-    if (!this.initialized) {
-      throw new Error('Agent not initialized');
-    }
+    // Processing methods
+    process: vi.fn().mockImplementation(async function(this: any, input: string, context?: any) {
+      if (!this.initialized) {
+        throw new Error('Agent not initialized');
+      }
 
-    this.status = 'processing';
+      this.status = 'processing';
 
-    // Simulate processing delay
-    await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 400));
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 400));
 
-    const response = this._generateMockResponse(input, context);
+      const response = this._generateMockResponse(input, context);
 
-    this.status = 'ready';
-    return response;
-  }),
+      this.status = 'ready';
+      return response;
+    }),
 
-  processStream: vi.fn().mockImplementation(async function* (input: string, context?: any) {
-    if (!this.initialized) {
-      throw new Error('Agent not initialized');
-    }
+    processStream: vi.fn().mockImplementation(async function* (this: any, input: string, context?: any) {
+      if (!this.initialized) {
+        throw new Error('Agent not initialized');
+      }
 
-    this.status = 'processing';
+      this.status = 'processing';
 
-    const response = this._generateMockResponse(input, context);
-    const chunks = response.content.split(' ').map(word => word + ' ');
+      const response = this._generateMockResponse(input, context);
+      const chunks = response.content.split(' ').map((word: string) => word + ' ');
 
-    for (const chunk of chunks) {
-      yield {
-        content: chunk,
+      for (const chunk of chunks) {
+        yield {
+          content: chunk,
+          metadata: {
+            agentId: this.id,
+            agentType: this.type,
+            timestamp: Date.now()
+          }
+        };
+        await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
+      }
+
+      this.status = 'ready';
+    }),
+
+    // Internal mock response generation
+    _generateMockResponse: vi.fn().mockImplementation(function(this: any, input: string, context?: any) {
+      return {
+        content: `${this.name} response to: ${input}`,
         metadata: {
           agentId: this.id,
           agentType: this.type,
-          timestamp: Date.now()
-        }
+          model: this.modelConfig.modelId,
+          tokensUsed: 50 + Math.floor(Math.random() * 100),
+          processingTime: 100 + Math.floor(Math.random() * 400),
+          confidence: 0.8 + Math.random() * 0.2,
+          context: context || {}
+        },
+        reasoning: `I analyzed the request "${input}" and provided a comprehensive response based on my ${this.type} capabilities.`
       };
-      await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 50));
-    }
+    }),
 
-    this.status = 'ready';
-  }),
+    // Agent state management
+    getStatus: vi.fn().mockImplementation(function(this: any) { 
+      return this.status; 
+    }),
 
-  // Internal mock response generation
-  _generateMockResponse: function(input: string, context?: any) {
-    return {
-      content: `${this.name} response to: ${input}`,
-      metadata: {
-        agentId: this.id,
-        agentType: this.type,
-        model: this.modelConfig.modelId,
-        tokensUsed: 50 + Math.floor(Math.random() * 100),
-        processingTime: 100 + Math.floor(Math.random() * 400),
-        confidence: 0.8 + Math.random() * 0.2,
-        context: context || {}
-      },
-      reasoning: `I analyzed the request "${input}" and provided a comprehensive response based on my ${this.type} capabilities.`
-    };
-  },
+    getConfig: vi.fn().mockImplementation(function(this: any) { 
+      return this.config; 
+    }),
 
-  // Agent state management
-  getStatus: vi.fn().mockReturnValue(this.status),
-  getConfig: vi.fn().mockReturnValue(this.config),
-  getStats: vi.fn().mockReturnValue({
-    processedRequests: 0,
-    totalProcessingTime: 0,
-    averageProcessingTime: 0,
-    errorCount: 0
-  }),
+    getStats: vi.fn().mockReturnValue({
+      processedRequests: 0,
+      totalProcessingTime: 0,
+      averageProcessingTime: 0,
+      errorCount: 0
+    }),
 
-  // Test helpers
-  _simulateError: vi.fn().mockImplementation((error: Error) => {
-    this.status = 'error';
-    throw error;
-  }),
+    // Test helpers
+    _simulateError: vi.fn().mockImplementation(function(this: any, error: Error) {
+      this.status = 'error';
+      throw error;
+    }),
 
-  _resetStats: vi.fn().mockImplementation(() => {
-    this.process.mockClear();
-    this.processStream.mockClear();
-  })
-}));
+    _resetStats: vi.fn().mockImplementation(function(this: any) {
+      this.process?.mockClear();
+      this.processStream?.mockClear();
+    })
+  };
+
+  return agent;
+});
 
 // Mock Learning Agent
-export const mockLearningAgent = vi.fn().mockImplementation((config: any) => ({
-  ...mockBaseAgent(config),
-  type: 'learning',
-  capabilities: ['concept-explanation', 'learning-path', 'knowledge-assessment'],
-  specializedTools: ['concept-parser', 'knowledge-graph', 'assessment-generator'],
+export const mockLearningAgent = vi.fn().mockImplementation(function(config: any = {}) {
+  const agent = {
+    ...mockBaseAgent(config),
+    type: 'learning',
+    capabilities: ['concept-explanation', 'learning-path', 'knowledge-assessment'],
+    specializedTools: ['concept-parser', 'knowledge-graph', 'assessment-generator'],
 
   // Learning-specific methods
-  explainConcept: vi.fn().mockImplementation(async (concept: string, depth: string = 'intermediate') => {
+  explainConcept: vi.fn().mockImplementation(async function(this: any, concept: string, depth = 'intermediate') {
     const depthMap = {
       basic: 'simple explanation',
       intermediate: 'detailed explanation with examples',
@@ -151,7 +162,7 @@ export const mockLearningAgent = vi.fn().mockImplementation((config: any) => ({
     };
   }),
 
-  generateLearningPath: vi.fn().mockImplementation(async (topic: string, currentLevel: string, targetLevel: string) => {
+  generateLearningPath: vi.fn().mockImplementation(async function(this: any, topic: string, currentLevel: string, targetLevel: string) {
     return {
       topic,
       currentLevel,
@@ -186,7 +197,7 @@ export const mockLearningAgent = vi.fn().mockImplementation((config: any) => ({
     };
   }),
 
-  assessKnowledge: vi.fn().mockImplementation(async (topic: string, userResponses: string[]) => {
+  assessKnowledge: vi.fn().mockImplementation(async function(this: any, topic: string, userResponses: string[]) {
     return {
       topic,
       score: 75 + Math.floor(Math.random() * 25),
@@ -202,18 +213,21 @@ export const mockLearningAgent = vi.fn().mockImplementation((config: any) => ({
         'Take on real-world projects'
       ]
     };
-  })
-}));
+  }),
+  };
+  return agent;
+});
 
 // Mock Practice Agent
-export const mockPracticeAgent = vi.fn().mockImplementation((config: any) => ({
-  ...mockBaseAgent(config),
+export const mockPracticeAgent = vi.fn().mockImplementation(function(config: any = {}) {
+  const agent = {
+    ...mockBaseAgent(config),
   type: 'practice',
   capabilities: ['exercise-generation', 'solution-validation', 'feedback-provision'],
   specializedTools: ['exercise-generator', 'code-validator', 'feedback-analyzer'],
 
   // Practice-specific methods
-  generateExercise: vi.fn().mockImplementation(async (topic: string, difficulty: string, exerciseType: string) => {
+  generateExercise: vi.fn().mockImplementation(async function(this: any, topic: string, difficulty: string, exerciseType: string) {
     const exerciseTypes = {
       coding: 'Write a function to solve...',
       quiz: 'Multiple choice questions about...',
@@ -247,7 +261,7 @@ export const mockPracticeAgent = vi.fn().mockImplementation((config: any) => ({
     };
   }),
 
-  validateSolution: vi.fn().mockImplementation(async (exerciseId: string, solution: any) => {
+  validateSolution: vi.fn().mockImplementation(async function(this: any, exerciseId: string, solution: any) {
     const score = 70 + Math.floor(Math.random() * 30);
     const passed = score >= 80;
 
@@ -284,7 +298,7 @@ export const mockPracticeAgent = vi.fn().mockImplementation((config: any) => ({
     };
   }),
 
-  provideFeedback: vi.fn().mockImplementation(async (exerciseId: string, userSolution: any, improvementAreas: string[]) => {
+  provideFeedback: vi.fn().mockImplementation(async function(this: any, exerciseId: string, userSolution: any, improvementAreas: string[]) {
     return {
       exerciseId,
       feedback: {
@@ -308,18 +322,21 @@ export const mockPracticeAgent = vi.fn().mockImplementation((config: any) => ({
         'Tip for your coding style'
       ]
     };
-  })
-}));
+  }),
+  };
+  return agent;
+});
 
 // Mock Assessment Agent
-export const mockAssessmentAgent = vi.fn().mockImplementation((config: any) => ({
-  ...mockBaseAgent(config),
+export const mockAssessmentAgent = vi.fn().mockImplementation(function(config: any = {}) {
+  const agent = {
+    ...mockBaseAgent(config),
   type: 'assessment',
   capabilities: ['quiz-generation', 'evaluation', 'progress-tracking'],
   specializedTools: ['quiz-generator', 'evaluation-engine', 'progress-analyzer'],
 
   // Assessment-specific methods
-  generateQuiz: vi.fn().mockImplementation(async (topic: string, questionCount: number, difficulty: string) => {
+  generateQuiz: vi.fn().mockImplementation(async function(this: any, topic: string, questionCount: number, difficulty: string) {
     const questions = Array.from({ length: questionCount }, (_, i) => ({
       id: `question-${i + 1}`,
       type: 'multiple-choice',
@@ -351,8 +368,8 @@ export const mockAssessmentAgent = vi.fn().mockImplementation((config: any) => (
     };
   }),
 
-  evaluateQuiz: vi.fn().mockImplementation(async (quizId: string, userAnswers: any[]) => {
-    const correctCount = userAnswers.filter((answer, index) =>
+  evaluateQuiz: vi.fn().mockImplementation(async function(this: any, quizId: string, userAnswers: any[]) {
+    const correctCount = userAnswers.filter((answer: any) =>
       answer === 'Option A' // Assume Option A is always correct for mock
     ).length;
 
@@ -378,7 +395,7 @@ export const mockAssessmentAgent = vi.fn().mockImplementation((config: any) => (
           'Help others learn'
         ]
       },
-      detailedResults: userAnswers.map((answer, index) => ({
+      detailedResults: userAnswers.map((answer: any, index: number) => ({
         questionId: `question-${index + 1}`,
         userAnswer: answer,
         correctAnswer: 'Option A',
@@ -388,7 +405,7 @@ export const mockAssessmentAgent = vi.fn().mockImplementation((config: any) => (
     };
   }),
 
-  trackProgress: vi.fn().mockImplementation(async (userId: string, timeframe: string) => {
+  trackProgress: vi.fn().mockImplementation(async function(this: any, userId: string, timeframe: string) {
     return {
       userId,
       timeframe,
@@ -426,18 +443,21 @@ export const mockAssessmentAgent = vi.fn().mockImplementation((config: any) => (
         'Take advanced JavaScript assessment'
       ]
     };
-  })
-}));
+  }),
+  };
+  return agent;
+});
 
 // Mock Tutoring Agent
-export const mockTutoringAgent = vi.fn().mockImplementation((config: any) => ({
-  ...mockBaseAgent(config),
+export const mockTutoringAgent = vi.fn().mockImplementation(function(config: any = {}) {
+  const agent = {
+    ...mockBaseAgent(config),
   type: 'tutoring',
   capabilities: ['personalized-guidance', 'socratic-questioning', 'adaptive-explanations'],
   specializedTools: ['learning-style-analyzer', 'question-generator', 'explanation-adapters'],
 
   // Tutoring-specific methods
-  providePersonalizedGuidance: vi.fn().mockImplementation(async (userId: string, topic: string, userLevel: string, learningStyle: string) => {
+  providePersonalizedGuidance: vi.fn().mockImplementation(async function(this: any, userId: string, topic: string, userLevel: string, learningStyle: string) {
     const learningStyles = {
       visual: 'visual aids and diagrams',
       auditory: 'verbal explanations and discussions',
@@ -476,7 +496,7 @@ export const mockTutoringAgent = vi.fn().mockImplementation((config: any) => ({
     };
   }),
 
-  askSocraticQuestions: vi.fn().mockImplementation(async (topic: string, userResponse: string) => {
+  askSocraticQuestions: vi.fn().mockImplementation(async function(this: any, topic: string, userResponse: string) {
     const questionSequence = [
       `What do you already know about ${topic}?`,
       `Why do you think ${topic} is important?`,
@@ -504,7 +524,7 @@ export const mockTutoringAgent = vi.fn().mockImplementation((config: any) => ({
     };
   }),
 
-  adaptExplanation: vi.fn().mockImplementation(async (concept: string, userUnderstanding: string, confusionPoints: string[]) => {
+  adaptExplanation: vi.fn().mockImplementation(async function(this: any, concept: string, userUnderstanding: string, confusionPoints: string[]) {
     return {
       concept,
       adaptedExplanation: {
@@ -535,170 +555,178 @@ export const mockTutoringAgent = vi.fn().mockImplementation((config: any) => ({
         'Teach the concept to someone else'
       ]
     };
-  })
-}));
+  }),
+  };
+  return agent;
+});
 
 // Mock Agent Manager
-export const mockAgentManager = vi.fn().mockImplementation((config: any) => ({
-  agents: new Map(),
-  defaultAgentId: config?.defaultAgentId || 'general-agent',
-  currentSessions: new Map(),
+export const mockAgentManager = vi.fn().mockImplementation(function(config: any = {}) {
+  const manager: any = {
+    agents: new Map(),
+    defaultAgentId: config?.defaultAgentId || 'general-agent',
+    currentSessions: new Map(),
 
-  // Agent registration
-  registerAgent: vi.fn().mockImplementation(async (agent: any) => {
-    this.agents.set(agent.id, agent);
-    await agent.initialize();
-    return { success: true, agentId: agent.id };
-  }),
+    // Agent registration
+    registerAgent: vi.fn().mockImplementation(async function(this: any, agent: any) {
+      this.agents.set(agent.id, agent);
+      await agent.initialize();
+      return { success: true, agentId: agent.id };
+    }),
 
-  unregisterAgent: vi.fn().mockImplementation(async (agentId: string) => {
-    const agent = this.agents.get(agentId);
-    if (agent) {
-      await agent.dispose();
-      this.agents.delete(agentId);
-      return { success: true, agentId };
-    }
-    throw new Error(`Agent ${agentId} not found`);
-  }),
-
-  // Agent retrieval
-  getAgent: vi.fn().mockImplementation((agentId: string) => {
-    return this.agents.get(agentId) || null;
-  }),
-
-  getAllAgents: vi.fn().mockImplementation(() => {
-    return Array.from(this.agents.values());
-  }),
-
-  // Session management
-  createSession: vi.fn().mockImplementation(async (sessionId: string, agentType: string) => {
-    const agent = Array.from(this.agents.values()).find(a => a.type === agentType) ||
-                  Array.from(this.agents.values())[0];
-
-    if (!agent) {
-      throw new Error(`No agent found for type: ${agentType}`);
-    }
-
-    const session = {
-      id: sessionId,
-      agentId: agent.id,
-      agentType: agent.type,
-      status: 'active',
-      createdAt: Date.now(),
-      lastActivity: Date.now(),
-      messages: [],
-      context: {}
-    };
-
-    this.currentSessions.set(sessionId, session);
-    return session;
-  }),
-
-  processMessage: vi.fn().mockImplementation(async (sessionId: string, message: string, context?: any) => {
-    const session = this.currentSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} not found`);
-    }
-
-    const agent = this.agents.get(session.agentId);
-    if (!agent) {
-      throw new Error(`Agent ${session.agentId} not found`);
-    }
-
-    // Add message to session history
-    session.messages.push({
-      role: 'user',
-      content: message,
-      timestamp: Date.now()
-    });
-
-    // Process with agent
-    const response = await agent.process(message, { ...context, session });
-
-    // Add response to session history
-    session.messages.push({
-      role: 'assistant',
-      content: response.content,
-      timestamp: Date.now(),
-      metadata: response.metadata
-    });
-
-    session.lastActivity = Date.now();
-
-    return {
-      sessionId,
-      response,
-      sessionInfo: {
-        messageCount: session.messages.length,
-        duration: Date.now() - session.createdAt,
-        agentType: session.agentType
+    unregisterAgent: vi.fn().mockImplementation(async function(this: any, agentId: string) {
+      const agent = this.agents.get(agentId);
+      if (agent) {
+        await agent.dispose();
+        this.agents.delete(agentId);
+        return { success: true, agentId };
       }
-    };
-  }),
+      throw new Error(`Agent ${agentId} not found`);
+    }),
 
-  // Orchestration patterns
-  handoffToAgent: vi.fn().mockImplementation(async (sessionId: string, targetAgentType: string, reason: string) => {
-    const session = this.currentSessions.get(sessionId);
-    if (!session) {
-      throw new Error(`Session ${sessionId} not found`);
-    }
+    // Agent retrieval
+    getAgent: vi.fn().mockImplementation(function(this: any, agentId: string) {
+      return this.agents.get(agentId) || null;
+    }),
 
-    const targetAgent = Array.from(this.agents.values()).find(a => a.type === targetAgentType);
-    if (!targetAgent) {
-      throw new Error(`Target agent type ${targetAgentType} not found`);
-    }
+    getAllAgents: vi.fn().mockImplementation(function(this: any) {
+      return Array.from(this.agents.values());
+    }),
 
-    const previousAgentId = session.agentId;
+    // Session management
+    createSession: vi.fn().mockImplementation(async function(this: any, sessionId: string, agentType: string) {
+      const agent = Array.from(this.agents.values()).find((a: any) => a?.type === agentType) ||
+                    Array.from(this.agents.values())[0];
 
-    // Update session
-    session.agentId = targetAgent.id;
-    session.agentType = targetAgentType;
-    session.messages.push({
-      role: 'system',
-      content: `Handed off from ${previousAgentId} to ${targetAgent.id}. Reason: ${reason}`,
-      timestamp: Date.now(),
-      type: 'handoff'
-    });
+      if (!agent) {
+        throw new Error(`No agent found for type: ${agentType}`);
+      }
 
-    return {
-      sessionId,
-      previousAgentId,
-      newAgentId: targetAgent.id,
-      handoffReason: reason,
-      timestamp: Date.now()
-    };
-  }),
+      const session = {
+        id: sessionId,
+        agentId: (agent as any).id,
+        agentType: (agent as any).type,
+        status: 'active',
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+        messages: [],
+        context: {}
+      };
 
-  // Health and stats
-  getHealthStatus: vi.fn().mockImplementation(() => {
-    const agents = Array.from(this.agents.values());
-    const sessions = Array.from(this.currentSessions.values());
+      this.currentSessions.set(sessionId, session);
+      return session;
+    }),
 
-    return {
-      agents: {
-        total: agents.length,
-        active: agents.filter(a => a.status === 'ready').length,
-        processing: agents.filter(a => a.status === 'processing').length,
-        error: agents.filter(a => a.status === 'error').length
-      },
-      sessions: {
-        total: sessions.length,
-        active: sessions.filter(s => s.status === 'active').length,
-        averageDuration: sessions.length > 0 ?
-          sessions.reduce((sum, s) => sum + (Date.now() - s.createdAt), 0) / sessions.length : 0
-      },
-      overall: agents.every(a => a.status !== 'error') ? 'healthy' : 'degraded'
-    };
-  }),
+    processMessage: vi.fn().mockImplementation(async function(this: any, sessionId: string, message: string, context?: any) {
+      const session = this.currentSessions.get(sessionId);
+      if (!session) {
+        throw new Error(`Session ${sessionId} not found`);
+      }
 
-  // Cleanup
-  dispose: vi.fn().mockImplementation(async () => {
-    const disposePromises = Array.from(this.agents.values()).map(agent => agent.dispose());
-    await Promise.all(disposePromises);
-    this.agents.clear();
-    this.currentSessions.clear();
-  })
-}));
+      const agent = this.agents.get(session.agentId);
+      if (!agent) {
+        throw new Error(`Agent ${session.agentId} not found`);
+      }
+
+      // Add message to session history
+      session.messages.push({
+        role: 'user',
+        content: message,
+        timestamp: Date.now()
+      });
+
+      // Process with agent
+      const response = await agent.process(message, { ...context, session });
+
+      // Add response to session history
+      session.messages.push({
+        role: 'assistant',
+        content: response.content,
+        timestamp: Date.now(),
+        metadata: response.metadata
+      });
+
+      session.lastActivity = Date.now();
+
+      return {
+        sessionId,
+        response,
+        sessionInfo: {
+          messageCount: session.messages.length,
+          duration: Date.now() - session.createdAt,
+          agentType: session.agentType
+        }
+      };
+    }),
+
+    // Orchestration patterns
+    handoffToAgent: vi.fn().mockImplementation(async function(this: any, sessionId: string, targetAgentType: string, reason: string) {
+      const session = this.currentSessions.get(sessionId);
+      if (!session) {
+        throw new Error(`Session ${sessionId} not found`);
+      }
+
+      const targetAgent = Array.from(this.agents.values()).find((a: any) => a.type === targetAgentType);
+      if (!targetAgent) {
+        throw new Error(`Target agent type ${targetAgentType} not found`);
+      }
+
+      const previousAgentId = session.agentId;
+      const targetAgentId = (targetAgent as any).id;
+
+      // Update session
+      session.agentId = targetAgentId;
+      session.agentType = targetAgentType;
+      session.messages.push({
+        role: 'system',
+        content: `Handed off from ${previousAgentId} to ${targetAgentId}. Reason: ${reason}`,
+        timestamp: Date.now(),
+        type: 'handoff'
+      });
+
+      return {
+        sessionId,
+        previousAgentId,
+        newAgentId: targetAgentId,
+        handoffReason: reason,
+        timestamp: Date.now()
+      };
+    }),
+
+    // Health and stats - FIXED VERSION
+    getHealthStatus: vi.fn().mockImplementation(function(this: any) {
+      const agents = Array.from(this.agents?.values() || []);
+      const sessions = Array.from(this.currentSessions?.values() || []);
+
+      return {
+        agents: {
+          total: agents.length,
+          active: agents.filter((a: any) => a?.status === 'ready').length,
+          processing: agents.filter((a: any) => a?.status === 'processing').length,
+          error: agents.filter((a: any) => a?.status === 'error').length
+        },
+        sessions: {
+          total: sessions.length,
+          active: sessions.filter((s: any) => s?.status === 'active').length,
+          averageDuration: sessions.length > 0 ?
+            sessions.reduce((sum: number, s: any) => sum + (Date.now() - (s?.createdAt || 0)), 0) / sessions.length : 0
+        },
+        overall: agents.every((a: any) => a?.status !== 'error') ? 'healthy' : 'degraded'
+      };
+    }),
+
+    // Cleanup
+    dispose: vi.fn().mockImplementation(async function(this: any) {
+      const agents = Array.from(this.agents?.values() || []);
+      const disposePromises = agents.map((agent: any) => agent.dispose());
+      await Promise.all(disposePromises);
+      this.agents?.clear();
+      this.currentSessions?.clear();
+    })
+  };
+
+  return manager;
+});
 
 // Export comprehensive mock collection
 export const AgentMocks = {

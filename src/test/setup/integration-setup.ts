@@ -11,7 +11,7 @@ import { ElectronMainMocks } from '../utils/mocks/mock-electron-main';
 import { LangChainMocks } from '../utils/mocks/mock-langchain';
 import { DatabaseMocks } from '../utils/mocks/mock-database';
 import { TestDatabaseFactory } from '../utils/factories/test-database-factory';
-import { mockDatabaseService, mockErrorRecoveryManager, mockSystemHealthMonitor } from '../utils/mocks/mock-services';
+import { mockErrorRecoveryManager, mockSystemHealthMonitor } from '../utils/mocks/mock-services';
 
 /**
  * Setup integration test environment
@@ -187,7 +187,7 @@ export async function setupIntegrationTest() {
   const testEnvironment = await setupIPCIntegrationTest();
 
   // Add mock services to the environment
-  const { mockCatalystService, mockLangChainService, mockElectronIPC, mockAgentRegistry } = await import('../utils/mocks/mock-services');
+  const { mockCatalystService, mockDomainAgent, mockElectronIPC, mockAgentRegistry } = await import('../utils/mocks/mock-services');
 
   // Create mock agent orchestrator
   const mockAgentOrchestrator = {
@@ -247,8 +247,7 @@ export async function setupIntegrationTest() {
   return {
     ...testEnvironment,
     catalystService: mockCatalystService(),
-    langChainService: mockLangChainService,
-    databaseService: mockDatabaseService,
+    domainAgent: mockDomainAgent,
     errorRecoveryManager: mockErrorRecoveryManager,
     healthMonitor: mockSystemHealthMonitor,
     agentRegistry: mockAgentRegistry,
