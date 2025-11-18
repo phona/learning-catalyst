@@ -33,8 +33,8 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export class MainAnalyticsService implements AnalyticsService {
   constructor(
-    private db: Kysely<Database>,
-    private logger: ILogger
+    private readonly db: Kysely<Database>,
+    private readonly logger: ILogger
   ) {}
 
   // Dashboard and overview
@@ -613,29 +613,29 @@ export class MainAnalyticsService implements AnalyticsService {
 
   private getChartType(metric: string): 'line' | 'bar' | 'area' {
     switch (metric) {
-      case 'mastery':
-        return 'area';
-      case 'sessions':
-        return 'bar';
-      case 'time':
-        return 'line';
-      default:
-        return 'line';
+    case 'mastery':
+      return 'area';
+    case 'sessions':
+      return 'bar';
+    case 'time':
+      return 'line';
+    default:
+      return 'line';
     }
   }
 
   private getUnit(metric: string): string {
     switch (metric) {
-      case 'mastery':
-        return '%';
-      case 'sessions':
-        return 'sessions';
-      case 'time':
-        return 'minutes';
-      case 'concepts':
-        return 'concepts';
-      default:
-        return '';
+    case 'mastery':
+      return '%';
+    case 'sessions':
+      return 'sessions';
+    case 'time':
+      return 'minutes';
+    case 'concepts':
+      return 'concepts';
+    default:
+      return '';
     }
   }
 

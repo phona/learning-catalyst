@@ -275,8 +275,7 @@ export type ProviderCapability = 'chat' | 'completion' | 'embedding' | 'image' |
  * Provider configuration object
  * Re-exported from config types for consistency
  */
-export type ProviderConfig = import('../../config').ProviderConfig & {
-  apiKey: string;
+export type ProviderConfig = import('../ai').ProviderConfig & {
   systemPrompt?: string;
   isDefault?: boolean;
   customSettings?: Record<string, any>;

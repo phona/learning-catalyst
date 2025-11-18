@@ -242,12 +242,12 @@ export interface MemoryConsolidationConfig {
  * Multi-layer memory system implementation
  */
 export class MultiLayerMemorySystem {
-  private db: Kysely<Database>;
-  private config: MemoryConsolidationConfig;
-  private workingMemory: Map<string, WorkingMemorySlot> = new Map();
-  private consolidationQueue: Set<string> = new Set();
+  private readonly db: Kysely<Database>;
+  private readonly config: MemoryConsolidationConfig;
+  private readonly workingMemory: Map<string, WorkingMemorySlot> = new Map();
+  private readonly consolidationQueue: Set<string> = new Set();
   private lastConsolidation: number = 0;
-  private logger: any;
+  private readonly logger: any;
 
   constructor(
     db: Kysely<Database>,
@@ -436,25 +436,25 @@ export class MultiLayerMemorySystem {
     try {
       // Route to appropriate storage based on memory type
       switch (memory.type) {
-        case MemoryType.WORKING:
-          await this.storeWorkingMemory(completeMemory);
-          break;
+      case MemoryType.WORKING:
+        await this.storeWorkingMemory(completeMemory);
+        break;
 
-        case MemoryType.EPISODIC:
-          await this.storeEpisodicMemory(completeMemory);
-          break;
+      case MemoryType.EPISODIC:
+        await this.storeEpisodicMemory(completeMemory);
+        break;
 
-        case MemoryType.SEMANTIC:
-          await this.storeSemanticMemory(completeMemory);
-          break;
+      case MemoryType.SEMANTIC:
+        await this.storeSemanticMemory(completeMemory);
+        break;
 
-        case MemoryType.PROCEDURAL:
-          await this.storeProceduralMemory(completeMemory);
-          break;
+      case MemoryType.PROCEDURAL:
+        await this.storeProceduralMemory(completeMemory);
+        break;
 
-        case MemoryType.LONG_TERM:
-          await this.storeLongTermMemory(completeMemory);
-          break;
+      case MemoryType.LONG_TERM:
+        await this.storeLongTermMemory(completeMemory);
+        break;
       }
 
       // Store base memory entry
@@ -854,21 +854,21 @@ export class MultiLayerMemorySystem {
 
       // Perform consolidation based on memory type
       switch (memory.type) {
-        case MemoryType.WORKING:
-          await this.consolidateWorkingMemory(memory);
-          break;
+      case MemoryType.WORKING:
+        await this.consolidateWorkingMemory(memory);
+        break;
 
-        case MemoryType.EPISODIC:
-          await this.consolidateEpisodicMemory(memory);
-          break;
+      case MemoryType.EPISODIC:
+        await this.consolidateEpisodicMemory(memory);
+        break;
 
-        case MemoryType.SEMANTIC:
-          await this.consolidateSemanticMemory(memory);
-          break;
+      case MemoryType.SEMANTIC:
+        await this.consolidateSemanticMemory(memory);
+        break;
 
-        case MemoryType.PROCEDURAL:
-          await this.consolidateProceduralMemory(memory);
-          break;
+      case MemoryType.PROCEDURAL:
+        await this.consolidateProceduralMemory(memory);
+        break;
       }
 
       // Update consolidation state to completed
@@ -993,10 +993,10 @@ export class MultiLayerMemorySystem {
 
       const consolidationStatsFormatted = consolidationStats.reduce((acc, stat) => {
         switch (stat.consolidation_state) {
-          case 'pending': acc.pending = parseInt(stat.count); break;
-          case 'in_progress': acc.inProgress = parseInt(stat.count); break;
-          case 'completed': acc.consolidated = parseInt(stat.count); break;
-          case 'failed': acc.failed = parseInt(stat.count); break;
+        case 'pending': acc.pending = parseInt(stat.count); break;
+        case 'in_progress': acc.inProgress = parseInt(stat.count); break;
+        case 'completed': acc.consolidated = parseInt(stat.count); break;
+        case 'failed': acc.failed = parseInt(stat.count); break;
         }
         return acc;
       }, { pending: 0, inProgress: 0, consolidated: 0, failed: 0 });
@@ -1036,11 +1036,11 @@ export class MultiLayerMemorySystem {
 
     // Adjust based on importance
     switch (memory.importance) {
-      case MemoryImportance.CRITICAL: priority += 0.4; break;
-      case MemoryImportance.HIGH: priority += 0.3; break;
-      case MemoryImportance.MEDIUM: priority += 0.1; break;
-      case MemoryImportance.LOW: priority -= 0.1; break;
-      case MemoryImportance.TEMPORARY: priority -= 0.3; break;
+    case MemoryImportance.CRITICAL: priority += 0.4; break;
+    case MemoryImportance.HIGH: priority += 0.3; break;
+    case MemoryImportance.MEDIUM: priority += 0.1; break;
+    case MemoryImportance.LOW: priority -= 0.1; break;
+    case MemoryImportance.TEMPORARY: priority -= 0.3; break;
     }
 
     // Adjust based on emotional valence

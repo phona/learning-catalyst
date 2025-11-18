@@ -24,12 +24,12 @@ beforeAll(async () => {
   // Mock Electron APIs
   global.require = vi.fn().mockImplementation((moduleName: string) => {
     switch (moduleName) {
-      case 'electron':
-        return ElectronMainMocks;
-      case 'langchain':
-        return LangChainMocks;
-      default:
-        return {};
+    case 'electron':
+      return ElectronMainMocks;
+    case 'langchain':
+      return LangChainMocks;
+    default:
+      return {};
     }
   });
 

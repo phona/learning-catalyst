@@ -62,8 +62,8 @@ export interface ParameterGenerationStrategy {
  * Parameter Generator Service
  */
 export class ParameterGenerator {
-  private strategies: Map<string, ParameterGenerationStrategy> = new Map();
-  private contextualDataSources: Map<string, () => Promise<any>> = new Map();
+  private readonly strategies: Map<string, ParameterGenerationStrategy> = new Map();
+  private readonly contextualDataSources: Map<string, () => Promise<any>> = new Map();
 
   constructor() {
     this.initializeBuiltinStrategies();
@@ -159,33 +159,33 @@ export class ParameterGenerator {
     const { constraints } = param;
 
     switch (param.type) {
-      case 'number':
-        if (typeof value !== 'number') return false;
-        if (constraints.min !== undefined && value < constraints.min) return false;
-        if (constraints.max !== undefined && value > constraints.max) return false;
-        break;
+    case 'number':
+      if (typeof value !== 'number') return false;
+      if (constraints.min !== undefined && value < constraints.min) return false;
+      if (constraints.max !== undefined && value > constraints.max) return false;
+      break;
 
-      case 'string':
-        if (typeof value !== 'string') return false;
-        if (constraints.min && value.length < constraints.min) return false;
-        if (constraints.max && value.length > constraints.max) return false;
-        if (constraints.pattern && !new RegExp(constraints.pattern).test(value)) return false;
-        break;
+    case 'string':
+      if (typeof value !== 'string') return false;
+      if (constraints.min && value.length < constraints.min) return false;
+      if (constraints.max && value.length > constraints.max) return false;
+      if (constraints.pattern && !new RegExp(constraints.pattern).test(value)) return false;
+      break;
 
-      case 'array':
-        if (!Array.isArray(value)) return false;
-        if (constraints.min && value.length < constraints.min) return false;
-        if (constraints.max && value.length > constraints.max) return false;
-        if (constraints.options && !value.every(item => constraints.options!.includes(item))) return false;
-        break;
+    case 'array':
+      if (!Array.isArray(value)) return false;
+      if (constraints.min && value.length < constraints.min) return false;
+      if (constraints.max && value.length > constraints.max) return false;
+      if (constraints.options && !value.every(item => constraints.options!.includes(item))) return false;
+      break;
 
-      case 'enum':
-        if (constraints.options && !constraints.options.includes(value)) return false;
-        break;
+    case 'enum':
+      if (constraints.options && !constraints.options.includes(value)) return false;
+      break;
 
-      case 'boolean':
-        if (typeof value !== 'boolean') return false;
-        break;
+    case 'boolean':
+      if (typeof value !== 'boolean') return false;
+      break;
     }
 
     return true;
@@ -218,7 +218,7 @@ export class ParameterGenerator {
    */
   private getNestedValue(obj: any, path: string): any {
     return path.split('.').reduce((current, key) => {
-      return current && current[key] !== undefined ? current[key] : undefined;
+      return current?.[key] !== undefined ? current[key] : undefined;
     }, obj);
   }
 
@@ -390,32 +390,32 @@ export class ParameterGenerator {
    */
   private generateDefaultValue(param: TemplateParameter, context: ParameterGenerationContext): any {
     switch (param.type) {
-      case 'string':
-        if (param.name.toLowerCase().includes('name')) {
-          return context.currentTopic || 'Example';
-        }
-        if (param.name.toLowerCase().includes('concept')) {
-          return context.recentConcepts[0]?.concept || 'Programming concept';
-        }
-        return 'Example value';
+    case 'string':
+      if (param.name.toLowerCase().includes('name')) {
+        return context.currentTopic || 'Example';
+      }
+      if (param.name.toLowerCase().includes('concept')) {
+        return context.recentConcepts[0]?.concept || 'Programming concept';
+      }
+      return 'Example value';
 
-      case 'number':
-        return param.constraints?.min || 1;
+    case 'number':
+      return param.constraints?.min || 1;
 
-      case 'array':
-        return param.defaultValue || [];
+    case 'array':
+      return param.defaultValue || [];
 
-      case 'boolean':
-        return false;
+    case 'boolean':
+      return false;
 
-      case 'enum':
-        return param.constraints?.options?.[0] || 'default';
+    case 'enum':
+      return param.constraints?.options?.[0] || 'default';
 
-      case 'range':
-        return [param.constraints?.min || 0, param.constraints?.max || 10];
+    case 'range':
+      return [param.constraints?.min || 0, param.constraints?.max || 10];
 
-      default:
-        return null;
+    default:
+      return null;
     }
   }
 
@@ -510,31 +510,31 @@ export class ParameterGenerator {
 
     for (const param of template.parameters) {
       switch (param.name) {
-        case 'functionality':
-        case 'problemStatement':
-        case 'queryPurpose':
-          parameters[param.name] = this.generateContextualProblem(context, param.type);
-          appliedRules.push(`Contextual problem generation based on ${context.currentTopic}`);
-          break;
+      case 'functionality':
+      case 'problemStatement':
+      case 'queryPurpose':
+        parameters[param.name] = this.generateContextualProblem(context, param.type);
+        appliedRules.push(`Contextual problem generation based on ${context.currentTopic}`);
+        break;
 
-        case 'parameters':
-          parameters[param.name] = this.generateContextualFunctionParams(context);
-          appliedRules.push('Contextual function parameters');
-          break;
+      case 'parameters':
+        parameters[param.name] = this.generateContextualFunctionParams(context);
+        appliedRules.push('Contextual function parameters');
+        break;
 
-        case 'entities':
-        case 'concepts':
-          parameters[param.name] = this.extractRelevantConcepts(context);
-          appliedRules.push('Relevant concepts from conversation');
-          break;
+      case 'entities':
+      case 'concepts':
+        parameters[param.name] = this.extractRelevantConcepts(context);
+        appliedRules.push('Relevant concepts from conversation');
+        break;
 
-        default:
-          if (context.currentTopic && param.name.toLowerCase().includes('concept')) {
-            parameters[param.name] = context.currentTopic;
-            appliedRules.push(`Topic-based parameter for ${param.name}`);
-          } else {
-            parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
-          }
+      default:
+        if (context.currentTopic && param.name.toLowerCase().includes('concept')) {
+          parameters[param.name] = context.currentTopic;
+          appliedRules.push(`Topic-based parameter for ${param.name}`);
+        } else {
+          parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
+        }
       }
     }
 
@@ -564,23 +564,23 @@ export class ParameterGenerator {
 
     for (const param of template.parameters) {
       switch (param.name) {
-        case 'functionality':
-          parameters[param.name] = `Implement functionality for ${context.projectContext!.currentTask}`;
-          appliedRules.push('Project-specific functionality');
-          break;
+      case 'functionality':
+        parameters[param.name] = `Implement functionality for ${context.projectContext!.currentTask}`;
+        appliedRules.push('Project-specific functionality');
+        break;
 
-        case 'applicationType':
-          parameters[param.name] = context.projectContext.type;
-          appliedRules.push('Project type-based application');
-          break;
+      case 'applicationType':
+        parameters[param.name] = context.projectContext.type;
+        appliedRules.push('Project type-based application');
+        break;
 
-        default:
-          if (param.type === 'array' && context.projectContext.technologies.length > 0) {
-            parameters[param.name] = context.projectContext.technologies.slice(0, 3);
-            appliedRules.push('Project technologies for array parameters');
-          } else {
-            parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
-          }
+      default:
+        if (param.type === 'array' && context.projectContext.technologies.length > 0) {
+          parameters[param.name] = context.projectContext.technologies.slice(0, 3);
+          appliedRules.push('Project technologies for array parameters');
+        } else {
+          parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
+        }
       }
     }
 
@@ -607,38 +607,38 @@ export class ParameterGenerator {
 
     for (const param of template.parameters) {
       switch (vibe) {
-        case 'understanding':
-          if (param.name === 'complexity') {
-            parameters[param.name] = 'O(n)';
-            appliedRules.push('Understanding vibe - moderate complexity');
-          } else if (param.name === 'difficulty') {
-            parameters[param.name] = 'medium';
-            appliedRules.push('Understanding vibe - medium difficulty');
-          }
-          break;
+      case 'understanding':
+        if (param.name === 'complexity') {
+          parameters[param.name] = 'O(n)';
+          appliedRules.push('Understanding vibe - moderate complexity');
+        } else if (param.name === 'difficulty') {
+          parameters[param.name] = 'medium';
+          appliedRules.push('Understanding vibe - medium difficulty');
+        }
+        break;
 
-        case 'confused':
-          if (param.name === 'complexity') {
-            parameters[param.name] = 'O(1)';
-            appliedRules.push('Confused vibe - simple complexity');
-          } else if (param.name === 'difficulty') {
-            parameters[param.name] = 'easy';
-            appliedRules.push('Confused vibe - easy difficulty');
-          }
-          break;
+      case 'confused':
+        if (param.name === 'complexity') {
+          parameters[param.name] = 'O(1)';
+          appliedRules.push('Confused vibe - simple complexity');
+        } else if (param.name === 'difficulty') {
+          parameters[param.name] = 'easy';
+          appliedRules.push('Confused vibe - easy difficulty');
+        }
+        break;
 
-        case 'breakthrough':
-          if (param.name === 'complexity') {
-            parameters[param.name] = 'O(n log n)';
-            appliedRules.push('Breakthrough vibe - challenging complexity');
-          } else if (param.name === 'difficulty') {
-            parameters[param.name] = 'hard';
-            appliedRules.push('Breakthrough vibe - challenging difficulty');
-          }
-          break;
+      case 'breakthrough':
+        if (param.name === 'complexity') {
+          parameters[param.name] = 'O(n log n)';
+          appliedRules.push('Breakthrough vibe - challenging complexity');
+        } else if (param.name === 'difficulty') {
+          parameters[param.name] = 'hard';
+          appliedRules.push('Breakthrough vibe - challenging difficulty');
+        }
+        break;
 
-        default:
-          parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
+      default:
+        parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
       }
     }
 
@@ -664,28 +664,28 @@ export class ParameterGenerator {
 
     for (const param of template.parameters) {
       switch (context.userLevel) {
-        case 'beginner':
-          if (param.name === 'edgeCases') {
-            parameters[param.name] = ['null input', 'empty input'];
-            appliedRules.push('Beginner level - simplified edge cases');
-          } else if (param.name === 'constraints') {
-            parameters[param.name] = ['Basic constraints only'];
-            appliedRules.push('Beginner level - basic constraints');
-          }
-          break;
+      case 'beginner':
+        if (param.name === 'edgeCases') {
+          parameters[param.name] = ['null input', 'empty input'];
+          appliedRules.push('Beginner level - simplified edge cases');
+        } else if (param.name === 'constraints') {
+          parameters[param.name] = ['Basic constraints only'];
+          appliedRules.push('Beginner level - basic constraints');
+        }
+        break;
 
-        case 'advanced':
-          if (param.name === 'edgeCases') {
-            parameters[param.name] = ['null input', 'empty input', 'invalid types', 'large datasets', 'memory limits', 'concurrent access'];
-            appliedRules.push('Advanced level - comprehensive edge cases');
-          } else if (param.name === 'constraints') {
-            parameters[param.name] = ['Optimal time complexity required', 'Memory efficiency critical', 'Handle edge cases'];
-            appliedRules.push('Advanced level - challenging constraints');
-          }
-          break;
+      case 'advanced':
+        if (param.name === 'edgeCases') {
+          parameters[param.name] = ['null input', 'empty input', 'invalid types', 'large datasets', 'memory limits', 'concurrent access'];
+          appliedRules.push('Advanced level - comprehensive edge cases');
+        } else if (param.name === 'constraints') {
+          parameters[param.name] = ['Optimal time complexity required', 'Memory efficiency critical', 'Handle edge cases'];
+          appliedRules.push('Advanced level - challenging constraints');
+        }
+        break;
 
-        default:
-          parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
+      default:
+        parameters[param.name] = param.defaultValue || this.generateDefaultValue(param, context);
       }
     }
 
@@ -771,7 +771,7 @@ export class ParameterGenerator {
     availableStrategies: string[];
     availableDataSources: string[];
     supportedParameterTypes: string[];
-  } {
+    } {
     return {
       availableStrategies: Array.from(this.strategies.keys()),
       availableDataSources: Array.from(this.contextualDataSources.keys()),

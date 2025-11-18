@@ -484,7 +484,7 @@ export const mockMigrations = {
   // Mock rollback
   rollbackMigration: vi.fn().mockImplementation(async (migrationId: string) => {
     const migration = this.migrations.find(mig => mig.id === migrationId);
-    if (migration && migration.applied) {
+    if (migration?.applied) {
       migration.applied = false;
       migration.appliedAt = null;
       return true;

@@ -72,7 +72,7 @@ export interface RuleExtractionResult {
 }
 
 export class RuleBasedExtractor {
-  private rules: Map<string, ExtractionRule> = new Map();
+  private readonly rules: Map<string, ExtractionRule> = new Map();
   private conceptRules: ExtractionRule[] = [];
   private relationshipRules: ExtractionRule[] = [];
   private metadataRules: ExtractionRule[] = [];
@@ -1011,18 +1011,18 @@ export class RuleBasedExtractor {
 
       // Categorize rules
       switch (rule.type) {
-        case 'concept':
-          this.conceptRules.push(rule);
-          break;
-        case 'relationship':
-          this.relationshipRules.push(rule);
-          break;
-        case 'metadata':
-          this.metadataRules.push(rule);
-          break;
-        case 'difficulty':
-          this.difficultyRules.push(rule);
-          break;
+      case 'concept':
+        this.conceptRules.push(rule);
+        break;
+      case 'relationship':
+        this.relationshipRules.push(rule);
+        break;
+      case 'metadata':
+        this.metadataRules.push(rule);
+        break;
+      case 'difficulty':
+        this.difficultyRules.push(rule);
+        break;
       }
     }
 

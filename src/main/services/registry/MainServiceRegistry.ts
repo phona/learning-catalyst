@@ -137,7 +137,7 @@ class LoggerAdapter implements ILogger {
  * Simple event bus implementation
  */
 class SimpleEventBus implements IEventBus {
-  private listeners = new Map<string, Set<(data?: unknown) => void>>();
+  private readonly listeners = new Map<string, Set<(data?: unknown) => void>>();
 
   emit(event: string, data?: unknown): void {
     const eventListeners = this.listeners.get(event);

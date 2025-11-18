@@ -249,7 +249,7 @@ export class MainServiceContainerManager {
     serviceCount: number;
     services: string[];
     isDisposed: boolean;
-  } {
+    } {
     if (!this.container) {
       return {
         initialized: false,

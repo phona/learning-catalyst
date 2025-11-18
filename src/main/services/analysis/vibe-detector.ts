@@ -7,8 +7,8 @@ import { Message } from '@/shared/types/ai';
 import { ServiceLogger } from '@/main/services/types';
 
 export class VibeDetector {
-  private logger: ServiceLogger;
-  private model: BaseLanguageModel;
+  private readonly logger: ServiceLogger;
+  private readonly model: BaseLanguageModel;
 
   constructor(logger: ServiceLogger, model: BaseLanguageModel);
   constructor(model: BaseLanguageModel);

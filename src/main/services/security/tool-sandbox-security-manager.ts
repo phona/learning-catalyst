@@ -147,10 +147,10 @@ export interface SecureToolExecutionResult {
  * - Comprehensive audit logging
  */
 export class ToolSandboxSecurityManager extends EventEmitter {
-  private auditLogs: Map<string, AuditLogEntry[]> = new Map();
-  private activeExecutions: Map<string, ToolExecutionContext> = new Map();
-  private securityPolicies: Map<string, SecurityPolicy> = new Map();
-  private als: AsyncLocalStorage<ToolExecutionContext>;
+  private readonly auditLogs: Map<string, AuditLogEntry[]> = new Map();
+  private readonly activeExecutions: Map<string, ToolExecutionContext> = new Map();
+  private readonly securityPolicies: Map<string, SecurityPolicy> = new Map();
+  private readonly als: AsyncLocalStorage<ToolExecutionContext>;
 
   // Default security policies
   private readonly defaultSecurityPolicy: SecurityPolicy = {
@@ -519,35 +519,35 @@ export class ToolSandboxSecurityManager extends EventEmitter {
    */
   private getDefaultPermissions(securityLevel: SecurityLevel): PermissionType[] {
     switch (securityLevel) {
-      case SecurityLevel.RESTRICTED:
-        return [PermissionType.DATABASE_READ];
+    case SecurityLevel.RESTRICTED:
+      return [PermissionType.DATABASE_READ];
 
-      case SecurityLevel.STANDARD:
-        return [
-          PermissionType.FILE_READ,
-          PermissionType.DATABASE_READ,
-          PermissionType.DATABASE_WRITE
-        ];
+    case SecurityLevel.STANDARD:
+      return [
+        PermissionType.FILE_READ,
+        PermissionType.DATABASE_READ,
+        PermissionType.DATABASE_WRITE
+      ];
 
-      case SecurityLevel.ELEVATED:
-        return [
-          PermissionType.FILE_READ,
-          PermissionType.FILE_WRITE,
-          PermissionType.DATABASE_READ,
-          PermissionType.DATABASE_WRITE,
-          PermissionType.NETWORK_ACCESS
-        ];
+    case SecurityLevel.ELEVATED:
+      return [
+        PermissionType.FILE_READ,
+        PermissionType.FILE_WRITE,
+        PermissionType.DATABASE_READ,
+        PermissionType.DATABASE_WRITE,
+        PermissionType.NETWORK_ACCESS
+      ];
 
-      case SecurityLevel.SANDBOXED:
-        return [
-          PermissionType.FILE_READ,
-          PermissionType.FILE_WRITE,
-          PermissionType.DATABASE_READ,
-          PermissionType.DATABASE_WRITE
-        ];
+    case SecurityLevel.SANDBOXED:
+      return [
+        PermissionType.FILE_READ,
+        PermissionType.FILE_WRITE,
+        PermissionType.DATABASE_READ,
+        PermissionType.DATABASE_WRITE
+      ];
 
-      default:
-        return [];
+    default:
+      return [];
     }
   }
 
@@ -701,7 +701,7 @@ export class ToolSandboxSecurityManager extends EventEmitter {
     totalAuditLogs: number;
     violationsBySeverity: Record<string, number>;
     topViolations: SecurityViolation[];
-  } {
+    } {
     const activeExecutions = this.activeExecutions.size;
     const totalAuditLogs = Array.from(this.auditLogs.values()).reduce((sum, logs) => sum + logs.length, 0);
 

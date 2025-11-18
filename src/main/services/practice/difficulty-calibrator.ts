@@ -108,8 +108,8 @@ export interface DifficultyCalibrationStrategy {
  * Difficulty Calibrator Service
  */
 export class DifficultyCalibrator {
-  private strategies: Map<string, DifficultyCalibrationStrategy> = new Map();
-  private calibrationHistory = new Map<string, {
+  private readonly strategies: Map<string, DifficultyCalibrationStrategy> = new Map();
+  private readonly calibrationHistory = new Map<string, {
     timestamp: number;
     recommendation: DifficultyRecommendation;
     actualOutcome?: {
@@ -241,7 +241,7 @@ export class DifficultyCalibrator {
       recentStruggles,
       confidenceLevel: context.userContext.engagementLevel,
       difficultyPreference: context.userContext.preferences.challengeLevel === 'conservative' ? 'easy' :
-                         context.userContext.preferences.challengeLevel === 'aggressive' ? 'hard' : 'medium',
+        context.userContext.preferences.challengeLevel === 'aggressive' ? 'hard' : 'medium',
       frustrationLevel: this.calculateFrustrationLevel(recentHistory)
     };
   }
@@ -270,22 +270,22 @@ export class DifficultyCalibrator {
       const score = result.confidence * weight;
 
       switch (result.recommendedDifficulty) {
-        case 'easy':
-          difficultyScores.easy += score;
-          break;
-        case 'medium':
-          difficultyScores.medium += score;
-          break;
-        case 'hard':
-          difficultyScores.hard += score;
-          break;
+      case 'easy':
+        difficultyScores.easy += score;
+        break;
+      case 'medium':
+        difficultyScores.medium += score;
+        break;
+      case 'hard':
+        difficultyScores.hard += score;
+        break;
       }
     });
 
     // Determine recommended difficulty
     const maxScore = Math.max(difficultyScores.easy, difficultyScores.medium, difficultyScores.hard);
     const recommendedDifficulty = maxScore === difficultyScores.easy ? 'easy' :
-                                 maxScore === difficultyScores.medium ? 'medium' : 'hard';
+      maxScore === difficultyScores.medium ? 'medium' : 'hard';
 
     const confidence = maxScore;
 
@@ -611,7 +611,7 @@ export class DifficultyCalibrator {
       shouldIncrease: avgRecommendation > currentDifficulty + 0.3,
       shouldDecrease: avgRecommendation < currentDifficulty - 0.3,
       magnitude: Math.abs(avgRecommendation - currentDifficulty) > 0.6 ? 'large' :
-                Math.abs(avgRecommendation - currentDifficulty) > 0.3 ? 'medium' : 'small',
+        Math.abs(avgRecommendation - currentDifficulty) > 0.3 ? 'medium' : 'small',
       reason: `Based on performance trends and current difficulty level`
     };
   }
@@ -663,18 +663,18 @@ export class DifficultyCalibrator {
     accuracyRate: number;
     averageConfidence: number;
     difficultyDistribution: Record<string, number>;
-  } {
+    } {
     const calibrations = Array.from(this.calibrationHistory.values());
     const completedCalibrations = calibrations.filter(c => c.actualOutcome);
 
     const accuracyRate = completedCalibrations.length > 0
       ? completedCalibrations.filter(c => {
-          const rec = c.recommendation.recommendedDifficulty;
-          const actual = c.actualOutcome!.exerciseDifficulty;
-          return rec === actual ||
+        const rec = c.recommendation.recommendedDifficulty;
+        const actual = c.actualOutcome!.exerciseDifficulty;
+        return rec === actual ||
                 (rec === 'medium' && (actual === 'easy' || actual === 'hard')) ||
                 (c.actualOutcome!.success && actual === 'hard' && rec === 'medium');
-        }).length / completedCalibrations.length
+      }).length / completedCalibrations.length
       : 0;
 
     const averageConfidence = calibrations.length > 0

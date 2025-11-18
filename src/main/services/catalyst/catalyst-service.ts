@@ -493,7 +493,7 @@ export class CatalystServiceMain {
     disposed: boolean;
     registry: any;
     config: any;
-  } {
+    } {
     return {
       initialized: this.initialized,
       disposed: this.disposed,

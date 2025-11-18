@@ -95,14 +95,14 @@ export interface PracticeAgentConfig {
  * Specialized Practice Agent
  */
 export class PracticeAgent {
-  private model: BaseLanguageModel;
-  private toolExecutor: ToolExecutorService;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly dependencies: ServiceDependencies;
   private config: PracticeAgentConfig;
-  private activeSessions = new Map<string, PracticeSession>();
-  private vibeDetector: VibeDetector;
+  private readonly activeSessions = new Map<string, PracticeSession>();
+  private readonly vibeDetector: VibeDetector;
 
-  private naturalPromptGenerator: NaturalPromptGenerator;
+  private readonly naturalPromptGenerator: NaturalPromptGenerator;
 
   constructor(
     model: BaseLanguageModel,
@@ -146,41 +146,41 @@ export class PracticeAgent {
 
       // Route to appropriate practice function
       switch (practiceRequest.type) {
-        case 'generate_exercise':
-          yield* this.generateExercise(request.input, practiceRequest, executionContext);
-          break;
+      case 'generate_exercise':
+        yield* this.generateExercise(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'create_session':
-          yield* this.createPracticeSession(request.input, practiceRequest, executionContext);
-          break;
+      case 'create_session':
+        yield* this.createPracticeSession(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'validate_solution':
-          yield* this.validateSolution(request.input, practiceRequest, executionContext);
-          break;
+      case 'validate_solution':
+        yield* this.validateSolution(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'provide_feedback':
-          yield* this.provideFeedback(request.input, practiceRequest, executionContext);
-          break;
+      case 'provide_feedback':
+        yield* this.provideFeedback(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'adaptive_practice':
-          yield* this.adaptivePractice(request.input, practiceRequest, executionContext);
-          break;
+      case 'adaptive_practice':
+        yield* this.adaptivePractice(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'detect_vibe':
-          yield* this.detectPracticeVibe(request.input, practiceRequest, executionContext);
-          break;
+      case 'detect_vibe':
+        yield* this.detectPracticeVibe(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'generate_suggestion':
-          yield* this.generateNaturalPracticeSuggestion(request.input, practiceRequest, executionContext);
-          break;
+      case 'generate_suggestion':
+        yield* this.generateNaturalPracticeSuggestion(request.input, practiceRequest, executionContext);
+        break;
 
-        case 'generate_contextual_exercise':
-          yield* this.generateContextualExercise(request.input, practiceRequest, executionContext);
-          break;
+      case 'generate_contextual_exercise':
+        yield* this.generateContextualExercise(request.input, practiceRequest, executionContext);
+        break;
 
-        default:
-          yield* this.provideGeneralPracticeHelp(request.input, practiceRequest, executionContext);
-          break;
+      default:
+        yield* this.provideGeneralPracticeHelp(request.input, practiceRequest, executionContext);
+        break;
       }
 
     } catch (error) {
@@ -1303,23 +1303,23 @@ Provide your analysis as:
 
     // Vibe-specific logic
     switch (vibe) {
-      case 'understanding':
-      case 'breakthrough':
-        return true; // Good time to practice
+    case 'understanding':
+    case 'breakthrough':
+      return true; // Good time to practice
 
-      case 'practicing':
-        return false; // Already practicing
+    case 'practicing':
+      return false; // Already practicing
 
-      case 'confused':
-        // Suggest practice only if user has some confidence and it might clarify understanding
-        return userContext.confidenceLevel > 0.4 && practiceReadiness > 0.6;
+    case 'confused':
+      // Suggest practice only if user has some confidence and it might clarify understanding
+      return userContext.confidenceLevel > 0.4 && practiceReadiness > 0.6;
 
-      case 'misunderstanding':
-        // Don't suggest practice if there's a fundamental misunderstanding
-        return false;
+    case 'misunderstanding':
+      // Don't suggest practice if there's a fundamental misunderstanding
+      return false;
 
-      default:
-        return false;
+    default:
+      return false;
     }
   }
 
@@ -1886,7 +1886,7 @@ Format your response as:
     averageSessionDuration: number;
     completionRate: number;
     difficultyDistribution: Record<string, number>;
-  } {
+    } {
     const sessions = Array.from(this.activeSessions.values());
 
     return {

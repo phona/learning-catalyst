@@ -46,12 +46,12 @@ interface AgentSessionAssociation {
  * Main thread agent manager with LangChain integration
  */
 export class AgentManagerMain {
-  private agents = new Map<string, AgentConfig>();
-  private executions = new Map<string, AgentExecutionContext>();
-  private sessionAgents = new Map<string, AgentSessionAssociation[]>(); // sessionId -> associations
-  private agentSessions = new Map<string, Set<string>>(); // agentId -> sessionIds
-  private dependencies: ServiceDependencies;
-  private toolExecutor: ToolExecutorService;
+  private readonly agents = new Map<string, AgentConfig>();
+  private readonly executions = new Map<string, AgentExecutionContext>();
+  private readonly sessionAgents = new Map<string, AgentSessionAssociation[]>(); // sessionId -> associations
+  private readonly agentSessions = new Map<string, Set<string>>(); // agentId -> sessionIds
+  private readonly dependencies: ServiceDependencies;
+  private readonly toolExecutor: ToolExecutorService;
 
   constructor(dependencies: ServiceDependencies, toolExecutor: ToolExecutorService) {
     this.dependencies = dependencies;
@@ -172,29 +172,29 @@ export class AgentManagerMain {
 
       // Execute based on agent type
       switch (agent.type) {
-        case 'concept-parser':
-          yield* this.executeConceptParser(agent, request, executionContext);
-          break;
+      case 'concept-parser':
+        yield* this.executeConceptParser(agent, request, executionContext);
+        break;
 
-        case 'chat-agent':
-          yield* this.executeChatAgent(agent, request, executionContext);
-          break;
+      case 'chat-agent':
+        yield* this.executeChatAgent(agent, request, executionContext);
+        break;
 
-        case 'learning-coach':
-          yield* this.executeLearningCoach(agent, request, executionContext);
-          break;
+      case 'learning-coach':
+        yield* this.executeLearningCoach(agent, request, executionContext);
+        break;
 
-        case 'content-discoverer':
-          yield* this.executeContentDiscoverer(agent, request, executionContext);
-          break;
+      case 'content-discoverer':
+        yield* this.executeContentDiscoverer(agent, request, executionContext);
+        break;
 
-        default:
-          throw new AgentExecutionError(
-            `Unknown agent type: ${agent.type}`,
-            agent.id,
-            'execution',
-            executionContext
-          );
+      default:
+        throw new AgentExecutionError(
+          `Unknown agent type: ${agent.type}`,
+          agent.id,
+          'execution',
+          executionContext
+        );
       }
 
       // Emit completion chunk
@@ -553,7 +553,7 @@ export class AgentManagerMain {
     totalSessions: number;
     activeSessions: number;
     totalAgentSessions: number;
-  } {
+    } {
     const agents = Array.from(this.agents.values());
     const agentTypes = agents.reduce((acc, agent) => {
       acc[agent.type] = (acc[agent.type] || 0) + 1;

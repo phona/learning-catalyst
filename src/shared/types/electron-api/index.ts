@@ -157,7 +157,7 @@ export interface ElectronAPI {
    * Useful for debugging connection issues
    * @returns Promise<{ status: 'healthy' | 'degraded' | 'offline', apis: Object }>
    */
-  healthCheck: () => Promise<{ status: 'healthy' | 'degraded' | 'offline'; apis: Object }>;
+  healthCheck: () => Promise<{ status: 'healthy' | 'degraded' | 'offline'; apis: object }>;
 
   /**
    * Gets application version and build information

@@ -111,7 +111,7 @@ export interface LearningInsights {
 export class SimpleAnalyticsModule {
   public readonly name = 'SimpleAnalyticsModule';
   public readonly version = '1.0.0';
-  private db: Kysely<Database>;
+  private readonly db: Kysely<Database>;
   private _isInitialized = false;
   private cachedMetrics: StudyMetrics | null = null;
   private lastMetricsUpdate = 0;
@@ -162,9 +162,9 @@ export class SimpleAnalyticsModule {
       concepts_studied: session.conceptsCovered.length,
       difficulty_level: 3, // Default difficulty
       session_type: session.sessionType === 'chat' ? 'general' as const :
-                    session.sessionType === 'study' ? 'practice' as const :
-                    session.sessionType === 'assessment' ? 'assessment' as const :
-                    session.sessionType === 'review' ? 'review' as const :
+        session.sessionType === 'study' ? 'practice' as const :
+          session.sessionType === 'assessment' ? 'assessment' as const :
+            session.sessionType === 'review' ? 'review' as const :
                     'general' as const,
       metadata: JSON.stringify({
         aiProvider: session.aiProvider,
@@ -361,7 +361,7 @@ export class SimpleAnalyticsModule {
     const recentPerformance = trends.dailyStudyTime.slice(-7).reduce((sum, day) => sum + day.minutes, 0);
     const olderPerformance = trends.dailyStudyTime.slice(-14, -7).reduce((sum, day) => sum + day.minutes, 0);
     const performanceTrend = recentPerformance > olderPerformance ? 'improving' :
-                            recentPerformance < olderPerformance ? 'declining' : 'stable';
+      recentPerformance < olderPerformance ? 'declining' : 'stable';
 
     // Find most productive time
     const allSessionsForTime = await this.db

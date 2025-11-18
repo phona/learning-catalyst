@@ -45,8 +45,8 @@ export interface TransitionTiming {
  * to practice suggestions and back again.
  */
 export class PracticeTransitionManager {
-  private logger: any;
-  private transitionStrategies: Map<string, TransitionStrategy> = new Map();
+  private readonly logger: any;
+  private readonly transitionStrategies: Map<string, TransitionStrategy> = new Map();
 
   constructor(logger?: any) {
     this.logger = logger || LoggerFactory.getLogger('PracticeTransitionManager');

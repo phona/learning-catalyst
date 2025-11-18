@@ -13,7 +13,7 @@ import { ServiceError } from './types';
  * Service registry implementation with dependency injection
  */
 export class MainThreadServiceRegistry implements ServiceRegistry {
-  private services = new Map<string, any>();
+  private readonly services = new Map<string, any>();
   private disposed = false;
 
   /**
@@ -143,7 +143,7 @@ export class MainThreadServiceRegistry implements ServiceRegistry {
     totalServices: number;
     registeredServices: string[];
     disposed: boolean;
-  } {
+    } {
     return {
       totalServices: this.services.size,
       registeredServices: this.getServiceNames(),

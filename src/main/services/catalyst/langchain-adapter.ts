@@ -43,11 +43,11 @@ import { ModelConfig } from '@/shared/types/concept-parsing';
  * Adapter class that wraps existing AI providers to be compatible with LangChain
  */
 export class LangChainProviderAdapter implements BaseLanguageModel {
-  private provider: AIProvider;
-  private providerName: string;
-  private modelId: string;
-  private temperature: number;
-  private maxTokens: number;
+  private readonly provider: AIProvider;
+  private readonly providerName: string;
+  private readonly modelId: string;
+  private readonly temperature: number;
+  private readonly maxTokens: number;
 
   constructor(
     provider: AIProvider,
@@ -254,7 +254,7 @@ export class LangChainProviderAdapter implements BaseLanguageModel {
  * Factory class for creating LangChain-compatible model instances
  */
 export class LangChainModelFactory {
-  private static adapters = new Map<string, LangChainProviderAdapter>();
+  private static readonly adapters = new Map<string, LangChainProviderAdapter>();
 
   /**
    * Create a LangChain-compatible model from an existing AI provider

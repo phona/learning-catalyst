@@ -68,14 +68,14 @@ export interface HybridConfig {
  * Hybrid Agent for complex workflow orchestration
  */
 export class HybridAgent {
-  private model: BaseLanguageModel;
-  private agentManager: AgentManagerMain;
-  private toolExecutor: ToolExecutorService;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly agentManager: AgentManagerMain;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly dependencies: ServiceDependencies;
   private config: HybridConfig;
-  private toolCallingAgent: ToolCallingAgent;
-  private handoffAgent: HandoffAgent;
-  private activeExecutions = new Map<string, WorkflowExecution>();
+  private readonly toolCallingAgent: ToolCallingAgent;
+  private readonly handoffAgent: HandoffAgent;
+  private readonly activeExecutions = new Map<string, WorkflowExecution>();
 
   constructor(
     model: BaseLanguageModel,
@@ -587,34 +587,34 @@ Response format:
     };
 
     switch (step.type) {
-      case 'tool_calling':
-        if (!step.tools || step.tools.length === 0) {
-          throw new Error(`Tool calling step ${step.id} requires tools to be specified`);
+    case 'tool_calling':
+      if (!step.tools || step.tools.length === 0) {
+        throw new Error(`Tool calling step ${step.id} requires tools to be specified`);
+      }
+      return yield* this.toolCallingAgent.execute(request, stepExecutionContext);
+
+    case 'handoff':
+      if (!step.agentId) {
+        throw new Error(`Handoff step ${step.id} requires target agent to be specified`);
+      }
+      const handoffRequest: AgentExecutionRequest = {
+        ...request,
+        agentId: step.agentId,
+        context: {
+          ...request.context,
+          sessionId: request.context.sessionId || executionContext.sessionId
         }
-        return yield* this.toolCallingAgent.execute(request, stepExecutionContext);
+      };
+      return yield* this.handoffAgent.execute(handoffRequest, stepExecutionContext);
 
-      case 'handoff':
-        if (!step.agentId) {
-          throw new Error(`Handoff step ${step.id} requires target agent to be specified`);
-        }
-        const handoffRequest: AgentExecutionRequest = {
-          ...request,
-          agentId: step.agentId,
-          context: {
-            ...request.context,
-            sessionId: request.context.sessionId || executionContext.sessionId
-          }
-        };
-        return yield* this.handoffAgent.execute(handoffRequest, stepExecutionContext);
+    case 'collaboration':
+      return yield* this.executeCollaborationStep(step, request, stepExecutionContext, workflowExecution);
 
-      case 'collaboration':
-        return yield* this.executeCollaborationStep(step, request, stepExecutionContext, workflowExecution);
+    case 'direct':
+      return yield* this.executeDirectStep(step, request, stepExecutionContext);
 
-      case 'direct':
-        return yield* this.executeDirectStep(step, request, stepExecutionContext);
-
-      default:
-        throw new Error(`Unknown step type: ${step.type}`);
+    default:
+      throw new Error(`Unknown step type: ${step.type}`);
     }
   }
 
@@ -720,7 +720,7 @@ Provide a direct response for this step of the workflow.`;
    */
   cancelExecution(executionId: string): boolean {
     const execution = this.activeExecutions.get(executionId);
-    if (execution && execution.status === 'running') {
+    if (execution?.status === 'running') {
       execution.status = 'cancelled';
       execution.endTime = Date.now();
       this.activeExecutions.delete(executionId);

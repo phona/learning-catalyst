@@ -60,9 +60,9 @@ interface HandoffContext extends ServiceExecutionContext {
  * Handles handoff decisions, context transfer, and seamless user experience.
  */
 export class HandoffOrchestrator {
-  private dependencies: ServiceDependencies;
-  private agentManager: AgentManagerMain;
-  private als: AsyncLocalStorage<ServiceExecutionContext>;
+  private readonly dependencies: ServiceDependencies;
+  private readonly agentManager: AgentManagerMain;
+  private readonly als: AsyncLocalStorage<ServiceExecutionContext>;
 
   constructor(
     dependencies: ServiceDependencies,
@@ -102,7 +102,8 @@ export class HandoffOrchestrator {
       transitions: [],
       startTime: Date.now(),
       userGoals: options?.userGoals || [],
-      sessionContext: {}
+      sessionContext: {},
+      metadata: {}
     };
 
     yield* this.runWithContext('handoff-orchestration', async function* (this: HandoffOrchestrator) {
@@ -219,7 +220,8 @@ export class HandoffOrchestrator {
           timestamp: Date.now(),
           requestId: `${context.sessionId}_${agentId}_${Date.now()}`,
           operation: 'agent-execution',
-          correlationId: `${context.sessionId}_${agentId}_${Date.now()}`
+          correlationId: `${context.sessionId}_${agentId}_${Date.now()}`,
+          metadata: {}
         },
         options: {
           maxIterations: 3, // Lower for handoff scenarios
@@ -250,7 +252,7 @@ export class HandoffOrchestrator {
         .filter(chunk => chunk.type === 'data')
         .pop();
 
-      if (lastDataChunk && lastDataChunk.content.message) {
+      if (lastDataChunk?.content.message) {
         context.conversationHistory.push({
           role: 'assistant',
           content: lastDataChunk.content.message,
@@ -484,7 +486,7 @@ Consider the user's journey and only recommend handoffs that genuinely improve t
         phase: 'handoff',
         message: `Handing off from ${fromAgent.name} to ${toAgent.name}`,
         fromAgentId,
-      toAgentId,
+        toAgentId,
         fromAgentName: fromAgent.name,
         toAgentName: toAgent.name,
         reason: decision.reason,
@@ -605,7 +607,7 @@ Consider the user's journey and only recommend handoffs that genuinely improve t
     version: string;
     capabilities: string[];
     availableAgents: number;
-  } {
+    } {
     return {
       name: 'Handoff Orchestrator',
       version: '1.0.0',

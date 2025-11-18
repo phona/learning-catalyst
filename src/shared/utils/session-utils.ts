@@ -186,7 +186,7 @@ export function validateSessionData(data: {
     errors.push('Tags must be an array');
   }
 
-  if (data.tags && data.tags.some(tag => typeof tag !== 'string')) {
+  if (data.tags?.some(tag => typeof tag !== 'string')) {
     errors.push('All tags must be strings');
   }
 

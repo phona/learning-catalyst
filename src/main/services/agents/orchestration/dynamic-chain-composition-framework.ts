@@ -48,7 +48,7 @@ abstract class Runnable<Input = any, Output = any> {
 
 // Helper class to wrap functions as Runnables
 class FunctionRunnable<Input = any, Output = any> extends Runnable<Input, Output> {
-  constructor(private fn: (input: Input) => Promise<Output>) {
+  constructor(private readonly fn: (input: Input) => Promise<Output>) {
     super();
   }
 
@@ -58,7 +58,7 @@ class FunctionRunnable<Input = any, Output = any> extends Runnable<Input, Output
 }
 
 class RunnableSequence<Input = any, Output = any> extends Runnable<Input, Output> {
-  constructor(private steps: Runnable[]) {
+  constructor(private readonly steps: Runnable[]) {
     super();
   }
 
@@ -76,7 +76,7 @@ class RunnableSequence<Input = any, Output = any> extends Runnable<Input, Output
 }
 
 class RunnableParallel<Input = any, Output = any> extends Runnable<Input, Output> {
-  constructor(private runnables: Record<string, Runnable> | Runnable[]) {
+  constructor(private readonly runnables: Record<string, Runnable> | Runnable[]) {
     super();
   }
 
@@ -312,12 +312,12 @@ export interface EducationalContext {
  * Dynamic Chain Composition Framework
  */
 export class DynamicChainCompositionFramework {
-  private model: BaseLanguageModel;
-  private chains: Map<string, DynamicChain> = new Map();
-  private componentLibrary: Map<string, ChainComponent> = new Map();
-  private chainTemplates: Map<string, ChainConfiguration> = new Map();
-  private performanceAnalytics: Map<string, ChainPerformanceMetrics> = new Map();
-  private logger: any;
+  private readonly model: BaseLanguageModel;
+  private readonly chains: Map<string, DynamicChain> = new Map();
+  private readonly componentLibrary: Map<string, ChainComponent> = new Map();
+  private readonly chainTemplates: Map<string, ChainConfiguration> = new Map();
+  private readonly performanceAnalytics: Map<string, ChainPerformanceMetrics> = new Map();
+  private readonly logger: any;
 
   constructor(model: BaseLanguageModel) {
     this.model = model;
@@ -1147,20 +1147,20 @@ Please create a comprehensive assessment.`,
       let adaptation: ChainAdaptation;
 
       switch (adaptationType) {
-        case 'performance':
-          adaptation = await this.adaptForPerformance(chainId, adaptationData);
-          break;
+      case 'performance':
+        adaptation = await this.adaptForPerformance(chainId, adaptationData);
+        break;
 
-        case 'context':
-          adaptation = await this.adaptForContext(chainId, adaptationData);
-          break;
+      case 'context':
+        adaptation = await this.adaptForContext(chainId, adaptationData);
+        break;
 
-        case 'user_feedback':
-          adaptation = await this.adaptForUserFeedback(chainId, adaptationData);
-          break;
+      case 'user_feedback':
+        adaptation = await this.adaptForUserFeedback(chainId, adaptationData);
+        break;
 
-        default:
-          throw new Error(`Unknown adaptation type: ${adaptationType}`);
+      default:
+        throw new Error(`Unknown adaptation type: ${adaptationType}`);
       }
 
       // Apply adaptation
@@ -1307,20 +1307,20 @@ Please create a comprehensive assessment.`,
     ).filter(Boolean) as ChainComponent[];
 
     switch (config.strategy) {
-      case ExecutionStrategy.SEQUENTIAL:
-        return this.buildSequentialChain(components);
+    case ExecutionStrategy.SEQUENTIAL:
+      return this.buildSequentialChain(components);
 
-      case ExecutionStrategy.PARALLEL:
-        return this.buildParallelChain(components);
+    case ExecutionStrategy.PARALLEL:
+      return this.buildParallelChain(components);
 
-      case ExecutionStrategy.CONDITIONAL:
-        return this.buildConditionalChain(components);
+    case ExecutionStrategy.CONDITIONAL:
+      return this.buildConditionalChain(components);
 
-      case ExecutionStrategy.ADAPTIVE:
-        return this.buildAdaptiveChain(components);
+    case ExecutionStrategy.ADAPTIVE:
+      return this.buildAdaptiveChain(components);
 
-      default:
-        return this.buildSequentialChain(components);
+    default:
+      return this.buildSequentialChain(components);
     }
   }
 
@@ -1328,30 +1328,30 @@ Please create a comprehensive assessment.`,
     // Simplified sequential chain building
     const steps = components.map(component => {
       switch (component.type) {
-        case ChainComponentType.PROMPT_TEMPLATE:
-          return new FunctionRunnable(async (input: any) => {
-            return { formattedPrompt: input };
-          });
+      case ChainComponentType.PROMPT_TEMPLATE:
+        return new FunctionRunnable(async (input: any) => {
+          return { formattedPrompt: input };
+        });
 
-        case ChainComponentType.LLM_CALL:
-          return new FunctionRunnable(async (input: any) => {
-            const response = await this.model.invoke([
-              new HumanMessage(input.formattedPrompt || input)
-            ]);
-            return { response: response.content, tokenUsage: 100 };
-          });
+      case ChainComponentType.LLM_CALL:
+        return new FunctionRunnable(async (input: any) => {
+          const response = await this.model.invoke([
+            new HumanMessage(input.formattedPrompt || input)
+          ]);
+          return { response: response.content, tokenUsage: 100 };
+        });
 
-        case ChainComponentType.VALIDATOR:
-          return new FunctionRunnable(async (input: any) => {
-            return {
-              isValid: true,
-              score: 0.8,
-              feedback: 'Output validated successfully'
-            };
-          });
+      case ChainComponentType.VALIDATOR:
+        return new FunctionRunnable(async (input: any) => {
+          return {
+            isValid: true,
+            score: 0.8,
+            feedback: 'Output validated successfully'
+          };
+        });
 
-        default:
-          return new FunctionRunnable(async (input: any) => input);
+      default:
+        return new FunctionRunnable(async (input: any) => input);
       }
     });
 
@@ -1650,7 +1650,7 @@ Please create a comprehensive assessment.`,
 
     const averageImprovement = allAdaptations.length > 0
       ? allAdaptations.reduce((sum, adaptation) =>
-          sum + adaptation.impact.performanceImprovement, 0) / allAdaptations.length
+        sum + adaptation.impact.performanceImprovement, 0) / allAdaptations.length
       : 0;
 
     return {

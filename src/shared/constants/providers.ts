@@ -121,7 +121,7 @@ export function getPredefinedModels(providerType: string): string[] {
  */
 export function getPredefinedModelsForFeature(providerType: string, feature: string): string[] {
   const provider = PREDEFINED_PROVIDERS[providerType];
-  if (!provider || !provider.default_models[feature as keyof typeof provider.default_models]) {
+  if (!provider?.default_models[feature as keyof typeof provider.default_models]) {
     return [];
   }
 

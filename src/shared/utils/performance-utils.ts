@@ -13,9 +13,9 @@
  * LRU Cache implementation with memory management
  */
 export class LRUCache<TKey, TValue> {
-  private cache = new Map<TKey, { value: TValue; timestamp: number; size?: number }>();
-  private maxSize: number;
-  private maxMemory?: number; // in bytes
+  private readonly cache = new Map<TKey, { value: TValue; timestamp: number; size?: number }>();
+  private readonly maxSize: number;
+  private readonly maxMemory?: number; // in bytes
   private cleanupInterval?: NodeJS.Timeout;
   private currentMemory = 0;
 
@@ -147,14 +147,14 @@ export class LRUCache<TKey, TValue> {
     memoryLimitMB?: number;
     utilizationPercent: number;
     cleanupIntervalMs?: number;
-  } {
+    } {
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       memoryUsageMB: this.maxMemory ? this.currentMemory / (1024 * 1024) : undefined,
       memoryLimitMB: this.maxMemory ? this.maxMemory / (1024 * 1024) : undefined,
       utilizationPercent: (this.cache.size / this.maxSize) * 100,
-      cleanupIntervalMs: this.cleanupInterval ? this.cleanupInterval._idleTimeout || this.cleanupInterval._onTimeout : undefined
+      cleanupIntervalMs: this.cleanupInterval ? undefined : undefined
     };
   }
 
@@ -171,8 +171,8 @@ export class LRUCache<TKey, TValue> {
  * Memory-optimized promise cache with automatic cleanup
  */
 export class PromiseCache {
-  private cache = new LRUCache<string, Promise<any>>();
-  private loadingPromises = new Map<string, Promise<any>>();
+  private readonly cache = new LRUCache<string, Promise<any>>();
+  private readonly loadingPromises = new Map<string, Promise<any>>();
 
   /**
    * Get or create a cached promise
@@ -251,9 +251,9 @@ export class PromiseCache {
  * Performance metrics collector
  */
 export class PerformanceMonitor {
-  private metrics = new Map<string, PerformanceMetric[]>();
-  private observers: Map<string, PerformanceObserver> = new Map();
-  private maxEntries = 1000;
+  private readonly metrics = new Map<string, PerformanceMetric[]>();
+  private readonly observers: Map<string, PerformanceObserver> = new Map();
+  private readonly maxEntries = 1000;
 
   /**
    * Record a performance metric
@@ -370,7 +370,6 @@ export class PerformanceMonitor {
             if (entry.entryType === 'longtask') {
               this.recordMetric('longtask', entry.duration, {
                 type: entry.name,
-                containerType: entry.containerType,
                 start: entry.startTime
               });
             }
@@ -489,14 +488,14 @@ interface PerformanceStats {
 /**
  * Weak reference wrapper for garbage collection
  */
-export class WeakReference<T> {
-  private ref: WeakRef<T>;
-  private registry: FinalizationRegistry<string>;
+export class WeakReference<T extends object> {
+  private readonly ref: WeakRef<T>;
+  private readonly registry: FinalizationRegistry<string>;
 
   constructor(value: T, id: string, cleanupCallback: (id: string) => void) {
     this.ref = new WeakRef(value);
-    this.registry = new FinalizationRegistry();
-    this.registry.register(value, () => cleanupCallback(id));
+    this.registry = new FinalizationRegistry(cleanupCallback);
+    this.registry.register(value, id);
   }
 
   get(): T | undefined {
@@ -513,9 +512,9 @@ export class WeakReference<T> {
  */
 export class MemoryPool<T> {
   private pool: T[] = [];
-  private maxSize: number;
-  private factory: () => T;
-  private reset: (obj: T) => void;
+  private readonly maxSize: number;
+  private readonly factory: () => T;
+  private readonly reset: (obj: T) => void;
 
   constructor(
     factory: () => T,
@@ -568,9 +567,9 @@ export class Debounced<T extends (...args: any[]) => any> {
   private pendingPromise: Promise<ReturnType<T>> | null = null;
 
   constructor(
-    private func: T,
-    private wait: number,
-    private options: {
+    private readonly func: T,
+    private readonly wait: number,
+    private readonly options: {
       leading?: boolean;
       trailing?: boolean;
       maxWait?: number;
@@ -648,8 +647,8 @@ export class Throttled<T extends (...args: any[]) => any> {
   private timeout: NodeJS.Timeout | null = null;
 
   constructor(
-    private func: T,
-    private limit: number
+    private readonly func: T,
+    private readonly limit: number
   ) {}
 
   execute(...args: Parameters<T>): void {
@@ -718,9 +717,9 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
 export class EventBatcher<T> {
   private buffer: T[] = [];
   private timeout: NodeJS.Timeout | null = null;
-  private handler: (items: T[]) => void;
-  private batchSize: number;
-  private flushInterval: number;
+  private readonly handler: (items: T[]) => void;
+  private readonly batchSize: number;
+  private readonly flushInterval: number;
 
   constructor(
     handler: (items: T[]) => void,
@@ -780,9 +779,9 @@ export class EventBatcher<T> {
  * Performance-optimized scroll handler
  */
 export class OptimizedScrollHandler {
-  private lastScrollTime = 0;
-  private throttleDelay = 100; // ms
-  private handler: (event: Event) => void;
+  private readonly lastScrollTime = 0;
+  private readonly throttleDelay: number = 100; // ms
+  private readonly handler: (event: Event) => void;
   private cleanupCallbacks: (() => void)[] = [];
 
   constructor(

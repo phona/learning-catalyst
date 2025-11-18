@@ -69,12 +69,12 @@ export interface DiversityMetrics {
  * Exercise Variety Generator Service
  */
 export class ExerciseVarietyGenerator {
-  private variationStrategies: Map<string, ExerciseVariationStrategy> = new Map();
-  private exerciseTypes = [
+  private readonly variationStrategies: Map<string, ExerciseVariationStrategy> = new Map();
+  private readonly exerciseTypes = [
     'coding', 'multiple-choice', 'short-answer', 'practical', 'debugging',
     'refactoring', 'design', 'analysis', 'simulation', 'project'
   ];
-  private exerciseFormats = [
+  private readonly exerciseFormats = [
     'problem-solving', 'step-by-step', 'guided-practice', 'open-ended',
     'challenge-based', 'tutorial-style', 'quiz-format', 'hands-on'
   ];
@@ -660,7 +660,7 @@ export class ExerciseVarietyGenerator {
     availableStrategies: string[];
     averageDiversityScore: number;
     mostUsedStrategies: Record<string, number>;
-  } {
+    } {
     return {
       availableStrategies: Array.from(this.variationStrategies.keys()),
       averageDiversityScore: 0.75, // Would be calculated from actual usage

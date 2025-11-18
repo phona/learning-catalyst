@@ -103,10 +103,10 @@ export enum ToolSelectionStrategy {
  * with real LangChain integration, security controls, and learning context awareness.
  */
 export class EnhancedToolCallingOrchestrator {
-  private dependencies: ServiceDependencies;
-  private toolExecutor: ToolExecutorService;
-  private secureToolExecutor: SecureToolExecutor;
-  private als: AsyncLocalStorage<ServiceExecutionContext>;
+  private readonly dependencies: ServiceDependencies;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly secureToolExecutor: SecureToolExecutor;
+  private readonly als: AsyncLocalStorage<ServiceExecutionContext>;
 
   constructor(
     dependencies: ServiceDependencies,
@@ -416,8 +416,8 @@ Current learning goal: ${context.learningContext.currentTopic || 'Not specified'
 Difficulty level: ${context.learningContext.difficultyLevel}
 
 ${strategy === ToolSelectionStrategy.ADAPTIVE ?
-  'Consider the learning progress and adapt your tool selection accordingly.' :
-  'Use the specified strategy for tool selection.'}
+    'Consider the learning progress and adapt your tool selection accordingly.' :
+    'Use the specified strategy for tool selection.'}
 
 If tools should be called, respond with:
 TOOL_CALLS: [
@@ -782,7 +782,7 @@ Consider the learning context and adapt the explanation accordingly.`)
     supportedTools: number;
     securityFeatures: string[];
     selectionStrategies: string[];
-  } {
+    } {
     return {
       name: 'Enhanced Tool Calling Orchestrator',
       version: '2.0.0',

@@ -95,15 +95,15 @@ export interface ConceptPath {
 export class KnowledgeGraphModule {
   public readonly name = 'KnowledgeGraphModule';
   public readonly version = '1.0.0';
-  private db: Kysely<Database>;
-  private vectorDatabaseModule: VectorDatabaseModule;
+  private readonly db: Kysely<Database>;
+  private readonly vectorDatabaseModule: VectorDatabaseModule;
 
   // Cache for performance
-  private conceptCache: Map<string, Concept> = new Map();
-  private relationshipCache: Map<string, Relationship> = new Map();
-  private searchIndex: Map<string, Set<string>> = new Map(); // word -> concept IDs
-  private cacheTimeout = 5 * 60 * 1000; // 5 minutes
-  private lastCacheUpdate = 0;
+  private readonly conceptCache: Map<string, Concept> = new Map();
+  private readonly relationshipCache: Map<string, Relationship> = new Map();
+  private readonly searchIndex: Map<string, Set<string>> = new Map(); // word -> concept IDs
+  private readonly cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  private readonly lastCacheUpdate = 0;
   private _isInitialized = false;
 
   constructor(db: Kysely<Database>, vectorDatabaseModule: VectorDatabaseModule) {
@@ -514,11 +514,11 @@ export class KnowledgeGraphModule {
       }
 
       return {
-      concepts: [],
-      relationships: [],
-      totalStrength: 0,
-      difficulty: 0
-    }; // No path found
+        concepts: [],
+        relationships: [],
+        totalStrength: 0,
+        difficulty: 0
+      }; // No path found
     } catch (error) {
       console.error('Failed to find path:', error);
       throw error;

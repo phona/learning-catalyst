@@ -88,8 +88,8 @@ export interface AgentTestMetrics {
 
 // Agent test orchestrator
 export class AgentTestOrchestrator {
-  private agents: Map<string, any> = new Map();
-  private agentManager: any;
+  private readonly agents: Map<string, any> = new Map();
+  private readonly agentManager: any;
   private results: AgentTestResult[] = [];
   private currentWorkflow: AgentWorkflow | null = null;
 
@@ -103,20 +103,20 @@ export class AgentTestOrchestrator {
       let agent;
 
       switch (agentConfig.type) {
-        case 'learning':
-          agent = AgentMocks.LearningAgent(agentConfig.config);
-          break;
-        case 'practice':
-          agent = AgentMocks.PracticeAgent(agentConfig.config);
-          break;
-        case 'assessment':
-          agent = AgentMocks.AssessmentAgent(agentConfig.config);
-          break;
-        case 'tutoring':
-          agent = AgentMocks.TutoringAgent(agentConfig.config);
-          break;
-        default:
-          agent = AgentMocks.BaseAgent(agentConfig.config);
+      case 'learning':
+        agent = AgentMocks.LearningAgent(agentConfig.config);
+        break;
+      case 'practice':
+        agent = AgentMocks.PracticeAgent(agentConfig.config);
+        break;
+      case 'assessment':
+        agent = AgentMocks.AssessmentAgent(agentConfig.config);
+        break;
+      case 'tutoring':
+        agent = AgentMocks.TutoringAgent(agentConfig.config);
+        break;
+      default:
+        agent = AgentMocks.BaseAgent(agentConfig.config);
       }
 
       await this.agentManager.registerAgent(agent);
@@ -240,42 +240,42 @@ export class AgentTestOrchestrator {
       let output: any;
 
       switch (step.action) {
-        case 'process':
-          output = await agent.process(step.input || 'Test input');
-          break;
+      case 'process':
+        output = await agent.process(step.input || 'Test input');
+        break;
 
-        case 'handoff':
-          if (step.targetAgentId) {
-            const targetAgent = this.agents.get(step.targetAgentId);
-            if (targetAgent) {
-              output = await targetAgent.process(step.input || 'Handed off input');
-            } else {
-              throw new Error(`Target agent ${step.targetAgentId} not found`);
-            }
+      case 'handoff':
+        if (step.targetAgentId) {
+          const targetAgent = this.agents.get(step.targetAgentId);
+          if (targetAgent) {
+            output = await targetAgent.process(step.input || 'Handed off input');
           } else {
-            throw new Error('Handoff requires targetAgentId');
+            throw new Error(`Target agent ${step.targetAgentId} not found`);
           }
-          break;
+        } else {
+          throw new Error('Handoff requires targetAgentId');
+        }
+        break;
 
-        case 'collaborate':
-          // Mock collaboration - would involve multiple agents
-          output = await agent.process(`Collaborative processing: ${step.input || 'test'}`);
-          break;
+      case 'collaborate':
+        // Mock collaboration - would involve multiple agents
+        output = await agent.process(`Collaborative processing: ${step.input || 'test'}`);
+        break;
 
-        case 'use_tool':
-          // Mock tool usage
-          output = {
-            content: `Tool ${step.toolId} executed with input: ${step.input || 'default'}`,
-            metadata: {
-              toolId: step.toolId,
-              tokensUsed: 30,
-              processingTime: 100
-            }
-          };
-          break;
+      case 'use_tool':
+        // Mock tool usage
+        output = {
+          content: `Tool ${step.toolId} executed with input: ${step.input || 'default'}`,
+          metadata: {
+            toolId: step.toolId,
+            tokensUsed: 30,
+            processingTime: 100
+          }
+        };
+        break;
 
-        default:
-          throw new Error(`Unknown action: ${step.action}`);
+      default:
+        throw new Error(`Unknown action: ${step.action}`);
       }
 
       return {

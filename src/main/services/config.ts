@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: ServiceConfig = {
 export class ServiceConfigManager {
   private static instance: ServiceConfigManager;
   private config: ServiceConfig;
-  private store: Store<ServiceConfig>;
+  private readonly store: Store<ServiceConfig>;
   private static readonly STORE_KEY = 'service-config';
   private static readonly STORE_NAME = 'learning-catalyst-service-config';
 

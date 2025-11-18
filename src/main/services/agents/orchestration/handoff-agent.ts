@@ -80,11 +80,11 @@ export interface HandoffConfig {
  * Handoff Agent for intelligent agent conversation flow
  */
 export class HandoffAgent {
-  private model: BaseLanguageModel;
-  private agentManager: AgentManagerMain;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly agentManager: AgentManagerMain;
+  private readonly dependencies: ServiceDependencies;
   private config: HandoffConfig;
-  private conversationContexts = new Map<string, ConversationContext>();
+  private readonly conversationContexts = new Map<string, ConversationContext>();
 
   constructor(
     model: BaseLanguageModel,
@@ -552,7 +552,7 @@ Please continue the conversation based on this context and your specialized capa
     totalHandoffs: number;
     averageHandoffsPerConversation: number;
     mostHandedOffToAgents: Array<{ agentId: string; count: number }>;
-  } {
+    } {
     const contexts = Array.from(this.conversationContexts.values());
     const totalHandoffs = contexts.reduce((sum, ctx) => sum + ctx.handoffHistory.length, 0);
 

@@ -47,7 +47,7 @@ export interface LearningPatternResult {
  * and optimal practice opportunities.
  */
 export class LearningPatternAnalyzer {
-  private logger = LoggerFactory.getInstance().createContextAwareLogger();
+  private readonly logger = LoggerFactory.getInstance().createContextAwareLogger();
 
   /**
    * Analyze learning patterns from user context and conversation history
@@ -408,12 +408,12 @@ export class LearningPatternAnalyzer {
       implications: [
         preferenceRatio > 0.6 ? 'User strongly prefers practice-based learning' :
           preferenceRatio > 0.4 ? 'User moderately prefers practice' :
-          'User may prefer theoretical learning'
+            'User may prefer theoretical learning'
       ],
       recommendations: [
         preferenceRatio > 0.6 ? 'Provide frequent hands-on opportunities' :
           preferenceRatio > 0.4 ? 'Balance practice with theory' :
-          'Focus on conceptual understanding first'
+            'Focus on conceptual understanding first'
       ]
     };
   }
@@ -520,7 +520,7 @@ export class LearningPatternAnalyzer {
         type: 'remedial_practice',
         concept: stuckPoint.concept,
         priority: stuckPoint.stuckLevel === 'severe' ? 'high' :
-                   stuckPoint.stuckLevel === 'moderate' ? 'medium' : 'low',
+          stuckPoint.stuckLevel === 'moderate' ? 'medium' : 'low',
         reason: `Address stuck point in ${stuckPoint.concept}`,
         suggestedPractice: `Targeted practice to clarify ${stuckPoint.concept}`,
         estimatedTime: 20,
@@ -597,7 +597,7 @@ export class LearningPatternAnalyzer {
     return {
       currentVelocity: adjustedVelocity,
       velocityTrend: avgConfidenceImprovement > 0 ? 'improving' :
-                     avgConfidenceImprovement < 0 ? 'declining' : 'stable',
+        avgConfidenceImprovement < 0 ? 'declining' : 'stable',
       accelerationFactor: velocityAdjustment,
       estimatedTimeToMastery: this.estimateTimeToMastery(adjustedVelocity),
       confidenceVelocity: avgConfidenceImprovement

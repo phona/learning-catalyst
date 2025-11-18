@@ -73,7 +73,7 @@ export interface DeduplicationStatistics {
 export class ConceptDeduplicator {
   private config: DeduplicationConfig;
   private stopWords: Set<string> = new Set();
-  private termFrequencyCache: Map<string, Map<string, number>> = new Map();
+  private readonly termFrequencyCache: Map<string, Map<string, number>> = new Map();
 
   constructor(config?: Partial<DeduplicationConfig>) {
     this.config = {

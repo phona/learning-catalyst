@@ -9,6 +9,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import { MessagePortMain } from 'electron';
 import { Database } from './database/kysely-schema';
+import { KyselyDatabase } from './database/kysely-database';
 import { AIProvider } from '@/shared/types/ai';
 import { Concept, ProposedRelationship } from '@/shared/types/concept-parsing';
 import { ToolExecutorService } from './tool-executor';
@@ -28,7 +29,8 @@ export interface ServiceExecutionContext {
   readonly requestId: string;
   readonly timestamp: number;
   readonly operation: string;
-  readonly metadata: Record<string, any>;
+  readonly correlationId?: string;
+  readonly metadata?: Record<string, any>;
 }
 
 /**
@@ -86,7 +88,7 @@ export interface AgentExecutionRequest {
 
 export interface AgentExecutionChunk {
   readonly type: 'error' | 'data' | 'start' | 'progress' | 'complete' | 'tool-call' | 'tool-result' |
-       'workflow_start' | 'workflow_complete' | 'workflow_error' | 'step_start' | 'step_complete' | 'step_retry';
+       'workflow_start' | 'workflow_complete' | 'workflow_error' | 'step_start' | 'step_complete' | 'step_retry' | string;
   readonly content: any;
   readonly timestamp: number;
   readonly metadata?: Record<string, any>;
@@ -114,7 +116,7 @@ export type ToolHandler = (
  * Service dependencies for dependency injection
  */
 export interface ServiceDependencies {
-  readonly database: Database;
+  readonly database: KyselyDatabase;
   readonly als: AsyncLocalStorage<ServiceExecutionContext>;
   readonly logger: ServiceLogger;
   readonly config: ServiceConfig;
@@ -243,7 +245,7 @@ export class AgentExecutionError extends ServiceError {
   constructor(
     message: string,
     public readonly agentId: string,
-    public readonly phase: 'initialization' | 'execution' | 'tool-call' | 'cleanup',
+    public readonly phase: 'initialization' | 'execution' | 'tool-call' | 'cleanup' | 'ai_response',
     context?: ServiceExecutionContext,
     cause?: Error
   ) {

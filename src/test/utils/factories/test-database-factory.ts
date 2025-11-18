@@ -63,7 +63,7 @@ export const createTestCheckpoint = (overrides?: any) => ({
 
 // In-memory database factory
 export class TestDatabaseFactory {
-  private static instances = new Map<string, any>();
+  private static readonly instances = new Map<string, any>();
   private static testCounter = 0;
 
   /**
@@ -504,41 +504,41 @@ export class TestDatabaseFactory {
    */
   static createScenario(scenario: 'empty' | 'minimal' | 'full' | 'corrupted'): any {
     switch (scenario) {
-      case 'empty':
-        return this.createTestDatabase({ withData: false });
+    case 'empty':
+      return this.createTestDatabase({ withData: false });
 
-      case 'minimal':
-        return this.createTestDatabase({
-          withData: true,
-          customData: {
-            sessions: [createTestSession({ id: 1, title: 'Minimal Session' })],
-            concepts: [createTestConcept({ id: 1, name: 'Minimal Concept' })]
-          }
-        });
+    case 'minimal':
+      return this.createTestDatabase({
+        withData: true,
+        customData: {
+          sessions: [createTestSession({ id: 1, title: 'Minimal Session' })],
+          concepts: [createTestConcept({ id: 1, name: 'Minimal Concept' })]
+        }
+      });
 
-      case 'full':
-        return this.createTestDatabase({
-          withData: true
-        }).then(db => {
-          return this.populateTestData(db.name, {
-            sessions: 10,
-            concepts: 20,
-            analytics: 50,
-            checkpoints: 10
-          }).then(() => db);
-        });
+    case 'full':
+      return this.createTestDatabase({
+        withData: true
+      }).then(db => {
+        return this.populateTestData(db.name, {
+          sessions: 10,
+          concepts: 20,
+          analytics: 50,
+          checkpoints: 10
+        }).then(() => db);
+      });
 
-      case 'corrupted':
-        return this.createTestDatabase({
-          withData: true,
-          customData: {
-            sessions: [createTestSession({ id: 1, messages: 'invalid-json' })],
-            concepts: [createTestConcept({ id: 1, metadata: null })]
-          }
-        });
+    case 'corrupted':
+      return this.createTestDatabase({
+        withData: true,
+        customData: {
+          sessions: [createTestSession({ id: 1, messages: 'invalid-json' })],
+          concepts: [createTestConcept({ id: 1, metadata: null })]
+        }
+      });
 
-      default:
-        throw new Error(`Unknown scenario: ${scenario}`);
+    default:
+      throw new Error(`Unknown scenario: ${scenario}`);
     }
   }
 }

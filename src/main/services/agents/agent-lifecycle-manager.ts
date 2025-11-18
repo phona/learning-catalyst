@@ -92,10 +92,10 @@ export interface LifecycleEventOptions {
  */
 export class AgentLifecycleManager {
   constructor(
-    private agentRegistry: AgentRegistry,
-    private db: Kysely<Database>,
-    private logger: any,
-    private als: AsyncLocalStorage<any>
+    private readonly agentRegistry: AgentRegistry,
+    private readonly db: Kysely<Database>,
+    private readonly logger: any,
+    private readonly als: AsyncLocalStorage<any>
   ) {}
 
   /**
@@ -365,18 +365,18 @@ export class AgentLifecycleManager {
         // Execute transition
         let updatedAgent: Agent;
         switch (transition.to) {
-          case 'active':
-            updatedAgent = await this.agentRegistry.activateAgent(agentId);
-            break;
-          case 'inactive':
-            updatedAgent = await this.agentRegistry.deactivateAgent(agentId);
-            break;
-          case 'error':
-            // Handle error state transition
-            updatedAgent = await this.transitionToErrorState(agentId, transition.metadata);
-            break;
-          default:
-            throw new Error(`Unknown target state: ${transition.to}`);
+        case 'active':
+          updatedAgent = await this.agentRegistry.activateAgent(agentId);
+          break;
+        case 'inactive':
+          updatedAgent = await this.agentRegistry.deactivateAgent(agentId);
+          break;
+        case 'error':
+          // Handle error state transition
+          updatedAgent = await this.transitionToErrorState(agentId, transition.metadata);
+          break;
+        default:
+          throw new Error(`Unknown target state: ${transition.to}`);
         }
 
         // Record transition event

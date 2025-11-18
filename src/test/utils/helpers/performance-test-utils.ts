@@ -149,7 +149,7 @@ export class MockResourceMonitor implements ResourceMonitor {
 
 // Performance test runner
 export class PerformanceTestRunner {
-  private resourceMonitor: ResourceMonitor;
+  private readonly resourceMonitor: ResourceMonitor;
   private operationTimes: number[] = [];
   private errors: Error[] = [];
 
@@ -367,7 +367,7 @@ export class ConcurrentSessionTester {
 
 // Load testing utilities
 export class LoadTester {
-  private performanceRunner: PerformanceTestRunner;
+  private readonly performanceRunner: PerformanceTestRunner;
 
   constructor() {
     this.performanceRunner = new PerformanceTestRunner();

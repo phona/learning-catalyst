@@ -77,9 +77,9 @@ const chatAPI: ChatAPI = {
               const messageHandler = (event: MessageEvent) => {
                 const { type, chunk, isComplete, error } = event.data;
                 switch (type) {
-                  case 'chat:chunk': resolveStream(chunk); break;
-                  case 'chat:complete': port.close(); resolveStream(undefined); return;
-                  case 'chat:error': rejectStream(new Error(error)); return;
+                case 'chat:chunk': resolveStream(chunk); break;
+                case 'chat:complete': port.close(); resolveStream(undefined); return;
+                case 'chat:error': rejectStream(new Error(error)); return;
                 }
               };
               port.onmessage = messageHandler;
@@ -171,7 +171,7 @@ const chatAPI: ChatAPI = {
   }) =>
     ipcRenderer.invoke('chat:getPracticeSuggestion', params)
 
-  };
+};
 
 // ============================================================================
 // 2. Learning & Sessions API
@@ -762,7 +762,7 @@ const settingsAPI: SettingsAPI = {
   updateLearningSettings: (settings: any) =>
     ipcRenderer.invoke('settings:updateLearningSettings', settings)
 
-  };
+};
 
 // ============================================================================
 // Complete electronAPI Export with Error Handling

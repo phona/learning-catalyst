@@ -1,8 +1,35 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
+/* eslint-disable no-undef */
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import path from 'node:path';
 
+type IpcHandler = (...args: unknown[]) => unknown;
+
+interface Dirent {
+  name: string;
+  isDirectory: () => boolean;
+  isFile: () => boolean;
+}
+
+interface FileStats {
+  size: number;
+  mtime: Date;
+  ctime: Date;
+  atime: Date;
+}
+
 const electronMocks = vi.hoisted(() => ({
-  handlerMap: new Map<string, (...args: any[]) => any>(),
+  handlerMap: new Map<string, IpcHandler>(),
   showOpenDialog: vi.fn(),
   showSaveDialog: vi.fn()
 }));
@@ -17,7 +44,7 @@ const fsMocks = vi.hoisted(() => ({
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: (channel: string, handler: (...args: any[]) => any) =>
+    handle: (channel: string, handler: IpcHandler): void =>
       electronMocks.handlerMap.set(channel, handler)
   },
   dialog: {
@@ -38,19 +65,19 @@ const showOpenDialog = electronMocks.showOpenDialog;
 const showSaveDialog = electronMocks.showSaveDialog;
 const mockFs = fsMocks;
 
-const getHandler = (channel: string) => {
+const getHandler = (channel: string): IpcHandler => {
   const handler = handlerMap.get(channel);
   expect(handler).toBeDefined();
-  return handler!;
+  return handler as IpcHandler;
 };
 
-const createDirent = (name: string, type: 'file' | 'dir') => ({
+const createDirent = (name: string, type: 'file' | 'dir'): Dirent => ({
   name,
-  isDirectory: () => type === 'dir',
-  isFile: () => type === 'file'
+  isDirectory: (): boolean => type === 'dir',
+  isFile: (): boolean => type === 'file'
 });
 
-const mockStats = {
+const mockStats: FileStats = {
   size: 100,
   mtime: new Date(),
   ctime: new Date(),
@@ -63,9 +90,9 @@ describe('filesystem handlers', () => {
     vi.clearAllMocks();
   });
 
-  it('returns workspace path and directory entries', async () => {
+  it('returns workspace path and directory entries', async (): Promise<void> => {
     const root = path.join('/', 'workspace');
-    mockFs.readdir.mockImplementation(async (dir: string) => {
+    mockFs.readdir.mockImplementation(async (dir: string): Promise<Dirent[]> => {
       const normalized = dir.replace(/\\/g, '/');
       if (normalized === root.replace(/\\/g, '/')) {
         return [createDirent('docs', 'dir'), createDirent('notes.md', 'file')];
@@ -79,36 +106,36 @@ describe('filesystem handlers', () => {
 
     setupFilesystemHandlers('/workspace');
 
-    const workspacePath = await getHandler('filesystem:get-workspace-path')(null);
+    const workspacePath = await (getHandler('filesystem:get-workspace-path'))(null);
     expect(workspacePath).toBe('/workspace');
 
-    const entries = await getHandler('filesystem:read-directory')(null, '/workspace', true, 2, {
+    const entries = await (getHandler('filesystem:read-directory'))(null, '/workspace', true, 2, {
       showHiddenFiles: false,
       excludePatterns: []
-    });
+    }) as Array<{ isMarkdown: boolean; path: string }>;
 
     expect(entries).toHaveLength(3);
-    const markdownFiles = entries.filter((entry: any) => entry.isMarkdown);
+    const markdownFiles = entries.filter((entry) => entry.isMarkdown);
     expect(markdownFiles).toHaveLength(2);
-    expect(entries.every((entry: any) => entry.path.includes('workspace'))).toBe(true);
+    expect(entries.every((entry) => entry.path.includes('workspace'))).toBe(true);
   });
 
-  it('checks path existence and proxies dialog calls', async () => {
+  it('checks path existence and proxies dialog calls', async (): Promise<void> => {
     mockFs.access.mockResolvedValue(undefined);
 
     setupFilesystemHandlers('/workspace');
 
-    const existsTrue = await getHandler('filesystem:path-exists')(null, '/workspace/notes.md');
+    const existsTrue = await (getHandler('filesystem:path-exists'))(null, '/workspace/notes.md');
     expect(existsTrue).toBe(true);
 
     mockFs.access.mockRejectedValueOnce(new Error('missing'));
-    const existsFalse = await getHandler('filesystem:path-exists')(null, '/workspace/missing.md');
+    const existsFalse = await (getHandler('filesystem:path-exists'))(null, '/workspace/missing.md');
     expect(existsFalse).toBe(false);
 
-    await getHandler('dialog:show-open')(null, { properties: ['openFile'] });
+    await (getHandler('dialog:show-open'))(null, { properties: ['openFile'] });
     expect(showOpenDialog).toHaveBeenCalled();
 
-    await getHandler('dialog:show-save')(null, { defaultPath: 'file.md' });
+    await (getHandler('dialog:show-save'))(null, { defaultPath: 'file.md' });
     expect(showSaveDialog).toHaveBeenCalled();
   });
 });

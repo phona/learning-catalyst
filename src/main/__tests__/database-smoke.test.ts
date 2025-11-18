@@ -4,6 +4,16 @@ import { promises as fs } from 'node:fs';
 import { setdbPath, executeQuery, fetchAll } from 'sqlite-electron';
 import { runMigrations } from '@/main/services/database/kysely-database';
 
+interface DatabaseRow {
+  value: string;
+  [key: string]: unknown;
+}
+
+interface QueryResult {
+  result?: DatabaseRow[];
+  rows?: DatabaseRow[];
+}
+
 describe('sqlite-electron smoke test', () => {
   it('executes real sqlite-electron queries end-to-end', async () => {
     await runMigrations();
@@ -17,11 +27,11 @@ describe('sqlite-electron smoke test', () => {
     const entryId = `direct-${Date.now()}`;
     await executeQuery('INSERT INTO smoke_entries (id, value) VALUES (?, ?)', [entryId, 'ok']);
 
-    const rows: any = await fetchAll('SELECT value FROM smoke_entries WHERE id = ?', [entryId]);
+    const rows = await fetchAll('SELECT value FROM smoke_entries WHERE id = ?', [entryId]) as DatabaseRow[] | QueryResult;
     const value =
       Array.isArray(rows) && rows.length
-        ? rows[0]?.value ?? rows[0]?.VALUE
-        : rows?.result?.[0]?.value ?? rows?.rows?.[0]?.value;
+        ? rows[0]?.value ?? (rows[0] as { VALUE?: string })?.VALUE
+        : (rows as QueryResult)?.result?.[0]?.value ?? (rows as QueryResult)?.rows?.[0]?.value;
 
     expect(value).toBe('ok');
 

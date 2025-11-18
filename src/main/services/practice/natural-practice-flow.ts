@@ -34,7 +34,7 @@ export interface NaturalPracticeFlowOptions {
 }
 
 export class NaturalPracticeFlow {
-  private options: NaturalPracticeFlowOptions;
+  private readonly options: NaturalPracticeFlowOptions;
 
   constructor(options: NaturalPracticeFlowOptions) {
     this.options = options;
@@ -100,14 +100,14 @@ export class NaturalPracticeFlow {
     context: UserContext
   ): string {
     switch (vibe) {
-      case 'understanding':
-        return "Nice! Since you're getting the hang of this, let's try something.";
-      case 'confused':
-        return "I see what might be tricky. Let's try a hands-on example.";
-      case 'breakthrough':
-        return "That's a great insight! Perfect time to put it into practice.";
-      default:
-        return "Let's try a quick practice exercise.";
+    case 'understanding':
+      return "Nice! Since you're getting the hang of this, let's try something.";
+    case 'confused':
+      return "I see what might be tricky. Let's try a hands-on example.";
+    case 'breakthrough':
+      return "That's a great insight! Perfect time to put it into practice.";
+    default:
+      return "Let's try a quick practice exercise.";
     }
   }
 }

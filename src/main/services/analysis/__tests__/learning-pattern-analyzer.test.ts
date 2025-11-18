@@ -552,7 +552,7 @@ describe('LearningPatternAnalyzer', () => {
       expect(stuckPoint).toBeDefined();
       expect(stuckPoint!.stuckLevel).toBe('moderate'); // Corrected to actual implementation
       // For moderate stuck level, check for base actions
-    expect(stuckPoint!.recommendedActions).toContain('Provide alternative explanations');
+      expect(stuckPoint!.recommendedActions).toContain('Provide alternative explanations');
     });
   });
 

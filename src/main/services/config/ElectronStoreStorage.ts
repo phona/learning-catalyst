@@ -7,7 +7,7 @@ import { IConfigStorage } from './interfaces';
  * Uses Electron's secure storage for persistence
  */
 export class ElectronStoreConfigStorage implements IConfigStorage {
-  private store: Store<AppConfig>;
+  private readonly store: Store<AppConfig>;
 
   constructor(name?: string) {
     this.store = new Store<AppConfig>({

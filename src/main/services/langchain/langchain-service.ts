@@ -51,11 +51,11 @@ export interface StreamingResponse {
  * Main thread LangChain service
  */
 export class LangChainServiceMain {
-  private config: LangChainServiceConfig;
-  private logger: any;
-  private als: AsyncLocalStorage<ServiceExecutionContext>;
+  private readonly config: LangChainServiceConfig;
+  private readonly logger: any;
+  private readonly als: AsyncLocalStorage<ServiceExecutionContext>;
   private initialized = false;
-  private providers: Map<string, ModelProvider> = new Map();
+  private readonly providers: Map<string, ModelProvider> = new Map();
 
   constructor(config: LangChainServiceConfig) {
     this.config = config;
@@ -271,7 +271,7 @@ export class LangChainServiceMain {
     }
 
     const provider = this.providers.get(providerName);
-    if (!provider || !provider.langchainModel) {
+    if (!provider?.langchainModel) {
       throw new Error(`Provider ${providerName} not found or not properly initialized`);
     }
 
@@ -367,7 +367,7 @@ export class LangChainServiceMain {
     }
 
     const provider = this.providers.get(providerName);
-    if (!provider || !provider.langchainModel) {
+    if (!provider?.langchainModel) {
       throw new Error(`Provider ${providerName} not found or not properly initialized`);
     }
 
@@ -432,7 +432,7 @@ export class LangChainServiceMain {
     }
 
     const provider = this.providers.get(providerName);
-    if (!provider || !provider.langchainModel) {
+    if (!provider?.langchainModel) {
       throw new Error(`Provider ${providerName} not found or not properly initialized`);
     }
 
@@ -479,7 +479,7 @@ export class LangChainServiceMain {
     }
 
     const provider = this.providers.get(providerName);
-    if (!provider || !provider.langchainModel) {
+    if (!provider?.langchainModel) {
       throw new Error(`Provider ${providerName} not found or not properly initialized`);
     }
 
@@ -702,21 +702,21 @@ export class LangChainServiceMain {
     // Convert other messages
     for (const message of messages) {
       switch (message.role.toLowerCase()) {
-        case 'system':
-          langchainMessages.push(new SystemMessage(message.content));
-          break;
-        case 'user':
-        case 'human':
-          langchainMessages.push(new HumanMessage(message.content));
-          break;
-        case 'assistant':
-        case 'ai':
-          langchainMessages.push(new AIMessage(message.content));
-          break;
-        default:
-          // Default to human message for unknown roles
-          langchainMessages.push(new HumanMessage(message.content));
-          break;
+      case 'system':
+        langchainMessages.push(new SystemMessage(message.content));
+        break;
+      case 'user':
+      case 'human':
+        langchainMessages.push(new HumanMessage(message.content));
+        break;
+      case 'assistant':
+      case 'ai':
+        langchainMessages.push(new AIMessage(message.content));
+        break;
+      default:
+        // Default to human message for unknown roles
+        langchainMessages.push(new HumanMessage(message.content));
+        break;
       }
     }
 

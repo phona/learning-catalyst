@@ -16,12 +16,12 @@ import { ILogger, IEventBus } from './registry/ServiceTokens';
  */
 export class ConfigService {
   private config: AppConfig | null = null;
-  private currentModelChangedCallbacks: ((modelType: ModelType, config: SelectedModel) => void)[] = [];
+  private readonly currentModelChangedCallbacks: ((modelType: ModelType, config: SelectedModel) => void)[] = [];
 
   constructor(
-    private configStorage: IConfigStorage,
-    private logger: ILogger,
-    private eventBus?: IEventBus
+    private readonly configStorage: IConfigStorage,
+    private readonly logger: ILogger,
+    private readonly eventBus?: IEventBus
   ) {}
 
   private async loadConfig(): Promise<void> {

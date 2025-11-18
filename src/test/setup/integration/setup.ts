@@ -18,10 +18,10 @@ const mockElectron = {
   app: {
     getPath: (name: string) => {
       switch (name) {
-        case 'userData':
-          return './test-data'
-        default:
-          return '.'
+      case 'userData':
+        return './test-data'
+      default:
+        return '.'
       }
     }
   },
@@ -175,14 +175,14 @@ beforeAll(async () => {
   // Mock require for Node.js modules
   ;(global as any).require = (moduleName: string) => {
     switch (moduleName) {
-      case 'electron':
-        return mockElectron
-      case 'fs/promises':
-        return mockFs
-      case 'kysely':
-        return { Kysely: vi.fn().mockImplementation(() => createMockDatabase()) }
-      default:
-        return {}
+    case 'electron':
+      return mockElectron
+    case 'fs/promises':
+      return mockFs
+    case 'kysely':
+      return { Kysely: vi.fn().mockImplementation(() => createMockDatabase()) }
+    default:
+      return {}
     }
   }
 

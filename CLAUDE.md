@@ -70,6 +70,9 @@ npm run test:coverage  # Generate coverage reports
 - Main process should NEVER invoke or access electronAPI - it only provides it
 - Dependency injection for loose coupling and testability
 - Direct and purposeful code modifications without unnecessary prefixes
+- Avoid overuse of 'any' type to maintain type safety
+- Avoid adding unnecessary try-catch blocks or defensive code that merely suppresses errors
+- Propagate errors to the UI layer where they should be rendered as user-friendly messages
 
 ## Project Structure
 

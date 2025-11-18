@@ -143,7 +143,7 @@ export function getMemoryLogger(): MemoryDebugLogger {
 
     if (enabled) {
       const interval = process.env.DEBUG_MEMORY_INTERVAL ?
-                      parseInt(process.env.DEBUG_MEMORY_INTERVAL, 10) : 10000;
+        parseInt(process.env.DEBUG_MEMORY_INTERVAL, 10) : 10000;
       memoryLogger = new MemoryDebugLogger(interval);
     }
   }

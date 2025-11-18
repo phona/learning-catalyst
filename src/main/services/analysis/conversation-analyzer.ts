@@ -63,9 +63,9 @@ interface TopicAnalysis {
  * Conversation Analyzer Service
  */
 export class ConversationAnalyzer {
-  private dependencies: ServiceDependencies;
-  private analysisCache = new Map<string, ConversationAnalysisResult>();
-  private cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  private readonly dependencies: ServiceDependencies;
+  private readonly analysisCache = new Map<string, ConversationAnalysisResult>();
+  private readonly cacheTimeout = 5 * 60 * 1000; // 5 minutes
 
   constructor(dependencies: ServiceDependencies) {
     this.dependencies = dependencies;
@@ -633,17 +633,17 @@ export class ConversationAnalyzer {
 
     // Vibe-based logic
     switch (vibe) {
-      case 'understanding':
-      case 'breakthrough':
-        return true;
-      case 'confused':
-        return userContext.confidenceLevel > 0.4;
-      case 'practicing':
-        return false; // Already practicing
-      case 'misunderstanding':
-        return false; // Needs clarification first
-      default:
-        return false;
+    case 'understanding':
+    case 'breakthrough':
+      return true;
+    case 'confused':
+      return userContext.confidenceLevel > 0.4;
+    case 'practicing':
+      return false; // Already practicing
+    case 'misunderstanding':
+      return false; // Needs clarification first
+    default:
+      return false;
     }
   }
 

@@ -472,8 +472,8 @@ describe('Concurrent Session Performance Tests', () => {
           sessionId,
           message,
           agentId: message.includes('practice') ? 'practice-agent-001' :
-                 message.includes('Assess') ? 'assessment-agent-001' :
-                 'learning-agent-001'
+            message.includes('Assess') ? 'assessment-agent-001' :
+              'learning-agent-001'
         })
       )
     );

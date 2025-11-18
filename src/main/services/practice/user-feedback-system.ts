@@ -91,20 +91,20 @@ export const DEFAULT_FEEDBACK_CONFIG: FeedbackConfig = {
  * User Feedback System
  */
 export class UserFeedbackSystem {
-  private logger: any;
-  private config: FeedbackConfig;
+  private readonly logger: any;
+  private readonly config: FeedbackConfig;
 
   // Feedback storage
-  private feedback: Map<string, UserFeedback[]> = new Map();
-  private feedbackWeights = new Map<string, number>(); // Weighted feedback importance
+  private readonly feedback: Map<string, UserFeedback[]> = new Map();
+  private readonly feedbackWeights = new Map<string, number>(); // Weighted feedback importance
 
   // Analysis and learning
   private lastAnalysis: FeedbackAnalysis | null = null;
   private analysisInterval: NodeJS.Timeout | null = null;
-  private improvementQueue: AdaptiveImprovement[] = [];
+  private readonly improvementQueue: AdaptiveImprovement[] = [];
 
   // A/B testing
-  private abTests = new Map<string, {
+  private readonly abTests = new Map<string, {
     variants: Map<string, any>;
     distribution: Map<string, number>;
     performance: Map<string, number>;
@@ -670,11 +670,11 @@ export class UserFeedbackSystem {
 
     const ratings = feedback.map(f => {
       switch (category) {
-        case 'overall_satisfaction': return f.rating;
-        case 'naturalness': return f.context.projectRelevant ? f.rating : Math.max(1, f.rating - 1);
-        case 'timing': return f.metrics.suggestionAccepted ? Math.min(5, f.rating + 1) : f.rating;
-        case 'relevance': return f.context.projectRelevant ? f.rating : Math.max(1, f.rating - 1);
-        default: return f.rating;
+      case 'overall_satisfaction': return f.rating;
+      case 'naturalness': return f.context.projectRelevant ? f.rating : Math.max(1, f.rating - 1);
+      case 'timing': return f.metrics.suggestionAccepted ? Math.min(5, f.rating + 1) : f.rating;
+      case 'relevance': return f.context.projectRelevant ? f.rating : Math.max(1, f.rating - 1);
+      default: return f.rating;
       }
     });
 
@@ -819,7 +819,7 @@ export class UserFeedbackSystem {
     ratingDistribution: Record<number, number>;
     feedbackByType: Record<string, number>;
     recentFeedback: UserFeedback[];
-  } {
+    } {
     const allFeedback = Array.from(this.feedback.values()).flat();
     const totalFeedback = allFeedback.length;
 

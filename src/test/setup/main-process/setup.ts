@@ -21,10 +21,10 @@ const mockElectron = {
   app: {
     getPath: (name: string) => {
       switch (name) {
-        case 'userData':
-          return './test-data';
-        default:
-          return '.';
+      case 'userData':
+        return './test-data';
+      default:
+        return '.';
       }
     }
   },
@@ -60,12 +60,12 @@ beforeAll(async () => {
   // Mock global objects
   (global as any).require = (moduleName: string) => {
     switch (moduleName) {
-      case 'electron':
-        return mockElectron;
-      case 'fs/promises':
-        return mockFs;
-      default:
-        return {};
+    case 'electron':
+      return mockElectron;
+    case 'fs/promises':
+      return mockFs;
+    default:
+      return {};
     }
   };
 

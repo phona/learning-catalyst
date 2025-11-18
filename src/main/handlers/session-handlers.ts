@@ -34,7 +34,7 @@ export function setupSessionHandlers(): void {
         success: true,
         sessions: result.sessions,
         total: result.total,
-        hasMore: result.has_more
+        hasMore: result.hasMore
       };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };

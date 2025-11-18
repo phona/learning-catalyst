@@ -52,7 +52,7 @@ export interface ModelExtractionResult {
 }
 
 export class AIConceptExtractor {
-  private models: Map<string, LangChainProviderAdapter> = new Map();
+  private readonly models: Map<string, LangChainProviderAdapter> = new Map();
   private config: AIExtractionConfig;
   private thresholds: ExtractionThresholds;
 

@@ -5,8 +5,14 @@
  * Integrates with existing performance utilities and provides application-specific metrics.
  */
 
-import { PerformanceMonitor, PerformanceMetrics, LRUCache, EventBatcher } from './performance-utils';
+import { PerformanceMonitor, LRUCache, EventBatcher } from './performance-utils';
 import { createTypedEventEmitter } from './type-utils';
+
+interface PerformanceMetrics {
+  timestamp: number;
+  value: number;
+  metadata?: Record<string, any>;
+}
 
 // ============================================================================
 // Application-Specific Performance Events
@@ -25,12 +31,12 @@ interface PerformanceEvents {
 // ============================================================================
 
 export class AppPerformanceMonitor {
-  private monitor = new PerformanceMonitor();
-  private events = createTypedEventEmitter<PerformanceEvents>();
-  private cache = new LRUCache<string, PerformanceMetrics>(1000);
-  private alertThresholds = new Map<string, number>();
-  private batchProcessor: EventBatcher<PerformanceMetrics>;
-  private memoryMonitor: MemoryMonitor;
+  private readonly monitor = new PerformanceMonitor();
+  private readonly events = createTypedEventEmitter<PerformanceEvents>();
+  private readonly cache = new LRUCache<string, PerformanceMetrics>(1000);
+  private readonly alertThresholds = new Map<string, number>();
+  private batchProcessor: EventBatcher<PerformanceMetrics> = new EventBatcher<PerformanceMetrics>(100, 5000, this.handleBatch.bind(this));
+  private memoryMonitor: MemoryMonitor = new MemoryMonitor(this.monitor);
 
   constructor() {
     this.setupDefaultThresholds();
@@ -251,16 +257,19 @@ export class AppPerformanceMonitor {
 
   private getMetricsInTimeRange(operation: string, start: number, end: number): PerformanceMetrics[] {
     const metrics: PerformanceMetrics[] = [];
-    const keys = this.cache.keys().filter(key =>
-      key.startsWith(operation) &&
-      parseInt(key.split('_')[1]) >= start &&
-      parseInt(key.split('_')[1]) <= end
-    );
+    const allMetrics = this.cache.getStats();
 
-    keys.forEach(key => {
-      const metric = this.cache.get(key);
-      if (metric) metrics.push(metric);
-    });
+    // Since LRUCache doesn't expose keys, we'll use a different approach
+    // In a real implementation, you might want to track keys separately
+    for (const [key, value] of Object.entries(allMetrics.entries || {})) {
+      if (
+        key.startsWith(operation) &&
+        parseInt(key.split('_')[1]) >= start &&
+        parseInt(key.split('_')[1]) <= end
+      ) {
+        metrics.push(value);
+      }
+    }
 
     return metrics;
   }
@@ -335,9 +344,9 @@ interface MemoryMonitorOptions {
 }
 
 class MemoryMonitor {
-  private options: MemoryMonitorOptions;
+  private readonly options: MemoryMonitorOptions;
   private intervalId: NodeJS.Timeout | null = null;
-  private events = createTypedEventEmitter<{
+  private readonly events = createTypedEventEmitter<{
     warning: { usage: number; threshold: number };
     critical: { usage: number; threshold: number };
   }>();

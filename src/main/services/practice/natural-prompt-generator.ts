@@ -3,7 +3,7 @@ import { ServiceDependencies } from '../types';
 import { PracticeVibeResult, UserContext } from '@/shared/types/practice';
 
 export class NaturalPromptGenerator {
-  private dependencies: ServiceDependencies;
+  private readonly dependencies: ServiceDependencies;
 
   constructor(dependencies: ServiceDependencies) {
     this.dependencies = dependencies;
@@ -30,23 +30,23 @@ export class NaturalPromptGenerator {
     const projectContext = userContext.currentProject?.name || 'your project';
 
     switch (vibe.vibe) {
-      case 'understanding':
-        return this.createUnderstandingPrompt(topic, projectContext);
+    case 'understanding':
+      return this.createUnderstandingPrompt(topic, projectContext);
       
-      case 'confused':
-        return this.createConfusedPrompt(topic, projectContext);
+    case 'confused':
+      return this.createConfusedPrompt(topic, projectContext);
       
-      case 'breakthrough':
-        return this.createBreakthroughPrompt(topic, projectContext);
+    case 'breakthrough':
+      return this.createBreakthroughPrompt(topic, projectContext);
       
-      case 'practicing':
-        return this.createPracticingPrompt(topic, projectContext);
+    case 'practicing':
+      return this.createPracticingPrompt(topic, projectContext);
       
-      case 'misunderstanding':
-        return this.createMisunderstandingPrompt(topic, projectContext);
+    case 'misunderstanding':
+      return this.createMisunderstandingPrompt(topic, projectContext);
       
-      default:
-        return this.createGenericPrompt(topic, projectContext);
+    default:
+      return this.createGenericPrompt(topic, projectContext);
     }
   }
 

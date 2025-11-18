@@ -55,7 +55,7 @@ export interface LearningInsight {
 }
 
 export class AnalyticsTracker {
-  constructor(private analytics: SimpleAnalyticsModule) {}
+  constructor(private readonly analytics: SimpleAnalyticsModule) {}
 
   /**
    * Start a new learning session with automatic tracking

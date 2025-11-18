@@ -67,12 +67,12 @@ interface StrategyDecision {
  * approach based on request complexity and user needs.
  */
 export class HybridOrchestrator {
-  private dependencies: ServiceDependencies;
-  private agentManager: AgentManagerMain;
-  private toolExecutor: ToolExecutorService;
-  private toolCallingOrchestrator: ToolCallingOrchestrator;
-  private handoffOrchestrator: HandoffOrchestrator;
-  private als: AsyncLocalStorage<ServiceExecutionContext>;
+  private readonly dependencies: ServiceDependencies;
+  private readonly agentManager: AgentManagerMain;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly toolCallingOrchestrator: ToolCallingOrchestrator;
+  private readonly handoffOrchestrator: HandoffOrchestrator;
+  private readonly als: AsyncLocalStorage<ServiceExecutionContext>;
 
   constructor(
     dependencies: ServiceDependencies,
@@ -173,44 +173,44 @@ export class HybridOrchestrator {
         try {
           // Execute based on chosen strategy
           switch (strategyDecision.strategy) {
-            case 'tool_calling':
-              yield* self.executeToolCallingPhase(
-                model,
-                strategyDecision,
-                hybridContext
-              );
-              phaseSuccess = true;
-              break;
+          case 'tool_calling':
+            yield* self.executeToolCallingPhase(
+              model,
+              strategyDecision,
+              hybridContext
+            );
+            phaseSuccess = true;
+            break;
 
-            case 'handoff':
-              yield* self.executeHandoffPhase(
-                model,
-                strategyDecision,
-                hybridContext
-              );
-              phaseSuccess = true;
-              break;
+          case 'handoff':
+            yield* self.executeHandoffPhase(
+              model,
+              strategyDecision,
+              hybridContext
+            );
+            phaseSuccess = true;
+            break;
 
-            case 'hybrid':
-              yield* self.executeHybridPhase(
-                model,
-                strategyDecision,
-                hybridContext
-              );
-              phaseSuccess = true;
-              break;
+          case 'hybrid':
+            yield* self.executeHybridPhase(
+              model,
+              strategyDecision,
+              hybridContext
+            );
+            phaseSuccess = true;
+            break;
 
-            case 'sequential':
-              yield* self.executeSequentialPhase(
-                model,
-                strategyDecision,
-                hybridContext
-              );
-              phaseSuccess = true;
-              break;
+          case 'sequential':
+            yield* self.executeSequentialPhase(
+              model,
+              strategyDecision,
+              hybridContext
+            );
+            phaseSuccess = true;
+            break;
 
-            default:
-              throw new Error(`Unknown strategy: ${strategyDecision.strategy}`);
+          default:
+            throw new Error(`Unknown strategy: ${strategyDecision.strategy}`);
           }
 
         } catch (error) {
@@ -376,8 +376,8 @@ ${recentMessages.map(msg => `[${msg.agentId || msg.role}] ${msg.content}`).join(
 
 Previous Phase Results:
 ${context.phaseHistory.slice(-2).map(phase =>
-  `Phase ${phase.phase}: ${phase.strategy} - ${phase.success ? 'Success' : 'Failed'} (${phase.reason})`
-).join('\n') || 'No previous phases'}`;
+    `Phase ${phase.phase}: ${phase.strategy} - ${phase.success ? 'Success' : 'Failed'} (${phase.reason})`
+  ).join('\n') || 'No previous phases'}`;
   }
 
   /**
@@ -469,7 +469,8 @@ ${context.phaseHistory.slice(-2).map(phase =>
         sessionId: context.sessionId,
         userId: 'system',
         timestamp: Date.now(),
-        correlationId: `${context.sessionId}_tool_${Date.now()}`
+        correlationId: `${context.sessionId}_tool_${Date.now()}`,
+        metadata: {}
       },
       {
         maxToolCalls: 5,
@@ -731,7 +732,7 @@ ${context.phaseHistory.slice(-2).map(phase =>
     availableStrategies: string[];
     availableAgents: number;
     availableTools: number;
-  } {
+    } {
     return {
       name: 'Hybrid Orchestrator',
       version: '1.0.0',

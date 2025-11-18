@@ -25,8 +25,8 @@ export interface ServiceDefinition<T = unknown> {
  * - Service lifecycle management
  */
 export class ServiceContainer<TServices extends Record<string, unknown> = Record<string, unknown>> {
-  private services = new Map<string, ServiceDefinition>();
-  private resolutions = new Set<string>();
+  private readonly services = new Map<string, ServiceDefinition>();
+  private readonly resolutions = new Set<string>();
   private isDisposed = false;
 
   /**
@@ -239,7 +239,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
     instantiatedServices: number;
     serviceNames: string[];
     isDisposed: boolean;
-  } {
+    } {
     const singletonServices = Array.from(this.services.values())
       .filter(def => def.singleton).length;
 
@@ -313,7 +313,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
  * Type-safe service container builder
  */
 export class ServiceContainerBuilder<TServices extends Record<string, unknown> = Record<string, unknown>> {
-  private container = new ServiceContainer<TServices>();
+  private readonly container = new ServiceContainer<TServices>();
 
   /**
    * Register a service
