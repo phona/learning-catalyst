@@ -21,10 +21,10 @@ const mockElectron = {
   app: {
     getPath: (name: string) => {
       switch (name) {
-        case 'userData':
-          return './test-data';
-        default:
-          return '.';
+      case 'userData':
+        return './test-data';
+      default:
+        return '.';
       }
     }
   },
@@ -60,12 +60,12 @@ beforeAll(async () => {
   // Mock global objects
   (global as any).require = (moduleName: string) => {
     switch (moduleName) {
-      case 'electron':
-        return mockElectron;
-      case 'fs/promises':
-        return mockFs;
-      default:
-        return {};
+    case 'electron':
+      return mockElectron;
+    case 'fs/promises':
+      return mockFs;
+    default:
+      return {};
     }
   };
 
@@ -423,7 +423,7 @@ vi.mock('../../../shared/utils/concept-manager', () => ({
 /**
  * Create mock service context
  */
-export function createMockContext(sessionId: string = 'test-session', operation: string = 'test') {
+export function createMockContext(sessionId = 'test-session', operation = 'test') {
   return {
     id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     sessionId,
@@ -437,7 +437,7 @@ export function createMockContext(sessionId: string = 'test-session', operation:
 /**
  * Create mock agent configuration
  */
-export function createMockAgentConfig(agentId: string = 'test-agent', type: string = 'learning') {
+export function createMockAgentConfig(agentId = 'test-agent', type = 'learning') {
   return {
     id: agentId,
     name: `Test ${type} Agent`,
@@ -479,7 +479,7 @@ export function createMockAIProvider() {
 /**
  * Create mock tool execution request
  */
-export function createMockToolRequest(toolId: string = 'test-tool', operation: string = 'test') {
+export function createMockToolRequest(toolId = 'test-tool', operation = 'test') {
   return {
     toolId,
     operation,

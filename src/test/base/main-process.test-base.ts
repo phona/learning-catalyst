@@ -283,7 +283,7 @@ export abstract class MainProcessTestBase {
   /**
    * Wait for async operations to complete
    */
-  protected async waitForAsyncOperations(timeoutMs: number = 100): Promise<void> {
+  protected async waitForAsyncOperations(timeoutMs = 100): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, timeoutMs))
   }
 
@@ -292,129 +292,6 @@ export abstract class MainProcessTestBase {
    */
   protected expectPerformance(operation: string, thresholdMs: number): void {
     this.performanceMonitor.expectAverageUnder(operation, thresholdMs)
-  }
-}
-
-/**
- * Base class for agent lifecycle tests
- */
-export abstract class AgentLifecycleTestBase extends MainProcessTestBase {
-  protected mockAgentRegistry: any
-  protected agentLifecycleManager: any
-
-  constructor() {
-    super()
-    this.mockAgentRegistry = this.createMockAgentRegistry()
-  }
-
-  /**
-   * Create mock agent registry
-   */
-  protected createMockAgentRegistry(): any {
-    return {
-      registerAgent: vi.fn().mockImplementation((config) => {
-        return Promise.resolve({
-          id: 'test-agent-id',
-          type: config.type,
-          name: config.name,
-          description: config.description,
-          systemPrompt: config.systemPrompt,
-          tools: config.tools || [],
-          modelConfig: config.modelConfig,
-          status: 'inactive',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          ...config
-        })
-      }),
-      getAgent: vi.fn().mockImplementation((id) => {
-        if (id === 'test-agent-id') {
-          return Promise.resolve({
-            id: 'test-agent-id',
-            type: 'learning',
-            name: 'Test Agent',
-            description: 'Test Description',
-            systemPrompt: 'Test Prompt',
-            tools: [],
-            modelConfig: { provider: 'openai', model: 'gpt-4' },
-            status: 'inactive',
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-          })
-        }
-        return Promise.resolve(null)
-      }),
-      activateAgent: vi.fn().mockImplementation((id) => {
-        return Promise.resolve({
-          id,
-          type: 'learning',
-          name: 'Test Agent',
-          description: 'Test Description',
-          systemPrompt: 'Test Prompt',
-          tools: [],
-          modelConfig: { provider: 'openai', model: 'gpt-4' },
-          status: 'active',
-          activatedAt: Date.now(),
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        })
-      }),
-      deactivateAgent: vi.fn().mockImplementation((id) => {
-        return Promise.resolve({
-          id,
-          type: 'learning',
-          name: 'Test Agent',
-          description: 'Test Description',
-          systemPrompt: 'Test Prompt',
-          tools: [],
-          modelConfig: { provider: 'openai', model: 'gpt-4' },
-          status: 'inactive',
-          deactivatedAt: Date.now(),
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        })
-      }),
-      updateAgent: vi.fn(),
-      deleteAgent: vi.fn(),
-      listAgents: vi.fn().mockResolvedValue([]),
-      getAgentsByType: vi.fn().mockResolvedValue([])
-    }
-  }
-
-  /**
-   * Setup agent-specific mocks
-   */
-  protected setupAgentMocks(): void {
-    super.setupTest()
-
-    // Setup database transaction mock
-    this.mockServices.database.transaction.mockImplementation(async (fn) => {
-      return fn(this.mockServices.database)
-    })
-  }
-
-  /**
-   * Create test agent configuration
-   */
-  protected createTestAgentConfig(overrides: any = {}): any {
-    return {
-      type: 'learning',
-      name: 'Test Agent',
-      description: 'Agent for testing',
-      systemPrompt: 'You are a helpful test assistant.',
-      tools: ['concept-parser', 'knowledge-graph'],
-      modelConfig: {
-        provider: 'openai',
-        model: 'gpt-4',
-        temperature: 0.7,
-        maxTokens: 2000
-      },
-      metadata: {
-        version: '1.0.0',
-        author: 'test-suite'
-      },
-      ...overrides
-    }
   }
 }
 

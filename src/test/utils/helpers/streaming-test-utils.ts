@@ -124,7 +124,7 @@ export async function* createMockStream(
 // Streaming test collector
 export class StreamingTestCollector {
   private chunks: StreamingChunk[] = [];
-  private startTime: number = 0;
+  private startTime = 0;
   private endTime?: number;
   private errors: Error[] = [];
   private events: string[] = [];
@@ -207,7 +207,7 @@ export class StreamingTestCollector {
 export class MessageChannelTestHelper {
   private messagePort: any;
   private collector: StreamingTestCollector;
-  private isConnected: boolean = false;
+  private isConnected = false;
 
   constructor() {
     this.collector = new StreamingTestCollector();

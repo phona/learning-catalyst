@@ -121,7 +121,7 @@ export const cleanupMockElectronAPI = () => {
 /**
  * Test helper to mock useAppServices hook
  */
-export const mockUseAppServices = (services: any, ready: boolean = true, error: string | null = null) => {
+export const mockUseAppServices = (services: any, ready = true, error: string | null = null) => {
   vi.doMock('@/renderer/hooks/useAppServices', () => ({
     useAppServices: () => ({
       services,
@@ -217,21 +217,21 @@ export const simulateProductionError = (errorType: 'missing_service' | 'null_ser
   const baseServices = createProductionServiceContainer();
 
   switch (errorType) {
-    case 'missing_service':
-      // Remove sessionService key entirely
-      const { sessionService, ...servicesWithoutSession } = baseServices;
-      return servicesWithoutSession;
+  case 'missing_service':
+    // Remove sessionService key entirely
+    const { sessionService, ...servicesWithoutSession } = baseServices;
+    return servicesWithoutSession;
 
-    case 'null_service':
-      // Explicitly set sessionService to null (this is the production bug)
-      return baseServices;
+  case 'null_service':
+    // Explicitly set sessionService to null (this is the production bug)
+    return baseServices;
 
-    case 'undefined_service':
-      // Set sessionService to undefined
-      return { ...baseServices, sessionService: undefined };
+  case 'undefined_service':
+    // Set sessionService to undefined
+    return { ...baseServices, sessionService: undefined };
 
-    default:
-      return baseServices;
+  default:
+    return baseServices;
   }
 };
 

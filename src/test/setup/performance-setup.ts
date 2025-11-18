@@ -109,7 +109,7 @@ export const PerformanceTestUtils = {
    */
   async measureExecutionTime<T>(
     fn: () => Promise<T> | T,
-    iterations: number = 1
+    iterations = 1
   ): Promise<{
     totalTime: number;
     averageTime: number;
@@ -167,7 +167,7 @@ export const PerformanceTestUtils = {
   /**
    * Simulate CPU load
    */
-  async simulateCPULoad(durationMs: number, intensity: number = 0.5): Promise<void> {
+  async simulateCPULoad(durationMs: number, intensity = 0.5): Promise<void> {
     const endTime = Date.now() + durationMs;
     const operationsPerSecond = Math.floor(1000000 * intensity); // Adjust based on intensity
 
@@ -208,7 +208,7 @@ export const PerformanceTestUtils = {
     heapTotal: number;
     external: number;
     arrayBuffers: number;
-  } {
+    } {
     if (typeof process !== 'undefined' && process.memoryUsage) {
       return process.memoryUsage();
     }

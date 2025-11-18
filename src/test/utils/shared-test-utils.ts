@@ -84,7 +84,7 @@ export class MemoryTestHelper {
   sample(): void {
     this.samples.push({
       timestamp: Date.now(),
-      heapUsed: process.memoryUsage().heapUsed
+      heapUsed: (typeof process !== 'undefined' ? process.memoryUsage().heapUsed : 0)
     });
   }
 
@@ -101,7 +101,7 @@ export class MemoryTestHelper {
   }
 
   forceGarbageCollection(): void {
-    if (global.gc) {
+    if (typeof global !== 'undefined' && global.gc) {
       global.gc();
     }
   }
@@ -141,15 +141,19 @@ export const createBasicUserContext = (overrides: any = {}) => ({
 
 // Common assertion helpers
 export const expectValidResponse = (response: any) => {
-  expect(response).toBeDefined();
-  expect(response.content).toBeDefined();
-  expect(response.metadata).toBeDefined();
+  if (typeof expect === 'function') {
+    expect(response).toBeDefined();
+    expect(response.content).toBeDefined();
+    expect(response.metadata).toBeDefined();
+  }
 };
 
 export const expectValidStreamingChunk = (chunk: any) => {
-  expect(chunk).toHaveProperty('content');
-  expect(chunk).toHaveProperty('metadata');
-  expect(chunk.metadata).toHaveProperty('provider');
+  if (typeof expect === 'function') {
+    expect(chunk).toHaveProperty('content');
+    expect(chunk).toHaveProperty('metadata');
+    expect(chunk.metadata).toHaveProperty('provider');
+  }
 };
 
 // Common cleanup utilities
@@ -170,11 +174,13 @@ export const expectGracefulError = async (
     // This might be acceptable depending on the operation
     return true;
   } catch (error) {
-    expect(error).toBeInstanceOf(Error);
-    if (typeof expectedErrorPattern === 'string') {
-      expect((error as Error).message).toContain(expectedErrorPattern);
-    } else {
-      expect((error as Error).message).toMatch(expectedErrorPattern);
+    if (typeof expect === 'function') {
+      expect(error).toBeInstanceOf(Error);
+      if (typeof expectedErrorPattern === 'string') {
+        expect((error as Error).message).toContain(expectedErrorPattern);
+      } else {
+        expect((error as Error).message).toMatch(expectedErrorPattern);
+      }
     }
   }
 };

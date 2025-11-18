@@ -21,56 +21,23 @@ export const mockAgentRegistry = vi.fn().mockReturnValue({
   listAgents: vi.fn().mockResolvedValue([])
 });
 
-// Mock Database Service
-export const mockDatabaseService = {
-  connect: vi.fn().mockResolvedValue(true),
-  disconnect: vi.fn().mockResolvedValue(true),
-  query: vi.fn().mockResolvedValue([]),
-  execute: vi.fn().mockResolvedValue({ success: true }),
-  transaction: vi.fn().mockImplementation(async (fn) => {
-    await fn();
-    return { success: true };
-  }),
-  // For error simulation
-  _simulateError: false,
-  simulateError() {
-    this._simulateError = true;
-    this.query = vi.fn().mockRejectedValue(new Error('Database connection lost'));
-  },
-  resetError() {
-    this._simulateError = false;
-    this.query = vi.fn().mockResolvedValue([]);
-  }
-};
-
 // Mock LangChain Service
-export const mockLangChainService = {
-  processMessage: vi.fn().mockResolvedValue({
-    type: 'learning_explanation',
-    content: 'Mock LangChain response',
-    metadata: { tokensUsed: 100, modelUsed: 'gpt-3.5-turbo' }
+// Mock Domain Agent
+export const mockDomainAgent = {
+  run: vi.fn().mockResolvedValue({
+    content: 'Mock Domain agent response',
+    model: 'mock-domain',
+    provider: 'openai',
+    agentType: 'domain'
   }),
-  initialize: vi.fn().mockResolvedValue(undefined),
-  cleanup: vi.fn(),
-  // For error simulation
-  _simulateError: false,
-  simulateError() {
-    this._simulateError = true;
-    this.processMessage = vi.fn().mockRejectedValue(new Error('API rate limit exceeded'));
-  },
-  resetError() {
-    this._simulateError = false;
-    this.processMessage = vi.fn().mockResolvedValue({
-      type: 'learning_explanation',
-      content: 'Mock LangChain response',
-      metadata: { tokensUsed: 100, modelUsed: 'gpt-3.5-turbo' }
-    });
-  }
+  stream: vi.fn().mockImplementation(async function* () {
+    yield 'Mock stream chunk';
+  })
 };
 
 // Mock Catalyst Service
 export const mockCatalystService = () => {
-  let sessionIdCounter = 1;
+  // let sessionIdCounter = 1; // Unused variable - kept for future use
   const mockSessions = new Map();
   const globalSessionData = new Map(); // Track session data across calls
   let simulateLangChainError = false;
@@ -204,7 +171,7 @@ export const mockCatalystService = () => {
       };
     }),
     selectAgent: vi.fn().mockImplementation(async (data) => {
-      const { userInput, context } = data;
+      const { userInput, /* context */ } = data;
 
       // Dynamic agent selection based on context
       let agentType = 'learning';
@@ -265,7 +232,7 @@ export const mockCatalystService = () => {
       };
     }),
     completeSession: vi.fn().mockImplementation(async (data) => {
-      const { sessionId, finalMastery, userFeedback } = data;
+      const { sessionId, finalMastery, /* userFeedback */ } = data;
 
       return {
         sessionId,
@@ -386,7 +353,7 @@ export const mockCatalystService = () => {
       getState: vi.fn().mockReturnValue('closed')
     }),
 
-    setServiceAvailability: vi.fn().mockImplementation((serviceName, available) => {
+    setServiceAvailability: vi.fn().mockImplementation((_serviceName, _available) => {
       // Mock service availability control
       return true;
     }),
@@ -485,7 +452,7 @@ export const mockElectronIPC = {
 
 // Mock Session Service
 export const mockSessionService = {
-  createSession: vi.fn().mockImplementation(async (sessionData) => {
+  createSession: vi.fn().mockImplementation(async (_sessionData) => {
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     return sessionId;
   }),
@@ -493,14 +460,14 @@ export const mockSessionService = {
   searchSessions: vi.fn().mockResolvedValue({
     sessions: [],
     total: 0,
-    has_more: false
+    hasMore: false
   }),
   getRecentSessions: vi.fn().mockResolvedValue([]),
   saveMessage: vi.fn().mockResolvedValue(undefined),
   saveMessages: vi.fn().mockResolvedValue(undefined),
   updateMessage: vi.fn().mockResolvedValue(undefined),
   deleteSession: vi.fn().mockResolvedValue(true),
-  saveSessionWithMessages: vi.fn().mockImplementation(async (memorySession, messages) => {
+  saveSessionWithMessages: vi.fn().mockImplementation(async (memorySession, _messages) => {
     return memorySession.id || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }),
   updateSessionTitle: vi.fn().mockResolvedValue(undefined),
@@ -521,9 +488,8 @@ export const mockSessionService = {
 // Mock Service Factory
 export const createMockServices = () => ({
   agentRegistry: mockAgentRegistry,
-  databaseService: mockDatabaseService,
   catalystService: mockCatalystService(),
-  langChainService: mockLangChainService,
+  domainAgent: mockDomainAgent,
   errorRecoveryManager: mockErrorRecoveryManager,
   healthMonitor: mockSystemHealthMonitor,
   ipc: mockElectronIPC,
@@ -532,9 +498,8 @@ export const createMockServices = () => ({
 
 export default {
   mockAgentRegistry,
-  mockDatabaseService,
   mockCatalystService,
-  mockLangChainService,
+  mockDomainAgent,
   mockErrorRecoveryManager,
   mockSystemHealthMonitor,
   mockElectronIPC,

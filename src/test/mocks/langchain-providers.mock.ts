@@ -58,7 +58,7 @@ class MockResponseGenerator {
     return providerResponses[Math.floor(Math.random() * providerResponses.length)]
   }
 
-  static getStreamingChunks(provider: string, count: number = 5): string[] {
+  static getStreamingChunks(provider: string, count = 5): string[] {
     const baseResponse = this.getRandomResponse(provider)
     const chunkSize = Math.ceil(baseResponse.length / count)
     const chunks: string[] = []
@@ -79,45 +79,45 @@ class MockResponseGenerator {
 class MockErrorGenerator {
   static generateError(scenario: ErrorScenario): Error {
     switch (scenario) {
-      case 'timeout':
-        const timeoutError = new Error('Request timeout')
+    case 'timeout':
+      const timeoutError = new Error('Request timeout')
         ;(timeoutError as any).code = 'ETIMEDOUT'
-        ;(timeoutError as any).status = 408
-        return timeoutError
+      ;(timeoutError as any).status = 408
+      return timeoutError
 
-      case 'rate_limit':
-        const rateLimitError = new Error('Rate limit exceeded. Please try again later.')
+    case 'rate_limit':
+      const rateLimitError = new Error('Rate limit exceeded. Please try again later.')
         ;(rateLimitError as any).code = 'rate_limit_exceeded'
-        ;(rateLimitError as any).status = 429
-        ;(rateLimitError as any).retryAfter = 60
-        return rateLimitError
+      ;(rateLimitError as any).status = 429
+      ;(rateLimitError as any).retryAfter = 60
+      return rateLimitError
 
-      case 'auth_error':
-        const authError = new Error('Invalid API key provided')
+    case 'auth_error':
+      const authError = new Error('Invalid API key provided')
         ;(authError as any).code = 'authentication_error'
-        ;(authError as any).status = 401
-        return authError
+      ;(authError as any).status = 401
+      return authError
 
-      case 'content_filter':
-        const contentFilterError = new Error('Content filtered due to policy violation')
+    case 'content_filter':
+      const contentFilterError = new Error('Content filtered due to policy violation')
         ;(contentFilterError as any).code = 'content_filter'
-        ;(contentFilterError as any).status = 400
-        return contentFilterError
+      ;(contentFilterError as any).status = 400
+      return contentFilterError
 
-      case 'server_error':
-        const serverError = new Error('Internal server error')
+    case 'server_error':
+      const serverError = new Error('Internal server error')
         ;(serverError as any).code = 'internal_server_error'
-        ;(serverError as any).status = 500
-        return serverError
+      ;(serverError as any).status = 500
+      return serverError
 
-      case 'network_error':
-        const networkError = new Error('Network connection failed')
+    case 'network_error':
+      const networkError = new Error('Network connection failed')
         ;(networkError as any).code = 'ENOTFOUND'
-        ;(networkError as any).status = 0
-        return networkError
+      ;(networkError as any).status = 0
+      return networkError
 
-      default:
-        return new Error('Unknown error occurred')
+    default:
+      return new Error('Unknown error occurred')
     }
   }
 }
@@ -202,7 +202,7 @@ export function createProviderMock(provider: string, config: ProviderMockConfig 
       return mockProvider
     },
 
-    withErrorScenario: (scenario: ErrorScenario, probability: number = 1) => {
+    withErrorScenario: (scenario: ErrorScenario, probability = 1) => {
       config.errorScenario = scenario
       config.errorProbability = probability
       return mockProvider
@@ -283,7 +283,7 @@ export class LangChainProviderMockFactory {
   /**
    * Create mock with intermittent errors
    */
-  static createIntermittentErrorProvider(provider: string, scenario: ErrorScenario, errorRate: number = 0.1): any {
+  static createIntermittentErrorProvider(provider: string, scenario: ErrorScenario, errorRate = 0.1): any {
     return createProviderMock(provider, {
       errorScenario: scenario,
       errorProbability: errorRate
@@ -293,7 +293,7 @@ export class LangChainProviderMockFactory {
   /**
    * Create slow provider for performance testing
    */
-  static createSlowProvider(provider: string, responseTimeMs: number = 5000): any {
+  static createSlowProvider(provider: string, responseTimeMs = 5000): any {
     return createProviderMock(provider, {
       responseTime: responseTimeMs
     })

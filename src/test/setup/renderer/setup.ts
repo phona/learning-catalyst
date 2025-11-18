@@ -446,7 +446,7 @@ export function createMockMessage(overrides: any = {}) {
 /**
  * Wait for DOM updates in React tests
  */
-export async function waitForDOMUpdate(ms: number = 0): Promise<void> {
+export async function waitForDOMUpdate(ms = 0): Promise<void> {
   await new Promise(resolve => setTimeout(resolve, ms));
 }
 

@@ -17,12 +17,12 @@ const mockElectronAPI = {
   app: {
     getPath: vi.fn((name: string) => {
       switch (name) {
-        case 'userData':
-          return './test-data';
-        case 'documents':
-          return './test-documents';
-        default:
-          return '.';
+      case 'userData':
+        return './test-data';
+      case 'documents':
+        return './test-documents';
+      default:
+        return '.';
       }
     }),
     getVersion: vi.fn(() => '1.0.0-test'),
