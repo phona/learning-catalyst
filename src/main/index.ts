@@ -14,12 +14,31 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setupAllIpcHandlers } from './handlers'
 import { createAppMenu } from './menu'
-import { getQdrantManager } from './qdrant-manager'
-import { QdrantManager } from './qdrant-manager'
-import { initializeCatalystService, disposeCatalystService } from './services/catalyst/catalyst-service'
-import { mainServiceRegistry } from './services/registry/MainServiceRegistry'
-import { mainServiceContainerManager } from './services/container/service-container'
-import { MAIN_SERVICE_TOKENS } from './services/registry/ServiceTokens'
+import { LoggerFactory } from './services/logger'
+
+// Import the new service factories
+import { createConfigService } from '@/main/services/core/config/config-service'
+import { createLoggerService } from '@/main/services/core/logger/logger-service'
+import { createChatService } from '@/main/services/domain/chat/chat-service'
+import { createLearningService } from '@/main/services/domain/learning/learning-service'
+import { createKnowledgeService } from '@/main/services/domain/knowledge/knowledge-service'
+import { createConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service'
+import { createPracticeService } from '@/main/services/domain/practice/practice-service'
+import { createContentService } from '@/main/services/domain/content/content-service'
+import { createAnalyticsService } from '@/main/services/domain/analytics/analytics-service'
+import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager'
+import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager'
+import { createDomainAgent } from '@/main/services/agent/domain-agent'
+import { VectorDatabaseModule } from './services/domain/knowledge/vector/vector-database'
+
+// Import database from existing implementation
+import {
+  createDatabase,
+  createSqliteDriverFactory,
+  getDefaultDatabasePath,
+  runMigrations
+} from './services/core/database/kysely-database'
+
 // Memory debugging utility for development
 import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
 
@@ -136,16 +155,94 @@ async function createWindow(): Promise<void> {
   const workspacePath = workspaceEnv ? path.resolve(workspaceEnv) : (workspaceArg ? path.resolve(workspaceArg) : process.cwd())
   console.log(`Using workspace: ${workspacePath}`)
 
-  // Initialize Catalyst service before setting up IPC handlers
-  try {
-    await initializeCatalystService(win, workspacePath)
-    console.log('✅ Catalyst service initialized successfully')
-  } catch (error) {
-    console.error('❌ Failed to initialize Catalyst service:', error)
-    // Continue with IPC handler setup but log the error
-  }
+  // Initialize all services using the new functional architecture
+  const loggerFactory = LoggerFactory.getInstance();
+  const logger = loggerFactory.createContextAwareLogger();
+  const loggerService = createLoggerService({ logger });
 
-  setupAllIpcHandlers(win, workspacePath)
+  // Create the actual database instance using the new driver factory pattern
+  const dbPath = getDefaultDatabasePath();
+  const driverFactory = await createSqliteDriverFactory(dbPath);
+  const database = createDatabase(driverFactory);
+
+  // Run database migrations before wiring domain services
+  await runMigrations(driverFactory);
+  
+  // Mock config storage implementation (would be replaced with real implementation)
+  const mockConfigStorage = {
+    loadConfig: async () => ({}),
+    saveConfig: async (_config: any) => {},
+    hasConfig: async () => false,
+    clearConfig: async () => {}
+  };
+  
+  const configService = createConfigService({ 
+    storage: mockConfigStorage as any, 
+    logger 
+  });
+  
+  const domainAgent = await createDomainAgent({
+    configService
+  });
+
+  const aiServiceManager = createAiServiceManager({
+    loggerService,
+    configService
+  });
+  await aiServiceManager.waitForReady();
+  const aiService = aiServiceManager;
+
+  const learningService = createLearningService({ db: database, loggerService, aiService, domainAgent });
+  const vectorDatabase = new VectorDatabaseModule();
+  await vectorDatabase.start();
+  const knowledgeService = createKnowledgeService({
+    db: database,
+    loggerService
+  });
+  const conceptParsingService = createConceptParsingService({
+    aiService,
+    domainAgent,
+    vectorDatabase,
+    loggerService
+  });
+  const practiceService = createPracticeService({
+    aiService,
+    domainAgent,
+    loggerService,
+    knowledgeService
+  });
+  const analyticsService = createAnalyticsService({ db: database, loggerService });
+  const contentService = createContentService({ loggerService, aiService });
+  const agentManager: AgentManager = await createAgentManager({
+    aiService,
+    analyticsService,
+    conceptParsingService,
+    learningService,
+    loggerService,
+    configService
+  });
+  
+  const chatService = createChatService({
+    db: database,
+    loggerService,
+    aiService,
+    domainAgent,
+    agentManager
+  });
+
+  // Setup IPC handlers with all services
+  await setupAllIpcHandlers(win, workspacePath, {
+    chatService,
+    learningService,
+    knowledgeService,
+    conceptParsingService,
+    practiceService,
+    analyticsService,
+    contentService,
+    aiService,
+    loggerService,
+    configService
+  });
 
   // Setup application menu
   const menu = createAppMenu(win)
@@ -162,88 +259,28 @@ async function cleanup() {
   // Clean up memory debugging
   cleanupMemoryDebug();
 
-  // Clean up main process service registry
-  if (mainServiceRegistry.isInitialized()) {
-    try {
-      await mainServiceRegistry.dispose()
-      console.log('✅ Main process service registry disposed successfully')
-    } catch (error) {
-      console.warn('Failed to dispose main process service registry:', error)
-    }
-  }
-
-  // Clean up main process service container
-  if (mainServiceContainerManager.isInitialized()) {
-    try {
-      await mainServiceContainerManager.dispose()
-      console.log('✅ Main process service container disposed successfully')
-    } catch (error) {
-      console.warn('Failed to dispose main process service container:', error)
-    }
-  }
-
-  // Clean up Catalyst service
-  try {
-    await disposeCatalystService()
-    console.log('✅ Catalyst service disposed successfully')
-  } catch (error) {
-    console.warn('Failed to dispose Catalyst service:', error)
-  }
-
-  // Clean up Qdrant manager
-  const qdrantManager = getQdrantManager()
-  if (qdrantManager && typeof qdrantManager.shutdown === 'function') {
-    qdrantManager.shutdown()
-  }
-
-  // Clean up static Qdrant resources
-  try {
-    if (QdrantManager && typeof QdrantManager.cleanup === 'function') {
-      QdrantManager.cleanup()
-    }
-  } catch (error) {
-    console.warn('Failed to cleanup Qdrant static resources:', error)
-  }
-
-  // Cleanup completed
+  // Clean up any additional resources as needed
+  console.log('✅ Cleanup completed');
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  console.log('🚀 Learning Catalyst starting...')
-
-  // Initialize main process service registry first
-  await mainServiceRegistry.initialize()
-  console.log('✅ Main process service registry initialized successfully')
-
-  // Initialize main process service container
-  const logger = mainServiceRegistry.get(MAIN_SERVICE_TOKENS.LOGGER);
-  await mainServiceContainerManager.initialize({
-    databasePath: path.join(process.env.APP_ROOT || '', 'data', 'learning-catalyst.db'),
-    logger
-  })
-  console.log('✅ Main process service container initialized successfully')
+  console.log('🚀 Learning Catalyst starting with new architecture...')
 
   // Initialize memory debugging for development
   startMemoryDebug();
 
-  // Initialize Qdrant service
-  const qdrantManager = getQdrantManager();
-  qdrantManager.initialize().catch((error: any) => {
-    console.error('Failed to initialize Qdrant manager:', error);
-  });
-
   // Create the main window
   await createWindow();
 
-  console.log('✅ Learning Catalyst ready!')
+  console.log('✅ Learning Catalyst ready with new service architecture!')
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// explicitly with cmd + Q.
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
     await cleanup()
@@ -266,4 +303,3 @@ app.on('before-quit', async () => {
 app.on('will-quit', async () => {
   await cleanup()
 })
-

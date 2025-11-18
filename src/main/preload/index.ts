@@ -22,10 +22,25 @@ import {
   AnalyticsAPI,
   AgentsAPI,
   ContentAPI,
-  SettingsAPI,
-  SessionsAPI
+  SettingsAPI
 } from '@/shared/types/electron-api';
-import type { DirectoryFilterConfig } from '@/shared/types/filesystem';
+import type {
+  SessionsAPI,
+  SessionStatistics
+} from '@/shared/types/electron-api/sessions-api';
+import type {
+  Session,
+  SessionSearchQuery,
+  MemorySession,
+  ConversationMessage
+} from '@/shared/types/session';
+import type {
+  CreateLearningSessionRequest,
+  ConceptProgressUpdate
+} from '@/shared/interfaces/analytics.interface';
+import type {
+  ConceptParsingResult
+} from '@/shared/types/electron-api/knowledge-api';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -38,35 +53,12 @@ import type { DirectoryFilterConfig } from '@/shared/types/filesystem';
  * All methods return display-optimized data ready for UI rendering.
  */
 const chatAPI: ChatAPI = {
-  /**
-   * Starts a new conversation with an AI agent
-   * @param params.agentType - Type of agent ('learning', 'tutoring', 'assessment', 'practice')
-   * @param params.topic - Optional topic to focus the conversation
-   * @param params.preferences - User preferences for response style, difficulty, etc.
-   * @returns Promise<ConversationDisplay> - Display-ready conversation object
-   */
   startConversation: (params) =>
-    ipcRenderer.invoke('chat:startConversation', params),
+    ipcRenderer.invoke('chat:start-conversation', params),
 
-  /**
-   * Sends a message and gets response (non-streaming)
-   * Use this for simple Q&A where streaming isn't needed
-   * @param params.conversationId - Active conversation ID
-   * @param params.message - Message content to send
-   * @param params.attachments - Optional file attachments
-   * @returns Promise<MessageDisplay> - Complete response message
-   */
   sendMessage: (params) =>
-    ipcRenderer.invoke('chat:sendMessage', params),
+    ipcRenderer.invoke('chat:send-message', params),
 
-  /**
-   * Sends a message with streaming response
-   * Use this for long responses or when you want real-time feedback
-   * @param params.conversationId - Active conversation ID
-   * @param params.message - Message content to send
-   * @param params.attachments - Optional file attachments
-   * @returns Promise<AsyncIterable<string>> - Stream of response chunks
-   */
   sendMessageStream: (params) => {
     return new Promise((resolve) => {
       const streamReadyHandler = (event: any) => {
@@ -75,11 +67,18 @@ const chatAPI: ChatAPI = {
           async *[Symbol.asyncIterator]() {
             return new Promise((resolveStream, rejectStream) => {
               const messageHandler = (event: MessageEvent) => {
-                const { type, chunk, isComplete, error } = event.data;
+                const { type, chunk, error } = event.data;
                 switch (type) {
-                case 'chat:chunk': resolveStream(chunk); break;
-                case 'chat:complete': port.close(); resolveStream(undefined); return;
-                case 'chat:error': rejectStream(new Error(error)); return;
+                case 'chat:chunk':
+                  resolveStream(chunk);
+                  break;
+                case 'chat:complete':
+                  port.close();
+                  resolveStream(undefined);
+                  break;
+                case 'chat:error':
+                  rejectStream(new Error(error));
+                  break;
                 }
               };
               port.onmessage = messageHandler;
@@ -91,86 +90,30 @@ const chatAPI: ChatAPI = {
         ipcRenderer.removeListener('chat:stream-ready', streamReadyHandler);
       };
       ipcRenderer.on('chat:stream-ready', streamReadyHandler);
-      ipcRenderer.send('chat:streamMessage', params);
+      ipcRenderer.send('chat:start-stream', params);
     });
   },
 
-  /**
-   * Gets real-time typing indicator
-   * Use this to show when the AI is typing or processing
-   * @param conversationId - Active conversation ID
-   * @returns Promise<TypingIndicator> - Typing status and agent info
-   */
   getTypingIndicator: (conversationId: string) =>
-    ipcRenderer.invoke('chat:getTypingIndicator', conversationId),
+    ipcRenderer.invoke('chat:get-typing-indicator', conversationId),
 
-  /**
-   * Gets conversation history with display optimization
-   * Returns messages formatted for UI display with relative timestamps
-   * @param conversationId - Conversation ID
-   * @param options - Optional pagination and filter options
-   * @returns Promise<ConversationHistory> - Conversation data
-   */
   getConversationHistory: (conversationId: string, options?: any) =>
-    ipcRenderer.invoke('chat:getConversation', { conversationId, ...options }),
+    ipcRenderer.invoke('chat:get-history', { conversationId, options }),
 
-  /**
-   * Pauses an active conversation
-   * Use this when user wants to temporarily stop the conversation
-   * @param conversationId - Active conversation ID
-   * @returns Promise<{ success: boolean; message: string }>
-   */
   pauseConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:pauseConversation', conversationId),
+    ipcRenderer.invoke('chat:pause-conversation', conversationId),
 
-  /**
-   * Resumes a paused conversation
-   * Restores the conversation context and continues
-   * @param conversationId - Paused conversation ID
-   * @returns Promise<{ success: boolean; context: ConversationContext }>
-   */
   resumeConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:resumeConversation', conversationId),
+    ipcRenderer.invoke('chat:resume-conversation', conversationId),
 
-  /**
-   * Ends a conversation and generates summary
-   * Returns a summary of key points covered in the conversation
-   * @param conversationId - Conversation to end
-   * @returns Promise<ConversationSummary> - Summary and key takeaways
-   */
   endConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:endConversation', conversationId),
+    ipcRenderer.invoke('chat:end-conversation', conversationId),
 
-  /**
-   * Checks for practice opportunities in conversation
-   * Analyzes conversation context to suggest relevant practice moments
-   * @param params.conversationId - Active conversation ID
-   * @param params.userMessage - Latest user message for context
-   * @param params.sessionId - Optional session ID for context
-   * @returns Promise<PracticeOpportunityResult> - Practice suggestion or null
-   */
-  checkPracticeOpportunity: (params: {
-    conversationId: string;
-    userMessage: string;
-    sessionId?: string;
-  }) =>
-    ipcRenderer.invoke('chat:checkPracticeOpportunity', params),
+  checkPracticeOpportunity: (params: any) =>
+    ipcRenderer.invoke('chat:check-practice-opportunity', params),
 
-  /**
-   * Gets natural practice suggestion based on conversation context
-   * Returns a conversational practice suggestion that feels natural
-   * @param params.opportunity - Practice opportunity from checkPracticeOpportunity
-   * @param params.userContext - User's learning context and preferences
-   * @param params.sessionId - Optional session ID for context
-   * @returns Promise<NaturalPracticeSuggestion> - Contextual practice suggestion
-   */
-  getPracticeSuggestion: (params: {
-    opportunity: any;
-    userContext?: any;
-    sessionId?: string;
-  }) =>
-    ipcRenderer.invoke('chat:getPracticeSuggestion', params)
-
+  getPracticeSuggestion: (params: any) =>
+    ipcRenderer.invoke('chat:get-practice-suggestion', params)
 };
 
 // ============================================================================
@@ -195,7 +138,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<LearningSessionDisplay> - Session object with progress tracking
    */
   startLearningSession: (params) =>
-    ipcRenderer.invoke('learning:startSession', params),
+    ipcRenderer.invoke('learning:start-session', params),
 
   /**
    * Gets detailed progress for a learning session
@@ -204,7 +147,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<LearningProgressDisplay> - Detailed progress information
    */
   getSessionProgress: (sessionId: string) =>
-    ipcRenderer.invoke('learning:getProgress', sessionId),
+    ipcRenderer.invoke('learning:get-progress', sessionId),
 
   /**
    * Gets the structured learning path for a session
@@ -213,7 +156,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<LearningPathDisplay> - Structured learning path
    */
   getLearningPath: (sessionId: string) =>
-    ipcRenderer.invoke('learning:getPath', sessionId),
+    ipcRenderer.invoke('learning:get-path', sessionId),
 
   /**
    * Pauses an active learning session
@@ -222,7 +165,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<{ success: boolean; resumeData: any }>
    */
   pauseSession: (sessionId: string) =>
-    ipcRenderer.invoke('learning:pauseSession', sessionId),
+    ipcRenderer.invoke('learning:pause-session', sessionId),
 
   /**
    * Resumes a paused learning session
@@ -231,7 +174,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<{ success: boolean; context: LearningContext }>
    */
   resumeSession: (sessionId: string) =>
-    ipcRenderer.invoke('learning:resumeSession', sessionId),
+    ipcRenderer.invoke('learning:resume-session', sessionId),
 
   /**
    * Completes a learning session and generates summary
@@ -240,7 +183,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<SessionCompletionDisplay> - Completion summary and recommendations
    */
   completeSession: (sessionId: string) =>
-    ipcRenderer.invoke('learning:completeSession', sessionId),
+    ipcRenderer.invoke('learning:complete-session', sessionId),
 
   /**
    * Gets recent learning sessions for quick access
@@ -249,7 +192,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<SessionDisplay[]> - Array of recent sessions
    */
   getRecentSessions: (options?: any) =>
-    ipcRenderer.invoke('learning:getRecentSessions', options),
+    ipcRenderer.invoke('learning:get-recent-sessions', options),
 
   /**
    * Searches learning sessions with advanced filters
@@ -259,7 +202,7 @@ const learningAPI: LearningAPI = {
    * @returns Promise<SessionSearchResultDisplay> - Search results with pagination
    */
   searchSessions: (query: string, filters?: any) =>
-    ipcRenderer.invoke('learning:searchSessions', query, filters)
+    ipcRenderer.invoke('learning:search-sessions', query, filters)
 };
 
 // ============================================================================
@@ -281,7 +224,7 @@ const knowledgeAPI: KnowledgeAPI = {
    * @returns Promise<ConceptExplorationDisplay> - Detailed concept information
    */
   exploreConcept: (params: { conceptName: string; depth: 'basic' | 'intermediate' | 'advanced' }) =>
-    ipcRenderer.invoke('knowledge:exploreConcept', params),
+    ipcRenderer.invoke('knowledge:explore-concept', params),
 
   /**
    * Gets concepts related to a given concept
@@ -290,7 +233,7 @@ const knowledgeAPI: KnowledgeAPI = {
    * @returns Promise<RelatedConceptsDisplay> - Array of related concepts with relationships
    */
   getRelatedConcepts: (conceptId: string) =>
-    ipcRenderer.invoke('knowledge:getRelatedConcepts', conceptId),
+    ipcRenderer.invoke('knowledge:get-related-concepts', conceptId),
 
   /**
    * Gets knowledge map data for visualization
@@ -299,7 +242,7 @@ const knowledgeAPI: KnowledgeAPI = {
    * @returns Promise<KnowledgeMapDisplay> - Knowledge graph data for visualization
    */
   getKnowledgeMap: (sessionId?: string) =>
-    ipcRenderer.invoke('knowledge:getKnowledgeMap', sessionId),
+    ipcRenderer.invoke('knowledge:get-map', sessionId),
 
   /**
    * Searches the knowledge base for specific content
@@ -308,58 +251,47 @@ const knowledgeAPI: KnowledgeAPI = {
    * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
    */
   searchKnowledge: (query: string) =>
-    ipcRenderer.invoke('knowledge:searchGraph', query),
+    ipcRenderer.invoke('knowledge:search', query),
 
   /**
-   * Gets explanation for a concept in specific style
-   * Provides different ways to understand the same concept
-   * @param params.conceptId - ID of the concept to explain
-   * @param params.style - 'simple' | 'technical' | 'analogy' | 'example' | 'visual'
-   * @returns Promise<ExplanationDisplay> - Concept explanation in requested style
-   */
-  getExplanation: (params: {
-    conceptId: string;
-    style: 'simple' | 'technical' | 'analogy' | 'example' | 'visual';
-  }) =>
-    ipcRenderer.invoke('knowledge:getExplanation', params),
-
-  /**
-   * Gets practice exercises for a specific concept
-   * Provides hands-on learning opportunities with varying difficulty
-   * @param params.conceptId - ID of the concept to practice
-   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
-   * @returns Promise<ExerciseDisplay[]> - Array of practice exercises
-   */
-  getPracticeExercises: (params: {
-    conceptId: string;
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-  }) =>
-    ipcRenderer.invoke('knowledge:getPracticeExercises', params),
-
-  /**
-   * Parse concepts from files and content using AI
-   * Extracts learning concepts from markdown files and content
-   * @param params - Parsing parameters including files, content, and options
-   * @returns Promise<ConceptParsingResult> - Extracted concepts and relationships
+   * Parses uploaded materials into concepts and relationships
+   * Splits documents by headings/paragraphs, sends each segment through LangChain, and vectors the parsed chunks for semantic search.
+   * @param params - Payload containing files/content and parsing options (confidenceThreshold, maxConceptsPerFile)
+   * @returns Promise<ConceptParsingResult> - Normalized parsing result with statistics
    */
   parseConcepts: (params: {
     files?: Array<{
-      fileName: string;
-      filePath: string;
-      content: string;
+      fileName?: string;
+      filePath?: string;
       title?: string;
-      materialId?: string;
+      content: string;
+      format?: 'markdown' | 'text';
+      metadata?: Record<string, unknown>;
     }>;
     content?: string;
-    materialId?: string;
-    title?: string;
-    format?: 'markdown' | 'text' | 'html';
     options?: {
       confidenceThreshold?: number;
       maxConceptsPerFile?: number;
     };
+    userId?: string;
   }) =>
-    ipcRenderer.invoke('knowledge:parseConcepts', params)
+    ipcRenderer.invoke('knowledge:parse-concepts', params),
+
+  /**
+   * Ingests a previously parsed result into the knowledge graph
+   * @param params.result - Result returned by parseConcepts
+   * @param params.options - Optional metadata for ingestion
+   */
+  ingestConcepts: (params: {
+    result: ConceptParsingResult;
+    options?: {
+      userId?: string;
+      materialId?: string;
+      sessionId?: string;
+      source?: string;
+    };
+  }) =>
+    ipcRenderer.invoke('knowledge:ingest-concepts', params),
 };
 
 // ============================================================================
@@ -373,26 +305,13 @@ const knowledgeAPI: KnowledgeAPI = {
  * Focuses on motivation through achievement and progress visualization.
  */
 const analyticsAPI: AnalyticsAPI = {
-  /**
-   * Gets comprehensive learning dashboard data
-   * Returns all key metrics needed for dashboard display
-   * @returns Promise<DashboardDisplay> - Complete dashboard data
-   */
-  getDashboard: () =>
-    ipcRenderer.invoke('analytics:getDashboard'),
+  getDashboard: () => ipcRenderer.invoke('analytics:get-dashboard'),
 
-  /**
-   * Gets progress chart data for visualization
-   * Returns structured data for various chart types
-   * @param params.timeRange - '7days' | '30days' | '90days' | '1year'
-   * @param params.topic - Optional topic filter (null for all topics)
-   * @returns Promise<ProgressChartDisplay> - Chart-ready progress data
-   */
   getProgressChart: (params: {
-    timeRange: '7days' | '30days' | '90days' | '1year';
-    topic?: string | null;
-  }) =>
-    ipcRenderer.invoke('analytics:getProgressChart', params),
+    period: 'week' | 'month' | 'quarter' | 'year';
+    metric: 'mastery' | 'sessions' | 'time' | 'concepts';
+    conceptIds?: string[];
+  }) => ipcRenderer.invoke('analytics:get-progress-chart', params),
 
   /**
    * Gets all user achievements and milestones
@@ -400,7 +319,7 @@ const analyticsAPI: AnalyticsAPI = {
    * @returns Promise<AchievementDisplay[]> - Array of achievements
    */
   getAchievements: () =>
-    ipcRenderer.invoke('analytics:getAchievements'),
+    ipcRenderer.invoke('analytics:get-achievements'),
 
   /**
    * Unlocks an achievement and handles rewards
@@ -409,25 +328,20 @@ const analyticsAPI: AnalyticsAPI = {
    * @returns Promise<{ success: boolean; reward?: AchievementReward }>
    */
   unlockAchievement: (achievementId: string) =>
-    ipcRenderer.invoke('analytics:unlockAchievement', achievementId),
+    ipcRenderer.invoke('analytics:unlock-achievement', achievementId),
 
-  /**
-   * Gets detailed usage statistics
-   * Provides insights into learning patterns and habits
-   * @param params - Statistics request parameters
-   * @returns Promise<UsageStatsDisplay> - Detailed usage analytics
-   */
-  getUsageStats: (params: { timeRange: '7days' | '30days' | '90days' | '1year'; includePatterns?: boolean; includeEngagement?: boolean; detailed?: boolean }) =>
-    ipcRenderer.invoke('analytics:getUsageStats', params),
+  getUsageStats: (params: {
+    timeRange: '7days' | '30days' | '90days' | '1year';
+    includePatterns?: boolean;
+    includeEngagement?: boolean;
+  }) => ipcRenderer.invoke('analytics:get-usage-stats', params),
 
-  /**
-   * Gets token usage and cost information
-   * Important for monitoring API usage and costs
-   * @param params - Token usage request parameters
-   * @returns Promise<TokenUsageDisplay> - Token usage breakdown
-   */
-  getTokenUsage: (params: { timeRange: '7days' | '30days' | '90days' | '1year'; includeByProvider?: boolean; includeByFeature?: boolean; includeProjections?: boolean }) =>
-    ipcRenderer.invoke('analytics:getTokenUsage', params),
+  getTokenUsage: (params: {
+    timeRange: '7days' | '30days' | '90days' | '1year';
+    includeByProvider?: boolean;
+    includeByFeature?: boolean;
+    includeProjections?: boolean;
+  }) => ipcRenderer.invoke('analytics:get-token-usage', params),
 
   /**
    * Tracks a learning session
@@ -436,7 +350,7 @@ const analyticsAPI: AnalyticsAPI = {
    * @returns Promise<string> - Session ID
    */
   trackSession: (session: any) =>
-    ipcRenderer.invoke('analytics:trackSession', session),
+    ipcRenderer.invoke('analytics:track-session', session),
 
   /**
    * Updates concept progress
@@ -446,111 +360,18 @@ const analyticsAPI: AnalyticsAPI = {
    * @returns Promise<void> - Update confirmation
    */
   updateConceptProgress: (conceptId: string, update: any) =>
-    ipcRenderer.invoke('analytics:updateConceptProgress', conceptId, update),
+    ipcRenderer.invoke('analytics:update-concept-progress', conceptId, update),
 
-  /**
-   * Gets concept progress details
-   * Returns detailed progress information for a specific concept
-   * @param conceptId - ID of the concept
-   * @returns Promise<any> - Concept progress data
-   */
-  getConceptProgress: (conceptId: string) =>
-    ipcRenderer.invoke('analytics:getConceptProgress', conceptId),
+  exportData: (params: { format: 'json' | 'csv'; include?: string[] }) =>
+    ipcRenderer.invoke('analytics:export-data', params),
 
-  /**
-   * Gets session history
-   * Returns paginated list of learning sessions
-   * @param params - Session history request parameters
-   * @returns Promise<any[]> - Session list
-   */
-  getSessionHistory: (params?: any) =>
-    ipcRenderer.invoke('analytics:getSessionHistory', params),
+  importData: (params: { format: 'json' | 'csv'; payload: string }) =>
+    ipcRenderer.invoke('analytics:import-data', params),
 
-  /**
-   * Checks for new achievements
-   * Evaluates and returns any newly unlocked achievements
-   * @param sessionId - Optional session ID to check achievements for
-   * @returns Promise<any[]> - New achievements
-   */
-  checkAchievements: (sessionId?: string) =>
-    ipcRenderer.invoke('analytics:checkAchievements', sessionId),
-
-  /**
-   * Gets learning trends data
-   * Returns learning trend analysis for specified periods
-   * @param params - Trends request parameters
-   * @returns Promise<any> - Trends data
-   */
-  getLearningTrends: (params: any) =>
-    ipcRenderer.invoke('analytics:getLearningTrends', params),
-
-  /**
-   * Gets study streak information
-   * Returns current and historical study streak data
-   * @returns Promise<any> - Streak information
-   */
-  getStudyStreak: () =>
-    ipcRenderer.invoke('analytics:getStudyStreak'),
-
-  /**
-   * Gets time statistics
-   * Returns detailed time-based learning statistics
-   * @param params - Time stats request parameters
-   * @returns Promise<any> - Time statistics
-   */
-  getTimeStats: (params?: any) =>
-    ipcRenderer.invoke('analytics:getTimeStats', params),
-
-  /**
-   * Exports analytics data
-   * Exports user analytics data in specified format
-   * @param params - Export request parameters
-   * @returns Promise<string> - Exported data
-   */
-  exportData: (params: any) =>
-    ipcRenderer.invoke('analytics:exportData', params),
-
-  /**
-   * Imports analytics data
-   * Imports analytics data from specified format
-   * @param params - Import request parameters
-   * @returns Promise<any> - Import result
-   */
-  importData: (params: any) =>
-    ipcRenderer.invoke('analytics:importData', params)
 };
 
 // ============================================================================
-// 5. Session Management API
-// ============================================================================
-
-/**
- * Session Management API
- *
- * Provides direct access to session persistence and statistics via IPC.
- * Ensures all session data flows through the main process.
- */
-const sessionsAPI: SessionsAPI = {
-  list: (options?: any) => ipcRenderer.invoke('sessions:list', options),
-  create: (payload: any) => ipcRenderer.invoke('sessions:create', payload),
-  get: (sessionId: string) => ipcRenderer.invoke('sessions:get', sessionId),
-  update: (sessionId: string, updates: any) =>
-    ipcRenderer.invoke('sessions:update', sessionId, updates),
-  delete: (sessionId: string) => ipcRenderer.invoke('sessions:delete', sessionId),
-  saveMessage: (sessionId: string, message: any) =>
-    ipcRenderer.invoke('sessions:save-message', sessionId, message),
-  saveSessionWithMessages: (session: any, messages: any[]) =>
-    ipcRenderer.invoke('sessions:save-with-messages', session, messages),
-  updateTitle: (sessionId: string, title: string) =>
-    ipcRenderer.invoke('sessions:update-title', sessionId, title),
-  getRecentSessions: (options?: any) =>
-    ipcRenderer.invoke('sessions:get-recent', options),
-  search: (query: any) => ipcRenderer.invoke('sessions:search', query),
-  getStatistics: () => ipcRenderer.invoke('sessions:get-stats')
-};
-
-// ============================================================================
-// 6. Agent Management API
+// 5. Agent Management API
 // ============================================================================
 
 /**
@@ -566,7 +387,7 @@ const agentsAPI: AgentsAPI = {
    * @returns Promise<AgentDisplay[]> - Array of available agents
    */
   getAvailableAgents: () =>
-    ipcRenderer.invoke('agent:list'),
+    ipcRenderer.invoke('agents:get-available'),
 
   /**
    * Selects an agent for a specific session
@@ -579,7 +400,7 @@ const agentsAPI: AgentsAPI = {
     sessionId: string;
     agentType: string;
   }) =>
-    ipcRenderer.invoke('agent:selectForSession', params),
+    ipcRenderer.invoke('agents:select-for-session', params),
 
   /**
    * Sets personality preferences for an agent
@@ -592,7 +413,7 @@ const agentsAPI: AgentsAPI = {
     agentId: string;
     personality: 'friendly encouraging' | 'formal professional' | 'casual friendly' | 'technical expert';
   }) =>
-    ipcRenderer.invoke('agent:setPersonality', params),
+    ipcRenderer.invoke('agents:set-personality', params),
 
   /**
    * Sets response style preferences for a session
@@ -605,7 +426,7 @@ const agentsAPI: AgentsAPI = {
     sessionId: string;
     style: any;
   }) =>
-    ipcRenderer.invoke('agent:setResponseStyle', params),
+    ipcRenderer.invoke('agents:set-response-style', params),
 
   /**
    * Gets detailed capabilities for a specific agent
@@ -614,7 +435,7 @@ const agentsAPI: AgentsAPI = {
    * @returns Promise<AgentCapabilitiesDisplay> - Detailed capability information
    */
   getAgentCapabilities: (agentId: string) =>
-    ipcRenderer.invoke('agent:getCapabilities', agentId),
+    ipcRenderer.invoke('agents:get-capabilities', agentId),
 
   /**
    * Demonstrates a specific agent feature
@@ -627,7 +448,7 @@ const agentsAPI: AgentsAPI = {
     agentId: string;
     feature: string;
   }) =>
-    ipcRenderer.invoke('agent:tryFeature', params)
+    ipcRenderer.invoke('agents:try-feature', params)
 };
 
 // ============================================================================
@@ -647,7 +468,7 @@ const contentAPI: ContentAPI = {
    * @returns Promise<ProjectDisplay[]> - Array of discoverable local projects
    */
   exploreLocalProjects: () =>
-    ipcRenderer.invoke('content:exploreProjects'),
+    ipcRenderer.invoke('content:explore-projects'),
 
   /**
    * Imports learning content from files
@@ -656,7 +477,7 @@ const contentAPI: ContentAPI = {
    * @returns Promise<ImportResultDisplay> - Import results and extracted content
    */
   importLearningContent: (files: FileList) =>
-    ipcRenderer.invoke('content:importContent', files),
+    ipcRenderer.invoke('content:import-content', files),
 
   /**
    * Gets recommended learning content for a topic
@@ -669,7 +490,7 @@ const contentAPI: ContentAPI = {
     topic: string;
     level: 'beginner' | 'intermediate' | 'advanced';
   }) =>
-    ipcRenderer.invoke('content:getRecommendedContent', params),
+    ipcRenderer.invoke('content:get-recommendations', params),
 
   /**
    * Searches learning resources across multiple sources
@@ -678,7 +499,7 @@ const contentAPI: ContentAPI = {
    * @returns Promise<ResourceSearchResultDisplay> - Search results with relevance ranking
    */
   searchLearningResources: (query: string) =>
-    ipcRenderer.invoke('content:searchResources', query),
+    ipcRenderer.invoke('content:search-resources', query),
 
   /**
    * Analyzes a document for learning content
@@ -687,7 +508,7 @@ const contentAPI: ContentAPI = {
    * @returns Promise<DocumentAnalysisDisplay> - Detailed document analysis
    */
   analyzeDocument: (filePath: string) =>
-    ipcRenderer.invoke('content:analyzeDocument', filePath),
+    ipcRenderer.invoke('content:analyze-document', filePath),
 
   /**
    * Extracts concepts from raw text content
@@ -696,7 +517,7 @@ const contentAPI: ContentAPI = {
    * @returns Promise<ConceptExtractionDisplay[]> - Array of extracted concepts
    */
   extractConcepts: (content: string) =>
-    ipcRenderer.invoke('content:extractConcepts', content)
+    ipcRenderer.invoke('content:extract-concepts', content)
 };
 
 // ============================================================================
@@ -716,7 +537,7 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<UserPreferencesDisplay> - Complete user preferences
    */
   getUserPreferences: () =>
-    ipcRenderer.invoke('settings:getPreferences'),
+    ipcRenderer.invoke('settings:get-user-preferences'),
 
   /**
    * Updates user preferences
@@ -725,7 +546,7 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<{ success: boolean, updatedSettings: any, changes: string[] }>
    */
   updatePreferences: (preferences: any) =>
-    ipcRenderer.invoke('settings:updatePreferences', preferences),
+    ipcRenderer.invoke('settings:update-preferences', preferences),
 
   /**
    * Gets available AI providers and their status
@@ -733,7 +554,7 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<ProviderDisplay[]> - Array of AI providers
    */
   getAvailableProviders: () =>
-    ipcRenderer.invoke('settings:getAvailableProviders'),
+    ipcRenderer.invoke('settings:get-providers'),
 
   /**
    * Configures an AI provider with authentication and settings
@@ -743,7 +564,7 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<{ success: boolean; providerId: string; status: string }>
    */
   configureProvider: (params: { provider: string; config: any }) =>
-    ipcRenderer.invoke('settings:configureProvider', params),
+    ipcRenderer.invoke('settings:configure-provider', params),
 
   /**
    * Gets learning-specific settings
@@ -751,7 +572,7 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<LearningSettingsDisplay> - Learning configuration settings
    */
   getLearningSettings: () =>
-    ipcRenderer.invoke('settings:getLearningSettings'),
+    ipcRenderer.invoke('settings:get-learning-settings'),
 
   /**
    * Updates learning-specific settings
@@ -760,7 +581,7 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
    */
   updateLearningSettings: (settings: any) =>
-    ipcRenderer.invoke('settings:updateLearningSettings', settings)
+    ipcRenderer.invoke('settings:update-learning-settings', settings)
 
 };
 
@@ -780,26 +601,9 @@ const electronAPI = {
   learning: learningAPI,
   knowledge: knowledgeAPI,
   analytics: analyticsAPI,
-  sessions: sessionsAPI,
   agents: agentsAPI,
   content: contentAPI,
   settings: settingsAPI,
-  getWorkspacePath: () => ipcRenderer.invoke('filesystem:get-workspace-path'),
-  readDirectory: (
-    dirPath: string,
-    recursive: boolean = true,
-    maxDepth: number = 3,
-    filterConfig?: DirectoryFilterConfig
-  ) => ipcRenderer.invoke('filesystem:read-directory', dirPath, recursive, maxDepth, filterConfig),
-  readFile: (filePath: string, encoding: BufferEncoding = 'utf-8') =>
-    ipcRenderer.invoke('filesystem:read-file', filePath, encoding),
-  writeFile: (filePath: string, content: string, encoding: BufferEncoding = 'utf-8') =>
-    ipcRenderer.invoke('filesystem:write-file', filePath, content, encoding),
-  existsFile: (filePath: string) => ipcRenderer.invoke('filesystem:path-exists', filePath),
-  showOpenDialog: (options?: Electron.OpenDialogOptions) =>
-    ipcRenderer.invoke('dialog:show-open', options),
-  showSaveDialog: (options?: Electron.SaveDialogOptions) =>
-    ipcRenderer.invoke('dialog:show-save', options),
   getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
   quit: () => ipcRenderer.invoke('settings:quitApp'),
   getConfig: () => ipcRenderer.invoke('settings:getWorkspaceConfig'),
@@ -821,7 +625,7 @@ const electronAPI = {
    * @param context - Context where the error occurred
    * @param severity - 'info' | 'warning' | 'error' | 'critical'
    */
-  handleError: (error: Error | string, context: string, severity: string = 'error') => {
+  handleError: (error: Error | string, context: string, severity = 'error') => {
     const errorMessage = error instanceof Error ? error.message : error;
     const stack = error instanceof Error ? error.stack : undefined;
 

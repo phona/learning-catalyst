@@ -1,486 +1,177 @@
 /**
- * Learning & Sessions IPC Handlers
+ * Enhanced Learning & Sessions IPC Handlers
  *
- * IPC handlers for learning session management, progress tracking,
- * and educational content orchestration.
+ * IPC handlers for structured learning sessions with progress tracking,
+ * session management, and learning analytics.
  */
 
-import { ipcMain, MessageChannelMain } from 'electron';
-import { getCatalystService } from '../services/catalyst/catalyst-service';
-import { LoggerFactory } from '../services/logger';
-import { ServiceError } from '../services/types';
+import { ipcMain } from 'electron';
 
 /**
- * Setup learning and sessions IPC handlers
+ * Setup learning IPC handlers
  */
-export function setupLearningHandlers(): void {
-  const loggerFactory = LoggerFactory.getInstance();
-  const logger = loggerFactory.createContextAwareLogger();
+export const setupLearningHandlers = (
+  ipcMainInstance: typeof ipcMain,
+  services: {
+    learningService: any;
+    loggerService: any;
+  }
+) => {
+  const handlerLogger = services.loggerService.child({ handler: 'learning' });
 
   /**
-   * Start a new learning session
+   * Get a learning path by ID
    */
-  ipcMain.handle('learning:startSession', async (event, params) => {
-    logger.info('Starting learning session', {
+  ipcMainInstance.handle('learning:get-path', async (event, pathId) => {
+    handlerLogger.info('Handling get learning path request', { pathId });
+
+    try {
+      const result = await services.learningService.getLearningPath(pathId);
+
+      if (!result) {
+        handlerLogger.warn('Learning path not found', { pathId });
+        return { success: false, error: 'Learning path not found' };
+      }
+
+      handlerLogger.info('Learning path retrieved successfully');
+      return { success: true, learningPath: result };
+    } catch (error) {
+      handlerLogger.error('Failed to get learning path', error);
+      throw error;
+    }
+  });
+
+  /**
+   * Start a new structured learning session
+   */
+  ipcMainInstance.handle('learning:start-session', async (event, params) => {
+    handlerLogger.info('Handling start learning session request', {
       topic: params.topic,
+      goals: params.goals,
       agentType: params.agentType
     });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'LearningHandlers'
-        );
-      }
+      const session = await services.learningService.startLearningSession({
+        topic: params.topic,
+        goals: params.goals,
+        difficulty: params.difficulty,
+        agentType: params.agentType,
+        learningStyle: params.learningStyle,
+        userId: params.userId
+      });
 
-      const result = await catalystService.runWithContext(
-        'system',
-        'learning:startSession',
-        async () => {
-          // Mock learning session creation
-          const session = {
-            id: `learning_session_${Date.now()}`,
-            topic: params.topic,
-            goals: params.goals || [],
-            difficulty: params.difficulty || 'intermediate',
-            agentType: params.agentType || 'learning',
-            learningStyle: params.learningStyle || 'visual',
-            status: 'active',
-            progress: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            metadata: {
-              estimatedDuration: 45, // minutes
-              concepts: [],
-              checkpoints: [],
-              assessments: []
-            }
-          };
-
-          return {
-            success: true,
-            session
-          };
-        },
-        {
-          operation: 'learning:startSession',
-          topic: params.topic,
-          agentType: params.agentType,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
+      handlerLogger.info('Learning session started successfully', { sessionId: session.id });
+      return { success: true, session };
     } catch (error) {
-      logger.error('Failed to start learning session', error as Error, params);
+      handlerLogger.error('Failed to start learning session', error);
       throw error;
     }
   });
 
   /**
-   * Get learning session progress
+   * Get detailed progress for a learning session
    */
-  ipcMain.handle('learning:getProgress', async (event, sessionId) => {
-    logger.info('Getting learning progress', { sessionId });
+  ipcMainInstance.handle('learning:get-progress', async (event, sessionId) => {
+    handlerLogger.info('Handling get learning session progress request', { sessionId });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'LearningHandlers'
-        );
-      }
+      const progress = await services.learningService.getSessionProgress(sessionId);
 
-      const result = await catalystService.runWithContext(
-        sessionId,
-        'learning:getProgress',
-        async () => {
-          // Mock progress data
-          const progress = {
-            sessionId,
-            completionRate: 0.65,
-            conceptsLearned: 8,
-            totalConcepts: 12,
-            timeSpent: 1800, // seconds
-            estimatedTimeRemaining: 900, // seconds
-            currentModule: 'React Hooks',
-            currentConcept: 'useState',
-            difficulty: 'intermediate',
-            learningStyle: 'visual',
-            recentActivity: [
-              {
-                type: 'concept_completed',
-                concept: 'JSX Basics',
-                timestamp: new Date(Date.now() - 300000).toISOString(),
-                score: 0.85
-              },
-              {
-                type: 'assessment_taken',
-                assessment: 'Components Quiz',
-                timestamp: new Date(Date.now() - 600000).toISOString(),
-                score: 0.92
-              }
-            ],
-            achievements: ['first_concept', 'quick_learner'],
-            nextRecommendations: [
-              {
-                type: 'concept',
-                name: 'useEffect Hook',
-                reason: 'Prerequisite for advanced React patterns'
-              },
-              {
-                type: 'practice',
-                name: 'Build a Counter Component',
-                reason: 'Apply useState knowledge'
-              }
-            ],
-            metadata: {
-              lastAccessTime: new Date().toISOString(),
-              totalTime: 2700,
-              averageSessionTime: 900,
-              streak: 3
-            }
-          };
-
-          return {
-            success: true,
-            progress
-          };
-        },
-        {
-          operation: 'learning:getProgress',
-          sessionId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
+      handlerLogger.info('Learning session progress retrieved successfully');
+      return { success: true, progress };
     } catch (error) {
-      logger.error('Failed to get learning progress', error as Error, { sessionId });
+      handlerLogger.error('Failed to get learning session progress', error);
       throw error;
     }
   });
 
   /**
-   * List active learning sessions
+   * Pause an active learning session
    */
-  ipcMain.handle('learning:listSessions', async () => {
-    logger.info('Listing learning sessions');
+  ipcMainInstance.handle('learning:pause-session', async (event, sessionId) => {
+    handlerLogger.info('Handling pause learning session request', { sessionId });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'LearningHandlers'
-        );
-      }
+      const pauseData = await services.learningService.pauseSession(sessionId);
 
-      const result = await catalystService.runWithContext(
-        'system',
-        'learning:listSessions',
-        async () => {
-          // Mock session list
-          const sessions = [
-            {
-              id: 'learning_session_1',
-              topic: 'React Fundamentals',
-              agentType: 'learning',
-              status: 'active',
-              progress: 0.45,
-              createdAt: new Date(Date.now() - 86400000).toISOString(),
-              lastAccessed: new Date(Date.now() - 3600000).toISOString(),
-              metadata: {
-                difficulty: 'intermediate',
-                conceptsCount: 12,
-                completedConcepts: 5
-              }
-            },
-            {
-              id: 'learning_session_2',
-              topic: 'TypeScript Advanced',
-              agentType: 'tutoring',
-              status: 'paused',
-              progress: 0.78,
-              createdAt: new Date(Date.now() - 172800000).toISOString(),
-              lastAccessed: new Date(Date.now() - 7200000).toISOString(),
-              metadata: {
-                difficulty: 'advanced',
-                conceptsCount: 8,
-                completedConcepts: 6
-              }
-            }
-          ];
-
-          return {
-            success: true,
-            sessions
-          };
-        },
-        {
-          operation: 'learning:listSessions',
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
+      handlerLogger.info('Learning session paused successfully');
+      return pauseData;
     } catch (error) {
-      logger.error('Failed to list learning sessions', error as Error);
+      handlerLogger.error('Failed to pause learning session', error);
       throw error;
     }
   });
 
   /**
-   * Update learning session progress
+   * Resume a paused learning session
    */
-  ipcMain.handle('learning:updateProgress', async (event, params) => {
-    logger.info('Updating learning progress', {
-      sessionId: params.sessionId,
-      progress: params.progress
-    });
+  ipcMainInstance.handle('learning:resume-session', async (event, sessionId) => {
+    handlerLogger.info('Handling resume learning session request', { sessionId });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'LearningHandlers'
-        );
-      }
+      const context = await services.learningService.resumeSession(sessionId);
 
-      const result = await catalystService.runWithContext(
-        params.sessionId,
-        'learning:updateProgress',
-        async () => {
-          // Mock progress update
-          const updatedProgress = {
-            sessionId: params.sessionId,
-            previousProgress: 0.45,
-            currentProgress: params.progress,
-            improvement: params.progress - 0.45,
-            timestamp: new Date().toISOString(),
-            achievements: [],
-            nextMilestone: 0.8,
-            metadata: {
-              updateType: params.type || 'manual',
-              notes: params.notes || ''
-            }
-          };
-
-          return {
-            success: true,
-            updatedProgress
-          };
-        },
-        {
-          operation: 'learning:updateProgress',
-          sessionId: params.sessionId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
+      handlerLogger.info('Learning session resumed successfully');
+      return context;
     } catch (error) {
-      logger.error('Failed to update learning progress', error as Error, params);
+      handlerLogger.error('Failed to resume learning session', error);
       throw error;
     }
   });
 
   /**
-   * Get personalized recommendations
+   * Complete a learning session and generate summary
    */
-  ipcMain.handle('learning:getRecommendations', async (event, sessionId) => {
-    logger.info('Getting learning recommendations', { sessionId });
+  ipcMainInstance.handle('learning:complete-session', async (event, sessionId) => {
+    handlerLogger.info('Handling complete learning session request', { sessionId });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'LearningHandlers'
-        );
-      }
+      const completion = await services.learningService.completeSession(sessionId);
 
-      const result = await catalystService.runWithContext(
-        sessionId,
-        'learning:getRecommendations',
-        async () => {
-          // Mock recommendations
-          const recommendations = [
-            {
-              id: 'rec_1',
-              type: 'concept',
-              title: 'React Context API',
-              description: 'Learn how to manage state across your React application',
-              priority: 'high',
-              estimatedTime: 25,
-              difficulty: 'intermediate',
-              prerequisites: ['useState', 'useReducer'],
-              relevanceScore: 0.92,
-              reason: 'Essential for building complex React applications'
-            },
-            {
-              id: 'rec_2',
-              type: 'practice',
-              title: 'Build a Shopping Cart',
-              description: 'Practice React hooks by building an interactive shopping cart',
-              priority: 'medium',
-              estimatedTime: 45,
-              difficulty: 'intermediate',
-              prerequisites: ['useState', 'useEffect'],
-              relevanceScore: 0.88,
-              reason: 'Reinforces learned concepts with hands-on practice'
-            },
-            {
-              id: 'rec_3',
-              type: 'assessment',
-              title: 'React Hooks Quiz',
-              description: 'Test your understanding of React hooks',
-              priority: 'medium',
-              estimatedTime: 15,
-              difficulty: 'intermediate',
-              prerequisites: ['All React hooks'],
-              relevanceScore: 0.85,
-              reason: 'Validate your learning progress'
-            }
-          ];
-
-          return {
-            success: true,
-            recommendations
-          };
-        },
-        {
-          operation: 'learning:getRecommendations',
-          sessionId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
+      handlerLogger.info('Learning session completed successfully');
+      return { success: true, completion };
     } catch (error) {
-      logger.error('Failed to get learning recommendations', error as Error, { sessionId });
+      handlerLogger.error('Failed to complete learning session', error);
       throw error;
     }
   });
 
   /**
-   * Generate learning path
+   * Get recent learning sessions for quick access
    */
-  ipcMain.handle('learning:generatePath', async (event, params) => {
-    logger.info('Generating learning path', {
-      topic: params.topic,
-      level: params.currentLevel
-    });
+  ipcMainInstance.handle('learning:get-recent-sessions', async (event, options) => {
+    handlerLogger.info('Handling get recent learning sessions request', { options });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'LearningHandlers'
-        );
-      }
+      const sessions = await services.learningService.getRecentSessions(options);
 
-      const result = await catalystService.runWithContext(
-        'system',
-        'learning:generatePath',
-        async () => {
-          // Mock learning path generation
-          const learningPath = {
-            id: `path_${Date.now()}`,
-            topic: params.topic,
-            currentLevel: params.currentLevel || 'beginner',
-            targetLevel: params.targetLevel || 'advanced',
-            estimatedDuration: 120, // hours
-            modules: [
-              {
-                id: 'module_1',
-                title: 'Fundamentals',
-                description: 'Basic concepts and terminology',
-                difficulty: 'beginner',
-                estimatedTime: 20,
-                concepts: ['JSX', 'Components', 'Props'],
-                prerequisites: [],
-                status: 'available'
-              },
-              {
-                id: 'module_2',
-                title: 'State Management',
-                description: 'Managing component state and data flow',
-                difficulty: 'intermediate',
-                estimatedTime: 30,
-                concepts: ['useState', 'useReducer', 'Context'],
-                prerequisites: ['module_1'],
-                status: 'locked'
-              },
-              {
-                id: 'module_3',
-                title: 'Advanced Patterns',
-                description: 'Complex React patterns and best practices',
-                difficulty: 'advanced',
-                estimatedTime: 40,
-                concepts: ['Custom Hooks', 'Performance Optimization', 'Testing'],
-                prerequisites: ['module_2'],
-                status: 'locked'
-              }
-            ],
-            milestones: [
-              {
-                id: 'milestone_1',
-                title: 'React Basics',
-                description: 'Complete the fundamentals module',
-                progress: 0,
-                unlockedAt: null
-              },
-              {
-                id: 'milestone_2',
-                title: 'State Management',
-                description: 'Master state management techniques',
-                progress: 0,
-                unlockedAt: null
-              }
-            ],
-            metadata: {
-              generatedAt: new Date().toISOString(),
-              adaptivity: true,
-              personalized: true
-            }
-          };
-
-          return {
-            success: true,
-            learningPath
-          };
-        },
-        {
-          operation: 'learning:generatePath',
-          topic: params.topic,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
+      handlerLogger.info('Recent learning sessions retrieved successfully', { 
+        count: sessions.length 
+      });
+      return { success: true, sessions };
     } catch (error) {
-      logger.error('Failed to generate learning path', error as Error, params);
+      handlerLogger.error('Failed to get recent learning sessions', error);
       throw error;
     }
   });
 
-  logger.info('✅ Learning handlers registered successfully');
-}
+  /**
+   * Search learning sessions with advanced filters
+   */
+  ipcMainInstance.handle('learning:search-sessions', async (event, query, filters) => {
+    handlerLogger.info('Handling search learning sessions request', { query, filters });
+
+    try {
+      const results = await services.learningService.searchSessions(query, filters);
+
+      handlerLogger.info('Learning session search completed', { resultCount: results.sessions.length });
+      return { success: true, results };
+    } catch (error) {
+      handlerLogger.error('Failed to search learning sessions', error);
+      throw error;
+    }
+  });
+
+  handlerLogger.info('✅ Learning handlers registered successfully');
+};

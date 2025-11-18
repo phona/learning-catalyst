@@ -44,7 +44,7 @@ import { setupSettingsHandlers } from '../settings-handlers';
 const getHandler = (channel: string) => {
   const handler = electronMocks.handlerMap.get(channel);
   expect(handler).toBeDefined();
-  return handler!;
+  return handler as any;
 };
 
 describe('settings handlers', () => {
