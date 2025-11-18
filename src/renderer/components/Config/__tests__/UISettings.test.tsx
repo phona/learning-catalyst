@@ -26,6 +26,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi } from 'vitest';
 import { UISettings } from '@/renderer/components/Config/UISettings';
 import { createMockConfig } from '@/test/utils/helpers/test-utils';
 

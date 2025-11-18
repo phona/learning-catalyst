@@ -34,7 +34,7 @@
 
 import React from 'react';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
 
@@ -132,11 +132,79 @@ const mockElectronAPI = {
   },
 };
 
-// Set up electronAPI for the tests
-beforeEach(() => {
-  Object.defineProperty(window, 'electronAPI', {
-    value: mockElectronAPI,
-    writable: true,
+Object.defineProperty(window, 'electronAPI', {
+  value: mockElectronAPI,
+  writable: true,
+});
+
+// Create a wrapper component for routing
+const AppWithRouter = () => (
+  <MemoryRouter initialEntries={['/']}>
+    <App />
+  </MemoryRouter>
+);
+
+describe('App - Main Application Flow', () => {
+  const mockUseAppStore = vi.mocked(() => ({
+    setCurrentView: vi.fn(),
+    currentView: 'chat',
+    setCurrentSession: vi.fn(),
+    currentSessionId: null,
+  }));
+  const mockUseConfigStore = vi.mocked(() => ({
+    config: null,
+    loading: false,
+    error: null,
+  }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    
+    // Default mocks
+    mockUseAppStore.mockReturnValue({
+      setCurrentView: vi.fn(),
+      setTheme: vi.fn(),
+      setError: vi.fn(),
+      setSuccess: vi.fn(),
+      sidebar_open: true,
+      settings_panel_open: false,
+      theme: 'dark',
+      current_view: 'chat',
+      focus_mode: false,
+      loading: false,
+      error_message: undefined,
+      success_message: undefined,
+    });
+    
+    mockUseConfigStore.mockReturnValue({
+      config: {
+        ai: {
+          model_types: {
+            chat: {
+              default_provider: 'openai',
+              default_model: 'gpt-3.5-turbo',
+            }
+          }
+        },
+        ui: {
+          theme: 'dark',
+        }
+      },
+      setConfig: vi.fn(),
+      loadConfig: vi.fn().mockResolvedValue({
+        ai: {
+          model_types: {
+            chat: {
+              default_provider: 'openai',
+              default_model: 'gpt-3.5-turbo',
+            }
+          }
+        },
+        ui: {
+          theme: 'dark',
+        }
+      }),
+    });
   });
 
   vi.clearAllMocks();

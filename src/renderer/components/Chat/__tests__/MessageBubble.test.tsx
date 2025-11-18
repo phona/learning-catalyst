@@ -284,7 +284,7 @@ describe('MessageBubble - Real Message Scenarios', () => {
             id: 'call-1',
             type: 'function',
             function: {
-              name: 'web_search',
+              name: 'knowledge_extraction',
               arguments: '{"query":"React performance optimization"}'
             }
           },
@@ -302,7 +302,7 @@ describe('MessageBubble - Real Message Scenarios', () => {
       render(<MessageBubble message={messageWithMultipleTools} />);
 
       // Both tool calls should be displayed
-      expect(screen.getByText('web_search({"query":"React performance optimization"})')).toBeInTheDocument();
+      expect(screen.getByText('knowledge_extraction({"query":"React performance optimization"})')).toBeInTheDocument();
       expect(screen.getByText('calculate({"expression":"2 + 2 * 3"})')).toBeInTheDocument();
     });
   });
