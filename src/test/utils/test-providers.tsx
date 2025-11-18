@@ -1,10 +1,9 @@
 import { render, RenderOptions } from '@testing-library/react';
-import type { AppConfig } from '@/shared/types/configuration';
-import { useConfigStore } from '@/renderer/services/configuration/config-store';
-import { makeEmptyConfig } from '@/shared/config/default-app-config';
+import type { AppConfig } from '@/shared/types/config';
+import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import { Providers, QueryLayer } from './test-components';
 
-const ensureConfigLoaded = (config: AppConfig | null = makeEmptyConfig()) => {
+const ensureConfigLoaded = (config: AppConfig | null = null) => {
   useConfigStore.setState(
     {
       config,

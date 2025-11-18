@@ -289,6 +289,14 @@ describe('AI Service - Basic Tests', () => {
     });
 
     it('should use child logger for debug operations', () => {
+      const mockChildLogger = {
+        debug: vi.fn(),
+        info: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn()
+      };
+      mockLoggerService.child = vi.fn().mockReturnValue(mockChildLogger);
+
       const service = createAIService({
         loggerService: mockLoggerService,
         config: mockConfig
@@ -296,7 +304,7 @@ describe('AI Service - Basic Tests', () => {
 
       service.getModelPreset('chat.reply');
 
-      expect(mockLoggerService.child().debug).toHaveBeenCalled();
+      expect(mockChildLogger.debug).toHaveBeenCalled();
     });
   });
 });

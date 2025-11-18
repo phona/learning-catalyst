@@ -92,6 +92,21 @@ export function Component({ prop }: Props) {
 - **Agent Tools**: Call service functions only (not lower-level APIs)
 - **State**: Tracked via Kysely/SQLite tables (not separate stores)
 
+### Implementation Guidelines
+
+- Agent-first design with sophisticated orchestration
+- Provider abstraction for multiple AI services
+- Local-first data storage
+- Memory-optimized development environment
+- Full TypeScript coverage with strict mode
+- Use `.tsx` for React components/JSX and `.ts` for TypeScript-only files
+- IPC contracts defined in `@/shared/types/electron-api/` ensure type-safe communication
+- Maintain dependency injection for internal communication (never access `window.electronAPI` from the main process)
+- Favor direct, purposeful code modifications without unnecessary prefixes
+- Limit `any` usage to maintain type safety
+- Avoid try/catch blocks that only silence errors
+- Propagate errors to the UI layer so they render user-friendly messages
+
 ## Project Structure
 
 ```

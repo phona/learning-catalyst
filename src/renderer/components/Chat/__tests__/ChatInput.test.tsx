@@ -26,6 +26,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatInput } from '@/renderer/components/Chat/ChatInput';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 vi.mock('@/renderer/hooks/useChat');
 vi.mock('@/renderer/stores/useConfigStore');
@@ -102,14 +103,14 @@ describe('ChatInput', () => {
   });
 
   it('renders textarea and send button', () => {
-    render(<ChatInput />);
+    renderWithServices(<ChatInput />);
 
     expect(screen.getByPlaceholderText('Type your message here...')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
   });
 
   it('enables send button when text is present', () => {
-    render(<ChatInput />);
+    renderWithServices(<ChatInput />);
     const textarea = screen.getByPlaceholderText('Type your message here...');
 
     fireEvent.change(textarea, { target: { value: 'Hello world' } });
@@ -118,7 +119,7 @@ describe('ChatInput', () => {
   });
 
   it('submits via streaming API when capability is enabled', async () => {
-    render(<ChatInput />);
+    renderWithServices(<ChatInput />);
 
     const textarea = screen.getByPlaceholderText('Type your message here...');
     fireEvent.change(textarea, { target: { value: 'Stream test' } });
@@ -140,7 +141,7 @@ describe('ChatInput', () => {
     };
     mockUseChat.mockReturnValue(streamingMock as any);
 
-    render(<ChatInput />);
+    renderWithServices(<ChatInput />);
 
     const stopButton = screen.getByRole('button', { name: /stop generating response/i });
     fireEvent.click(stopButton);
@@ -155,7 +156,7 @@ describe('ChatInput', () => {
     });
     mockReadFile.mockResolvedValue('Example file');
 
-    render(<ChatInput />);
+    renderWithServices(<ChatInput />);
 
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
     const attachButton = screen.getByRole('button', { name: /attach file/i });
@@ -176,7 +177,7 @@ describe('ChatInput', () => {
       updateConfig: updateConfigMock,
     } as any);
 
-    render(<ChatInput />);
+    renderWithServices(<ChatInput />);
 
     fireEvent.click(screen.getByRole('button', { name: /advanced options/i }));
 

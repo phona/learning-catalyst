@@ -51,6 +51,19 @@ vi.mock('@/renderer/services/services-provider', () => ({
   useAnalyticsService: () => ({
     trackEvent: vi.fn(),
   }),
+  useElectronAPIClient: () => ({
+    sessions: {
+      get: vi.fn().mockResolvedValue({ success: true, data: null }),
+      update: vi.fn().mockResolvedValue({ success: true }),
+      list: vi.fn().mockResolvedValue({ success: true, data: [] }),
+    },
+    chat: {
+      startConversation: vi.fn(),
+      sendMessage: vi.fn(),
+      sendMessageStream: vi.fn(),
+      getConversationHistory: vi.fn(),
+    }
+  }),
 }));
 
 describe('ChatInterface smoke coverage', () => {

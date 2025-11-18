@@ -25,8 +25,8 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderSettingsPanel } from '@/test/utils/renderWithServices';
-import { makeEmptyConfig, makeProviderConfig } from '@/test/utils/fixtures/config';
+import { renderWithSettings } from '@/test/utils/renderWithServices';
+import { makeEmptyConfig } from '@/test/utils/fixtures/config';
 
 vi.mock('@/renderer/hooks/useAppServices', async () => {
   const actual = await vi.importActual<typeof import('@/renderer/hooks/useAppServices')>('@/renderer/hooks/useAppServices');
@@ -47,7 +47,8 @@ vi.mock('@/renderer/hooks/useAppServices', async () => {
 
 describe('SettingsPanel smoke coverage', () => {
   it('renders the preferences layout with empty configuration', async () => {
-    await renderSettingsPanel({ config: makeEmptyConfig() });
+    const { SettingsPanel } = await import('../SettingsPanel');
+    renderWithSettings(<SettingsPanel />, { config: makeEmptyConfig() });
 
     expect(await screen.findByText('Preferences')).toBeInTheDocument();
     expect(screen.getByText('AI Models')).toBeInTheDocument();
@@ -59,26 +60,27 @@ describe('SettingsPanel smoke coverage', () => {
     const configWithProvider = makeEmptyConfig({
       ai: {
         providers: {
-          'openai-config': makeProviderConfig(),
+          'openai-config': {
+            provider_type: 'openai',
+            api_key: 'test-key'
+          },
         },
         model_types: {
           chat: {
-            default_provider: 'openai',
-            default_model: 'gpt-3.5-turbo',
-            available_providers: ['openai'],
-            settings: {},
-            capabilities: {
-              streaming: true,
-              thinking: true,
-              function_calling: false,
-              vision: false,
-            },
+            provider: 'openai',
+            model: 'gpt-3.5-turbo',
+            temperature: 0.7,
+            max_tokens: 2048,
+            top_p: 1,
+            enable_thinking: false,
+            stream: true
           },
         },
       },
     });
 
-    await renderSettingsPanel({ config: configWithProvider });
+    const { SettingsPanel } = await import('../SettingsPanel');
+    renderWithSettings(<SettingsPanel />, { config: configWithProvider });
     expect(await screen.findByText('Preferences')).toBeInTheDocument();
   });
 });

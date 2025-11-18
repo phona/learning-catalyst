@@ -16,6 +16,11 @@ interface MockLoggerService {
 }
 
 describe('IPC Handlers - Interface Tests', () => {
+  type HandlerEvent = {
+    sender: { id: number };
+    timestamp: number;
+  };
+
   let mockIpcMain: MockIpcMain;
   let _mockDependencies: {
     loggerService: MockLoggerService;
@@ -31,11 +36,20 @@ describe('IPC Handlers - Interface Tests', () => {
     };
     knowledgeService: {
       exploreConcepts: ReturnType<typeof vi.fn>;
-      getKnowledgeMap: ReturnType<typeof vi.fn>;
+      getRelatedConcepts: ReturnType<typeof vi.fn>;
+      searchKnowledge: ReturnType<typeof vi.fn>;
+    };
+    learningService: {
+      startSession: ReturnType<typeof vi.fn>;
+      pauseSession: ReturnType<typeof vi.fn>;
+      resumeSession: ReturnType<typeof vi.fn>;
+      completeSession: ReturnType<typeof vi.fn>;
     };
     configService: {
       getConfig: ReturnType<typeof vi.fn>;
       setConfig: ReturnType<typeof vi.fn>;
+      getProviderConfig: ReturnType<typeof vi.fn>;
+      setProviderConfig: ReturnType<typeof vi.fn>;
     };
   };
 
@@ -105,11 +119,11 @@ describe('IPC Handlers - Interface Tests', () => {
 
     it('should create async handler function', () => {
       const mockService = {
-        method: vi.fn().mockResolvedValue('result')
+        method: vi.fn<(value: string) => Promise<string>>().mockResolvedValue('result')
       };
 
-      const handler = async (event: unknown, ...args: unknown[]) => {
-        return await mockService.method(...args);
+      const handler = async (_event: unknown, value: string): Promise<string> => {
+        return await mockService.method(value);
       };
 
       expect(typeof handler).toBe('function');
@@ -119,10 +133,10 @@ describe('IPC Handlers - Interface Tests', () => {
   describe('Error Handling Patterns', () => {
     it('should handle service errors in handlers', async () => {
       const mockService = {
-        method: vi.fn().mockRejectedValue(new Error('Service error'))
+        method: vi.fn<(...args: unknown[]) => Promise<unknown>>().mockRejectedValue(new Error('Service error'))
       };
 
-      const handler = async (event: unknown, ...args: unknown[]) => {
+      const handler = async (_event: unknown, ...args: unknown[]): Promise<unknown> => {
         return await mockService.method(...args);
       };
 
@@ -131,29 +145,35 @@ describe('IPC Handlers - Interface Tests', () => {
 
     it('should validate input parameters', async () => {
       const mockService = {
-        method: vi.fn().mockResolvedValue('result')
+        method: vi.fn<(value: string) => Promise<string>>().mockResolvedValue('result')
       };
 
-      const handler = async (event: unknown, param: unknown) => {
-        if (!param) {
+      const handler = async (_event: unknown, param: string | null): Promise<string> => {
+        if (param === null || param === undefined || param.trim() === '') {
           throw new Error('Parameter is required');
         }
         return await mockService.method(param);
       };
 
       await expect(handler({}, null)).rejects.toThrow('Parameter is required');
-      await expect(handler({}, 'valid')).resolves.toBeUndefined();
+      await expect(handler({}, 'valid')).resolves.toBe('result');
     });
   });
 
   describe('Response Format Patterns', () => {
     it('should return success responses', async () => {
       const mockService = {
-        method: vi.fn().mockResolvedValue({ success: true, data: 'test' })
+        method: vi.fn<() => Promise<{ success: true; data: string }>>().mockResolvedValue({
+          success: true,
+          data: 'test'
+        })
       };
 
-      const handler = async (event: unknown, ...args: unknown[]) => {
-        return await mockService.method(...args);
+      const handler = async (_event: unknown, ..._args: unknown[]): Promise<{
+        success: true;
+        data: string;
+      }> => {
+        return await mockService.method();
       };
 
       const result = await handler({}, 'arg');
@@ -163,11 +183,17 @@ describe('IPC Handlers - Interface Tests', () => {
 
     it('should return error responses', async () => {
       const mockService = {
-        method: vi.fn().mockResolvedValue({ success: false, error: 'Test error' })
+        method: vi.fn<() => Promise<{ success: false; error: string }>>().mockResolvedValue({
+          success: false,
+          error: 'Test error'
+        })
       };
 
-      const handler = async (event: unknown, ...args: unknown[]) => {
-        return await mockService.method(...args);
+      const handler = async (_event: unknown, ..._args: unknown[]): Promise<{
+        success: false;
+        error: string;
+      }> => {
+        return await mockService.method();
       };
 
       const result = await handler({}, 'arg');
@@ -183,9 +209,14 @@ describe('IPC Handlers - Interface Tests', () => {
         timestamp: Date.now()
       };
 
-      let capturedEvent: any = null;
+      type MockEvent = {
+        sender: { id: number };
+        timestamp: number;
+      };
 
-      const handler = async (event: any, data: any) => {
+      let capturedEvent: MockEvent | null = null;
+
+      const handler = async (event: MockEvent, data: string): Promise<string> => {
         capturedEvent = event;
         return data;
       };
@@ -198,10 +229,15 @@ describe('IPC Handlers - Interface Tests', () => {
 
     it('should handle multiple arguments', async () => {
       const mockService = {
-        method: vi.fn().mockResolvedValue('result')
+        method: vi.fn<(value1: string, value2: string, value3: string) => Promise<string>>().mockResolvedValue('result')
       };
 
-      const handler = async (event: any, arg1: any, arg2: any, arg3: any) => {
+      const handler = async (
+        _event: HandlerEvent,
+        arg1: string,
+        arg2: string,
+        arg3: string
+      ): Promise<string> => {
         return await mockService.method(arg1, arg2, arg3);
       };
 
@@ -212,13 +248,13 @@ describe('IPC Handlers - Interface Tests', () => {
 
     it('should handle async operations', async () => {
       const mockService = {
-        method: vi.fn().mockImplementation(async (arg: string) => {
+        method: vi.fn<(arg: string) => Promise<string>>().mockImplementation(async (arg: string) => {
           await new Promise(resolve => setTimeout(resolve, 10));
           return `processed-${arg}`;
         })
       };
 
-      const handler = async (event: any, arg: string) => {
+      const handler = async (_event: HandlerEvent, arg: string): Promise<string> => {
         return await mockService.method(arg);
       };
 

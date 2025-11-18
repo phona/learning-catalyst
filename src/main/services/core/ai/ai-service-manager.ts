@@ -18,6 +18,7 @@ export const createAiServiceManager = ({
   loggerService,
   configService
 }: AiServiceManagerDeps): AiServiceManager => {
+  console.log('[AI Service Manager] Starting initialization...');
   let aiService: AiService | null = null;
   let ready: Promise<void> = Promise.resolve();
   const listeners = new Set<() => void>();
@@ -42,9 +43,23 @@ export const createAiServiceManager = ({
     return aiService;
   };
 
-  ready = rebuild();
+  ready = (async () => {
+    try {
+      await rebuild();
+    } catch (error) {
+      loggerService.error('Failed to initialize AI service during rebuild', error as Error);
+      throw error;
+    }
+  })();
   configService.onConfigChanged((config) => {
-    ready = rebuild(config);
+    ready = (async () => {
+      try {
+        await rebuild(config);
+      } catch (error) {
+        loggerService.error('Failed to rebuild AI service on config change', error as Error);
+        throw error;
+      }
+    })();
   });
 
   return {

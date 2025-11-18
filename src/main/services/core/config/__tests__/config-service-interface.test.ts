@@ -1,25 +1,33 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createConfigService } from '../config-service';
+import type { ConfigStorage } from '../storage';
+import type { LoggerService } from '../logger/logger-service';
 
 describe('Config Service - Interface Tests', () => {
-  let mockStore: any;
+  let mockStore: ConfigStorage;
+  let mockLogger: LoggerService;
   let configService: ReturnType<typeof createConfigService>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock electron store
+    // Mock ConfigStorage
     mockStore = {
-      get: vi.fn(),
-      set: vi.fn(),
-      clear: vi.fn(),
-      has: vi.fn(),
-      delete: vi.fn(),
-      size: vi.fn().mockReturnValue(0),
-      path: vi.fn().mockReturnValue('/test/path')
+      loadConfig: vi.fn().mockResolvedValue({ ai: { providers: {}, model_types: {} } }),
+      saveConfig: vi.fn().mockResolvedValue(undefined),
+      getConfigPath: vi.fn().mockResolvedValue('/test/path')
     };
 
-    configService = createConfigService(mockStore);
+    // Mock LoggerService
+    mockLogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis()
+    };
+
+    configService = createConfigService({ storage: mockStore, logger: mockLogger });
   });
 
   describe('Service Creation', () => {
@@ -41,11 +49,11 @@ describe('Config Service - Interface Tests', () => {
   describe('Configuration Management', () => {
     it('should get config from store', async () => {
       const mockConfig = { ai: { providers: {} } };
-      mockStore.get.mockReturnValue(mockConfig);
+      mockStore.loadConfig.mockResolvedValue(mockConfig);
 
       const config = await configService.getConfig();
 
-      expect(mockStore.get).toHaveBeenCalledWith('config');
+      expect(mockStore.loadConfig).toHaveBeenCalled();
       expect(config).toEqual(mockConfig);
     });
 
@@ -54,7 +62,12 @@ describe('Config Service - Interface Tests', () => {
 
       await configService.setConfig(newConfig);
 
-      expect(mockStore.set).toHaveBeenCalledWith('config', newConfig);
+      expect(mockStore.saveConfig).toHaveBeenCalled();
+      const savedConfig = mockStore.saveConfig.mock.calls[0][0];
+      expect(savedConfig).toHaveProperty('ai');
+      expect(savedConfig.ai).toHaveProperty('providers');
+      expect(savedConfig.ai.providers).toHaveProperty('openai');
+      expect(savedConfig.ai.providers.openai).toEqual({ key: 'test' });
     });
 
     it('should get provider config', async () => {
@@ -65,7 +78,7 @@ describe('Config Service - Interface Tests', () => {
           }
         }
       };
-      mockStore.get.mockReturnValue(mockConfig);
+      mockStore.loadConfig.mockResolvedValue(mockConfig);
 
       const providerConfig = await configService.getProviderConfig('openai');
 
@@ -74,7 +87,7 @@ describe('Config Service - Interface Tests', () => {
 
     it('should return undefined for non-existent provider', async () => {
       const mockConfig = { ai: { providers: {} } };
-      mockStore.get.mockReturnValue(mockConfig);
+      mockStore.loadConfig.mockResolvedValue(mockConfig);
 
       const providerConfig = await configService.getProviderConfig('nonexistent');
 
@@ -84,17 +97,11 @@ describe('Config Service - Interface Tests', () => {
     it('should set provider config', async () => {
       const providerConfig = { provider_type: 'openai', api_key: 'new-key' };
       const mockConfig = { ai: { providers: {} } };
-      mockStore.get.mockReturnValue(mockConfig);
+      mockStore.loadConfig.mockResolvedValue(mockConfig);
 
       await configService.setProviderConfig('openai', providerConfig);
 
-      expect(mockStore.set).toHaveBeenCalledWith('config', {
-        ai: {
-          providers: {
-            openai: providerConfig
-          }
-        }
-      });
+      expect(mockStore.saveConfig).toHaveBeenCalled();
     });
   });
 
@@ -102,35 +109,36 @@ describe('Config Service - Interface Tests', () => {
     it('should allow subscribing to config changes', async () => {
       const callback = vi.fn();
 
-      await configService.onConfigChanged(callback);
+      const unsubscribe = await configService.onConfigChanged(callback);
 
       // Should not throw and callback should be registered
       expect(typeof callback).toBe('function');
+      expect(typeof unsubscribe).toBe('function');
     });
 
     it('should handle null callbacks gracefully', async () => {
-      await expect(configService.onConfigChanged(null)).resolves.toBeUndefined();
+      const unsubscribe = await configService.onConfigChanged(null);
+      expect(typeof unsubscribe).toBe('function');
     });
   });
 
   describe('Error Handling', () => {
-    it('should handle store get errors gracefully', async () => {
-      mockStore.get.mockImplementation(() => {
+    it('should propagate store get errors', async () => {
+      mockStore.loadConfig.mockImplementation(() => {
         throw new Error('Store read error');
       });
 
-      // Should return default config structure
-      const config = await configService.getConfig();
-      expect(config).toBeDefined();
+      // Should throw the error
+      await expect(configService.getConfig()).rejects.toThrow('Store read error');
     });
 
-    it('should handle store set errors gracefully', async () => {
-      mockStore.set.mockImplementation(() => {
+    it('should propagate store set errors', async () => {
+      mockStore.saveConfig.mockImplementation(() => {
         throw new Error('Store write error');
       });
 
-      // Should not throw
-      await expect(configService.setConfig({})).resolves.toBeUndefined();
+      // Should throw
+      await expect(configService.setConfig({})).rejects.toThrow('Store write error');
     });
   });
 });

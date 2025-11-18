@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createLoggerService } from '../logger-service';
+import { createLoggerService, LoggerService } from '../logger-service';
+import { createMockLogger } from '@/test/setup/main-process/setup';
 
 describe('Logger Service - Interface Tests', () => {
-  let loggerService: ReturnType<typeof createLoggerService>;
+  let loggerService: LoggerService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    loggerService = createLoggerService();
+    loggerService = createMockLogger();
   });
 
   describe('Service Creation', () => {
@@ -42,7 +43,7 @@ describe('Logger Service - Interface Tests', () => {
     });
 
     it('should create child logger without metadata', () => {
-      const childLogger = loggerService.child();
+      const childLogger = loggerService.child({});
 
       expect(childLogger).toBeDefined();
       expect(typeof childLogger.info).toBe('function');
@@ -103,7 +104,9 @@ describe('Logger Service - Interface Tests', () => {
 
       expect(child1).toBeDefined();
       expect(child2).toBeDefined();
-      expect(child1).not.toBe(child2);
+      expect(loggerService.child).toHaveBeenCalledTimes(2);
+      expect(loggerService.child).toHaveBeenCalledWith({ service: 'service1' });
+      expect(loggerService.child).toHaveBeenCalledWith({ service: 'service2' });
 
       expect(() => child1.info('Message from service 1')).not.toThrow();
       expect(() => child2.info('Message from service 2')).not.toThrow();

@@ -35,6 +35,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ChatArea } from '../ChatArea';
 import type { Message } from '@/shared/types/ai';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Mock the chat store hook
 vi.mock('@/renderer/hooks/useChatStore', () => ({
@@ -83,7 +84,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
       updateMessage: vi.fn(),
     });
 
-    render(<ChatArea />);
+    renderWithServices(<ChatArea />);
 
     expect(screen.getByTestId('message-bubble-msg-1')).toBeInTheDocument();
     expect(screen.getByTestId('message-bubble-msg-2')).toBeInTheDocument();
@@ -101,7 +102,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
       updateMessage: vi.fn(),
     });
 
-    render(<ChatArea />);
+    renderWithServices(<ChatArea />);
 
     // Should show some kind of empty state or welcome message
     const chatArea = screen.getByTestId('chat-area') ||
@@ -131,7 +132,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
 
     // Should not crash with malformed data
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
 
     // Should render what it can
@@ -160,7 +161,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     });
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
 
     expect(screen.getByTestId('message-bubble-msg-long')).toBeInTheDocument();
@@ -170,7 +171,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     (useChatStore as any).mockReturnValue(undefined);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
 
@@ -178,63 +179,63 @@ describe('ChatArea - Critical Reliability Tests', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
   it('should handle null/undefined store gracefully', () => {
     (useChatStore as any).mockReturnValue(null);
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
 
@@ -250,7 +251,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
       updateMessage: vi.fn(),
     });
 
-    const { unmount } = render(<ChatArea />);
+    const { unmount } = renderWithServices(<ChatArea />);
     expect(screen.getByTestId('message-bubble-msg-1')).toBeInTheDocument();
     
     // Clean up and test with both messages
@@ -265,7 +266,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
       updateMessage: vi.fn(),
     });
 
-    render(<ChatArea />);
+    renderWithServices(<ChatArea />);
     expect(screen.getByTestId('message-bubble-msg-1')).toBeInTheDocument();
     expect(screen.getByTestId('message-bubble-msg-2')).toBeInTheDocument();
   });
@@ -281,7 +282,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     });
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
 
@@ -298,7 +299,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     });
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
   });
 
@@ -323,7 +324,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     });
 
     expect(() => {
-      render(<ChatArea />);
+      renderWithServices(<ChatArea />);
     }).not.toThrow();
 
     expect(screen.getByTestId('message-bubble-msg-special')).toBeInTheDocument();

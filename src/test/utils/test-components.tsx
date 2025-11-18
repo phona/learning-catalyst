@@ -1,9 +1,7 @@
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ConfigServiceProvider } from '@/renderer/services/configuration/configuration-service';
-import { ServiceProvider } from '@/renderer/services/ipc/CatalystIPCClient';
-import { ServicesProvider } from '@/renderer/services/ServiceContainer';
+import { ServicesProvider } from '@/renderer/services/services-provider';
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -23,11 +21,7 @@ export const QueryLayer: React.FC<{ children: React.ReactNode }> = ({ children }
 );
 
 export const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <ConfigServiceProvider>
-    <ServiceProvider>
-      <ServicesProvider>
-        <QueryLayer>{children}</QueryLayer>
-      </ServicesProvider>
-    </ServiceProvider>
-  </ConfigServiceProvider>
+  <ServicesProvider>
+    <QueryLayer>{children}</QueryLayer>
+  </ServicesProvider>
 );

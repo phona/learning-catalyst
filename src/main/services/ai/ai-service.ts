@@ -1,8 +1,4 @@
-import { ILogger } from '../types';
 import type { AppConfig, ProviderType } from '@/shared/types/config';
-
-// Extended provider type to include local providers
-type ExtendedProviderType = ProviderType | 'local' | 'ollama' | 'deepseek' | 'chatglm';
 import type {
   ModelProvider,
   ModelConfig,
@@ -52,7 +48,7 @@ const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
   const basePreset: ModelConfig = {
     provider: chatProvider ?? 'openai',
     model: chatDefaults.model ?? 'llama-3.1-70b',
-    apiKey: resolveProviderApiKey(chatProvider, config.ai.providers),
+    apiKey: resolveProviderApiKey(chatProvider ?? 'openai', config.ai.providers),
     temperature: chatDefaults.temperature ?? 0.3,
     maxTokens: chatDefaults.max_tokens ?? 1024
   };
@@ -60,23 +56,23 @@ const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
   return {
     default: basePreset,
     'content.analysis': {
-      provider: 'local' as ExtendedProviderType,
+      provider: 'local',
       model: 'llama-3.1-70b',
-      apiKey: resolveProviderApiKey('local', config.ai.providers),
+      apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.2,
       maxTokens: 2048
     },
     'knowledge.extraction': {
-      provider: 'local' as ExtendedProviderType,
+      provider: 'local',
       model: 'llama-3.1-70b',
-      apiKey: resolveProviderApiKey('local', config.ai.providers),
+      apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.15,
       maxTokens: 2048
     },
     'learning.plan': {
-      provider: 'local' as ExtendedProviderType,
+      provider: 'local',
       model: 'llama-3.1-70b',
-      apiKey: resolveProviderApiKey('local', config.ai.providers),
+      apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.35,
       maxTokens: 3072
     },
@@ -154,14 +150,14 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
     {
       id: 'llama-3.1-70b',
       name: 'Llama 3.1 70B',
-      provider: 'local' as ExtendedProviderType,
+      provider: 'local',
       maxTokens: 131072,
       description: "Meta's Llama 3.1 model (70B parameters)"
     },
     {
       id: 'mistral-nemo',
       name: 'Mistral Nemo',
-      provider: 'local' as ExtendedProviderType,
+      provider: 'local',
       maxTokens: 131072,
       description: "Mistral AI's high-quality model"
     }
