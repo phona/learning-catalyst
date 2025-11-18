@@ -66,7 +66,8 @@
       "Bash(dir:*)",
       "Read(//d/**)",
       "Bash(sed:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(/d/Projects/learning_catalyst_ui_layer/src/renderer/components/Chat/ChatInput.tsx)"
     ],
     "deny": [],
     "ask": []

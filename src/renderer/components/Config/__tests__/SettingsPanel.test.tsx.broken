@@ -15,9 +15,10 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsPanel } from '../SettingsPanel';
+import { useConfigStore } from '../../../stores/useConfigStore';
 
 // Mock the stores and hooks
-vi.mock('@/renderer/stores/useConfigStore', () => ({
+vi.mock('../../../stores/useConfigStore', () => ({
   useConfigStore: vi.fn(() => ({
     config: {
       ai: {
@@ -148,7 +149,7 @@ vi.mock('@/renderer/stores/useConfigStore', () => ({
   })),
 }));
 
-vi.mock('@/renderer/hooks/useAppServices', () => ({
+vi.mock('../../../hooks/useAppServices', () => ({
   useService: vi.fn(() => ({
     saveConfig: vi.fn().mockResolvedValue(undefined),
     updateModelTypeConfig: vi.fn().mockResolvedValue(undefined),
@@ -170,8 +171,8 @@ Object.defineProperty(window, 'electronAPI', {
 });
 
 describe('SettingsPanel - Real User Configuration Workflows', () => {
-  const mockUseConfigStore = vi.mocked(require('@/renderer/stores/useConfigStore').useConfigStore);
-  const mockUseService = vi.mocked(require('@/renderer/hooks/useAppServices').useService);
+  const mockUseConfigStore = vi.mocked(require('../../../stores/index').useConfigStore);
+  const mockUseService = vi.mocked(require('../../../hooks/useAppServices').useService);
 
   beforeEach(() => {
     vi.clearAllMocks();

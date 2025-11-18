@@ -116,7 +116,7 @@ describe('Main Process Service Integration', () => {
       // Mock the getAgent method for the integration test
       let registeredAgent: any = null
       vi.spyOn(agentRegistry, 'getAgent').mockImplementation(async (id) => {
-        if (registeredAgent && id === registeredAgent.id) {
+        if (id === registeredAgent?.id) {
           return registeredAgent
         }
         return null

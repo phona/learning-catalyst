@@ -17,13 +17,13 @@ import { createTypedEventEmitter } from './type-utils';
  */
 export class ResourcePool<T> {
   private available: T[] = [];
-  private inUse = new Set<T>();
-  private factory: () => T | Promise<T>;
-  private destroyer?: (resource: T) => void;
-  private validator?: (resource: T) => boolean;
-  private maxSize: number;
-  private minSize: number;
-  private timeout: number;
+  private readonly inUse = new Set<T>();
+  private readonly factory: () => T | Promise<T>;
+  private readonly destroyer?: (resource: T) => void;
+  private readonly validator?: (resource: T) => boolean;
+  private readonly maxSize: number;
+  private readonly minSize: number;
+  private readonly timeout: number;
 
   constructor(options: {
     factory: () => T | Promise<T>;
@@ -146,11 +146,11 @@ export class ResourcePool<T> {
  * Optimized data processor with batching and streaming
  */
 export class DataProcessor<T, R> {
-  private batchSize: number;
-  private processFn: (batch: T[]) => Promise<R[]>;
+  private readonly batchSize: number;
+  private readonly processFn: (batch: T[]) => Promise<R[]>;
   private queue: T[] = [];
   private processing = false;
-  private batchProcessor: EventBatcher<T>;
+  private readonly batchProcessor: EventBatcher<T>;
 
   constructor(options: {
     batchSize?: number;
@@ -212,9 +212,9 @@ export class DataProcessor<T, R> {
  * Streaming data processor for large datasets
  */
 export class StreamProcessor<T, R> {
-  private chunkSize: number;
-  private processFn: (chunk: T[]) => Promise<R[]>;
-  private concurrency: number;
+  private readonly chunkSize: number;
+  private readonly processFn: (chunk: T[]) => Promise<R[]>;
+  private readonly concurrency: number;
   private semaphore: number;
 
   constructor(options: {
@@ -287,8 +287,8 @@ export class StreamProcessor<T, R> {
  * Multi-level cache with hierarchical storage
  */
 export class MultiLevelCache<K, V> {
-  private levels: CacheLevel<K, V>[];
-  private events = createTypedEventEmitter<{
+  private readonly levels: CacheLevel<K, V>[];
+  private readonly events = createTypedEventEmitter<{
     miss: { key: K; level: number };
     hit: { key: K; level: number };
     eviction: { key: K; level: number; value: V };
@@ -369,7 +369,7 @@ interface CacheLevel<K, V> {
  * Request deduplicator to prevent duplicate concurrent requests
  */
 export class RequestDeduplicator<K = string, R = any> {
-  private pendingRequests = new Map<K, Promise<R>>();
+  private readonly pendingRequests = new Map<K, Promise<R>>();
 
   async deduplicate(key: K, requestFn: () => Promise<R>): Promise<R> {
     // Check if request is already pending
@@ -405,13 +405,13 @@ export class RequestDeduplicator<K = string, R = any> {
  * Circuit breaker pattern for resilient request handling
  */
 export class CircuitBreaker {
-  private failureThreshold: number;
-  private recoveryTimeout: number;
-  private monitoringPeriod: number;
+  private readonly failureThreshold: number;
+  private readonly recoveryTimeout: number;
+  private readonly monitoringPeriod: number;
   private failures = 0;
   private lastFailureTime = 0;
   private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
-  private events = createTypedEventEmitter<{
+  private readonly events = createTypedEventEmitter<{
     stateChange: { from: string; to: string };
     failure: { error: Error };
     success: { duration: number };
@@ -544,9 +544,9 @@ export function createRetryPolicy(options: {
  */
 export class MemoryEfficientQueue<T> {
   private queue: T[] = [];
-  private maxSize: number;
-  private cleanupInterval: NodeJS.Timeout;
-  private onEvict?: (item: T) => void;
+  private readonly maxSize: number;
+  private readonly cleanupInterval: NodeJS.Timeout;
+  private readonly onEvict?: (item: T) => void;
 
   constructor(options: {
     maxSize?: number;

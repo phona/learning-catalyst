@@ -49,7 +49,7 @@ export interface LearningRecommendation {
 }
 
 export class ConceptManager {
-  constructor(private knowledgeGraph: KnowledgeGraphModule) {}
+  constructor(private readonly knowledgeGraph: KnowledgeGraphModule) {}
 
   /**
    * Create a new concept with validation
@@ -138,8 +138,14 @@ export class ConceptManager {
       }
     }
 
-    // KnowledgeGraphModule doesn't have deleteConcept method yet
-    throw new Error('Delete concept functionality is not implemented in KnowledgeGraphModule');
+    // TODO: Implement deleteConcept functionality when KnowledgeGraphModule supports it
+    // This should include:
+    // 1. Remove all relationships involving this concept
+    // 2. Delete the concept from the knowledge graph
+    // 3. Update any dependent concepts that reference this one
+    // 4. Clean up associated metadata and study data
+    console.warn('Delete concept functionality not yet implemented in KnowledgeGraphModule');
+    return false; // Temporary placeholder return
   }
 
   /**

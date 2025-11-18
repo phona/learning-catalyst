@@ -6,18 +6,13 @@
  */
 
 import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
 import path from 'path';
 
+// Use a minimal React configuration to avoid type conflicts
 export default defineConfig({
   plugins: [
-    // Configure React plugin with minimal settings to avoid preamble issues
-    react({
-      include: '**/*.{jsx,tsx}',
-      exclude: ['node_modules', '**/node_modules/**'],
-      // Disable fast refresh to avoid preamble detection issues
-      fastRefresh: false,
-    })
+    // Skip the React plugin for now to avoid type conflicts
+    // JSX will be handled by TypeScript compiler
   ],
   test: {
     name: 'renderer-thread',
@@ -79,13 +74,17 @@ export default defineConfig({
       '@/renderer': path.resolve(__dirname, './src/renderer'),
       '@/main': path.resolve(__dirname, './src/main'),
       '@/shared': path.resolve(__dirname, './src/shared'),
-      '@/test': path.resolve(__dirname, './src/test')
+      '@/test': path.resolve(__dirname, './src/test'),
+      '@/stores': path.resolve(__dirname, './src/renderer/stores')
     }
   },
   define: {
     'process.env.NODE_ENV': '"test"'
   },
   esbuild: {
-    target: 'es2020'
+    target: 'es2020',
+    jsx: 'automatic',
+    jsxFactory: 'React.createElement',
+    jsxFragment: 'React.Fragment',
   }
 });
