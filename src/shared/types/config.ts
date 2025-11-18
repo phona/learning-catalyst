@@ -25,7 +25,6 @@ export interface ProviderConfig {
   max_tokens?: number;
   streaming?: boolean;
   custom_headers?: Record<string, string>;
-  customHeaders?: Record<string, string>; // Legacy support
 }
 
 export interface AppConfig {

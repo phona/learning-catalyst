@@ -54,9 +54,7 @@ export interface IPCStreamMessage extends IPCMessage {
 }
 
 // Process types for testing
-export interface MockMainProcess extends EventEmitter {
-  // Additional main process methods can be added here
-}
+export type MockMainProcess = EventEmitter
 
 export interface MockRendererProcess extends EventEmitter {
   invoke: (channel: string, data: any) => Promise<any>;

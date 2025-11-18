@@ -17,7 +17,7 @@ export { generateSessionId };
  * @param maxLength - Maximum length of the title (default: 50)
  * @returns Generated title
  */
-export function generateSimpleTitle(message: string, maxLength: number = 50): string {
+export function generateSimpleTitle(message: string, maxLength = 50): string {
   const words = message
     .replace(/[^\w\s]/g, '') // Remove punctuation
     .split(/\s+/) // Split by whitespace

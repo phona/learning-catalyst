@@ -20,7 +20,7 @@ export class LRUCache<TKey, TValue> {
   private currentMemory = 0;
 
   constructor(
-    maxSize: number = 100,
+    maxSize = 100,
     maxMemoryMB?: number,
     cleanupIntervalMs = 60 * 1000 // 1 minute
   ) {
@@ -489,8 +489,8 @@ interface PerformanceStats {
  * Weak reference wrapper for garbage collection
  */
 export class WeakReference<T extends object> {
-  private readonly ref: WeakRef<T>;
-  private readonly registry: FinalizationRegistry<string>;
+  private ref: WeakRef<T>;
+  private registry: FinalizationRegistry<string>;
 
   constructor(value: T, id: string, cleanupCallback: (id: string) => void) {
     this.ref = new WeakRef(value);
@@ -519,7 +519,7 @@ export class MemoryPool<T> {
   constructor(
     factory: () => T,
     reset: (obj: T) => void,
-    maxSize: number = 100
+    maxSize = 100
   ) {
     this.factory = factory;
     this.reset = reset;

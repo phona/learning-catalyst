@@ -30,7 +30,7 @@ export function generateTimestamp(): number {
 /**
  * Generate a short ID for non-critical uses
  */
-export function generateShortId(length: number = 8): string {
+export function generateShortId(length = 8): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   for (let i = 0; i < length; i++) {

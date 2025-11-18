@@ -256,8 +256,8 @@ export function withTimeout<T>(
  */
 export async function retryAsync<T>(
   operation: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelay: number = 1000
+  maxRetries = 3,
+  baseDelay = 1000
 ): Promise<T> {
   let lastError: Error;
 

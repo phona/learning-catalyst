@@ -172,53 +172,6 @@ export interface SearchFacets {
   dateRanges: { [range: string]: number };
 }
 
-export interface ChatService {
-  // Conversation management
-  createConversation(request?: CreateConversationRequest): Promise<string>;
-  getConversation(conversationId: string): Promise<ConversationDisplay>;
-  updateConversation(conversationId: string, updates: Partial<ConversationDisplay>): Promise<void>;
-  deleteConversation(conversationId: string): Promise<void>;
-  archiveConversation(conversationId: string): Promise<void>;
-  unarchiveConversation(conversationId: string): Promise<void>;
-
-  // Message handling
-  sendMessage(request: SendMessageRequest): Promise<ChatResponse>;
-  sendMessageStream(
-    request: SendMessageRequest,
-    onChunk: (chunk: StreamChunk) => void
-  ): Promise<ChatResponse>;
-  editMessage(conversationId: string, messageId: string, newContent: string): Promise<void>;
-  deleteMessage(conversationId: string, messageId: string): Promise<void>;
-  reactToMessage(conversationId: string, messageId: string, emoji: string): Promise<void>;
-
-  // Conversation search and listing
-  searchConversations(request: ConversationSearchRequest): Promise<ConversationSearchResult>;
-  getRecentConversations(limit?: number): Promise<ConversationDisplay[]>;
-  getArchivedConversations(limit?: number): Promise<ConversationDisplay[]>;
-
-  // Analytics and insights
-  getConversationSummary(conversationId: string): Promise<ConversationSummary>;
-  getConversationStats(conversationId: string): Promise<ConversationStats>;
-  getGlobalChatStats(): Promise<GlobalChatStats>;
-
-  // Export/import
-  exportConversation(conversationId: string, format: 'json' | 'markdown' | 'pdf'): Promise<string>;
-  importConversation(data: string, format: 'json'): Promise<string>;
-  exportMultipleConversations(conversationIds: string[], format: 'json' | 'csv'): Promise<string>;
-
-  // Real-time features
-  subscribeToConversation(conversationId: string): Promise<ReadableStream<ConversationUpdate>>;
-  unsubscribeFromConversation(conversationId: string): Promise<void>;
-  getTypingIndicators(conversationId: string): Promise<TypingIndicator[]>;
-  setTypingIndicator(conversationId: string, isTyping: boolean): Promise<void>;
-
-  // Conversation enhancement
-  generateTitle(conversationId: string): Promise<string>;
-  generateSuggestions(conversationId: string, context?: string): Promise<MessageSuggestion[]>;
-  extractConcepts(conversationId: string): Promise<string[]>;
-  generateActionItems(conversationId: string): Promise<string[]>;
-}
-
 export interface ConversationStats {
   messageCount: number;
   userMessageCount: number;

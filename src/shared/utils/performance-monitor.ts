@@ -31,10 +31,10 @@ interface PerformanceEvents {
 // ============================================================================
 
 export class AppPerformanceMonitor {
-  private readonly monitor = new PerformanceMonitor();
-  private readonly events = createTypedEventEmitter<PerformanceEvents>();
-  private readonly cache = new LRUCache<string, PerformanceMetrics>(1000);
-  private readonly alertThresholds = new Map<string, number>();
+  private monitor = new PerformanceMonitor();
+  private events = createTypedEventEmitter<PerformanceEvents>();
+  private cache = new LRUCache<string, PerformanceMetrics>(1000);
+  private alertThresholds = new Map<string, number>();
   private batchProcessor: EventBatcher<PerformanceMetrics> = new EventBatcher<PerformanceMetrics>(100, 5000, this.handleBatch.bind(this));
   private memoryMonitor: MemoryMonitor = new MemoryMonitor(this.monitor);
 
@@ -135,7 +135,7 @@ export class AppPerformanceMonitor {
   /**
    * Get performance trends over time
    */
-  getPerformanceTrends(operation: string, timeWindow: number = 3600000): PerformanceTrend[] {
+  getPerformanceTrends(operation: string, timeWindow = 3600000): PerformanceTrend[] {
     const now = Date.now();
     const cutoff = now - timeWindow;
 

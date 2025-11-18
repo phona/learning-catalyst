@@ -18,7 +18,7 @@ class MemoryDebugLogger {
   private isRunning = false;
   private readonly logInterval: number;
 
-  constructor(logIntervalMs: number = 10000) {
+  constructor(logIntervalMs = 10000) {
     this.logInterval = logIntervalMs;
   }
 

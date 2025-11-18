@@ -5,8 +5,8 @@
  * Provides insights into learning effectiveness and user engagement.
  */
 
-import type { Database } from '../../main/services/database/kysely-schema';
-import type { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
+import type { Database } from '../../main/services/core/database/kysely-schema';
+import type { JSONFieldHelpers } from '../../main/services/core/database/kysely-schema';
 import type { Kysely } from 'kysely';
 
 export interface LearningSession {
@@ -299,7 +299,7 @@ export class SimpleAnalyticsModule {
   /**
    * Get learning trends over time
    */
-  async getLearningTrends(days: number = 30): Promise<LearningTrends> {
+  async getLearningTrends(days = 30): Promise<LearningTrends> {
     const endDate = new Date();
     const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
 
@@ -568,8 +568,8 @@ export class SimpleAnalyticsModule {
   async startSession(
     title: string,
     sessionType: LearningSession['sessionType'] = 'study',
-    aiProvider: string = 'openai',
-    aiModel: string = 'gpt-3.5-turbo'
+    aiProvider = 'openai',
+    aiModel = 'gpt-3.5-turbo'
   ): Promise<string> {
     const session = await this.recordSession({
       title,
