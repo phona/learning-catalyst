@@ -402,14 +402,14 @@ export function formatLearningMaterialForExport(
   format: 'json' | 'markdown' | 'html' = 'json'
 ): string {
   switch (format) {
-    case 'json':
-      return JSON.stringify(material, null, 2);
-    case 'markdown':
-      return formatLearningMaterialAsMarkdown(material);
-    case 'html':
-      return formatLearningMaterialAsHTML(material);
-    default:
-      throw new Error(`Unsupported format: ${format}`);
+  case 'json':
+    return JSON.stringify(material, null, 2);
+  case 'markdown':
+    return formatLearningMaterialAsMarkdown(material);
+  case 'html':
+    return formatLearningMaterialAsHTML(material);
+  default:
+    throw new Error(`Unsupported format: ${format}`);
   }
 }
 
@@ -501,16 +501,16 @@ function formatLearningMaterialAsHTML(material: LearningMaterial): string {
 function sortConcepts(concepts: Concept[], sortBy: string): Concept[] {
   return [...concepts].sort((a, b) => {
     switch (sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'confidence':
-        return b.confidence - a.confidence;
-      case 'difficulty':
-        return a.difficulty - b.difficulty;
-      case 'recent':
-        return b.extractedAt.getTime() - a.extractedAt.getTime();
-      default:
-        return 0;
+    case 'name':
+      return a.name.localeCompare(b.name);
+    case 'confidence':
+      return b.confidence - a.confidence;
+    case 'difficulty':
+      return a.difficulty - b.difficulty;
+    case 'recent':
+      return b.extractedAt.getTime() - a.extractedAt.getTime();
+    default:
+      return 0;
     }
   });
 }

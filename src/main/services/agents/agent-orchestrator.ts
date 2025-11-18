@@ -64,10 +64,10 @@ interface ExecutionContext {
 
 export class AgentOrchestrator {
   constructor(
-    private agentManager: AgentManagerMain,
-    private toolExecutor: ToolExecutorService,
-    private knowledgeService: KnowledgeService,
-    private langChainService: LangChainServiceMain
+    private readonly agentManager: AgentManagerMain,
+    private readonly toolExecutor: ToolExecutorService,
+    private readonly knowledgeService: KnowledgeService,
+    private readonly langChainService: LangChainServiceMain
   ) {}
 
   async executeAgent(request: AgentExecutionRequest): Promise<AgentExecutionResponse> {
@@ -278,38 +278,38 @@ export class AgentOrchestrator {
     const baseTools = await this.toolExecutor.getBaseTools();
 
     switch (agent.type) {
-      case 'concept-parser':
-        return [
-          ...baseTools,
-          await this.createConceptAnalysisTools(context),
-          await this.createKnowledgeTools(context)
-        ];
+    case 'concept-parser':
+      return [
+        ...baseTools,
+        await this.createConceptAnalysisTools(context),
+        await this.createKnowledgeTools(context)
+      ];
 
-      case 'chat-agent':
-        return [
-          ...baseTools,
-          await this.createLearningTools(context),
-          await this.createAnalysisTools(context)
-        ];
+    case 'chat-agent':
+      return [
+        ...baseTools,
+        await this.createLearningTools(context),
+        await this.createAnalysisTools(context)
+      ];
 
-      case 'learning-coach':
-        return [
-          ...baseTools,
-          await this.createTutoringTools(context),
-          await this.createAssessmentTools(context),
-          await this.createProgressTools(context)
-        ];
+    case 'learning-coach':
+      return [
+        ...baseTools,
+        await this.createTutoringTools(context),
+        await this.createAssessmentTools(context),
+        await this.createProgressTools(context)
+      ];
 
-      case 'content-discoverer':
-        return [
-          ...baseTools,
-          await this.createResearchTools(context),
-          await this.createAnalysisTools(context),
-          await this.createSynthesisTools(context)
-        ];
+    case 'content-discoverer':
+      return [
+        ...baseTools,
+        await this.createResearchTools(context),
+        await this.createAnalysisTools(context),
+        await this.createSynthesisTools(context)
+      ];
 
-      default:
-        return baseTools;
+    default:
+      return baseTools;
     }
   }
 
@@ -698,7 +698,7 @@ export class AgentOrchestrator {
   private async updateKnowledgeFromExecution(sessionId: string, results: any): Promise<void> {
     // Update knowledge graph with new information from execution
     if (results.newKnowledge) {
-      await this.knowledgeService.addKnowledgeItem(results.newKnowledge, 'openai');
+      await this.knowledgeService.addKnowledgeItem(results.newKnowledge);
     }
 
     if (results.concepts && results.concepts.length > 0) {

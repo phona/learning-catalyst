@@ -4,6 +4,14 @@
  * Type definitions for agent management and execution.
  */
 
+import {
+  AgentConfig as BaseAgentConfig,
+  AgentExecutionRequest,
+  AgentExecutionChunk,
+  ServiceExecutionContext,
+  AgentExecutionError as BaseAgentExecutionError
+} from '../types';
+
 export enum AgentType {
   LEARNING = 'learning',
   ASSESSMENT = 'assessment',
@@ -14,60 +22,16 @@ export enum AgentType {
   TITLE_GENERATION = 'title-generation'
 }
 
-export interface AgentConfig {
-  id: string;
-  name: string;
-  type: 'concept-parser' | 'chat-agent' | 'learning-coach' | 'content-discoverer';
+// Extend base AgentConfig with agent-specific fields
+export interface AgentConfig extends BaseAgentConfig {
   version: string;
   description?: string;
-  enabled: boolean;
-  systemPrompt?: string;
-  modelConfig: {
-    provider: any;
-    modelId: string;
-    timeout?: number;
-    temperature?: number;
-    maxTokens?: number;
-  };
-  tools: string[];
   permissions: {
     canReadFiles: boolean;
     canWriteFiles: boolean;
     canAccessNetwork: boolean;
     allowedDomains?: string[];
   };
-  capabilities: string[];
-  metadata?: Record<string, any>;
-}
-
-export interface AgentExecutionRequest {
-  agentId: string;
-  input: any;
-  context: ServiceExecutionContext;
-  options: {
-    stream?: boolean;
-    maxIterations?: number;
-    timeout?: number;
-    sessionId?: string;
-    userId?: string;
-  };
-}
-
-export interface AgentExecutionChunk {
-  type: 'error' | 'data' | 'start' | 'progress' | 'complete' | 'tool-call' | 'tool-result' |
-       'workflow_start' | 'workflow_complete' | 'workflow_error' | 'step_start' | 'step_complete' | 'step_retry';
-  content: any;
-  timestamp: number;
-}
-
-export interface ServiceExecutionContext {
-  id: string;
-  sessionId: string;
-  userId?: string;
-  timestamp: number;
-  requestId: string;
-  correlationId?: string;
-  operation: string;
   metadata?: Record<string, any>;
 }
 
@@ -96,18 +60,9 @@ export interface ServiceDependencies {
   eventBus: any;
 }
 
-export class AgentExecutionError extends Error {
-  constructor(
-    message: string,
-    public agentId: string,
-    public phase: 'initialization' | 'execution' | 'cleanup' | 'tool-call',
-    public context?: ServiceExecutionContext,
-    public cause?: Error
-  ) {
-    super(message);
-    this.name = 'AgentExecutionError';
-  }
-}
+// Re-export from base types
+export { AgentExecutionRequest, AgentExecutionChunk, ServiceExecutionContext };
+export { BaseAgentExecutionError as AgentExecutionError };
 
 export interface ToolExecutorConfig {
   timeout: number;
@@ -117,20 +72,15 @@ export interface ToolExecutorConfig {
   allowedDomains: string[];
 }
 
-export interface ToolExecutionRequest {
-  toolId: string;
-  method: string;
-  parameters: Record<string, any>;
-  context: ServiceExecutionContext;
+// Import base tool execution types
+import { ToolExecutionRequest as BaseToolExecutionRequest, ToolExecutionResult as BaseToolExecutionResult } from '../types';
+
+export interface ToolExecutionRequest extends BaseToolExecutionRequest {
+  method: string; // Keep for backwards compatibility, maps to operation
 }
 
-export interface ToolExecutionResult {
-  success: boolean;
-  result?: any;
-  error?: string;
-  metadata?: Record<string, any>;
-  executionTime: number;
-}
+// Re-export tool execution result
+export { BaseToolExecutionResult as ToolExecutionResult };
 
 export interface AgentExecutionResult {
   success: boolean;

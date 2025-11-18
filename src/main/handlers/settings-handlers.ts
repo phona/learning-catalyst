@@ -67,7 +67,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
       await access(configPath);
       const configContent = await readFile(configPath, 'utf-8');
       return JSON.parse(configContent);
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
@@ -84,30 +84,30 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     }
   }
 
-  function getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+  function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+    return path.split('.').reduce((current, key) => current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined, obj);
   }
 
-  function setNestedValue(obj: any, path: string, value: any): any {
+  function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
     const keys = path.split('.');
     const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => {
       if (!current[key] || typeof current[key] !== 'object') {
         current[key] = {};
       }
-      return current[key];
+      return current[key] as Record<string, unknown>;
     }, obj);
     target[lastKey] = value;
     return obj;
   }
 
-  function deleteNestedValue(obj: any, path: string): any {
+  function deleteNestedValue(obj: Record<string, unknown>, path: string): Record<string, unknown> {
     const keys = path.split('.');
     const lastKey = keys.pop()!;
-    const target = keys.reduce((current, key) => current?.[key], obj);
+    const target = keys.reduce((current, key) => current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined, obj);
 
-    if (target && target.hasOwnProperty(lastKey)) {
-      delete target[lastKey];
+    if (target && typeof target === 'object' && (target as Record<string, unknown>).hasOwnProperty(lastKey)) {
+      delete (target as Record<string, unknown>)[lastKey];
     }
 
     return obj;
@@ -234,7 +234,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Update user preferences
    */
-  ipcMain.handle('settings:updatePreferences', async (event, updates) => {
+  ipcMain.handle('settings:updatePreferences', async (event: any, updates: Record<string, unknown>) => {
     logger.info('Updating user preferences', {
       categories: Object.keys(updates)
     });
@@ -349,7 +349,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Export settings
    */
-  ipcMain.handle('settings:export', async (event, params) => {
+  ipcMain.handle('settings:export', async (event: any, params: { format?: string; includePrivate?: boolean }) => {
     logger.info('Exporting settings', {
       format: params.format || 'json',
       includePrivate: params.includePrivate || false
@@ -432,7 +432,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Import settings
    */
-  ipcMain.handle('settings:import', async (event, params) => {
+  ipcMain.handle('settings:import', async (event: any, params: { source: string; merge: boolean; sourceType?: string }) => {
     logger.info('Importing settings', {
       source: params.source,
       merge: params.merge
@@ -618,7 +618,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Set workspace configuration
    */
-  ipcMain.handle('settings:setWorkspaceConfig', async (_, config: AppConfig) => {
+  ipcMain.handle('settings:setWorkspaceConfig', async (_: any, config: AppConfig) => {
     logger.info('Setting workspace configuration');
     try {
       await saveWorkspaceConfig(config);
@@ -631,7 +631,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Get specific workspace configuration key
    */
-  ipcMain.handle('settings:getWorkspaceConfigKey', async (_, key: string) => {
+  ipcMain.handle('settings:getWorkspaceConfigKey', async (_: any, key: string) => {
     logger.info('Getting workspace config key', { key });
     try {
       const config = await loadWorkspaceConfig();
@@ -645,7 +645,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Set specific workspace configuration key
    */
-  ipcMain.handle('settings:setWorkspaceConfigKey', async (_, key: string, value: any) => {
+  ipcMain.handle('settings:setWorkspaceConfigKey', async (_: any, key: string, value: unknown) => {
     logger.info('Setting workspace config key', { key });
     try {
       const config = await loadWorkspaceConfig() || {};
@@ -660,7 +660,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Delete workspace configuration key
    */
-  ipcMain.handle('settings:deleteWorkspaceConfigKey', async (_, key: string) => {
+  ipcMain.handle('settings:deleteWorkspaceConfigKey', async (_: any, key: string) => {
     logger.info('Deleting workspace config key', { key });
     try {
       const config = await loadWorkspaceConfig();

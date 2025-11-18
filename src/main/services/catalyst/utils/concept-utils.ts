@@ -63,16 +63,16 @@ export function sortConcepts(
 ): Concept[] {
   return [...concepts].sort((a, b) => {
     switch (sortBy) {
-      case 'confidence':
-        return b.confidence - a.confidence;
-      case 'difficulty':
-        return a.difficulty - b.difficulty;
-      case 'name':
-        return a.name.localeCompare(b.name);
-      case 'recent':
-        return b.extractedAt.getTime() - a.extractedAt.getTime();
-      default:
-        return 0;
+    case 'confidence':
+      return b.confidence - a.confidence;
+    case 'difficulty':
+      return a.difficulty - b.difficulty;
+    case 'name':
+      return a.name.localeCompare(b.name);
+    case 'recent':
+      return b.extractedAt.getTime() - a.extractedAt.getTime();
+    default:
+      return 0;
     }
   });
 }

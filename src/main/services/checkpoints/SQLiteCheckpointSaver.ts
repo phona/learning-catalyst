@@ -30,7 +30,7 @@ export interface RunnableConfig {
  * through Kysely, enabling LangGraph agents to maintain state across sessions.
  */
 export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
-  constructor(private db: Kysely<Database>) {
+  constructor(private readonly db: Kysely<Database>) {
     super()
   }
 

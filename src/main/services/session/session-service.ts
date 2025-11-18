@@ -73,16 +73,16 @@ export interface SessionSearchQuery {
 export interface SessionSearchResult {
   sessions: any[];
   total: number;
-  has_more: boolean;
+  hasMore: boolean;
 }
 
 /**
  * Main process session service
  */
 export class SessionService {
-  private database: Kysely<Database>;
-  private logger: ILogger;
-  private als: AsyncLocalStorage<any>;
+  private readonly database: Kysely<Database>;
+  private readonly logger: ILogger;
+  private readonly als: AsyncLocalStorage<any>;
 
   constructor(dependencies: {
     database: Kysely<Database>;
@@ -528,7 +528,7 @@ export class SessionService {
         return {
           sessions,
           total,
-          has_more: (query.offset || 0) + sessions.length < total
+          hasMore: (query.offset || 0) + sessions.length < total
         };
 
       } catch (error) {
@@ -660,10 +660,10 @@ export class SessionService {
               model: message.model,
               tokens_used: message.tokens_used
                 ? JSON.stringify({
-                    prompt_tokens: 0,
-                    completion_tokens: 0,
-                    total_tokens: message.tokens_used
-                  })
+                  prompt_tokens: 0,
+                  completion_tokens: 0,
+                  total_tokens: message.tokens_used
+                })
                 : '{}',
               timestamp: (message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp)).toISOString(),
               message_order: index + 1,

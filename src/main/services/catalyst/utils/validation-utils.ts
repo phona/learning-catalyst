@@ -260,7 +260,7 @@ export function validateConcept(
       score -= 0.05;
     }
 
-    if (concept.metadata.extractedBy && concept.metadata.extractedBy.length === 0) {
+    if (concept.metadata.extractedBy?.length === 0) {
       warnings.push('No extraction method recorded in metadata');
       score -= 0.1;
     }

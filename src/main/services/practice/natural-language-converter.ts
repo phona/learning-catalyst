@@ -105,9 +105,9 @@ export const DEFAULT_NATURAL_LANGUAGE_CONVERTER_CONFIG: NaturalLanguageConverter
  * Natural Language Converter Service
  */
 export class NaturalLanguageConverter {
-  private logger: any;
-  private config: NaturalLanguageConverterConfig;
-  private templates: Map<string, ConversionTemplate[]>;
+  private readonly logger: any;
+  private readonly config: NaturalLanguageConverterConfig;
+  private readonly templates: Map<string, ConversionTemplate[]>;
 
   constructor(dependencies: ServiceDependencies, config: Partial<NaturalLanguageConverterConfig> = {}) {
     this.logger = dependencies.logger;
@@ -545,26 +545,26 @@ export class NaturalLanguageConverter {
     const exercise = request.exercise;
 
     switch (variable) {
-      case 'topic':
-        return request.context?.topic || exercise.topic || 'this concept';
-      case 'file_name':
-        return 'currentCode' in exercise
-          ? exercise.file.split('/').pop() || 'your file'
-          : 'your code';
-      case 'task_description':
-        return exercise.description || exercise.problem || 'the exercise';
-      case 'specific_task':
-        return this.extractSpecificTask(exercise);
-      case 'challenge_type':
-        return this.extractChallengeType(exercise);
-      case 'feature':
-        return this.extractFeature(exercise);
-      case 'specific_improvement':
-        return this.extractSpecificImprovement(exercise);
-      case 'specific_area':
-        return this.extractSpecificArea(exercise);
-      default:
-        return '';
+    case 'topic':
+      return request.context?.topic || exercise.topic || 'this concept';
+    case 'file_name':
+      return 'currentCode' in exercise
+        ? exercise.file.split('/').pop() || 'your file'
+        : 'your code';
+    case 'task_description':
+      return exercise.description || exercise.problem || 'the exercise';
+    case 'specific_task':
+      return this.extractSpecificTask(exercise);
+    case 'challenge_type':
+      return this.extractChallengeType(exercise);
+    case 'feature':
+      return this.extractFeature(exercise);
+    case 'specific_improvement':
+      return this.extractSpecificImprovement(exercise);
+    case 'specific_area':
+      return this.extractSpecificArea(exercise);
+    default:
+      return '';
     }
   }
 
@@ -824,7 +824,7 @@ export class NaturalLanguageConverter {
     totalTemplates: number;
     templatesBySource: Record<string, number>;
     templatesByTarget: Record<string, number>;
-  } {
+    } {
     const totalTemplates = Array.from(this.templates.values())
       .reduce((sum, templates) => sum + templates.length, 0);
 

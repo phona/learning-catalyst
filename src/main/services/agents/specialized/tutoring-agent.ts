@@ -77,11 +77,11 @@ export interface TutoringAgentConfig {
  * Specialized Tutoring Agent
  */
 export class TutoringAgent {
-  private model: BaseLanguageModel;
-  private toolExecutor: ToolExecutorService;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly dependencies: ServiceDependencies;
   private config: TutoringAgentConfig;
-  private activeSessions = new Map<string, TutoringSession>();
+  private readonly activeSessions = new Map<string, TutoringSession>();
 
   constructor(
     model: BaseLanguageModel,
@@ -123,33 +123,33 @@ export class TutoringAgent {
 
       // Route to appropriate tutoring function
       switch (tutoringRequest.type) {
-        case 'start_session':
-          yield* this.startTutoringSession(request.input, tutoringRequest, executionContext);
-          break;
+      case 'start_session':
+        yield* this.startTutoringSession(request.input, tutoringRequest, executionContext);
+        break;
 
-        case 'continue_session':
-          yield* this.continueTutoringSession(request.input, tutoringRequest, executionContext);
-          break;
+      case 'continue_session':
+        yield* this.continueTutoringSession(request.input, tutoringRequest, executionContext);
+        break;
 
-        case 'provide_guidance':
-          yield* this.provideGuidance(request.input, tutoringRequest, executionContext);
-          break;
+      case 'provide_guidance':
+        yield* this.provideGuidance(request.input, tutoringRequest, executionContext);
+        break;
 
-        case 'explain_concept':
-          yield* this.explainConcept(request.input, tutoringRequest, executionContext);
-          break;
+      case 'explain_concept':
+        yield* this.explainConcept(request.input, tutoringRequest, executionContext);
+        break;
 
-        case 'give_hint':
-          yield* this.giveHint(request.input, tutoringRequest, executionContext);
-          break;
+      case 'give_hint':
+        yield* this.giveHint(request.input, tutoringRequest, executionContext);
+        break;
 
-        case 'assess_understanding':
-          yield* this.assessUnderstanding(request.input, tutoringRequest, executionContext);
-          break;
+      case 'assess_understanding':
+        yield* this.assessUnderstanding(request.input, tutoringRequest, executionContext);
+        break;
 
-        default:
-          yield* this.provideGeneralTutoringHelp(request.input, tutoringRequest, executionContext);
-          break;
+      default:
+        yield* this.provideGeneralTutoringHelp(request.input, tutoringRequest, executionContext);
+        break;
       }
 
     } catch (error) {
@@ -298,12 +298,12 @@ Response format:
 
     yield {
       type: 'data',
-        content: {
-          type: 'session_started',
-          session,
-          plan: sessionPlan
-        },
-        timestamp: Date.now()
+      content: {
+        type: 'session_started',
+        session,
+        plan: sessionPlan
+      },
+      timestamp: Date.now()
     };
 
     // Start with first step
@@ -1065,7 +1065,7 @@ Make the completion message encouraging and inspiring.`;
     mostCommonSubject: string;
     mostCommonLevel: string;
     averageAdaptations: number;
-  } {
+    } {
     const sessions = Array.from(this.activeSessions.values());
 
     return {

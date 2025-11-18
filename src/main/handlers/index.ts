@@ -11,16 +11,16 @@ import { setupSettingsHandlers } from './settings-handlers';
 import { setupSessionHandlers } from './session-handlers';
 
 export function setupAllIpcHandlers(mainWindow: BrowserWindow | null, workspacePath: string): void {
-	// Setup 7-domain handlers (only communication method with renderer)
-	setupChatHandlers();
-	setupLearningHandlers();
-	setupKnowledgeHandlers();
-	registerAnalyticsHandlers();
-	setupAgentHandlers();
-	setupContentHandlers();
-	setupSettingsHandlers(workspacePath);
-	setupSessionHandlers();
-	setupFilesystemHandlers(workspacePath);
+  // Setup 7-domain handlers (only communication method with renderer)
+  setupChatHandlers();
+  setupLearningHandlers();
+  setupKnowledgeHandlers();
+  registerAnalyticsHandlers();
+  setupAgentHandlers();
+  setupContentHandlers();
+  setupSettingsHandlers(workspacePath);
+  setupSessionHandlers();
+  setupFilesystemHandlers(workspacePath);
 
-	console.log('✅ 7-domain IPC handlers registered successfully');
+  console.log('✅ 7-domain IPC handlers registered successfully');
 }

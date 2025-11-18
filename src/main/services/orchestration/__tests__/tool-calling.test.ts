@@ -201,29 +201,29 @@ describe('ToolCallingOrchestrator', () => {
     mockToolExecutor.executeTool.mockImplementation(async (toolName: string, args: any, context: any) => {
       // Mock successful tool execution based on tool name
       switch (toolName) {
-        case 'database-query':
-          return {
-            success: true,
-            data: [{ id: 1, concept: 'machine learning' }],
-            executionTime: 50,
-            metadata: { operation: args.operation }
-          };
-        case 'file-read':
-          return {
-            success: true,
-            data: { content: 'File content here', path: args.path },
-            executionTime: 30,
-            metadata: { path: args.path }
-          };
-        case 'list-concepts':
-          return {
-            success: true,
-            data: { concepts: ['AI', 'ML', 'Neural Networks'], total: 3 },
-            executionTime: 40,
-            metadata: { limit: args.limit || 50 }
-          };
-        default:
-          throw new Error(`Unknown tool: ${toolName}`);
+      case 'database-query':
+        return {
+          success: true,
+          data: [{ id: 1, concept: 'machine learning' }],
+          executionTime: 50,
+          metadata: { operation: args.operation }
+        };
+      case 'file-read':
+        return {
+          success: true,
+          data: { content: 'File content here', path: args.path },
+          executionTime: 30,
+          metadata: { path: args.path }
+        };
+      case 'list-concepts':
+        return {
+          success: true,
+          data: { concepts: ['AI', 'ML', 'Neural Networks'], total: 3 },
+          executionTime: 40,
+          metadata: { limit: args.limit || 50 }
+        };
+      default:
+        throw new Error(`Unknown tool: ${toolName}`);
       }
     });
   });

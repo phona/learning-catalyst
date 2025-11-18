@@ -34,7 +34,7 @@ export interface KnowledgeSearchResult {
 }
 
 export class KnowledgeService {
-  private knowledgeIndex = new Map<string, KnowledgeItem>();
+  private readonly knowledgeIndex = new Map<string, KnowledgeItem>();
 
   constructor(
     private readonly database: Kysely<Database>,
@@ -47,11 +47,14 @@ export class KnowledgeService {
    */
   async addKnowledgeItem(
     item: KnowledgeItem,
-    aiProvider: AIProvider,
+    aiProvider?: AIProvider,
     embedding?: number[]
   ): Promise<void> {
     try {
       if (!embedding) {
+        if (!aiProvider) {
+          throw new Error('AIProvider is required when no embedding is provided');
+        }
         embedding = await this.generateEmbedding(item.content, aiProvider);
       }
 

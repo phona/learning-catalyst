@@ -151,13 +151,13 @@ export interface ToolComposition {
  * Desktop Educational Tool Ecosystem
  */
 export class DesktopEducationalToolEcosystem {
-  private secureToolExecutor: SecureToolExecutor;
-  private dependencies: ServiceDependencies;
-  private tools: Map<string, any> = new Map(); // Using any for tool type from langchain
-  private toolMetadata: Map<string, EnhancedToolMetadata> = new Map();
-  private toolCompositions: Map<string, ToolComposition> = new Map();
-  private toolUsageAnalytics: Map<string, ToolPerformanceMetrics> = new Map();
-  private logger: any;
+  private readonly secureToolExecutor: SecureToolExecutor;
+  private readonly dependencies: ServiceDependencies;
+  private readonly tools: Map<string, any> = new Map(); // Using any for tool type from langchain
+  private readonly toolMetadata: Map<string, EnhancedToolMetadata> = new Map();
+  private readonly toolCompositions: Map<string, ToolComposition> = new Map();
+  private readonly toolUsageAnalytics: Map<string, ToolPerformanceMetrics> = new Map();
+  private readonly logger: any;
 
   constructor(
     dependencies: ServiceDependencies,
@@ -2020,7 +2020,7 @@ export class DesktopEducationalToolEcosystem {
       successRate: number;
       userSatisfaction: number;
     }>;
-  } {
+    } {
     const toolsByCategory = {} as Record<ToolCategory, number>;
     const toolsByComplexity = {} as Record<ToolComplexity, number>;
 

@@ -66,14 +66,14 @@ export const DEFAULT_LARGE_PROJECT_CONFIG: LargeProjectConfig = {
  * Memory-Optimized Workspace Analyzer
  */
 export class MemoryOptimizedWorkspaceAnalyzer {
-  private logger: any;
-  private memoryConfig: MemoryOptimizedConfig;
-  private largeProjectConfig: LargeProjectConfig;
+  private readonly logger: any;
+  private readonly memoryConfig: MemoryOptimizedConfig;
+  private readonly largeProjectConfig: LargeProjectConfig;
   private gcInterval: NodeJS.Timeout | null = null;
 
   // Memory pools for object reuse
-  private filePool: ProjectFile[] = [];
-  private patternPool: CodePattern[] = [];
+  private readonly filePool: ProjectFile[] = [];
+  private readonly patternPool: CodePattern[] = [];
 
   // Streaming buffers
   private readBuffer: Buffer;
@@ -750,7 +750,7 @@ export class MemoryOptimizedWorkspaceAnalyzer {
       current: number;
       max: number;
     };
-  } {
+    } {
     const currentUsage = process.memoryUsage();
 
     return {

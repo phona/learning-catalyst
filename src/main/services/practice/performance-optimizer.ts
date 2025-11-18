@@ -79,31 +79,31 @@ export const DEFAULT_PERFORMANCE_THRESHOLDS: PerformanceThresholds = {
  * Performance Optimizer Service
  */
 export class PerformanceOptimizer {
-  private logger: any;
-  private config: PerformanceConfig;
-  private thresholds: PerformanceThresholds;
+  private readonly logger: any;
+  private readonly config: PerformanceConfig;
+  private readonly thresholds: PerformanceThresholds;
 
   // Performance monitoring
   private metrics: PerformanceMetrics;
-  private metricsHistory: PerformanceMetrics[] = [];
+  private readonly metricsHistory: PerformanceMetrics[] = [];
   private monitoringInterval: NodeJS.Timeout | null = null;
 
   // Caching system
-  private caches = new Map<string, Map<string, CacheEntry<any>>>();
+  private readonly caches = new Map<string, Map<string, CacheEntry<any>>>();
   private totalCacheSize = 0;
   private cacheCleanupInterval: NodeJS.Timeout | null = null;
 
   // Resource management
-  private activeRequests = new Set<string>();
-  private requestQueue: Array<() => Promise<any>> = [];
+  private readonly activeRequests = new Set<string>();
+  private readonly requestQueue: Array<() => Promise<any>> = [];
   private maxConcurrentRequests = 10;
 
   // Optimization strategies
   private strategies: OptimizationStrategy[] = [];
 
   // Preloading system
-  private preloadQueue = new Map<string, () => Promise<any>>();
-  private preloadTimeout: NodeJS.Timeout | null = null;
+  private readonly preloadQueue = new Map<string, () => Promise<any>>();
+  private readonly preloadTimeout: NodeJS.Timeout | null = null;
 
   constructor(dependencies: ServiceDependencies, config: Partial<PerformanceConfig> = {}) {
     this.logger = dependencies.logger;
@@ -531,7 +531,7 @@ export class PerformanceOptimizer {
     level: 'optimal' | 'warning' | 'critical';
     issues: string[];
     metrics: PerformanceMetrics;
-  } {
+    } {
     const issues: string[] = [];
 
     if (this.metrics.responseTime > this.thresholds.maxResponseTime) {
@@ -683,7 +683,7 @@ export class PerformanceOptimizer {
     totalEntries: number;
     namespaces: Array<{ name: string; entries: number; size: number }>;
     hitRate: number;
-  } {
+    } {
     const namespaces: Array<{ name: string; entries: number; size: number }> = [];
 
     for (const [name, cache] of this.caches.entries()) {

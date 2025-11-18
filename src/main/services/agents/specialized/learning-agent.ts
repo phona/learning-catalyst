@@ -195,26 +195,26 @@ export interface LearningWorkflowState {
  * - Real-time performance analytics and adaptation
  */
 export class LearningAgent {
-  private model: BaseLanguageModel;
-  private toolExecutor: ToolExecutorService;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly dependencies: ServiceDependencies;
   private config: LearningAgentConfig;
 
   // Enhanced Phase 8.1 LangChain components
   private langChainAgent?: AgentExecutor;
   private learningWorkflow?: StateGraph<LearningWorkflowState>;
-  private memorySaver?: MemorySaver;
-  private langchainConfig: LangChainAgentConfig;
+  private readonly memorySaver?: MemorySaver;
+  private readonly langchainConfig: LangChainAgentConfig;
 
   // Educational enhancement components
-  private educationalTools: Map<string, any> = new Map();
-  private safetyValidator?: EducationalSafetyValidator;
-  private learningAnalytics?: LearningAnalyticsEngine;
+  private readonly educationalTools: Map<string, any> = new Map();
+  private readonly safetyValidator?: EducationalSafetyValidator;
+  private readonly learningAnalytics?: LearningAnalyticsEngine;
 
   // Agent state tracking for enhanced functionality
-  private agentId: string;
-  private sessionHistory: Map<string, LearningWorkflowState> = new Map();
-  private performanceMetrics: Map<string, any> = new Map();
+  private readonly agentId: string;
+  private readonly sessionHistory: Map<string, LearningWorkflowState> = new Map();
+  private readonly performanceMetrics: Map<string, any> = new Map();
   private isLangChainEnabled: boolean;
 
   constructor(
@@ -958,29 +958,29 @@ Format as JSON with all fields comprehensively filled.`;
 
     // Route to appropriate legacy learning function based on intent
     switch (learningIntent.intent) {
-      case 'explain_concept':
-        yield* this.explainConcept(request.input, learningIntent, executionContext);
-        break;
+    case 'explain_concept':
+      yield* this.explainConcept(request.input, learningIntent, executionContext);
+      break;
 
-      case 'create_learning_path':
-        yield* this.createLearningPath(request.input, learningIntent, executionContext);
-        break;
+    case 'create_learning_path':
+      yield* this.createLearningPath(request.input, learningIntent, executionContext);
+      break;
 
-      case 'assess_knowledge':
-        yield* this.assessKnowledge(request.input, learningIntent, executionContext);
-        break;
+    case 'assess_knowledge':
+      yield* this.assessKnowledge(request.input, learningIntent, executionContext);
+      break;
 
-      case 'provide_guidance':
-        yield* this.provideGuidance(request.input, learningIntent, executionContext);
-        break;
+    case 'provide_guidance':
+      yield* this.provideGuidance(request.input, learningIntent, executionContext);
+      break;
 
-      case 'recommend_resources':
-        yield* this.recommendResources(request.input, learningIntent, executionContext);
-        break;
+    case 'recommend_resources':
+      yield* this.recommendResources(request.input, learningIntent, executionContext);
+      break;
 
-      default:
-        yield* this.provideGeneralLearningHelp(request.input, learningIntent, executionContext);
-        break;
+    default:
+      yield* this.provideGeneralLearningHelp(request.input, learningIntent, executionContext);
+      break;
     }
   }
 
@@ -1988,14 +1988,14 @@ Remember: Your goal is not just to provide information, but to facilitate meanin
       workflow.addNode("consolidation", consolidation);
 
       workflow.addConditionalEdges(
-          "readiness_assessment",
-          this.routeBasedOnReadiness,
-          {
-            preparation_needed: "activate_knowledge",
-            ready_to_learn: "adaptive_instruction",
-            emotional_support: "activate_knowledge"
-          }
-        )
+        "readiness_assessment",
+        this.routeBasedOnReadiness,
+        {
+          preparation_needed: "activate_knowledge",
+          ready_to_learn: "adaptive_instruction",
+          emotional_support: "activate_knowledge"
+        }
+      )
         .addConditionalEdges(
           "formative_assessment",
           this.routeBasedOnAssessment,
@@ -2860,7 +2860,7 @@ Provide helpful, educational assistance that:
     assessmentsGenerated: number;
     guidanceProvided: number;
     resourcesRecommended: number;
-  } {
+    } {
     // In a real implementation, these would be tracked over time
     return {
       conceptsExplained: 0,
@@ -2880,9 +2880,9 @@ Provide helpful, educational assistance that:
  * with educational standards and accessibility requirements.
  */
 export class EducationalSafetyValidator {
-  private constraints: EducationalSafetyConstraints;
-  private logger: any;
-  private validationHistory: Map<string, any> = new Map();
+  private readonly constraints: EducationalSafetyConstraints;
+  private readonly logger: any;
+  private readonly validationHistory: Map<string, any> = new Map();
 
   constructor(constraints: EducationalSafetyConstraints) {
     this.constraints = constraints;
@@ -3219,10 +3219,10 @@ export class EducationalSafetyValidator {
  * improvement and personalization.
  */
 export class LearningAnalyticsEngine {
-  private analytics: Map<string, any> = new Map();
-  private performanceHistory: Map<string, any[]> = new Map();
-  private learningPatterns: Map<string, any> = new Map();
-  private logger: any;
+  private readonly analytics: Map<string, any> = new Map();
+  private readonly performanceHistory: Map<string, any[]> = new Map();
+  private readonly learningPatterns: Map<string, any> = new Map();
+  private readonly logger: any;
 
   constructor() {
     // In a real implementation, logger would be injected
@@ -3372,7 +3372,7 @@ export class LearningAnalyticsEngine {
     learningPatterns: any;
     performanceTrends: any;
     insights: string[];
-  } {
+    } {
     const explanations = Array.from(this.analytics.values()).filter(a => a.type === 'explanation_generation');
     const agentExecutions = Array.from(this.analytics.values()).filter(a => a.type === 'agent_execution');
     const workflows = Array.from(this.analytics.values()).filter(a => a.type === 'workflow_execution');

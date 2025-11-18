@@ -31,23 +31,23 @@ export class ModelFactory {
     } as ProviderConfig;
 
     switch (providerType) {
-      case 'openai':
-        return this.createOpenAIModel(fullConfig);
+    case 'openai':
+      return this.createOpenAIModel(fullConfig);
 
-      case 'chatglm':
-        return this.createChatGLMModel(fullConfig);
+    case 'chatglm':
+      return this.createChatGLMModel(fullConfig);
 
-      case 'deepseek':
-        return this.createOpenAICompatibleModel(fullConfig);
+    case 'deepseek':
+      return this.createOpenAICompatibleModel(fullConfig);
 
-      case 'siliconflow':
-        return this.createOpenAICompatibleModel(fullConfig);
+    case 'siliconflow':
+      return this.createOpenAICompatibleModel(fullConfig);
 
-      case 'openai-compatible':
-        return this.createOpenAICompatibleModel(fullConfig);
+    case 'openai-compatible':
+      return this.createOpenAICompatibleModel(fullConfig);
 
-      default:
-        throw new Error(`Unsupported provider type: ${providerType}`);
+    default:
+      throw new Error(`Unsupported provider type: ${providerType}`);
     }
   }
 
@@ -57,7 +57,7 @@ export class ModelFactory {
   private static createOpenAIModel(config: ProviderConfig): ChatOpenAI {
     const openaiConfig: any = {
       apiKey: config.api_key,
-      modelName: config.model || (config.models && config.models[0]) || 'gpt-3.5-turbo',
+      modelName: config.model || (config.models?.[0]) || 'gpt-3.5-turbo',
       temperature: config.temperature || 0.7,
       maxTokens: config.max_tokens || 4096,
       streaming: config.streaming !== false,
@@ -83,7 +83,7 @@ export class ModelFactory {
 
     const chatglmConfig: any = {
       apiKey: config.api_key,
-      modelName: config.model || (config.models && config.models[0]) || 'glm-4',
+      modelName: config.model || (config.models?.[0]) || 'glm-4',
       temperature: config.temperature || 0.7,
       maxTokens: config.max_tokens || 4096,
       streaming: config.streaming !== false,
@@ -104,7 +104,7 @@ export class ModelFactory {
    * Create OpenAI-compatible model (unified for all compatible endpoints)
    */
   private static createOpenAICompatibleModel(config: ProviderConfig): ChatOpenAI {
-    const modelName = config.model || (config.models && config.models[0]) || 'llama3.1:8b';
+    const modelName = config.model || (config.models?.[0]) || 'llama3.1:8b';
     console.log(`Starting OpenAI-compatible model: ${modelName} at ${config.base_url}`);
 
     const compatibleConfig: any = {
@@ -192,52 +192,52 @@ export class ModelFactory {
 
     // Provider-specific validation
     switch (providerType) {
-      case 'openai':
-        if (!config.api_key) {
-          errors.push('API key is required for OpenAI');
-        }
-        break;
+    case 'openai':
+      if (!config.api_key) {
+        errors.push('API key is required for OpenAI');
+      }
+      break;
 
-      case 'chatglm':
-        if (!config.api_key) {
-          errors.push('API key is required for ChatGLM');
-        }
-        if (!config.base_url) {
-          errors.push('Base URL is required for ChatGLM');
-        }
-        break;
+    case 'chatglm':
+      if (!config.api_key) {
+        errors.push('API key is required for ChatGLM');
+      }
+      if (!config.base_url) {
+        errors.push('Base URL is required for ChatGLM');
+      }
+      break;
 
-      case 'deepseek':
-        if (!config.api_key) {
-          errors.push('API key is required for DeepSeek');
-        }
-        if (!config.base_url) {
-          errors.push('Base URL is required for DeepSeek');
-        }
-        break;
+    case 'deepseek':
+      if (!config.api_key) {
+        errors.push('API key is required for DeepSeek');
+      }
+      if (!config.base_url) {
+        errors.push('Base URL is required for DeepSeek');
+      }
+      break;
 
-      case 'siliconflow':
-        if (!config.api_key) {
-          errors.push('API key is required for SiliconFlow');
-        }
-        if (!config.base_url) {
-          errors.push('Base URL is required for SiliconFlow');
-        }
-        break;
+    case 'siliconflow':
+      if (!config.api_key) {
+        errors.push('API key is required for SiliconFlow');
+      }
+      if (!config.base_url) {
+        errors.push('Base URL is required for SiliconFlow');
+      }
+      break;
 
-      case 'openai-compatible':
-        if (!config.base_url) {
-          errors.push('Base URL is required for OpenAI-compatible providers');
-        }
-        // API key is optional for local models
-        if (config.base_url && !config.base_url.includes('localhost') && !config.base_url.includes('127.0.0.1') && !config.api_key) {
-          errors.push('API key is required for remote OpenAI-compatible providers');
-        }
-        break;
+    case 'openai-compatible':
+      if (!config.base_url) {
+        errors.push('Base URL is required for OpenAI-compatible providers');
+      }
+      // API key is optional for local models
+      if (config.base_url && !config.base_url.includes('localhost') && !config.base_url.includes('127.0.0.1') && !config.api_key) {
+        errors.push('API key is required for remote OpenAI-compatible providers');
+      }
+      break;
     }
 
     // Model-specific validation
-    const modelName = config.model || (config.models && config.models[0]);
+    const modelName = config.model || (config.models?.[0]);
     if (modelName && modelName.length < 1) {
       errors.push('Model name cannot be empty');
     }
@@ -253,63 +253,63 @@ export class ModelFactory {
    */
   static getSupportedModels(providerType: ProviderType): string[] {
     switch (providerType) {
-      case 'openai':
-        return [
-          'gpt-4o',
-          'gpt-4o-mini',
-          'gpt-4',
-          'gpt-4-turbo',
-          'gpt-3.5-turbo',
-          'gpt-3.5-turbo-16k',
-        ];
+    case 'openai':
+      return [
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gpt-4',
+        'gpt-4-turbo',
+        'gpt-3.5-turbo',
+        'gpt-3.5-turbo-16k',
+      ];
 
-      case 'chatglm':
-        return [
-          'glm-4',
-          'glm-4-plus',
-          'glm-4-0520',
-          'glm-4-air',
-          'glm-4-airx',
-          'glm-4-flash',
-          'glm-3-turbo',
-        ];
+    case 'chatglm':
+      return [
+        'glm-4',
+        'glm-4-plus',
+        'glm-4-0520',
+        'glm-4-air',
+        'glm-4-airx',
+        'glm-4-flash',
+        'glm-3-turbo',
+      ];
 
-      case 'deepseek':
-        return [
-          'deepseek-chat',
-          'deepseek-coder',
-        ];
+    case 'deepseek':
+      return [
+        'deepseek-chat',
+        'deepseek-coder',
+      ];
 
-      case 'siliconflow':
-        return [
-          'qwen2.5-72b-instruct',
-          'qwen2.5-32b-instruct',
-          'qwen2.5-14b-instruct',
-          'qwen2.5-7b-instruct',
-        ];
+    case 'siliconflow':
+      return [
+        'qwen2.5-72b-instruct',
+        'qwen2.5-32b-instruct',
+        'qwen2.5-14b-instruct',
+        'qwen2.5-7b-instruct',
+      ];
 
-      case 'openai-compatible':
-        // Common models for various providers
-        return [
-          'deepseek-chat',
-          'deepseek-coder',
-          'qwen2.5-72b-instruct',
-          'qwen2.5-32b-instruct',
-          'qwen2.5-14b-instruct',
-          'qwen2.5-7b-instruct',
-          'llama3.1:405b',
-          'llama3.1:70b',
-          'llama3.1:8b',
-          'llama3:70b',
-          'llama3:8b',
-          'mistral:7b',
-          'mixtral:8x7b',
-          'codellama:13b',
-          'codellama:34b',
-        ];
+    case 'openai-compatible':
+      // Common models for various providers
+      return [
+        'deepseek-chat',
+        'deepseek-coder',
+        'qwen2.5-72b-instruct',
+        'qwen2.5-32b-instruct',
+        'qwen2.5-14b-instruct',
+        'qwen2.5-7b-instruct',
+        'llama3.1:405b',
+        'llama3.1:70b',
+        'llama3.1:8b',
+        'llama3:70b',
+        'llama3:8b',
+        'mistral:7b',
+        'mixtral:8x7b',
+        'codellama:13b',
+        'codellama:34b',
+      ];
 
-      default:
-        return [];
+    default:
+      return [];
     }
   }
 

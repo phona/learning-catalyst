@@ -290,7 +290,7 @@ export class MarkdownParser {
 
     // Determine based on level and title patterns
     if (level === 1) return 'introduction';
-    if (normalizedTitle.includes('how to') || normalizedTitle.includes('step') || normalizedTitle.includes('guide')) return 'procedure';
+    if (normalizedTitle.includes('how to') || normalizedTitle.includes('step') || normalizedTitle.includes('guide')) return 'example';
     if (normalizedTitle.includes('definition') || normalizedTitle.includes('what is')) return 'concept';
     if (normalizedTitle.includes('example') || normalizedTitle.includes('sample')) return 'example';
 
@@ -429,7 +429,7 @@ export class MarkdownParser {
       id: `section_${materialId}_${index}`,
       title: section.title,
       content: section.content,
-      type: section.type,
+      type: section.type === 'other' ? 'concept' : section.type, // Map 'other' to 'concept'
       order: section.order,
       concepts: [], // Will be filled by concept extraction
       prerequisites: [], // Will be determined by relationship extraction
@@ -533,14 +533,22 @@ export class MarkdownParser {
   /**
    * Parse a markdown file from disk
    */
-  async parseMarkdownFile(filePath: string): Promise<{ material: LearningMaterial; sections: ParsedSection[] }> {
+  async parseMarkdownFile(filePath: string, title?: string): Promise<{ material: LearningMaterial; sections: ParsedSection[] }> {
+    // TODO: Implement file reading from filesystem
+    // This should include:
+    // 1. Read file content from disk using Node.js fs module
+    // 2. Handle different file encodings (UTF-8, etc.)
+    // 3. Support for relative and absolute file paths
+    // 4. Error handling for missing files or permissions
+    // 5. Support for additional file formats (txt, md)
     try {
-      // In a real implementation, this would read from the file system
-      // For now, we'll assume the content is provided
-      throw new Error('File parsing not implemented - use parseMarkdown with content directly');
+      const fs = await import('fs/promises');
+      const content = await fs.readFile(filePath, 'utf-8');
+      const materialId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      return await this.parseMarkdown(content, materialId, title || filePath);
     } catch (error) {
       console.error('Error parsing markdown file:', error);
-      throw error;
+      throw new Error(`Failed to read or parse file "${filePath}": ${(error as Error).message}`);
     }
   }
 

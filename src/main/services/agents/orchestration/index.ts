@@ -172,41 +172,41 @@ export class OrchestrationPatternFactory {
 
     // Check pattern-specific requirements
     switch (pattern) {
-      case 'tool_calling':
-        if (!configuration.toolExecutor) {
-          errors.push('Tool executor is required for tool calling pattern');
-        }
-        if (configuration.maxToolCalls && configuration.maxToolCalls > 20) {
-          errors.push('Max tool calls should not exceed 20 for performance');
-        }
-        break;
+    case 'tool_calling':
+      if (!configuration.toolExecutor) {
+        errors.push('Tool executor is required for tool calling pattern');
+      }
+      if (configuration.maxToolCalls && configuration.maxToolCalls > 20) {
+        errors.push('Max tool calls should not exceed 20 for performance');
+      }
+      break;
 
-      case 'handoff':
-        if (!configuration.agentManager) {
-          errors.push('Agent manager is required for handoff pattern');
-        }
-        if (configuration.maxHandoffs && configuration.maxHandoffs > 10) {
-          errors.push('Max handoffs should not exceed 10 for user experience');
-        }
-        break;
+    case 'handoff':
+      if (!configuration.agentManager) {
+        errors.push('Agent manager is required for handoff pattern');
+      }
+      if (configuration.maxHandoffs && configuration.maxHandoffs > 10) {
+        errors.push('Max handoffs should not exceed 10 for user experience');
+      }
+      break;
 
-      case 'hybrid':
-        if (!configuration.toolExecutor) {
-          errors.push('Tool executor is required for hybrid pattern');
-        }
-        if (!configuration.agentManager) {
-          errors.push('Agent manager is required for hybrid pattern');
-        }
-        if (configuration.maxPhases && configuration.maxPhases > 15) {
-          errors.push('Max phases should not exceed 15 for performance');
-        }
-        break;
+    case 'hybrid':
+      if (!configuration.toolExecutor) {
+        errors.push('Tool executor is required for hybrid pattern');
+      }
+      if (!configuration.agentManager) {
+        errors.push('Agent manager is required for hybrid pattern');
+      }
+      if (configuration.maxPhases && configuration.maxPhases > 15) {
+        errors.push('Max phases should not exceed 15 for performance');
+      }
+      break;
 
-      case 'sequential':
-        if (!configuration.workflowSteps?.length) {
-          errors.push('Workflow steps are required for sequential pattern');
-        }
-        break;
+    case 'sequential':
+      if (!configuration.workflowSteps?.length) {
+        errors.push('Workflow steps are required for sequential pattern');
+      }
+      break;
     }
 
     return {
@@ -225,45 +225,45 @@ export class OrchestrationPatternFactory {
     recommendedMaxConcurrency: number;
   } {
     switch (pattern) {
-      case 'tool_calling':
-        return {
-          estimatedDuration: { min: 5, max: 60 },
-          resourceIntensity: 'medium',
-          memoryUsage: 'medium',
-          recommendedMaxConcurrency: 10
-        };
+    case 'tool_calling':
+      return {
+        estimatedDuration: { min: 5, max: 60 },
+        resourceIntensity: 'medium',
+        memoryUsage: 'medium',
+        recommendedMaxConcurrency: 10
+      };
 
-      case 'handoff':
-        return {
-          estimatedDuration: { min: 10, max: 120 },
-          resourceIntensity: 'high',
-          memoryUsage: 'high',
-          recommendedMaxConcurrency: 5
-        };
+    case 'handoff':
+      return {
+        estimatedDuration: { min: 10, max: 120 },
+        resourceIntensity: 'high',
+        memoryUsage: 'high',
+        recommendedMaxConcurrency: 5
+      };
 
-      case 'hybrid':
-        return {
-          estimatedDuration: { min: 15, max: 180 },
-          resourceIntensity: 'very_high',
-          memoryUsage: 'very_high',
-          recommendedMaxConcurrency: 3
-        };
+    case 'hybrid':
+      return {
+        estimatedDuration: { min: 15, max: 180 },
+        resourceIntensity: 'very_high',
+        memoryUsage: 'very_high',
+        recommendedMaxConcurrency: 3
+      };
 
-      case 'sequential':
-        return {
-          estimatedDuration: { min: 5, max: 90 },
-          resourceIntensity: 'low',
-          memoryUsage: 'low',
-          recommendedMaxConcurrency: 15
-        };
+    case 'sequential':
+      return {
+        estimatedDuration: { min: 5, max: 90 },
+        resourceIntensity: 'low',
+        memoryUsage: 'low',
+        recommendedMaxConcurrency: 15
+      };
 
-      default:
-        return {
-          estimatedDuration: { min: 10, max: 60 },
-          resourceIntensity: 'medium',
-          memoryUsage: 'medium',
-          recommendedMaxConcurrency: 5
-        };
+    default:
+      return {
+        estimatedDuration: { min: 10, max: 60 },
+        resourceIntensity: 'medium',
+        memoryUsage: 'medium',
+        recommendedMaxConcurrency: 5
+      };
     }
   }
 }

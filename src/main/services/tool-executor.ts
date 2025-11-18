@@ -7,7 +7,7 @@
  */
 
 import { ToolDefinition, ToolExecutionRequest, ToolExecutionResult, ServiceDependencies, ToolHandler } from './types';
-import type { Database } from '../database/kysely-schema';
+import { Database } from './database/kysely-schema';
 import { ServiceLogger } from './types';
 import { ToolExecutionError, DatabaseConnectionError } from './types';
 import { readFile, writeFile } from 'fs/promises';
@@ -18,229 +18,6 @@ import { join, resolve } from 'path';
  * Built-in tool definitions for agent operations
  */
 export class BuiltinTools {
-  /**
-   * Database query tool
-   */
-  static databaseQuery: ToolDefinition = {
-    id: 'database-query',
-    name: 'Database Query',
-    description: 'Execute SQL queries on the local database with read/write permissions',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'SQL query to execute' },
-        params: { type: 'array', description: 'Query parameters', items: { type: 'any' } },
-        operation: {
-          type: 'string',
-          enum: ['select', 'insert', 'update', 'delete'],
-          description: 'Type of database operation'
-        }
-      },
-      required: ['query', 'operation']
-    },
-    handler: async (request, deps): Promise<ToolExecutionResult> => {
-      const startTime = Date.now();
-      const { query, params = [], operation } = request.parameters;
-
-      try {
-        deps.logger.debug(`Executing database query: ${operation}`, {
-          query: query.substring(0, 100) + '...',
-          paramCount: params.length
-        });
-
-        let result: any;
-
-        switch (operation) {
-          case 'select':
-            result = await deps.database.executeQuery(query, params);
-            break;
-
-          case 'insert':
-            result = await deps.database.executeQuery(query, params);
-            break;
-
-          case 'update':
-            result = await deps.database.executeQuery(query, params);
-            break;
-
-          case 'delete':
-            result = await deps.database.executeQuery(query, params);
-            break;
-
-          default:
-            throw new ToolExecutionError(
-              `Unsupported database operation: ${operation}`,
-              'database-query',
-              operation,
-              request.context
-            );
-        }
-
-        deps.logger.info(`Database query executed successfully`, {
-          operation,
-          rowCount: Array.isArray(result) ? result.length : 1
-        });
-
-        return {
-          success: true,
-          data: result,
-          executionTime: Date.now() - startTime,
-          metadata: {
-            operation,
-            rowCount: Array.isArray(result) ? result.length : 1
-          }
-        };
-
-      } catch (error) {
-        deps.logger.error('Database query failed', error as Error, {
-          operation,
-          query: query.substring(0, 100) + '...'
-        });
-
-        return {
-          success: false,
-          error: error as Error,
-          executionTime: Date.now() - startTime,
-          metadata: { operation }
-        };
-      }
-    },
-    requiredDatabase: true,
-    permissions: ['database.read', 'database.write']
-  };
-
-  /**
-   * File read tool
-   */
-  static fileRead: ToolDefinition = {
-    id: 'file-read',
-    name: 'Read File',
-    description: 'Read the contents of a file from the file system',
-    parameters: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Path to the file to read' },
-        encoding: { type: 'string', default: 'utf-8', description: 'File encoding' }
-      },
-      required: ['path']
-    },
-    handler: async (request, deps): Promise<ToolExecutionResult> => {
-      const startTime = Date.now();
-      const { path, encoding = 'utf-8' } = request.parameters;
-
-      try {
-        deps.logger.debug(`Reading file: ${path}`);
-
-        // Validate path for security
-        const resolvedPath = resolve(path);
-        if (!resolvedPath.startsWith(process.cwd()) && !resolvedPath.includes('learning_catalyst')) {
-          throw new ToolExecutionError(
-            'Access to path outside project directory is not allowed',
-            'file-read',
-            'read',
-            request.context
-          );
-        }
-
-        // Check if file exists
-        try {
-          await access(resolvedPath);
-        } catch {
-          // File doesn't exist
-          throw new ToolExecutionError(
-            `File not found: ${path}`,
-            'file-read',
-            'read',
-            request.context
-          );
-        }
-
-        const content = await readFile(resolvedPath, encoding);
-
-        deps.logger.info(`File read successfully`, { path, size: content.length });
-
-        return {
-          success: true,
-          data: { content, path, size: content.length },
-          executionTime: Date.now() - startTime,
-          metadata: { path, size: content.length }
-        };
-
-      } catch (error) {
-        deps.logger.error('File read failed', error as Error, { path });
-
-        return {
-          success: false,
-          error: error as Error,
-          executionTime: Date.now() - startTime,
-          metadata: { path }
-        };
-      }
-    },
-    requiredDatabase: false,
-    permissions: ['file.read']
-  };
-
-  /**
-   * File write tool
-   */
-  static fileWrite: ToolDefinition = {
-    id: 'file-write',
-    name: 'Write File',
-    description: 'Write content to a file in the file system',
-    parameters: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Path to the file to write' },
-        content: { type: 'string', description: 'Content to write to the file' },
-        encoding: { type: 'string', default: 'utf-8', description: 'File encoding' }
-      },
-      required: ['path', 'content']
-    },
-    handler: async (request, deps): Promise<ToolExecutionResult> => {
-      const startTime = Date.now();
-      const { path, content, encoding = 'utf-8' } = request.parameters;
-
-      try {
-        deps.logger.debug(`Writing file: ${path}`);
-
-        // Validate path for security
-        const resolvedPath = resolve(path);
-        if (!resolvedPath.startsWith(process.cwd()) && !resolvedPath.includes('learning_catalyst')) {
-          throw new ToolExecutionError(
-            'Access to path outside project directory is not allowed',
-            'file-write',
-            'write',
-            request.context
-          );
-        }
-
-        await writeFile(resolvedPath, content, encoding);
-
-        deps.logger.info(`File written successfully`, { path, size: content.length });
-
-        return {
-          success: true,
-          data: { path, size: content.length },
-          executionTime: Date.now() - startTime,
-          metadata: { path, size: content.length }
-        };
-
-      } catch (error) {
-        deps.logger.error('File write failed', error as Error, { path });
-
-        return {
-          success: false,
-          error: error as Error,
-          executionTime: Date.now() - startTime,
-          metadata: { path }
-        };
-      }
-    },
-    requiredDatabase: false,
-    permissions: ['file.write']
-  };
-
   /**
    * List concepts tool
    */
@@ -283,10 +60,24 @@ export class BuiltinTools {
           params.push(type);
         }
 
-        query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-        params.push(limit, offset);
-
-        const concepts = await deps.database.fetchAll(query, params);
+        // Use Kysely query builder instead of raw SQL
+        // Build the query using Kysely's dynamic capabilities
+        let kyselyQuery = deps.database.selectFrom('concepts');
+        
+        if (difficulty) {
+          kyselyQuery = kyselyQuery.where('difficulty', '=', difficulty);
+        }
+        
+        if (type) {
+          kyselyQuery = kyselyQuery.where('type', '=', type);
+        }
+        
+        const concepts = await kyselyQuery
+          .orderBy('created_at', 'desc')
+          .limit(limit)
+          .offset(offset)
+          .selectAll()
+          .execute();
 
         deps.logger.info(`Listed ${concepts.length} concepts`);
 
@@ -317,9 +108,6 @@ export class BuiltinTools {
    */
   static getAll(): ToolDefinition[] {
     return [
-      this.databaseQuery,
-      this.fileRead,
-      this.fileWrite,
       this.listConcepts
     ];
   }
@@ -329,8 +117,8 @@ export class BuiltinTools {
  * Tool executor service implementation
  */
 export class ToolExecutorService {
-  private tools = new Map<string, ToolDefinition>();
-  private dependencies: ServiceDependencies;
+  private readonly tools = new Map<string, ToolDefinition>();
+  private readonly dependencies: ServiceDependencies;
 
   constructor(dependencies: ServiceDependencies) {
     this.dependencies = dependencies;
@@ -440,12 +228,12 @@ export class ToolExecutorService {
       const toolError = error instanceof ToolExecutionError
         ? error
         : new ToolExecutionError(
-            `Tool execution failed: ${(error as Error).message}`,
-            request.toolId,
-            request.operation,
-            request.context,
+          `Tool execution failed: ${(error as Error).message}`,
+          request.toolId,
+          request.operation,
+          request.context,
             error as Error
-          );
+        );
 
       this.dependencies.logger.error(`Tool execution error: ${request.toolId}`, toolError);
 
@@ -489,6 +277,124 @@ export class ToolExecutorService {
   }
 
   /**
+   * Get tool definitions for available tools
+   */
+  async getToolDefinitions(toolIds: string[]): Promise<Array<{id: string, name: string, description: string, parameters: any}>> {
+    const definitions: Array<{id: string, name: string, description: string, parameters: any}> = [];
+
+    for (const toolId of toolIds) {
+      const tool = this.tools.get(toolId);
+      if (tool) {
+        definitions.push({
+          id: tool.id,
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters
+        });
+      }
+    }
+
+    return definitions;
+  }
+
+  /**
+   * Get information about a specific tool
+   */
+  async getToolInfo(toolId: string): Promise<{
+    id: string;
+    name: string;
+    description: string;
+    parameters: any;
+    requiredDatabase: boolean;
+    permissions: string[];
+    requiresAuth?: boolean;
+  } | null> {
+    const tool = this.tools.get(toolId);
+    if (!tool) {
+      return null;
+    }
+
+    return {
+      id: tool.id,
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+      requiredDatabase: !!tool.requiredDatabase,
+      permissions: tool.permissions,
+      requiresAuth: tool.permissions.includes('auth') || tool.permissions.includes('authenticated')
+    };
+  }
+
+  /**
+   * Validate tool arguments against tool definition
+   */
+  async validateToolArguments(toolId: string, args: Record<string, any>): Promise<{
+    valid: boolean;
+    errors: string[];
+  }> {
+    const tool = this.tools.get(toolId);
+    if (!tool) {
+      return {
+        valid: false,
+        errors: [`Tool '${toolId}' not found`]
+      };
+    }
+
+    const errors: string[] = [];
+    const parameters = tool.parameters;
+
+    // Check required parameters
+    if (parameters.required && Array.isArray(parameters.required)) {
+      for (const requiredParam of parameters.required) {
+        if (!(requiredParam in args)) {
+          errors.push(`Missing required parameter: ${requiredParam}`);
+        }
+      }
+    }
+
+    // Check parameter types if schema is available
+    if (parameters.properties) {
+      for (const [paramName, paramValue] of Object.entries(args)) {
+        const paramSchema = parameters.properties[paramName];
+        if (paramSchema) {
+          // Basic type validation
+          const expectedType = paramSchema.type;
+          const actualType = typeof paramValue;
+
+          if (expectedType === 'string' && actualType !== 'string') {
+            errors.push(`Parameter '${paramName}' should be string, got ${actualType}`);
+          } else if (expectedType === 'number' && actualType !== 'number') {
+            errors.push(`Parameter '${paramName}' should be number, got ${actualType}`);
+          } else if (expectedType === 'boolean' && actualType !== 'boolean') {
+            errors.push(`Parameter '${paramName}' should be boolean, got ${actualType}`);
+          } else if (expectedType === 'array' && !Array.isArray(paramValue)) {
+            errors.push(`Parameter '${paramName}' should be array, got ${actualType}`);
+          } else if (expectedType === 'object' && (actualType !== 'object' || Array.isArray(paramValue))) {
+            errors.push(`Parameter '${paramName}' should be object, got ${actualType}`);
+          }
+
+          // Check enum values if specified
+          if (paramSchema.enum && !paramSchema.enum.includes(paramValue)) {
+            errors.push(`Parameter '${paramName}' should be one of: ${paramSchema.enum.join(', ')}`);
+          }
+        }
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  }
+
+  /**
+   * Get all available tools (alias for getRegisteredTools)
+   */
+  getAvailableTools(): string[] {
+    return Array.from(this.tools.keys());
+  }
+
+  /**
    * Get tool execution statistics
    */
   getStats(): {
@@ -496,7 +402,7 @@ export class ToolExecutorService {
     builtinTools: number;
     customTools: number;
     tools: Array<{ id: string; name: string; requiredDatabase: boolean }>;
-  } {
+    } {
     const builtinTools = BuiltinTools.getAll();
     const tools = Array.from(this.tools.values());
 

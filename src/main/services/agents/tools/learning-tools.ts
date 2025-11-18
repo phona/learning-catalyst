@@ -6,7 +6,7 @@
  * Implements secure tool execution with comprehensive error handling.
  */
 
-import { DynamicTool } from 'langchain/tools';
+import { DynamicTool } from '@langchain/core/tools';
 import { ToolExecutorService } from '../../tool-executor';
 import { SecurityLevel, PermissionType, SecureToolExecutor } from '../../security/secure-tool-executor';
 import { ServiceDependencies } from '../../types';
@@ -95,8 +95,8 @@ export interface LearningPathResult {
  * with secure execution and comprehensive error handling.
  */
 export class LearningToolsFactory {
-  private secureToolExecutor: SecureToolExecutor;
-  private dependencies: ServiceDependencies;
+  private readonly secureToolExecutor: SecureToolExecutor;
+  private readonly dependencies: ServiceDependencies;
 
   constructor(dependencies: ServiceDependencies, secureToolExecutor: SecureToolExecutor) {
     this.dependencies = dependencies;
@@ -510,18 +510,18 @@ export class LearningToolsFactory {
     const allTools = this.getAllLearningTools();
 
     switch (category) {
-      case 'analysis':
-        return allTools.filter(tool =>
-          ['concept_parsing', 'knowledge_graph_query'].includes(tool.name)
-        );
-      case 'search':
-        return allTools.filter(tool => tool.name === 'session_search');
-      case 'planning':
-        return allTools.filter(tool => tool.name === 'learning_path_generator');
-      case 'tracking':
-        return allTools.filter(tool => tool.name === 'progress_tracking');
-      default:
-        return [];
+    case 'analysis':
+      return allTools.filter(tool =>
+        ['concept_parsing', 'knowledge_graph_query'].includes(tool.name)
+      );
+    case 'search':
+      return allTools.filter(tool => tool.name === 'session_search');
+    case 'planning':
+      return allTools.filter(tool => tool.name === 'learning_path_generator');
+    case 'tracking':
+      return allTools.filter(tool => tool.name === 'progress_tracking');
+    default:
+      return [];
     }
   }
 }

@@ -107,8 +107,8 @@ export interface NaturalResponseValidationResult {
  * Exercise Validator Service
  */
 export class ExerciseValidator {
-  private solutionValidators: Map<string, ExerciseSolutionValidator> = new Map();
-  private validationHistory = new Map<string, {
+  private readonly solutionValidators: Map<string, ExerciseSolutionValidator> = new Map();
+  private readonly validationHistory = new Map<string, {
     timestamp: number;
     exerciseId: string;
     result: ExerciseValidationResult;
@@ -456,7 +456,7 @@ export class ExerciseValidator {
       { field: 'estimatedTime', message: 'Time estimate' }
     ];
 
-    const presentRequired = requiredFields.filter(f => exercise[f.field] && exercise[f.field].toString().trim()).length;
+    const presentRequired = requiredFields.filter(f => exercise[f.field]?.toString().trim()).length;
     const presentOptional = optionalFields.filter(f => exercise[f.field]).length;
 
     // Base score from required fields
@@ -1106,7 +1106,7 @@ export class ExerciseValidator {
     averageScore: number;
     passRate: number;
     categoryBreakdown: Record<string, { average: number; passRate: number }>;
-  } {
+    } {
     const validations = Array.from(this.validationHistory.values());
     const passCount = validations.filter(v => v.result.isValid).length;
 

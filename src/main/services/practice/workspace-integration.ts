@@ -109,10 +109,10 @@ export const DEFAULT_WORKSPACE_CONFIG: WorkspaceConfig = {
  * Workspace Integration Service
  */
 export class WorkspaceIntegration {
-  private logger: any;
-  private config: WorkspaceConfig;
-  private fileCache = new Map<string, AnalysisResult>();
-  private directoryCache = new Map<string, string[]>();
+  private readonly logger: any;
+  private readonly config: WorkspaceConfig;
+  private readonly fileCache = new Map<string, AnalysisResult>();
+  private readonly directoryCache = new Map<string, string[]>();
 
   constructor(dependencies: ServiceDependencies, config: Partial<WorkspaceConfig> = {}) {
     this.logger = dependencies.logger;
@@ -889,7 +889,7 @@ export class WorkspaceIntegration {
   getCacheStats(): {
     fileCacheSize: number;
     directoryCacheSize: number;
-  } {
+    } {
     return {
       fileCacheSize: this.fileCache.size,
       directoryCacheSize: this.directoryCache.size

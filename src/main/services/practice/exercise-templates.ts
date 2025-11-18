@@ -104,9 +104,9 @@ export interface ParameterizedExercise {
  * Exercise Template Registry
  */
 export class ExerciseTemplateRegistry {
-  private templates = new Map<string, ExerciseTemplate>();
-  private templatesByType = new Map<ExerciseType, ExerciseTemplate[]>();
-  private templatesByCategory = new Map<ExerciseCategory, ExerciseTemplate[]>();
+  private readonly templates = new Map<string, ExerciseTemplate>();
+  private readonly templatesByType = new Map<ExerciseType, ExerciseTemplate[]>();
+  private readonly templatesByCategory = new Map<ExerciseCategory, ExerciseTemplate[]>();
 
   constructor() {
     this.initializeBuiltinTemplates();
@@ -1576,7 +1576,7 @@ describe('Integration: \${testScenario}', () => {
     templatesByType: Record<ExerciseType, number>;
     templatesByCategory: Record<ExerciseCategory, number>;
     difficultyDistribution: Record<string, number>;
-  } {
+    } {
     const templates = Array.from(this.templates.values());
 
     const templatesByType = templates.reduce((acc, template) => {

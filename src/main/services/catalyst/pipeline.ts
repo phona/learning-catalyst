@@ -83,10 +83,10 @@ export interface PipelineResult {
 }
 
 export class ConceptProcessingPipeline {
-  private markdownParser: MarkdownParser;
+  private readonly markdownParser: MarkdownParser;
   private aiExtractor?: AIConceptExtractor;
-  private ruleExtractor: RuleBasedExtractor;
-  private deduplicator: ConceptDeduplicator;
+  private readonly ruleExtractor: RuleBasedExtractor;
+  private readonly deduplicator: ConceptDeduplicator;
   private config: PipelineConfig;
 
   constructor(
@@ -927,7 +927,7 @@ export class ConceptProcessingPipeline {
  */
 class Semaphore {
   private permits: number;
-  private waitQueue: (() => void)[] = [];
+  private readonly waitQueue: (() => void)[] = [];
 
   constructor(permits: number) {
     this.permits = permits;

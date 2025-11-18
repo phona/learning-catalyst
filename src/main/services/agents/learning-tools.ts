@@ -16,9 +16,9 @@ export function createLearningTools(
 ) {
   // Tool for parsing and analyzing concepts from content
   const parseConcepts = tool(
-    async ({ content, session_id }: { content: string; session_id?: string }) => {
+    async ({ content, sessionId }: { content: string; sessionId?: string }) => {
       try {
-        if (!session_id) {
+        if (!sessionId) {
           return {
             success: false,
             error: "Session ID is required for concept parsing",
@@ -27,7 +27,7 @@ export function createLearningTools(
         }
 
         const result = await conceptParsingPipeline.processContent({
-          materialId: session_id || `temp_${Date.now()}`,
+          materialId: sessionId || `temp_${Date.now()}`,
           title: `Concept Analysis ${Date.now()}`,
           content,
           format: 'text'
@@ -61,11 +61,11 @@ export function createLearningTools(
       }
     },
     {
-      name: "parse_concepts",
+      name: "parseConcepts",
       description: "Parse and analyze educational concepts from text content. Extracts definitions, relationships, and key topics.",
       schema: z.object({
         content: z.string().describe("The text content to analyze for concepts"),
-        session_id: z.string().optional().describe("Optional session ID to associate the concepts with"),
+        sessionId: z.string().optional().describe("Optional session ID to associate the concepts with"),
       }),
     }
   );
@@ -91,12 +91,12 @@ export function createLearningTools(
             tags: session.tags || [],
             category: session.agentType,
             difficulty: session.difficulty || 'medium',
-            topics_covered: session.tags || [],
-            created_at: session.lastActivity || 'recent',
-            message_count: session.messageCount || 0,
+            topicsCovered: session.tags || [],
+            createdAt: session.lastActivity || 'recent',
+            messageCount: session.messageCount || 0,
           })),
           total: result.total,
-          has_more: result.has_more,
+          hasMore: result.hasMore,
         };
       } catch (error) {
         return {
@@ -107,7 +107,7 @@ export function createLearningTools(
       }
     },
     {
-      name: "search_sessions",
+      name: "searchSessions",
       description: "Search for learning sessions by query, tags, or other criteria. Useful for finding relevant past learning content.",
       schema: z.object({
         query: z.string().optional().describe("Search query to find relevant sessions"),
@@ -120,35 +120,35 @@ export function createLearningTools(
   // Tool for creating practice exercises
   const createExercise = tool(
     async ({
-      session_id,
+      sessionId,
       topic,
       difficulty,
-      exercise_type,
+      exerciseType,
       question
     }: {
-      session_id: string;
+      sessionId: string;
       topic: string;
       difficulty: 'easy' | 'medium' | 'hard';
-      exercise_type: 'quiz' | 'coding' | 'discussion' | 'reflection';
+      exerciseType: 'quiz' | 'coding' | 'discussion' | 'reflection';
       question: string;
     }) => {
       try {
         // Generate a unique ID for the exercise
-        const exercise_id = `exercise_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const exerciseId = `exercise_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         const exercise = {
-          id: exercise_id,
-          type: exercise_type,
+          id: exerciseId,
+          type: exerciseType,
           question,
           difficulty,
           topic,
-          created_at: new Date(),
+          createdAt: new Date(),
         };
 
         return {
           success: true,
           exercise,
-          message: `Created ${difficulty} ${exercise_type} exercise for topic: ${topic}`,
+          message: `Created ${difficulty} ${exerciseType} exercise for topic: ${topic}`,
         };
       } catch (error) {
         return {
@@ -158,13 +158,13 @@ export function createLearningTools(
       }
     },
     {
-      name: "create_exercise",
+      name: "createExercise",
       description: "Create a practice exercise for learning reinforcement. Supports quiz, coding, discussion, and reflection types.",
       schema: z.object({
-        session_id: z.string().describe("The session ID to associate the exercise with"),
+        sessionId: z.string().describe("The session ID to associate the exercise with"),
         topic: z.string().describe("The topic the exercise should cover"),
         difficulty: z.enum(['easy', 'medium', 'hard']).describe("Difficulty level of the exercise"),
-        exercise_type: z.enum(['quiz', 'coding', 'discussion', 'reflection']).describe("Type of exercise to create"),
+        exerciseType: z.enum(['quiz', 'coding', 'discussion', 'reflection']).describe("Type of exercise to create"),
         question: z.string().describe("The exercise question or prompt"),
       }),
     }
@@ -179,7 +179,7 @@ export function createLearningTools(
         return {
           success: true,
           config: {
-            default_provider: config.ai.model_types.chat?.provider || 'openai',
+            defaultProvider: config.ai.model_types.chat?.provider || 'openai',
             temperature: config.ai.model_types.chat?.temperature || 0.7,
             max_tokens: config.ai.model_types.chat?.max_tokens || 4096,
             thinking_enabled: config.ai.model_types.chat?.enable_thinking || false,
@@ -195,7 +195,7 @@ export function createLearningTools(
       }
     },
     {
-      name: "get_learning_config",
+      name: "getLearningConfig",
       description: "Get the current learning configuration and settings. Useful for understanding the current learning environment setup.",
       schema: z.object({}),
     }
@@ -205,35 +205,35 @@ export function createLearningTools(
   const generateLearningPath = tool(
     async ({
       topic,
-      current_level,
+      currentLevel,
       goals,
-      session_count
+      sessionCount
     }: {
       topic: string;
-      current_level: 'beginner' | 'intermediate' | 'advanced';
+      currentLevel: 'beginner' | 'intermediate' | 'advanced';
       goals: string[];
-      session_count?: number;
+      sessionCount?: number;
     }) => {
       try {
-        const sessions = session_count || 5;
+        const sessions = sessionCount || 5;
 
         // Generate a structured learning path
         const learningPath = {
           topic,
-          current_level,
-          target_level: current_level === 'beginner' ? 'intermediate' :
-                        current_level === 'intermediate' ? 'advanced' : 'expert',
+          currentLevel,
+          targetLevel: currentLevel === 'beginner' ? 'intermediate' :
+            currentLevel === 'intermediate' ? 'advanced' : 'expert',
           goals,
           sessions: Array.from({ length: sessions }, (_, i) => ({
-            session_number: i + 1,
+            sessionNumber: i + 1,
             title: `${topic} - Session ${i + 1}`,
-            focus_areas: generateFocusAreas(topic, current_level, i + 1, sessions),
-            difficulty: calculateSessionDifficulty(current_level, i + 1, sessions),
-            estimated_duration: Math.floor(Math.random() * 30) + 30, // 30-60 minutes
+            focusAreas: generateFocusAreas(topic, currentLevel, i + 1, sessions),
+            difficulty: calculateSessionDifficulty(currentLevel, i + 1, sessions),
+            estimatedDuration: Math.floor(Math.random() * 30) + 30, // 30-60 minutes
             prerequisites: i > 0 ? [`${topic} - Session ${i}`] : [],
           })),
-          total_estimated_duration: sessions * 45, // Average 45 minutes per session
-          completion_criteria: [
+          totalEstimatedDuration: sessions * 45, // Average 45 minutes per session
+          completionCriteria: [
             `Complete all ${sessions} learning sessions`,
             `Score 80% or higher on practice exercises`,
             `Apply concepts in real-world scenarios`,
@@ -242,7 +242,7 @@ export function createLearningTools(
 
         return {
           success: true,
-          learning_path: learningPath,
+          learningPath: learningPath,
         };
       } catch (error) {
         return {
@@ -252,13 +252,13 @@ export function createLearningTools(
       }
     },
     {
-      name: "generate_learning_path",
+      name: "generateLearningPath",
       description: "Generate a structured learning path for a given topic with progressive sessions and goals.",
       schema: z.object({
         topic: z.string().describe("The main topic to create a learning path for"),
-        current_level: z.enum(['beginner', 'intermediate', 'advanced']).describe("User's current knowledge level"),
+        currentLevel: z.enum(['beginner', 'intermediate', 'advanced']).describe("User's current knowledge level"),
         goals: z.array(z.string()).describe("Learning goals the user wants to achieve"),
-        session_count: z.number().optional().describe("Number of sessions to include in the learning path (default: 5)"),
+        sessionCount: z.number().optional().describe("Number of sessions to include in the learning path (default: 5)"),
       }),
     }
   );

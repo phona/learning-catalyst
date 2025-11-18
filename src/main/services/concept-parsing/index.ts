@@ -77,8 +77,8 @@ export interface PipelineConfig {
  * Mock Concept Processing Pipeline
  */
 export class ConceptProcessingPipeline {
-  private models: any[];
-  private config: Partial<PipelineConfig>;
+  private readonly models: any[];
+  private readonly config: Partial<PipelineConfig>;
 
   constructor(models: any[] = [], config: Partial<PipelineConfig> = {}) {
     this.models = models;

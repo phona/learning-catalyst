@@ -58,10 +58,10 @@ export interface ToolSecurityProfile {
  * - Comprehensive audit logging
  */
 export class SecureToolExecutor extends EventEmitter {
-  private toolExecutor: ToolExecutorService;
-  private securityManager: ToolSandboxSecurityManager;
-  private dependencies: ServiceDependencies;
-  private securityProfiles: Map<string, ToolSecurityProfile> = new Map();
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly securityManager: ToolSandboxSecurityManager;
+  private readonly dependencies: ServiceDependencies;
+  private readonly securityProfiles: Map<string, ToolSecurityProfile> = new Map();
 
   constructor(dependencies: ServiceDependencies, toolExecutor?: ToolExecutorService) {
     super();
@@ -245,7 +245,7 @@ export class SecureToolExecutor extends EventEmitter {
     totalViolations: number;
     violationsByType: Record<string, number>;
     recentSecurityEvents: any[];
-  } {
+    } {
     const totalTools = this.toolExecutor.getRegisteredTools().length;
     const securedTools = this.securityProfiles.size;
     const securityStats = this.securityManager.getSecurityStats();
@@ -448,11 +448,11 @@ export class SecureToolExecutor extends EventEmitter {
    */
   private getMemoryLimit(securityLevel: SecurityLevel): number {
     switch (securityLevel) {
-      case SecurityLevel.RESTRICTED: return 64; // 64MB
-      case SecurityLevel.STANDARD: return 128; // 128MB
-      case SecurityLevel.ELEVATED: return 256; // 256MB
-      case SecurityLevel.SANDBOXED: return 512; // 512MB
-      default: return 128;
+    case SecurityLevel.RESTRICTED: return 64; // 64MB
+    case SecurityLevel.STANDARD: return 128; // 128MB
+    case SecurityLevel.ELEVATED: return 256; // 256MB
+    case SecurityLevel.SANDBOXED: return 512; // 512MB
+    default: return 128;
     }
   }
 
@@ -461,11 +461,11 @@ export class SecureToolExecutor extends EventEmitter {
    */
   private getCpuLimit(securityLevel: SecurityLevel): number {
     switch (securityLevel) {
-      case SecurityLevel.RESTRICTED: return 10; // 10% CPU
-      case SecurityLevel.STANDARD: return 25; // 25% CPU
-      case SecurityLevel.ELEVATED: return 50; // 50% CPU
-      case SecurityLevel.SANDBOXED: return 75; // 75% CPU
-      default: return 25;
+    case SecurityLevel.RESTRICTED: return 10; // 10% CPU
+    case SecurityLevel.STANDARD: return 25; // 25% CPU
+    case SecurityLevel.ELEVATED: return 50; // 50% CPU
+    case SecurityLevel.SANDBOXED: return 75; // 75% CPU
+    default: return 25;
     }
   }
 

@@ -65,8 +65,8 @@ export interface ExerciseGenerationStrategy {
  * Contextual Exercise Generator Service
  */
 export class ContextualExerciseGenerator {
-  private strategies: ExerciseGenerationStrategy[] = [];
-  private exerciseHistory = new Map<string, {
+  private readonly strategies: ExerciseGenerationStrategy[] = [];
+  private readonly exerciseHistory = new Map<string, {
     exercises: ParameterizedExercise[];
     lastGenerated: number;
     conceptFrequency: Record<string, number>;
@@ -176,7 +176,7 @@ export class ContextualExerciseGenerator {
     const { exercise } = result;
 
     // Check basic structure
-    if (!exercise || !exercise.generatedExercise) {
+    if (!exercise?.generatedExercise) {
       return false;
     }
 
@@ -723,7 +723,7 @@ export class ContextualExerciseGenerator {
     availableStrategies: string[];
     exerciseHistory: Record<string, number>;
     templateUsage: Record<string, number>;
-  } {
+    } {
     const exerciseHistory: Record<string, number> = {};
     const templateUsage: Record<string, number> = {};
 

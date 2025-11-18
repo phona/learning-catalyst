@@ -5,9 +5,9 @@ import { ServiceToken } from './ServiceToken';
  * Eliminates 'any' types and provides proper type safety
  */
 export class ServiceRegistry {
-  private services = new Map<ServiceToken, unknown>();
-  private factories = new Map<ServiceToken, () => unknown>();
-  private singletons = new Set<ServiceToken>();
+  private readonly services = new Map<ServiceToken, unknown>();
+  private readonly factories = new Map<ServiceToken, () => unknown>();
+  private readonly singletons = new Set<ServiceToken>();
 
   /**
    * Register a service factory function
@@ -138,7 +138,7 @@ export class ServiceRegistry {
     singletonServices: number;
     instantiatedServices: number;
     serviceNames: string[];
-  } {
+    } {
     return {
       totalServices: this.factories.size,
       singletonServices: this.singletons.size,

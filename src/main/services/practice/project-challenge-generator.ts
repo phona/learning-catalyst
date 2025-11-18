@@ -130,9 +130,9 @@ export const DEFAULT_PROJECT_CHALLENGE_GENERATOR_CONFIG: ProjectChallengeGenerat
  * Project Challenge Generator Service
  */
 export class ProjectChallengeGenerator {
-  private logger: any;
-  private config: ProjectChallengeGeneratorConfig;
-  private projectCache = new Map<string, {
+  private readonly logger: any;
+  private readonly config: ProjectChallengeGeneratorConfig;
+  private readonly projectCache = new Map<string, {
     structure: ProjectStructure;
     timestamp: number;
   }>();
@@ -818,7 +818,7 @@ export const debounce = <T extends (...args: any[]) => any>(
     size: number;
     oldestEntry: number | null;
     newestEntry: number | null;
-  } {
+    } {
     if (this.projectCache.size === 0) {
       return { size: 0, oldestEntry: null, newestEntry: null };
     }

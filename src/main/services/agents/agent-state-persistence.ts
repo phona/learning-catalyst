@@ -83,12 +83,12 @@ export interface IntegrityValidationResult {
  * Manages agent state with comprehensive persistence and recovery capabilities
  */
 export class AgentStatePersistence {
-  private checkpointer: SQLiteCheckpointSaver;
+  private readonly checkpointer: SQLiteCheckpointSaver;
 
   constructor(
-    private db: Kysely<Database>,
-    private logger: any,
-    private als: AsyncLocalStorage<any>
+    private readonly db: Kysely<Database>,
+    private readonly logger: any,
+    private readonly als: AsyncLocalStorage<any>
   ) {
     this.checkpointer = new SQLiteCheckpointSaver(db);
   }

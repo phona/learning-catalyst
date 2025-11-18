@@ -12,7 +12,7 @@ import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolExecutorService } from '../tool-executor';
 import { ServiceDependencies, ServiceExecutionContext } from '../types';
-import { AgentExecutionChunk, AgentExecutionError } from '../types';
+import { AgentExecutionChunk, AgentExecutionError, ToolExecutionRequest } from '../types';
 
 /**
  * Tool call request from the AI model
@@ -56,9 +56,9 @@ interface ToolCallingContext extends ServiceExecutionContext {
  * Provides secure tool execution with permission validation and error handling.
  */
 export class ToolCallingOrchestrator {
-  private dependencies: ServiceDependencies;
-  private toolExecutor: ToolExecutorService;
-  private als: AsyncLocalStorage<ServiceExecutionContext>;
+  private readonly dependencies: ServiceDependencies;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly als: AsyncLocalStorage<ServiceExecutionContext>;
 
   constructor(
     dependencies: ServiceDependencies,
@@ -88,7 +88,7 @@ export class ToolCallingOrchestrator {
     const orchestrationContext: ToolCallingContext = {
       ...context,
       agentId: context.agentId || 'unknown',
-      sessionId: context.sessionId,
+      sessionId: context.sessionId || 'unknown',
       maxToolCalls: options?.maxToolCalls || 10,
       maxIterations: options?.maxIterations || 5,
       currentIteration: 0,
@@ -98,7 +98,7 @@ export class ToolCallingOrchestrator {
       startTime: Date.now()
     };
 
-    yield* this.runWithContext('tool-calling-orchestration', async function* () {
+    yield* this.runWithContext('tool-calling-orchestration', async function* (this: ToolCallingOrchestrator) {
       this.dependencies.logger.info(`Starting tool calling orchestration`, {
         agentId: orchestrationContext.agentId,
         sessionId: orchestrationContext.sessionId,
@@ -353,17 +353,25 @@ export class ToolCallingOrchestrator {
         await this.validateToolCall(toolCall, context);
 
         // Execute tool
-        const result = await this.toolExecutor.executeTool(
-          toolCall.name,
-          toolCall.args,
-          {
-            agentId: context.agentId,
+        const result = await this.toolExecutor.executeTool({
+          toolId: toolCall.name,
+          operation: 'execute',
+          method: 'POST', // Add the missing method property
+          parameters: toolCall.args,
+          context: {
+            id: `${context.agentId}_${toolCall.id}`,
             sessionId: context.sessionId,
-            toolCallId: toolCall.id,
-            permissions: ['read', 'write'], // Default permissions
-            timeout: 30000 // 30 second timeout per tool
+            requestId: toolCall.id,
+            timestamp: Date.now(),
+            operation: 'tool_execution',
+            metadata: {
+              agentId: context.agentId,
+              toolCallId: toolCall.id,
+              permissions: ['read', 'write'], // Default permissions
+              timeout: 30000 // 30 second timeout per tool
+            }
           }
-        );
+        });
 
         const executionTime = Date.now() - startTime;
 
@@ -515,7 +523,14 @@ export class ToolCallingOrchestrator {
     operation: string,
     fn: () => AsyncIterable<T>
   ): AsyncIterable<T> {
-    const context = { service: 'tool-calling-orchestrator', operation };
+    const context: ServiceExecutionContext = {
+      id: `tool_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sessionId: 'unknown',
+      requestId: `req_${Date.now()}`,
+      timestamp: Date.now(),
+      operation: `tool-calling-orchestrator:${operation}`,
+      metadata: { service: 'tool-calling-orchestrator', operation }
+    };
     yield* this.als.run(context, fn);
   }
 
@@ -527,7 +542,7 @@ export class ToolCallingOrchestrator {
     version: string;
     capabilities: string[];
     supportedTools: number;
-  } {
+    } {
     return {
       name: 'Tool Calling Orchestrator',
       version: '1.0.0',

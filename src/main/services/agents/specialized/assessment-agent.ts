@@ -117,12 +117,12 @@ export interface AssessmentAgentConfig {
  * Specialized Assessment Agent
  */
 export class AssessmentAgent {
-  private model: BaseLanguageModel;
-  private toolExecutor: ToolExecutorService;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly dependencies: ServiceDependencies;
   private config: AssessmentAgentConfig;
-  private assessmentBank = new Map<string, Assessment>();
-  private resultsHistory = new Map<string, AssessmentResult[]>();
+  private readonly assessmentBank = new Map<string, Assessment>();
+  private readonly resultsHistory = new Map<string, AssessmentResult[]>();
 
   constructor(
     model: BaseLanguageModel,
@@ -164,29 +164,29 @@ export class AssessmentAgent {
 
       // Route to appropriate assessment function
       switch (assessmentRequest.type) {
-        case 'create_assessment':
-          yield* this.createAssessment(request.input, assessmentRequest, executionContext);
-          break;
+      case 'create_assessment':
+        yield* this.createAssessment(request.input, assessmentRequest, executionContext);
+        break;
 
-        case 'evaluate_answers':
-          yield* this.evaluateAnswers(request.input, assessmentRequest, executionContext);
-          break;
+      case 'evaluate_answers':
+        yield* this.evaluateAnswers(request.input, assessmentRequest, executionContext);
+        break;
 
-        case 'generate_feedback':
-          yield* this.generateFeedback(request.input, assessmentRequest, executionContext);
-          break;
+      case 'generate_feedback':
+        yield* this.generateFeedback(request.input, assessmentRequest, executionContext);
+        break;
 
-        case 'analyze_performance':
-          yield* this.analyzePerformance(request.input, assessmentRequest, executionContext);
-          break;
+      case 'analyze_performance':
+        yield* this.analyzePerformance(request.input, assessmentRequest, executionContext);
+        break;
 
-        case 'create_adaptive_assessment':
-          yield* this.createAdaptiveAssessment(request.input, assessmentRequest, executionContext);
-          break;
+      case 'create_adaptive_assessment':
+        yield* this.createAdaptiveAssessment(request.input, assessmentRequest, executionContext);
+        break;
 
-        default:
-          yield* this.provideGeneralAssessmentHelp(request.input, assessmentRequest, executionContext);
-          break;
+      default:
+        yield* this.provideGeneralAssessmentHelp(request.input, assessmentRequest, executionContext);
+        break;
       }
 
     } catch (error) {
@@ -804,13 +804,13 @@ Format your response as structured, encouraging, and actionable feedback.`;
 
 Assessment History:
 ${JSON.stringify(userResults.map(r => ({
-      assessmentId: r.assessmentId,
-      percentage: r.scores.percentage,
-      grade: r.scores.grade,
-      passed: r.scores.passed,
-      timeSpent: r.performance.timeSpent,
-      completedAt: r.completedAt
-    })), null, 2)}
+    assessmentId: r.assessmentId,
+    percentage: r.scores.percentage,
+    grade: r.scores.grade,
+    passed: r.scores.passed,
+    timeSpent: r.performance.timeSpent,
+    completedAt: r.completedAt
+  })), null, 2)}
 
 Provide analysis covering:
 1. Performance trends over time
@@ -876,10 +876,10 @@ Format your response as actionable educational insights.`;
 
 Recent Performance: ${JSON.stringify(recentPerformance)}
 Assessment History: ${JSON.stringify(userResults.slice(-5).map(r => ({
-      percentage: r.scores.percentage,
-      difficulty: r.assessmentId, // Would need to fetch assessment details
-      categoryPerformance: r.performance.categoryScores
-    })))}
+    percentage: r.scores.percentage,
+    difficulty: r.assessmentId, // Would need to fetch assessment details
+    categoryPerformance: r.performance.categoryScores
+  })))}
 
 Determine:
 1. Current skill level and mastery
@@ -1174,7 +1174,7 @@ Format your response as helpful, encouraging, and actionable advice.`;
     totalQuestions: number;
     averageTimeLimit: number;
     questionTypeDistribution: Record<string, number>;
-  } {
+    } {
     const assessments = Array.from(this.assessmentBank.values());
 
     return {

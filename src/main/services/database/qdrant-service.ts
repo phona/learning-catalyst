@@ -54,9 +54,9 @@ export interface CollectionInfo {
 }
 
 export class QdrantService {
-  private client: AxiosInstance;
+  private readonly client: AxiosInstance;
   private process: ChildProcess | null = null;
-  private config: QdrantConfig;
+  private readonly config: QdrantConfig;
   private isStarting: boolean = false;
   private isReady: boolean = false;
 

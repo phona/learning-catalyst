@@ -68,9 +68,9 @@ export interface ListAgentsOptions {
  */
 export class AgentRegistry {
   constructor(
-    private db: Kysely<Database>,
-    private logger: any,
-    private als: AsyncLocalStorage<any>
+    private readonly db: Kysely<Database>,
+    private readonly logger: any,
+    private readonly als: AsyncLocalStorage<any>
   ) {}
 
   /**

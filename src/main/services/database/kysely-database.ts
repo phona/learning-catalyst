@@ -112,5 +112,8 @@ export async function runMigrations(): Promise<any[]> {
   return await migrator.migrateToLatest();
 }
 
+import { Kysely } from 'kysely';
+
 // Export types
 export type { Database };
+export type KyselyDatabase = Kysely<Database>;

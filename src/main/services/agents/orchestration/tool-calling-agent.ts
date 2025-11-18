@@ -42,9 +42,9 @@ export interface ToolCallingConfig {
  * Tool Calling Agent with intelligent orchestration
  */
 export class ToolCallingAgent {
-  private model: BaseLanguageModel;
-  private toolExecutor: ToolExecutorService;
-  private dependencies: ServiceDependencies;
+  private readonly model: BaseLanguageModel;
+  private readonly toolExecutor: ToolExecutorService;
+  private readonly dependencies: ServiceDependencies;
   private config: ToolCallingConfig;
 
   constructor(

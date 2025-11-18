@@ -93,7 +93,7 @@ export class MigrationTracker {
  * File-based migration provider for Electron IPC
  */
 export class FileMigrationProvider implements MigrationProvider {
-  constructor(private migrations: Record<string, Migration>) {}
+  constructor(private readonly migrations: Record<string, Migration>) {}
 
   async getMigrations(): Promise<Record<string, Migration>> {
     return this.migrations
@@ -106,9 +106,9 @@ export class FileMigrationProvider implements MigrationProvider {
  * Handles database migrations using the Electron IPC adapter
  */
 export class MigrationManager {
-  private tracker: MigrationTracker
-  private provider: MigrationProvider
-  private db: Kysely<any>
+  private readonly tracker: MigrationTracker
+  private readonly provider: MigrationProvider
+  private readonly db: Kysely<any>
 
   constructor(db: Kysely<any>, migrations: Record<string, Migration>) {
     this.db = db
