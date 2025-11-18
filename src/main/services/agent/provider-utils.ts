@@ -1,7 +1,7 @@
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { AppConfig, ProviderType } from '@/shared/types/config';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
-import { createIPCError } from '@/shared/types/ipc-error';
+import { createIPCError, IPCErrorException } from '@/shared/types/ipc-error';
 
 export type ProviderSettings = {
   providerName: string;
@@ -25,7 +25,7 @@ export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   maxTokens: 2048
 };
 
-const requireChatConfig = (): IPCErrorPayload => {
+const requireChatConfig = (): IPCError => {
   return createIPCError({
     type: 'CONFIG_ERROR',
     code: 'provider.config.chat_missing',
@@ -36,7 +36,7 @@ const requireChatConfig = (): IPCErrorPayload => {
   });
 };
 
-const missingProviderConfigError = (providerName: string): IPCErrorPayload => {
+const missingProviderConfigError = (providerName: string): IPCError => {
   return createIPCError({
     type: 'CONFIG_ERROR',
     code: 'provider.config.missing',
@@ -47,7 +47,7 @@ const missingProviderConfigError = (providerName: string): IPCErrorPayload => {
   });
 };
 
-const missingApiKeyError = (providerName: string): IPCErrorPayload => {
+const missingApiKeyError = (providerName: string): IPCError => {
   return createIPCError({
     type: 'CONFIG_ERROR',
     code: 'provider.config.missing_api_key',
@@ -60,42 +60,29 @@ const missingApiKeyError = (providerName: string): IPCErrorPayload => {
 
 export const resolveProviderSettings = async (configService: ConfigService): Promise<ProviderSettings> => {
   const config = await configService.getConfig();
-  if (!config?.ai) {
-    throw requireChatConfig();
+  if (!config?.ai?.model_types?.chat?.provider || !config?.ai?.model_types?.chat?.model) {
+    throw new IPCErrorException(requireChatConfig());
   }
 
-  const chatConfig = config.ai.model_types?.chat;
-  if (!chatConfig) {
-    throw requireChatConfig();
-  }
-
-  const providerName = (chatConfig.provider ?? DEFAULT_PROVIDER_SETTINGS.providerName).toLowerCase();
+  const chatConfig = config.ai.model_types.chat;
+  const providerName = chatConfig.provider.toLowerCase();
   const providerConfig = config.ai.providers?.[providerName];
 
-  const providerType = (providerConfig?.provider_type ?? providerConfig?.type ?? DEFAULT_PROVIDER_SETTINGS.providerType) as ProviderType;
-  const resolvedApiKey = providerConfig?.api_key ?? (providerConfig as any)?.apiKey ?? DEFAULT_PROVIDER_SETTINGS.apiKey;
-
-  if (!providerConfig && !resolvedApiKey) {
-    throw missingProviderConfigError(providerName);
+  if (!providerConfig) {
+    throw new IPCErrorException(missingProviderConfigError(providerName));
   }
+
+  const resolvedApiKey = providerConfig.api_key ?? (providerConfig as any)?.apiKey;
 
   if (!resolvedApiKey) {
-    throw missingApiKeyError(providerName);
+    throw new IPCErrorException(missingApiKeyError(providerName));
   }
 
-  const model =
-    chatConfig.model ??
-    providerConfig?.model ??
-    providerConfig?.models?.[0] ??
-    DEFAULT_PROVIDER_SETTINGS.model;
-  const baseUrl =
-    providerConfig?.base_url ?? (providerConfig as any)?.baseUrl ?? DEFAULT_PROVIDER_SETTINGS.baseUrl;
-  const temperature =
-    chatConfig.temperature ??
-    providerConfig?.temperature ??
-    DEFAULT_PROVIDER_SETTINGS.temperature;
-  const maxTokens =
-    chatConfig.max_tokens ?? providerConfig?.max_tokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
+  const providerType = (providerConfig.provider_type ?? providerConfig.type ?? 'openai') as ProviderType;
+  const model = chatConfig.model || providerConfig.model || DEFAULT_PROVIDER_SETTINGS.model;
+  const baseUrl = providerConfig.base_url ?? DEFAULT_PROVIDER_SETTINGS.baseUrl;
+  const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
+  const maxTokens = chatConfig.max_tokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
 
   return {
     providerName,

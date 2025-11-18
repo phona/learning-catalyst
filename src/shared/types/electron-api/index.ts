@@ -26,6 +26,7 @@ import type { SettingsAPI } from './settings-api'
 import type { CatalystAPI } from './catalyst-api'
 import type { SessionsAPI } from './sessions-api'
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
+import type { IPCErrorPayload } from '../ipc-error'
 
 
 
@@ -137,6 +138,7 @@ export interface ElectronAPI {
   getConfig: () => Promise<any>;
   setConfig: (config: any) => Promise<void>;
   onMenuAction: (handler: (action: string, data?: unknown) => void) => void;
+  onIPCError: (handler: (payload: IPCErrorPayload) => void) => () => void;
 
   // Catalyst API for main process service communication
   catalyst: CatalystAPI;

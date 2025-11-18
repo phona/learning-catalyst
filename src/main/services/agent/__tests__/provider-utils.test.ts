@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveProviderSettings } from '../provider-utils';
 import type { ConfigService } from '@/main/services/core/config/config-service';
+import { IPCErrorException } from '@/shared/types/ipc-error';
 
 const createConfigService = (config: unknown): ConfigService => ({
   getConfig: vi.fn().mockResolvedValue(config),
@@ -15,9 +16,13 @@ describe('resolveProviderSettings', () => {
   it('throws a structured error when chat config is missing', async () => {
     const service = createConfigService({ ai: {} });
 
+    await expect(resolveProviderSettings(service)).rejects.toThrowError(IPCErrorException);
     await expect(resolveProviderSettings(service)).rejects.toMatchObject({
-      type: 'CONFIG_ERROR',
-      code: 'provider.config.chat_missing'
+      payload: {
+        type: 'CONFIG_ERROR',
+        code: 'provider.config.chat_missing',
+        needsSetup: true
+      }
     });
   });
 
@@ -34,7 +39,12 @@ describe('resolveProviderSettings', () => {
       }
     });
 
-    await expect(resolveProviderSettings(service)).rejects.toThrowError(/Provider "openai" is not configured/);
+    await expect(resolveProviderSettings(service)).rejects.toThrowError(IPCErrorException);
+    await expect(resolveProviderSettings(service)).rejects.toMatchObject({
+      payload: {
+        code: 'provider.config.missing'
+      }
+    });
   });
 
   it('returns settings when provider has an API key', async () => {

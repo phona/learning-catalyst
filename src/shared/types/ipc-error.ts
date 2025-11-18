@@ -1,3 +1,5 @@
+import type { IPCError } from './ipc';
+
 export type SimpleErrorType = 'CONFIG_ERROR' | 'NETWORK_ERROR' | 'SYSTEM_ERROR';
 
 export type IPCErrorAction = 'openSettings' | 'retry' | 'openProviderSetup' | 'contactSupport';
@@ -24,3 +26,22 @@ export const isIPCErrorPayload = (value: unknown): value is IPCErrorPayload => {
 export const createIPCError = (payload: IPCErrorPayload): IPCErrorPayload => ({
   ...payload
 });
+
+export const IPC_ERROR_CHANNEL = 'ipc:error';
+
+export class IPCErrorException extends Error implements IPCError {
+  public readonly payload: IPCErrorPayload;
+  public readonly code: string;
+
+  constructor(payload: IPCErrorPayload) {
+    super(payload.message);
+    this.payload = payload;
+    this.code = payload.code;
+    this.name = 'IPCErrorException';
+    Object.setPrototypeOf(this, IPCErrorException.prototype);
+  }
+}
+
+export const isIPCErrorException = (value: unknown): value is IPCErrorException => {
+  return value instanceof IPCErrorException;
+};

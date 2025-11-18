@@ -20,43 +20,120 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/require-await */
 
-
-
-
-import React, { JSX } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
-function App(): JSX.Element {
-  // No loading state - render immediately for test compatibility
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Routes>
-        <Route path="/" element={
+import SetupScreen from '@/renderer/components/SetupScreen';
+import { showError } from '@/renderer/utils/toast';
+import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+
+const MainRoutes = () => (
+  <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <Routes>
+      <Route
+        path="/"
+        element={
           <main role="main" className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Learning Catalyst
             </h1>
             <div>Welcome to Learning Catalyst</div>
           </main>
-        } />
-        <Route path="/settings" element={
+        }
+      />
+      <Route
+        path="/settings"
+        element={
           <main role="main" className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Learning Catalyst
             </h1>
             <div>Preferences</div>
           </main>
-        } />
-        <Route path="/sessions" element={
+        }
+      />
+      <Route
+        path="/sessions"
+        element={
           <main role="main" className="p-6">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Learning Catalyst
             </h1>
             <div>Session Manager</div>
           </main>
-        } />
-      </Routes>
-    </div>
-  );
-}
+        }
+      />
+    </Routes>
+  </div>
+);
 
-export default App;
+type AppState = 'loading' | 'setup' | 'ready';
+
+const formatIPCError = (payload: IPCErrorPayload): string => {
+  const guidance =
+    payload.details && typeof payload.details === 'object' && 'guidance' in payload.details
+      ? ` – ${(payload.details as Record<string, unknown>).guidance}`
+      : '';
+  return `${payload.message}${guidance}`;
+};
+
+export default function App(): JSX.Element {
+  const [status, setStatus] = useState<AppState>('loading');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkConfig = async () => {
+      if (!window?.electronAPI) {
+        setStatus('setup');
+        setStatusMessage('Electron API is unavailable.');
+        return;
+      }
+
+      try {
+        const config = await window.electronAPI.getConfig();
+        const chatConfig = config?.ai?.model_types?.chat;
+
+        if (!chatConfig?.provider || !chatConfig?.model) {
+          setStatus('setup');
+          setStatusMessage('AI provider is not configured yet.');
+          return;
+        }
+
+        setStatus('ready');
+      } catch (error) {
+        showError(error instanceof Error ? error.message : 'Failed to load workspace configuration.');
+        setStatus('setup');
+        setStatusMessage('Unable to load workspace configuration.');
+      }
+    };
+
+    checkConfig();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = window?.electronAPI?.onIPCError?.((payload) => {
+      showError(formatIPCError(payload));
+      if (payload.needsSetup) {
+        setStatus('setup');
+        setStatusMessage(payload.message);
+      }
+    });
+
+    return () => unsubscribe?.();
+  }, []);
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
+        <div className="text-center text-gray-600 dark:text-gray-300">
+          Checking workspace configuration…
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'setup') {
+    return <SetupScreen message={statusMessage ?? undefined} />;
+  }
+
+  return <MainRoutes />;
+}

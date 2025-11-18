@@ -14,6 +14,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import type { IpcRendererEvent } from 'electron';
 import {
   ElectronAPI,
   ChatAPI,
@@ -41,6 +42,8 @@ import type {
 import type {
   ConceptParsingResult
 } from '@/shared/types/electron-api/knowledge-api';
+import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -614,6 +617,13 @@ const electronAPI = {
     };
     ipcRenderer.on('menu:action', listener);
     return () => ipcRenderer.removeListener('menu:action', listener);
+  },
+  onIPCError: (handler: (payload: IPCErrorPayload) => void) => {
+    const listener = (_event: IpcRendererEvent, payload: IPCErrorPayload) => {
+      handler(payload);
+    };
+    ipcRenderer.on(IPC_ERROR_CHANNEL, listener);
+    return () => ipcRenderer.removeListener(IPC_ERROR_CHANNEL, listener);
   },
 
   // Utility methods for better error handling and debugging

@@ -1,10 +1,17 @@
 import { ipcMain } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
-import { isIPCErrorPayload, type IPCErrorPayload } from '@/shared/types/ipc-error';
+import {
+  IPCErrorException,
+  isIPCErrorPayload,
+  type IPCErrorPayload
+} from '@/shared/types/ipc-error';
 
 const PATCH_FLAG = Symbol.for('learning-catalyst:ipc-error-handled');
 
-const toStructuredError = (error: unknown, channel: string): IPCErrorPayload => {
+export const serializeIPCError = (error: unknown, channel = 'system'): IPCErrorPayload => {
+  if (error instanceof IPCErrorException) {
+    return error.payload;
+  }
   if (isIPCErrorPayload(error)) {
     return error;
   }
@@ -40,7 +47,7 @@ const handleWithError = (channel: string, listener: (...args: any[]) => Promise<
       console.error(`[main][IPC] ${channel} failed`, error);
       return {
         success: false,
-        error: toStructuredError(error, channel)
+        error: serializeIPCError(error, channel)
       };
     }
   };

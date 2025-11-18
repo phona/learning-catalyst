@@ -9,10 +9,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
 
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setupAllIpcHandlers } from './handlers'
+import { setupSettingsHandlers } from './handlers/settings-handlers'
+import { serializeIPCError } from './handlers/ipc-error-handler'
 import { createAppMenu } from './menu'
 import { LoggerFactory } from './services/logger'
 
@@ -29,7 +31,10 @@ import { createAnalyticsService } from '@/main/services/domain/analytics/analyti
 import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager'
 import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager'
 import { createDomainAgent } from '@/main/services/agent/domain-agent'
+import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error'
 import { VectorDatabaseModule } from './services/domain/knowledge/vector/vector-database'
+
+import type { IPCErrorPayload } from '@/shared/types/ipc-error'
 
 // Import database from existing implementation
 import {
@@ -38,6 +43,7 @@ import {
   getDefaultDatabasePath,
   runMigrations
 } from './services/core/database/kysely-database'
+import { createConfigStorage } from './services/core/config/storage'
 
 // Memory debugging utility for development
 import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
@@ -68,6 +74,46 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 let win: BrowserWindow | null = null
 let isShuttingDown = false
+const pendingIpcErrors: IPCErrorPayload[] = []
+
+const enqueueIpcError = (payload: IPCErrorPayload) => {
+  if (win && win.webContents && !win.webContents.isDestroyed()) {
+    win.webContents.send(IPC_ERROR_CHANNEL, payload)
+    return
+  }
+
+  pendingIpcErrors.push(payload)
+}
+
+const flushPendingIpcErrors = () => {
+  if (!win || !win.webContents || win.webContents.isDestroyed()) {
+    return
+  }
+
+  while (pendingIpcErrors.length > 0) {
+    const payload = pendingIpcErrors.shift()
+    if (!payload) {
+      continue
+    }
+    win.webContents.send(IPC_ERROR_CHANNEL, payload)
+  }
+}
+
+const reportMainError = (error: unknown, channel = 'main') => {
+  const payload = serializeIPCError(error, channel)
+  enqueueIpcError(payload)
+  return payload
+}
+
+process.on('uncaughtException', (error) => {
+  console.error('[Main] Uncaught exception', error)
+  reportMainError(error, 'uncaughtException')
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Main] Unhandled rejection', reason)
+  reportMainError(reason, 'unhandledRejection')
+})
 
 const preload = path.join(__dirname, '../preload/index.cjs')
 const indexHtml = path.join(RENDERER_DIST, 'index.html')
@@ -142,6 +188,10 @@ async function createWindow(): Promise<void> {
     win.show() // Show window after loading
   }
 
+  win.webContents.once('did-finish-load', () => {
+    flushPendingIpcErrors()
+  })
+
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https:')) shell.openExternal(url)
@@ -159,6 +209,7 @@ async function createWindow(): Promise<void> {
   const loggerFactory = LoggerFactory.getInstance();
   const logger = loggerFactory.createContextAwareLogger();
   const loggerService = createLoggerService({ logger });
+  setupSettingsHandlers(workspacePath, { loggerService });
 
   // Create the actual database instance using the new driver factory pattern
   const dbPath = getDefaultDatabasePath();
@@ -167,88 +218,90 @@ async function createWindow(): Promise<void> {
 
   // Run database migrations before wiring domain services
   await runMigrations(driverFactory);
-  
-  // Mock config storage implementation (would be replaced with real implementation)
-  const mockConfigStorage = {
-    loadConfig: async () => ({}),
-    saveConfig: async (_config: any) => {},
-    hasConfig: async () => false,
-    clearConfig: async () => {}
-  };
-  
-  const configService = createConfigService({ 
-    storage: mockConfigStorage as any, 
-    logger 
-  });
-  
-  const domainAgent = await createDomainAgent({
-    configService
+
+  // Create real config storage
+  const configStorage = createConfigStorage(workspacePath);
+
+  const configService = createConfigService({
+    storage: configStorage,
+    logger
   });
 
-  const aiServiceManager = createAiServiceManager({
-    loggerService,
-    configService
-  });
-  await aiServiceManager.waitForReady();
-  const aiService = aiServiceManager;
+  try {
+    const domainAgent = await createDomainAgent({
+      configService
+    });
 
-  const learningService = createLearningService({ db: database, loggerService, aiService, domainAgent });
-  const vectorDatabase = new VectorDatabaseModule();
-  await vectorDatabase.start();
-  const knowledgeService = createKnowledgeService({
-    db: database,
-    loggerService
-  });
-  const conceptParsingService = createConceptParsingService({
-    aiService,
-    domainAgent,
-    vectorDatabase,
-    loggerService
-  });
-  const practiceService = createPracticeService({
-    aiService,
-    domainAgent,
-    loggerService,
-    knowledgeService
-  });
-  const analyticsService = createAnalyticsService({ db: database, loggerService });
-  const contentService = createContentService({ loggerService, aiService });
-  const agentManager: AgentManager = await createAgentManager({
-    aiService,
-    analyticsService,
-    conceptParsingService,
-    learningService,
-    loggerService,
-    configService
-  });
-  
-  const chatService = createChatService({
-    db: database,
-    loggerService,
-    aiService,
-    domainAgent,
-    agentManager
-  });
+    console.log('[Main] Creating AI service manager...');
+    const aiServiceManager = createAiServiceManager({
+      loggerService,
+      configService
+    });
+    console.log('[Main] AI service manager created. Waiting for ready...');
+    await aiServiceManager.waitForReady();
+    console.log('[Main] AI service manager is ready');
+    const aiService = aiServiceManager;
 
-  // Setup IPC handlers with all services
-  await setupAllIpcHandlers(win, workspacePath, {
-    chatService,
-    learningService,
-    knowledgeService,
-    conceptParsingService,
-    practiceService,
-    analyticsService,
-    contentService,
-    aiService,
-    loggerService,
-    configService
-  });
+    const learningService = createLearningService({ db: database, loggerService, aiService, domainAgent });
+    const vectorDatabase = new VectorDatabaseModule();
+    await vectorDatabase.start();
+    const knowledgeService = createKnowledgeService({
+      db: database,
+      loggerService
+    });
+    const conceptParsingService = createConceptParsingService({
+      aiService,
+      domainAgent,
+      vectorDatabase,
+      loggerService
+    });
+    const practiceService = createPracticeService({
+      aiService,
+      domainAgent,
+      loggerService,
+      knowledgeService
+    });
+    const analyticsService = createAnalyticsService({ db: database, loggerService });
+    const contentService = createContentService({ loggerService, aiService });
+    const agentManager = await createAgentManager({
+      aiService,
+      analyticsService,
+      conceptParsingService,
+      learningService,
+      loggerService,
+      configService
+    });
 
-  // Setup application menu
-  const menu = createAppMenu(win)
-  win.setMenu(menu)
-}
+    const chatService = createChatService({
+      db: database,
+      loggerService,
+      aiService,
+      domainAgent,
+      agentManager
+    });
 
+    // Setup IPC handlers with all services
+    await setupAllIpcHandlers(win, workspacePath, {
+      chatService,
+      learningService,
+      knowledgeService,
+      conceptParsingService,
+      practiceService,
+      analyticsService,
+      contentService,
+      aiService,
+      loggerService,
+      configService
+    });
+
+    // Setup application menu
+    const menu = createAppMenu(win)
+    win.setMenu(menu)
+  } catch (error) {
+    console.error('? Error initializing services:', error);
+    reportMainError(error, 'services:init')
+    return
+  }
 // Cleanup function to prevent memory leaks
 async function cleanup() {
   if (isShuttingDown) return

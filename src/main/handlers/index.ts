@@ -8,7 +8,6 @@ import { setupEnhancedSettingsHandlers } from './settings-enhanced-handlers';
 import { setupEnhancedAgentHandlers } from './agent-enhanced-handlers';
 import { setupContentHandlers } from './content-handlers';
 import { setupCompleteAnalyticsHandlers } from './analytics-complete-handlers';
-import { setupSettingsHandlers } from './settings-handlers';
 import { setupConceptParsingHandlers } from './concept-parsing-handlers';
 import { applyStructuredErrorHandling } from './ipc-error-handler';
 import { ChatService } from '../services/domain/chat/chat-service';
@@ -72,11 +71,6 @@ export async function setupAllIpcHandlers(
 
   // Setup enhanced settings handlers
   setupEnhancedSettingsHandlers(ipcMain, {
-    loggerService: services.loggerService
-  });
-
-  // Setup basic settings handlers (with workspace path)
-  setupSettingsHandlers(workspacePath, {
     loggerService: services.loggerService
   });
 
