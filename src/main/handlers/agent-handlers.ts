@@ -168,7 +168,7 @@ export const setupAgentHandlers = async (
     });
 
     try {
-      const allModels = services.aiService.getAvailableModels();
+      const allModels = await services.aiService.getAvailableModels();
       
       let filteredModels = allModels;
       
