@@ -130,9 +130,9 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
             <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full"></div>
           )}
 
-          </div>
-
         </div>
+
+      </div>
 
       {showLabel && (
         <div className="text-center mt-3">
@@ -145,7 +145,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
             <span>{maxValue}</span>
           </div>
 
-          </div>
+        </div>
       )}
     </div>
   );

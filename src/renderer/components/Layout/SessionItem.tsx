@@ -74,8 +74,8 @@ export const SessionItem = memo<SessionItemProps>(({
                 isActive
                   ? 'text-primary-700 dark:text-primary-300 font-bold'
                   : isNew
-                  ? 'text-primary-700 dark:text-primary-300'
-                  : 'text-gray-900 dark:text-gray-100'
+                    ? 'text-primary-700 dark:text-primary-300'
+                    : 'text-gray-900 dark:text-gray-100'
               }`}
             >
               {session.title}

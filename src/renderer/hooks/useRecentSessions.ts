@@ -24,7 +24,7 @@ export interface RecentSessionsActions {
   retry: () => Promise<void>;
 }
 
-export function useRecentSessions(limit: number = 10): RecentSessionsState & RecentSessionsActions {
+export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessionsActions {
   const [state, setState] = useState<RecentSessionsState>({
     sessions: [],
     loading: true,

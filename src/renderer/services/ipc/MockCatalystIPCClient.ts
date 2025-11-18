@@ -16,7 +16,7 @@ export class MockCatalystIPCClient implements ICatalystIPCClient {
   private mockAgents: AgentDisplay[];
   private mockExecutions: ActiveExecution[];
 
-  constructor(delay: number = 100) {
+  constructor(delay = 100) {
     this.delay = delay;
     this.mockAgents = [
       {

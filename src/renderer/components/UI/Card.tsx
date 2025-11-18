@@ -6,9 +6,9 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {}
-export interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {}
-export interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {}
+export type CardHeaderProps = React.HTMLAttributes<HTMLDivElement>
+export type CardContentProps = React.HTMLAttributes<HTMLDivElement>
+export type CardFooterProps = React.HTMLAttributes<HTMLDivElement>
 
 const cardVariants = {
   variant: {

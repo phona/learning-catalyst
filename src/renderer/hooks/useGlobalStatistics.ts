@@ -36,7 +36,7 @@ export interface GlobalStatisticsActions {
 const CACHE_DURATION = 5 * 60 * 1000;
 
 export function useGlobalStatistics(
-  cacheEnabled: boolean = true,
+  cacheEnabled = true,
   refreshInterval: number | null = null
 ): GlobalStatisticsState & GlobalStatisticsActions {
   const [state, setState] = useState<GlobalStatisticsState>({
@@ -192,7 +192,7 @@ export function useGlobalMessageCount(): {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-} {
+  } {
   const { statistics, loading, error, refresh } = useGlobalStatistics();
 
   return {

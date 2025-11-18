@@ -100,7 +100,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
     <div className="select-none">
       <div
         className={`flex items-center py-1 px-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500' : ''
-          }`}
+        }`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={handleToggle}
         onDoubleClick={handleDoubleClick}
@@ -122,7 +122,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
         <span className={`text-sm truncate ${item.isDirectory
           ? 'font-medium text-gray-900 dark:text-gray-100'
           : 'text-gray-700 dark:text-gray-300'
-          }`}>
+        }`}>
           {item.name}
         </span>
 
@@ -530,8 +530,8 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     const actionText = actionType === 'configure'
       ? '\n\nWould you like to open Settings to configure your AI provider?'
       : actionType === 'retry'
-      ? '\n\nPlease check your configuration and try again.'
-      : '\n\nPlease restart the application and try again.';
+        ? '\n\nPlease check your configuration and try again.'
+        : '\n\nPlease restart the application and try again.';
 
     if (confirm(`${title}\n\n${message}${actionText}`) && actionType === 'configure') {
       // Navigate to settings
@@ -679,15 +679,15 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                   <div className="flex items-center space-x-2">
                     <div className={`w-2 h-2 rounded-full ${
                       activeParsingJob.status === 'completed' ? 'bg-green-500' :
-                      activeParsingJob.status === 'failed' ? 'bg-red-500' :
-                      activeParsingJob.status === 'processing' ? 'bg-blue-500 animate-pulse' :
-                      'bg-gray-400'
+                        activeParsingJob.status === 'failed' ? 'bg-red-500' :
+                          activeParsingJob.status === 'processing' ? 'bg-blue-500 animate-pulse' :
+                            'bg-gray-400'
                     }`} />
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {activeParsingJob.status === 'processing' ? 'Parsing...' :
-                       activeParsingJob.status === 'completed' ? 'Completed' :
-                       activeParsingJob.status === 'failed' ? 'Failed' :
-                       'Starting...'}
+                        activeParsingJob.status === 'completed' ? 'Completed' :
+                          activeParsingJob.status === 'failed' ? 'Failed' :
+                            'Starting...'}
                     </span>
                     {activeParsingJob.status === 'processing' && (
                       <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -770,7 +770,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                             <ArrowPathIcon className="w-3 h-3" />
                             <span>Retry</span>
                           </button>
-                                                  </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -796,7 +796,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                             <ArrowPathIcon className="w-3 h-3" />
                             <span>Retry</span>
                           </button>
-                                                    <button
+                          <button
                             onClick={clearFailedJob}
                             className="flex items-center space-x-1 px-2 py-1 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 text-xs rounded transition-colors"
                           >

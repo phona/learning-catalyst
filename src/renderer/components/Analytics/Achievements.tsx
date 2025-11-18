@@ -188,10 +188,10 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
             overallProgress >= 100
               ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/25'
               : overallProgress >= 75
-              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
-              : overallProgress >= 50
-              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/25'
+                : overallProgress >= 50
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
           }`}>
             {Math.round(overallProgress)}%
           </div>
@@ -348,9 +348,9 @@ const AchievementsComponent: React.FC<AchievementsProps> = ({ analytics, classNa
                         <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
                         <span className={`text-xs font-bold ${
                           achievement.progress >= 100 ? 'text-emerald-600 dark:text-emerald-400' :
-                          achievement.progress >= 75 ? 'text-blue-600 dark:text-blue-400' :
-                          achievement.progress >= 50 ? 'text-amber-600 dark:text-amber-400' :
-                          'text-orange-600 dark:text-orange-400'
+                            achievement.progress >= 75 ? 'text-blue-600 dark:text-blue-400' :
+                              achievement.progress >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                                'text-orange-600 dark:text-orange-400'
                         }`}>
                           {achievement.progress}%
                         </span>

@@ -422,16 +422,16 @@ export class AnalyticsService implements IAnalyticsService {
    */
   private convertTimeRange(period: string): '7days' | '30days' | '90days' | '1year' {
     switch (period) {
-      case 'week':
-        return '7days';
-      case 'month':
-        return '30days';
-      case 'quarter':
-        return '90days';
-      case 'year':
-        return '1year';
-      default:
-        return '30days';
+    case 'week':
+      return '7days';
+    case 'month':
+      return '30days';
+    case 'quarter':
+      return '90days';
+    case 'year':
+      return '1year';
+    default:
+      return '30days';
     }
   }
 
@@ -444,20 +444,20 @@ export class AnalyticsService implements IAnalyticsService {
 
     let start: Date;
     switch (period) {
-      case 'week':
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case 'month':
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'quarter':
-        start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case 'year':
-        start = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    case 'week':
+      start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case 'month':
+      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    case 'quarter':
+      start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      break;
+    case 'year':
+      start = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      break;
+    default:
+      start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
     return {
@@ -471,16 +471,16 @@ export class AnalyticsService implements IAnalyticsService {
    */
   private getUnitForMetric(metric: string): string {
     switch (metric) {
-      case 'mastery':
-        return '%';
-      case 'sessions':
-        return 'sessions';
-      case 'time':
-        return 'minutes';
-      case 'concepts':
-        return 'concepts';
-      default:
-        return '';
+    case 'mastery':
+      return '%';
+    case 'sessions':
+      return 'sessions';
+    case 'time':
+      return 'minutes';
+    case 'concepts':
+      return 'concepts';
+    default:
+      return '';
     }
   }
 

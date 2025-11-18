@@ -22,7 +22,7 @@ function assertSuccess<R extends { success: boolean; error?: string }>(response:
  * @param timeoutMs - Maximum time to wait in milliseconds
  * @param intervalMs - Interval to check availability
  */
-async function waitForSessionsAPI(timeoutMs: number = 5000, intervalMs: number = 100): Promise<SessionsAPI> {
+async function waitForSessionsAPI(timeoutMs = 5000, intervalMs = 100): Promise<SessionsAPI> {
   const startTime = Date.now();
   
   while (Date.now() - startTime < timeoutMs) {

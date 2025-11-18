@@ -40,9 +40,9 @@ export const PracticeSuggestionBubble: React.FC<PracticeSuggestionBubbleProps> =
     type: 'practice',
     content: message.content,
     topic: message.content.includes('React') ? 'React' : 
-           message.content.includes('TypeScript') ? 'TypeScript' : 
-           message.content.includes('JavaScript') ? 'JavaScript' : 
-           'General',
+      message.content.includes('TypeScript') ? 'TypeScript' : 
+        message.content.includes('JavaScript') ? 'JavaScript' : 
+          'General',
     confidence: 0.85,
     timing: {
       when: 'right now',

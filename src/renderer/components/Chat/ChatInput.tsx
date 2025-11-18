@@ -248,8 +248,8 @@ export const ChatInput: React.FC = () => {
                 isStreaming
                   ? 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500'
                   : !isActionButtonDisabled
-                  ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
-                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
               disabled={isActionButtonDisabled}
               aria-label={isStreaming ? 'Stop generating response' : 'Send message'}

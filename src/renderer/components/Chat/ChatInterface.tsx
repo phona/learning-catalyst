@@ -48,10 +48,10 @@ export const ChatInterface: React.FC = () => {
     return (
       <div className="h-full flex flex-col">
         <div className="flex-1 overflow-auto">
-        <div className="space-y-4 p-4" data-testid="chat-skeleton-list">
-          <MessageSkeleton isUser={false} />
-          <MessageSkeleton isUser={true} />
-          <MessageSkeleton isUser={false} />
+          <div className="space-y-4 p-4" data-testid="chat-skeleton-list">
+            <MessageSkeleton isUser={false} />
+            <MessageSkeleton isUser={true} />
+            <MessageSkeleton isUser={false} />
           </div>
         </div>
         <div className="border-t p-4">

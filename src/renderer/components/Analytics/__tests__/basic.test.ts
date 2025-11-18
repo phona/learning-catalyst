@@ -1,5 +1,5 @@
 // Simple test to verify renderer test infrastructure works
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 describe('Renderer Test Infrastructure', () => {
   it('should run basic tests', () => {

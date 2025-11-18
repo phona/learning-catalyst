@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
@@ -113,8 +113,17 @@ const AppWithRouter = () => (
 );
 
 describe('App - Main Application Flow', () => {
-  const mockUseAppStore = vi.mocked(require('../stores/useAppStore').useAppStore);
-  const mockUseConfigStore = vi.mocked(require('../stores/useConfigStore').useConfigStore);
+  const mockUseAppStore = vi.mocked(() => ({
+    setCurrentView: vi.fn(),
+    currentView: 'chat',
+    setCurrentSession: vi.fn(),
+    currentSessionId: null,
+  }));
+  const mockUseConfigStore = vi.mocked(() => ({
+    config: null,
+    loading: false,
+    error: null,
+  }));
 
   beforeEach(() => {
     vi.clearAllMocks();

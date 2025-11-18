@@ -141,9 +141,9 @@ export class ConfigurationService {
     )
       ? { provider: (modelConfig as any).provider, model: (modelConfig as any).model }
       : {
-          provider: (modelConfig as any).default_provider ?? '',
-          model: (modelConfig as any).default_model ?? '',
-        };
+        provider: (modelConfig as any).default_provider ?? '',
+        model: (modelConfig as any).default_model ?? '',
+      };
 
     if (!normalized.provider || !normalized.model) {
       throw new Error('Provider and model are required to update model type configuration');

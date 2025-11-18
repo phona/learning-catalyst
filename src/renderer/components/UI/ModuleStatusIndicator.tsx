@@ -37,27 +37,27 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'healthy':
-        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
-      case 'degraded':
-        return <ExclamationTriangleIcon className="w-4 h-4 text-yellow-500" />;
-      case 'failed':
-        return <XCircleIcon className="w-4 h-4 text-red-500" />;
-      default:
-        return <InformationCircleIcon className="w-4 h-4 text-gray-500" />;
+    case 'healthy':
+      return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
+    case 'degraded':
+      return <ExclamationTriangleIcon className="w-4 h-4 text-yellow-500" />;
+    case 'failed':
+      return <XCircleIcon className="w-4 h-4 text-red-500" />;
+    default:
+      return <InformationCircleIcon className="w-4 h-4 text-gray-500" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
-      case 'degraded':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900';
-      case 'failed':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900';
-      default:
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900';
+    case 'healthy':
+      return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
+    case 'degraded':
+      return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900';
+    case 'failed':
+      return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900';
+    default:
+      return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900';
     }
   };
 
@@ -75,7 +75,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
         {getStatusIcon(overall)}
         <span className={`text-sm font-medium px-2 py-1 rounded ${getStatusColor(overall)}`}>
           {overall === 'healthy' ? 'All Systems Operational' :
-           overall === 'degraded' ? 'System Degraded' : 'System Error'}
+            overall === 'degraded' ? 'System Degraded' : 'System Error'}
         </span>
         {(failedModules.length > 0 || degradedModules.length > 0) && (
           <button
@@ -85,7 +85,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
         )}
@@ -106,7 +106,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </div>
@@ -116,7 +116,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
         {getStatusIcon(overall)}
         <span className={`text-lg font-medium px-3 py-1 rounded ${getStatusColor(overall)}`}>
           System {overall === 'healthy' ? 'Operational' :
-                   overall === 'degraded' ? 'Degraded' : 'Error'}
+            overall === 'degraded' ? 'Degraded' : 'Error'}
         </span>
         <span className="text-sm text-gray-500 dark:text-gray-400">
           Last checked: {new Date(systemHealth.lastCheck).toLocaleTimeString()}
@@ -161,8 +161,8 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
               <div key={index} className="flex items-center space-x-2 text-xs">
                 <span className={`w-2 h-2 rounded-full ${
                   issue.severity === 'critical' ? 'bg-red-500' :
-                  issue.severity === 'error' ? 'bg-red-400' :
-                  issue.severity === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+                    issue.severity === 'error' ? 'bg-red-400' :
+                      issue.severity === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
                 }`} />
                 <span className="text-gray-600 dark:text-gray-400">
                   {issue.module && `${issue.module}: `}{issue.message}
