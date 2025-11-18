@@ -80,6 +80,68 @@ export interface TimeStatsDisplay {
   studyDaysThisWeek: number;
 }
 
+export interface UsageStatsDisplay {
+  timeRange: string;
+  overall: {
+    totalLearningTime: number;
+    totalSessions: number;
+    conceptsLearned: number;
+    skillsAcquired: number;
+    practiceExercisesCompleted: number;
+    accuracyRate: number;
+  };
+  patterns?: {
+    dailyAverage: number;
+    weeklyPattern: Record<string, number>;
+    peakHours: string[];
+    consistency: number;
+  };
+  engagement?: {
+    sessionsPerDay: number;
+    averageSessionLength: number;
+    completionRate: number;
+    returnRate: number;
+  };
+  metadata: {
+    generatedAt: string;
+    period: string;
+  };
+}
+
+export interface TokenUsageDisplay {
+  timeRange: string;
+  currentPeriod: {
+    startDate: string;
+    endDate: string;
+    totalTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    estimatedCost: number;
+    usageTrend: string;
+  };
+  providers?: Array<{
+    provider: string;
+    tokens: number;
+    cost: number;
+    percentage: number;
+  }>;
+  features?: Array<{
+    feature: string;
+    tokens: number;
+    percentage: number;
+  }>;
+  projections?: {
+    nextPeriodEstimate: number;
+    costEstimate: number;
+    growthRate: number;
+    recommendations: string[];
+  };
+  metadata: {
+    generatedAt: string;
+    period: string;
+  };
+}
+
 export interface ProgressChartParams {
   period: 'week' | 'month' | 'quarter' | 'year';
   metric: 'mastery' | 'sessions' | 'time' | 'concepts';
@@ -113,7 +175,6 @@ export interface CreateLearningSessionRequest {
   notes?: string;
   tags?: string[];
 }
-
 export interface ConceptProgressUpdate {
   conceptId: string;
   masteryLevel: number;
@@ -122,36 +183,6 @@ export interface ConceptProgressUpdate {
   notes?: string;
 }
 
-export interface AnalyticsService {
-  // Dashboard and overview
-  getDashboard(): Promise<DashboardDisplay>;
-
-  // Progress tracking
-  getProgressChart(params: ProgressChartParams): Promise<ProgressChartDisplay>;
-  getConceptProgress(conceptId: string): Promise<ConceptProgressDisplay>;
-  updateConceptProgress(
-    conceptId: string,
-    update: ConceptProgressUpdate
-  ): Promise<void>;
-
-  // Session management
-  trackSession(session: CreateLearningSessionRequest): Promise<string>;
-  updateSession(sessionId: string, updates: Partial<LearningSession>): Promise<void>;
-  getSessionHistory(limit?: number): Promise<SessionDisplay[]>;
-
-  // Achievements
-  getAchievements(): Promise<AchievementDisplay[]>;
-  checkAchievements(sessionId: string): Promise<AchievementDisplay[]>;
-
-  // Analytics data
-  getLearningTrends(period: 'daily' | 'weekly' | 'monthly'): Promise<LearningTrendDisplay>;
-  getStudyStreak(): Promise<StudyStreakDisplay>;
-  getTimeStats(): Promise<TimeStatsDisplay>;
-
-  // Export/import
-  exportData(format: 'json' | 'csv'): Promise<string>;
-  importData(data: string, format: 'json' | 'csv'): Promise<void>;
-}
 
 // Error types specific to analytics
 export class AnalyticsError extends Error {

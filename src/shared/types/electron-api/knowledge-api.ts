@@ -7,6 +7,19 @@
 
 export interface KnowledgeAPI {
   /**
+   * Ingests a parsed result into the knowledge graph for downstream queries
+   */
+  ingestConcepts: (params: {
+    result: ConceptParsingResult;
+    options?: {
+      userId?: string;
+      materialId?: string;
+      sessionId?: string;
+      source?: string;
+    };
+  }) => Promise<KnowledgeIngestionResult>;
+
+  /**
    * Explores a concept in detail with related information
    * Provides comprehensive concept analysis for learning
    * @param params.conceptName - Name of the concept to explore
@@ -43,30 +56,6 @@ export interface KnowledgeAPI {
   searchKnowledge: (query: string) => Promise<KnowledgeSearchResultDisplay>;
 
   /**
-   * Gets explanation for a concept in specific style
-   * Provides different ways to understand the same concept
-   * @param params.conceptId - ID of the concept to explain
-   * @param params.style - 'simple' | 'technical' | 'analogy' | 'example' | 'visual'
-   * @returns Promise<ExplanationDisplay> - Concept explanation in requested style
-   */
-  getExplanation: (params: {
-    conceptId: string;
-    style: 'simple' | 'technical' | 'analogy' | 'example' | 'visual';
-  }) => Promise<ExplanationDisplay>;
-
-  /**
-   * Gets practice exercises for a specific concept
-   * Provides hands-on learning opportunities with varying difficulty
-   * @param params.conceptId - ID of the concept to practice
-   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
-   * @returns Promise<ExerciseDisplay[]> - Array of practice exercises
-   */
-  getPracticeExercises: (params: {
-    conceptId: string;
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-  }) => Promise<ExerciseDisplay[]>;
-
-  /**
    * Parse concepts from files and content using AI
    * Extracts learning concepts from markdown files and content
    * @param params - Parsing parameters including files, content, and options
@@ -89,6 +78,45 @@ export interface KnowledgeAPI {
       maxConceptsPerFile?: number;
     };
   }) => Promise<ConceptParsingResult>;
+}
+
+export interface KnowledgeExtractionDisplay {
+  nodes: KnowledgeNodeDisplay[];
+  relationships: KnowledgeRelationshipDisplay[];
+  summary: string;
+  focusAreas: string[];
+  recommendations: string[];
+  metadata: {
+    source: string;
+    processedAt: string;
+    stats: Record<string, unknown>;
+    snippetCount: number;
+  };
+}
+
+export interface KnowledgeNodeDisplay {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  difficultyLevel: number;
+  masteryLevel: number;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface KnowledgeRelationshipDisplay {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  relationshipType: string;
+  strength: number;
+  description?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -279,6 +307,16 @@ export interface ConceptParsingResult {
     inputFiles: number;
     aiProvider?: string;
     aiModel?: string;
+  };
+}
+
+export interface KnowledgeIngestionResult {
+  conceptsInserted: number;
+  conceptsUpdated: number;
+  relationshipsInserted: number;
+  metadata: {
+    processedAt: string;
+    source?: string;
   };
 }
 

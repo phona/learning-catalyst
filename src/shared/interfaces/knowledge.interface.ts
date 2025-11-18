@@ -226,41 +226,6 @@ export interface ExerciseSolution {
   commonMistakes?: string[];
 }
 
-export interface KnowledgeService {
-  // Concept management
-  getConcept(conceptId: string): Promise<ConceptNode>;
-  createConcept(request: CreateConceptRequest): Promise<string>;
-  updateConcept(conceptId: string, updates: Partial<ConceptNode>): Promise<void>;
-  deleteConcept(conceptId: string): Promise<void>;
-  searchConcepts(request: ConceptSearchRequest): Promise<ConceptSearchResult[]>;
-
-  // Knowledge graph
-  getConceptMap(filters?: MapFilters): Promise<ConceptMapDisplay>;
-  addRelationship(request: CreateRelationshipRequest): Promise<string>;
-  updateRelationship(relationshipId: string, updates: Partial<ConceptRelationship>): Promise<void>;
-  deleteRelationship(relationshipId: string): Promise<void>;
-  getRelationships(conceptId: string): Promise<ConceptRelationship[]>;
-
-  // Learning content
-  getExplanation(conceptId: string, detailLevel?: 'basic' | 'detailed' | 'comprehensive'): Promise<ExplanationDisplay>;
-  getExercises(conceptId: string, difficulty?: string, limit?: number): Promise<ExerciseDisplay[]>;
-  generateExercise(conceptId: string, type?: ExerciseType, difficulty?: string): Promise<ExerciseDisplay>;
-
-  // Learning paths
-  getLearningPath(conceptId: string, difficulty?: string): Promise<LearningPath>;
-  generateLearningPath(conceptIds: string[], options?: LearningPathOptions): Promise<LearningPath>;
-  validatePrerequisites(conceptId: string): Promise<PrerequisiteValidation>;
-
-  // Analysis and insights
-  analyzeKnowledgeGaps(conceptIds?: string[]): Promise<KnowledgeGap[]>;
-  getRecommendations(conceptId: string): Promise<LearningRecommendation[]>;
-  validateRelationships(): Promise<RelationshipValidation[]>;
-
-  // Import/export
-  exportKnowledgeMap(format: 'json' | 'graphml' | 'gexf'): Promise<string>;
-  importKnowledgeMap(data: string, format: 'json' | 'graphml' | 'gexf'): Promise<void>;
-}
-
 export interface LearningPath {
   id: string;
   title: string;

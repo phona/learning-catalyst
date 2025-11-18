@@ -21,8 +21,8 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
     page: number;
     limit: number;
     total: number;
-    has_next: boolean;
-    has_prev: boolean;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
 }
 
@@ -31,12 +31,18 @@ export interface ChatRequest {
   provider?: string;
   model?: string;
   options?: ChatOptions;
-  session_id?: string;
+  sessionId?: string;
 }
 
-export interface ChatResponse extends import('./ai').ChatResponse {
+export interface ChatResponse {
+  content: string;
+  reasoningContent?: string;
+  usage?: import('./ai').TokenUsage;
+  model: string;
+  provider: string;
+  timestamp: Date;
   id: string;
-  session_id?: string;
+  sessionId?: string;
 }
 
 export interface StreamResponse {
@@ -44,7 +50,7 @@ export interface StreamResponse {
   chunk: StreamChunk;
   provider: string;
   model: string;
-  session_id?: string;
+  sessionId?: string;
 }
 
 export interface ConfigRequest {
@@ -55,7 +61,7 @@ export interface ConfigRequest {
 
 export interface ConfigResponse {
   config: AppConfig;
-  updated_at: Date;
+  updatedAt: Date;
 }
 
 export interface SessionRequest {
@@ -72,14 +78,14 @@ export interface SessionListResponse {
 }
 
 export interface ExportRequest {
-  session_ids: string[];
+  sessionIds: string[];
   format: 'json' | 'markdown' | 'txt' | 'html';
   options: SessionExportOptions;
 }
 
 export interface ExportResponse {
-  download_url?: string;
+  downloadUrl?: string;
   content?: string;
   filename: string;
-  mime_type: string;
+  mimeType: string;
 }

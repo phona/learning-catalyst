@@ -5,17 +5,10 @@
  * Provides semantic search, concept discovery, and relationship mapping.
  */
 
-import type { Database } from '../../main/services/database/kysely-schema';
-import { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
-// Vector database will be injected via constructor
+import type { Database } from '../../main/services/core/database/kysely-schema';
+import { JSONFieldHelpers } from '../../main/services/core/database/kysely-schema';
 import { Kysely } from 'kysely';
-
-// Type definition for vector database module
-interface VectorDatabaseModule {
-  readonly isInitialized: boolean;
-  addDocument: (doc: { id: string; content: string; metadata?: any }) => Promise<void>;
-  search: (query: string, limit?: number) => Promise<Array<{ id: string; score: number; metadata?: any }>>;
-}
+import { VectorDatabaseModule } from '@/main/services/domain/knowledge/vector/vector-database';
 
 interface SearchResult {
   id: string;
@@ -214,7 +207,7 @@ export class KnowledgeGraphModule {
     sourceConceptId: string,
     targetConceptId: string,
     relationshipType: Relationship['relationshipType'],
-    strength: number = 0.5,
+    strength = 0.5,
     description?: string,
     createdBySession?: string
   ): Promise<Relationship> {
@@ -258,7 +251,7 @@ export class KnowledgeGraphModule {
   /**
    * Search for concepts by text query
    */
-  async searchConcepts(query: string, limit: number = 20): Promise<Concept[]> {
+  async searchConcepts(query: string, limit = 20): Promise<Concept[]> {
     if (query.trim() === '') return [];
 
     const results = await this.db
@@ -278,7 +271,7 @@ export class KnowledgeGraphModule {
   /**
    * Get related concepts for a given concept
    */
-  async getRelatedConcepts(conceptId: string, maxDepth: number = 2): Promise<ConceptNode[]> {
+  async getRelatedConcepts(conceptId: string, maxDepth = 2): Promise<ConceptNode[]> {
     const concept = await this.getConcept(conceptId);
     if (!concept) return [];
 
@@ -514,11 +507,11 @@ export class KnowledgeGraphModule {
       }
 
       return {
-      concepts: [],
-      relationships: [],
-      totalStrength: 0,
-      difficulty: 0
-    }; // No path found
+        concepts: [],
+        relationships: [],
+        totalStrength: 0,
+        difficulty: 0
+      }; // No path found
     } catch (error) {
       console.error('Failed to find path:', error);
       throw error;
@@ -528,7 +521,7 @@ export class KnowledgeGraphModule {
   /**
    * Get next learning concepts based on current knowledge
    */
-  async getNextLearningConcepts(conceptId: string, limit: number = 5): Promise<Concept[]> {
+  async getNextLearningConcepts(conceptId: string, limit = 5): Promise<Concept[]> {
     try {
       // Get concepts that depend on the current concept
       const dependentConcepts = await this.db

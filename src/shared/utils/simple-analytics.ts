@@ -5,8 +5,8 @@
  * Provides insights into learning effectiveness and user engagement.
  */
 
-import type { Database } from '../../main/services/database/kysely-schema';
-import type { JSONFieldHelpers } from '../../main/services/database/kysely-schema';
+import type { Database } from '../../main/services/core/database/kysely-schema';
+import type { JSONFieldHelpers } from '../../main/services/core/database/kysely-schema';
 import type { Kysely } from 'kysely';
 
 export interface LearningSession {
@@ -162,9 +162,9 @@ export class SimpleAnalyticsModule {
       concepts_studied: session.conceptsCovered.length,
       difficulty_level: 3, // Default difficulty
       session_type: session.sessionType === 'chat' ? 'general' as const :
-                    session.sessionType === 'study' ? 'practice' as const :
-                    session.sessionType === 'assessment' ? 'assessment' as const :
-                    session.sessionType === 'review' ? 'review' as const :
+        session.sessionType === 'study' ? 'practice' as const :
+          session.sessionType === 'assessment' ? 'assessment' as const :
+            session.sessionType === 'review' ? 'review' as const :
                     'general' as const,
       metadata: JSON.stringify({
         aiProvider: session.aiProvider,
@@ -299,7 +299,7 @@ export class SimpleAnalyticsModule {
   /**
    * Get learning trends over time
    */
-  async getLearningTrends(days: number = 30): Promise<LearningTrends> {
+  async getLearningTrends(days = 30): Promise<LearningTrends> {
     const endDate = new Date();
     const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
 
@@ -361,7 +361,7 @@ export class SimpleAnalyticsModule {
     const recentPerformance = trends.dailyStudyTime.slice(-7).reduce((sum, day) => sum + day.minutes, 0);
     const olderPerformance = trends.dailyStudyTime.slice(-14, -7).reduce((sum, day) => sum + day.minutes, 0);
     const performanceTrend = recentPerformance > olderPerformance ? 'improving' :
-                            recentPerformance < olderPerformance ? 'declining' : 'stable';
+      recentPerformance < olderPerformance ? 'declining' : 'stable';
 
     // Find most productive time
     const allSessionsForTime = await this.db
@@ -568,8 +568,8 @@ export class SimpleAnalyticsModule {
   async startSession(
     title: string,
     sessionType: LearningSession['sessionType'] = 'study',
-    aiProvider: string = 'openai',
-    aiModel: string = 'gpt-3.5-turbo'
+    aiProvider = 'openai',
+    aiModel = 'gpt-3.5-turbo'
   ): Promise<string> {
     const session = await this.recordSession({
       title,

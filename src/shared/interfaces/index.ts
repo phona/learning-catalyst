@@ -10,10 +10,6 @@ export type { DashboardDisplay, SessionDisplay } from './analytics.interface';
 export type { ConceptMapDisplay, ConceptNode } from './knowledge.interface';
 export type { ConversationDisplay, MessageDisplay } from './chat.interface';
 
-export type { AnalyticsService } from './analytics.interface';
-export type { KnowledgeService } from './knowledge.interface';
-export type { ChatService } from './chat.interface';
-
 // Re-export commonly used types
 export type {
   AchievementDisplay,

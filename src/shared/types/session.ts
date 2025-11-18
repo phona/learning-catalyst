@@ -6,8 +6,8 @@
 export interface Session {
   id: string;
   title: string;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
   messages: ConversationMessage[];
   metadata: SessionMetadata;
   context: SessionContext;
@@ -24,22 +24,22 @@ export interface ConversationMessage {
   timestamp: Date;
   provider?: string;
   model?: string;
-  tokens_used?: number;
-  thinking_content?: string;
-  tool_calls?: ToolCall[];
+  tokensUsed?: number;
+  thinkingContent?: string;
+  toolCalls?: ToolCall[];
   metadata?: MessageMetadata;
-  agent_id?: string; // Agent that generated this message
-  agent_type?: string; // Type of agent that generated this message
-  agent_state_id?: string; // Agent execution state identifier
+  agentId?: string; // Agent that generated this message
+  agentType?: string; // Type of agent that generated this message
+  agentStateId?: string; // Agent execution state identifier
 }
 
 export interface MessageMetadata {
-  user_rating?: number; // 1-5
-  user_feedback?: string;
-  editing_history?: string[];
-  concepts_learned?: string[];
-  related_topics?: string[];
-  confidence_score?: number;
+  userRating?: number; // 1-5
+  userFeedback?: string;
+  editingHistory?: string[];
+  conceptsLearned?: string[];
+  relatedTopics?: string[];
+  confidenceScore?: number;
 }
 
 export interface SessionMetadata {
@@ -48,36 +48,36 @@ export interface SessionMetadata {
   tags: string[];
   category?: string;
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
-  learning_objectives?: string[];
-  topics_covered: string[];
-  user_id?: string;
+  learningObjectives?: string[];
+  topicsCovered: string[];
+  userId?: string;
   archived: boolean;
   pinned: boolean;
   color?: string;
-  primary_agent_id?: string; // Primary agent for this session
-  agent_mode?: 'single' | 'orchestration' | 'collaborative'; // Agent interaction mode
+  primaryAgentId?: string; // Primary agent for this session
+  agentMode?: 'single' | 'orchestration' | 'collaborative'; // Agent interaction mode
 }
 
 export interface SessionContext {
   // Session-specific context that differs from global config
   system_prompt?: string; // Optional session-specific system prompt override
   notes?: string; // Session-specific notes or context
-  learning_objectives?: string[]; // Session-specific learning goals
+  learningObjectives?: string[]; // Session-specific learning goals
 }
 
 // UserPreferences moved to global configuration
 
 export interface Checkpoint {
   id: string;
-  session_id: string;
+  sessionId: string;
   title: string;
   description?: string;
-  created_at: Date;
-  message_index: number;
+  createdAt: Date;
+  messageIndex: number;
   // Remove context_snapshot as config is now global
-  concepts_mastered: string[];
-  concepts_reviewed: string[];
-  practice_exercises?: PracticeExercise[];
+  conceptsMastered: string[];
+  conceptsReviewed: string[];
+  practiceExercises?: PracticeExercise[];
   notes?: string;
   tags: string[];
 }
@@ -86,41 +86,41 @@ export interface PracticeExercise {
   id: string;
   type: 'quiz' | 'coding' | 'discussion' | 'reflection';
   question: string;
-  expected_answer?: string;
-  user_answer?: string;
+  expectedAnswer?: string;
+  userAnswer?: string;
   correct?: boolean;
   feedback?: string;
   difficulty: 'easy' | 'medium' | 'hard';
   topic: string;
-  created_at: Date;
+  createdAt: Date;
 }
 
 export interface SessionStatistics {
-  total_messages: number;
-  user_messages: number;
-  assistant_messages: number;
-  total_tokens_used: number;
-  total_thinking_tokens: number;
-  session_duration: number; // seconds
-  average_response_time: number; // seconds
-  concepts_learned: number;
-  checkpoints_created: number;
-  user_rating?: number; // 1-5
-  productivity_score: number; // 0-100
-  engagement_score: number; // 0-100
-  agent_interactions?: AgentInteractionStats; // Agent-specific statistics
+  totalMessages: number;
+  userMessages: number;
+  assistantMessages: number;
+  totalTokensUsed: number;
+  totalThinkingTokens: number;
+  sessionDuration: number; // seconds
+  averageResponseTime: number; // seconds
+  conceptsLearned: number;
+  checkpointsCreated: number;
+  userRating?: number; // 1-5
+  productivityScore: number; // 0-100
+  engagementScore: number; // 0-100
+  agentInteractions?: AgentInteractionStats; // Agent-specific statistics
 }
 
 export interface LearningProgress {
-  session_id: string;
+  sessionId: string;
   date: Date;
-  concepts_learned: string[];
-  skills_improved: string[];
-  time_spent: number; // seconds
-  tokens_used: number;
-  exercise_completed: number;
-  accuracy_rate: number;
-  confidence_level: number;
+  conceptsLearned: string[];
+  skillsImproved: string[];
+  timeSpent: number; // seconds
+  tokensUsed: number;
+  exerciseCompleted: number;
+  accuracyRate: number;
+  confidenceLevel: number;
 }
 
 export interface KnowledgeNode {
@@ -130,12 +130,12 @@ export interface KnowledgeNode {
   category: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   prerequisites: string[];
-  related_concepts: string[];
-  learning_resources: LearningResource[];
-  mastery_level: number; // 0-100
-  last_reviewed?: Date;
-  review_count: number;
-  confidence_score: number;
+  relatedConcepts: string[];
+  learningResources: LearningResource[];
+  masteryLevel: number; // 0-100
+  lastReviewed?: Date;
+  reviewCount: number;
+  confidenceScore: number;
 }
 
 export interface LearningResource {
@@ -168,17 +168,17 @@ export interface SessionSearchQuery {
 export interface SessionSearchResult {
   sessions: Session[];
   total: number;
-  has_more: boolean;
+  hasMore: boolean;
 }
 
 export interface SessionExportOptions {
   format: 'json' | 'markdown' | 'txt' | 'html' | 'pdf';
-  include_metadata: boolean;
-  include_thinking: boolean;
-  include_statistics: boolean;
-  message_filter?: {
+  includeMetadata: boolean;
+  includeThinking: boolean;
+  includeStatistics: boolean;
+  messageFilter?: {
     roles?: ('user' | 'assistant' | 'system')[];
-    date_range?: {
+    dateRange?: {
       start: Date;
       end: Date;
     };
@@ -186,8 +186,8 @@ export interface SessionExportOptions {
 }
 
 export interface SessionImportResult {
-  sessions_imported: number;
-  sessions_updated: number;
+  sessionsImported: number;
+  sessionsUpdated: number;
   errors: string[];
   warnings: string[];
 }
@@ -213,15 +213,15 @@ export interface SessionUpdateOptions {
 // Session events
 export interface SessionEvent {
   type: 'created' | 'updated' | 'deleted' | 'archived' | 'restored' | 'exported';
-  session_id: string;
+  sessionId: string;
   timestamp: Date;
   data?: any;
 }
 
 export interface MessageEvent {
   type: 'added' | 'updated' | 'deleted' | 'rated';
-  session_id: string;
-  message_id: string;
+  sessionId: string;
+  messageId: string;
   timestamp: Date;
   data?: any;
 }
@@ -255,19 +255,19 @@ export interface SessionSaveResult {
  * Association between an agent and a session
  */
 export interface AgentSessionAssociation {
-  agent_id: string;
-  agent_type: string;
-  agent_name: string;
-  session_id: string;
+  agentId: string;
+  agentType: string;
+  agentName: string;
+  sessionId: string;
   role: 'primary' | 'secondary' | 'orchestrator' | 'tool';
   status: 'active' | 'inactive' | 'paused' | 'completed';
-  joined_at: Date;
-  last_active_at: Date;
+  joinedAt: Date;
+  lastActiveAt: Date;
   metadata?: {
     capabilities?: string[];
-    execution_mode?: 'sequential' | 'parallel' | 'collaborative';
-    handoff_count?: number;
-    tool_usage_count?: number;
+    executionMode?: 'sequential' | 'parallel' | 'collaborative';
+    handoffCount?: number;
+    toolUsageCount?: number;
   };
 }
 
@@ -276,19 +276,19 @@ export interface AgentSessionAssociation {
  */
 export interface AgentSessionState {
   id: string;
-  agent_id: string;
-  session_id: string;
-  state_type: 'checkpoint' | 'context' | 'memory' | 'execution';
-  state_data: any; // Serialized agent state
-  checkpoint_id?: string; // Reference to LangGraph checkpoint if applicable
-  created_at: Date;
-  updated_at: Date;
+  agentId: string;
+  sessionId: string;
+  stateType: 'checkpoint' | 'context' | 'memory' | 'execution';
+  stateData: any; // Serialized agent state
+  checkpointId?: string; // Reference to LangGraph checkpoint if applicable
+  createdAt: Date;
+  updatedAt: Date;
   version: number; // State version for conflict resolution
   metadata?: {
-    message_count?: number;
-    tool_calls_made?: number;
-    tokens_processed?: number;
-    execution_time_ms?: number;
+    messageCount?: number;
+    toolCallsMade?: number;
+    tokensProcessed?: number;
+    executionTimeMs?: number;
   };
 }
 
@@ -296,28 +296,28 @@ export interface AgentSessionState {
  * Statistics for agent interactions in a session
  */
 export interface AgentInteractionStats {
-  total_agent_messages: number;
-  agent_tool_calls: number;
-  agent_handoffs: number;
-  agent_execution_time_ms: number;
-  agent_token_usage: number;
-  agent_success_rate: number;
-  most_active_agent?: {
-    agent_id: string;
-    agent_name: string;
-    message_count: number;
+  totalAgentMessages: number;
+  agentToolCalls: number;
+  agentHandoffs: number;
+  agentExecutionTimeMs: number;
+  agentTokenUsage: number;
+  agentSuccessRate: number;
+  mostActiveAgent?: {
+    agentId: string;
+    agentName: string;
+    messageCount: number;
   };
-  agent_breakdown: {
-    [agent_id: string]: {
-      agent_name: string;
-      agent_type: string;
-      messages_sent: number;
-      tools_used: number;
-      handoffs_initiated: number;
-      handoffs_received: number;
-      total_tokens: number;
-      execution_time_ms: number;
-      success_rate: number;
+  agentBreakdown: {
+    [agentId: string]: {
+      agentName: string;
+      agentType: string;
+      messagesSent: number;
+      toolsUsed: number;
+      handoffsInitiated: number;
+      handoffsReceived: number;
+      totalTokens: number;
+      executionTimeMs: number;
+      successRate: number;
     };
   };
 }
@@ -326,14 +326,14 @@ export interface AgentInteractionStats {
  * Agent session configuration
  */
 export interface AgentSessionConfig {
-  primary_agent_id?: string;
-  agent_mode: 'single' | 'orchestration' | 'collaborative';
-  auto_handoff: boolean;
-  max_concurrent_agents: number;
-  agent_timeout_ms: number;
-  state_persistence: boolean;
-  tool_execution_mode: 'sequential' | 'parallel';
-  collaboration_strategy?: 'round_robin' | 'expertise_based' | 'load_balanced';
+  primaryAgentId?: string;
+  agentMode: 'single' | 'orchestration' | 'collaborative';
+  autoHandoff: boolean;
+  maxConcurrentAgents: number;
+  agentTimeoutMs: number;
+  statePersistence: boolean;
+  toolExecutionMode: 'sequential' | 'parallel';
+  collaborationStrategy?: 'round_robin' | 'expertise_based' | 'load_balanced';
 }
 
 /**
@@ -341,16 +341,16 @@ export interface AgentSessionConfig {
  */
 export interface AgentSessionEvent {
   type: 'agent_joined' | 'agent_left' | 'agent_handoff' | 'agent_state_change' | 'agent_error';
-  session_id: string;
-  agent_id: string;
+  sessionId: string;
+  agentId: string;
   timestamp: Date;
   data?: {
-    from_agent_id?: string; // For handoffs
-    to_agent_id?: string; // For handoffs
-    state_before?: any;
-    state_after?: any;
-    error_message?: string;
-    execution_time_ms?: number;
+    fromAgentId?: string; // For handoffs
+    toAgentId?: string; // For handoffs
+    stateBefore?: any;
+    stateAfter?: any;
+    errorMessage?: string;
+    executionTimeMs?: number;
   };
 }
 
@@ -358,21 +358,21 @@ export interface AgentSessionEvent {
  * Agent execution context for sessions
  */
 export interface AgentExecutionContext {
-  session_id: string;
-  agent_id: string;
-  agent_type: string;
-  thread_id?: string; // LangGraph thread ID
-  checkpoint_id?: string; // Current checkpoint
-  message_history: ConversationMessage[];
-  agent_state: any; // Current agent state
-  available_tools: string[];
-  collaboration_agents: string[]; // Other agents in the session
-  session_metadata: SessionMetadata;
-  execution_config: {
-    timeout_ms: number;
-    max_iterations: number;
-    enable_thinking: boolean;
-    enable_tool_calls: boolean;
+  sessionId: string;
+  agentId: string;
+  agentType: string;
+  threadId?: string; // LangGraph thread ID
+  checkpointId?: string; // Current checkpoint
+  messageHistory: ConversationMessage[];
+  agentState: any; // Current agent state
+  availableTools: string[];
+  collaborationAgents: string[]; // Other agents in the session
+  sessionMetadata: SessionMetadata;
+  executionConfig: {
+    timeoutMs: number;
+    maxIterations: number;
+    enableThinking: boolean;
+    enableToolCalls: boolean;
   };
 }
 

@@ -20,7 +20,7 @@ export class LRUCache<TKey, TValue> {
   private currentMemory = 0;
 
   constructor(
-    maxSize: number = 100,
+    maxSize = 100,
     maxMemoryMB?: number,
     cleanupIntervalMs = 60 * 1000 // 1 minute
   ) {
@@ -147,14 +147,14 @@ export class LRUCache<TKey, TValue> {
     memoryLimitMB?: number;
     utilizationPercent: number;
     cleanupIntervalMs?: number;
-  } {
+    } {
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       memoryUsageMB: this.maxMemory ? this.currentMemory / (1024 * 1024) : undefined,
       memoryLimitMB: this.maxMemory ? this.maxMemory / (1024 * 1024) : undefined,
       utilizationPercent: (this.cache.size / this.maxSize) * 100,
-      cleanupIntervalMs: this.cleanupInterval ? this.cleanupInterval._idleTimeout || this.cleanupInterval._onTimeout : undefined
+      cleanupIntervalMs: this.cleanupInterval ? undefined : undefined
     };
   }
 
@@ -370,7 +370,6 @@ export class PerformanceMonitor {
             if (entry.entryType === 'longtask') {
               this.recordMetric('longtask', entry.duration, {
                 type: entry.name,
-                containerType: entry.containerType,
                 start: entry.startTime
               });
             }
@@ -489,14 +488,14 @@ interface PerformanceStats {
 /**
  * Weak reference wrapper for garbage collection
  */
-export class WeakReference<T> {
+export class WeakReference<T extends object> {
   private ref: WeakRef<T>;
   private registry: FinalizationRegistry<string>;
 
   constructor(value: T, id: string, cleanupCallback: (id: string) => void) {
     this.ref = new WeakRef(value);
-    this.registry = new FinalizationRegistry();
-    this.registry.register(value, () => cleanupCallback(id));
+    this.registry = new FinalizationRegistry(cleanupCallback);
+    this.registry.register(value, id);
   }
 
   get(): T | undefined {
@@ -520,7 +519,7 @@ export class MemoryPool<T> {
   constructor(
     factory: () => T,
     reset: (obj: T) => void,
-    maxSize: number = 100
+    maxSize = 100
   ) {
     this.factory = factory;
     this.reset = reset;

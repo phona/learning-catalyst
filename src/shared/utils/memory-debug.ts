@@ -18,7 +18,7 @@ class MemoryDebugLogger {
   private isRunning = false;
   private readonly logInterval: number;
 
-  constructor(logIntervalMs: number = 10000) {
+  constructor(logIntervalMs = 10000) {
     this.logInterval = logIntervalMs;
   }
 
@@ -143,7 +143,7 @@ export function getMemoryLogger(): MemoryDebugLogger {
 
     if (enabled) {
       const interval = process.env.DEBUG_MEMORY_INTERVAL ?
-                      parseInt(process.env.DEBUG_MEMORY_INTERVAL, 10) : 10000;
+        parseInt(process.env.DEBUG_MEMORY_INTERVAL, 10) : 10000;
       memoryLogger = new MemoryDebugLogger(interval);
     }
   }

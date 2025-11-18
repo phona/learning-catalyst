@@ -39,7 +39,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
   register<K extends keyof TServices>(
     name: K,
     factory: ServiceFactory<TServices[K]> | ((container: ServiceContainer<TServices>) => TServices[K]),
-    singleton: boolean = true
+    singleton = true
   ): void {
     if (this.isDisposed) {
       throw new Error('Cannot register services on a disposed container');
@@ -239,7 +239,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
     instantiatedServices: number;
     serviceNames: string[];
     isDisposed: boolean;
-  } {
+    } {
     const singletonServices = Array.from(this.services.values())
       .filter(def => def.singleton).length;
 
