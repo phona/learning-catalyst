@@ -32,8 +32,8 @@ class MainProcessQdrantService {
   private client: any;
   private process: any = null;
   private config: any;
-  private isStarting: boolean = false;
-  private isReady: boolean = false;
+  private isStarting = false;
+  private isReady = false;
   private outputBuffer: string[] = [];
   private maxOutputBufferSize = 1000; // 最大输出行数
   private outputCleanupInterval: NodeJS.Timeout | null = null;
@@ -49,7 +49,7 @@ class MainProcessQdrantService {
       ...config
     };
 
-      this.client = axios.create({
+    this.client = axios.create({
       baseURL: `http://${this.config.host}:${this.config.port}`,
       timeout: 30000,
       headers: {
@@ -108,7 +108,7 @@ class MainProcessQdrantService {
     }
   }
 
-  private handleOutput(data: Buffer, isError: boolean = false): void {
+  private handleOutput(data: Buffer, isError = false): void {
     const output = data.toString().trim();
     if (!output) return;
 
@@ -159,33 +159,33 @@ class MainProcessQdrantService {
         const childProcess = exec(`wmic process where ProcessId=${this.process.pid} get PageFileUsage,WorkingSetSize /format:list`,
           { timeout: 10000 },
           (_error, stdout) => {
-          try {
+            try {
             // 只在开发模式下输出监控信息
-            if (process.env.NODE_ENV === 'development' && stdout) {
-              const lines = stdout.trim().split('\n');
-              const memoryUsage: any = {};
+              if (process.env.NODE_ENV === 'development' && stdout) {
+                const lines = stdout.trim().split('\n');
+                const memoryUsage: any = {};
 
-              lines.forEach(line => {
-                if (line.includes('PageFileUsage=')) {
-                  memoryUsage.pageFileUsage = parseInt(line.split('=')[1]) / 1024 / 1024;
-                }
-                if (line.includes('WorkingSetSize=')) {
-                  memoryUsage.workingSetSize = parseInt(line.split('=')[1]) / 1024 / 1024;
-                }
-              });
+                lines.forEach(line => {
+                  if (line.includes('PageFileUsage=')) {
+                    memoryUsage.pageFileUsage = parseInt(line.split('=')[1]) / 1024 / 1024;
+                  }
+                  if (line.includes('WorkingSetSize=')) {
+                    memoryUsage.workingSetSize = parseInt(line.split('=')[1]) / 1024 / 1024;
+                  }
+                });
 
-              if (memoryUsage.pageFileUsage || memoryUsage.workingSetSize) {
-                console.log(`Qdrant PID:${this.process.pid} | PF:${memoryUsage.pageFileUsage?.toFixed(1)}MB | WS:${memoryUsage.workingSetSize?.toFixed(1)}MB`);
+                if (memoryUsage.pageFileUsage || memoryUsage.workingSetSize) {
+                  console.log(`Qdrant PID:${this.process.pid} | PF:${memoryUsage.pageFileUsage?.toFixed(1)}MB | WS:${memoryUsage.workingSetSize?.toFixed(1)}MB`);
+                }
+              }
+            } finally {
+            // 确保子进程被正确清理
+              if (childProcess && childProcess.pid) {
+                childProcess.kill();
+                childProcess.unref();
               }
             }
-          } finally {
-            // 确保子进程被正确清理
-            if (childProcess && childProcess.pid) {
-              childProcess.kill();
-              childProcess.unref();
-            }
-          }
-        });
+          });
 
         childProcess.on('timeout', () => {
           childProcess.kill();
@@ -316,7 +316,7 @@ class MainProcessQdrantService {
     });
   }
 
-  private async waitForReady(maxRetries: number = 30): Promise<void> {
+  private async waitForReady(maxRetries = 30): Promise<void> {
     for (let i = 0; i < maxRetries; i++) {
       try {
         // Try different health endpoints
@@ -346,7 +346,7 @@ class MainProcessQdrantService {
     return this.isReady;
   }
 
-  async createCollection(name: string, vectorSize: number, distance: string = 'Cosine'): Promise<void> {
+  async createCollection(name: string, vectorSize: number, distance = 'Cosine'): Promise<void> {
     const payload = {
       vectors: {
         size: vectorSize,
@@ -376,7 +376,7 @@ class MainProcessQdrantService {
     await this.client.put(`/collections/${collectionName}/points`, payload);
   }
 
-  async searchVectors(collectionName: string, queryVector: number[], limit: number = 10, scoreThreshold: number = 0.7, filter?: any): Promise<any[]> {
+  async searchVectors(collectionName: string, queryVector: number[], limit = 10, scoreThreshold = 0.7, filter?: any): Promise<any[]> {
     const payload: any = {
       vector: queryVector,
       limit: limit,
@@ -800,6 +800,32 @@ export class QdrantManager {
    */
   isReady(): boolean {
     return this.isInitialized && this.qdrantService.isServiceReady();
+  }
+
+  /**
+   * Public knowledge service methods
+   */
+  async addKnowledgeItem(item: any, provider: any, embedding?: number[]): Promise<void> {
+    return await this.knowledgeService.addKnowledgeItem(item, provider, embedding);
+  }
+
+  async searchKnowledge(query: string, provider: any, limit = 10, filters?: any): Promise<any[]> {
+    return await this.knowledgeService.searchKnowledge(query, provider, limit, filters);
+  }
+
+  async deleteKnowledgeItem(id: string): Promise<void> {
+    return await this.knowledgeService.deleteKnowledgeItem(id);
+  }
+
+  async getKnowledgeStats(): Promise<any> {
+    return await this.knowledgeService.getKnowledgeStats();
+  }
+
+  /**
+   * Public qdrant service methods
+   */
+  async listCollections(): Promise<any[]> {
+    return await this.qdrantService.listCollections();
   }
 
   /**

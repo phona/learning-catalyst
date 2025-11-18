@@ -1,622 +1,279 @@
-/**
- * Chat & Conversation IPC Handlers
- *
- * IPC handlers for chat functionality, conversation management,
- * and real-time messaging between renderer and main thread.
- */
-
 import { ipcMain, MessageChannelMain } from 'electron';
-import { getCatalystService } from '../services/catalyst/catalyst-service';
-import { LoggerFactory } from '../services/logger';
-import { ServiceError } from '../services/types';
+import type { ChatService } from '@/main/services/domain/chat/chat-service';
+import type { PracticeService, PracticePlan } from '@/main/services/domain/practice/practice-service';
+import { ILogger } from '../services/types';
 import type {
+  AgentDisplay,
+  ConversationDisplay,
+  ConversationHistory,
+  MessageDisplay,
+  NaturalPracticeSuggestion,
   PracticeOpportunity,
   PracticeOpportunityResult,
-  NaturalPracticeSuggestion,
   UserLearningContext
-} from '../../shared/types/electron-api/chat-api';
+} from '@/shared/types/electron-api/chat-api';
 
-// Import NaturalPracticeFlow for direct use (will be injected in production)
-import { NaturalPracticeFlow } from '../services/practice/natural-practice-flow';
-
-/**
- * Setup chat and conversation IPC handlers
- */
-export function setupChatHandlers(): void {
-  const loggerFactory = LoggerFactory.getInstance();
-  const logger = loggerFactory.createContextAwareLogger();
-
-  /**
-   * Start a new conversation
-   */
-  ipcMain.handle('chat:startConversation', async (event, params) => {
-    logger.info('Starting new conversation', params);
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        params.sessionId || 'system',
-        'chat:startConversation',
-        async () => {
-          // Mock conversation creation for now
-          const conversation = {
-            id: `conversation_${Date.now()}`,
-            title: params.title || 'New Conversation',
-            agentType: params.agentType || 'learning',
-            topic: params.topic,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            status: 'active',
-            messages: [],
-            metadata: params.preferences || {}
-          };
-
-          return {
-            success: true,
-            conversation
-          };
-        },
-        {
-          operation: 'chat:startConversation',
-          agentType: params.agentType,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to start conversation', error as Error, params);
-      throw error;
-    }
-  });
-
-  /**
-   * Send a message in a conversation
-   */
-  ipcMain.handle('chat:sendMessage', async (event, params) => {
-    logger.info('Sending message', { conversationId: params.conversationId });
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        params.sessionId || 'system',
-        'chat:sendMessage',
-        async () => {
-          // Mock message creation
-          const message = {
-            id: `msg_${Date.now()}`,
-            conversationId: params.conversationId,
-            role: 'user',
-            content: params.message,
-            timestamp: new Date().toISOString(),
-            attachments: params.attachments || [],
-            metadata: {}
-          };
-
-          // Mock AI response
-          const aiResponse = {
-            id: `msg_${Date.now() + 1}`,
-            conversationId: params.conversationId,
-            role: 'assistant',
-            content: `I understand you said: "${params.message}". This is a mock AI response.`,
-            timestamp: new Date().toISOString(),
-            metadata: {
-              model: 'mock-gpt',
-              tokensUsed: 50,
-              responseTime: 200
-            }
-          };
-
-          // Check for practice opportunity asynchronously
-          // This runs in the background and doesn't block the response
-          checkPracticeOpportunityAsync(params.conversationId, params.message, params.sessionId)
-            .catch(error => {
-              logger.warn('Practice opportunity check failed', error as Error);
-            });
-
-          return {
-            success: true,
-            message: aiResponse
-          };
-        },
-        {
-          operation: 'chat:sendMessage',
-          conversationId: params.conversationId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to send message', error as Error, { conversationId: params.conversationId });
-      throw error;
-    }
-  });
-
-  /**
-   * Asynchronously check for practice opportunities
-   * This function runs in the background after a message is sent
-   */
-  async function checkPracticeOpportunityAsync(
-    conversationId: string,
-    userMessage: string,
-    sessionId?: string
-  ): Promise<void> {
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) return;
-
-      // Simple heuristic to determine when to check for practice opportunities
-      // Check every 5-10 messages or when user shows understanding
-      const messageCount = Math.floor(Math.random() * 10) + 1; // Mock message count
-
-      if (messageCount % 7 !== 0 && !containsUnderstandingCues(userMessage)) {
-        logger.debug('Skipping practice opportunity check', {
-          conversationId,
-          messageCount,
-          hasUnderstandingCues: containsUnderstandingCues(userMessage)
-        });
-        return;
-      }
-
-      logger.info('Checking for practice opportunities', { conversationId });
-
-      // Get agent manager for practice detection
-      const agentManager = catalystService.getService('agentManager');
-      if (!agentManager) {
-        logger.debug('Agent manager not available for practice check');
-        return;
-      }
-
-      // Get NaturalPracticeFlow service if available
-      const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow') as NaturalPracticeFlow;
-      if (naturalPracticeFlow) {
-        const practiceResult = await naturalPracticeFlow.checkPracticeOpportunity(
-          conversationId,
-          userMessage,
-          sessionId
-        );
-
-        if (practiceResult.shouldSuggest && practiceResult.opportunity) {
-          // Generate practice suggestion
-          const suggestion = await naturalPracticeFlow.generatePracticeSuggestion(
-            practiceResult.opportunity
-          );
-
-          // TODO: Send suggestion to renderer via IPC
-          logger.info('Practice suggestion generated', {
-            conversationId,
-            suggestionId: suggestion.id,
-            type: suggestion.type
-          });
-        }
-      } else {
-        logger.debug('NaturalPracticeFlow service not available');
-      }
-
-    } catch (error) {
-      logger.error('Practice opportunity check failed', error as Error, { conversationId });
-    }
+const buildAgentDisplay = (agentType: string, status: ConversationDisplay['status']): AgentDisplay => ({
+  id: agentType,
+  type: agentType as AgentDisplay['type'],
+  name: `${agentType.charAt(0).toUpperCase() + agentType.slice(1)} Guide`,
+  avatar: '🤖',
+  color: '#1e3a8a',
+  description: `Assists with ${agentType} topics`,
+  capabilities: ['context-aware responses', 'progress tracking'],
+  isAvailable: status === 'active',
+  category: 'learning',
+  stats: {
+    sessionsCount: 120,
+    avgRating: 4.8
   }
+});
 
-  /**
-   * Check if user message contains understanding cues
-   */
-  function containsUnderstandingCues(message: string): boolean {
-    const understandingKeywords = [
-      'i understand', 'i get it', 'got it', 'makes sense', 'i see',
-      'that makes sense', 'i think i understand', 'now i get it',
-      'that clears it up', 'ah i see', 'oh right', 'i get that',
-      'understood', 'makes perfect sense', 'i follow', 'i see what you mean'
-    ];
+const toMessageDisplay = (message: {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}): MessageDisplay => ({
+  id: message.id,
+  conversationId: message.conversationId,
+  role: message.role === 'tool' ? 'assistant' : message.role as 'user' | 'assistant' | 'system',
+  content: message.content,
+  status: message.role === 'assistant' ? 'completed' : 'sent',
+  timestamp: message.timestamp,
+  relativeTime: 'just now',
+  metadata: message.metadata,
+  attachments: (message.metadata?.attachments as MessageDisplay['attachments']) ?? []
+});
 
-    const lowerMessage = message.toLowerCase();
-    return understandingKeywords.some(keyword => lowerMessage.includes(keyword));
+const toConversationDisplay = (conversation: Awaited<ReturnType<ChatService['getConversation']>>): ConversationDisplay => {
+  const messages = conversation?.messages.map(toMessageDisplay) ?? [];
+  return {
+    id: conversation?.id ?? 'unknown',
+    agent: buildAgentDisplay(conversation?.agentType ?? 'learning', (conversation?.status === 'closed' ? 'ended' : conversation?.status) ?? 'active'),
+    status: (conversation?.status as ConversationDisplay['status']) ?? 'active',
+    createdAt: conversation?.createdAt ?? new Date().toISOString(),
+    updatedAt: conversation?.updatedAt ?? new Date().toISOString(),
+    messages,
+    suggestedTopics: [conversation?.topic ?? 'General'],
+    metadata: {
+      totalMessages: messages.length,
+      duration: '0m',
+      lastActivity: 'just now'
+    }
+  };
+};
+
+const buildHistory = (conversation: Awaited<ReturnType<ChatService['getConversation']>>): ConversationHistory => ({
+  conversationId: conversation?.id ?? 'unknown',
+  messages: conversation?.messages.map(toMessageDisplay) ?? [],
+  pagination: {
+    hasMore: false,
+    total: conversation?.messages.length ?? 0
+  },
+  summary: {
+    totalMessages: conversation?.messages.length ?? 0,
+    timeSpan: 'current session',
+    keyTopics: [conversation?.topic ?? 'General']
   }
+});
 
-  /**
-   * Get conversation history
-   */
-  ipcMain.handle('chat:getConversation', async (event, conversationId) => {
-    logger.info('Getting conversation', { conversationId });
+const detectPracticeOpportunity = (content: string): PracticeOpportunityResult => {
+  const normalized = content.trim().toLowerCase();
+  const hasPracticeCue = /practice|review|exercise|drill/.test(normalized);
+  const hasQuestion = normalized.includes('?');
+  const confidence = Math.min(0.95, normalized.length / 200 + (hasPracticeCue ? 0.25 : 0.1));
+  const concept = normalized.split(' ').slice(0, 3).join(' ') || 'this topic';
+  const opportunity: PracticeOpportunity = {
+    id: `practice-${Date.now()}`,
+    type: hasPracticeCue ? 'practicing' : hasQuestion ? 'understanding' : 'confused',
+    confidence,
+    timing: hasPracticeCue ? 'immediate' : 'soon',
+    concept,
+    reasoning: hasPracticeCue ? 'User explicitly asked to practice' : 'Conversation hints at a learning moment',
+    detectedFrom: [hasPracticeCue ? 'keyword-match' : 'question-detection'],
+    practiceReadiness: Math.min(1, confidence),
+    suggestedTopics: [concept],
+    naturalPrompt: `Let me help you practice ${concept}`,
+    estimatedTime: 15,
+    difficulty: 'medium'
+  };
 
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
+  return {
+    hasOpportunity: hasPracticeCue || hasQuestion,
+    opportunity: hasPracticeCue || hasQuestion ? opportunity : undefined,
+    shouldSuggest: hasPracticeCue || hasQuestion,
+    reason: hasPracticeCue ? 'Practice intent detected' : 'Curiosity detected via questions',
+    timing: hasPracticeCue ? 'immediate' : 'wait',
+    confidence: hasPracticeCue ? Math.min(1, confidence + 0.1) : confidence
+  };
+};
 
-      const result = await catalystService.runWithContext(
-        'system',
-        'chat:getConversation',
-        async () => {
-          // Mock conversation retrieval
-          const conversation = {
-            id: conversationId,
-            title: 'Mock Conversation',
-            agentType: 'learning',
-            topic: 'General',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            status: 'active',
-            messages: [
-              {
-                id: 'msg_1',
-                role: 'user',
-                content: 'Hello, this is a test message',
-                timestamp: new Date().toISOString(),
-                metadata: {}
-              },
-              {
-                id: 'msg_2',
-                role: 'assistant',
-                content: 'Hello! This is a mock response.',
-                timestamp: new Date().toISOString(),
-                metadata: { model: 'mock-gpt' }
-              }
-            ],
-            metadata: {}
-          };
+const buildPracticeSuggestion = (
+  plan: PracticePlan,
+  opportunity?: PracticeOpportunity,
+  userContext?: UserLearningContext
+): NaturalPracticeSuggestion => {
+  const focusConcept = plan.focusConcepts[0] ?? opportunity?.concept ?? 'this topic';
+  const baseChallenge = plan.exercises.map((exercise) => exercise.title).join(' • ');
+  const vibe = (opportunity?.type ?? 'practicing') as NaturalPracticeSuggestion['vibe'];
+  const feedbackStyle = userContext?.preferences.feedbackStyle ?? 'encouraging';
+  let suggestionType: NaturalPracticeSuggestion['type'] = 'gentle-nudge';
+  let introduction = `It looks like ${focusConcept} is top of mind—ready for a quick practice?`;
+  if (feedbackStyle === 'direct') {
+    suggestionType = 'challenge';
+    introduction = `Let's directly tackle ${focusConcept} with a focused challenge.`;
+  } else if (feedbackStyle === 'gentle') {
+    suggestionType = 'collaborative-invite';
+    introduction = `Would you like to explore ${focusConcept} together?`;
+  }
+  const options = {
+    accept: feedbackStyle === 'direct' ? 'I’m ready, let’s do this' : 'Yes, let’s do it',
+    decline: 'Maybe later',
+    postpone: 'Remind me in a bit'
+  };
 
-          return {
-            success: true,
-            conversation
-          };
-        },
-        {
-          operation: 'chat:getConversation',
-          conversationId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to get conversation', error as Error, { conversationId });
-      throw error;
+  return {
+    id: `suggestion-${Date.now()}`,
+    type: suggestionType,
+    introduction,
+    challenge: baseChallenge || plan.summary,
+    context: plan.summary,
+    estimatedTime: plan.exercises.length * 5 || 15,
+    difficulty: plan.exercises[0]?.difficulty ?? 'medium',
+    vibe,
+    timing: {
+      when: opportunity?.timing === 'immediate' ? 'right now' : 'soon',
+      urgency: opportunity?.timing === 'immediate' ? 'high' : 'medium'
+    },
+    options,
+    metadata: {
+      concept: focusConcept,
+      relatedTopics: plan.focusConcepts,
+      prerequisites: [focusConcept],
+      nextSteps: plan.suggestions
     }
-  });
+  };
+};
 
-  /**
-   * List all conversations
-   */
-  ipcMain.handle('chat:listConversations', async () => {
-    logger.info('Listing conversations');
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
-        'chat:listConversations',
-        async () => {
-          // Mock conversation list
-          const conversations = [
-            {
-              id: 'conv_1',
-              title: 'React Learning Session',
-              agentType: 'learning',
-              topic: 'React',
-              lastMessage: 'How do hooks work?',
-              timestamp: new Date().toISOString(),
-              messageCount: 5,
-              metadata: { pinned: false }
-            },
-            {
-              id: 'conv_2',
-              title: 'TypeScript Questions',
-              agentType: 'tutoring',
-              topic: 'TypeScript',
-              lastMessage: 'What are generics?',
-              timestamp: new Date(Date.now() - 86400000).toISOString(),
-              messageCount: 3,
-              metadata: { pinned: true }
-            }
-          ];
-
-          return {
-            success: true,
-            conversations
-          };
-        },
-        {
-          operation: 'chat:listConversations',
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to list conversations', error as Error);
-      throw error;
-    }
-  });
-
-  /**
-   * Delete a conversation
-   */
-  ipcMain.handle('chat:deleteConversation', async (event, conversationId) => {
-    logger.info('Deleting conversation', { conversationId });
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
-        'chat:deleteConversation',
-        async () => {
-          // Mock deletion
-          return {
-            success: true,
-            deleted: true
-          };
-        },
-        {
-          operation: 'chat:deleteConversation',
-          conversationId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to delete conversation', error as Error, { conversationId });
-      throw error;
-    }
-  });
-
-  /**
-   * Stream chat response via MessageChannelMain
-   */
-  ipcMain.on('chat:streamMessage', async (event, params) => {
-    logger.info('Starting message stream', { conversationId: params.conversationId });
-
-    const { port1, port2 } = new MessageChannelMain();
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      // Send port back to renderer
-      event.sender.postMessage('chat:stream-ready', {
-        success: true,
-        conversationId: params.conversationId
-      }, [port1]);
-
-      // Start streaming
-      await catalystService.runWithContext(
-        params.sessionId || 'system',
-        'chat:streamMessage',
-        async () => {
-          const mockResponse = `This is a mock streaming response to: "${params.message}".`;
-          const words = mockResponse.split(' ');
-
-          for (let i = 0; i < words.length; i++) {
-            try {
-              port2.postMessage({
-                type: 'chat:chunk',
-                conversationId: params.conversationId,
-                chunk: words[i] + (i < words.length - 1 ? ' ' : ''),
-                isComplete: i === words.length - 1
-              });
-            } catch (error) {
-              logger.info('Stream port closed');
-              break;
-            }
-
-            // Simulate streaming delay
-            await new Promise(resolve => setTimeout(resolve, 50));
-          }
-
-          // Send completion message
-          try {
-            port2.postMessage({
-              type: 'chat:complete',
-              conversationId: params.conversationId
-            });
-          } catch (error) {
-            logger.debug('Could not send completion message');
-          }
-        },
-        {
-          operation: 'chat:streamMessage',
-          conversationId: params.conversationId,
-          source: 'ipc_handler',
-          streaming: true
-        }
-      );
-
-    } catch (error) {
-      logger.error('Stream failed', error as Error, { conversationId: params.conversationId });
-
-      try {
-        port2.postMessage({
-          type: 'chat:error',
-          conversationId: params.conversationId,
-          error: {
-            message: (error as Error).message,
-            stack: (error as Error).stack
-          }
-        });
-      } catch (portError) {
-        logger.error('Failed to send error via port', portError as Error);
-      }
-
-      try {
-        port2.close();
-      } catch (closeError) {
-        logger.error('Failed to close port', closeError as Error);
-      }
-    }
-  });
-
-  /**
-   * Check for practice opportunities in conversation
-   */
-  ipcMain.handle('chat:checkPracticeOpportunity', async (event, params) => {
-    logger.info('Checking practice opportunity', {
-      conversationId: params.conversationId,
-      userMessageLength: params.userMessage?.length
-    });
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        params.sessionId || 'system',
-        'chat:checkPracticeOpportunity',
-        async () => {
-          // Get NaturalPracticeFlow service
-          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow') as NaturalPracticeFlow;
-          if (!naturalPracticeFlow) {
-            throw new ServiceError(
-              'NaturalPracticeFlow service not available',
-              'SERVICE_UNAVAILABLE',
-              'ChatHandlers'
-            );
-          }
-
-          // Use NaturalPracticeFlow to check for practice opportunities
-          const practiceResult = await naturalPracticeFlow.checkPracticeOpportunity(
-            params.conversationId,
-            params.userMessage,
-            params.sessionId
-          );
-
-          return {
-            success: true,
-            practiceOpportunity: practiceResult
-          };
-        },
-        {
-          operation: 'chat:checkPracticeOpportunity',
-          conversationId: params.conversationId,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to check practice opportunity', error as Error, {
-        conversationId: params.conversationId
-      });
-      throw error;
-    }
-  });
-
-  /**
-   * Get natural practice suggestion
-   */
-  ipcMain.handle('chat:getPracticeSuggestion', async (event, params) => {
-    logger.info('Getting practice suggestion', {
-      opportunityId: params.opportunity?.id,
-      userContextId: params.userContext?.id
-    });
-
-    try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'ChatHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        params.sessionId || 'system',
-        'chat:getPracticeSuggestion',
-        async () => {
-          // Get NaturalPracticeFlow service
-          const naturalPracticeFlow = catalystService.getService('naturalPracticeFlow') as NaturalPracticeFlow;
-          if (!naturalPracticeFlow) {
-            throw new ServiceError(
-              'NaturalPracticeFlow service not available',
-              'SERVICE_UNAVAILABLE',
-              'ChatHandlers'
-            );
-          }
-
-          // Use NaturalPracticeFlow to generate suggestion
-          const suggestion = await naturalPracticeFlow.generatePracticeSuggestion(
-            params.opportunity,
-            params.userContext
-          );
-
-          return {
-            success: true,
-            suggestion
-          };
-        },
-        {
-          operation: 'chat:getPracticeSuggestion',
-          opportunityId: params.opportunity?.id,
-          source: 'ipc_handler'
-        }
-      );
-
-      return result;
-
-    } catch (error) {
-      logger.error('Failed to get practice suggestion', error as Error, {
-        opportunityId: params.opportunity?.id
-      });
-      throw error;
-    }
-  });
-
-  logger.info('✅ Chat handlers registered successfully');
+interface ChatHandlersDeps {
+  chatService: ChatService;
+  practiceService: PracticeService;
+  loggerService: { child: (meta: Record<string, unknown>) => ILogger };
 }
+
+export const setupChatHandlers = (
+  ipcMainInstance: typeof ipcMain,
+  services: ChatHandlersDeps
+) => {
+  const handlerLogger = services.loggerService.child({ handler: 'chat' });
+
+  ipcMainInstance.handle('chat:start-conversation', async (_event, params) => {
+    handlerLogger.info('Starting new conversation', { agentType: params.agentType, topic: params.topic });
+    const conversation = await services.chatService.createConversation({
+      title: params.topic ?? 'New conversation',
+      agentType: params.agentType,
+      topic: params.topic,
+      preferences: params.preferences
+    });
+    return toConversationDisplay(conversation);
+  });
+
+  ipcMainInstance.handle('chat:send-message', async (_event, params) => {
+    handlerLogger.info('Sending chat message', { conversationId: params.conversationId });
+    const result = await services.chatService.sendMessage({
+      conversationId: params.conversationId,
+      role: 'user',
+      content: params.message,
+      attachments: params.attachments
+    });
+    return {
+      userMessage: toMessageDisplay(result.userMessage),
+      assistantMessage: result.assistantMessage ? toMessageDisplay(result.assistantMessage) : undefined
+    };
+  });
+
+  ipcMainInstance.on('chat:start-stream', async (event, params) => {
+    handlerLogger.info('Starting chat stream', { conversationId: params.conversationId });
+    const channel = new MessageChannelMain();
+    event.sender.postMessage('chat:stream-ready', null, [channel.port1]);
+    channel.port2.start();
+    try {
+      const { stream } = await services.chatService.streamAssistantResponse({
+        conversationId: params.conversationId,
+        content: params.message,
+        attachments: params.attachments
+      });
+      for await (const chunk of stream) {
+        channel.port2.postMessage({ type: 'chat:chunk', chunk });
+      }
+      channel.port2.postMessage({ type: 'chat:complete' });
+    } catch (error) {
+      handlerLogger.error('Chat stream failed', error);
+      channel.port2.postMessage({
+        type: 'chat:error',
+        error: error instanceof Error ? error.message : 'Unknown streaming error'
+      });
+    } finally {
+      channel.port2.close();
+    }
+  });
+
+  ipcMainInstance.handle('chat:get-typing-indicator', async (_event, conversationId) => {
+    handlerLogger.info('Fetching typing indicator', { conversationId });
+    return services.chatService.getTypingIndicator(conversationId);
+  });
+
+  ipcMainInstance.handle('chat:get-history', async (_event, params) => {
+    handlerLogger.info('Fetching conversation history', { conversationId: params.conversationId });
+    const conversation = await services.chatService.getConversation(params.conversationId);
+    return buildHistory(conversation);
+  });
+
+  ipcMainInstance.handle('chat:pause-conversation', async (_event, conversationId) => {
+    handlerLogger.info('Pausing conversation', { conversationId });
+    await services.chatService.pauseConversation(conversationId);
+    return { success: true, message: 'Conversation paused' };
+  });
+
+  ipcMainInstance.handle('chat:resume-conversation', async (_event, conversationId) => {
+    handlerLogger.info('Resuming conversation', { conversationId });
+    await services.chatService.resumeConversation(conversationId);
+    return { success: true, context: {} };
+  });
+
+  ipcMainInstance.handle('chat:end-conversation', async (_event, conversationId) => {
+    handlerLogger.info('Ending conversation', { conversationId });
+    await services.chatService.endConversation(conversationId);
+    return {
+      conversationId,
+      summary: 'Conversation ended successfully',
+      keyTopics: [],
+      duration: '0m',
+      messageCount: 0,
+      suggestedFollowUps: []
+    };
+  });
+
+  ipcMainInstance.handle('chat:checkPracticeOpportunity', async (_event, params) => {
+    handlerLogger.info('Checking practice opportunity', { conversationId: params.conversationId });
+    return detectPracticeOpportunity(params.userMessage);
+  });
+
+  ipcMainInstance.handle('chat:getPracticeSuggestion', async (_event, params) => {
+    handlerLogger.info('Generating practice suggestion', { opportunityId: params.opportunity?.id });
+    if (!params.opportunity) {
+      throw new Error('Practice opportunity required before requesting a suggestion');
+    }
+    const plan = await services.practiceService.generatePracticePlan({
+      topic: params.opportunity.concept,
+      content: params.opportunity.reasoning,
+      difficulty: params.opportunity.difficulty ?? 'medium',
+      count: params.userContext?.preferences.practiceFrequency === 'high' ? 5 : 3,
+      userId: params.userContext?.id
+    });
+    return buildPracticeSuggestion(plan, params.opportunity, params.userContext);
+  });
+};

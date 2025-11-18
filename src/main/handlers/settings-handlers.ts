@@ -5,16 +5,15 @@
  * configuration management, and system options.
  */
 
+/* global process */
 import { ipcMain, app } from 'electron';
 import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import { getCatalystService } from '../services/catalyst/catalyst-service';
 import { LoggerFactory } from '../services/logger';
-import { ServiceError } from '../services/types';
 import { AppConfig } from '../../shared/types/config';
 
 // Store workspace path for config operations
-let globalWorkspacePath: string = '';
+let globalWorkspacePath = '';
 
 // Type definitions for settings export
 interface ExportSettings {
@@ -54,10 +53,20 @@ interface ExportData {
 /**
  * Setup settings and configuration IPC handlers
  */
-export function setupSettingsHandlers(workspacePath?: string): void {
+export function setupSettingsHandlers(workspacePath?: string, services?: { loggerService?: any }): void {
   globalWorkspacePath = workspacePath || process.cwd();
   const loggerFactory = LoggerFactory.getInstance();
-  const logger = loggerFactory.createContextAwareLogger();
+  const logger = services?.loggerService
+    ? services.loggerService.child({ module: 'settings' })
+    : loggerFactory.createContextAwareLogger();
+  const runWithContext = async <T>(
+    operation: string,
+    fn: () => Promise<T>,
+    metadata: Record<string, unknown> = {}
+  ): Promise<T> => {
+    const context = loggerFactory.createContext('settings-service', operation, metadata);
+    return loggerFactory.runWithContext(context, fn);
+  };
 
   // Workspace configuration helper functions
   async function loadWorkspaceConfig(): Promise<AppConfig | null> {
@@ -106,7 +115,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => current?.[key], obj);
 
-    if (target && target.hasOwnProperty(lastKey)) {
+    if (target && Object.prototype.hasOwnProperty.call(target, lastKey)) {
       delete target[lastKey];
     }
 
@@ -116,22 +125,12 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Get user preferences
    */
-  ipcMain.handle('settings:getPreferences', async () => {
+  ipcMain.handle('settings:get-user-preferences', async () => {
     logger.info('Getting user preferences');
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'SettingsHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
-        'settings:getPreferences',
+      const result = await runWithContext(
+        'settings:get-user-preferences',
         async () => {
           // Mock user preferences
           const preferences = {
@@ -218,7 +217,6 @@ export function setupSettingsHandlers(workspacePath?: string): void {
           };
         },
         {
-          operation: 'settings:getPreferences',
           source: 'ipc_handler'
         }
       );
@@ -234,24 +232,14 @@ export function setupSettingsHandlers(workspacePath?: string): void {
   /**
    * Update user preferences
    */
-  ipcMain.handle('settings:updatePreferences', async (event, updates) => {
+  ipcMain.handle('settings:update-preferences', async (event, updates) => {
     logger.info('Updating user preferences', {
       categories: Object.keys(updates)
     });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'SettingsHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
-        'settings:updatePreferences',
+      const result = await runWithContext(
+        'settings:update-preferences',
         async () => {
           // Mock preference update
           const changes = Object.keys(updates);
@@ -276,7 +264,6 @@ export function setupSettingsHandlers(workspacePath?: string): void {
           };
         },
         {
-          operation: 'settings:updatePreferences',
           categories: Object.keys(updates),
           source: 'ipc_handler'
         }
@@ -297,17 +284,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     logger.info('Resetting settings to defaults');
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'SettingsHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
+      const result = await runWithContext(
         'settings:resetDefaults',
         async () => {
           // Mock reset to defaults
@@ -333,7 +310,6 @@ export function setupSettingsHandlers(workspacePath?: string): void {
           };
         },
         {
-          operation: 'settings:resetDefaults',
           source: 'ipc_handler'
         }
       );
@@ -356,17 +332,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'SettingsHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
+      const result = await runWithContext(
         'settings:export',
         async () => {
           // Mock settings export
@@ -415,7 +381,6 @@ export function setupSettingsHandlers(workspacePath?: string): void {
           };
         },
         {
-          operation: 'settings:export',
           format: params.format,
           source: 'ipc_handler'
         }
@@ -439,17 +404,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     });
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'SettingsHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
+      const result = await runWithContext(
         'settings:import',
         async () => {
           // Mock settings import
@@ -488,7 +443,6 @@ export function setupSettingsHandlers(workspacePath?: string): void {
           };
         },
         {
-          operation: 'settings:import',
           source: 'ipc_handler',
           sourceType: params.sourceType,
           originalSource: params.source
@@ -510,17 +464,7 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     logger.info('Getting system information');
 
     try {
-      const catalystService = getCatalystService();
-      if (!catalystService) {
-        throw new ServiceError(
-          'Catalyst service not initialized',
-          'SERVICE_NOT_INITIALIZED',
-          'SettingsHandlers'
-        );
-      }
-
-      const result = await catalystService.runWithContext(
-        'system',
+      const result = await runWithContext(
         'settings:getSystemInfo',
         async () => {
           // Mock system information
@@ -587,7 +531,6 @@ export function setupSettingsHandlers(workspacePath?: string): void {
           };
         },
         {
-          operation: 'settings:getSystemInfo',
           source: 'ipc_handler'
         }
       );
@@ -727,6 +670,221 @@ export function setupSettingsHandlers(workspacePath?: string): void {
     logger.info('Getting application path');
     // Use imported app
     return app.getAppPath();
+  });
+
+  /**
+   * Get learning-specific settings
+   */
+  ipcMain.handle('settings:get-learning-settings', async () => {
+    logger.info('Getting learning-specific settings');
+
+    try {
+      const result = await runWithContext(
+        'settings:get-learning-settings',
+        async () => {
+          // Mock learning settings
+          const learningSettings = {
+            defaultDifficulty: 'intermediate',
+            preferredLearningStyle: 'visual',
+            sessionDuration: 45, // minutes
+            autoSaveProgress: true,
+            enableReminders: true,
+            dailyGoal: 60, // minutes
+            weeklyGoal: 300, // minutes
+            enableSpacedRepetition: true,
+            showDetailedFeedback: true,
+            maxConcurrentSessions: 3,
+            allowPeerReview: false,
+            enableOfflineMode: true,
+            retentionPeriod: 30, // days
+            exportFormat: 'json',
+            backupFrequency: 'daily',
+            metadata: {
+              lastUpdated: new Date().toISOString(),
+              version: '1.0.0'
+            }
+          };
+
+          return {
+            success: true,
+            learningSettings
+          };
+        },
+        {
+          source: 'ipc_handler'
+        }
+      );
+
+      return result;
+
+    } catch (error) {
+      logger.error('Failed to get learning settings', error as Error);
+      throw error;
+    }
+  });
+
+  /**
+   * Update learning-specific settings
+   */
+  ipcMain.handle('settings:update-learning-settings', async (event, settings) => {
+    logger.info('Updating learning-specific settings', { settings });
+
+    try {
+      const result = await runWithContext(
+        'settings:update-learning-settings',
+        async () => {
+          // Mock learning settings update
+          const updatedSettings = {
+            ...settings,
+            lastUpdated: new Date().toISOString(),
+            version: '1.0.1'
+          };
+
+          return {
+            success: true,
+            updatedSettings,
+            impact: ['session behavior', 'progress tracking']
+          };
+        },
+        {
+          source: 'ipc_handler'
+        }
+      );
+
+      return result;
+
+    } catch (error) {
+      logger.error('Failed to update learning settings', error as Error, settings);
+      throw error;
+    }
+  });
+
+  /**
+   * Get available AI providers and their status
+   */
+  ipcMain.handle('settings:get-providers', async () => {
+    logger.info('Getting available AI providers');
+
+    try {
+      // Mock available providers
+      const providers = [
+        {
+          id: 'openai',
+          name: 'OpenAI',
+          description: 'OpenAI GPT models',
+          status: 'connected',
+          models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k'],
+          capabilities: ['chat', 'completions', 'embeddings'],
+          configStatus: 'configured',
+          metadata: {
+            lastTested: new Date().toISOString(),
+            responseTime: 250, // ms
+            defaultModel: 'gpt-4'
+          }
+        },
+        {
+          id: 'anthropic',
+          name: 'Anthropic',
+          description: 'Anthropic Claude models',
+          status: 'disconnected',
+          models: ['claude-2', 'claude-instant'],
+          capabilities: ['chat', 'completions'],
+          configStatus: 'not_configured',
+          metadata: {
+            lastTested: null,
+            responseTime: null,
+            defaultModel: 'claude-2'
+          }
+        },
+        {
+          id: 'local-llm',
+          name: 'Local LLM',
+          description: 'Local Llama models',
+          status: 'available',
+          models: ['llama-2-7b', 'llama-2-13b'],
+          capabilities: ['chat', 'completions'],
+          configStatus: 'configured',
+          metadata: {
+            lastTested: new Date().toISOString(),
+            responseTime: 1200, // ms
+            defaultModel: 'llama-2-7b'
+          }
+        },
+        {
+          id: 'azure-openai',
+          name: 'Azure OpenAI',
+          description: 'Microsoft Azure OpenAI Service',
+          status: 'disconnected',
+          models: ['gpt-35-turbo', 'gpt-4'],
+          capabilities: ['chat', 'completions', 'embeddings'],
+          configStatus: 'not_configured',
+          metadata: {
+            lastTested: null,
+            responseTime: null,
+            defaultModel: 'gpt-35-turbo'
+          }
+        }
+      ];
+
+      return {
+        success: true,
+        providers,
+        summary: {
+          total: providers.length,
+          connected: providers.filter(p => p.status === 'connected').length,
+          configured: providers.filter(p => p.configStatus === 'configured').length
+        }
+      };
+    } catch (error) {
+      logger.error('Failed to get available providers', error as Error);
+      throw error;
+    }
+  });
+
+  /**
+   * Configure an AI provider with authentication and settings
+   */
+  ipcMain.handle('settings:configure-provider', async (event, params) => {
+    logger.info('Configuring AI provider', {
+      provider: params.provider
+    });
+
+    try {
+      // Validate provider configuration
+      const validProviders = ['openai', 'anthropic', 'local-llm', 'azure-openai'];
+      if (!validProviders.includes(params.provider)) {
+        throw new Error(`Invalid provider: ${params.provider}`);
+      }
+
+      // Mock provider configuration
+      const result = {
+        providerId: params.provider,
+        status: 'configured',
+        validated: true,
+        settingsApplied: {
+          endpoint: params.config.endpoint,
+          apiKey: params.config.apiKey ? '***masked***' : null,
+          model: params.config.model,
+          temperature: params.config.temperature,
+          maxTokens: params.config.maxTokens
+        },
+        metadata: {
+          configuredAt: new Date().toISOString(),
+          lastValidated: new Date().toISOString(),
+          validationDuration: 150 // ms
+        }
+      };
+
+      // In a real implementation, we would actually validate the config
+      // For now, we'll just return a success result
+      return {
+        success: true,
+        ...result
+      };
+    } catch (error) {
+      logger.error('Failed to configure provider', error as Error, params);
+      throw error;
+    }
   });
 
   /**
