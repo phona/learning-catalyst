@@ -493,7 +493,7 @@ export const mockSessionService = {
   searchSessions: vi.fn().mockResolvedValue({
     sessions: [],
     total: 0,
-    has_more: false
+    hasMore: false
   }),
   getRecentSessions: vi.fn().mockResolvedValue([]),
   saveMessage: vi.fn().mockResolvedValue(undefined),

@@ -208,7 +208,7 @@ export const PerformanceTestUtils = {
     heapTotal: number;
     external: number;
     arrayBuffers: number;
-  } {
+    } {
     if (typeof process !== 'undefined' && process.memoryUsage) {
       return process.memoryUsage();
     }

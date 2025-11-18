@@ -1,20 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { ConfigServiceProvider } from '@/renderer/hooks/useAppServices';
-import { ServiceProvider } from '@/renderer/hooks/useServices';
-import { ServicesProvider } from '@/renderer/services/services-container';
+import { ServicesProvider } from '@/renderer/services/services-provider';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import type { AppConfig } from '@/shared/types/config';
 import { makeEmptyConfig } from './fixtures/config';
+import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 
 const createTestQueryClient = () =>
   new QueryClient({
     defaultOptions: {
       queries: {
         retry: false,
-        gcTime: 0,
+        staleTime: 0,
       },
       mutations: {
         retry: false,
@@ -28,15 +27,17 @@ const QueryLayer: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </QueryClientProvider>
 );
 
-const Providers: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <ConfigServiceProvider>
-    <ServiceProvider>
-      <ServicesProvider>
-        <QueryLayer>{children}</QueryLayer>
-      </ServicesProvider>
-    </ServiceProvider>
-  </ConfigServiceProvider>
-);
+// Simplified providers wrapper for testing
+const TestProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Create a mock electronAPI client for testing
+  const mockApiClient = useMemo(() => createMockElectronAPIClient(), []);
+
+  return (
+    <ServicesProvider apiClient={mockApiClient}>
+      <QueryLayer>{children}</QueryLayer>
+    </ServicesProvider>
+  );
+};
 
 const ensureConfigLoaded = (config: AppConfig | null = makeEmptyConfig()) => {
   useConfigStore.setState(
@@ -51,7 +52,7 @@ const ensureConfigLoaded = (config: AppConfig | null = makeEmptyConfig()) => {
 };
 
 export const renderWithServices = (ui: React.ReactElement, options?: RenderOptions) => {
-  return render(<Providers>{ui}</Providers>, options);
+  return render(<TestProviders>{ui}</TestProviders>, options);
 };
 
 interface RenderSettingsOptions extends RenderOptions {

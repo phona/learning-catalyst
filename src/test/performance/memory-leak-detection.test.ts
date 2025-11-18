@@ -51,7 +51,7 @@ class MemoryMonitor {
     heapTotalGrowth: number
     externalGrowth: number
     rssGrowth: number
-  } {
+    } {
     if (this.samples.length < 2) {
       return {
         heapUsedGrowth: 0,
@@ -84,7 +84,7 @@ class MemoryMonitor {
     averageHeapUsed: number
     peakHeapUsed: number
     growth: ReturnType<MemoryMonitor['getGrowth']>
-  } {
+    } {
     if (this.samples.length === 0) {
       return {
         samples: 0,
@@ -309,7 +309,7 @@ describe('LangChain Service Memory Management', () => {
   })
 
   afterEach(() => {
-    if (langChainService && langChainService.dispose) {
+    if (langChainService?.dispose) {
       langChainService.dispose()
     }
     memoryMonitor.forceGarbageCollection()

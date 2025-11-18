@@ -23,8 +23,8 @@ export interface ServiceMockSuite {
  * Performance monitoring for test operations
  */
 export class PerformanceMonitor {
-  private measurements: Map<string, number[]> = new Map()
-  private startTimes: Map<string, number> = new Map()
+  private readonly measurements: Map<string, number[]> = new Map()
+  private readonly startTimes: Map<string, number> = new Map()
 
   start(operation: string): void {
     this.startTimes.set(operation, performance.now())

@@ -502,3 +502,174 @@ export { localStorageMock, sessionStorageMock };
 export type MockSessionType = ReturnType<typeof createMockSession>;
 export type MockAgentType = ReturnType<typeof createMockAgent>;
 export type MockMessageType = ReturnType<typeof createMockMessage>;
+
+// ==================== ZUSTAND STORE MOCKS ====================
+
+// Mock useAppStore (Zustand store)
+vi.mock('@/renderer/stores/useAppStore', () => {
+  const mockStore = {
+    sidebar_open: true,
+    settings_panel_open: false,
+    theme: 'dark',
+    current_view: 'chat',
+    focus_mode: false,
+    loading: false,
+    error_message: undefined,
+    success_message: undefined,
+    setCurrentView: vi.fn(),
+    setSidebarOpen: vi.fn(),
+    setSettingsPanelOpen: vi.fn(),
+    setTheme: vi.fn(),
+    setFocusMode: vi.fn(),
+    toggleFocusMode: vi.fn(),
+    setLoading: vi.fn(),
+    setError: vi.fn(),
+    setSuccess: vi.fn(),
+    clearMessages: vi.fn(),
+  };
+  
+  // Create a properly typed mock store with Zustand methods
+  const mockStoreWithMethods = {
+    ...mockStore,
+    getState: vi.fn(() => mockStore),
+    subscribe: vi.fn(),
+    destroy: vi.fn(),
+    setState: vi.fn(),
+  };
+  
+  // Create mock hook function with Zustand methods
+  const mockUseAppStore = vi.fn(() => mockStoreWithMethods);
+  
+  // Add Zustand store methods to hook function itself
+  Object.assign(mockUseAppStore, {
+    getState: vi.fn(() => mockStoreWithMethods),
+    subscribe: vi.fn(),
+    destroy: vi.fn(),
+    setState: vi.fn(),
+  });
+  
+  return {
+    useAppStore: mockUseAppStore
+  };
+});
+
+// Mock useConfigStore (Zustand store)
+vi.mock('@/renderer/stores/useConfigStore', () => {
+  const mockStore = {
+    config: {
+      ai: {
+        providers: {},
+        model_types: {
+          chat: {
+            provider: 'openai',
+            model: 'gpt-3.5-turbo',
+            temperature: 0.7,
+            max_tokens: 2048,
+            top_p: 1,
+            enable_thinking: false,
+            stream: true,
+          }
+        }
+      },
+      ui: {
+        theme: 'light',
+        show_token_usage: false,
+        display_format: 'detailed',
+        session_duration: 25,
+        font_size: 'medium',
+        sidebar_width: 300,
+        auto_save: true,
+        auto_scroll: true,
+        show_line_numbers: false,
+        enable_markdown: true,
+        enable_syntax_highlighting: true,
+        compact_mode: false,
+      },
+      learning: {
+        auto_save: true,
+        session_timeout_minutes: 60,
+        difficulty: 'intermediate',
+        learning_style: 'visual',
+        personalization_enabled: true,
+        checkpoint_interval: 15,
+        max_session_history: 100,
+        enable_analytics: false,
+        preferred_explanation_length: 'detailed',
+      },
+      privacy: {
+        store_conversations: true,
+        retention_days: 90,
+        anonymous_analytics: false,
+        crash_reporting: true,
+        encrypt_local_storage: false,
+        auto_cleanup: true,
+        export_format: 'json',
+      },
+      performance: {
+        cache_size_mb: 100,
+        enable_caching: true,
+        max_concurrent_requests: 5,
+        request_timeout: 30,
+        memory_limit_mb: 512,
+        gpu_acceleration: false,
+        background_processing: true,
+        preload_models: false,
+      },
+    },
+    loading: false,
+    error: null,
+    setConfig: vi.fn(),
+    loadConfig: vi.fn(),
+    saveConfig: vi.fn(),
+    updateConfig: vi.fn(),
+    resetConfig: vi.fn(),
+    getProviderConfig: vi.fn(),
+    setProviderConfig: vi.fn(),
+    removeProviderConfig: vi.fn(),
+    setDefaultProvider: vi.fn(),
+  };
+  
+  // Create a properly typed mock store with Zustand methods
+  const mockStoreWithMethods = {
+    ...mockStore,
+    getState: vi.fn(() => mockStore),
+    subscribe: vi.fn(),
+    destroy: vi.fn(),
+    setState: vi.fn(),
+  };
+  
+  // Create the mock hook function with Zustand methods
+  const mockUseConfigStore = vi.fn(() => mockStoreWithMethods);
+  
+  // Add Zustand store methods to the hook function itself
+  Object.assign(mockUseConfigStore, {
+    getState: vi.fn(() => mockStoreWithMethods),
+    subscribe: vi.fn(),
+    destroy: vi.fn(),
+    setState: vi.fn(),
+  });
+  
+  return {
+    useConfigStore: mockUseConfigStore
+  };
+});
+
+// Mock service hooks
+vi.mock('@/renderer/hooks/useAppServices', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    // Make sure we export the components
+    ServicesProvider: ({ children }: any) => children,
+    ConfigServiceProvider: ({ children }: any) => children,
+  };
+});
+
+vi.mock('@/renderer/hooks/useServices', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    // Make sure we export the ServicesProvider component
+    ServicesProvider: ({ children }: any) => children,
+  };
+});
