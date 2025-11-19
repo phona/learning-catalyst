@@ -57,7 +57,7 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({
   const discoveryService = createDiscoveryService(client);
   const catalystService = createCatalystService(client);
   const configService = new ConfigurationService();
-  const conceptParsing = createConceptParsingService(configService);
+  const conceptParsing = createConceptParsingService();
 
   return (
     <ServiceContext.Provider value={{
