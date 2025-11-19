@@ -106,8 +106,8 @@ export class ConfigurationService {
       this.cache.set(key, configValue);
 
       // Simulate IPC call to main process
-      if (window.electronAPI?.setConfig) {
-        await window.electronAPI.setConfig(key, value);
+      if (window.electronAPI?.settings?.setConfig) {
+        await window.electronAPI.settings.setConfig(this.currentConfig ?? ({} as AppConfig));
       }
 
       return true;

@@ -76,7 +76,7 @@ export async function getAppVersion(): Promise<string> {
   }
 
   try {
-    return await window.electronAPI.getAppVersion();
+    return await window.electronAPI.settings.getAppVersion();
   } catch (error) {
     console.error('Failed to get app version:', error);
     return 'Unknown';
@@ -92,7 +92,7 @@ export async function quitApp(): Promise<void> {
   }
 
   try {
-    await window.electronAPI.quit();
+    await window.electronAPI.settings.quit();
   } catch (error) {
     console.error('Failed to quit app:', error);
   }

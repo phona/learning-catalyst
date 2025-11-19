@@ -89,7 +89,7 @@ export default function App(): JSX.Element {
       }
 
       try {
-        const config = await window.electronAPI.getConfig();
+        const config = await window.electronAPI.settings.getConfig();
         const chatConfig = config?.ai?.model_types?.chat;
 
         if (!chatConfig?.provider || !chatConfig?.model) {

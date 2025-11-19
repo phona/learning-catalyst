@@ -108,7 +108,7 @@ function ServicesProviderComponent({ children }: ServicesProviderProps) {
 
           // Configuration services
           getConfig: () => window.electronAPI.settings?.getConfig?.() || Promise.reject(new Error('Settings API not available')),
-          updateConfig: (config) => window.electronAPI.settings?.updateConfig?.(config) || Promise.reject(new Error('Settings API not available')),
+          updateConfig: (config) => window.electronAPI.settings?.setConfig?.(config) || Promise.reject(new Error('Settings API not available')),
         };
 
         setServices(rendererServices);

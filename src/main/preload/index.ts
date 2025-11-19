@@ -23,7 +23,8 @@ import {
   AnalyticsAPI,
   AgentsAPI,
   ContentAPI,
-  SettingsAPI
+  SettingsAPI,
+  SettingsUtility
 } from '@/shared/types/electron-api';
 import type {
   SessionsAPI,
@@ -44,6 +45,7 @@ import type {
 } from '@/shared/types/electron-api/knowledge-api';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
+import type { AppConfig } from '@/shared/types/config';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -533,7 +535,7 @@ const contentAPI: ContentAPI = {
  * Manages user preferences, AI provider configuration, and application settings.
  * Focuses on personalizing the learning experience and managing technical configurations.
  */
-const settingsAPI: SettingsAPI = {
+const settingsAPI: SettingsAPI & SettingsUtility = {
   /**
    * Gets comprehensive user preferences
    * Returns all user-configurable settings in display-ready format
@@ -584,8 +586,12 @@ const settingsAPI: SettingsAPI = {
    * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
    */
   updateLearningSettings: (settings: any) =>
-    ipcRenderer.invoke('settings:update-learning-settings', settings)
-
+    ipcRenderer.invoke('settings:update-learning-settings', settings),
+  getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
+  quit: () => ipcRenderer.invoke('settings:quitApp'),
+  getConfig: () => ipcRenderer.invoke('settings:getWorkspaceConfig'),
+  setConfig: (config: AppConfig) =>
+    ipcRenderer.invoke('settings:setWorkspaceConfig', config)
 };
 
 // ============================================================================
@@ -607,10 +613,6 @@ const electronAPI = {
   agents: agentsAPI,
   content: contentAPI,
   settings: settingsAPI,
-  getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
-  quit: () => ipcRenderer.invoke('settings:quitApp'),
-  getConfig: () => ipcRenderer.invoke('settings:getWorkspaceConfig'),
-  setConfig: (config: unknown) => ipcRenderer.invoke('settings:setWorkspaceConfig', config),
   onMenuAction: (handler: (action: string, data?: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, action: string, payload?: unknown) => {
       handler(action, payload);

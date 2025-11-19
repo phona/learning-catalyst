@@ -27,6 +27,7 @@ import type { CatalystAPI } from './catalyst-api'
 import type { SessionsAPI } from './sessions-api'
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
 import type { IPCErrorPayload } from '../ipc-error'
+import type { AppConfig } from '../config'
 
 
 
@@ -111,6 +112,13 @@ export type {
  * - Progressive enhancement patterns
  * - Type-safe communication between processes
  */
+export interface SettingsUtility {
+  getAppVersion: () => Promise<string>;
+  quit: () => Promise<void>;
+  getConfig: () => Promise<AppConfig | null>;
+  setConfig: (config: AppConfig) => Promise<void>;
+}
+
 export interface ElectronAPI {
   // 7 Complete API Domains
   chat: ChatAPI;
@@ -120,7 +128,7 @@ export interface ElectronAPI {
   sessions: SessionsAPI;
   agents: AgentsAPI;
   content: ContentAPI;
-  settings: SettingsAPI;
+  settings: SettingsAPI & SettingsUtility;
   getWorkspacePath: () => Promise<string>;
   readDirectory: (
     path: string,
@@ -133,10 +141,6 @@ export interface ElectronAPI {
   existsFile: (filePath: string) => Promise<boolean>;
   showOpenDialog: (options?: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
   showSaveDialog: (options?: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
-  getAppVersion: () => Promise<string>;
-  quit: () => Promise<void>;
-  getConfig: () => Promise<any>;
-  setConfig: (config: any) => Promise<void>;
   onMenuAction: (handler: (action: string, data?: unknown) => void) => void;
   onIPCError: (handler: (payload: IPCErrorPayload) => void) => () => void;
 

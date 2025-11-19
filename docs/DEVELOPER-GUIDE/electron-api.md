@@ -41,19 +41,13 @@ interface ElectronAPI {
 
 ### Utility & error helpers
 
-Beyond the domain APIs the preload bridge exposes a few helper methods that are shared across the renderer:
-
-- `getAppVersion()` / `quit()` / `getConfig()` / `setConfig()` – lightweight helpers that call the underlying `settings:*` IPC channels.
-- `handleError(error, context, severity)` – called by renderer code whenever it wants the main process to log/report a local failure (this forwards to `system:report-error`).
-- `onMenuAction(handler)` – subscribe to menu events.
-- `onIPCError(handler)` – new helper introduced in this release; the main process invokes `ipc.error` whenever a startup handler or background task fails with a structured `IPCErrorPayload`. Components should subscribe once, show a toast-guided message, and optionally switch to the setup view when `needsSetup` is true.
-
+Beyond the domain APIs the preload bridge exposes a few helper methods (grouped under `electronAPI.settings`) that are shared across the renderer; the table below summarizes their signatures and purposes.
 | Method | Signature | Purpose |
 | --- | --- | --- |
-| `getAppVersion()` | `() => Promise<string>` | Returns the current application version from `app.getVersion()`. |
-| `quit()` | `() => Promise<void>` | Requests the main process to close the app (proxy for `settings:quitApp`). |
-| `getConfig()` | `() => Promise<AppConfig | null>` | Reads the persisted workspace configuration (`settings:getWorkspaceConfig`). |
-| `setConfig(config)` | `(config: AppConfig) => Promise<void>` | Replaces the workspace configuration (`settings:setWorkspaceConfig`). |
+| `settings.getAppVersion()` | `() => Promise<string>` | Returns the current application version from `app.getVersion()`. |
+| `settings.quit()` | `() => Promise<void>` | Requests the main process to close the app (proxy for `settings:quitApp`). |
+| `settings.getConfig()` | `() => Promise<AppConfig | null>` | Reads the persisted workspace configuration (`settings:getWorkspaceConfig`). |
+| `settings.setConfig(config)` | `(config: AppConfig) => Promise<void>` | Replaces the workspace configuration (`settings:setWorkspaceConfig`). |
 | `handleError(error, context, severity)` | `(error: Error \| string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void` | Logs/forwards renderer-side failures to `system:report-error`. |
 | `onMenuAction(handler)` | `(handler: (action: string, data?: unknown) => void) => () => void` | Subscribe to menu events emitted from the main menu controller. |
 | `onIPCError(handler)` | `(handler: (payload: IPCErrorPayload) => void) => () => void` | Subscribes to main-provided structured errors (`ipc:error`) so the renderer can show toasts or open setup when `needsSetup` is true. |
@@ -369,6 +363,8 @@ interface APIResponse<T = any> {
 ```
 
 ## Error Handling
+
+When these codes bubble back to the renderer, wire the UI into `window.electronAPI.onIPCError`/`handleError` so you can show a toast or open a setup screen instead of letting the app crash silently.
 
 ### Error Codes
 
