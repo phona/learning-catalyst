@@ -302,21 +302,21 @@ async function createWindow(): Promise<void> {
     reportMainError(error, 'services:init')
     return
   }
-  // Cleanup function to prevent memory leaks
-  async function cleanup() {
-    if (isShuttingDown) return
-    isShuttingDown = true
+}
 
-    console.log('🧹 Cleaning up resources...')
+// Cleanup function to prevent memory leaks
+async function cleanup() {
+  if (isShuttingDown) return
+  isShuttingDown = true
 
-    // Clean up memory debugging
-    cleanupMemoryDebug();
+  console.log('🧹 Cleaning up resources...')
 
-    // Clean up any additional resources as needed
-    console.log('✅ Cleanup completed');
-  }
+  // Clean up memory debugging
+  cleanupMemoryDebug();
 
-  }
+  // Clean up any additional resources as needed
+  console.log('✅ Cleanup completed');
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
