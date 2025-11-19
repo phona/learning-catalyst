@@ -87,6 +87,7 @@ export function Component({ prop }: Props) {
   ```
   Main → IPC Handler → Preload → window.electronAPI → Renderer
   ```
+- Renderer code now subscribes to `onIPCError` so structured IPC payloads surface as toasts/setup guidance whenever the main process cannot initialize (missing chat config, startup failures). That ensures the UI never falls back to hidden defaults.
 - **Main Process**: NEVER accesses electronAPI (only provides it)
 - **Service Pattern**: Pass dependencies as function parameters
 - **Agent Tools**: Call service functions only (not lower-level APIs)

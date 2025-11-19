@@ -38,6 +38,25 @@ interface ElectronAPI {
   content: ContentAPI;
   settings: SettingsAPI;
 }
+
+### Utility & error helpers
+
+Beyond the domain APIs the preload bridge exposes a few helper methods that are shared across the renderer:
+
+- `getAppVersion()` / `quit()` / `getConfig()` / `setConfig()` – lightweight helpers that call the underlying `settings:*` IPC channels.
+- `handleError(error, context, severity)` – called by renderer code whenever it wants the main process to log/report a local failure (this forwards to `system:report-error`).
+- `onMenuAction(handler)` – subscribe to menu events.
+- `onIPCError(handler)` – new helper introduced in this release; the main process invokes `ipc.error` whenever a startup handler or background task fails with a structured `IPCErrorPayload`. Components should subscribe once, show a toast-guided message, and optionally switch to the setup view when `needsSetup` is true.
+
+| Method | Signature | Purpose |
+| --- | --- | --- |
+| `getAppVersion()` | `() => Promise<string>` | Returns the current application version from `app.getVersion()`. |
+| `quit()` | `() => Promise<void>` | Requests the main process to close the app (proxy for `settings:quitApp`). |
+| `getConfig()` | `() => Promise<AppConfig | null>` | Reads the persisted workspace configuration (`settings:getWorkspaceConfig`). |
+| `setConfig(config)` | `(config: AppConfig) => Promise<void>` | Replaces the workspace configuration (`settings:setWorkspaceConfig`). |
+| `handleError(error, context, severity)` | `(error: Error \| string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void` | Logs/forwards renderer-side failures to `system:report-error`. |
+| `onMenuAction(handler)` | `(handler: (action: string, data?: unknown) => void) => () => void` | Subscribe to menu events emitted from the main menu controller. |
+| `onIPCError(handler)` | `(handler: (payload: IPCErrorPayload) => void) => () => void` | Subscribes to main-provided structured errors (`ipc:error`) so the renderer can show toasts or open setup when `needsSetup` is true. |
 ```
 
 ### IPC Channel Reference
@@ -73,6 +92,7 @@ Complete reference of all available IPC channels:
 | **sessions:listCheckpoints** | `listCheckpoints` | none | `Promise<APIResponse<Checkpoint[]>>` | List checkpoints |
 | **sessions:deleteCheckpoint** | `deleteCheckpoint` | `checkpointId: string` | `Promise<APIResponse<void>>` | Delete checkpoint |
 | **sessions:getCurrentState** | `getCurrentState` | none | `Promise<APIResponse<SessionState>>` | Get current session state |
+| **ipc:error** | `onIPCError(handler)` | `payload: IPCErrorPayload` | `void` | Broadcasts structured `IPCErrorPayload` from main so the renderer can toast guidance or show setup screens when services fail to start. |
 | **sessions:restoreState** | `restoreState` | `state: SessionState` | `Promise<APIResponse<void>>` | Restore session state |
 | **agents:listAgents** | `listAgents` | none | `Promise<APIResponse<AgentDisplay[]>>` | List all agents |
 | **agents:getAgent** | `getAgent` | `agentId: string` | `Promise<APIResponse<AgentDisplay>>` | Get agent details |
