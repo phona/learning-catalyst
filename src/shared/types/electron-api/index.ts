@@ -27,11 +27,7 @@ import type { CatalystAPI } from './catalyst-api'
 import type { SessionsAPI } from './sessions-api'
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
 import type { IPCErrorPayload } from '../ipc-error'
-import type { AppConfig } from '../config'
-
-
-
-// Re-export individual API interfaces
+import type { AppConfig } from '../config'// Re-export individual API interfaces
 export type {
   ChatAPI,
   LearningAPI,
@@ -43,6 +39,16 @@ export type {
   SessionsAPI,
   CatalystAPI
 }
+
+// Re-export service response types
+export type {
+  ChatResponse,
+  AgentsResponse,
+  SessionResponse,
+  ExecutionCancelResponse,
+  ActiveExecution,
+  StreamChunk
+} from './catalyst-api'
 
 // Export key display-optimized types for convenience
 export type {

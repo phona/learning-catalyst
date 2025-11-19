@@ -77,11 +77,7 @@ export interface IPCHandlerMap {
 }
 
 // Error types
-export interface IPCError extends Error {
-  code: string;
-  channel?: string;
-  requestId?: string;
-}
+import type { IPCError } from './ipc-error';
 
 // Channel types for communication
 export const IPC_CHANNELS = {

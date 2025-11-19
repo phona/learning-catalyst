@@ -1,0 +1,152 @@
+/**
+ * File Service Tests
+ */
+
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createFileService } from '../file-service';
+import type { ElectronAPI } from '@/shared/types/electron-api';
+
+// Mock electronAPI
+const mockElectronAPI: Partial<ElectronAPI> = {
+  showOpenDialog: vi.fn(),
+  showSaveDialog: vi.fn(),
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  existsFile: vi.fn()
+};
+
+describe('FileService', () => {
+  let fileService: ReturnType<typeof createFileService>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fileService = createFileService(mockElectronAPI as ElectronAPI);
+  });
+
+  describe('showOpenDialog', () => {
+    it('should successfully open dialog', async () => {
+      const mockResult = { canceled: false, filePaths: ['/path/to/file.txt'] };
+      vi.mocked(mockElectronAPI.showOpenDialog!).mockResolvedValue(mockResult);
+
+      const result = await fileService.showOpenDialog();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockResult);
+    });
+
+    it('should handle service unavailability', async () => {
+      const noServiceAPI = {} as ElectronAPI;
+      const noServiceFileService = createFileService(noServiceAPI);
+
+      const result = await noServiceFileService.showOpenDialog();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('SERVICE_UNAVAILABLE');
+    });
+  });
+
+  describe('readFile', () => {
+    it('should successfully read and validate file', async () => {
+      const mockContent = 'Hello, World!';
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(mockContent);
+
+      const result = await fileService.readFile('/path/to/file.txt');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.content).toBe(mockContent);
+      expect(result.data?.fileName).toBe('file.txt');
+    });
+
+    it('should handle invalid path', async () => {
+      const result = await fileService.readFile('');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_PATH');
+    });
+
+    it('should sanitize content', async () => {
+      const maliciousContent = '<script>alert("xss")</script>';
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(maliciousContent);
+
+      const result = await fileService.readFile('/path/to/file.txt');
+
+      expect(result.success).toBe(true);
+      expect(result.data?.content).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+    });
+
+    it('should handle file too large', async () => {
+      const largeContent = 'x'.repeat(60000); // Exceeds 50KB limit
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(largeContent);
+
+      const result = await fileService.readFile('/path/to/large.txt');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('FILE_TOO_LARGE');
+    });
+  });
+
+  describe('writeFile', () => {
+    it('should successfully write file', async () => {
+      vi.mocked(mockElectronAPI.writeFile!).mockResolvedValue(undefined);
+
+      const result = await fileService.writeFile('/path/to/file.txt', 'Hello, World!');
+
+      expect(result.success).toBe(true);
+      expect(mockElectronAPI.writeFile).toHaveBeenCalledWith('/path/to/file.txt', 'Hello, World!');
+    });
+
+    it('should handle invalid path', async () => {
+      const result = await fileService.writeFile('', 'content');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_PATH');
+    });
+
+    it('should handle invalid content type', async () => {
+      const result = await fileService.writeFile('/path/to/file.txt', null as any);
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CONTENT');
+    });
+  });
+
+  describe('existsFile', () => {
+    it('should successfully check file existence', async () => {
+      vi.mocked(mockElectronAPI.existsFile!).mockResolvedValue(true);
+
+      const result = await fileService.existsFile('/path/to/file.txt');
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe(true);
+    });
+
+    it('should handle invalid path', async () => {
+      const result = await fileService.existsFile('');
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_PATH');
+    });
+  });
+
+  describe('showSaveDialog', () => {
+    it('should successfully open save dialog', async () => {
+      const mockResult = { canceled: false, filePath: '/path/to/save.txt' };
+      vi.mocked(mockElectronAPI.showSaveDialog!).mockResolvedValue(mockResult);
+
+      const result = await fileService.showSaveDialog();
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockResult);
+    });
+
+    it('should handle service unavailability', async () => {
+      const noServiceAPI = {} as ElectronAPI;
+      const noServiceFileService = createFileService(noServiceAPI);
+
+      const result = await noServiceFileService.showSaveDialog();
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('SERVICE_UNAVAILABLE');
+    });
+  });
+});

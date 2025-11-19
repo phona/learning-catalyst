@@ -35,7 +35,6 @@ describe('LearningPatternAnalyzer', () => {
           learningVelocity: 0.8,
           stuckPoints: [],
           practiceHistory: [],
-          practiceHistory: [],
           recentConcepts: [
             { concept: 'useState', confidence: 0.5, firstSeen: Date.now() - 3600000, lastSeen: Date.now(), practiceCount: 0 }
           ],

@@ -159,4 +159,4 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
   };
 };
 
-export type AgentManager = ReturnType<typeof createAgentManager>;
+export type AgentManager = Awaited<ReturnType<typeof createAgentManager>>;

@@ -18,7 +18,6 @@ export const createAiServiceManager = ({
   loggerService,
   configService
 }: AiServiceManagerDeps): AiServiceManager => {
-  console.log('[AI Service Manager] Starting initialization...');
   let aiService: AiService | null = null;
   let ready: Promise<void> = Promise.resolve();
   const listeners = new Set<() => void>();

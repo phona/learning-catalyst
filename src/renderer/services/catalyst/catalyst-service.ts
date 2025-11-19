@@ -1,58 +1,42 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
-import type { ElectronAPIClient } from '../api/electron-api-client';
+import type { ElectronAPI } from '@/shared/types/electron-api';
 import type {
-  ChatMessage,
-  ChatResponse,
-  StreamChunk,
-  AgentInfo,
-  ActiveExecution,
-  ChatStreamOptions,
   ChatOptions
-} from '@/shared/types/catalyst';
+} from '@/shared/types/ai';
+import type {
+  ActiveExecution,
+  StreamChunk,
+  ChatResponse,
+  AgentsResponse,
+  SessionResponse,
+  ExecutionCancelResponse
+} from '@/shared/types/electron-api';
+
+// Define ChatStreamOptions locally since it's not found
+export interface ChatStreamOptions extends ChatOptions {
+  agentId?: string;
+  sessionId?: string;
+  context?: Record<string, any>;
+}
 
 export interface CatalystService {
-  sendChat(message: string, options?: ChatOptions): Promise<ChatResponse>;
+  sendChat(message: string, options?: ChatStreamOptions): Promise<ChatResponse>;
   sendChatStream(
     message: string,
     onChunk: (chunk: StreamChunk) => void,
     options?: ChatStreamOptions
   ): Promise<ChatResponse>;
-  getAvailableAgents(): Promise<{agents: AgentInfo[]}>;
-  getSession(sessionId: string): Promise<{success: boolean; session?: any; error?: string}>;
-  cancelExecution(executionId: string): Promise<{success: boolean; error?: string}>;
+  getAvailableAgents(): Promise<AgentsResponse>;
+  getSession(sessionId: string): Promise<SessionResponse>;
+  cancelExecution(executionId: string): Promise<ExecutionCancelResponse>;
   getActiveExecutions(): Promise<{success: boolean; executions?: ActiveExecution[]; error?: string}>;
 }
 
 /**
- * Functional implementation of catalyst service using the unified electronAPI client
+ * Functional implementation of catalyst service using electronAPI
  */
-export const createCatalystService = (apiClient: ElectronAPIClient): CatalystService => {
+export const createCatalystService = (electronAPI: ElectronAPI): CatalystService => {
   return {
-    async sendChat(message: string, options?: ChatOptions): Promise<ChatResponse> {
+    async sendChat(message: string, options?: ChatStreamOptions): Promise<ChatResponse> {
       if (!message || message.trim().length === 0) {
         return {
           success: false,
@@ -60,27 +44,29 @@ export const createCatalystService = (apiClient: ElectronAPIClient): CatalystSer
         };
       }
 
-      const response = await apiClient.catalyst.sendChat({
-        message: message.trim(),
-        options: options || {
-          agentId: 'default',
-          sessionId: 'default',
-          stream: false,
-          context: {}
+      try {
+        if (!electronAPI?.catalyst?.sendChat) {
+          throw new Error('Catalyst sendChat API not available');
         }
-      });
 
-      if (!response.success) {
+        const response = await electronAPI.catalyst.sendChat({
+          message: message.trim(),
+          agentId: options?.agentId || 'default',
+          sessionId: options?.sessionId || 'default',
+          stream: false
+        });
+
+        return {
+          success: true,
+          messageId: response.messageId,
+          response: response.response
+        };
+      } catch (error) {
         return {
           success: false,
-          error: response.error || 'Chat request failed'
+          error: error instanceof Error ? error.message : 'Chat request failed'
         };
       }
-
-      return {
-        success: true,
-        data: response.data
-      };
     },
 
     async sendChatStream(
@@ -103,20 +89,21 @@ export const createCatalystService = (apiClient: ElectronAPIClient): CatalystSer
       }
 
       try {
-        // Use the streaming endpoint which will call onChunk for each received chunk
-        const response = await apiClient.catalyst.sendChatStream({
+        if (!electronAPI?.catalyst?.sendChatStream) {
+          throw new Error('Catalyst sendChatStream API not available');
+        }
+
+        const response = await electronAPI.catalyst.sendChatStream({
           message: message.trim(),
-          onChunk,
-          options: options || {
-            agentId: 'default',
-            sessionId: 'default',
-            context: {}
-          }
+          agentId: options?.agentId || 'default',
+          sessionId: options?.sessionId || 'default',
+          onChunk
         });
 
         return {
           success: true,
-          data: response.data
+          messageId: response.messageId,
+          response: response.response
         };
       } catch (error) {
         return {
@@ -126,19 +113,27 @@ export const createCatalystService = (apiClient: ElectronAPIClient): CatalystSer
       }
     },
 
-    async getAvailableAgents(): Promise<{agents: AgentInfo[]}> {
-      const response = await apiClient.catalyst.getAvailableAgents();
+    async getAvailableAgents(): Promise<AgentsResponse> {
+      try {
+        if (!electronAPI?.catalyst?.listAgents) {
+          throw new Error('Catalyst listAgents API not available');
+        }
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to get available agents');
+        const agents = await electronAPI.catalyst.listAgents();
+
+        return {
+          success: true,
+          agents: agents
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to get agents'
+        };
       }
-
-      return {
-        agents: response.data?.agents || []
-      };
     },
 
-    async getSession(sessionId: string): Promise<{success: boolean; session?: any; error?: string}> {
+    async getSession(sessionId: string): Promise<SessionResponse> {
       if (!sessionId || sessionId.trim().length === 0) {
         return {
           success: false,
@@ -146,22 +141,26 @@ export const createCatalystService = (apiClient: ElectronAPIClient): CatalystSer
         };
       }
 
-      const response = await apiClient.catalyst.getSession(sessionId);
+      try {
+        if (!electronAPI?.sessions?.get) {
+          throw new Error('Sessions API not available');
+        }
 
-      if (!response.success) {
+        const session = await electronAPI.sessions.get(sessionId);
+
+        return {
+          success: true,
+          session
+        };
+      } catch (error) {
         return {
           success: false,
-          error: response.error || 'Failed to get session'
+          error: error instanceof Error ? error.message : 'Failed to get session'
         };
       }
-
-      return {
-        success: true,
-        session: response.data
-      };
     },
 
-    async cancelExecution(executionId: string): Promise<{success: boolean; error?: string}> {
+    async cancelExecution(executionId: string): Promise<ExecutionCancelResponse> {
       if (!executionId || executionId.trim().length === 0) {
         return {
           success: false,
@@ -169,34 +168,42 @@ export const createCatalystService = (apiClient: ElectronAPIClient): CatalystSer
         };
       }
 
-      const response = await apiClient.catalyst.cancelExecution(executionId);
+      try {
+        if (!electronAPI?.catalyst?.cancelAgent) {
+          throw new Error('Catalyst cancelAgent API not available');
+        }
 
-      if (!response.success) {
+        await electronAPI.catalyst.cancelAgent(executionId);
+
+        return {
+          success: true
+        };
+      } catch (error) {
         return {
           success: false,
-          error: response.error || 'Failed to cancel execution'
+          error: error instanceof Error ? error.message : 'Failed to cancel execution'
         };
       }
-
-      return {
-        success: true
-      };
     },
 
     async getActiveExecutions(): Promise<{success: boolean; executions?: ActiveExecution[]; error?: string}> {
-      const response = await apiClient.catalyst.getActiveExecutions();
+      try {
+        if (!electronAPI?.catalyst?.getActiveExecutions) {
+          throw new Error('Catalyst getActiveExecutions API not available');
+        }
 
-      if (!response.success) {
+        const executions = await electronAPI.catalyst.getActiveExecutions();
+
+        return {
+          success: true,
+          executions
+        };
+      } catch (error) {
         return {
           success: false,
-          error: response.error || 'Failed to get active executions'
+          error: error instanceof Error ? error.message : 'Failed to get active executions'
         };
       }
-
-      return {
-        success: true,
-        executions: response.data?.executions || []
-      };
     }
   };
 };

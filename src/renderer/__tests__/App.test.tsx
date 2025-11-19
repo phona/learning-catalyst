@@ -1,28 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
 /**
  * App Component Tests - Simplified electronAPI Approach
  *
@@ -95,6 +70,23 @@ vi.mock('../services/services-provider', () => ({
   ),
 }));
 
+const workspaceConfig = {
+  ai: {
+    model_types: {
+      chat: {
+        provider: 'openai',
+        model: 'gpt-4o',
+      },
+    },
+    providers: {
+      openai: {
+        provider_type: 'openai',
+        api_key: 'test-key',
+      },
+    },
+  },
+};
+
 // Mock electronAPI for proper service initialization
 const mockElectronAPI = {
   analytics: {
@@ -106,7 +98,7 @@ const mockElectronAPI = {
   settings: {
     getUserPreferences: vi.fn().mockResolvedValue({ success: true, data: {} }),
     updatePreferences: vi.fn().mockResolvedValue({ success: true }),
-    getConfig: vi.fn().mockResolvedValue({ success: true, data: {} }),
+    getConfig: vi.fn().mockResolvedValue(workspaceConfig),
     updateConfig: vi.fn().mockResolvedValue({ success: true }),
   },
   sessions: {
@@ -153,11 +145,12 @@ describe('App Component - Simplified Initialization', () => {
         </MemoryRouter>
       );
 
-      // App renders immediately without loading state (simplified for stability)
-      // Verify app initialized successfully
-      expect(screen.getByText('Learning Catalyst')).toBeInTheDocument();
-      expect(screen.getByText('Welcome to Learning Catalyst')).toBeInTheDocument();
-      expect(screen.getByRole('main')).toBeInTheDocument();
+      // Wait for initialization to complete and layout to appear
+      await waitFor(() => {
+        expect(screen.getByText('Learning Catalyst')).toBeInTheDocument();
+        expect(screen.getByText('Welcome to Learning Catalyst')).toBeInTheDocument();
+        expect(screen.getByRole('main')).toBeInTheDocument();
+      });
     });
 
     it('should handle missing electronAPI gracefully', async () => {
@@ -175,9 +168,8 @@ describe('App Component - Simplified Initialization', () => {
 
       // Should handle missing electronAPI gracefully with console warning
       await waitFor(() => {
-        // App should continue to render but might show different UI
-        // The service provider should initialize with mock services
-        expect(screen.getByText('Learning Catalyst')).toBeInTheDocument();
+        // When electronAPI is missing, the setup screen should appear with guidance
+        expect(screen.getByText('Electron API is unavailable.')).toBeInTheDocument();
       });
     });
 

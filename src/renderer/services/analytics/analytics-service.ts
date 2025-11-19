@@ -1,27 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
 
 import {
   AnalyticsService as IAnalyticsService,
@@ -39,14 +15,14 @@ import {
   SessionDisplay,
   ConceptNotFoundError,
 } from '@/shared/interfaces/analytics.interface';
-import type { ElectronAPIClient } from '../api/electron-api-client';
+import type { ElectronAPI } from '@/shared/types/electron-api';
 
 export type AnalyticsService = IAnalyticsService
 
 /**
  * Functional implementation of analytics service using the unified electronAPI client
  */
-export const createAnalyticsService = (apiClient: ElectronAPIClient): AnalyticsService => {
+export const createAnalyticsService = (apiClient: ElectronAPI): AnalyticsService => {
   // Private helper methods
   const convertTimeRange = (period: string): '7days' | '30days' | '90days' | '1year' => {
     switch (period) {

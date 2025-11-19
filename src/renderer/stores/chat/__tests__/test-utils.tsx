@@ -1,27 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
 
 /**
  * Test utilities for chat store - Clean dependency injection
@@ -29,23 +5,32 @@
  */
 
 import { vi } from 'vitest';
-import type { SessionService } from '../../session/session-service';
+import type { SessionService } from '../../../services/session/session-service';
 import type { ChatAPI, SessionsAPI } from '@/shared/types/electron-api';
 import type { ChatStoreDependencies } from '../chatStore';
 import { createChatStore } from '../chatStore';
 
 // Mock implementations for testing
 export function createMockSessionService(): SessionService {
-  let sessionCounter = 1;
   return {
-    createNewSession: vi.fn().mockImplementation(async () => {
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      return sessionId;
+    saveSessionWithMessages: vi.fn().mockResolvedValue('test-session-id'),
+    getRecentSessions: vi.fn().mockResolvedValue([]),
+    getGlobalStatistics: vi.fn().mockResolvedValue({
+      totalSessions: 0,
+      totalMessages: 0,
+      totalConcepts: 0,
+      averageSessionLength: 0,
     }),
-    saveSessionWithMessages: vi.fn().mockResolvedValue(undefined),
+    listSessions: vi.fn().mockResolvedValue({
+      success: true,
+      sessions: [],
+      total: 0,
+      hasMore: false,
+    }),
     generateAITitle: vi.fn().mockResolvedValue('AI Title for test content'),
-    updateSessionTitle: vi.fn().mockResolvedValue(undefined),
+    generateSessionId: vi.fn().mockReturnValue(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
     saveMessage: vi.fn().mockResolvedValue(undefined),
+    updateSessionTitle: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -140,7 +125,7 @@ export const testScenarios = {
   withError: (error: string) => createTestChatStore({
     sessionService: {
       ...createMockSessionService(),
-      createNewSession: async () => { throw new Error(error); },
+      saveSessionWithMessages: async () => { throw new Error(error); },
     },
   }),
 

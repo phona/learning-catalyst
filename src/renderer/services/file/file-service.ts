@@ -1,33 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
 /**
  * File Operations Service
  *
  * Provides secure file operations with validation and error handling
  */
 
-import { useElectronAPIClient } from './services-provider';
+import type { ElectronAPI } from '@/shared/types/electron-api';
 
 export interface FileOpenDialogOptions {
   properties?: ('openFile' | 'openFiles' | 'multiSelections' | 'showHiddenFiles' | 'createDirectory' | 'promptToCreate' | 'noResolveAliases' | 'treatPackageAsDirectory' | 'dontAddToRecent')[];
@@ -91,11 +68,13 @@ function validateFileContent(content: unknown, filePath: string): FileOperationR
  * Sanitizes file content to prevent XSS
  */
 function sanitizeContent(content: string): string {
-  return content.replace(/[<>&]/g, (match) => {
+  return content.replace(/[<>&"']/g, (match) => {
     const entities: Record<string, string> = {
       '<': '&lt;',
       '>': '&gt;',
-      '&': '&amp;'
+      '&': '&amp;',
+      '"': '&quot;',
+      "'": '&#x27;'
     };
     return entities[match];
   });
@@ -109,19 +88,18 @@ function extractFileName(filePath: string): string {
 }
 
 /**
- * File Operations Service Hook
+ * File Operations Service Factory
  *
  * Provides secure file operations for the renderer process
+ * Uses explicit dependency injection for better testability and modularity
  */
-export function useFileService() {
-  const electronAPIClient = useElectronAPIClient();
-
+export function createFileService(electronAPI: ElectronAPI) {
   /**
    * Shows an open dialog to select files
    */
   const showOpenDialog = async (options?: FileOpenDialogOptions): Promise<FileOperationResult> => {
     try {
-      if (!electronAPIClient?.showOpenDialog) {
+      if (!electronAPI?.showOpenDialog) {
         return {
           success: false,
           error: {
@@ -131,7 +109,7 @@ export function useFileService() {
         };
       }
 
-      const result = await electronAPIClient.showOpenDialog({
+      const result = await electronAPI.showOpenDialog({
         properties: ['openFile'],
         filters: [
           { name: 'Text Files', extensions: ALLOWED_EXTENSIONS },
@@ -174,7 +152,7 @@ export function useFileService() {
       const fileName = extractFileName(filePath);
 
       // Read file through Electron API
-      const content = await electronAPIClient.readFile(filePath);
+      const content = await electronAPI.readFile(filePath);
 
       // Validate content
       const validation = validateFileContent(content, filePath);
@@ -229,7 +207,7 @@ export function useFileService() {
         };
       }
 
-      await electronAPIClient.writeFile(filePath, content);
+      await electronAPI.writeFile(filePath, content);
 
       return { success: true };
     } catch (error) {
@@ -259,7 +237,7 @@ export function useFileService() {
         };
       }
 
-      const exists = await electronAPIClient.existsFile(filePath);
+      const exists = await electronAPI.existsFile(filePath);
 
       return {
         success: true,
@@ -282,7 +260,7 @@ export function useFileService() {
    */
   const showSaveDialog = async (options?: FileSaveDialogOptions): Promise<FileOperationResult> => {
     try {
-      if (!electronAPIClient?.showSaveDialog) {
+      if (!electronAPI?.showSaveDialog) {
         return {
           success: false,
           error: {
@@ -292,7 +270,7 @@ export function useFileService() {
         };
       }
 
-      const result = await electronAPIClient.showSaveDialog(options);
+      const result = await electronAPI.showSaveDialog(options);
 
       return {
         success: true,
@@ -318,3 +296,5 @@ export function useFileService() {
     showSaveDialog
   };
 }
+
+export type FileService = ReturnType<typeof createFileService>;

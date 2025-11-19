@@ -316,10 +316,14 @@ export const createChatService = ({
       conversationId: conversation.id,
       topic: conversation.topic,
       userId: userMessage.metadata?.userId as string | undefined,
-      messages: conversation.messages.map((message) => ({
-        role: message.role,
-        content: message.content
-      }))
+      messages: conversation.messages
+        .filter((message): message is Message & { role: 'user' | 'assistant' } =>
+          message.role === 'user' || message.role === 'assistant'
+        )
+        .map((message) => ({
+          role: message.role,
+          content: message.content
+        }))
     });
 
     return buildAssistantMessage(conversation, {
@@ -519,18 +523,23 @@ Respond to the latest user message in a helpful, encouraging tone.`;
         let fallbackUsed = false;
 
         try {
-          const generator = domainAgent.stream({
+          // Use the agent manager for response generation
+          const agentResponse = await agentManager.runAgent({
+            agentType: normalizeAgentType(conversation.agentType),
             conversationId: conversation.id,
             topic: conversation.topic,
-            messages: [{ role: 'user', content: input }],
-            systemPrompt: 'You are a streaming learning assistant. Reply conversationally.'
+            userId: params.metadata?.userId as string | undefined,
+            messages: [{ role: 'user', content: input }]
           });
 
-          for await (const chunk of generator) {
-            const text = typeof chunk.content === 'string' ? chunk.content : chunk.content?.toString() || '';
-            if (!text) continue;
-            aggregated += text;
-            yield text;
+          // Convert the response to a stream
+          const content = agentResponse.content;
+          if (content) {
+            const chunks = content.match(/.{1,60}/g) ?? [content];
+            for (const chunk of chunks) {
+              aggregated += chunk;
+              yield chunk;
+            }
           }
         } catch (error) {
           fallbackUsed = true;

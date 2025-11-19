@@ -222,3 +222,43 @@ export interface StreamChunk {
   content: string | object;
   timestamp: number;
 }
+
+// ============================================================================
+// Service Response Types for Renderer Services
+// ============================================================================
+
+/**
+ * Standardized chat response for renderer services
+ */
+export interface ChatResponse {
+  success: boolean;
+  messageId?: string;
+  response?: string;
+  error?: string;
+}
+
+/**
+ * Standardized agents response for renderer services
+ */
+export interface AgentsResponse {
+  success: boolean;
+  agents?: AgentDisplay[];
+  error?: string;
+}
+
+/**
+ * Standardized session response for renderer services
+ */
+export interface SessionResponse {
+  success: boolean;
+  session?: unknown;
+  error?: string;
+}
+
+/**
+ * Standardized execution cancel response for renderer services
+ */
+export interface ExecutionCancelResponse {
+  success: boolean;
+  error?: string;
+}

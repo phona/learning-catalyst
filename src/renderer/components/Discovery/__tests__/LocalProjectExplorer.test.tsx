@@ -1,36 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { LocalProjectExplorer } from '../LocalProjectExplorer';
 
 const mockConceptParsingService = {
-  parseLocalFiles: vi.fn(),
+  parseFiles: vi.fn(),
+  parseDirectories: vi.fn(),
   getJobStatus: vi.fn(),
-  cancelJob: vi.fn()
+  cancelJob: vi.fn(),
+  listActiveJobs: vi.fn(),
+  parseContent: vi.fn()
 };
 
 const mockChatService = {
@@ -134,7 +113,7 @@ describe('LocalProjectExplorer', () => {
       result: { concepts: [{ id: 'concept-1' }] }
     };
 
-    mockConceptParsingService.parseLocalFiles.mockResolvedValue(parsingJob);
+    mockConceptParsingService.parseFiles.mockResolvedValue(parsingJob);
 
     render(<LocalProjectExplorer />);
 
@@ -149,7 +128,7 @@ describe('LocalProjectExplorer', () => {
     fireEvent.click(parseButton);
 
     await waitFor(() => {
-      expect(mockConceptParsingService.parseLocalFiles).toHaveBeenCalledTimes(1);
+      expect(mockConceptParsingService.parseFiles).toHaveBeenCalledTimes(1);
     });
 
     const summaries = screen.getAllByText(/concepts extracted/i);

@@ -1,6 +1,11 @@
-import type { IPCError } from './ipc';
-
 export type SimpleErrorType = 'CONFIG_ERROR' | 'NETWORK_ERROR' | 'SYSTEM_ERROR';
+
+// Error types
+export interface IPCError extends Error {
+  code: string;
+  channel?: string;
+  requestId?: string;
+}
 
 export type IPCErrorAction = 'openSettings' | 'retry' | 'openProviderSetup' | 'contactSupport';
 

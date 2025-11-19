@@ -1,28 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
 /**
  * App Component Tests - Simplified Version
  *
@@ -37,6 +12,23 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
+
+const workspaceConfig = {
+  ai: {
+    model_types: {
+      chat: {
+        provider: 'openai',
+        model: 'gpt-4o'
+      }
+    },
+    providers: {
+      openai: {
+        provider_type: 'openai',
+        api_key: 'test-key'
+      }
+    }
+  }
+};
 
 // Create a simple mock for electronAPI to avoid initialization errors
 const mockElectronAPI = {
@@ -57,7 +49,7 @@ const mockElectronAPI = {
     sendStream: vi.fn(),
   },
   settings: {
-    getConfig: vi.fn().mockResolvedValue({ success: true, data: {} }),
+    getConfig: vi.fn().mockResolvedValue(workspaceConfig),
     updateConfig: vi.fn().mockResolvedValue({ success: true }),
   },
 };

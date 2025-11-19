@@ -420,17 +420,10 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 
     // All validations passed - start parsing
     try {
-      const job = await conceptParsingService!.parseLocalFiles({
-        filePaths: markdownFiles,
-        directoryPaths: [],
-        options: {
-          confidenceThreshold: 0.6,
-          maxConceptsPerFile: 50,
-          includeRelationships: true,
-          extractLearningPaths: true,
-          extractAssessments: false
-        },
-        userId: 'current-user' // TODO: Get actual user ID
+      const job = await conceptParsingService!.parseFiles(markdownFiles, {
+        confidenceThreshold: 0.6,
+        maxConceptsPerFile: 50,
+        includeRelationships: true
       });
 
       setActiveParsingJob(job);
@@ -472,17 +465,10 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 
     try {
       // Reset job status for retry
-      const retryJob = await conceptParsingService!.parseLocalFiles({
-        filePaths: getSelectedMarkdownFiles(),
-        directoryPaths: [],
-        options: {
-          confidenceThreshold: 0.6,
-          maxConceptsPerFile: 50,
-          includeRelationships: true,
-          extractLearningPaths: true,
-          extractAssessments: false
-        },
-        userId: 'current-user'
+      const retryJob = await conceptParsingService!.parseFiles(getSelectedMarkdownFiles(), {
+        confidenceThreshold: 0.6,
+        maxConceptsPerFile: 50,
+        includeRelationships: true
       });
 
       setActiveParsingJob(retryJob);

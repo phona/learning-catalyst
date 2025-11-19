@@ -39,21 +39,75 @@ interface ElectronAPI {
   settings: SettingsAPI;
 }
 
-### Utility & error helpers
+## Error Handling & Utility Helpers
 
-Beyond the domain APIs the preload bridge exposes a few helper methods (grouped under `electronAPI.settings`) that are shared across the renderer; the table below summarizes their signatures and purposes.
+The renderer can lean on a small helpers surface to surface actionable errors, open the setup workflow, and report renderer-side issues back to the main process. Errors from the main process travel through the `IPC_ERROR_CHANNEL` (`ipc:error`) as `IPCErrorPayload` objects before the UI shows a toast or prompts the setup flow.
+
+### IPC error payloads
+
+| Property | Description |
+| --- | --- |
+| `type` | High level error category (`CONFIG_ERROR`, `NETWORK_ERROR`, `SYSTEM_ERROR`). |
+| `code` | Machine-readable key (`provider.config.chat_missing`, `database.migration_failed`, etc.). |
+| `message` | Human-friendly text that can be displayed directly to users or augmented with guidance. |
+| `needsSetup` | `true` when the renderer should interrupt the experience and open setup (missing API key, provider, etc.). |
+| `action` | Recommended next steps (`openProviderSetup`, `retry`, `contactSupport`). |
+| `details` | Optional metadata (request IDs, stack traces, diagnostic hints). |
+
+### Utility helpers
+
 | Method | Signature | Purpose |
 | --- | --- | --- |
 | `settings.getAppVersion()` | `() => Promise<string>` | Returns the current application version from `app.getVersion()`. |
 | `settings.quit()` | `() => Promise<void>` | Requests the main process to close the app (proxy for `settings:quitApp`). |
 | `settings.getConfig()` | `() => Promise<AppConfig | null>` | Reads the persisted workspace configuration (`settings:getWorkspaceConfig`). |
 | `settings.setConfig(config)` | `(config: AppConfig) => Promise<void>` | Replaces the workspace configuration (`settings:setWorkspaceConfig`). |
-| `handleError(error, context, severity)` | `(error: Error \| string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void` | Logs/forwards renderer-side failures to `system:report-error`. |
+| `handleError(error, context, severity)` | `(error: Error \| string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void` | Logs or forwards renderer-side issues to `system:report-error` so the main process can persist breadcrumbs. |
 | `onMenuAction(handler)` | `(handler: (action: string, data?: unknown) => void) => () => void` | Subscribe to menu events emitted from the main menu controller. |
-| `onIPCError(handler)` | `(handler: (payload: IPCErrorPayload) => void) => () => void` | Subscribes to main-provided structured errors (`ipc:error`) so the renderer can show toasts or open setup when `needsSetup` is true. |
+| `onIPCError(handler)` | `(handler: (payload: IPCErrorPayload) => void) => () => void` | Listen for structured errors emitted by the main process (`ipc:error`) so the renderer can toast guidance, restart flows, or open setup when `needsSetup` is `true`. |
+
+### Renderer error handling guidance
+
+Use `window.electronAPI.onIPCError` to react to main-reported failures and show a friendly toast with actionable guidance; `needsSetup` flags typically mean the chat provider was never configured, so bail out of the main UI and show the setup screen. Conversely, call `window.electronAPI.handleError` when you need to log a renderer-side failure back to the main process for diagnostics.
+
+```typescript
+window.electronAPI.onIPCError((payload) => {
+  showError(`${payload.message}${payload.needsSetup ? ' - configure your provider in Settings.' : ''}`);
+  if (payload.needsSetup) {
+    openSetupOverlay(payload.action);
+  }
+});
+
+window.electronAPI.handleError(new Error('Session store failed'), 'SessionList', 'critical');
 ```
 
-### IPC Channel Reference
+### Error Codes
+
+| Code | Description |
+|------|-------------|
+| `VALIDATION_ERROR` | Invalid input parameters |
+| `NOT_FOUND` | Requested resource not found |
+| `UNAUTHORIZED` | Authentication/authorization failure |
+| `DATABASE_ERROR` | Database operation failed |
+| `AI_PROVIDER_ERROR` | AI provider API error |
+| `UNKNOWN_ERROR` | Unexpected error |
+
+### Error Handling Example
+
+```typescript
+try {
+  const response = await window.electronAPI.learning.startSession(options);
+  if (!response.success) {
+    console.error('Error:', response.error?.message);
+    return;
+  }
+  setSession(response.data);
+} catch (error) {
+  window.electronAPI.handleError(error instanceof Error ? error : new Error('Unexpected error'), 'LearningApp', 'error');
+}
+```
+
+## IPC Channel Reference
 
 Complete reference of all available IPC channels:
 
@@ -359,37 +413,6 @@ interface APIResponse<T = any> {
     requestId: string;
     processingTime: number;
   };
-}
-```
-
-## Error Handling
-
-When these codes bubble back to the renderer, wire the UI into `window.electronAPI.onIPCError`/`handleError` so you can show a toast or open a setup screen instead of letting the app crash silently.
-
-### Error Codes
-
-| Code | Description |
-|------|-------------|
-| `VALIDATION_ERROR` | Invalid input parameters |
-| `NOT_FOUND` | Requested resource not found |
-| `UNAUTHORIZED` | Authentication/authorization failure |
-| `DATABASE_ERROR` | Database operation failed |
-| `AI_PROVIDER_ERROR` | AI provider API error |
-| `UNKNOWN_ERROR` | Unexpected error |
-
-### Error Handling Example
-
-```typescript
-try {
-  const response = await window.electronAPI.learning.startSession(options);
-  if (!response.success) {
-    console.error('Error:', response.error?.message);
-    return;
-  }
-  // Handle success
-  setSession(response.data);
-} catch (error) {
-  console.error('Unexpected error:', error);
 }
 ```
 

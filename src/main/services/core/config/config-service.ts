@@ -133,6 +133,24 @@ export const createConfigService = ({
     onConfigChanged: (listener: (config: AppConfig) => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    /**
+     * Check if initial setup is complete (chat model configured)
+     */
+    isSetupComplete: async (): Promise<boolean> => {
+      const config = await service.getConfig();
+      if (!config || !config.ai || !config.ai.model_types) {
+        return false;
+      }
+
+      // Check if chat model is configured
+      const chatConfig = config.ai.model_types.chat;
+      if (!chatConfig || !chatConfig.provider || !chatConfig.model) {
+        return false;
+      }
+
+      return true;
     }
   };
 

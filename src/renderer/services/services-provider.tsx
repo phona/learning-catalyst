@@ -12,10 +12,12 @@ import { createChatService } from './chat/chat-service';
 import { createAnalyticsService } from './analytics/analytics-service';
 import { createDiscoveryService } from './discovery/discovery-service';
 import { createCatalystService } from './catalyst/catalyst-service';
-import { ConfigurationService } from './configuration/configuration-service';
+import { createConfigurationService } from './configuration/configuration-service';
 import { createElectronAPIClient, createMockElectronAPIClient } from './api/electron-api-client';
-import { useFileService } from './file-service';
-import { createConceptParsingService, ConceptParsingService } from './ConceptParsingService';
+import { useFileService } from './file/file-service';
+import { createConceptParsingService, type ConceptParsingService } from './concept-parsing/concept-parsing-service';
+import type { ConfigurationService } from './configuration/configuration-service';
+import type { ElectronAPI } from '@/shared/types/electron-api';
 
 interface ServiceContextType {
   electronAPIClient: ElectronAPIClient;
@@ -56,8 +58,8 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({
   const analyticsService = createAnalyticsService(client);
   const discoveryService = createDiscoveryService(client);
   const catalystService = createCatalystService(client);
-  const configService = new ConfigurationService();
-  const conceptParsing = createConceptParsingService();
+  const configService = createConfigurationService(client);
+  const conceptParsing = createConceptParsingService(client);
 
   return (
     <ServiceContext.Provider value={{

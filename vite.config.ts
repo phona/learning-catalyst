@@ -124,6 +124,14 @@ export default defineConfig(({ command }) => {
           // Preload scripts may contain Web assets, so use the `build.rollupOptions.input` instead `build.lib.entry`.
           input: 'src/main/preload/index.ts',
           vite: {
+            resolve: {
+              alias: {
+                '@': path.join(__dirname, 'src'),
+                '@/renderer': path.join(__dirname, 'src/renderer'),
+                '@/main': path.join(__dirname, 'src/main'),
+                '@/shared': path.join(__dirname, 'src/shared'),
+              },
+            },
             build: {
               sourcemap: sourcemap ? 'inline' : undefined, // #332
               minify: isBuild,

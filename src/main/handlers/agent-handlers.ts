@@ -12,6 +12,52 @@ import { AiService } from '../services/ai/ai-service';
 import { ConfigService } from '../services/core/config/config-service';
 import { KnowledgeService } from '../services/domain/knowledge/knowledge-service';
 
+type AgentProcessMessageParams = {
+  agentType: string;
+  content: string;
+  userId?: string;
+  conversationId?: string;
+  topic?: string;
+};
+
+type AgentModelQuery = {
+  provider?: string;
+};
+
+type ModelConfig = {
+  provider?: string;
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+};
+
+type KnowledgeExtractionParams = {
+  content: string;
+  userId?: string;
+  context?: {
+    topic?: string;
+    [key: string]: unknown;
+  };
+};
+
+type LearningPathParams = {
+  topic: string;
+  userId?: string;
+  context?: Record<string, unknown>;
+};
+
+type AgentCapabilitiesParams = {
+  agentType: string;
+};
+
+type AgentTestParams = {
+  agentType: string;
+  testType: string;
+  topic?: string;
+  testMessage?: string;
+  userId?: string;
+};
+
 /**
  * Agent IPC Handlers
  * 
@@ -30,7 +76,7 @@ export const setupAgentHandlers = async (
     conceptParsingService: ConceptParsingService;
     configService: ConfigService;
   }
-) => {
+): Promise<void> => {
   const handlerLogger = services.loggerService.child({ handler: 'agent' });
 
   // Create the AgentManager with all required dependencies
@@ -47,7 +93,7 @@ export const setupAgentHandlers = async (
    * Process a message through the agent system using refactored tools
    * This handler uses the AgentManager instead of direct service calls
    */
-  ipcMainInstance.handle('agent:processMessage', async (event, params) => {
+  ipcMainInstance.handle('agent:processMessage', async (_event, params: AgentProcessMessageParams) => {
     handlerLogger.info('Handling agent process message request', { 
       agentType: params.agentType,
       contentLength: params.content?.length,
@@ -161,7 +207,7 @@ export const setupAgentHandlers = async (
   /**
    * Get available AI models
    */
-  ipcMainInstance.handle('agent:getModels', async (event, params) => {
+  ipcMainInstance.handle('agent:getModels', async (_event, params: AgentModelQuery) => {
     const provider = params?.provider;
     handlerLogger.info('Handling get available models request', {
       provider: provider || 'all'
@@ -231,7 +277,7 @@ export const setupAgentHandlers = async (
   /**
    * Validate model configuration
    */
-  ipcMainInstance.handle('agent:validateModelConfig', async (event, config) => {
+  ipcMainInstance.handle('agent:validateModelConfig', async (_event, config: ModelConfig) => {
     handlerLogger.info('Handling validate model configuration request', {
       model: config.model
     });

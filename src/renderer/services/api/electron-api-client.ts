@@ -7,11 +7,9 @@ import type {
   FeatureDemoDisplay
 } from '@/shared/types/electron-api/agent-api';
 
-export type ElectronAPIClient = ElectronAPI;
-
 type ElectronWindow = Window & { electronAPI?: ElectronAPI };
 
-export function createElectronAPIClient(): ElectronAPIClient {
+export function createElectronAPIClient(): ElectronAPI {
   const electronAPI = (window as ElectronWindow).electronAPI;
   if (electronAPI === undefined) {
     console.warn('Electron API not available. Using mock client for browser environment.');
@@ -20,7 +18,7 @@ export function createElectronAPIClient(): ElectronAPIClient {
   return electronAPI;
 }
 
-const agentStats = { totalSessions: 0, avgRating: 0, sessionsCount: 0 };
+const agentStats = { sessionsCount: 0, avgRating: 0 };
 
 const mockAgent: AgentDisplay = {
   id: 'agent_mock',
@@ -109,7 +107,7 @@ const mockFeatureDemo: FeatureDemoDisplay = {
   difficulty: 'easy'
 };
 
-export function createMockElectronAPIClient(): ElectronAPIClient {
+export function createMockElectronAPIClient(): ElectronAPI {
   const partial: Partial<ElectronAPI> = {
     analytics: {
       getDashboard: () => Promise.resolve({
@@ -697,6 +695,6 @@ export function createMockElectronAPIClient(): ElectronAPIClient {
 
 export function createElectronAPIClientWith(
   implementation: Partial<ElectronAPI>
-): ElectronAPIClient {
+): ElectronAPI {
   return implementation as ElectronAPI;
 }
