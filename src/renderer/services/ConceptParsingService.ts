@@ -20,7 +20,6 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/require-await */
 
-
 /**
  * Concept Parsing Service
  *
@@ -46,8 +45,6 @@ import {
 } from '@/shared/types/concept-parsing';
 import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
-// No main process imports - using high-level API instead
-
 export interface ParsingOptions {
   confidenceThreshold: number;
   maxConceptsPerFile: number;
@@ -72,7 +69,14 @@ export interface FileParsingResult {
   processingTime: number;
 }
 
-export class ConceptParsingService {
+export interface ConceptParsingService {
+  parseLocalFiles(request: FileParsingRequest): Promise<ParsingJob>;
+  getJobStatus(jobId: string): ParsingJob | undefined;
+  getActiveJobs(): ParsingJob[];
+  cancelJob(jobId: string): boolean;
+}
+
+class ConceptParsingServiceImpl implements ConceptParsingService {
   private readonly activeJobs: Map<string, ParsingJob> = new Map();
   private readonly DEFAULT_OPTIONS: ParsingOptions = {
     confidenceThreshold: 0.6,
@@ -86,11 +90,6 @@ export class ConceptParsingService {
     private readonly configService: ConfigurationService
   ) {}
 
-  // No pipeline initialization needed - using high-level knowledge API
-
-  /**
-   * Parse local markdown files to extract concepts
-   */
   async parseLocalFiles(request: FileParsingRequest): Promise<ParsingJob> {
     const jobId = this.generateJobId();
     const job: ParsingJob = {
@@ -104,7 +103,6 @@ export class ConceptParsingService {
 
     this.activeJobs.set(jobId, job);
 
-    // Start parsing in background
     this.processParsingJob(jobId, request).catch(error => {
       console.error('Parsing job failed:', error);
       const failedJob = this.activeJobs.get(jobId);
@@ -118,23 +116,14 @@ export class ConceptParsingService {
     return job;
   }
 
-  /**
-   * Get parsing job status
-   */
   getJobStatus(jobId: string): ParsingJob | undefined {
     return this.activeJobs.get(jobId);
   }
 
-  /**
-   * Get all active jobs
-   */
   getActiveJobs(): ParsingJob[] {
     return Array.from(this.activeJobs.values());
   }
 
-  /**
-   * Cancel a parsing job
-   */
   cancelJob(jobId: string): boolean {
     const job = this.activeJobs.get(jobId);
     if (job && job.status !== 'completed' && job.status !== 'failed') {
@@ -154,7 +143,6 @@ export class ConceptParsingService {
       job.status = 'processing';
       await this.updateJobProgress(job, 0.05, 'Starting file collection...');
 
-      // Collect all files to process
       await this.updateJobProgress(job, 0.1, 'Collecting files...');
       const allFiles = await this.collectFiles(request);
 
@@ -164,7 +152,6 @@ export class ConceptParsingService {
 
       await this.updateJobProgress(job, 0.2, `Found ${allFiles.length} files to process`);
 
-      // Pre-validate files
       await this.updateJobProgress(job, 0.3, 'Validating files...');
       const validFiles = await this.preValidateFiles(allFiles);
 
@@ -172,7 +159,6 @@ export class ConceptParsingService {
         throw new Error('No files passed validation. Files may be empty, unreadable, or not contain markdown content.');
       }
 
-      // Prepare files for API call
       await this.updateJobProgress(job, 0.4, 'Reading file contents...');
       const filesForAPI = [];
       for (const filePath of validFiles) {
@@ -186,7 +172,6 @@ export class ConceptParsingService {
         });
       }
 
-      // Call knowledge API for concept parsing
       await this.updateJobProgress(job, 0.5, 'Extracting concepts using AI...');
 
       const parsingResult = await window.electronAPI.knowledge.parseConcepts({
@@ -203,14 +188,12 @@ export class ConceptParsingService {
 
       await this.updateJobProgress(job, 0.9, 'Finalizing results...');
 
-      // Validate final results
       if (!parsingResult.concepts || parsingResult.concepts.length === 0) {
         throw new Error('No concepts were extracted from the files. The files may not contain recognizable concept patterns. Try selecting files with markdown headers or technical content.');
       }
 
       await this.updateJobProgress(job, 0.95, `Finalizing: ${parsingResult.concepts.length} concepts extracted`);
 
-      // Convert API result to ParsingResult format
       const concepts = parsingResult.concepts.map(c => ({
         id: c.id,
         name: c.name,
@@ -219,12 +202,12 @@ export class ConceptParsingService {
         confidence: c.confidence,
         difficulty: Math.max(1, Math.min(5, Math.round(c.difficulty))) as 1 | 2 | 3 | 4 | 5,
         evidence: c.evidence,
-        relationships: [], // Relationships are handled separately
+        relationships: [],
         extractedAt: new Date(),
         metadata: c.metadata
       }));
 
-      const finalResult = {
+      const finalResult: ParsingResult = {
         concepts,
         relationships: parsingResult.relationships.map(r => ({
           sourceId: r.sourceId,
@@ -235,24 +218,22 @@ export class ConceptParsingService {
           description: r.description
         })),
         learningPath: this.generateBasicLearningPath(concepts),
-        assessments: [], // TODO: Implement assessment generation
+        assessments: [],
         statistics: parsingResult.statistics,
-        errors: parsingResult.errors.map((error, index) => ({
-          type: 'parsing' as const,
+        errors: parsingResult.errors.map((error) => ({
+          type: 'parsing',
           message: error,
-          severity: 'medium' as const,
+          severity: 'medium',
           timestamp: new Date()
         }))
       };
 
-      // Complete job successfully
       job.result = finalResult;
       job.status = 'completed';
       job.progress = 1.0;
       job.completedAt = new Date();
 
       console.log(`Concept parsing completed successfully: ${parsingResult.concepts.length} concepts from ${validFiles.length} files`);
-
     } catch (error) {
       job.status = 'failed';
       job.errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -264,11 +245,8 @@ export class ConceptParsingService {
 
   private async collectFiles(request: FileParsingRequest): Promise<string[]> {
     const allFiles: string[] = [];
-
-    // Add individual files
     allFiles.push(...request.filePaths);
 
-    // Scan directories for markdown files
     for (const dirPath of request.directoryPaths) {
       try {
         const items = await window.electronAPI.readDirectory(dirPath, true, 10);
@@ -282,14 +260,12 @@ export class ConceptParsingService {
       }
     }
 
-    // Remove duplicates and validate files
     const uniqueFiles = [...new Set(allFiles)];
-    const validFiles = [];
+    const validFiles: string[] = [];
 
     for (const filePath of uniqueFiles) {
       try {
-        const exists = await window.electronAPI.existsFile(filePath);
-        if (exists) {
+        if (await window.electronAPI.existsFile(filePath)) {
           validFiles.push(filePath);
         } else {
           console.warn(`File does not exist: ${filePath}`);
@@ -304,50 +280,40 @@ export class ConceptParsingService {
   }
 
   private async preValidateFiles(filePaths: string[]): Promise<string[]> {
-    const validFiles = [];
+    const validFiles: string[] = [];
 
     for (const filePath of filePaths) {
       try {
-        // Check if file exists and is readable
-        const exists = await window.electronAPI.existsFile(filePath);
-        if (!exists) {
+        if (!await window.electronAPI.existsFile(filePath)) {
           console.warn(`File does not exist: ${filePath}`);
           continue;
         }
 
-        // Read file content and validate
         const content = await window.electronAPI.readFile(filePath);
-
-        // Check if content is meaningful
         if (!content || content.trim().length === 0) {
           console.warn(`File is empty: ${filePath}`);
           continue;
         }
 
-        // Check if file contains markdown patterns
-        const hasMarkdownContent = this.containsMarkdownPatterns(content);
-        if (!hasMarkdownContent) {
+        if (!this.containsMarkdownPatterns(content)) {
           console.warn(`File does not contain recognizable markdown content: ${filePath}`);
           continue;
         }
 
-        // Check if file is reasonable size (not too large, not too small)
         if (content.length < 50) {
           console.warn(`File too small for meaningful concept extraction: ${filePath} (${content.length} characters)`);
           continue;
         }
 
-        if (content.length > 100000) { // 100KB limit
+        if (content.length > 100000) {
           console.warn(`File too large for processing: ${filePath} (${content.length} characters)`);
           continue;
         }
 
         validFiles.push(filePath);
         console.log(`File validated: ${filePath} (${content.length} characters)`);
-
       } catch (error) {
         console.warn(`Failed to validate file ${filePath}:`, error);
-        // Continue with other files instead of failing the entire job
       }
     }
 
@@ -355,31 +321,25 @@ export class ConceptParsingService {
   }
 
   private containsMarkdownPatterns(content: string): boolean {
-    // Check for common markdown patterns that might contain concepts
     const markdownPatterns = [
-      /^#{1,6}\s+/m, // Headers
-      /```[\s\S]*?```/, // Code blocks
-      /`[^`]+`/, // Inline code
-      /^[-*+]\s+/m, // Lists
-      /\*\*[^*]+\*\*/, // Bold text
-      /\*[^*]+\*/, // Italic text
-      /\[([^\]]+)\]\([^)]+\)/, // Links
-      /^\|.*\|.*\|/m, // Tables
+      /^#{1,6}\s+/m,
+      /```[\s\S]*?```/,
+      /`[^`]+`/,
+      /^[-*+]\s+/m,
+      /\*\*[^*]+\*\*/,
+      /\*[^*]+\*/,
+      /\[([^\]]+)\]\([^)]+\)/,
+      /^\|.*\|.*\|/m
     ];
-
     return markdownPatterns.some(pattern => pattern.test(content));
   }
 
-  // Unused methods removed - using knowledge API instead
-
   private generateBasicLearningPath(concepts: Concept[]): any {
-    // Use the concept parsing module's learning path generation
-    // This is a simplified fallback version
     return {
       id: this.generateId(),
       title: 'Learning Path from Discovery',
       description: 'Generated from extracted concepts',
-      estimatedDuration: concepts.length * 15, // 15 minutes per concept
+      estimatedDuration: concepts.length * 15,
       difficulty: concepts.length > 0 ? concepts.reduce((sum, c) => sum + c.difficulty, 0) / concepts.length : 3,
       modules: [],
       prerequisites: [],
@@ -400,42 +360,6 @@ export class ConceptParsingService {
     };
   }
 
-  private calculateConfidenceDistribution(concepts: Concept[]): Record<string, number> {
-    const distribution: Record<string, number> = {
-      'high': 0,
-      'medium': 0,
-      'low': 0
-    };
-
-    concepts.forEach(concept => {
-      if (concept.confidence >= 0.8) distribution.high++;
-      else if (concept.confidence >= 0.6) distribution.medium++;
-      else distribution.low++;
-    });
-
-    return distribution;
-  }
-
-  private calculateDifficultyDistribution(concepts: Concept[]): Record<number, number> {
-    const distribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-
-    concepts.forEach(concept => {
-      distribution[concept.difficulty]++;
-    });
-
-    return distribution;
-  }
-
-  private calculateTypeDistribution(concepts: Concept[]): Record<string, number> {
-    const distribution: Record<string, number> = {};
-
-    concepts.forEach(concept => {
-      distribution[concept.type] = (distribution[concept.type] || 0) + 1;
-    });
-
-    return distribution;
-  }
-
   private initializeParsingStages(): any[] {
     return [
       { name: 'file-collection', status: 'pending' as const, progress: 0 },
@@ -449,8 +373,6 @@ export class ConceptParsingService {
 
   private async updateJobProgress(job: ParsingJob, progress: number, message: string): Promise<void> {
     job.progress = progress;
-
-    // Update individual stage progress
     const stageIndex = Math.floor(progress * job.stages.length);
     if (stageIndex < job.stages.length) {
       const stage = job.stages[stageIndex];
@@ -459,7 +381,6 @@ export class ConceptParsingService {
         stage.startedAt = new Date();
       }
       stage.progress = (progress * job.stages.length) % 1;
-
       if (stage.progress >= 1) {
         stage.status = 'completed';
         stage.completedAt = new Date();
@@ -471,11 +392,17 @@ export class ConceptParsingService {
     return `job-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 
-  private generateConceptId(): string {
-    return `concept-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-  }
-
   private generateId(): string {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   }
 }
+
+export const createConceptParsingService = (configService: ConfigurationService): ConceptParsingService => {
+  const service = new ConceptParsingServiceImpl(configService);
+  return {
+    parseLocalFiles: (request) => service.parseLocalFiles(request),
+    getJobStatus: (jobId) => service.getJobStatus(jobId),
+    getActiveJobs: () => service.getActiveJobs(),
+    cancelJob: (jobId) => service.cancelJob(jobId)
+  };
+};
