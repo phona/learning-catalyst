@@ -1,6 +1,16 @@
 import React, { FormEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/renderer/utils/toast';
 import type { IConfigurationService } from '@/renderer/services/interfaces/IConfigurationService';
+import type {
+  AppConfig,
+  LearningConfig,
+  PerformanceConfig,
+  PrivacyConfig,
+  ProviderConfig,
+  ProviderType,
+  UIConfig,
+} from '@/shared/types/config';
 
 interface ProviderOption {
   id: string;
@@ -35,10 +45,108 @@ interface SetupScreenProps {
   configService: IConfigurationService;
 }
 
+type SaveWorkflowStepId =
+  | 'saveUi'
+  | 'showLoader'
+  | 'invokeConfig'
+  | 'persistConfig'
+  | 'rebuildObjects'
+  | 'blockUntilSuccess'
+  | 'removeBlock'
+  | 'jumpToIndex';
+
+type SaveWorkflowStepStatus = 'idle' | 'pending' | 'success' | 'error';
+
+interface SaveWorkflowStep {
+  id: SaveWorkflowStepId;
+  label: string;
+  description: string;
+}
+
+const WORKFLOW_STEP_CONFIG: SaveWorkflowStep[] = [
+  { id: 'saveUi', label: 'Save in UI layer', description: 'Capture provider and model choices before talking to the main process.' },
+  { id: 'showLoader', label: 'Show loading indicator', description: 'Block interaction while the application applies the new configuration.' },
+  { id: 'invokeConfig', label: 'Invoke configuration API', description: 'Call the renderer configuration API so the main process can pick up the settings.' },
+  { id: 'persistConfig', label: 'Main process: Save to config file', description: 'Write the workspace configuration JSON so future launches pick up the setup.' },
+  { id: 'rebuildObjects', label: 'Main process: Update/rebuild objects', description: 'Refresh providers, models, and services so everything runs with the new values.' },
+  { id: 'blockUntilSuccess', label: 'Main process: Block until successful', description: 'Wait for the IPC round-trip to finish before unblocking the UI.' },
+  { id: 'removeBlock', label: 'UI layer: Remove loading block', description: 'Hide the spinner and re-enable navigation after the save completes.' },
+  { id: 'jumpToIndex', label: 'Jump into index page', description: 'Enter the main chat interface now that configuration is done.' },
+];
+
+const WORKFLOW_STATUS_ICONS: Record<SaveWorkflowStepStatus, string> = {
+  idle: '○',
+  pending: '⟳',
+  success: '✓',
+  error: '✖',
+};
+
+const WORKFLOW_STATUS_CLASSES: Record<SaveWorkflowStepStatus, string> = {
+  idle: 'text-gray-400 dark:text-gray-600',
+  pending: 'text-blue-500 dark:text-blue-300',
+  success: 'text-green-500 dark:text-green-300',
+  error: 'text-red-500 dark:text-red-400',
+};
+
+const createInitialWorkflowStatus = (): Record<SaveWorkflowStepId, SaveWorkflowStepStatus> =>
+  WORKFLOW_STEP_CONFIG.reduce((acc, step) => {
+    acc[step.id] = 'idle';
+    return acc;
+  }, {} as Record<SaveWorkflowStepId, SaveWorkflowStepStatus>);
+
+const DEFAULT_UI_CONFIG: UIConfig = {
+  theme: 'light',
+  show_token_usage: false,
+  display_format: 'detailed',
+  session_duration: 25,
+  font_size: 'medium',
+  sidebar_width: 300,
+  auto_save: true,
+  auto_scroll: true,
+  show_line_numbers: false,
+  enable_markdown: true,
+  enable_syntax_highlighting: true,
+  compact_mode: false,
+};
+
+const DEFAULT_LEARNING_CONFIG: LearningConfig = {
+  auto_save: true,
+  session_timeout_minutes: 60,
+  difficulty: 'intermediate',
+  learning_style: 'visual',
+  personalization_enabled: true,
+  checkpoint_interval: 15,
+  max_session_history: 100,
+  enable_analytics: false,
+  preferred_explanation_length: 'detailed',
+};
+
+const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
+  store_conversations: true,
+  retention_days: 90,
+  anonymous_analytics: false,
+  crash_reporting: true,
+  encrypt_local_storage: false,
+  auto_cleanup: true,
+  export_format: 'json',
+};
+
+const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
+  cache_size_mb: 100,
+  enable_caching: true,
+  max_concurrent_requests: 5,
+  request_timeout: 30,
+  memory_limit_mb: 512,
+  gpu_acceleration: false,
+  background_processing: true,
+  preload_models: false,
+};
+
 const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => {
   // Wizard step management
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
+  const navigate = useNavigate();
 
   // Page 1: Provider configuration
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
@@ -55,6 +163,12 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
 
   // Page 3: Review & Save
   const [isSaving, setIsSaving] = useState(false);
+  const [workflowStatus, setWorkflowStatus] = useState<Record<SaveWorkflowStepId, SaveWorkflowStepStatus>>(() =>
+    createInitialWorkflowStatus()
+  );
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+  const [shouldNavigate, setShouldNavigate] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   const getProviderType = (providerId: string): 'cloud' | 'local' => {
     const localProviders = ['openai-compatible', 'ollama', 'lmstudio'];
@@ -81,6 +195,67 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
     );
 
     return { chatModels, embeddingModels, rerankModels };
+  };
+
+  const updateWorkflowStep = (stepId: SaveWorkflowStepId, status: SaveWorkflowStepStatus) => {
+    setWorkflowStatus(prev => ({ ...prev, [stepId]: status }));
+  };
+
+  const resetWorkflowSteps = () => {
+    setWorkflowStatus(createInitialWorkflowStatus());
+  };
+
+  const buildAppConfigFromSelections = (): AppConfig => {
+    const providerConfigs = configuredProviders.reduce<Record<string, ProviderConfig>>((acc, provider) => {
+      acc[provider.id] = {
+        provider_type: provider.id as ProviderType,
+        api_key: provider.apiKey,
+        base_url: provider.baseUrl || undefined,
+        models: [...provider.models],
+      };
+      return acc;
+    }, {});
+
+    const modelTypes: AppConfig['ai']['model_types'] = {};
+    const chatSettings = chatAssignment?.settings;
+
+    modelTypes.chat = {
+      provider: chatAssignment!.providerId,
+      model: chatAssignment!.model,
+      temperature: chatSettings?.temperature ?? 0.7,
+      max_tokens: chatSettings?.maxTokens ?? 2048,
+      top_p: 1,
+      enable_thinking: false,
+      stream: true,
+    };
+
+    if (embeddingAssignment) {
+      modelTypes.embedding = {
+        provider: embeddingAssignment.providerId,
+        model: embeddingAssignment.model,
+      };
+    }
+
+    if (rerankAssignment) {
+      modelTypes.rerank = {
+        provider: rerankAssignment.providerId,
+        model: rerankAssignment.model,
+      };
+    }
+
+    return {
+      ai: {
+        providers: providerConfigs,
+        model_types: modelTypes,
+        metadata: {
+          model_tests: [],
+        },
+      },
+      ui: DEFAULT_UI_CONFIG,
+      learning: DEFAULT_LEARNING_CONFIG,
+      privacy: DEFAULT_PRIVACY_CONFIG,
+      performance: DEFAULT_PERFORMANCE_CONFIG,
+    };
   };
 
   // Load available providers
@@ -127,6 +302,20 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
 
     loadProviders();
   }, [configService]);
+
+  useEffect(() => {
+    if (!shouldNavigate) {
+      return;
+    }
+
+    setIsFadingOut(true);
+
+    const timer = setTimeout(() => {
+      navigate('/', { replace: true });
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [shouldNavigate, navigate]);
 
   // Add a new provider
   const handleAddProvider = () => {
@@ -204,10 +393,26 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
       return;
     }
 
+    resetWorkflowSteps();
+    setWorkflowError(null);
+    setShouldNavigate(false);
     setIsSaving(true);
 
+    let currentStep: SaveWorkflowStepId | null = null;
+    const startStep = (stepId: SaveWorkflowStepId) => {
+      currentStep = stepId;
+      updateWorkflowStep(stepId, 'pending');
+    };
+
     try {
-      // Save configured providers
+      startStep('saveUi');
+      updateWorkflowStep('saveUi', 'success');
+
+      startStep('showLoader');
+      updateWorkflowStep('showLoader', 'success');
+
+      startStep('invokeConfig');
+
       for (const provider of configuredProviders) {
         await configService.configureProvider({
           provider: provider.id,
@@ -219,9 +424,53 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
         });
       }
 
-      showSuccess('Configuration saved successfully! Please restart the application to apply changes.');
+      await configService.updateModelTypeConfig('chat', {
+        provider: chatAssignment.providerId,
+        model: chatAssignment.model,
+      });
+
+      if (embeddingAssignment) {
+        await configService.updateModelTypeConfig('embedding', {
+          provider: embeddingAssignment.providerId,
+          model: embeddingAssignment.model,
+        });
+      }
+
+      if (rerankAssignment) {
+        await configService.updateModelTypeConfig('rerank', {
+          provider: rerankAssignment.providerId,
+          model: rerankAssignment.model,
+        });
+      }
+
+      updateWorkflowStep('invokeConfig', 'success');
+
+      startStep('persistConfig');
+      const appConfig = buildAppConfigFromSelections();
+      await configService.saveConfig(appConfig);
+      updateWorkflowStep('persistConfig', 'success');
+
+      startStep('rebuildObjects');
+      updateWorkflowStep('rebuildObjects', 'success');
+
+      startStep('blockUntilSuccess');
+      updateWorkflowStep('blockUntilSuccess', 'success');
+
+      startStep('removeBlock');
+      setIsSaving(false);
+      updateWorkflowStep('removeBlock', 'success');
+
+      startStep('jumpToIndex');
+      showSuccess('Configuration saved successfully. Redirecting to the chat interface…');
+      setShouldNavigate(true);
+      updateWorkflowStep('jumpToIndex', 'success');
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to save configuration.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save configuration.';
+      setWorkflowError(errorMessage);
+      showError(errorMessage);
+      if (currentStep) {
+        updateWorkflowStep(currentStep, 'error');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -459,22 +708,27 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Model
                 </label>
-                <select
+                <input
+                  list="chat-models-list"
+                  type="text"
                   value={chatAssignment.model}
                   onChange={(e) =>
                     setChatAssignment({ ...chatAssignment, model: e.target.value })
                   }
                   className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                >
+                  placeholder="Type to search or enter model ID"
+                />
+                <datalist id="chat-models-list">
                   {configuredProviders
                     .find(p => p.id === chatAssignment.providerId)
                     ?.models.filter(m => !m.includes('embedding') && !m.includes('rerank'))
                     .map(model => (
-                      <option key={model} value={model}>
-                        {model}
-                      </option>
+                      <option key={model} value={model} />
                     ))}
-                </select>
+                </datalist>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Type to search available models or enter a custom model ID
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -588,22 +842,24 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Model
               </label>
-              <select
+              <input
+                list="embedding-models-list"
+                type="text"
                 value={embeddingAssignment.model}
                 onChange={(e) =>
                   setEmbeddingAssignment({ ...embeddingAssignment, model: e.target.value })
                 }
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              >
+                placeholder="Type to search or enter model ID"
+              />
+              <datalist id="embedding-models-list">
                 {configuredProviders
                   .find(p => p.id === embeddingAssignment.providerId)
                   ?.models.filter(m => m.includes('embedding') || (m.includes('bge') && !m.includes('rerank')))
                   .map(model => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
+                    <option key={model} value={model} />
                   ))}
-              </select>
+              </datalist>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -688,22 +944,24 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Model
               </label>
-              <select
+              <input
+                list="rerank-models-list"
+                type="text"
                 value={rerankAssignment.model}
                 onChange={(e) =>
                   setRerankAssignment({ ...rerankAssignment, model: e.target.value })
                 }
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              >
+                placeholder="Type to search or enter model ID"
+              />
+              <datalist id="rerank-models-list">
                 {configuredProviders
                   .find(p => p.id === rerankAssignment.providerId)
                   ?.models.filter(m => m.includes('rerank'))
                   .map(model => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
+                    <option key={model} value={model} />
                   ))}
-              </select>
+              </datalist>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -727,6 +985,57 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
     </div>
   );
 
+  const renderWorkflowPanel = () => (
+    <div className="p-4 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 rounded-lg">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            Save workflow
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Each stage follows the UI → main process handoff you described.
+          </p>
+        </div>
+        {workflowError && (
+          <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+            {workflowError}
+          </p>
+        )}
+      </div>
+      <ol className="mt-4 space-y-3">
+        {WORKFLOW_STEP_CONFIG.map((step, index) => {
+          const status = workflowStatus[step.id];
+          return (
+            <li key={step.id} className="flex gap-3 items-start">
+              <span className={`text-lg font-semibold ${WORKFLOW_STATUS_CLASSES[status]}`}>
+                {WORKFLOW_STATUS_ICONS[status]}
+              </span>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {index + 1}. {step.label}
+                  </p>
+                  <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {status === 'pending'
+                      ? 'Working'
+                      : status === 'success'
+                        ? 'Complete'
+                        : status === 'error'
+                          ? 'Errored'
+                          : 'Idle'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {step.description}
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+
   // Page 3: Review
   const renderPage3 = () => (
     <div className="space-y-6">
@@ -738,6 +1047,8 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
           Verify everything looks correct before saving.
         </p>
       </div>
+
+      {renderWorkflowPanel()}
 
       <div className="space-y-4">
         <div>
@@ -838,9 +1149,28 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
     </div>
   );
 
+  const activeWorkflowStepLabel = WORKFLOW_STEP_CONFIG.find(step => workflowStatus[step.id] === 'pending')?.label;
+
   return (
-    <main role="main" className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-8">
+    <main
+      role="main"
+      className={`min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4 transition-opacity duration-500 ${
+        isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      }`}
+    >
+      <div className="relative w-full max-w-4xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-8">
+        {isSaving && (
+          <div
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-lg bg-gray-900/80 text-white"
+            aria-live="assertive"
+          >
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-white border-t-transparent animate-spin" />
+            <p className="text-lg font-semibold">Applying configuration…</p>
+            <p className="text-sm text-white/80">
+              {activeWorkflowStepLabel ? `Step: ${activeWorkflowStepLabel}` : 'Preparing...'}
+            </p>
+          </div>
+        )}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Welcome to Learning Catalyst

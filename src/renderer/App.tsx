@@ -1,49 +1,25 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import SetupScreen from '@/renderer/components/SetupScreen';
+import { Layout } from '@/renderer/components/Layout';
+import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
+import { SessionManager } from '@/renderer/components/Session/SessionManager';
+import { DiscoveryPage } from '@/renderer/DiscoveryPage';
+import { ServicesProvider, useConfigurationService } from '@/renderer/services/services-provider';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 
 const MainRoutes = () => (
-  <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <main role="main" className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Learning Catalyst
-            </h1>
-            <div>Welcome to Learning Catalyst</div>
-          </main>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <main role="main" className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Learning Catalyst
-            </h1>
-            <div>Preferences</div>
-          </main>
-        }
-      />
-      <Route
-        path="/sessions"
-        element={
-          <main role="main" className="p-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Learning Catalyst
-            </h1>
-            <div>Session Manager</div>
-          </main>
-        }
-      />
-    </Routes>
-  </div>
+  <Routes>
+    <Route element={<Layout />}>
+      <Route index element={<ChatInterface />} />
+      <Route path="sessions" element={<SessionManager />} />
+      <Route path="discovery" element={<DiscoveryPage />} />
+      <Route path="*" element={<ChatInterface />} />
+    </Route>
+  </Routes>
 );
 
 type AppState = 'loading' | 'setup' | 'ready';
@@ -56,9 +32,21 @@ const formatIPCError = (payload: IPCErrorPayload): string => {
   return `${payload.message}${guidance}`;
 };
 
+const AppContent: React.FC<{ status: AppState; message: string | null }> = ({ status, message }) => {
+  const configService = useConfigurationService();
+
+  if (status === 'setup') {
+    return <SetupScreen message={message ?? undefined} configService={configService} />;
+  }
+
+  return <MainRoutes />;
+};
+
 export default function App(): JSX.Element {
   const [status, setStatus] = useState<AppState>('loading');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  const location = useLocation();
 
   useEffect(() => {
     const checkConfig = async () => {
@@ -87,7 +75,7 @@ export default function App(): JSX.Element {
     };
 
     checkConfig();
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     const unsubscribe = window?.electronAPI?.onIPCError?.((payload) => {
@@ -111,9 +99,9 @@ export default function App(): JSX.Element {
     );
   }
 
-  if (status === 'setup') {
-    return <SetupScreen message={statusMessage ?? undefined} />;
-  }
-
-  return <MainRoutes />;
+  return (
+    <ServicesProvider>
+      <AppContent status={status} message={statusMessage} />
+    </ServicesProvider>
+  );
 }
