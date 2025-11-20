@@ -28,9 +28,17 @@ export interface SettingsAPI {
   /**
    * Gets available AI providers and their status
    * Returns configured and available AI providers
-   * @returns Promise<ProviderDisplay[]> - Array of AI providers
+   * @returns Promise<{ success: boolean; providers: ProviderDisplay[]; summary: { total: number; connected: number; configured: number } }> - Response with providers and summary
    */
-  getAvailableProviders: () => Promise<ProviderDisplay[]>;
+  getAvailableProviders: () => Promise<{
+    success: boolean;
+    providers: ProviderDisplay[];
+    summary: {
+      total: number;
+      connected: number;
+      configured: number;
+    };
+  }>;
 
   /**
    * Configures an AI provider with authentication and settings

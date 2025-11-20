@@ -1,6 +1,7 @@
 
 import type { AppConfig, ProviderValidationResult, SelectedModel, ModelTypeConfig } from '@/shared/types/config';
 import type { ModelType } from '@/shared/types/ai';
+import type { ProviderDisplay } from '@/shared/types/electron-api/settings-api';
 
 /**
  * Configuration Service Interface
@@ -21,6 +22,21 @@ export interface IConfigurationService {
   ): Promise<void>;
 
   // Provider management
+  getAvailableProviders(): Promise<{
+    success: boolean;
+    providers: ProviderDisplay[];
+    summary: {
+      total: number;
+      connected: number;
+      configured: number;
+    };
+  }>;
+
+  configureProvider(params: {
+    provider: string;
+    config: any;
+  }): Promise<{ success: boolean; providerId: string; status: string }>;
+
   validateProvider(
     providerType: string,
     apiKey: string,

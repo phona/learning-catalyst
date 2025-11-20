@@ -14,8 +14,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { useState, useEffect, useCallback } from 'react';
-import { useService } from './useAppServices';
-import type { AppServices } from './useAppServices';
+import { useSessionService } from '@/renderer/services/services-provider';
 
 export interface GlobalStatistics {
   totalMessages: number;
@@ -56,7 +55,7 @@ export function useGlobalStatistics(
   });
 
   // Get session service through dependency injection
-  const sessionService = useService('sessionService');
+  const sessionService = useSessionService();
 
   // Update loading state based on service availability
   useEffect(() => {

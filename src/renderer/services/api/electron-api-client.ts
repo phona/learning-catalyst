@@ -6,6 +6,7 @@ import type {
   AgentCapabilitiesDisplay,
   FeatureDemoDisplay
 } from '@/shared/types/electron-api/agent-api';
+import type { ProviderDisplay, ProviderModel } from '@/shared/types/electron-api/settings-api';
 
 type ElectronWindow = Window & { electronAPI?: ElectronAPI };
 
@@ -576,7 +577,58 @@ export function createMockElectronAPIClient(): ElectronAPI {
         }
       }),
       updatePreferences: () => Promise.resolve({ success: true, updatedSettings: {}, changes: [] }),
-      getAvailableProviders: () => Promise.resolve([]),
+      getAvailableProviders: () => {
+        // Dynamic mock data based on common providers
+        const createModel = (modelId: string): ProviderModel => ({
+          id: modelId,
+          name: modelId,
+          displayName: modelId,
+          description: `${modelId} model`,
+          contextWindow: 8192,
+          maxTokens: 4096,
+          pricing: { input: 0, output: 0, currency: 'USD' },
+          capabilities: ['chat', 'completion'],
+          speed: 'medium',
+          quality: 'standard',
+          useCases: ['General purpose'],
+          status: 'available'
+        });
+
+        const mockProviders: ProviderDisplay[] = [
+          {
+            id: 'openai',
+            name: 'openai',
+            displayName: 'OpenAI',
+            description: 'OpenAI GPT models',
+            models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'].map(createModel),
+            status: 'not_configured' as const,
+            isDefault: false,
+            capabilities: ['chat', 'completion', 'streaming'] as const,
+            pricing: 'pay-per-use' as const,
+            features: ['Streaming', 'Function Calling'],
+            limitations: []
+          },
+          {
+            id: 'chatglm',
+            name: 'chatglm',
+            displayName: 'ChatGLM',
+            description: 'ChatGLM AI models',
+            models: ['glm-4', 'glm-3-turbo'].map(createModel),
+            status: 'not_configured' as const,
+            isDefault: false,
+            capabilities: ['chat', 'completion'] as const,
+            pricing: 'pay-per-use' as const,
+            features: [],
+            limitations: []
+          }
+        ];
+
+        return Promise.resolve({
+          success: true,
+          providers: mockProviders,
+          summary: { total: mockProviders.length, connected: 0, configured: 0 }
+        });
+      },
       configureProvider: () => Promise.resolve({ success: true, providerId: 'mock-provider', status: 'configured' }),
       getLearningSettings: () => Promise.resolve({
         goals: {

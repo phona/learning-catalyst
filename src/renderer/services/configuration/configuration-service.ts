@@ -292,7 +292,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   ): Promise<ProviderValidationResult> => {
     try {
       // Get available providers from settings API
-      const providers = await apiClient.settings.getAvailableProviders();
+      const response = await apiClient.settings.getAvailableProviders();
+      const providers = response.providers || [];
       const provider = providers.find(p => p.id === providerType);
 
       if (!provider) {
@@ -327,7 +328,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   ): Promise<string[]> => {
     try {
       // Get available providers from settings API
-      const providers = await apiClient.settings.getAvailableProviders();
+      const response = await apiClient.settings.getAvailableProviders();
+      const providers = response.providers || [];
       const provider = providers.find(p => p.id === providerType);
 
       if (!provider) {
@@ -338,6 +340,33 @@ export function createConfigurationService(apiClient: ElectronAPI) {
       return provider.models.map(model => model.id);
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch models');
+    }
+  };
+
+  /**
+   * Get available AI providers and their status
+   */
+  const getAvailableProviders = async () => {
+    try {
+      return await apiClient.settings.getAvailableProviders();
+    } catch (error) {
+      console.error('Failed to get available providers:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Configure an AI provider
+   */
+  const configureProvider = async (params: {
+    provider: string;
+    config: any;
+  }) => {
+    try {
+      return await apiClient.settings.configureProvider(params);
+    } catch (error) {
+      console.error('Failed to configure provider:', error);
+      throw error;
     }
   };
 
@@ -354,6 +383,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     validateConfigValue,
     getCachedValue,
     clearCache,
+    getAvailableProviders,
+    configureProvider,
     validateProvider,
     getProviderModels,
   };

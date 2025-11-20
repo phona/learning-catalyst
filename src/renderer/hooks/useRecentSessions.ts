@@ -15,7 +15,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@/shared/types/session';
-import { useService } from './useAppServices';
+import { useSessionService } from '@/renderer/services/services-provider';
 
 export interface RecentSessionsState {
   sessions: Session[];
@@ -42,7 +42,7 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   });
 
   // Get session service through dependency injection
-  const sessionService = useService('sessionService');
+  const sessionService = useSessionService();
 
   // Update loading state based on service availability
   useEffect(() => {

@@ -14,7 +14,6 @@ import { createDiscoveryService } from './discovery/discovery-service';
 import { createCatalystService } from './catalyst/catalyst-service';
 import { createConfigurationService } from './configuration/configuration-service';
 import { createElectronAPIClient, createMockElectronAPIClient } from './api/electron-api-client';
-import { useFileService } from './file/file-service';
 import { createConceptParsingService, type ConceptParsingService } from './concept-parsing/concept-parsing-service';
 import type { ConfigurationService } from './configuration/configuration-service';
 import type { ElectronAPI } from '@/shared/types/electron-api';
