@@ -101,6 +101,9 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   const saveConfig = async (config: AppConfig): Promise<void> => {
     try {
       currentConfig = config;
+      if (apiClient?.settings?.setConfig) {
+        await apiClient.settings.setConfig(config);
+      }
       // Best-effort bridge to preload settings API
       if (apiClient?.settings?.updatePreferences) {
         // Map a minimal subset to user preferences; the main store handles full shape
@@ -164,6 +167,9 @@ export function createConfigurationService(apiClient: ElectronAPI) {
         },
       };
       currentConfig = next;
+
+      // Persist the updated config
+      await setConfiguration('ai.model_types', currentConfig.ai.model_types);
     }
   };
 
@@ -348,7 +354,19 @@ export function createConfigurationService(apiClient: ElectronAPI) {
    */
   const getAvailableProviders = async () => {
     try {
-      return await apiClient.settings.getAvailableProviders();
+      const response = await apiClient.settings.getProviders();
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to get providers');
+      }
+      return {
+        success: true,
+        providers: response.data || [],
+        summary: {
+          total: response.data?.length || 0,
+          connected: 0,
+          configured: 0
+        }
+      };
     } catch (error) {
       console.error('Failed to get available providers:', error);
       throw error;
@@ -356,14 +374,23 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   };
 
   /**
-   * Configure an AI provider
+   * Configure an AI provider (alias for addProvider to maintain compatibility)
    */
   const configureProvider = async (params: {
     provider: string;
     config: any;
   }) => {
     try {
-      return await apiClient.settings.configureProvider(params);
+      const response = await apiClient.settings.addProvider({
+        provider_type: params.provider,
+        api_key: params.config.api_key,
+        base_url: params.config.base_url,
+        models: []
+      });
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to configure provider');
+      }
+      return { success: true, providerId: params.provider, status: 'configured' };
     } catch (error) {
       console.error('Failed to configure provider:', error);
       throw error;

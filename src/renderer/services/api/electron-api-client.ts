@@ -577,7 +577,7 @@ export function createMockElectronAPIClient(): ElectronAPI {
         }
       }),
       updatePreferences: () => Promise.resolve({ success: true, updatedSettings: {}, changes: [] }),
-      getAvailableProviders: () => {
+      getProviders: () => {
         // Dynamic mock data based on common providers
         const createModel = (modelId: string): ProviderModel => ({
           id: modelId,
@@ -625,11 +625,19 @@ export function createMockElectronAPIClient(): ElectronAPI {
 
         return Promise.resolve({
           success: true,
-          providers: mockProviders,
-          summary: { total: mockProviders.length, connected: 0, configured: 0 }
+          data: mockProviders
         });
       },
-      configureProvider: () => Promise.resolve({ success: true, providerId: 'mock-provider', status: 'configured' }),
+      addProvider: () => Promise.resolve({ success: true, data: null }),
+      updateProvider: () => Promise.resolve({ success: true, data: null }),
+      deleteProvider: () => Promise.resolve({ success: true, data: null }),
+      getModels: () => Promise.resolve({
+        success: true,
+        data: [
+          { id: 'gpt-4', name: 'gpt-4', displayName: 'GPT-4', provider: 'openai' },
+          { id: 'glm-4', name: 'glm-4', displayName: 'GLM-4', provider: 'chatglm' }
+        ]
+      }),
       getLearningSettings: () => Promise.resolve({
         goals: {
           dailyMinutes: 30,

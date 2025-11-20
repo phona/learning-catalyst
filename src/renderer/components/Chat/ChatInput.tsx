@@ -14,7 +14,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { useChat } from '@/renderer/hooks/useChat';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
-import { useFileService } from '@/renderer/services/file/file-service';
 import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toast';
 
 const ChatInputComponent: React.FC = () => {
@@ -33,7 +32,6 @@ const ChatInputComponent: React.FC = () => {
   } = useChat();
 
   const { config, updateConfig } = useConfigStore();
-  useFileService();
 
   // Use config values for provider/model since new service architecture doesn't expose these directly
   const selectedProvider = config?.ai?.model_types?.chat?.default_provider ?? 'openai';

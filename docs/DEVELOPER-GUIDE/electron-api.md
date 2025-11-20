@@ -38,6 +38,7 @@ interface ElectronAPI {
   content: ContentAPI;
   settings: SettingsAPI;
 }
+```
 
 ## Error Handling & Utility Helpers
 
@@ -162,7 +163,6 @@ Complete reference of all available IPC channels:
 | **settings:getPreferences** | `getPreferences` | none | `Promise<APIResponse<UserPreferencesDisplay>>` | Get user preferences |
 | **settings:updatePreferences** | `updatePreferences` | `preferences: Partial<UserPreferencesDisplay>` | `Promise<APIResponse<void>>` | Update preferences |
 | **settings:getModels** | `getModels` | none | `Promise<APIResponse<ModelDisplay[]>>` | Get available models |
-| **settings:setDefaultModel** | `setDefaultModel` | `modelId: string` | `Promise<APIResponse<void>>` | Set default model |
 
 ### 1. Chat API
 
@@ -391,7 +391,6 @@ settings: {
 
   // AI model settings
   getModels: () => Promise<ModelDisplay[]>;
-  setDefaultModel: (modelId: string) => Promise<void>;
 }
 ```
 

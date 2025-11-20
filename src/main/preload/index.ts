@@ -554,22 +554,39 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
     ipcRenderer.invoke('settings:update-preferences', preferences),
 
   /**
-   * Gets available AI providers and their status
+   * Get AI providers
    * Returns configured and available AI providers
-   * @returns Promise<ProviderDisplay[]> - Array of AI providers
    */
-  getAvailableProviders: () =>
-    ipcRenderer.invoke('settings:get-providers'),
+  getProviders: () =>
+    ipcRenderer.invoke('settings:getProviders'),
 
   /**
-   * Configures an AI provider with authentication and settings
-   * Sets up or updates provider configuration
-   * @param params.provider - Provider ID to configure
-   * @param params.config - Provider configuration object
-   * @returns Promise<{ success: boolean; providerId: string; status: string }>
+   * Add an AI provider
+   * @param config - Provider configuration
    */
-  configureProvider: (params: { provider: string; config: any }) =>
-    ipcRenderer.invoke('settings:configure-provider', params),
+  addProvider: (config: ProviderConfig) =>
+    ipcRenderer.invoke('settings:addProvider', config),
+
+  /**
+   * Update an AI provider
+   * @param providerId - Provider ID to update
+   * @param config - Updated provider configuration
+   */
+  updateProvider: (providerId: string, config: Partial<ProviderConfig>) =>
+    ipcRenderer.invoke('settings:updateProvider', providerId, config),
+
+  /**
+   * Delete an AI provider
+   * @param providerId - Provider ID to delete
+   */
+  deleteProvider: (providerId: string) =>
+    ipcRenderer.invoke('settings:deleteProvider', providerId),
+
+  /**
+   * Get available models
+   */
+  getModels: () =>
+    ipcRenderer.invoke('settings:getModels'),
 
   /**
    * Gets learning-specific settings

@@ -762,10 +762,10 @@ export function setupSettingsHandlers(workspacePath?: string, services?: { logge
   });
 
   /**
-   * Get available AI providers and their status
+   * Get AI providers
    */
-  ipcMain.handle('settings:get-providers', async () => {
-    logger.info('Getting available AI providers');
+  ipcMain.handle('settings:getProviders', async () => {
+    logger.info('Getting AI providers');
 
     try {
       const providers = AVAILABLE_PROVIDERS.map(provider => ({
@@ -801,62 +801,175 @@ export function setupSettingsHandlers(workspacePath?: string, services?: { logge
 
       return {
         success: true,
-        providers,
-        summary: {
-          total: providers.length,
-          connected: 0,
-          configured: 0
-        }
+        data: providers
       };
     } catch (error) {
-      logger.error('Failed to get available providers', error as Error);
-      throw error;
+      logger.error('Failed to get providers', error as Error);
+      return {
+        success: false,
+        error: {
+          code: 'PROVIDER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get providers'
+        }
+      };
     }
   });
 
   /**
-   * Configure an AI provider with authentication and settings
+   * Add an AI provider
    */
-  ipcMain.handle('settings:configure-provider', async (event, params) => {
-    logger.info('Configuring AI provider', {
-      provider: params.provider
+  ipcMain.handle('settings:addProvider', async (event, config) => {
+    logger.info('Adding AI provider', {
+      provider: config.provider_type
     });
 
     try {
       // Validate provider configuration
-      const validProviders = ['openai', 'anthropic', 'local-llm', 'azure-openai'];
-      if (!validProviders.includes(params.provider)) {
-        throw new Error(`Invalid provider: ${params.provider}`);
+      const validProviders = AVAILABLE_PROVIDERS.map(p => p.provider_type);
+
+      if (!validProviders.includes(config.provider_type)) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PROVIDER',
+            message: `Invalid provider: ${config.provider_type}`
+          }
+        };
       }
 
-      // Mock provider configuration
-      const result = {
-        providerId: params.provider,
-        status: 'configured',
-        validated: true,
-        settingsApplied: {
-          endpoint: params.config.endpoint,
-          apiKey: params.config.apiKey ? '***masked***' : null,
-          model: params.config.model,
-          temperature: params.config.temperature,
-          maxTokens: params.config.maxTokens
-        },
-        metadata: {
-          configuredAt: new Date().toISOString(),
-          lastValidated: new Date().toISOString(),
-          validationDuration: 150 // ms
-        }
-      };
-
-      // In a real implementation, we would actually validate the config
-      // For now, we'll just return a success result
+      // Mock provider addition
       return {
         success: true,
-        ...result
+        data: null
       };
     } catch (error) {
-      logger.error('Failed to configure provider', error as Error, params);
-      throw error;
+      logger.error('Failed to add provider', error as Error, config);
+      return {
+        success: false,
+        error: {
+          code: 'ADD_PROVIDER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to add provider'
+        }
+      };
+    }
+  });
+
+  /**
+   * Update an AI provider
+   */
+  ipcMain.handle('settings:updateProvider', async (event, providerId, config) => {
+    logger.info('Updating AI provider', { providerId });
+
+    try {
+      // Validate provider
+      const validProviders = AVAILABLE_PROVIDERS.map(p => p.provider_type);
+
+      if (!validProviders.includes(providerId)) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PROVIDER',
+            message: `Invalid provider: ${providerId}`
+          }
+        };
+      }
+
+      // Mock provider update
+      return {
+        success: true,
+        data: null
+      };
+    } catch (error) {
+      logger.error('Failed to update provider', error as Error, { providerId, config });
+      return {
+        success: false,
+        error: {
+          code: 'UPDATE_PROVIDER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to update provider'
+        }
+      };
+    }
+  });
+
+  /**
+   * Delete an AI provider
+   */
+  ipcMain.handle('settings:deleteProvider', async (event, providerId) => {
+    logger.info('Deleting AI provider', { providerId });
+
+    try {
+      // Validate provider
+      const validProviders = AVAILABLE_PROVIDERS.map(p => p.provider_type);
+
+      if (!validProviders.includes(providerId)) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PROVIDER',
+            message: `Invalid provider: ${providerId}`
+          }
+        };
+      }
+
+      // Mock provider deletion
+      return {
+        success: true,
+        data: null
+      };
+    } catch (error) {
+      logger.error('Failed to delete provider', error as Error, { providerId });
+      return {
+        success: false,
+        error: {
+          code: 'DELETE_PROVIDER_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to delete provider'
+        }
+      };
+    }
+  });
+
+  /**
+   * Get available models
+   */
+  ipcMain.handle('settings:getModels', async () => {
+    logger.info('Getting available models');
+
+    try {
+      const allModels = AVAILABLE_PROVIDERS.flatMap(provider =>
+        provider.models.map(modelId => ({
+          id: modelId,
+          name: modelId,
+          displayName: modelId,
+          description: `${modelId} model`,
+          provider: provider.provider_type,
+          contextWindow: 8192,
+          maxTokens: 4096,
+          pricing: {
+            input: 0,
+            output: 0,
+            currency: 'USD'
+          },
+          capabilities: [],
+          speed: 'medium' as const,
+          quality: 'standard' as const,
+          useCases: [],
+          status: 'available' as const
+        }))
+      );
+
+      return {
+        success: true,
+        data: allModels
+      };
+    } catch (error) {
+      logger.error('Failed to get models', error as Error);
+      return {
+        success: false,
+        error: {
+          code: 'MODELS_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get models'
+        }
+      };
     }
   });
 
