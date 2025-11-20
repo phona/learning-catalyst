@@ -10,7 +10,7 @@ import { ipcMain, app } from 'electron';
 import { readFile, writeFile, access, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { LoggerFactory } from '../services/logger';
-import { AppConfig } from '../../shared/types/config';
+import { AppConfig, AVAILABLE_PROVIDERS } from '@/shared/types/config';
 
 // Store workspace path for config operations
 let globalWorkspacePath = '';
@@ -94,7 +94,9 @@ export function setupSettingsHandlers(workspacePath?: string, services?: { logge
   }
 
   function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-    return path.split('.').reduce((current, key) => current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined, obj);
+    return path.split('.').reduce((current, key) => {
+      return current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined;
+    }, obj as unknown);
   }
 
   function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
@@ -766,73 +768,44 @@ export function setupSettingsHandlers(workspacePath?: string, services?: { logge
     logger.info('Getting available AI providers');
 
     try {
-      // Mock available providers
-      const providers = [
-        {
-          id: 'openai',
-          name: 'OpenAI',
-          description: 'OpenAI GPT models',
-          status: 'connected',
-          models: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k'],
-          capabilities: ['chat', 'completions', 'embeddings'],
-          configStatus: 'configured',
-          metadata: {
-            lastTested: new Date().toISOString(),
-            responseTime: 250, // ms
-            defaultModel: 'gpt-4'
-          }
-        },
-        {
-          id: 'anthropic',
-          name: 'Anthropic',
-          description: 'Anthropic Claude models',
-          status: 'disconnected',
-          models: ['claude-2', 'claude-instant'],
-          capabilities: ['chat', 'completions'],
-          configStatus: 'not_configured',
-          metadata: {
-            lastTested: null,
-            responseTime: null,
-            defaultModel: 'claude-2'
-          }
-        },
-        {
-          id: 'local-llm',
-          name: 'Local LLM',
-          description: 'Local Llama models',
-          status: 'available',
-          models: ['llama-2-7b', 'llama-2-13b'],
-          capabilities: ['chat', 'completions'],
-          configStatus: 'configured',
-          metadata: {
-            lastTested: new Date().toISOString(),
-            responseTime: 1200, // ms
-            defaultModel: 'llama-2-7b'
-          }
-        },
-        {
-          id: 'azure-openai',
-          name: 'Azure OpenAI',
-          description: 'Microsoft Azure OpenAI Service',
-          status: 'disconnected',
-          models: ['gpt-35-turbo', 'gpt-4'],
-          capabilities: ['chat', 'completions', 'embeddings'],
-          configStatus: 'not_configured',
-          metadata: {
-            lastTested: null,
-            responseTime: null,
-            defaultModel: 'gpt-35-turbo'
-          }
-        }
-      ];
+      const providers = AVAILABLE_PROVIDERS.map(provider => ({
+        id: provider.provider_type,
+        name: provider.provider_type,
+        displayName: provider.provider_type.charAt(0).toUpperCase() + provider.provider_type.slice(1).replace('-', ' '),
+        description: `${provider.provider_type.charAt(0).toUpperCase() + provider.provider_type.slice(1)} AI models`,
+        models: (provider.models || []).map(modelId => ({
+          id: modelId,
+          name: modelId,
+          displayName: modelId,
+          description: `${modelId} model`,
+          contextWindow: 8192,
+          maxTokens: 4096,
+          pricing: {
+            input: 0,
+            output: 0,
+            currency: 'USD'
+          },
+          capabilities: [],
+          speed: 'medium' as const,
+          quality: 'standard' as const,
+          useCases: [],
+          status: 'available' as const
+        })),
+        status: 'not_configured' as const,
+        isDefault: false,
+        capabilities: ['chat', 'completion', 'streaming'] as const,
+        pricing: 'pay-per-use' as const,
+        features: ['Streaming', 'Function Calling'],
+        limitations: []
+      }));
 
       return {
         success: true,
         providers,
         summary: {
           total: providers.length,
-          connected: providers.filter(p => p.status === 'connected').length,
-          configured: providers.filter(p => p.configStatus === 'configured').length
+          connected: 0,
+          configured: 0
         }
       };
     } catch (error) {
