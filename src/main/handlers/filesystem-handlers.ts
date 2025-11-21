@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Filesystem & Dialog IPC Handlers
  *

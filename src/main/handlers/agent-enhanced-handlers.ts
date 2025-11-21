@@ -16,6 +16,7 @@ import type {
   ResponseStyleSettings,
   FeatureDemoDisplay
 } from '@/shared/types/electron-api/agent-api';
+import type { APIResponse } from '@/shared/types/electron-api';
 
 type AgentSelectionParams = {
   sessionId: string;
@@ -85,8 +86,9 @@ export const setupEnhancedAgentHandlers = (
     knowledgeService: KnowledgeService;
     loggerService: LoggerService;
   }
- ): void => {
+): void => {
   const handlerLogger = services.loggerService.child({ handler: 'agent-enhanced' });
+  const ok = <T>(data: T): APIResponse<T> => ({ success: true, data });
 
   ipcMainInstance.handle('agents:get-available', async () => {
     const agents: AgentDisplay[] = [
@@ -96,7 +98,7 @@ export const setupEnhancedAgentHandlers = (
       createMockAgent('practice', 'agent_practice')
     ];
     handlerLogger.info('Returning available agents', { count: agents.length });
-    return { success: true, agents };
+    return ok(agents);
   });
 
   ipcMainInstance.handle(
@@ -104,7 +106,7 @@ export const setupEnhancedAgentHandlers = (
     async (_event, params: AgentSelectionParams): Promise<{ success: boolean; selectedAgent: AgentDisplay }> => {
       const selectedAgent = createMockAgent(params.agentType, `agent_${params.agentType}`);
       handlerLogger.info('Agent selected for session', params);
-      return { success: true, selectedAgent };
+      return ok(selectedAgent);
     }
   );
 
@@ -112,7 +114,7 @@ export const setupEnhancedAgentHandlers = (
     'agents:set-personality',
     async (_event, params: PersonalityParams): Promise<{ success: boolean; updatedPersonality: string }> => {
       handlerLogger.info('Setting agent personality', params);
-      return { success: true, updatedPersonality: params.personality };
+      return ok({ updatedPersonality: params.personality });
     }
   );
 
@@ -120,7 +122,7 @@ export const setupEnhancedAgentHandlers = (
     'agents:set-response-style',
     async (_event, params: ResponseStyleParams): Promise<{ success: boolean; appliedSettings: ResponseStyleSettings }> => {
       handlerLogger.info('Setting response style', params);
-      return { success: true, appliedSettings: params.style };
+      return ok(params.style);
     }
   );
 
@@ -128,7 +130,8 @@ export const setupEnhancedAgentHandlers = (
     'agents:get-capabilities',
     async (_event, agentId: string): Promise<{ success: boolean; agentCapabilities: AgentCapabilitiesDisplay }> => {
       handlerLogger.info('Fetching capabilities for agent', { agentId });
-      return { success: true, agentCapabilities: { ...mockCapabilities, agentId } };
+      const caps = { ...mockCapabilities, agentId };
+      return ok(caps);
     }
   );
 
@@ -136,7 +139,8 @@ export const setupEnhancedAgentHandlers = (
     'agents:try-feature',
     async (_event, params: AgentFeatureParams): Promise<{ success: boolean; featureDemo: FeatureDemoDisplay }> => {
       handlerLogger.info('Demonstrating feature', params);
-      return { success: true, featureDemo: mockFeatureDemo(params.agentId, params.feature) };
+      const demo = mockFeatureDemo(params.agentId, params.feature);
+      return ok(demo);
     }
   );
 

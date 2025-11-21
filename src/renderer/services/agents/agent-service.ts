@@ -19,8 +19,11 @@ export interface AgentService {
 
 export function createAgentService(apiClient: ElectronAPI): AgentService {
   const getAvailableAgents = async () => {
-    const agents = await apiClient.agents.getAvailableAgents();
-    return agents;
+    const response = await apiClient.agents.getAvailableAgents();
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Failed to load agents');
+    }
+    return response.data;
   };
 
   const selectAgentForSession = async (params: {
@@ -28,10 +31,10 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
     agentType: AgentDisplay['type'];
   }) => {
     const response = await apiClient.agents.selectAgentForSession(params);
-    if (!response.success) {
+    if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to select agent');
     }
-    return response.agent;
+    return (response.data as any).agent ?? (response.data as any);
   };
 
   const getAgentStatus = async (agentId: string) => {

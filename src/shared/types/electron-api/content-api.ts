@@ -5,13 +5,15 @@
  * Focuses on expanding the knowledge base with relevant content.
  */
 
+import type { APIResponse } from './index';
+
 export interface ContentAPI {
   /**
    * Explores local projects for learning content
    * Scans file system for code, documentation, and learning materials
    * @returns Promise<ProjectDisplay[]> - Array of discoverable local projects
    */
-  exploreLocalProjects: () => Promise<ProjectDisplay[]>;
+  exploreLocalProjects: () => Promise<APIResponse<ProjectDisplay[]>>;
 
   /**
    * Imports learning content from files
@@ -19,7 +21,7 @@ export interface ContentAPI {
    * @param files - FileList from file input or drag-drop
    * @returns Promise<ImportResultDisplay> - Import results and extracted content
    */
-  importLearningContent: (files: FileList) => Promise<ImportResultDisplay>;
+  importLearningContent: (files: FileList) => Promise<APIResponse<ImportResultDisplay>>;
 
   /**
    * Gets recommended learning content for a topic
@@ -31,7 +33,7 @@ export interface ContentAPI {
   getRecommendedContent: (params: {
     topic: string;
     level: 'beginner' | 'intermediate' | 'advanced';
-  }) => Promise<ContentRecommendationDisplay[]>;
+  }) => Promise<APIResponse<ContentRecommendationDisplay[]>>;
 
   /**
    * Searches learning resources across multiple sources
@@ -39,7 +41,7 @@ export interface ContentAPI {
    * @param query - Search query string
    * @returns Promise<ResourceSearchResultDisplay> - Search results with relevance ranking
    */
-  searchLearningResources: (query: string) => Promise<ResourceSearchResultDisplay>;
+  searchLearningResources: (query: string) => Promise<APIResponse<ResourceSearchResultDisplay>>;
 
   /**
    * Analyzes a document for learning content
@@ -47,7 +49,7 @@ export interface ContentAPI {
    * @param filePath - Path to the document to analyze
    * @returns Promise<DocumentAnalysisDisplay> - Detailed document analysis
    */
-  analyzeDocument: (filePath: string) => Promise<DocumentAnalysisDisplay>;
+  analyzeDocument: (filePath: string) => Promise<APIResponse<DocumentAnalysisDisplay>>;
 
   /**
    * Extracts concepts from raw text content
@@ -55,7 +57,7 @@ export interface ContentAPI {
    * @param content - Text content to analyze
    * @returns Promise<ConceptExtractionDisplay[]> - Array of extracted concepts
    */
-  extractConcepts: (content: string) => Promise<ConceptExtractionDisplay[]>;
+  extractConcepts: (content: string) => Promise<APIResponse<ConceptExtractionDisplay[]>>;
 }
 
 // ============================================================================

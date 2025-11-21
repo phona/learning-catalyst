@@ -5,6 +5,7 @@ import type {
   ConceptParsingService,
   ConceptParsingSettings
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
+import type { APIResponse } from '@/shared/types/electron-api';
 
 type ConceptParsingFilePayload = {
   fileName?: string;
@@ -48,8 +49,13 @@ const normalizeMaterial = (file: ConceptParsingFilePayload, index: number): Conc
 export const setupConceptParsingHandlers = (
   ipcMainInstance: typeof ipcMain,
   services: ConceptParsingHandlersDeps
-) => {
+): void => {
   const handlerLogger = services.loggerService.child({ handler: 'concept-parsing' });
+  const ok = <T>(data: T): APIResponse<T> => ({ success: true, data });
+  const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
+    success: false,
+    error: { code, message, details }
+  });
 
   ipcMainInstance.handle('knowledge:parse-concepts', async (_event, params: ConceptParsingHandlerParams) => {
     const files = params.files ?? [];
@@ -59,11 +65,12 @@ export const setupConceptParsingHandlers = (
     });
 
     const materials = files.map((file, index) => normalizeMaterial(file, index));
-    if (params.content) {
+    const hasInlineContent = params.content !== undefined && params.content !== null && params.content !== '';
+    if (hasInlineContent) {
       materials.push({
         id: params.materialId ?? `inline-${Date.now()}`,
         title: params.materialId ?? 'inline-content',
-        content: params.content,
+        content: params.content ?? '',
         format: 'text'
       });
     }
@@ -76,12 +83,17 @@ export const setupConceptParsingHandlers = (
       }
     };
 
-    const result = await services.conceptParsingService.parseMaterials(materials, settings);
-    handlerLogger.info('Concept parsing completed', {
-      success: result.success,
-      concepts: result.concepts.length,
-      relationships: result.relationships.length
-    });
-    return result;
+    try {
+      const result = await services.conceptParsingService.parseMaterials(materials, settings);
+      handlerLogger.info('Concept parsing completed', {
+        success: result.success,
+        concepts: result.concepts.length,
+        relationships: result.relationships.length
+      });
+      return ok(result);
+    } catch (error) {
+      handlerLogger.error('Concept parsing failed', { error });
+      return fail('knowledge.parse_failed', 'Unable to parse concepts', error);
+    }
   });
 };

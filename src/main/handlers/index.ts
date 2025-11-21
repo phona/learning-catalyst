@@ -2,9 +2,8 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { setupChatHandlers } from './chat-handlers';
 import { setupLearningHandlers } from './learning-handlers';
 import { setupKnowledgeHandlers } from './knowledge-handlers';
-import { setupAgentHandlers } from './agent-handlers';
 import { setupSystemHandlers } from './system-handlers';
-import { setupEnhancedSettingsHandlers } from './settings-enhanced-handlers';
+import { setupSettingsHandlers } from './settings-handlers';
 import { setupEnhancedAgentHandlers } from './agent-enhanced-handlers';
 import { setupContentHandlers } from './content-handlers';
 import { setupCompleteAnalyticsHandlers } from './analytics-complete-handlers';
@@ -61,21 +60,8 @@ export async function setupAllIpcHandlers(
     loggerService: services.loggerService
   });
   
-  await setupAgentHandlers(ipcMain, {
-    chatService: services.chatService,
-    aiService: services.aiService,
-    learningService: services.learningService,
-    knowledgeService: services.knowledgeService,
-    conceptParsingService: services.conceptParsingService,
-    analyticsService: services.analyticsService,
-    loggerService: services.loggerService,
-    configService: services.configService
-  });
-
-  // Setup enhanced settings handlers
-  setupEnhancedSettingsHandlers(ipcMain, {
-    loggerService: services.loggerService
-  });
+  // Settings handlers (documented surface)
+  setupSettingsHandlers(workspacePath);
 
   // Setup enhanced agent handlers
   setupEnhancedAgentHandlers(ipcMain, {

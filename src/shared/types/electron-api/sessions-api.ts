@@ -13,6 +13,7 @@ import type {
   SessionUpdateRequest,
   SessionCreateRequest
 } from '@/renderer/types/session';
+import type { APIResponse } from './index';
 
 export interface SessionStatistics {
   totalSessions: number;
@@ -23,40 +24,40 @@ export interface SessionStatistics {
   averageMessagesPerSession: number;
 }
 
-export interface SessionListResponse {
-  success: boolean;
+export type SessionListResponse = APIResponse<{
   sessions: SessionDisplay[];
   total: number;
   hasMore: boolean;
-  error?: string;
-}
+}>;
 
-export interface SessionMutationResponse {
-  success: boolean;
-  sessionId?: string;
+export type SessionMutationResponse = APIResponse<{
+  sessionId: string;
   session?: SessionDisplay;
-  error?: string;
-}
+}>;
 
 export interface SessionsAPI {
-  list: (options?: { query?: string; limit?: number; offset?: number }) => Promise<SessionListResponse>;
-  create: (payload: SessionCreateRequest) => Promise<SessionMutationResponse>;
-  get: (sessionId: string) => Promise<{ success: boolean; session?: SessionDisplay; error?: string }>;
+  list: (options?: { query?: string; limit?: number; offset?: number }) => Promise<APIResponse<{
+    sessions: SessionDisplay[];
+    total: number;
+    hasMore: boolean;
+  }>>;
+  create: (payload: SessionCreateRequest) => Promise<APIResponse<{ sessionId: string; session?: SessionDisplay }>>;
+  get: (sessionId: string) => Promise<APIResponse<SessionDisplay | undefined>>;
   update: (
     sessionId: string,
     updates: SessionUpdateRequest
-  ) => Promise<{ success: boolean; session?: SessionDisplay; error?: string }>;
-  delete: (sessionId: string) => Promise<{ success: boolean; deleted?: boolean; error?: string }>;
+  ) => Promise<APIResponse<SessionDisplay | undefined>>;
+  delete: (sessionId: string) => Promise<APIResponse<{ deleted: boolean }>>;
   saveMessage: (
     sessionId: string,
     message: ConversationMessage
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<APIResponse<void>>;
   saveSessionWithMessages: (
     session: MemorySession,
     messages: ConversationMessage[]
-  ) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
-  updateTitle: (sessionId: string, title: string) => Promise<{ success: boolean; error?: string }>;
-  getRecentSessions: (options?: { limit?: number }) => Promise<{ success: boolean; sessions: SessionDisplay[]; error?: string }>;
-  search: (query: SessionSearchQuery) => Promise<{ success: boolean; results: SessionSearchResult; error?: string }>;
-  getStatistics: () => Promise<{ success: boolean; statistics: SessionStatistics; error?: string }>;
+  ) => Promise<APIResponse<{ sessionId: string }>>;
+  updateTitle: (sessionId: string, title: string) => Promise<APIResponse<void>>;
+  getRecentSessions: (options?: { limit?: number }) => Promise<APIResponse<SessionDisplay[]>>;
+  search: (query: SessionSearchQuery) => Promise<APIResponse<SessionSearchResult>>;
+  getStatistics: () => Promise<APIResponse<SessionStatistics>>;
 }

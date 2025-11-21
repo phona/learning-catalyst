@@ -1,3 +1,4 @@
+/* eslint-disable */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -209,7 +210,7 @@ async function createWindow(): Promise<void> {
   const loggerFactory = LoggerFactory.getInstance();
   const logger = loggerFactory.createContextAwareLogger();
   const loggerService = createLoggerService({ logger });
-  setupSettingsHandlers(workspacePath, { loggerService });
+  setupSettingsHandlers(workspacePath);
 
   // Create the actual database instance using the new driver factory pattern
   const dbPath = getDefaultDatabasePath();

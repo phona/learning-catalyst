@@ -9,6 +9,7 @@
 // Import related types from other APIs
 import type { AgentDisplay } from './agent-api';
 import type { SessionDisplay } from './learning-api';
+import type { APIResponse } from './index';
 
 /**
  * Main Catalyst API interface for renderer-main communication
@@ -19,7 +20,7 @@ export interface CatalystAPI {
    * @param params - Execution parameters including agent, input, and context
    * @returns Promise<AgentExecutionResult> - Execution result with metadata
    */
-  executeAgent: (params: AgentExecutionRequest) => Promise<AgentExecutionResult>;
+  executeAgent: (params: AgentExecutionRequest) => Promise<APIResponse<AgentExecutionResult>>;
 
   /**
    * Execute an agent with streaming response
@@ -27,75 +28,75 @@ export interface CatalystAPI {
    * @param port - MessagePort for streaming communication
    * @returns Promise<AgentExecutionResult> - Initial execution result
    */
-  executeAgentStream: (params: AgentExecutionRequest, port: MessagePort) => Promise<AgentExecutionResult>;
+  executeAgentStream: (params: AgentExecutionRequest, port: MessagePort) => Promise<APIResponse<AgentExecutionResult>>;
 
   /**
    * Cancel a running agent execution
    * @param executionId - ID of the execution to cancel
    * @returns Promise<{ success: boolean }> - Cancellation result
    */
-  cancelAgent: (executionId: string) => Promise<{ success: boolean }>;
+  cancelAgent: (executionId: string) => Promise<APIResponse<{ cancelled: boolean }>>;
 
   /**
    * Get the status of a specific agent execution
    * @param executionId - ID of the execution to check
    * @returns Promise<AgentExecutionStatus> - Current execution status
    */
-  getAgentStatus: (executionId: string) => Promise<AgentExecutionStatus>;
+  getAgentStatus: (executionId: string) => Promise<APIResponse<AgentExecutionStatus>>;
 
   /**
    * Get all available agents with their configurations
    * @returns Promise<AgentDisplay[]> - Array of available agents
    */
-  listAgents: () => Promise<AgentDisplay[]>;
+  listAgents: () => Promise<APIResponse<AgentDisplay[]>>;
 
   /**
    * Get currently active agent executions
    * @returns Promise<ActiveExecution[]> - Array of active executions
    */
-  getActiveExecutions: () => Promise<ActiveExecution[]>;
+  getActiveExecutions: () => Promise<APIResponse<ActiveExecution[]>>;
 
   /**
    * Register a new agent configuration
    * @param agentConfig - Agent configuration to register
    * @returns Promise<{ success: boolean; agentId?: string }> - Registration result
    */
-  registerAgent: (agentConfig: AgentRegistrationRequest) => Promise<{ success: boolean; agentId?: string }>;
+  registerAgent: (agentConfig: AgentRegistrationRequest) => Promise<APIResponse<{ agentId: string }>>;
 
   /**
    * Unregister an agent
    * @param agentId - ID of the agent to unregister
    * @returns Promise<{ success: boolean }> - Unregistration result
    */
-  unregisterAgent: (agentId: string) => Promise<{ success: boolean }>;
+  unregisterAgent: (agentId: string) => Promise<APIResponse<{ unregistered: string }>>;
 
   /**
    * Send a chat message through the catalyst system
    * @param params - Chat message parameters
    * @returns Promise<CatalystResponse> - Chat response
    */
-  sendChat: (params: CatalystRequest) => Promise<CatalystResponse>;
+  sendChat: (params: CatalystRequest) => Promise<APIResponse<CatalystResponse>>;
 
   /**
    * Send a chat message with streaming response
    * @param params - Chat message parameters with streaming callback
    * @returns Promise<CatalystResponse> - Initial chat response
    */
-  sendChatStream: (params: CatalystRequest) => Promise<CatalystResponse>;
+  sendChatStream: (params: CatalystRequest) => Promise<APIResponse<CatalystResponse>>;
 
   /**
    * Get session information
    * @param params - Session request parameters
    * @returns Promise<CatalystResponse> - Session response
    */
-  getSession: (params: CatalystRequest) => Promise<CatalystResponse>;
+  getSession: (params: CatalystRequest) => Promise<APIResponse<CatalystResponse>>;
 
   /**
    * Cancel execution by ID
    * @param params - Cancellation parameters
    * @returns Promise<CatalystResponse> - Cancellation response
    */
-  cancelExecution: (params: CatalystRequest) => Promise<CatalystResponse>;
+  cancelExecution: (params: CatalystRequest) => Promise<APIResponse<CatalystResponse>>;
 }
 
 // ============================================================================

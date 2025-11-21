@@ -105,11 +105,11 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
           set({ currentSessionId: sessionId });
 
           // Load conversation history using injected electronAPI
-          electronAPI.sessions.getSession({ sessionId })
+          electronAPI.sessions.get(sessionId)
             .then((response) => {
-              if (response.success && response.session) {
+              if (response.success && response.data?.messages) {
                 set({
-                  messages: (response.session.messages as MessageDisplay[]) || [],
+                  messages: (response.data.messages as MessageDisplay[]) || [],
                   error: null
                 });
               }
@@ -207,24 +207,26 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
 
         createNewSession: async () => {
           try {
-            const response = await electronAPI.sessions.createSession({
+            const response = await electronAPI.sessions.create({
               title: 'Untitled Session'
             });
 
-            if (response.success && response.sessionId) {
+            const newSessionId = response.data?.sessionId;
+
+            if (response.success && newSessionId) {
               set({
-                currentSessionId: response.sessionId,
+                currentSessionId: newSessionId,
                 currentSession: {
-                  id: response.sessionId,
+                  id: newSessionId,
                   title: 'Untitled Session',
                   createdAt: new Date().toISOString()
                 },
                 messages: [],
                 error: null
               });
-              return response.sessionId;
+              return newSessionId;
             } else {
-              throw new Error(response.error || 'Failed to create session');
+              throw new Error(response.error?.message || 'Failed to create session');
             }
           } catch (error) {
             // Fallback to local generation
@@ -285,10 +287,14 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               message: content
             });
 
+            if (!response.success || !response.data) {
+              throw new Error(response.error?.message || 'Failed to send message');
+            }
+
             const assistantMessage: MessageDisplay = {
               id: `msg_${Date.now()}_assistant`,
               role: 'assistant',
-              content: response.content || 'Response from AI',
+              content: response.data.assistantMessage?.content || 'Response from AI',
               timestamp: new Date().toISOString(),
               status: 'delivered',
               showThinking: false

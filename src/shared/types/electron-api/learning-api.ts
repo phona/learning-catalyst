@@ -5,6 +5,8 @@
  * Focuses on educational outcomes and learning analytics.
  */
 
+import type { APIResponse } from './index';
+
 export interface LearningAPI {
   /**
    * Starts a new structured learning session
@@ -22,7 +24,7 @@ export interface LearningAPI {
     difficulty: 'beginner' | 'intermediate' | 'advanced';
     agentType: string;
     learningStyle: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
-  }) => Promise<LearningSessionDisplay>;
+  }) => Promise<APIResponse<LearningSessionDisplay>>;
 
   /**
    * Gets detailed progress for a learning session
@@ -30,7 +32,7 @@ export interface LearningAPI {
    * @param sessionId - Learning session ID
    * @returns Promise<LearningProgressDisplay> - Detailed progress information
    */
-  getSessionProgress: (sessionId: string) => Promise<LearningProgressDisplay>;
+  getSessionProgress: (sessionId: string) => Promise<APIResponse<LearningProgressDisplay>>;
 
   /**
    * Gets the structured learning path for a session
@@ -38,7 +40,7 @@ export interface LearningAPI {
    * @param sessionId - Learning session ID
    * @returns Promise<LearningPathDisplay> - Structured learning path
    */
-  getLearningPath: (sessionId: string) => Promise<LearningPathDisplay>;
+  getLearningPath: (sessionId: string) => Promise<APIResponse<LearningPathDisplay>>;
 
   /**
    * Pauses an active learning session
@@ -46,7 +48,7 @@ export interface LearningAPI {
    * @param sessionId - Active learning session ID
    * @returns Promise<{ success: boolean; resumeData: any }>
    */
-  pauseSession: (sessionId: string) => Promise<{ success: boolean; resumeData: any }>;
+  pauseSession: (sessionId: string) => Promise<APIResponse<{ resumeData: any }>>;
 
   /**
    * Resumes a paused learning session
@@ -54,7 +56,7 @@ export interface LearningAPI {
    * @param sessionId - Paused learning session ID
    * @returns Promise<{ success: boolean; context: LearningContext }>
    */
-  resumeSession: (sessionId: string) => Promise<{ success: boolean; context: LearningContext }>;
+  resumeSession: (sessionId: string) => Promise<APIResponse<LearningContext>>;
 
   /**
    * Completes a learning session and generates summary
@@ -62,7 +64,7 @@ export interface LearningAPI {
    * @param sessionId - Learning session to complete
    * @returns Promise<SessionCompletionDisplay> - Completion summary and recommendations
    */
-  completeSession: (sessionId: string) => Promise<SessionCompletionDisplay>;
+  completeSession: (sessionId: string) => Promise<APIResponse<SessionCompletionDisplay>>;
 
   /**
    * Gets recent learning sessions for quick access
@@ -76,7 +78,7 @@ export interface LearningAPI {
     limit?: number;
     agentType?: string;
     status?: string;
-  }) => Promise<SessionDisplay[]>;
+  }) => Promise<APIResponse<SessionDisplay[]>>;
 
   /**
    * Searches learning sessions with advanced filters
@@ -90,7 +92,7 @@ export interface LearningAPI {
     agentType?: string;
     dateRange?: { start: Date; end: Date };
     tags?: string[];
-  }) => Promise<SessionSearchResultDisplay>;
+  }) => Promise<APIResponse<SessionSearchResultDisplay>>;
 }
 
 // ============================================================================

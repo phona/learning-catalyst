@@ -2,8 +2,10 @@
  * Chat & Conversation API
  *
  * Manages real-time conversations with AI agents.
- * All methods return display-optimized data ready for UI rendering.
+ * All methods return display-optimized data wrapped in APIResponse.
  */
+
+import type { APIResponse } from './index';
 
 export interface ChatAPI {
   /**
@@ -22,7 +24,7 @@ export interface ChatAPI {
       language?: string;
       enableAnimations?: boolean;
     };
-  }) => Promise<ConversationDisplay>;
+  }) => Promise<APIResponse<ConversationDisplay>>;
 
   /**
    * Sends a message and gets response (non-streaming)
@@ -36,7 +38,7 @@ export interface ChatAPI {
     conversationId: string;
     message: string;
     attachments?: File[];
-  }) => Promise<MessageDisplay>;
+  }) => Promise<APIResponse<MessageDisplay>>;
 
   /**
    * Sends a message with streaming response
@@ -50,7 +52,7 @@ export interface ChatAPI {
     conversationId: string;
     message: string;
     attachments?: File[];
-  }) => Promise<AsyncIterable<string>>;
+  }) => Promise<APIResponse<AsyncIterable<string>>>;
 
   /**
    * Gets real-time typing indicator
@@ -58,7 +60,7 @@ export interface ChatAPI {
    * @param conversationId - Active conversation ID
    * @returns Promise<TypingIndicator> - Typing status and agent info
    */
-  getTypingIndicator: (conversationId: string) => Promise<TypingIndicator>;
+  getTypingIndicator: (conversationId: string) => Promise<APIResponse<TypingIndicator>>;
 
   /**
    * Gets conversation history with display optimization
@@ -77,7 +79,7 @@ export interface ChatAPI {
       dateRange?: { start: Date; end: Date };
       hasAttachments?: boolean;
     };
-  }) => Promise<ConversationHistory>;
+  }) => Promise<APIResponse<ConversationHistory>>;
 
   /**
    * Pauses an active conversation
@@ -85,7 +87,7 @@ export interface ChatAPI {
    * @param conversationId - Active conversation ID
    * @returns Promise<{ success: boolean; message: string }>
    */
-  pauseConversation: (conversationId: string) => Promise<{ success: boolean; message: string }>;
+  pauseConversation: (conversationId: string) => Promise<APIResponse<{ message: string }>>;
 
   /**
    * Resumes a paused conversation
@@ -93,7 +95,7 @@ export interface ChatAPI {
    * @param conversationId - Paused conversation ID
    * @returns Promise<{ success: boolean; context: ConversationContext }>
    */
-  resumeConversation: (conversationId: string) => Promise<{ success: boolean; context: ConversationContext }>;
+  resumeConversation: (conversationId: string) => Promise<APIResponse<ConversationContext>>;
 
   /**
    * Ends a conversation and generates summary
@@ -101,7 +103,7 @@ export interface ChatAPI {
    * @param conversationId - Conversation to end
    * @returns Promise<ConversationSummary> - Summary and key takeaways
    */
-  endConversation: (conversationId: string) => Promise<ConversationSummary>;
+  endConversation: (conversationId: string) => Promise<APIResponse<ConversationSummary>>;
 
   /**
    * Checks for practice opportunities in conversation
@@ -113,7 +115,7 @@ export interface ChatAPI {
   checkPracticeOpportunity: (params: {
     conversationId: string;
     userMessage: string;
-  }) => Promise<PracticeOpportunityResult>;
+  }) => Promise<APIResponse<PracticeOpportunityResult>>;
 
   /**
    * Gets natural practice suggestion based on conversation context
@@ -123,9 +125,10 @@ export interface ChatAPI {
    * @returns Promise<NaturalPracticeSuggestion> - Contextual practice suggestion
    */
   getPracticeSuggestion: (params: {
-    opportunity: PracticeOpportunity;
+    conversationId: string;
+    userMessage: string;
     userContext?: UserLearningContext;
-  }) => Promise<NaturalPracticeSuggestion>;
+  }) => Promise<APIResponse<NaturalPracticeSuggestion>>;
 }
 
 // ============================================================================

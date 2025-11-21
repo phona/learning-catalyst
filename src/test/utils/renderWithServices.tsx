@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 // Re-export providers from the new dedicated file to avoid Fast Refresh warning
 export {
   renderWithServices,

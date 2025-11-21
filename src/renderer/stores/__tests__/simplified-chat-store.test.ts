@@ -167,9 +167,9 @@ describe('Simplified Chat Store', () => {
 
       // Mock electronAPI to return our predetermined session
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-      (mockElectronAPI.sessions.getSession as any).mockResolvedValue({
+      (mockElectronAPI.sessions.get as any).mockResolvedValue({
         success: true,
-        session: {
+        data: {
           id: testSessionId,
           title: 'Test Session',
           createdAt: new Date().toISOString(),
@@ -181,9 +181,7 @@ describe('Simplified Chat Store', () => {
         await store.getState().setCurrentSession(testSessionId);
       });
 
-      expect(mockElectronAPI.sessions.getSession).toHaveBeenCalledWith({
-        sessionId: testSessionId,
-      });
+      expect(mockElectronAPI.sessions.get).toHaveBeenCalledWith(testSessionId);
 
       const state = store.getState();
       expect(state.currentSessionId).toBe(testSessionId);

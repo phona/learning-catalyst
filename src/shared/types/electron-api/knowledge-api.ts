@@ -5,6 +5,8 @@
  * Focuses on conceptual understanding and knowledge exploration.
  */
 
+import type { APIResponse } from './index';
+
 export interface KnowledgeAPI {
   /**
    * Ingests a parsed result into the knowledge graph for downstream queries
@@ -17,7 +19,7 @@ export interface KnowledgeAPI {
       sessionId?: string;
       source?: string;
     };
-  }) => Promise<KnowledgeIngestionResult>;
+  }) => Promise<APIResponse<KnowledgeIngestionResult>>;
 
   /**
    * Explores a concept in detail with related information
@@ -29,7 +31,7 @@ export interface KnowledgeAPI {
   exploreConcept: (params: {
     conceptName: string;
     depth: 'basic' | 'intermediate' | 'advanced';
-  }) => Promise<ConceptExplorationDisplay>;
+  }) => Promise<APIResponse<ConceptExplorationDisplay>>;
 
   /**
    * Gets concepts related to a given concept
@@ -37,7 +39,7 @@ export interface KnowledgeAPI {
    * @param conceptId - ID of the concept to find relations for
    * @returns Promise<RelatedConceptsDisplay> - Array of related concepts with relationships
    */
-  getRelatedConcepts: (conceptId: string) => Promise<RelatedConceptsDisplay>;
+  getRelatedConcepts: (conceptId: string) => Promise<APIResponse<RelatedConceptsDisplay>>;
 
   /**
    * Gets knowledge map data for visualization
@@ -45,7 +47,7 @@ export interface KnowledgeAPI {
    * @param sessionId - Optional session ID to focus on session-specific knowledge
    * @returns Promise<KnowledgeMapDisplay> - Knowledge graph data for visualization
    */
-  getKnowledgeMap: (sessionId?: string) => Promise<KnowledgeMapDisplay>;
+  getKnowledgeMap: (sessionId?: string) => Promise<APIResponse<KnowledgeMapDisplay>>;
 
   /**
    * Searches the knowledge base for specific content
@@ -53,7 +55,7 @@ export interface KnowledgeAPI {
    * @param query - Search query string
    * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
    */
-  searchKnowledge: (query: string) => Promise<KnowledgeSearchResultDisplay>;
+  searchKnowledge: (query: string) => Promise<APIResponse<KnowledgeSearchResultDisplay>>;
 
   /**
    * Parse concepts from files and content using AI
@@ -77,7 +79,7 @@ export interface KnowledgeAPI {
       confidenceThreshold?: number;
       maxConceptsPerFile?: number;
     };
-  }) => Promise<ConceptParsingResult>;
+  }) => Promise<APIResponse<ConceptParsingResult>>;
 }
 
 export interface KnowledgeExtractionDisplay {

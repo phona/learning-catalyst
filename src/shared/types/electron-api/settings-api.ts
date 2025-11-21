@@ -5,13 +5,15 @@
  * Focuses on personalizing the learning experience and managing technical configurations.
  */
 
+import type { APIResponse } from './index';
+
 export interface SettingsAPI {
   /**
    * Gets comprehensive user preferences
    * Returns all user-configurable settings in display-ready format
    * @returns Promise<UserPreferencesDisplay> - Complete user preferences
    */
-  getUserPreferences: () => Promise<UserPreferencesDisplay>;
+  getUserPreferences: () => Promise<APIResponse<UserPreferencesDisplay>>;
 
   /**
    * Updates user preferences
@@ -19,26 +21,24 @@ export interface SettingsAPI {
    * @param preferences - Partial preferences object to update
    * @returns Promise<{ success: boolean; updatedSettings: any; changes: string[] }>
    */
-  updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<{
-    success: boolean;
+  updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<APIResponse<{
     updatedSettings: any;
     changes: string[];
-  }>;
+  }>>;
 
   /**
    * Gets available AI providers and their status
    * Returns configured and available AI providers
    * @returns Promise<{ success: boolean; providers: ProviderDisplay[]; summary: { total: number; connected: number; configured: number } }> - Response with providers and summary
    */
-  getAvailableProviders: () => Promise<{
-    success: boolean;
+  getAvailableProviders: () => Promise<APIResponse<{
     providers: ProviderDisplay[];
     summary: {
       total: number;
       connected: number;
       configured: number;
     };
-  }>;
+  }>>;
 
   /**
    * Configures an AI provider with authentication and settings
@@ -50,14 +50,14 @@ export interface SettingsAPI {
   configureProvider: (params: {
     provider: string;
     config: ProviderConfig;
-  }) => Promise<{ success: boolean; providerId: string; status: string }>;
+  }) => Promise<APIResponse<{ providerId: string; status: string }>>;
 
   /**
    * Gets learning-specific settings
    * Returns settings related to learning preferences and goals
    * @returns Promise<LearningSettingsDisplay> - Learning configuration settings
    */
-  getLearningSettings: () => Promise<LearningSettingsDisplay>;
+  getLearningSettings: () => Promise<APIResponse<LearningSettingsDisplay>>;
 
   /**
    * Updates learning-specific settings
@@ -65,11 +65,10 @@ export interface SettingsAPI {
    * @param settings - Learning settings to update
    * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
    */
-  updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<{
-    success: boolean;
+  updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<APIResponse<{
     updatedSettings: any;
     impact: string[];
-  }>;
+  }>>;
 
 }
 

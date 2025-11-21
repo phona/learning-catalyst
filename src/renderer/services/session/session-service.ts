@@ -31,10 +31,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.saveSessionWithMessages(memorySession, messages);
 
     if (!response.success) {
-      throw new Error(response.error || 'Session API request failed');
+      throw new Error(response.error?.message || 'Session API request failed');
     }
 
-    return response.sessionId || memorySession.id || createSessionId();
+    return response.data?.sessionId || memorySession.id || createSessionId();
   };
 
   /**
@@ -44,7 +44,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.saveMessage(sessionId, message);
 
     if (!response.success) {
-      throw new Error(response.error || 'Session API request failed');
+      throw new Error(response.error?.message || 'Session API request failed');
     }
   };
 
@@ -55,7 +55,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.updateTitle(sessionId, title);
 
     if (!response.success) {
-      throw new Error(response.error || 'Session API request failed');
+      throw new Error(response.error?.message || 'Session API request failed');
     }
   };
 
@@ -66,10 +66,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.getRecentSessions({ limit });
 
     if (!response.success) {
-      throw new Error(response.error || 'Session API request failed');
+      throw new Error(response.error?.message || 'Session API request failed');
     }
 
-    return response.sessions;
+    return response.data || [];
   };
 
   /**
@@ -79,10 +79,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.getStatistics();
 
     if (!response.success) {
-      throw new Error(response.error || 'Session API request failed');
+      throw new Error(response.error?.message || 'Session API request failed');
     }
 
-    return response.statistics;
+    return response.data as SessionStatistics;
   };
 
   /**
@@ -94,7 +94,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.list(options);
 
     if (!response.success) {
-      throw new Error(response.error || 'Session API request failed');
+      throw new Error(response.error?.message || 'Session API request failed');
     }
 
     return response;
@@ -102,10 +102,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
 
   const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
     const response = await apiClient.sessions.get(sessionId);
-    if (!response.success || !response.session) {
+    if (!response.success || !response.data) {
       return null;
     }
-    return response.session;
+    return response.data as SessionDisplay;
   };
 
   /**

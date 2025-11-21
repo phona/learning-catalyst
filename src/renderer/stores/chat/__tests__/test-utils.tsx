@@ -23,10 +23,8 @@ export function createMockSessionService(): SessionService {
     }),
     listSessions: vi.fn().mockResolvedValue({
       success: true,
-      sessions: [],
-      total: 0,
-      hasMore: false,
-    }),
+      data: { sessions: [], total: 0, hasMore: false },
+    } as any),
     generateAITitle: vi.fn().mockResolvedValue('AI Title for test content'),
     generateSessionId: vi.fn().mockReturnValue(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
     saveMessage: vi.fn().mockResolvedValue(undefined),
@@ -38,45 +36,67 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
   return {
     chat: {
       startConversation: vi.fn().mockResolvedValue({
-        id: 'test-conversation-id',
-        title: 'Test Conversation',
-        messages: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        success: true,
+        data: {
+          id: 'test-conversation-id',
+          title: 'Test Conversation',
+          messages: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
       }),
       sendMessage: vi.fn().mockResolvedValue({
-        id: 'test-message-id',
-        role: 'assistant' as const,
-        content: 'Mock response',
-        timestamp: new Date().toISOString(),
-        status: 'delivered' as const,
+        success: true,
+        data: {
+          assistantMessage: {
+            id: 'test-message-id',
+            role: 'assistant' as const,
+            content: 'Mock response',
+            timestamp: new Date().toISOString(),
+            status: 'delivered' as const,
+          }
+        }
       }),
-      sendMessageStream: vi.fn().mockImplementation(async function* ({ message }) {
-        yield `Mock streaming response to: ${message}`;
+      sendMessageStream: vi.fn().mockResolvedValue({
+        success: true,
+        data: (async function* ({ message }: { message: string }) {
+          yield `Mock streaming response to: ${message}`;
+        }) as any
       }),
       getConversationHistory: vi.fn().mockResolvedValue({
-        messages: [],
-        totalMessages: 0,
+        success: true,
+        data: {
+          messages: [],
+          totalMessages: 0,
+        }
       }),
+      getTypingIndicator: vi.fn().mockResolvedValue({ success: true, data: { isTyping: false, agentInfo: { name: 'Mock', avatar: '', color: '' } } } as any),
+      pauseConversation: vi.fn().mockResolvedValue({ success: true, data: { message: 'paused' } } as any),
+      resumeConversation: vi.fn().mockResolvedValue({ success: true, data: { context: {} } } as any),
+      endConversation: vi.fn().mockResolvedValue({ success: true, data: { summary: '' } } as any),
+      checkPracticeOpportunity: vi.fn().mockResolvedValue({ success: true, data: { hasOpportunity: false } } as any),
+      getPracticeSuggestion: vi.fn().mockResolvedValue({ success: true, data: { suggestion: 'practice' } } as any),
     },
     sessions: {
-      createSession: vi.fn().mockImplementation(async ({ title }) => {
+      create: vi.fn().mockImplementation(async ({ title }) => {
         const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         return {
           success: true,
-          sessionId,
-          session: {
-            id: sessionId,
-            title: title || 'Test Session',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            messages: [],
-          },
+          data: {
+            sessionId,
+            session: {
+              id: sessionId,
+              title: title || 'Test Session',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              messages: [],
+            },
+          }
         };
       }),
-      getSession: vi.fn().mockResolvedValue({
+      get: vi.fn().mockResolvedValue({
         success: true,
-        session: {
+        data: {
           id: 'test-session-id',
           title: 'Test Session',
           createdAt: new Date().toISOString(),
@@ -84,23 +104,14 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
           messages: [],
         },
       }),
-      updateSession: vi.fn().mockResolvedValue({
-        success: true,
-      }),
-      deleteSession: vi.fn().mockResolvedValue({
-        success: true,
-      }),
-      listSessions: vi.fn().mockResolvedValue({
-        success: true,
-        sessions: [],
-        total: 0,
-        hasMore: false,
-      }),
-      searchSessions: vi.fn().mockResolvedValue({
-        success: true,
-        results: [],
-        total: 0,
-      }),
+      list: vi.fn().mockResolvedValue({ success: true, data: { sessions: [], total: 0, hasMore: false } } as any),
+      getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] } as any),
+      saveSessionWithMessages: vi.fn().mockResolvedValue({ success: true, data: { sessionId: 'test-session-id' } } as any),
+      saveMessage: vi.fn().mockResolvedValue({ success: true } as any),
+      updateTitle: vi.fn().mockResolvedValue({ success: true } as any),
+      search: vi.fn().mockResolvedValue({ success: true, data: { sessions: [], total: 0, query: '', hasMore: false } } as any),
+      delete: vi.fn().mockResolvedValue({ success: true, data: { deleted: true } } as any),
+      getStatistics: vi.fn().mockResolvedValue({ success: true, data: { totalSessions: 0, totalMessages: 0, totalUserMessages: 0, totalAssistantMessages: 0, totalTokensUsed: 0, averageMessagesPerSession: 0 } } as any),
     },
   };
 }
@@ -134,9 +145,9 @@ export const testScenarios = {
       ...createMockElectronAPI(),
       sessions: {
         ...createMockElectronAPI().sessions,
-        getSession: async () => ({
+        get: async () => ({
           success: true,
-          session: {
+          data: {
             id: 'test-session-id',
             title: 'Test Session',
             createdAt: new Date().toISOString(),
@@ -154,9 +165,9 @@ export const testScenarios = {
         ...createMockElectronAPI(),
         sessions: {
           ...createMockElectronAPI().sessions,
-          getSession: vi.fn().mockResolvedValue({
+          get: vi.fn().mockResolvedValue({
             success: true,
-            session: {
+            data: {
               id: 'test-session-id',
               title: 'Test Session',
               createdAt: new Date().toISOString(),

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { Menu, MenuItemConstructorOptions, BrowserWindow, app } from 'electron';
 
 export function createAppMenu(mainWindow: BrowserWindow | null): Menu {

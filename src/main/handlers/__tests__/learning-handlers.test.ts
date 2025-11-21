@@ -68,7 +68,7 @@ describe('learning handlers', () => {
     const response = await getHandler('learning:get-path')(null, 'missing');
 
     expect(response.success).toBe(false);
-    expect(response.error).toBe('Learning path not found');
+    expect(response.error?.message).toBe('Learning path not found');
   });
 
   it('starts a learning session with mock context', async () => {
@@ -94,14 +94,15 @@ describe('learning handlers', () => {
     const result = await getHandler('learning:get-progress')(null, 'session-abc');
 
     expect(result.success).toBe(true);
-    expect(result.progress).toEqual({ sessionId: 'session-abc', overallProgress: 42 });
+    expect(result.data).toEqual({ sessionId: 'session-abc', overallProgress: 42 });
     expect(learningService.getSessionProgress).toHaveBeenCalledWith('session-abc');
   });
 
   it('pauses a session via the service', async () => {
     const response = await getHandler('learning:pause-session')(null, 'session-1');
 
-    expect(response).toEqual({ success: true, resumeData: { sessionId: 'session-1' } });
+    expect(response.success).toBe(true);
+    expect(response.data).toEqual({ success: true, resumeData: { sessionId: 'session-1' } });
     expect(learningService.pauseSession).toHaveBeenCalledWith('session-1');
   });
 
@@ -109,7 +110,7 @@ describe('learning handlers', () => {
     const response = await getHandler('learning:get-recent-sessions')(null, { limit: 5 });
 
     expect(response.success).toBe(true);
-    expect(response.sessions).toEqual([{ id: 'session-1', topic: 'React' }]);
+    expect(response.data).toEqual([{ id: 'session-1', topic: 'React' }]);
     expect(learningService.getRecentSessions).toHaveBeenCalledWith({ limit: 5 });
   });
 });

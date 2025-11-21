@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/explicit-function-return-type, @typescript-eslint/strict-boolean-expressions */
 import { ipcMain } from 'electron';
 import type { ILogger } from '../services/types';
 import type { AnalyticsService } from '@/main/services/domain/analytics/analytics-service';
+import type { APIResponse } from '@/shared/types/electron-api';
 
 export const setupCompleteAnalyticsHandlers = (
   ipcMainInstance: typeof ipcMain,
@@ -10,16 +12,25 @@ export const setupCompleteAnalyticsHandlers = (
   }
 ) => {
   const handlerLogger = services.loggerService.child({ handler: 'analytics-complete' });
+  const ok = <T>(data?: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
+    success: true,
+    data,
+    metadata
+  });
+  const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
+    success: false,
+    error: { code, message, details }
+  });
 
   ipcMainInstance.handle('analytics:get-dashboard', async () => {
     handlerLogger.info('Handling get dashboard request');
     try {
       const dashboard = await services.analyticsService.getDashboard();
       handlerLogger.info('Dashboard retrieved successfully');
-      return { success: true, dashboard };
+      return ok(dashboard);
     } catch (error) {
       handlerLogger.error('Failed to get dashboard', error);
-      throw error;
+      return fail('analytics.dashboard_failed', 'Unable to fetch dashboard', error);
     }
   });
 
@@ -32,10 +43,10 @@ export const setupCompleteAnalyticsHandlers = (
         conceptIds: params.conceptIds
       });
       handlerLogger.info('Progress chart retrieved successfully');
-      return { success: true, progressChart };
+      return ok(progressChart);
     } catch (error) {
       handlerLogger.error('Failed to get progress chart', error);
-      throw error;
+      return fail('analytics.progress_chart_failed', 'Unable to fetch progress chart', error);
     }
   });
 
@@ -44,10 +55,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const achievements = await services.analyticsService.getAchievements();
       handlerLogger.info('Achievements retrieved successfully', { count: achievements.length });
-      return { success: true, achievements };
+      return ok(achievements);
     } catch (error) {
       handlerLogger.error('Failed to get achievements', error);
-      throw error;
+      return fail('analytics.achievements_failed', 'Unable to fetch achievements', error);
     }
   });
 
@@ -56,10 +67,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const result = await services.analyticsService.unlockAchievement(achievementId);
       handlerLogger.info('Achievement unlocked', result);
-      return result;
+      return ok(result);
     } catch (error) {
       handlerLogger.error('Failed to unlock achievement', error);
-      throw error;
+      return fail('analytics.unlock_failed', 'Unable to unlock achievement', error);
     }
   });
 
@@ -72,10 +83,10 @@ export const setupCompleteAnalyticsHandlers = (
         params.includeEngagement
       );
       handlerLogger.info('Usage stats retrieved successfully');
-      return { success: true, stats };
+      return ok(stats);
     } catch (error) {
       handlerLogger.error('Failed to get usage stats', error);
-      throw error;
+      return fail('analytics.usage_failed', 'Unable to fetch usage stats', error);
     }
   });
 
@@ -89,10 +100,10 @@ export const setupCompleteAnalyticsHandlers = (
         params.includeProjections
       );
       handlerLogger.info('Token usage retrieved successfully');
-      return { success: true, tokenUsage };
+      return ok(tokenUsage);
     } catch (error) {
       handlerLogger.error('Failed to get token usage', error);
-      throw error;
+      return fail('analytics.token_usage_failed', 'Unable to fetch token usage', error);
     }
   });
 
@@ -101,10 +112,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       await services.analyticsService.trackEvent(event);
       handlerLogger.info('Event tracked successfully');
-      return { success: true };
+      return ok(undefined);
     } catch (error) {
       handlerLogger.error('Failed to track event', error);
-      throw error;
+      return fail('analytics.track_failed', 'Unable to track event', error);
     }
   });
 
@@ -113,10 +124,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const progress = await services.analyticsService.getConceptProgress(conceptId);
       handlerLogger.info('Concept progress retrieved', { conceptId });
-      return { success: true, progress };
+      return ok(progress);
     } catch (error) {
       handlerLogger.error('Failed to get concept progress', error);
-      throw error;
+      return fail('analytics.concept_progress_failed', 'Unable to fetch concept progress', error);
     }
   });
 
@@ -125,10 +136,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const history = await services.analyticsService.getSessionHistory(params?.limit ?? 50);
       handlerLogger.info('Session history retrieved', { count: history.length });
-      return { success: true, history };
+      return ok(history);
     } catch (error) {
       handlerLogger.error('Failed to get session history', error);
-      throw error;
+      return fail('analytics.session_history_failed', 'Unable to fetch session history', error);
     }
   });
 
@@ -137,10 +148,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const achievements = await services.analyticsService.checkAchievements(sessionId);
       handlerLogger.info('Achievements check completed', { sessionId, count: achievements.length });
-      return { success: true, achievements };
+      return ok(achievements);
     } catch (error) {
       handlerLogger.error('Failed to check achievements', error);
-      throw error;
+      return fail('analytics.check_achievements_failed', 'Unable to check achievements', error);
     }
   });
 
@@ -149,10 +160,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const trends = await services.analyticsService.getLearningTrends(params?.period ?? 'weekly');
       handlerLogger.info('Learning trends retrieved', { period: trends.period });
-      return { success: true, trends };
+      return ok(trends);
     } catch (error) {
       handlerLogger.error('Failed to get learning trends', error);
-      throw error;
+      return fail('analytics.trends_failed', 'Unable to fetch learning trends', error);
     }
   });
 
@@ -161,10 +172,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const streak = await services.analyticsService.getStudyStreak();
       handlerLogger.info('Study streak retrieved', { currentStreak: streak.currentStreak });
-      return { success: true, streak };
+      return ok(streak);
     } catch (error) {
       handlerLogger.error('Failed to get study streak', error);
-      throw error;
+      return fail('analytics.streak_failed', 'Unable to fetch study streak', error);
     }
   });
 
@@ -173,10 +184,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const stats = await services.analyticsService.getTimeStats();
       handlerLogger.info('Time stats retrieved', { totalSessions: stats.totalSessions });
-      return { success: true, stats };
+      return ok(stats);
     } catch (error) {
       handlerLogger.error('Failed to get time stats', error);
-      throw error;
+      return fail('analytics.time_stats_failed', 'Unable to fetch time stats', error);
     }
   });
 
@@ -185,10 +196,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const exported = await services.analyticsService.exportData(params.format ?? 'json');
       handlerLogger.info('Data exported successfully');
-      return { success: true, data: exported };
+      return ok(exported);
     } catch (error) {
       handlerLogger.error('Failed to export data', error);
-      throw error;
+      return fail('analytics.export_failed', 'Unable to export data', error);
     }
   });
 
@@ -197,10 +208,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       await services.analyticsService.importData(params.payload, params.format);
       handlerLogger.info('Data imported successfully');
-      return { success: true };
+      return ok(undefined);
     } catch (error) {
       handlerLogger.error('Failed to import data', error);
-      throw error;
+      return fail('analytics.import_failed', 'Unable to import data', error);
     }
   });
 
@@ -209,10 +220,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       const trackedSessionId = await services.analyticsService.trackSession(session);
       handlerLogger.info('Session tracked successfully', { sessionId: trackedSessionId });
-      return { success: true, sessionId: trackedSessionId };
+      return ok({ sessionId: trackedSessionId });
     } catch (error) {
       handlerLogger.error('Failed to track session', error);
-      throw error;
+      return fail('analytics.track_session_failed', 'Unable to track session', error);
     }
   });
 
@@ -221,10 +232,10 @@ export const setupCompleteAnalyticsHandlers = (
     try {
       await services.analyticsService.updateConceptProgress(conceptId, update);
       handlerLogger.info('Concept progress updated', { conceptId });
-      return { success: true };
+      return ok(undefined);
     } catch (error) {
       handlerLogger.error('Failed to update concept progress', error);
-      throw error;
+      return fail('analytics.update_concept_failed', 'Unable to update concept progress', error);
     }
   });
 

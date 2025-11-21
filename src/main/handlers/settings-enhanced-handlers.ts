@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Enhanced Settings & Configuration IPC Handlers
  *

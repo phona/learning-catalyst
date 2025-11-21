@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { ipcMain } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 import {

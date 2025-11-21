@@ -5,13 +5,15 @@
  * Focuses on personalizing the AI learning experience.
  */
 
+import type { APIResponse } from './index';
+
 export interface AgentsAPI {
   /**
    * Gets all available AI agents with display information
    * Returns agents optimized for selection UI
    * @returns Promise<AgentDisplay[]> - Array of available agents
    */
-  getAvailableAgents: () => Promise<AgentDisplay[]>;
+  getAvailableAgents: () => Promise<APIResponse<AgentDisplay[]>>;
 
   /**
    * Selects an agent for a specific session
@@ -23,7 +25,7 @@ export interface AgentsAPI {
   selectAgentForSession: (params: {
     sessionId: string;
     agentType: string;
-  }) => Promise<{ success: boolean; agent: AgentDisplay; context: AgentContext }>;
+  }) => Promise<APIResponse<{ agent: AgentDisplay; context: AgentContext }>>;
 
   /**
    * Sets personality preferences for an agent
@@ -35,7 +37,7 @@ export interface AgentsAPI {
   setAgentPersonality: (params: {
     agentId: string;
     personality: 'friendly encouraging' | 'formal professional' | 'casual friendly' | 'technical expert';
-  }) => Promise<{ success: boolean; updatedSettings: AgentSettings }>;
+  }) => Promise<APIResponse<AgentSettings>>;
 
   /**
    * Sets response style preferences for a session
@@ -47,7 +49,7 @@ export interface AgentsAPI {
   setResponseStyle: (params: {
     sessionId: string;
     style: ResponseStyleSettings;
-  }) => Promise<{ success: boolean; appliedSettings: ResponseStyleSettings }>;
+  }) => Promise<APIResponse<ResponseStyleSettings>>;
 
   /**
    * Gets detailed capabilities for a specific agent
@@ -55,7 +57,7 @@ export interface AgentsAPI {
    * @param agentId - Agent ID to get capabilities for
    * @returns Promise<AgentCapabilitiesDisplay> - Detailed capability information
    */
-  getAgentCapabilities: (agentId: string) => Promise<AgentCapabilitiesDisplay>;
+  getAgentCapabilities: (agentId: string) => Promise<APIResponse<AgentCapabilitiesDisplay>>;
 
   /**
    * Demonstrates a specific agent feature
@@ -67,7 +69,7 @@ export interface AgentsAPI {
   tryAgentFeature: (params: {
     agentId: string;
     feature: string;
-  }) => Promise<FeatureDemoDisplay>;
+  }) => Promise<APIResponse<FeatureDemoDisplay>>;
 }
 
 // ============================================================================

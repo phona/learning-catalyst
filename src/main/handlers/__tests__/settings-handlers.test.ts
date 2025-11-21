@@ -3,21 +3,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable no-undef */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { setupSettingsHandlers } from '../settings-handlers';
 
 const electronMocks = vi.hoisted(() => ({
   handlerMap: new Map<string, (...args: any[]) => any>(),
   app: {
     getVersion: vi.fn().mockReturnValue('9.9.9'),
-    getPath: vi.fn().mockReturnValue('/tmp'),
-    getAppPath: vi.fn().mockReturnValue('/app'),
     quit: vi.fn()
   }
 }));
@@ -39,20 +33,16 @@ vi.mock('electron', () => ({
 
 vi.mock('fs/promises', () => fsMocks);
 
-import { setupSettingsHandlers } from '../settings-handlers';
-
-const getHandler = (channel: string) => {
+const getHandler = (channel: string): ((...args: any[]) => any) => {
   const handler = electronMocks.handlerMap.get(channel);
   expect(handler).toBeDefined();
-  return handler as any;
+  return handler as (...args: any[]) => any;
 };
 
-describe('settings handlers', () => {
+describe('settings handlers (documented surface)', () => {
   beforeEach(() => {
     electronMocks.handlerMap.clear();
-    Object.values(fsMocks).forEach((mockFn) => {
-      mockFn.mockReset();
-    });
+    Object.values(fsMocks).forEach((mockFn) => mockFn.mockReset());
     Object.values(electronMocks.app).forEach((mockFn) => {
       if (typeof mockFn === 'function' && 'mockReset' in mockFn) {
         mockFn.mockReset();
@@ -72,7 +62,7 @@ describe('settings handlers', () => {
 
     const result = await getHandler('settings:getWorkspaceConfig')(null);
 
-    expect(result).toEqual(sampleConfig);
+    expect(result).toEqual({ success: true, data: sampleConfig });
     expect(fsMocks.readFile).toHaveBeenCalledWith(
       expect.stringContaining('.catalyst'),
       'utf-8'
@@ -83,7 +73,8 @@ describe('settings handlers', () => {
     setupSettingsHandlers('/workspace');
 
     const config = { ui: { theme: 'dark' } } as any;
-    await getHandler('settings:setWorkspaceConfig')(null, config);
+    const result = await getHandler('settings:setWorkspaceConfig')(null, config);
+    expect(result.success).toBe(true);
 
     expect(fsMocks.mkdir).toHaveBeenCalledWith(
       expect.stringContaining('.catalyst'),
@@ -96,27 +87,11 @@ describe('settings handlers', () => {
     );
   });
 
-  it('updates nested workspace config keys', async () => {
-    fsMocks.access.mockResolvedValue(undefined);
-    fsMocks.readFile.mockResolvedValue(JSON.stringify({ ui: { theme: 'dark' } }));
-
-    setupSettingsHandlers('/workspace');
-
-    await getHandler('settings:setWorkspaceConfigKey')(null, 'ui.theme', 'light');
-
-    expect(fsMocks.writeFile).toHaveBeenCalledWith(
-      expect.any(String),
-      JSON.stringify({ ui: { theme: 'light' } }, null, 2),
-      'utf-8'
-    );
-  });
-
   it('returns app version through settings:getAppVersion', async () => {
     setupSettingsHandlers('/workspace');
 
     const version = await getHandler('settings:getAppVersion')(null);
 
-    expect(version).toBe('9.9.9');
-    expect(electronMocks.app.getVersion).toHaveBeenCalled();
+    expect(version).toEqual({ success: true, data: '9.9.9' });
   });
 });

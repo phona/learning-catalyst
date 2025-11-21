@@ -101,7 +101,16 @@ const buildElectronAPI = () => {
   return client;
 };
 
-const renderApp = (routerProps?: MemoryRouterProps) => renderWithServices(<App />, { routerProps });
+type RenderAppOptions = {
+  routerProps?: MemoryRouterProps;
+  electronUnavailable?: boolean;
+};
+
+const renderApp = (options?: RenderAppOptions) =>
+  renderWithServices(<App />, {
+    routerProps: options?.routerProps,
+    electronUnavailable: options?.electronUnavailable,
+  });
 
 beforeEach(() => {
   (window as typeof window & { electronAPI?: unknown }).electronAPI = buildElectronAPI();
@@ -132,7 +141,7 @@ describe('App Component - Simplified Initialization', () => {
     it('should handle missing electronAPI gracefully', async () => {
       (window as typeof window & { electronAPI?: unknown }).electronAPI = undefined;
 
-      renderApp();
+      renderApp({ electronUnavailable: true });
 
       // Should handle missing electronAPI gracefully with console warning
       await waitFor(() => {

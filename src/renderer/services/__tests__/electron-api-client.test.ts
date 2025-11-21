@@ -51,7 +51,7 @@ describe('Simplified electronAPI Abstraction', () => {
       // Mock the sessions API
       mockAPIClient.sessions.getRecentSessions = vi.fn().mockResolvedValue({
         success: true,
-        sessions: [
+        data: [
           { id: 'session-1', title: 'Test Session', lastActivity: '2023-01-01' } as SessionDisplay
         ]
       });

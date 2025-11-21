@@ -24,34 +24,34 @@ Object.defineProperty(window, 'electronAPI', {
   value: {
     getConfig: vi.fn().mockResolvedValue({}),
     chat: {
-      sendMessage: vi.fn().mockResolvedValue({ success: true }),
+      sendMessage: vi.fn().mockResolvedValue({ success: true, data: { assistantMessage: { content: 'ok' } } }),
       sendMessageStream: vi.fn(),
-      startConversation: vi.fn().mockResolvedValue({}),
-      getConversationHistory: vi.fn().mockResolvedValue([])
+      startConversation: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getConversationHistory: vi.fn().mockResolvedValue({ success: true, data: [] })
     },
     learning: {
-      startLearningSession: vi.fn().mockResolvedValue({}),
-      getSessionProgress: vi.fn().mockResolvedValue({}),
-      getLearningPath: vi.fn().mockResolvedValue({}),
-      getRecentSessions: vi.fn().mockResolvedValue([]),
-      searchSessions: vi.fn().mockResolvedValue({ sessions: [], totalResults: 0 })
+      startLearningSession: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getSessionProgress: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getLearningPath: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      searchSessions: vi.fn().mockResolvedValue({ success: true, data: { sessions: [], totalResults: 0 } })
     },
     knowledge: {
-      exploreConcept: vi.fn().mockResolvedValue({}),
-      parseConcepts: vi.fn().mockResolvedValue({ concepts: [] })
+      exploreConcept: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      parseConcepts: vi.fn().mockResolvedValue({ success: true, data: { concepts: [] } })
     },
     analytics: {
-      getDashboard: vi.fn().mockResolvedValue({}),
-      getProgressChart: vi.fn().mockResolvedValue({}),
-      getAchievements: vi.fn().mockResolvedValue([]),
+      getDashboard: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getProgressChart: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getAchievements: vi.fn().mockResolvedValue({ success: true, data: [] }),
       trackSession: vi.fn().mockResolvedValue({ success: true })
     },
     agents: {
-      getAvailableAgents: vi.fn().mockResolvedValue([]),
-      getAgentCapabilities: vi.fn().mockResolvedValue({ capabilities: [] })
+      getAvailableAgents: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getAgentCapabilities: vi.fn().mockResolvedValue({ success: true, data: { capabilities: [] } })
     },
     content: {
-      exploreLocalProjects: vi.fn().mockResolvedValue([]),
+      exploreLocalProjects: vi.fn().mockResolvedValue({ success: true, data: [] }),
       importLearningContent: vi.fn().mockResolvedValue({ success: true })
     },
     getWorkspacePath: vi.fn().mockResolvedValue('/mock/workspace'),
@@ -68,12 +68,14 @@ Object.defineProperty(window, 'electronAPI', {
     catalyst: {
       executeAgent: vi.fn().mockResolvedValue({ success: true }),
       executeAgentStream: vi.fn(),
-      listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+      listAgents: vi.fn().mockResolvedValue({ success: true, data: [] }),
       cancelAgent: vi.fn().mockResolvedValue({ success: true }),
       sendChat: vi.fn().mockResolvedValue({
         success: true,
-        messageId: 'test-message-id',
-        response: 'Test response from CatalystService'
+        data: {
+          messageId: 'test-message-id',
+          response: 'Test response from CatalystService'
+        }
       }),
       sendChatStream: vi.fn().mockImplementation(async (message, options, onChunk) => {
         // Simulate streaming response
@@ -82,12 +84,12 @@ Object.defineProperty(window, 'electronAPI', {
         onChunk({ type: 'complete', content: '', timestamp: Date.now() });
         return {
           success: true,
-          messageId: 'test-stream-id'
+          data: { messageId: 'test-stream-id' }
         };
       }),
       getAvailableAgents: vi.fn().mockResolvedValue({
         success: true,
-        agents: [
+        data: [
           {
             id: 'test-agent-1',
             name: 'Test Agent 1',
@@ -104,7 +106,7 @@ Object.defineProperty(window, 'electronAPI', {
       }),
       getSession: vi.fn().mockResolvedValue({
         success: true,
-        session: {
+        data: {
           id: 'test-session-id',
           title: 'Test Session',
           messages: []
@@ -117,18 +119,22 @@ Object.defineProperty(window, 'electronAPI', {
     sessions: {
       create: vi.fn().mockResolvedValue({
         success: true,
-        session: { id: 'test-new-session', title: 'New Session' }
+        data: { sessionId: 'test-new-session', session: { id: 'test-new-session', title: 'New Session' } }
       }),
       get: vi.fn().mockResolvedValue({
         success: true,
-        session: { id: 'test-session', title: 'Test Session' }
+        data: { id: 'test-session', title: 'Test Session' }
       }),
       list: vi.fn().mockResolvedValue({
         success: true,
-        sessions: [
-          { id: 'session-1', title: 'Session 1' },
-          { id: 'session-2', title: 'Session 2' }
-        ]
+        data: {
+          sessions: [
+            { id: 'session-1', title: 'Session 1' },
+            { id: 'session-2', title: 'Session 2' }
+          ],
+          total: 2,
+          hasMore: false
+        }
       }),
       update: vi.fn().mockResolvedValue({
         success: true
@@ -137,11 +143,11 @@ Object.defineProperty(window, 'electronAPI', {
         success: true
       }),
       saveMessage: vi.fn().mockResolvedValue({ success: true }),
-      saveSessionWithMessages: vi.fn().mockResolvedValue({ success: true, sessionId: 'test-new-session' }),
+      saveSessionWithMessages: vi.fn().mockResolvedValue({ success: true, data: { sessionId: 'test-new-session' } }),
       updateTitle: vi.fn().mockResolvedValue({ success: true }),
-      getRecentSessions: vi.fn().mockResolvedValue({ success: true, sessions: [] }),
-      search: vi.fn().mockResolvedValue({ success: true, results: { sessions: [], total: 0, query: '', hasMore: false } }),
-      getStatistics: vi.fn().mockResolvedValue({ success: true, statistics: { totalSessions: 0, totalMessages: 0, totalUserMessages: 0, totalAssistantMessages: 0, totalTokensUsed: 0, averageMessagesPerSession: 0 } }),
+      getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      search: vi.fn().mockResolvedValue({ success: true, data: { sessions: [], total: 0, query: '', hasMore: false } }),
+      getStatistics: vi.fn().mockResolvedValue({ success: true, data: { totalSessions: 0, totalMessages: 0, totalUserMessages: 0, totalAssistantMessages: 0, totalTokensUsed: 0, averageMessagesPerSession: 0 } }),
       associateAgent: vi.fn().mockResolvedValue({
         success: true
       }),
@@ -155,24 +161,27 @@ Object.defineProperty(window, 'electronAPI', {
     },
     settings: {
       getUserPreferences: vi.fn().mockResolvedValue({
-        interface: {
-          theme: 'dark',
-          fontSize: 'medium',
-          compactMode: false,
-          showProgressIndicators: true,
-        },
-        learning: {
-          preferredDifficulty: 'intermediate',
-          learningStyle: 'visual',
-          preferredSessionDuration: '45',
-          tracking: {
-            enableAnalytics: true,
+        success: true,
+        data: {
+          interface: {
+            theme: 'dark',
+            fontSize: 'medium',
+            compactMode: false,
+            showProgressIndicators: true,
           },
-        },
-        privacy: {
-          saveConversationHistory: true,
-          shareAnalytics: false,
-        },
+          learning: {
+            preferredDifficulty: 'intermediate',
+            learningStyle: 'visual',
+            preferredSessionDuration: '45',
+            tracking: {
+              enableAnalytics: true,
+            },
+          },
+          privacy: {
+            saveConversationHistory: true,
+            shareAnalytics: false,
+          },
+        }
       }),
       updatePreferences: vi.fn().mockResolvedValue({
         success: true,

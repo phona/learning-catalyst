@@ -20,7 +20,7 @@ describe('electronAPI contract', () => {
 
     expect(api.sessions).toBeDefined();
     expect(typeof api.sessions.list).toBe('function');
-    await expect(api.sessions.list()).resolves.toBeDefined();
+    await expect(api.sessions.list()).resolves.toMatchObject({ success: true });
 
     expect(api.agents).toBeDefined();
     expect(typeof api.agents.getAvailableAgents).toBe('function');
@@ -29,7 +29,7 @@ describe('electronAPI contract', () => {
     expect(typeof api.content.exploreLocalProjects).toBe('function');
 
     expect(api.settings).toBeDefined();
-    await expect(api.settings.getUserPreferences()).resolves.toBeDefined();
+    await expect(api.settings.getUserPreferences()).resolves.toMatchObject({ success: true });
 
     expect(api.catalyst).toBeDefined();
     expect(typeof api.catalyst.executeAgent).toBe('function');
