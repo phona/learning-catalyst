@@ -44,6 +44,100 @@ Each domain returns a `Promise<APIResponse<...>>` and exposes the domain-specifi
 | `content` | Discover, import, or remove learning materials and recommendations. |
 | `settings` | Configure AI providers/models/preferences and use the utility helpers below. |
 
+### Chat API (`chat-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `startConversation(params)` | Begin a conversation with an agent (type/topic/preferences). |
+| `sendMessage(params)` | Send a message and receive a full response. |
+| `sendMessageStream(params)` | Stream response chunks for real-time rendering. |
+| `getTypingIndicator(conversationId)` | Check agent typing/processing state. |
+| `getConversationHistory(conversationId, options)` | Fetch paginated conversation history. |
+| `pauseConversation(conversationId)` / `resumeConversation(conversationId)` | Manage temporary pauses. |
+| `endConversation(conversationId)` | Close a conversation and emit a summary. |
+| `checkPracticeOpportunity(params)` and `getPracticeSuggestion(params)` | Detect and suggest practice activities within chat. |
+
+### Learning API (`learning-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `startLearningSession(params)` | Spin up a learning session with goals, difficulty, agent, and preferred style. |
+| `getSessionProgress(sessionId)` | Retrieve progress metrics for a session. |
+| `getLearningPath(sessionId)` | Inspect the planned path/details for the session. |
+| `pauseSession(sessionId)` / `resumeSession(sessionId)` | Temporarily halt or continue tracking. |
+| `completeSession(sessionId)` | Finalize a session, unlock recommendations, and insights. |
+| `getRecentSessions(options?)` | List recent sessions for the UI. |
+| `searchSessions(query, filters)` | Search the historical session catalog. |
+
+### Knowledge API (`knowledge-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `ingestConcepts(params)` | Add parsed concept data to the knowledge graph. |
+| `exploreConcept(params)` | Drill into a concept with depth controls. |
+| `getRelatedConcepts(conceptId)` | Return related concepts and relationships. |
+| `getKnowledgeMap(sessionId?)` | Fetch nodes/edges for visualization. |
+| `searchKnowledge(query)` | Perform semantic knowledge search. |
+| `parseConcepts(params)` | Parse documents/files/text into structured concepts. |
+
+### Analytics API (`analytics-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `getDashboard()` | Fetch dashboard overview + recent activity. |
+| `getProgressChart(params)` | Retrieve chart-ready progress data. |
+| `getAchievements()` / `unlockAchievement(id)` | List/award achievements. |
+| `getUsageStats(params)` / `getTokenUsage(params)` | Analyze usage/cost metrics. |
+| `trackSession(session)` | Record session events for analytics. |
+| `updateConceptProgress(conceptId, update)` / `getConceptProgress(conceptId)` | Track concept mastery. |
+| `getSessionHistory(params)` | List historical sessions. |
+| `checkAchievements(sessionId?)` | Detect newly unlocked achievements. |
+| `getLearningTrends(params)` / `getStudyStreak()` / `getTimeStats(params)` | Trends/streak/time stats. |
+| `exportData(params)` / `importData(params)` | Export or import analytics data. |
+
+### Sessions API (`sessions-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `list(options?)` | Paginate stored sessions. |
+| `create(payload)` / `get(sessionId)` / `update(sessionId, updates)` | CRUD session records. |
+| `delete(sessionId)` | Remove a session. |
+| `saveMessage(sessionId, message)` / `saveSessionWithMessages(session, messages)` | Persist messages and session snapshots. |
+| `updateTitle(sessionId, title)` | Rename a session. |
+| `getRecentSessions(options?)` | Fast list for UI dropdowns. |
+| `search(query)` | Search sessions with filters. |
+| `getStatistics()` | Return global session statistics. |
+
+### Agents API (`agent-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `getAvailableAgents()` | Retrieve agent catalog metadata. |
+| `selectAgentForSession(params)` | Bind an agent to a session. |
+| `setAgentPersonality(params)` / `setResponseStyle(params)` | Tune agent demeanor and response style. |
+| `getAgentCapabilities(agentId)` | Return capability details for a specific agent. |
+| `tryAgentFeature(params)` | Run a quick feature demonstration. |
+
+### Content API (`content-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `exploreLocalProjects()` | Discover local code/content projects. |
+| `importLearningContent(files)` | Import files and extract learning artifacts. |
+| `getRecommendedContent(params)` | Recommend materials for a topic and level. |
+| `searchLearningResources(query)` | Search learning materials across sources. |
+| `analyzeDocument(filePath)` | Analyze a document’s learning characteristics. |
+| `extractConcepts(content)` | Extract concepts from raw text content. |
+
+### Settings API (`settings-api.ts`)
+
+| Method | Description |
+| --- | --- |
+| `getUserPreferences()` / `updatePreferences(preferences)` | Inspect/update UI/privacy/learning preferences. |
+| `getAvailableProviders()` | Get provider list plus summary. |
+| `configureProvider(params)` | Add or update provider configuration. |
+| `getLearningSettings()` / `updateLearningSettings(settings)` | Manage learning-specific settings. |
+
 ## Settings Utility & Helpers
 
 `SettingsUtility` extends the settings domain with the workspace helpers that wrap the `settings:getWorkspaceConfig`/`settings:setWorkspaceConfig` IPC channels:
@@ -120,4 +214,3 @@ Declare helpers like `window.electronAPI` by importing `ElectronAPI` (`src/share
 ## Testing Tips
 
 Mock the electron bridge with the same shape as `ElectronAPI`, including helpers and the `settings` domain. Keep real-life responses wrapped in `APIResponse`.
-
