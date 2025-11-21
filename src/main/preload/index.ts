@@ -24,12 +24,10 @@ import {
   AgentsAPI,
   ContentAPI,
   SettingsAPI,
-  SettingsUtility
-} from '@/shared/types/electron-api';
-import type {
+  SettingsUtility,
   SessionsAPI,
-  SessionStatistics
-} from '@/shared/types/electron-api/sessions-api';
+  CatalystAPI
+} from '@/shared/types/electron-api';
 import type {
   Session,
   SessionSearchQuery,
@@ -526,6 +524,43 @@ const contentAPI: ContentAPI = {
 };
 
 // ============================================================================
+// Sessions API
+// ============================================================================
+
+const sessionsAPI: SessionsAPI = {
+  list: (options) => ipcRenderer.invoke('sessions:list', options),
+  create: (payload) => ipcRenderer.invoke('sessions:create', payload),
+  get: (sessionId: string) => ipcRenderer.invoke('sessions:get', sessionId),
+  update: (sessionId, updates) => ipcRenderer.invoke('sessions:update', sessionId, updates),
+  delete: (sessionId: string) => ipcRenderer.invoke('sessions:delete', sessionId),
+  saveMessage: (sessionId, message) => ipcRenderer.invoke('sessions:save-message', sessionId, message),
+  saveSessionWithMessages: (session, messages) =>
+    ipcRenderer.invoke('sessions:save-session-with-messages', session, messages),
+  updateTitle: (sessionId, title) => ipcRenderer.invoke('sessions:update-title', sessionId, title),
+  getRecentSessions: (options) => ipcRenderer.invoke('sessions:get-recent', options),
+  search: (query) => ipcRenderer.invoke('sessions:search', query),
+  getStatistics: () => ipcRenderer.invoke('sessions:get-statistics')
+};
+
+// ============================================================================
+// Catalyst API
+// ============================================================================
+
+const catalystAPI: CatalystAPI = {
+  executeAgent: (params) => ipcRenderer.invoke('catalyst:execute-agent', params),
+  executeAgentStream: (params, port) => ipcRenderer.invoke('catalyst:execute-agent-stream', params, port),
+  cancelAgent: (executionId) => ipcRenderer.invoke('catalyst:cancel-agent', executionId),
+  getAgentStatus: (executionId) => ipcRenderer.invoke('catalyst:get-agent-status', executionId),
+  listAgents: () => ipcRenderer.invoke('catalyst:list-agents'),
+  getActiveExecutions: () => ipcRenderer.invoke('catalyst:get-active-executions'),
+  registerAgent: (agentConfig) => ipcRenderer.invoke('catalyst:register-agent', agentConfig),
+  unregisterAgent: (agentId) => ipcRenderer.invoke('catalyst:unregister-agent', agentId),
+  sendChat: (params) => ipcRenderer.invoke('catalyst:send-chat', params),
+  sendChatStream: (params) => ipcRenderer.invoke('catalyst:send-chat-stream', params),
+  getSession: (params) => ipcRenderer.invoke('catalyst:get-session', params),
+  cancelExecution: (params) => ipcRenderer.invoke('catalyst:cancel-execution', params)
+};
+// ============================================================================
 // 7. Settings & Configuration API
 // ============================================================================
 
@@ -554,39 +589,24 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
     ipcRenderer.invoke('settings:update-preferences', preferences),
 
   /**
-   * Get AI providers
+   * Get available AI providers and their status
    * Returns configured and available AI providers
    */
-  getProviders: () =>
-    ipcRenderer.invoke('settings:getProviders'),
+  getAvailableProviders: () =>
+    ipcRenderer.invoke('settings:getAvailableProviders'),
 
   /**
-   * Add an AI provider
-   * @param config - Provider configuration
+   * Configures an AI provider with authentication and settings
+   * Sets up or updates provider configuration
+   * @param params.provider - Provider ID to configure
+   * @param params.config - Provider configuration object
    */
-  addProvider: (config: ProviderConfig) =>
-    ipcRenderer.invoke('settings:addProvider', config),
+  configureProvider: (params: {
+    provider: string;
+    config: any;
+  }) =>
+    ipcRenderer.invoke('settings:configureProvider', params),
 
-  /**
-   * Update an AI provider
-   * @param providerId - Provider ID to update
-   * @param config - Updated provider configuration
-   */
-  updateProvider: (providerId: string, config: Partial<ProviderConfig>) =>
-    ipcRenderer.invoke('settings:updateProvider', providerId, config),
-
-  /**
-   * Delete an AI provider
-   * @param providerId - Provider ID to delete
-   */
-  deleteProvider: (providerId: string) =>
-    ipcRenderer.invoke('settings:deleteProvider', providerId),
-
-  /**
-   * Get available models
-   */
-  getModels: () =>
-    ipcRenderer.invoke('settings:getModels'),
 
   /**
    * Gets learning-specific settings
@@ -630,6 +650,18 @@ const electronAPI = {
   agents: agentsAPI,
   content: contentAPI,
   settings: settingsAPI,
+  sessions: sessionsAPI,
+  catalyst: catalystAPI,
+  getWorkspacePath: () => ipcRenderer.invoke('fs:get-workspace-path'),
+  readDirectory: (path: string, recursive?: boolean, maxDepth?: number, filterConfig?: any) =>
+    ipcRenderer.invoke('fs:read-directory', path, recursive, maxDepth, filterConfig),
+  readFile: (filePath: string, encoding?: BufferEncoding) =>
+    ipcRenderer.invoke('fs:read-file', filePath, encoding),
+  writeFile: (filePath: string, content: string, encoding?: BufferEncoding) =>
+    ipcRenderer.invoke('fs:write-file', filePath, content, encoding),
+  existsFile: (filePath: string) => ipcRenderer.invoke('fs:exists-file', filePath),
+  showOpenDialog: (options?: any) => ipcRenderer.invoke('dialog:show-open-dialog', options),
+  showSaveDialog: (options?: any) => ipcRenderer.invoke('dialog:show-save-dialog', options),
   onMenuAction: (handler: (action: string, data?: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, action: string, payload?: unknown) => {
       handler(action, payload);

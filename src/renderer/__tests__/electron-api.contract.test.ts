@@ -10,7 +10,7 @@ describe('electronAPI contract', () => {
     expect(typeof api.chat.sendMessage).toBe('function');
 
     expect(api.learning).toBeDefined();
-    expect(typeof api.learning.startSession).toBe('function');
+    expect(typeof api.learning.startLearningSession).toBe('function');
 
     expect(api.knowledge).toBeDefined();
     expect(typeof api.knowledge.exploreConcept).toBe('function');
@@ -23,7 +23,7 @@ describe('electronAPI contract', () => {
     await expect(api.sessions.list()).resolves.toBeDefined();
 
     expect(api.agents).toBeDefined();
-    expect(typeof api.agents.list).toBe('function');
+    expect(typeof api.agents.getAvailableAgents).toBe('function');
 
     expect(api.content).toBeDefined();
     expect(typeof api.content.exploreLocalProjects).toBe('function');

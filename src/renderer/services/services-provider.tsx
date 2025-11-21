@@ -1,11 +1,10 @@
 
 import React, { createContext, useContext } from 'react';
-import type { ElectronAPIClient } from './api/electron-api-client';
 import type { ICatalystService } from './interfaces/ICatalystService';
 import type { IAnalyticsService } from './interfaces/IAnalyticsService';
-import type { IChatService } from './interfaces/IChatService';
-import type { ISessionService } from './interfaces/ISessionService';
-import type { IDiscoveryService } from './interfaces/IDiscoveryService';
+import type { ChatService } from './chat/chat-service';
+import type { SessionService } from './session/session-service';
+import type { DiscoveryService } from './discovery/discovery-service';
 import type { IConfigurationService } from './interfaces/IConfigurationService';
 import { createSessionService } from './session/session-service';
 import { createChatService } from './chat/chat-service';
@@ -16,23 +15,28 @@ import { createConfigurationService } from './configuration/configuration-servic
 import { createElectronAPIClient, createMockElectronAPIClient } from './api/electron-api-client';
 import { createConceptParsingService, type ConceptParsingService } from './concept-parsing/concept-parsing-service';
 import type { ConfigurationService } from './configuration/configuration-service';
+import { createFileService } from './file/file-service';
+import type { FileService } from './file/file-service';
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import { createAgentService, type AgentService } from './agents/agent-service';
 
 interface ServiceContextType {
-  electronAPIClient: ElectronAPIClient;
-  sessionService: ISessionService;
-  chatService: IChatService;
+  electronAPIClient: ElectronAPI;
+  sessionService: SessionService;
+  chatService: ChatService;
   analyticsService: IAnalyticsService;
-  discoveryService: IDiscoveryService;
+  discoveryService: DiscoveryService;
   catalystService: ICatalystService;
   configService: IConfigurationService;
+  fileService: FileService;
   conceptParsing: ConceptParsingService;
+  agentService: AgentService;
 }
 
 const ServiceContext = createContext<ServiceContextType | null>(null);
 
 export interface ServicesProviderProps {
-  apiClient?: ElectronAPIClient;
+  apiClient?: ElectronAPI;
   children: React.ReactNode;
 }
 
@@ -58,7 +62,9 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({
   const discoveryService = createDiscoveryService(client);
   const catalystService = createCatalystService(client);
   const configService = createConfigurationService(client);
+  const fileService = createFileService(client);
   const conceptParsing = createConceptParsingService(client);
+  const agentService = createAgentService(client);
 
   return (
     <ServiceContext.Provider value={{
@@ -69,7 +75,9 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({
       discoveryService,
       catalystService,
       configService,
-      conceptParsing
+      fileService,
+      conceptParsing,
+      agentService
     }}>
       {children}
     </ServiceContext.Provider>
@@ -85,7 +93,7 @@ export const useCatalystService = (): ICatalystService => {
   return context.catalystService;
 };
 
-export const useChatService = (): IChatService => {
+export const useChatService = (): ChatService => {
   const context = useContext(ServiceContext);
   if (!context) {
     throw new Error('useChatService must be used within ServicesProvider');
@@ -93,7 +101,7 @@ export const useChatService = (): IChatService => {
   return context.chatService;
 };
 
-export const useSessionService = (): ISessionService => {
+export const useSessionService = (): SessionService => {
   const context = useContext(ServiceContext);
   if (!context) {
     throw new Error('useSessionService must be used within ServicesProvider');
@@ -109,7 +117,7 @@ export const useAnalyticsService = (): IAnalyticsService => {
   return context.analyticsService;
 };
 
-export const useDiscoveryService = (): IDiscoveryService => {
+export const useDiscoveryService = (): DiscoveryService => {
   const context = useContext(ServiceContext);
   if (!context) {
     throw new Error('useDiscoveryService must be used within ServicesProvider');
@@ -127,7 +135,7 @@ export const useServiceContext = (): ServiceContextType => {
 };
 
 // Hook to access electron API client
-export const useElectronAPIClient = (): ElectronAPIClient => {
+export const useElectronAPIClient = (): ElectronAPI => {
   return useServiceContext().electronAPIClient;
 };
 
@@ -138,6 +146,23 @@ export const useConfigurationService = (): IConfigurationService => {
     throw new Error('useConfigurationService must be used within ServicesProvider');
   }
   return context.configService;
+};
+
+// Hook to access file service
+export const useFileService = (): FileService => {
+  const context = useContext(ServiceContext);
+  if (!context) {
+    throw new Error('useFileService must be used within ServicesProvider');
+  }
+  return context.fileService;
+};
+
+export const useAgentService = (): AgentService => {
+  const context = useContext(ServiceContext);
+  if (!context) {
+    throw new Error('useAgentService must be used within ServicesProvider');
+  }
+  return context.agentService;
 };
 
 // Generic service hook for backward compatibility

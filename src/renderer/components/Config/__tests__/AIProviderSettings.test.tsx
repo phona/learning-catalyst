@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AIProviderSettings } from '@/renderer/components/Config/AIProviderSettings';
 import { useService } from '@/renderer/services/services-provider';
+import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
 
 // Temporary debug log to inspect environment.
 console.log('[AIProviderSettings tests] NODE_ENV:', process.env.NODE_ENV);
@@ -20,8 +21,13 @@ vi.mock('@/renderer/utils/toast', () => ({
   utilityToasts: mockUtilityToasts,
 }));
 
+const configServiceMock = createMockConfigurationService();
+const fileServiceMock = createMockFileService();
+
 vi.mock('@/renderer/services/services-provider', () => ({
   useService: vi.fn(),
+  useConfigurationService: vi.fn(() => configServiceMock),
+  useFileService: vi.fn(() => fileServiceMock),
 }));
 
 describe('AIProviderSettings (current UI)', () => {

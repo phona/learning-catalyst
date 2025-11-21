@@ -1,6 +1,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
 import { LocalProjectExplorer } from '../LocalProjectExplorer';
 
 const mockConceptParsingService = {
@@ -21,8 +22,13 @@ const serviceMap: Record<string, any> = {
   chatService: mockChatService
 };
 
+const configServiceMock = createMockConfigurationService();
+const fileServiceMock = createMockFileService();
+
 vi.mock('@/renderer/services/services-provider', () => ({
-  useService: (serviceName: keyof typeof serviceMap) => serviceMap[serviceName] ?? null
+  useService: (serviceName: keyof typeof serviceMap) => serviceMap[serviceName] ?? null,
+  useConfigurationService: vi.fn(() => configServiceMock),
+  useFileService: vi.fn(() => fileServiceMock),
 }));
 
 const mockGetWorkspacePath = vi.fn();
@@ -65,15 +71,15 @@ beforeEach(() => {
   });
   mockConceptParsingService.getJobStatus.mockReturnValue(null);
 
-  const electronAPI = (window as any).electronAPI ?? {};
-  Object.assign(electronAPI, {
-    getWorkspacePath: mockGetWorkspacePath,
-    readDirectory: mockReadDirectory,
-    existsFile: vi.fn().mockResolvedValue(true),
-    readFile: vi.fn().mockResolvedValue('# Test'),
-    writeFile: vi.fn().mockResolvedValue(undefined)
+  (fileServiceMock.readDirectory as any) = vi.fn(async (...args: unknown[]) => {
+    const result = await mockReadDirectory(...(args as []));
+    return { success: true, data: result };
   });
-  (window as any).electronAPI = electronAPI;
+
+  (fileServiceMock.getWorkspacePath as any) = vi.fn(async () => {
+    const result = await mockGetWorkspacePath();
+    return { success: true, data: result };
+  });
 });
 
 describe('LocalProjectExplorer', () => {

@@ -7,6 +7,20 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { AgentDisplay, AgentSelectRequest, AgentSettings } from '../../types';
+import type { AgentService } from '@/renderer/services/agents/agent-service';
+
+let agentServiceInstance: AgentService | null = null;
+
+export const setAgentService = (service: AgentService | null) => {
+  agentServiceInstance = service;
+};
+
+const requireAgentService = (): AgentService => {
+  if (!agentServiceInstance) {
+    throw new Error('Agent service is not initialized. Did you forget to configure it after mounting ServicesProvider?');
+  }
+  return agentServiceInstance;
+};
 
 interface AgentState {
   // Agent data
@@ -119,58 +133,54 @@ export const useAgentStore = create<AgentState>()(
     loadAgents: async () => {
       try {
         set({ loading: true, error: null });
+        const service = requireAgentService();
+        const agents = await service.getAvailableAgents();
 
-        if (typeof window !== 'undefined' && window.electronAPI?.agents) {
-          const result = await window.electronAPI.agents.list();
-
-          set({
-            agents: result.agents,
-            availableAgents: result.agents.filter(a => a.isAvailable),
-            loading: false
-          });
-        }
+        set({
+          agents,
+          availableAgents: agents.filter(a => a.isAvailable),
+          loading: false
+        });
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load agents';
         console.error('Failed to load agents:', error);
-        set({ error: error.message, loading: false });
+        set({ error: message, loading: false });
       }
     },
 
     selectAgent: async (request) => {
       try {
         set({ selecting: true, error: null });
+        const service = requireAgentService();
+        const selectedAgent = await service.selectAgentForSession({
+          sessionId: request.sessionId,
+          agentType: request.agentType
+        });
 
-        if (typeof window !== 'undefined' && window.electronAPI?.agents) {
-          await window.electronAPI.agents.select(request.sessionId, request.agentId);
-
-          // Update selected agent in store
-          const agent = get().agents.find(a => a.id === request.agentId);
-          if (agent) {
-            get().setSelectedAgent(agent);
-          }
+        if (selectedAgent) {
+          get().setSelectedAgent(selectedAgent);
         }
 
         set({ selecting: false });
       } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to select agent';
         console.error('Failed to select agent:', error);
-        set({ error: error.message, selecting: false });
+        set({ error: message, selecting: false });
         throw error;
       }
     },
 
     getAgentStatus: async (agentId) => {
       try {
-        if (typeof window !== 'undefined' && window.electronAPI?.agents) {
-          const status = await window.electronAPI.agents.getStatus(agentId);
+        const status = await requireAgentService().getAgentStatus(agentId);
 
-          get().setAgentStatus(agentId, {
-            isOnline: status.isOnline,
-            isProcessing: status.isProcessing,
-            currentTask: status.currentTask
-          });
-        }
+        get().setAgentStatus(agentId, {
+          isOnline: status.isOnline,
+          isProcessing: status.isProcessing,
+          currentTask: status.currentTask
+        });
       } catch (error) {
         console.error('Failed to get agent status:', error);
-        // Set default status on error
         get().setAgentStatus(agentId, {
           isOnline: false,
           isProcessing: false
@@ -227,6 +237,3 @@ export const useAgentActions = () => useAgentStore((state) => ({
   setSelectedCategory: state.setSelectedCategory,
   resetAgentState: state.resetAgentState
 }));
-
-// Initialize agents on store creation
-useAgentStore.getState().loadAgents();

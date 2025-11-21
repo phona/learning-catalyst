@@ -1,6 +1,7 @@
 
 import { describe, it, beforeEach, vi, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
 import { ChatInterface } from '../ChatInterface';
 import { useSessionInit } from '@/renderer/hooks/useSessionInit';
 
@@ -13,6 +14,9 @@ vi.mock('@/renderer/hooks/useSessionInit', () => ({
     sessionId: undefined,
   })),
 }));
+
+const configServiceMock = createMockConfigurationService();
+const fileServiceMock = createMockFileService();
 
 // Mock services provider
 vi.mock('@/renderer/services/services-provider', () => ({
@@ -38,8 +42,11 @@ vi.mock('@/renderer/services/services-provider', () => ({
       sendMessage: vi.fn(),
       sendMessageStream: vi.fn(),
       getConversationHistory: vi.fn(),
-    }
+    },
+    onIPCError: vi.fn(() => () => undefined),
   }),
+  useConfigurationService: vi.fn(() => configServiceMock),
+  useFileService: vi.fn(() => fileServiceMock),
 }));
 
 describe('ChatInterface smoke coverage', () => {

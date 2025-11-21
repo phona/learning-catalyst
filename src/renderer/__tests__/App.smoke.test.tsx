@@ -8,10 +8,40 @@
  */
 
 import React from 'react';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { cleanup, screen, waitFor } from '@testing-library/react';
+import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
+import { renderWithServices } from '@/test/utils/renderWithServices';
+import type { MemoryRouterProps } from 'react-router-dom';
 import App from '../App';
+
+vi.mock('../stores/useAppStore', () => ({
+  useAppStore: vi.fn(() => ({
+    setCurrentSession: vi.fn(),
+    setCurrentView: vi.fn(),
+    setTheme: vi.fn(),
+    setError: vi.fn(),
+    setSuccess: vi.fn(),
+    sidebar_open: true,
+    settings_panel_open: false,
+    theme: 'dark',
+    current_view: 'chat',
+    focus_mode: false,
+    loading: false,
+    error_message: undefined,
+    success_message: undefined,
+  })),
+}));
+
+vi.mock('@/renderer/hooks/useChatStore', () => ({
+  useChatStore: vi.fn(() => ({
+    currentSession: null,
+    setCurrentSession: vi.fn(),
+    setAutoScroll: vi.fn(),
+    setSelectedProvider: vi.fn(),
+    setSelectedModel: vi.fn(),
+  })),
+}));
 
 const workspaceConfig = {
   ai: {
@@ -30,112 +60,57 @@ const workspaceConfig = {
   }
 };
 
-// Create a simple mock for electronAPI to avoid initialization errors
-const mockElectronAPI = {
-  analytics: {
-    getDashboard: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getProgressChart: vi.fn().mockResolvedValue({ success: true, data: [] }),
-    getAchievements: vi.fn().mockResolvedValue({ success: true, data: [] }),
-    trackSession: vi.fn().mockResolvedValue({ success: true, data: 'session-id' }),
-  },
-  sessions: {
-    getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] }),
-    getStatistics: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    list: vi.fn().mockResolvedValue({ success: true, data: [] }),
-    saveSessionWithMessages: vi.fn().mockResolvedValue({ success: true, data: 'session-id' }),
-  },
-  chat: {
-    send: vi.fn().mockResolvedValue({ success: true, data: { id: 'msg-1', content: 'response' } }),
-    sendStream: vi.fn(),
-  },
-  settings: {
-    getConfig: vi.fn().mockResolvedValue(workspaceConfig),
-    updateConfig: vi.fn().mockResolvedValue({ success: true }),
-  },
+const originalElectronAPI = (window as typeof window & { electronAPI?: unknown }).electronAPI;
+
+const buildElectronAPI = () => {
+  const client = createMockElectronAPIClient();
+  client.settings.getConfig = vi.fn().mockResolvedValue(workspaceConfig);
+  return client;
 };
 
-// Set up the electronAPI globally before tests
-beforeEach(() => {
-  Object.defineProperty(window, 'electronAPI', {
-    value: mockElectronAPI,
-    writable: true,
-  });
+const renderApp = (routerProps?: MemoryRouterProps) => renderWithServices(<App />, { routerProps });
 
-  // Reset mocks
+beforeEach(() => {
+  (window as typeof window & { electronAPI?: unknown }).electronAPI = buildElectronAPI();
   vi.clearAllMocks();
 });
 
 afterEach(() => {
-  // Clean up
-  vi.resetAllMocks();
+  if (originalElectronAPI !== undefined) {
+    (window as typeof window & { electronAPI?: unknown }).electronAPI = originalElectronAPI;
+  } else {
+    delete (window as typeof window & { electronAPI?: unknown }).electronAPI;
+  }
 });
 
 describe('App Component - Basic Functionality', () => {
   it('should render without crashing', async () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>
-    );
+    renderApp({ routerProps: { initialEntries: ['/'] } });
 
-    // The app should at least render the main layout without errors
-    // Look for common elements that should be present in the app
     await waitFor(() => {
       expect(screen.getByRole('main')).toBeInTheDocument();
     });
   });
 
   it('should handle different routes properly', async () => {
-    const { rerender } = render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>
-    );
+    const routes = ['/', '/chat', '/settings'];
 
-    // Allow initial render
-    await waitFor(() => {
-      expect(screen.getByRole('main')).toBeInTheDocument();
-    });
+    for (const route of routes) {
+      renderApp({ routerProps: { initialEntries: [route] } });
 
-    // Test navigating to different routes by rerendering with different initial entries
-    rerender(
-      <MemoryRouter initialEntries={['/chat']}>
-        <App />
-      </MemoryRouter>
-    );
+      await waitFor(() => {
+        expect(screen.getByRole('main')).toBeInTheDocument();
+      });
 
-    await waitFor(() => {
-      expect(screen.getByRole('main')).toBeInTheDocument();
-    });
-
-    rerender(
-      <MemoryRouter initialEntries={['/settings']}>
-        <App />
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole('main')).toBeInTheDocument();
-    });
+      cleanup();
+    }
   });
 
   it('should handle missing electronAPI gracefully', async () => {
-    // Temporarily remove electronAPI to simulate browser environment
-    Object.defineProperty(window, 'electronAPI', {
-      value: undefined,
-      writable: true,
-    });
+    (window as typeof window & { electronAPI?: unknown }).electronAPI = undefined;
+    renderApp({ routerProps: { initialEntries: ['/'] } });
 
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>
-    );
-
-    // Should not crash even without electronAPI
-    // In browser mode, app might show different UI or error message
     await waitFor(() => {
-      // App should render some content even if in browser mode
       expect(screen.getByRole('main')).toBeInTheDocument();
     });
   });

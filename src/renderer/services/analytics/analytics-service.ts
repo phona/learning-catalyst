@@ -1,11 +1,7 @@
-
 import {
-  AnalyticsService as IAnalyticsService,
   DashboardDisplay,
   ProgressChartDisplay,
   ConceptProgressDisplay,
-  AchievementDisplay,
-  LearningTrendDisplay,
   StudyStreakDisplay,
   TimeStatsDisplay,
   CreateLearningSessionRequest,
@@ -16,13 +12,44 @@ import {
   ConceptNotFoundError,
 } from '@/shared/interfaces/analytics.interface';
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { AchievementDisplay as APIAchievementDisplay } from '@/shared/types/electron-api/analytics-api';
 
-export type AnalyticsService = IAnalyticsService
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  category: 'time' | 'concepts' | 'streaks' | 'performance' | 'engagement';
+  requirement: Record<string, any>;
+  progress: number;
+  icon: string;
+  unlockedAt?: Date;
+}
+
+export interface StudyMetrics {
+  totalStudyTime: number;
+  sessionsCompleted: number;
+  conceptsStudied: number;
+  accuracyRate: number;
+  averageSessionLength: number;
+  streakDays: number;
+  lastStudyDate: Date;
+  focusScore: number;
+  questionsAsked: number;
+  correctAnswers: number;
+}
+
+export interface LearningTrends {
+  dailyStudyTime: Array<{ date: string; minutes: number }>;
+  masteryProgress: Array<{ date: string; avgMastery: number }>;
+  sessionTypes: Record<string, number>;
+}
+
+export type AnalyticsService = ReturnType<typeof createAnalyticsService>;
 
 /**
  * Functional implementation of analytics service using the unified electronAPI client
  */
-export const createAnalyticsService = (apiClient: ElectronAPI): AnalyticsService => {
+export const createAnalyticsService = (apiClient: ElectronAPI) => {
   // Private helper methods
   const convertTimeRange = (period: string): '7days' | '30days' | '90days' | '1year' => {
     switch (period) {
@@ -146,29 +173,62 @@ export const createAnalyticsService = (apiClient: ElectronAPI): AnalyticsService
     return response.data;
   };
 
-  const getAchievements = async (): Promise<AchievementDisplay[]> => {
+  const getAchievements = async (): Promise<Achievement[]> => {
     const response = await apiClient.analytics.getAchievements();
 
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to get achievements');
     }
 
-    return response.data;
+    // Transform the API response to match the IAnalyticsService Achievement interface
+    // The API returns AchievementDisplay from analytics-api.ts which has 'name' property
+    const apiData = response.data;
+    return apiData.map((achievement: APIAchievementDisplay) => ({
+      id: achievement.id,
+      title: achievement.name, // Convert 'name' to 'title'
+      description: achievement.description,
+      category: achievement.category as 'time' | 'concepts' | 'streaks' | 'performance' | 'engagement',
+      requirement: {}, // Default empty requirement object
+      progress: achievement.progress.percentage, // Extract percentage from nested progress object
+      icon: achievement.icon,
+      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined
+    }));
   };
 
-  const checkAchievements = async (sessionId?: string): Promise<AchievementDisplay[]> => {
+  const checkAchievements = async (sessionId?: string): Promise<Achievement[]> => {
     const response = await apiClient.analytics.checkAchievements(sessionId);
 
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to check achievements');
     }
 
-    return response.data;
+    // Transform the API response to match the IAnalyticsService Achievement interface
+    // The API returns AchievementDisplay from analytics-api.ts which has 'name' property
+    const apiData = response.data as unknown as APIAchievementDisplay[];
+    return apiData.map((achievement: APIAchievementDisplay) => ({
+      id: achievement.id,
+      title: achievement.name, // Convert 'name' to 'title'
+      description: achievement.description,
+      category: achievement.category as 'time' | 'concepts' | 'streaks' | 'performance' | 'engagement',
+      requirement: {}, // Default empty requirement object
+      progress: achievement.progress.percentage, // Extract percentage from nested progress object
+      icon: achievement.icon,
+      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined
+    }));
   };
 
-  const getLearningTrends = async (period: 'daily' | 'weekly' | 'monthly'): Promise<LearningTrendDisplay> => {
+  const getLearningTrends = async (period?: number): Promise<LearningTrends> => {
+    // Convert number period to string format expected by API
+    const periodMap: Record<number, 'daily' | 'weekly' | 'monthly'> = {
+      1: 'daily',
+      7: 'weekly',
+      30: 'monthly'
+    };
+    
+    const apiPeriod = period && periodMap[period] ? periodMap[period] : 'weekly';
+    
     const response = await apiClient.analytics.getLearningTrends({
-      period,
+      period: apiPeriod,
       metric: 'mastery'
     });
 
@@ -176,7 +236,18 @@ export const createAnalyticsService = (apiClient: ElectronAPI): AnalyticsService
       throw new Error(response.error?.message || 'Failed to get learning trends');
     }
 
-    return response.data;
+    // Transform the API response to match the IAnalyticsService LearningTrends interface
+    return {
+      dailyStudyTime: response.data.dataPoints.map(point => ({
+        date: point.date.toISOString().split('T')[0],
+        minutes: point.value
+      })),
+      masteryProgress: response.data.dataPoints.map(point => ({
+        date: point.date.toISOString().split('T')[0],
+        avgMastery: point.value
+      })),
+      sessionTypes: {} // Default empty object
+    };
   };
 
   const getStudyStreak = async (): Promise<StudyStreakDisplay> => {
@@ -229,6 +300,52 @@ export const createAnalyticsService = (apiClient: ElectronAPI): AnalyticsService
     }
   };
 
+  // Implement the IAnalyticsService interface methods
+  const getStudyMetrics = async (): Promise<StudyMetrics> => {
+    // This would need to be implemented based on the available API methods
+    // For now, return a placeholder implementation
+    throw new Error('getStudyMetrics not yet implemented');
+  };
+
+  const getRecentSessions = async (limit?: number): Promise<SessionDisplay[]> => {
+    // This would need to be implemented based on the available API methods
+    // For now, return a placeholder implementation
+    throw new Error('getRecentSessions not yet implemented');
+  };
+
+  const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
+    // This would need to be implemented based on the available API methods
+    // For now, return a placeholder implementation
+    throw new Error('getSession not yet implemented');
+  };
+
+  const trackEvent = async (event: {
+    type: string;
+    data: Record<string, any>;
+    timestamp?: Date;
+  }): Promise<void> => {
+    // This would need to be implemented based on the available API methods
+    // For now, return a placeholder implementation
+    throw new Error('trackEvent not yet implemented');
+  };
+
+  const updateAchievementProgress = async (achievementId: string, progress: number): Promise<void> => {
+    // This would need to be implemented based on the available API methods
+    // For now, return a placeholder implementation
+    throw new Error('updateAchievementProgress not yet implemented');
+  };
+
+  const getLearningInsights = async (): Promise<{
+    strengths: string[];
+    improvementAreas: string[];
+    recommendations: string[];
+    nextMilestone?: string;
+  }> => {
+    // This would need to be implemented based on the available API methods
+    // For now, return a placeholder implementation
+    throw new Error('getLearningInsights not yet implemented');
+  };
+
   return {
     getDashboard,
     getProgressChart,
@@ -238,80 +355,12 @@ export const createAnalyticsService = (apiClient: ElectronAPI): AnalyticsService
     updateSession,
     getSessionHistory,
     getAchievements,
-    checkAchievements,
+    getStudyMetrics,
     getLearningTrends,
-    getStudyStreak,
-    getTimeStats,
-    exportData,
-    importData,
+    getRecentSessions,
+    getSession,
+    trackEvent,
+    updateAchievementProgress,
+    getLearningInsights,
   };
 };
-
-/**
- * Backward-compatible class wrapper for tests
- */
-export class DefaultAnalyticsService {
-  private readonly service: AnalyticsService;
-
-  constructor(apiClient: ElectronAPIClient) {
-    this.service = createAnalyticsService(apiClient);
-  }
-
-  // Delegate all methods to the underlying service
-  async getDashboard(): Promise<DashboardDisplay> {
-    return this.service.getDashboard();
-  }
-
-  async getProgressChart(params: ProgressChartParams): Promise<ProgressChartDisplay> {
-    return this.service.getProgressChart(params);
-  }
-
-  async getConceptProgress(conceptId: string): Promise<ConceptProgressDisplay> {
-    return this.service.getConceptProgress(conceptId);
-  }
-
-  async updateConceptProgress(conceptId: string, update: ConceptProgressUpdate): Promise<void> {
-    return this.service.updateConceptProgress(conceptId, update);
-  }
-
-  async trackSession(session: CreateLearningSessionRequest): Promise<string> {
-    return this.service.trackSession(session);
-  }
-
-  async updateSession(sessionId: string, updates: Partial<LearningSession>): Promise<void> {
-    return this.service.updateSession(sessionId, updates);
-  }
-
-  async getSessionHistory(limit?: number): Promise<SessionDisplay[]> {
-    return this.service.getSessionHistory(limit);
-  }
-
-  async getAchievements(): Promise<AchievementDisplay[]> {
-    return this.service.getAchievements();
-  }
-
-  async checkAchievements(sessionId?: string): Promise<AchievementDisplay[]> {
-    return this.service.checkAchievements(sessionId);
-  }
-
-  async getLearningTrends(period: 'daily' | 'weekly' | 'monthly'): Promise<LearningTrendDisplay> {
-    return this.service.getLearningTrends(period);
-  }
-
-  async getStudyStreak(): Promise<StudyStreakDisplay> {
-    return this.service.getStudyStreak();
-  }
-
-  async getTimeStats(): Promise<TimeStatsDisplay> {
-    return this.service.getTimeStats();
-  }
-
-  async exportData(format: 'json' | 'csv'): Promise<string> {
-    return this.service.exportData(format);
-  }
-
-  async importData(data: string, format: 'json' | 'csv'): Promise<void> {
-    return this.service.importData(data, format);
-  }
-}
-

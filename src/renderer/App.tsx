@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import SetupScreen from '@/renderer/components/SetupScreen';
@@ -7,9 +5,11 @@ import { Layout } from '@/renderer/components/Layout';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
 import { SessionManager } from '@/renderer/components/Session/SessionManager';
 import { DiscoveryPage } from '@/renderer/DiscoveryPage';
-import { ServicesProvider, useConfigurationService } from '@/renderer/services/services-provider';
+import { useAgentService, useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-provider';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import { setConfigurationService } from '@/renderer/stores/useConfigStore';
+import { setAgentService, useAgentStore } from '@/renderer/stores/agents/agentStore';
 
 const MainRoutes = () => (
   <Routes>
@@ -33,10 +33,8 @@ const formatIPCError = (payload: IPCErrorPayload): string => {
 };
 
 const AppContent: React.FC<{ status: AppState; message: string | null }> = ({ status, message }) => {
-  const configService = useConfigurationService();
-
   if (status === 'setup') {
-    return <SetupScreen message={message ?? undefined} configService={configService} />;
+    return <SetupScreen message={message ?? undefined} />;
   }
 
   return <MainRoutes />;
@@ -47,17 +45,31 @@ export default function App(): JSX.Element {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const location = useLocation();
+  const configService = useConfigurationService();
+  const electronAPIClient = useElectronAPIClient();
+  const agentService = useAgentService();
+
+  useEffect(() => {
+    setConfigurationService(configService);
+  }, [configService, setConfigurationService]);
+
+  useEffect(() => {
+    setAgentService(agentService);
+    useAgentStore.getState().loadAgents().catch((error) => {
+      console.error('Failed to load agents:', error);
+    });
+  }, [agentService, setAgentService]);
 
   useEffect(() => {
     const checkConfig = async () => {
-      if (!window?.electronAPI) {
-        setStatus('setup');
-        setStatusMessage('Electron API is unavailable.');
-        return;
-      }
-
       try {
-        const config = await window.electronAPI.settings.getConfig();
+        const config = await configService.getConfig();
+        if (!config) {
+          setStatus('setup');
+          setStatusMessage('Electron API is unavailable.');
+          return;
+        }
+
         const chatConfig = config?.ai?.model_types?.chat;
 
         if (!chatConfig?.provider || !chatConfig?.model) {
@@ -67,6 +79,7 @@ export default function App(): JSX.Element {
         }
 
         setStatus('ready');
+        setStatusMessage(null);
       } catch (error) {
         showError(error instanceof Error ? error.message : 'Failed to load workspace configuration.');
         setStatus('setup');
@@ -75,10 +88,10 @@ export default function App(): JSX.Element {
     };
 
     checkConfig();
-  }, [location.pathname]);
+  }, [location.pathname, configService]);
 
   useEffect(() => {
-    const unsubscribe = window?.electronAPI?.onIPCError?.((payload) => {
+    const unsubscribe = electronAPIClient.onIPCError?.((payload) => {
       showError(formatIPCError(payload));
       if (payload.needsSetup) {
         setStatus('setup');
@@ -87,7 +100,7 @@ export default function App(): JSX.Element {
     });
 
     return () => unsubscribe?.();
-  }, []);
+  }, [electronAPIClient]);
 
   if (status === 'loading') {
     return (
@@ -99,9 +112,5 @@ export default function App(): JSX.Element {
     );
   }
 
-  return (
-    <ServicesProvider>
-      <AppContent status={status} message={statusMessage} />
-    </ServicesProvider>
-  );
+  return <AppContent status={status} message={statusMessage} />;
 }

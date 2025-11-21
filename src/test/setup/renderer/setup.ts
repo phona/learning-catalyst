@@ -30,9 +30,11 @@ Object.defineProperty(window, 'electronAPI', {
       getConversationHistory: vi.fn().mockResolvedValue([])
     },
     learning: {
-      startSession: vi.fn().mockResolvedValue({}),
-      getProgress: vi.fn().mockResolvedValue({}),
-      listSessions: vi.fn().mockResolvedValue([])
+      startLearningSession: vi.fn().mockResolvedValue({}),
+      getSessionProgress: vi.fn().mockResolvedValue({}),
+      getLearningPath: vi.fn().mockResolvedValue({}),
+      getRecentSessions: vi.fn().mockResolvedValue([]),
+      searchSessions: vi.fn().mockResolvedValue({ sessions: [], totalResults: 0 })
     },
     knowledge: {
       exploreConcept: vi.fn().mockResolvedValue({}),
@@ -45,8 +47,8 @@ Object.defineProperty(window, 'electronAPI', {
       trackSession: vi.fn().mockResolvedValue({ success: true })
     },
     agents: {
-      list: vi.fn().mockResolvedValue([]),
-      getStatus: vi.fn().mockResolvedValue({ status: 'idle' })
+      getAvailableAgents: vi.fn().mockResolvedValue([]),
+      getAgentCapabilities: vi.fn().mockResolvedValue({ capabilities: [] })
     },
     content: {
       exploreLocalProjects: vi.fn().mockResolvedValue([]),
@@ -134,6 +136,12 @@ Object.defineProperty(window, 'electronAPI', {
       delete: vi.fn().mockResolvedValue({
         success: true
       }),
+      saveMessage: vi.fn().mockResolvedValue({ success: true }),
+      saveSessionWithMessages: vi.fn().mockResolvedValue({ success: true, sessionId: 'test-new-session' }),
+      updateTitle: vi.fn().mockResolvedValue({ success: true }),
+      getRecentSessions: vi.fn().mockResolvedValue({ success: true, sessions: [] }),
+      search: vi.fn().mockResolvedValue({ success: true, results: { sessions: [], total: 0, query: '', hasMore: false } }),
+      getStatistics: vi.fn().mockResolvedValue({ success: true, statistics: { totalSessions: 0, totalMessages: 0, totalUserMessages: 0, totalAssistantMessages: 0, totalTokensUsed: 0, averageMessagesPerSession: 0 } }),
       associateAgent: vi.fn().mockResolvedValue({
         success: true
       }),
@@ -650,7 +658,8 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
   });
   
   return {
-    useConfigStore: mockUseConfigStore
+    useConfigStore: mockUseConfigStore,
+    setConfigurationService: vi.fn(),
   };
 });
 

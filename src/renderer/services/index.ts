@@ -37,6 +37,12 @@ export {
   type FileService,
 } from './file/file-service';
 
+export {
+  createAgentService,
+  type AgentService,
+  type AgentStatus,
+} from './agents/agent-service';
+
 // Legacy services for backward compatibility
 export {
   SessionService as LegacySessionService,

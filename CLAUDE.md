@@ -402,3 +402,4 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - Multi-process debugging in VSCode
 - Services use dependency injection for modularity
 - All main process code should NEVER reference or access `window.electronAPI`
+- `electronAPI` now exposes documented sessions/catalyst domains and filesystem/dialog helpers with matching IPC handlers.

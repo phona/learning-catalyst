@@ -3,9 +3,22 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
 import { ChatInterface } from '../ChatInterface';
 
 // Mock services provider
+const configServiceMock = createMockConfigurationService({
+  ai: {
+    model_types: {
+      chat: {
+        provider: 'openai',
+        model: 'gpt-4',
+      },
+    },
+  },
+});
+const fileServiceMock = createMockFileService();
+
 vi.mock('@/renderer/services/services-provider', () => ({
   useChatService: vi.fn(() => ({
     sendMessage: vi.fn().mockResolvedValue({ id: 'test-msg', role: 'assistant', content: 'Test response' }),
@@ -37,8 +50,11 @@ vi.mock('@/renderer/services/services-provider', () => ({
       sendMessage: vi.fn(),
       sendMessageStream: vi.fn(),
       getConversationHistory: vi.fn(),
-    }
+    },
+    onIPCError: vi.fn(() => () => undefined),
   })),
+  useConfigurationService: vi.fn(() => configServiceMock),
+  useFileService: vi.fn(() => fileServiceMock),
 }));
 
 // Mock useSessionInit hook

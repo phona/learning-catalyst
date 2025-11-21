@@ -52,7 +52,7 @@ export interface AgentCategory {
 
 export interface AgentSelectRequest {
   sessionId: string;
-  agentId: string;
+  agentType: AgentDisplay['type'];
   settings?: Partial<AgentSettings>;
 }
 

@@ -1,7 +1,14 @@
-import React, { FormEvent, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/renderer/utils/toast';
-import type { IConfigurationService } from '@/renderer/services/interfaces/IConfigurationService';
+import { useConfigurationService } from '@/renderer/services/services-provider';
+import {
+  useSetupWorkflow,
+  type ConfiguredProvider,
+  type ModelAssignment,
+  type SaveWorkflowStepId,
+  type SaveWorkflowStepStatus,
+} from '@/renderer/hooks/useSetupWorkflow';
 import type {
   AppConfig,
   LearningConfig,
@@ -23,45 +30,15 @@ interface ProviderOption {
   };
 }
 
-interface ConfiguredProvider {
-  id: string;
-  name: string;
-  apiKey: string;
-  baseUrl: string;
-  models: string[];
-}
-
-interface ModelAssignment {
-  providerId: string;
-  model: string;
-  settings?: {
-    temperature?: number;
-    maxTokens?: number;
-  };
-}
-
 interface SetupScreenProps {
   message?: string;
-  configService: IConfigurationService;
 }
 
-type SaveWorkflowStepId =
-  | 'saveUi'
-  | 'showLoader'
-  | 'invokeConfig'
-  | 'persistConfig'
-  | 'rebuildObjects'
-  | 'blockUntilSuccess'
-  | 'removeBlock'
-  | 'jumpToIndex';
-
-type SaveWorkflowStepStatus = 'idle' | 'pending' | 'success' | 'error';
-
-interface SaveWorkflowStep {
+type SaveWorkflowStep = {
   id: SaveWorkflowStepId;
   label: string;
   description: string;
-}
+};
 
 const WORKFLOW_STEP_CONFIG: SaveWorkflowStep[] = [
   { id: 'saveUi', label: 'Save in UI layer', description: 'Capture provider and model choices before talking to the main process.' },
@@ -87,12 +64,6 @@ const WORKFLOW_STATUS_CLASSES: Record<SaveWorkflowStepStatus, string> = {
   success: 'text-green-500 dark:text-green-300',
   error: 'text-red-500 dark:text-red-400',
 };
-
-const createInitialWorkflowStatus = (): Record<SaveWorkflowStepId, SaveWorkflowStepStatus> =>
-  WORKFLOW_STEP_CONFIG.reduce((acc, step) => {
-    acc[step.id] = 'idle';
-    return acc;
-  }, {} as Record<SaveWorkflowStepId, SaveWorkflowStepStatus>);
 
 const DEFAULT_UI_CONFIG: UIConfig = {
   theme: 'light',
@@ -142,11 +113,13 @@ const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   preload_models: false,
 };
 
-const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => {
+const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
+  const configService = useConfigurationService();
   // Wizard step management
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
   const navigate = useNavigate();
+  const { isSaving, workflowStatus, workflowError, executeWorkflow } = useSetupWorkflow(configService);
 
   // Page 1: Provider configuration
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
@@ -162,11 +135,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
   const [rerankAssignment, setRerankAssignment] = useState<ModelAssignment | null>(null);
 
   // Page 3: Review & Save
-  const [isSaving, setIsSaving] = useState(false);
-  const [workflowStatus, setWorkflowStatus] = useState<Record<SaveWorkflowStepId, SaveWorkflowStepStatus>>(() =>
-    createInitialWorkflowStatus()
-  );
-  const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [shouldNavigate, setShouldNavigate] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
@@ -195,14 +163,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
     );
 
     return { chatModels, embeddingModels, rerankModels };
-  };
-
-  const updateWorkflowStep = (stepId: SaveWorkflowStepId, status: SaveWorkflowStepStatus) => {
-    setWorkflowStatus(prev => ({ ...prev, [stepId]: status }));
-  };
-
-  const resetWorkflowSteps = () => {
-    setWorkflowStatus(createInitialWorkflowStatus());
   };
 
   const buildAppConfigFromSelections = (): AppConfig => {
@@ -393,86 +353,22 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message, configService }) => 
       return;
     }
 
-    resetWorkflowSteps();
-    setWorkflowError(null);
     setShouldNavigate(false);
-    setIsSaving(true);
-
-    let currentStep: SaveWorkflowStepId | null = null;
-    const startStep = (stepId: SaveWorkflowStepId) => {
-      currentStep = stepId;
-      updateWorkflowStep(stepId, 'pending');
-    };
 
     try {
-      startStep('saveUi');
-      updateWorkflowStep('saveUi', 'success');
-
-      startStep('showLoader');
-      updateWorkflowStep('showLoader', 'success');
-
-      startStep('invokeConfig');
-
-      for (const provider of configuredProviders) {
-        await configService.configureProvider({
-          provider: provider.id,
-          config: {
-            name: provider.name,
-            api_key: provider.apiKey,
-            base_url: provider.baseUrl || undefined
-          }
-        });
-      }
-
-      await configService.updateModelTypeConfig('chat', {
-        provider: chatAssignment.providerId,
-        model: chatAssignment.model,
+      await executeWorkflow({
+        configuredProviders,
+        chatAssignment,
+        embeddingAssignment,
+        rerankAssignment,
+        buildAppConfig: buildAppConfigFromSelections,
       });
 
-      if (embeddingAssignment) {
-        await configService.updateModelTypeConfig('embedding', {
-          provider: embeddingAssignment.providerId,
-          model: embeddingAssignment.model,
-        });
-      }
-
-      if (rerankAssignment) {
-        await configService.updateModelTypeConfig('rerank', {
-          provider: rerankAssignment.providerId,
-          model: rerankAssignment.model,
-        });
-      }
-
-      updateWorkflowStep('invokeConfig', 'success');
-
-      startStep('persistConfig');
-      const appConfig = buildAppConfigFromSelections();
-      await configService.saveConfig(appConfig);
-      updateWorkflowStep('persistConfig', 'success');
-
-      startStep('rebuildObjects');
-      updateWorkflowStep('rebuildObjects', 'success');
-
-      startStep('blockUntilSuccess');
-      updateWorkflowStep('blockUntilSuccess', 'success');
-
-      startStep('removeBlock');
-      setIsSaving(false);
-      updateWorkflowStep('removeBlock', 'success');
-
-      startStep('jumpToIndex');
-      showSuccess('Configuration saved successfully. Redirecting to the chat interface…');
+      showSuccess('Configuration saved successfully. Redirecting to the chat interface...');
       setShouldNavigate(true);
-      updateWorkflowStep('jumpToIndex', 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save configuration.';
-      setWorkflowError(errorMessage);
       showError(errorMessage);
-      if (currentStep) {
-        updateWorkflowStep(currentStep, 'error');
-      }
-    } finally {
-      setIsSaving(false);
     }
   };
 

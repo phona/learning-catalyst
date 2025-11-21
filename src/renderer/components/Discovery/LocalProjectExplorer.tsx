@@ -22,7 +22,7 @@ import {
 import type { DirectoryScanResult, ProjectStructure, DirectoryFilterConfig } from '@/shared/types/filesystem';
 import type { ParsingJob, ParsingOptions } from '@/shared/types/concept-parsing';
 import { ConceptParsingResults } from './ConceptParsingResults';
-import { useService } from '@/renderer/services/services-provider';
+import { useFileService, useService } from '@/renderer/services/services-provider';
 
 interface LocalProjectExplorerProps {
   onFileSelect?: (filePath: string) => void;
@@ -169,6 +169,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 }) => {
   const conceptParsingService = useService('conceptParsing');
   const chatService = useService('chatService');
+  const fileService = useFileService();
   const [projectStructure, setProjectStructure] = useState<ProjectStructure | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,7 +191,8 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const loadDefaultDirectory = async () => {
     try {
       // Try to get workspace path first
-      const workspacePath = await window.electronAPI.getWorkspacePath();
+      const workspacePathResult = await fileService.getWorkspacePath();
+      const workspacePath = workspacePathResult.success ? workspacePathResult.data : null;
       if (workspacePath) {
         loadDirectory(workspacePath);
       } else {
@@ -216,7 +218,11 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
         excludePatterns: ['node_modules', '.git', '.vscode', '.idea', 'dist', 'build']
       };
 
-      const items = await window.electronAPI.readDirectory(dirPath, true, maxDepth, filterConfig);
+      const directoryResult = await fileService.readDirectory(dirPath, true, maxDepth, filterConfig);
+      if (!directoryResult.success || !directoryResult.data) {
+        throw new Error(directoryResult.error?.message || 'Failed to load directory');
+      }
+      const items = directoryResult.data;
 
       // Build tree structure
       const tree = buildTreeStructure(items, dirPath, 0);

@@ -1,11 +1,11 @@
 
 
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useConfigStore } from '../stores/useConfigStore';
-import { useElectronAPIClient, useSessionService } from '@/renderer/services/services-provider';
+import { useSessionService } from '@/renderer/services/services-provider';
 
 /**
  * 🚀 Session Initialization Hook
@@ -66,7 +66,6 @@ export const useSessionInit = () => {
   } = useChatStore();
 
   const { config } = useConfigStore();
-  const electronAPIClient = useElectronAPIClient();
   const sessionService = useSessionService();
 
   // Initialize chat settings from config
@@ -143,69 +142,57 @@ export const useSessionInit = () => {
     setSelectedModel
   ]);
 
-  // Load session by ID when provided in URL
-  useEffect(() => {
-    console.log(`[useSessionInit] useEffect triggered with sessionId: ${sessionId}`);
+  const loadSession = useCallback(async (sessionIdToLoad: string) => {
+    console.log(`[useSessionInit] Loading session from URL: ${sessionIdToLoad}`);
+    try {
+      const sessionData = await sessionService.getSession(sessionIdToLoad);
+      if (!sessionData) {
+        console.warn(`[useSessionInit] Session not found: ${sessionIdToLoad}`);
+        return;
+      }
 
-    if (sessionId) {
-      console.log(`[useSessionInit] Loading session from URL: ${sessionId}`);
-      setLoading(true);
-
-      const loadSession = async () => {
-        try {
-          console.log(`[useSessionInit] Calling electronAPIClient.sessions.get(${sessionId})`);
-          const response = await electronAPIClient.sessions.get(sessionId);
-          console.log(`[useSessionInit] sessions.get returned:`, {
-            success: response.success,
-            sessionId: response.data?.id,
-            title: response.data?.title,
-            messageCount: response.data?.statistics?.total_messages || 0
-          });
-
-          if (response.success && response.data) {
-            console.log(`[useSessionInit] Found session: ${response.data.title}`);
-
-            // Convert session format to match store expectations
-            const session = {
-              id: response.data.id,
-              title: response.data.title,
-              created_at: new Date(response.data.created_at || Date.now()),
-              updated_at: new Date(response.data.updated_at || Date.now()),
-              messages: [], // Messages would be loaded separately
-              metadata: response.data.metadata || {},
-              context: response.data.context || {},
-              checkpoints: response.data.checkpoints || [],
-              statistics: response.data.statistics || {
-                total_messages: response.data.statistics?.total_messages || 0,
-                user_messages: response.data.statistics?.user_messages || 0,
-                assistant_messages: response.data.statistics?.assistant_messages || 0,
-                total_tokens_used: response.data.statistics?.total_tokens_used || 0,
-                total_thinking_tokens: response.data.statistics?.total_thinking_tokens || 0,
-                session_duration: response.data.statistics?.session_duration || 0,
-                average_response_time: response.data.statistics?.average_response_time || 0,
-                concepts_learned: response.data.statistics?.concepts_learned || 0,
-                checkpoints_created: response.data.statistics?.checkpoints_created || 0,
-                productivity_score: response.data.statistics?.productivity_score || 0,
-                engagement_score: response.data.statistics?.engagement_score || 0,
-              },
-            };
-
-            console.log(`[useSessionInit] Calling setCurrentSession with session data`);
-            setCurrentSession(session);
-            setSession(session);
-          } else {
-            console.warn(`[useSessionInit] Session not found: ${sessionId}`);
-          }
-        } catch (error) {
-          console.error(`[useSessionInit] Failed to load session ${sessionId}:`, error);
-        } finally {
-          setLoading(false);
-        }
+      console.log(`[useSessionInit] Found session: ${sessionData.title}`);
+      const sessionRecord = {
+        id: sessionData.id,
+        title: sessionData.title,
+        created_at: new Date(sessionData.created_at || Date.now()),
+        updated_at: new Date(sessionData.updated_at || Date.now()),
+        messages: [],
+        metadata: sessionData.metadata || {},
+        context: sessionData.context || {},
+        checkpoints: sessionData.checkpoints || [],
+        statistics: sessionData.statistics || {
+          total_messages: sessionData.statistics?.total_messages || 0,
+          user_messages: sessionData.statistics?.user_messages || 0,
+          assistant_messages: sessionData.statistics?.assistant_messages || 0,
+          total_tokens_used: sessionData.statistics?.total_tokens_used || 0,
+          total_thinking_tokens: sessionData.statistics?.total_thinking_tokens || 0,
+          session_duration: sessionData.statistics?.session_duration || 0,
+          average_response_time: sessionData.statistics?.average_response_time || 0,
+          concepts_learned: sessionData.statistics?.concepts_learned || 0,
+          checkpoints_created: sessionData.statistics?.checkpoints_created || 0,
+          productivity_score: sessionData.statistics?.productivity_score || 0,
+          engagement_score: sessionData.statistics?.engagement_score || 0,
+        },
       };
 
-      loadSession();
+      console.log(`[useSessionInit] Calling setCurrentSession with session data`);
+      setCurrentSession(sessionRecord);
+      setSession(sessionRecord);
+    } catch (error) {
+      console.error(`[useSessionInit] Failed to load session ${sessionIdToLoad}:`, error);
     }
-  }, [sessionId, setCurrentSession]);
+  }, [sessionService, setCurrentSession]);
+
+  // Load session by ID when provided in URL
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
+    setLoading(true);
+    loadSession(sessionId).finally(() => setLoading(false));
+  }, [sessionId, loadSession]);
 
   return {
     session,

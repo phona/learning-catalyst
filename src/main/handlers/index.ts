@@ -9,6 +9,9 @@ import { setupEnhancedAgentHandlers } from './agent-enhanced-handlers';
 import { setupContentHandlers } from './content-handlers';
 import { setupCompleteAnalyticsHandlers } from './analytics-complete-handlers';
 import { setupConceptParsingHandlers } from './concept-parsing-handlers';
+import { setupFilesystemHandlers } from './filesystem-handlers';
+import { setupSessionsHandlers } from './sessions-handlers';
+import { setupCatalystHandlers } from './catalyst-handlers';
 import { applyStructuredErrorHandling } from './ipc-error-handler';
 import { ChatService } from '../services/domain/chat/chat-service';
 import { LearningService } from '../services/domain/learning/learning-service';
@@ -98,6 +101,23 @@ export async function setupAllIpcHandlers(
   // Setup complete analytics handlers
   setupCompleteAnalyticsHandlers(ipcMain, {
     analyticsService: services.analyticsService,
+    loggerService: services.loggerService
+  });
+
+  // Filesystem + workspace helpers
+  setupFilesystemHandlers(ipcMain, {
+    workspacePath,
+    loggerService: services.loggerService
+  });
+
+  // Sessions domain
+  setupSessionsHandlers(ipcMain, {
+    learningService: services.learningService,
+    loggerService: services.loggerService
+  });
+
+  // Catalyst bridge
+  setupCatalystHandlers(ipcMain, {
     loggerService: services.loggerService
   });
 

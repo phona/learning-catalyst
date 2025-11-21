@@ -10,6 +10,7 @@ export interface SessionService {
   getRecentSessions(limit?: number): Promise<SessionDisplay[]>;
   getGlobalStatistics(): Promise<SessionStatistics>;
   listSessions(options?: { query?: string; limit?: number; offset?: number }): Promise<SessionListResponse>;
+  getSession(sessionId: string): Promise<SessionDisplay | null>;
   generateAITitle(userMessage: string): Promise<string>;
   generateSessionId(): string;
   saveMessage(sessionId: string, message: ConversationMessage): Promise<void>;
@@ -99,6 +100,14 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     return response;
   };
 
+  const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
+    const response = await apiClient.sessions.get(sessionId);
+    if (!response.success || !response.session) {
+      return null;
+    }
+    return response.session;
+  };
+
   /**
    * Generate a session title using heuristics (no IPC required)
    */
@@ -118,6 +127,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     getRecentSessions,
     getGlobalStatistics,
     listSessions,
+    getSession,
     generateAITitle,
     generateSessionId,
     saveMessage,

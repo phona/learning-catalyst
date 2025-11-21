@@ -4,6 +4,71 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { AppConfig, ProviderConfig } from '@/shared/types/config';
+import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
+
+const DEFAULT_APP_CONFIG: AppConfig = {
+  ai: {
+    providers: {},
+    model_types: {},
+  },
+  ui: {
+    theme: 'light',
+    show_token_usage: false,
+    display_format: 'detailed',
+    session_duration: 25,
+    font_size: 'medium',
+    sidebar_width: 300,
+    auto_save: true,
+    auto_scroll: true,
+    show_line_numbers: false,
+    enable_markdown: true,
+    enable_syntax_highlighting: true,
+    compact_mode: false,
+  },
+  learning: {
+    auto_save: true,
+    session_timeout_minutes: 60,
+    difficulty: 'intermediate',
+    learning_style: 'visual',
+    personalization_enabled: true,
+    checkpoint_interval: 15,
+    max_session_history: 100,
+    enable_analytics: false,
+    preferred_explanation_length: 'detailed',
+  },
+  privacy: {
+    store_conversations: true,
+    retention_days: 90,
+    anonymous_analytics: false,
+    crash_reporting: true,
+    encrypt_local_storage: false,
+    auto_cleanup: true,
+    export_format: 'json',
+  },
+  performance: {
+    cache_size_mb: 100,
+    enable_caching: true,
+    max_concurrent_requests: 5,
+    request_timeout: 30,
+    memory_limit_mb: 512,
+    gpu_acceleration: false,
+    background_processing: true,
+    preload_models: false,
+  },
+};
+
+let configurationService: ConfigurationService | null = null;
+
+export const setConfigurationService = (service: ConfigurationService | null) => {
+  configurationService = service;
+};
+
+const requireConfigurationService = (): ConfigurationService => {
+  if (!configurationService) {
+    throw new Error('Configuration service has not been initialized. ServicesProvider must be mounted before using the config store.');
+  }
+  return configurationService;
+};
 
 interface ConfigStore {
   config: AppConfig | null;
@@ -35,65 +100,8 @@ export const useConfigStore = create<ConfigStore>()(
         set({ loading: true, error: null }, false, 'loadConfig:start');
 
         try {
-          // Use the unified electronAPI client method
-          const response = await window.electronAPI.settings.getUserPreferences();
-
-          if (!response.success || !response.data) {
-            throw new Error(response.error || 'Failed to load user preferences');
-          }
-
-          const userPrefs = response.data;
-          // Map user preferences to AppConfig format
-          const config: AppConfig = {
-            ai: {
-              providers: {},
-              model_types: {},
-            },
-            ui: {
-              theme: (userPrefs.interface?.theme as 'light' | 'dark' | 'auto') || 'light',
-              show_token_usage: userPrefs.interface?.showProgressIndicators || false,
-              display_format: 'detailed',
-              session_duration: userPrefs.learning?.preferredSessionDuration ? parseInt(userPrefs.learning.preferredSessionDuration) : 25,
-              font_size: (userPrefs.interface?.fontSize as 'small' | 'medium' | 'large') || 'medium',
-              sidebar_width: 300,
-              auto_save: true,
-              auto_scroll: true,
-              show_line_numbers: false,
-              enable_markdown: true,
-              enable_syntax_highlighting: true,
-              compact_mode: userPrefs.interface?.compactMode || false,
-            },
-            learning: {
-              auto_save: true,
-              session_timeout_minutes: 60,
-              difficulty: (userPrefs.learning?.preferredDifficulty as any) || 'intermediate',
-              learning_style: (userPrefs.learning?.learningStyle as any) || 'visual',
-              personalization_enabled: true,
-              checkpoint_interval: 15,
-              max_session_history: 100,
-              enable_analytics: (userPrefs.learning as any)?.tracking?.enableAnalytics || false,
-              preferred_explanation_length: 'detailed',
-            },
-            privacy: {
-              store_conversations: userPrefs.privacy?.saveConversationHistory || true,
-              retention_days: userPrefs.privacy?.dataRetentionDays || 90,
-              anonymous_analytics: userPrefs.privacy?.shareAnalytics || false,
-              crash_reporting: true,
-              encrypt_local_storage: false,
-              auto_cleanup: true,
-              export_format: 'json',
-            },
-            performance: {
-              cache_size_mb: 100,
-              enable_caching: true,
-              max_concurrent_requests: 5,
-              request_timeout: 30,
-              memory_limit_mb: 512,
-              gpu_acceleration: false,
-              background_processing: true,
-              preload_models: false,
-            },
-          };
+          const service = requireConfigurationService();
+          const config = await service.getConfig();
           set({ config, loading: false }, false, 'loadConfig:success');
           return config;
         } catch (error) {
@@ -111,43 +119,8 @@ export const useConfigStore = create<ConfigStore>()(
         set({ loading: true, error: null }, false, 'saveConfig:start');
 
         try {
-          // Map AppConfig to user preferences format for the documented API
-          const preferences = {
-            interface: {
-              theme: config.ui.theme,
-              fontSize: config.ui.font_size,
-              enableAnimations: true,
-              compactMode: config.ui.compact_mode,
-              showProgressIndicators: config.ui.show_token_usage,
-            },
-            learning: {
-              preferredDifficulty: config.learning.difficulty === 'adaptive' ? 'intermediate' : config.learning.difficulty,
-              learningStyle: config.learning.learning_style,
-              preferredSessionDuration: `${config.ui.session_duration}min` as '15min' | '25min' | '45min' | '60min' | 'custom',
-              enableReminders: true,
-              reminderTime: '19:00',
-              dailyGoalMinutes: 30,
-              weeklyGoalSessions: 5,
-              tracking: {
-                enableAnalytics: config.learning.enable_analytics,
-                shareProgress: false,
-                detailedLogging: true,
-                exportData: false,
-              },
-            },
-            privacy: {
-              shareAnalytics: config.privacy.anonymous_analytics,
-              saveConversationHistory: config.privacy.store_conversations,
-              dataRetentionDays: config.privacy.retention_days,
-            },
-          };
-
-          const response = await window.electronAPI.settings.updatePreferences(preferences);
-
-          if (!response.success) {
-            throw new Error(response.error || 'Failed to save preferences');
-          }
-
+          const service = requireConfigurationService();
+          await service.saveConfig(config);
           set({ config, loading: false }, false, 'saveConfig:success');
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to save config';
@@ -168,63 +141,10 @@ export const useConfigStore = create<ConfigStore>()(
         set({ loading: true, error: null }, false, 'resetConfig:start');
 
         try {
-          // Since there's no direct resetConfig in the documented API,
-          // create a default config and save it
-          const defaultConfig: AppConfig = {
-            ai: {
-              providers: {},
-              model_types: {},
-            },
-            ui: {
-              theme: 'light',
-              show_token_usage: false,
-              display_format: 'detailed',
-              session_duration: 25,
-              font_size: 'medium',
-              sidebar_width: 300,
-              auto_save: true,
-              auto_scroll: true,
-              show_line_numbers: false,
-              enable_markdown: true,
-              enable_syntax_highlighting: true,
-              compact_mode: false,
-            },
-            learning: {
-              auto_save: true,
-              session_timeout_minutes: 60,
-              difficulty: 'intermediate',
-              learning_style: 'visual',
-              personalization_enabled: true,
-              checkpoint_interval: 15,
-              max_session_history: 100,
-              enable_analytics: false,
-              preferred_explanation_length: 'detailed',
-            },
-            privacy: {
-              store_conversations: true,
-              retention_days: 90,
-              anonymous_analytics: false,
-              crash_reporting: true,
-              encrypt_local_storage: false,
-              auto_cleanup: true,
-              export_format: 'json',
-            },
-            performance: {
-              cache_size_mb: 100,
-              enable_caching: true,
-              max_concurrent_requests: 5,
-              request_timeout: 30,
-              memory_limit_mb: 512,
-              gpu_acceleration: false,
-              background_processing: true,
-              preload_models: false,
-            },
-          };
-
-          // Save the default config using the documented API
-          await get().saveConfig(defaultConfig);
-          set({ config: defaultConfig, loading: false }, false, 'resetConfig:success');
-          return defaultConfig;
+          const service = requireConfigurationService();
+          await service.saveConfig(DEFAULT_APP_CONFIG);
+          set({ config: DEFAULT_APP_CONFIG, loading: false }, false, 'resetConfig:success');
+          return DEFAULT_APP_CONFIG;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to reset config';
           set({ error: errorMessage, loading: false }, false, 'resetConfig:error');

@@ -1,8 +1,9 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/strict-boolean-expressions */
 import { useState, useCallback } from 'react';
-import { PracticeSuggestionResult, PracticeOpportunity } from '@/shared/types/practice';
-import { useElectronAPIClient } from '@/renderer/services/services-provider';
+import { PracticeOpportunity } from '@/shared/types/practice';
+import type { PracticeOpportunityResult } from '@/shared/types/electron-api/chat-api';
+import { useChatService } from '@/renderer/services/services-provider';
 
 export interface PracticeSuggestionState {
   currentSuggestion: PracticeOpportunity | null;
@@ -27,23 +28,22 @@ export const usePracticeSuggestions = (): [PracticeSuggestionState, PracticeSugg
     error: null
   });
 
-  const electronAPIClient = useElectronAPIClient();
+  const chatService = useChatService();
 
   const checkForPracticeOpportunity = useCallback(async (conversationId: string, userMessage: string, sessionId?: string) => {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Call through service client instead of direct window access
-      const result: PracticeSuggestionResult = await electronAPIClient.chat.checkPracticeOpportunity({
+      const payload: PracticeOpportunityResult = await chatService.checkPracticeOpportunity({
         conversationId,
         userMessage,
-        sessionId
+        ...(sessionId ? { sessionId } : {})
       });
-      
-      if (result.success && result.practiceOpportunity) {
+
+      if (payload.hasOpportunity && payload.opportunity) {
         setState(prev => ({
           ...prev,
-          currentSuggestion: result.practiceOpportunity,
+          currentSuggestion: payload.opportunity,
           isLoading: false
         }));
       } else {
@@ -54,51 +54,53 @@ export const usePracticeSuggestions = (): [PracticeSuggestionState, PracticeSugg
         }));
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       setState(prev => ({
         ...prev,
-        error: `Failed to check for practice opportunity: ${error.message || error}`,
+        error: `Failed to check for practice opportunity: ${message}`,
         isLoading: false
       }));
     }
-  }, []);
+  }, [chatService]);
 
   const acceptSuggestion = useCallback(() => {
-    if (!state.currentSuggestion) return;
-
-    // User accepted the practice suggestion
-    
-    // Add to history
-    setState(prev => ({
-      ...prev,
-      currentSuggestion: null,
-      suggestionsHistory: [...prev.suggestionsHistory, state.currentSuggestion]
-    }));
-  }, [state.currentSuggestion]);
+    setState(prev => {
+      if (!prev.currentSuggestion) {
+        return prev;
+      }
+      return {
+        ...prev,
+        currentSuggestion: null,
+        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion]
+      };
+    });
+  }, []);
 
   const declineSuggestion = useCallback(() => {
-    if (!state.currentSuggestion) return;
-
-    // User declined the practice suggestion
-    
-    setState(prev => ({
-      ...prev,
-      currentSuggestion: null,
-      suggestionsHistory: [...prev.suggestionsHistory, {...state.currentSuggestion, rejected: true}]
-    }));
-  }, [state.currentSuggestion]);
+    setState(prev => {
+      if (!prev.currentSuggestion) {
+        return prev;
+      }
+      return {
+        ...prev,
+        currentSuggestion: null,
+        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion]
+      };
+    });
+  }, []);
 
   const postponeSuggestion = useCallback(() => {
-    if (!state.currentSuggestion) return;
-
-    // User postponed the practice suggestion
-    
-    setState(prev => ({
-      ...prev,
-      // For now, just remove it (in a real implementation, you might want to reschedule it)
-      currentSuggestion: null,
-      suggestionsHistory: [...prev.suggestionsHistory, {...state.currentSuggestion, postponed: true}]
-    }));
-  }, [state.currentSuggestion]);
+    setState(prev => {
+      if (!prev.currentSuggestion) {
+        return prev;
+      }
+      return {
+        ...prev,
+        currentSuggestion: null,
+        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion]
+      };
+    });
+  }, []);
 
   const dismissSuggestion = useCallback(() => {
     setState(prev => ({

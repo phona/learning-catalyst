@@ -133,6 +133,26 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   };
 
   /**
+   * Fetch the persisted application configuration.
+   */
+  const getConfig = async (): Promise<AppConfig | null> => {
+    try {
+      if (!apiClient?.settings?.getConfig) {
+        return null;
+      }
+
+      const config = await apiClient.settings.getConfig();
+      if (config) {
+        currentConfig = config;
+      }
+      return config ?? null;
+    } catch (error) {
+      console.error('Failed to retrieve configuration:', error);
+      return null;
+    }
+  };
+
+  /**
    * Update a specific model type assignment and persist into currentConfig (if any).
    * Accepts either SelectedModel or a ModelTypeConfig-like shape.
    */
@@ -354,17 +374,17 @@ export function createConfigurationService(apiClient: ElectronAPI) {
    */
   const getAvailableProviders = async () => {
     try {
-      const response = await apiClient.settings.getProviders();
+      const response = await apiClient.settings.getAvailableProviders();
       if (!response.success) {
-        throw new Error(response.error?.message || 'Failed to get providers');
+        throw new Error('Failed to get providers');
       }
       return {
         success: true,
-        providers: response.data || [],
+        providers: response.providers || [],
         summary: {
-          total: response.data?.length || 0,
-          connected: 0,
-          configured: 0
+          total: response.providers?.length || 0,
+          connected: response.summary?.connected || 0,
+          configured: response.summary?.configured || 0
         }
       };
     } catch (error) {
@@ -381,14 +401,12 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     config: any;
   }) => {
     try {
-      const response = await apiClient.settings.addProvider({
-        provider_type: params.provider,
-        api_key: params.config.api_key,
-        base_url: params.config.base_url,
-        models: []
+      const response = await apiClient.settings.configureProvider({
+        provider: params.provider,
+        config: params.config
       });
       if (!response.success) {
-        throw new Error(response.error?.message || 'Failed to configure provider');
+        throw new Error('Failed to configure provider');
       }
       return { success: true, providerId: params.provider, status: 'configured' };
     } catch (error) {
@@ -414,6 +432,7 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     configureProvider,
     validateProvider,
     getProviderModels,
+    getConfig,
   };
 }
 

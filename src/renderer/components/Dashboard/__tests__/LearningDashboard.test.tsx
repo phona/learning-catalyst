@@ -12,11 +12,17 @@ import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { LearningDashboard } from '../LearningDashboard';
 import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
+import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
+
+const configServiceMock = createMockConfigurationService();
+const fileServiceMock = createMockFileService();
 
 // Mock the services used by the dashboard
 vi.mock('@/renderer/services/services-provider', () => ({
   useCatalystService: vi.fn(),
   useAnalyticsService: vi.fn(),
+  useConfigurationService: vi.fn(() => configServiceMock),
+  useFileService: vi.fn(() => fileServiceMock),
 }));
 
 const mockCatalystService = {

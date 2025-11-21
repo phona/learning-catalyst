@@ -12,26 +12,23 @@ import { useConfigStore } from '@/renderer/stores/useConfigStore';
 
 const mockShowOpenDialog = vi.fn();
 const mockReadFile = vi.fn();
-
-const setElectronAPI = () => {
-  try {
-    Object.defineProperty(window, 'electronAPI', {
-      value: {
-        showOpenDialog: mockShowOpenDialog,
-        readFile: mockReadFile,
-      },
-      configurable: true,
-      writable: true,
-    });
-  } catch {
-    (window as typeof window & { electronAPI?: unknown }).electronAPI = {
-      showOpenDialog: mockShowOpenDialog,
-      readFile: mockReadFile,
-    } as typeof window.electronAPI;
-  }
+const mockFileService = {
+  showOpenDialog: mockShowOpenDialog,
+  readFile: mockReadFile,
+  writeFile: vi.fn().mockResolvedValue({ success: true }),
+  existsFile: vi.fn().mockResolvedValue({ success: true, data: true }),
+  showSaveDialog: vi.fn().mockResolvedValue({ success: true, data: { canceled: true, filePath: '' } }),
+  readDirectory: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  getWorkspacePath: vi.fn().mockResolvedValue({ success: true, data: '/mock/workspace' }),
 };
 
-setElectronAPI();
+vi.mock('@/renderer/services/services-provider', async () => {
+  const actual = await vi.importActual('@/renderer/services/services-provider');
+  return {
+    ...actual,
+    useFileService: vi.fn(() => mockFileService),
+  };
+});
 
 const baseConfig = {
   ai: {
@@ -75,7 +72,13 @@ describe('ChatInput', () => {
     } as any);
 
     mockShowOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
-    mockReadFile.mockResolvedValue('file content');
+    mockReadFile.mockResolvedValue({
+      success: true,
+      data: {
+        content: 'file content',
+        fileName: 'mock.txt',
+      },
+    });
   });
 
   it('renders textarea and send button', () => {
@@ -130,7 +133,13 @@ describe('ChatInput', () => {
       canceled: false,
       filePaths: ['/tmp/example.txt'],
     });
-    mockReadFile.mockResolvedValue('Example file');
+    mockReadFile.mockResolvedValue({
+      success: true,
+      data: {
+        content: 'Example file',
+        fileName: 'example.txt',
+      },
+    });
 
     renderWithServices(<ChatInput />);
 

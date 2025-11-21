@@ -1,10 +1,16 @@
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { PracticeOpportunityResult } from '@/shared/types/electron-api/chat-api';
 import type { Message, StreamChunk, ChatOptions } from '@/shared/types/ai';
 import type { Session } from '@/shared/types/session';
 
 export interface ChatService {
   sendMessage(content: string, session: Session, options?: ChatOptions): Promise<Message>;
   sendMessageStream(content: string, session: Session, onChunk: (chunk: StreamChunk) => void, options?: ChatOptions): Promise<void>;
+  checkPracticeOpportunity(params: {
+    conversationId: string;
+    userMessage: string;
+    sessionId?: string;
+  }): Promise<PracticeOpportunityResult>;
 }
 
 /**
@@ -72,8 +78,23 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     }
   };
 
+  const checkPracticeOpportunity = async (params: {
+    conversationId: string;
+    userMessage: string;
+    sessionId?: string;
+  }): Promise<PracticeOpportunityResult> => {
+    const { conversationId, userMessage } = params;
+    const result = await apiClient.chat.checkPracticeOpportunity({
+      conversationId,
+      userMessage
+    });
+
+    return result;
+  };
+
   return {
     sendMessage,
     sendMessageStream,
+    checkPracticeOpportunity,
   };
 };

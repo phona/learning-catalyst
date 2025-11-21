@@ -5,6 +5,7 @@
  */
 
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
 
 export interface FileOpenDialogOptions {
   properties?: ('openFile' | 'openFiles' | 'multiSelections' | 'showHiddenFiles' | 'createDirectory' | 'promptToCreate' | 'noResolveAliases' | 'treatPackageAsDirectory' | 'dontAddToRecent')[];
@@ -288,12 +289,89 @@ export function createFileService(electronAPI: ElectronAPI) {
     }
   };
 
+  const readDirectory = async (
+    dirPath: string,
+    recursive = true,
+    maxDepth = 3,
+    filterConfig?: DirectoryFilterConfig
+  ): Promise<FileOperationResult<DirectoryScanResult[]>> => {
+    try {
+      if (!dirPath) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PATH',
+            message: 'Directory path is required'
+          }
+        };
+      }
+
+      if (!electronAPI?.readDirectory) {
+        return {
+          success: false,
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message: 'Directory listing service is not available'
+          }
+        };
+      }
+
+      const items = await electronAPI.readDirectory(dirPath, recursive, maxDepth, filterConfig);
+
+      return {
+        success: true,
+        data: Array.isArray(items) ? items : []
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'READ_DIRECTORY_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to read directory',
+          details: { dirPath, error }
+        }
+      };
+    }
+  };
+
+  const getWorkspacePath = async (): Promise<FileOperationResult<string | null>> => {
+    try {
+      if (!electronAPI?.getWorkspacePath) {
+        return {
+          success: false,
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message: 'Workspace path service is not available'
+          }
+        };
+      }
+
+      const workspacePath = await electronAPI.getWorkspacePath();
+
+      return {
+        success: true,
+        data: workspacePath || null
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'WORKSPACE_PATH_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to get workspace path',
+          details: error
+        }
+      };
+    }
+  };
+
   return {
     showOpenDialog,
     readFile,
     writeFile,
     existsFile,
-    showSaveDialog
+    showSaveDialog,
+    readDirectory,
+    getWorkspacePath
   };
 }
 

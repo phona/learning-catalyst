@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useChat } from '@/renderer/hooks/useChat';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
+import { useFileService } from '@/renderer/services/services-provider';
 import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toast';
 
 const ChatInputComponent: React.FC = () => {
@@ -32,6 +33,7 @@ const ChatInputComponent: React.FC = () => {
   } = useChat();
 
   const { config, updateConfig } = useConfigStore();
+  const fileService = useFileService();
 
   // Use config values for provider/model since new service architecture doesn't expose these directly
   const selectedProvider = config?.ai?.model_types?.chat?.default_provider ?? 'openai';
@@ -144,7 +146,7 @@ const ChatInputComponent: React.FC = () => {
 
   const handleFileSelect = async (): Promise<void> => {
     try {
-      const result = await window.electronAPI.showOpenDialog({
+      const result = await fileService.showOpenDialog({
         properties: ['openFile'],
         filters: [
           { name: 'Text Files', extensions: ['txt', 'md', 'js', 'ts', 'py', 'java', 'cpp', 'c'] },
@@ -154,45 +156,18 @@ const ChatInputComponent: React.FC = () => {
 
       if (!result.canceled && result.filePaths.length > 0) {
         const filePath = result.filePaths[0];
-
         if (!filePath) {
           utilityToasts.error('No file selected');
           return;
         }
 
-        try {
-          const content = await window.electronAPI.readFile(filePath);
-
-          // Validate that content is a string and not too large
-          if (typeof content !== 'string') {
-            utilityToasts.error('Invalid file content format');
-            return;
-          }
-
-          if (content.length > 50000) { // 50KB limit
-            utilityToasts.error('File is too large (max 50KB)');
-            return;
-          }
-
-          const fileName = filePath.split(/[/\\]/).pop() ?? 'Unknown file';
-
-          // Sanitize content for display
-          const sanitizedContent = content.replace(/[<>&]/g, (match) => {
-            const entities: Record<string, string> = {
-              '<': '&lt;',
-              '>': '&gt;',
-              '&': '&amp;'
-            };
-            return entities[match];
-          });
-
-          setInputText(prev => prev + `\n\n📎 Attached file: ${fileName}\n\n${sanitizedContent}`);
-          // Visual feedback is sufficient - no toast needed for file attachment
-        } catch (readError) {
-          console.error('Failed to read file:', readError);
-          const errorMsg = readError instanceof Error ? readError.message : 'Failed to read file';
-          utilityToasts.error(errorMsg);
+        const fileResult = await fileService.readFile(filePath);
+        if (!fileResult.success || !fileResult.data) {
+          utilityToasts.error(fileResult.error?.message || 'Failed to read file');
+          return;
         }
+
+        setInputText(prev => prev + `\n\n📎 Attached file: ${fileResult.data.fileName}\n\n${fileResult.data.content}`);
       }
     } catch (error) {
       console.error('Failed to select file:', error);
