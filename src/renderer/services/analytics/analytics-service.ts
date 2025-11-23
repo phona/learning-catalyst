@@ -53,31 +53,31 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   // Private helper methods
   const convertTimeRange = (period: string): '7days' | '30days' | '90days' | '1year' => {
     switch (period) {
-      case 'week':
-        return '7days';
-      case 'month':
-        return '30days';
-      case 'quarter':
-        return '90days';
-      case 'year':
-        return '1year';
-      default:
-        return '30days';
+    case 'week':
+      return '7days';
+    case 'month':
+      return '30days';
+    case 'quarter':
+      return '90days';
+    case 'year':
+      return '1year';
+    default:
+      return '30days';
     }
   };
 
   const getUnitForMetric = (metric: string): string => {
     switch (metric) {
-      case 'mastery':
-        return '%';
-      case 'sessions':
-        return 'sessions';
-      case 'time':
-        return 'minutes';
-      case 'concepts':
-        return 'concepts';
-      default:
-        return '';
+    case 'mastery':
+      return '%';
+    case 'sessions':
+      return 'sessions';
+    case 'time':
+      return 'minutes';
+    case 'concepts':
+      return 'concepts';
+    default:
+      return '';
     }
   };
 
@@ -318,9 +318,45 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
 
   // Implement the IAnalyticsService interface methods
   const getStudyMetrics = async (): Promise<StudyMetrics> => {
-    // This would need to be implemented based on the available API methods
-    // For now, return a placeholder implementation
-    throw new Error('getStudyMetrics not yet implemented');
+    const [timeStatsResp, streakResp, usageResp] = await Promise.all([
+      apiClient.analytics.getTimeStats({ includeBreakdown: true, includeComparisons: true }),
+      apiClient.analytics.getStudyStreak(),
+      apiClient.analytics.getUsageStats({
+        timeRange: '7days',
+        includePatterns: true,
+        includeEngagement: true,
+        detailed: true,
+      }),
+    ]);
+
+    if (!timeStatsResp.success || !timeStatsResp.data) {
+      throw new Error(timeStatsResp.error?.message || 'Failed to get time stats');
+    }
+
+    if (!streakResp.success || !streakResp.data) {
+      throw new Error(streakResp.error?.message || 'Failed to get study streak');
+    }
+
+    if (!usageResp.success || !usageResp.data) {
+      throw new Error(usageResp.error?.message || 'Failed to get usage stats');
+    }
+
+    const timeStats = timeStatsResp.data;
+    const streak = streakResp.data;
+    const usage = usageResp.data;
+
+    return {
+      totalStudyTime: Number(timeStats.totalStudyTime || 0),
+      sessionsCompleted: Number(timeStats.totalSessions || 0),
+      conceptsStudied: Number(usage.learning?.conceptsLearned || 0),
+      accuracyRate: Number(usage.learning?.accuracy || 0),
+      averageSessionLength: Number(timeStats.averageSessionTime || 0),
+      streakDays: Number(streak.currentStreak || 0),
+      lastStudyDate: streak.lastStudyDate ? new Date(streak.lastStudyDate) : new Date(0),
+      focusScore: Number(usage.engagement?.averageSessionRating || 0),
+      questionsAsked: Number(usage.learning?.exercisesCompleted || 0),
+      correctAnswers: 0,
+    };
   };
 
   const getRecentSessions = async (limit?: number): Promise<SessionDisplay[]> => {

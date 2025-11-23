@@ -107,10 +107,10 @@ const normalizeConversationMessages = (messages: ConversationMessage[] = []): UI
     const tokens =
       typeof message.tokensUsed === 'number'
         ? {
-            prompt_tokens: message.tokensUsed,
-            completion_tokens: 0,
-            total_tokens: message.tokensUsed,
-          }
+          prompt_tokens: message.tokensUsed,
+          completion_tokens: 0,
+          total_tokens: message.tokensUsed,
+        }
         : undefined;
 
     return {
@@ -134,16 +134,16 @@ const normalizeConversationMessages = (messages: ConversationMessage[] = []): UI
 const chatDisplayToConversationMessage = (display: ChatAPIMessageDisplay): ConversationMessage => {
   const mapStatus = (status: ChatAPIMessageDisplay['status']): ConversationMessage['status'] => {
     switch (status) {
-      case 'sending':
-        return 'sending';
-      case 'processing':
-        return 'typing';
-      case 'error':
-        return 'error';
-      case 'sent':
-      case 'completed':
-      default:
-        return 'delivered';
+    case 'sending':
+      return 'sending';
+    case 'processing':
+      return 'typing';
+    case 'error':
+      return 'error';
+    case 'sent':
+    case 'completed':
+    default:
+      return 'delivered';
     }
   };
 

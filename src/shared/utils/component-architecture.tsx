@@ -441,16 +441,16 @@ export function useComponentErrorHandling() {
     return {
       retry: retryAction
         ? async () => {
-            setIsRetrying(true);
-            try {
-              await retryAction();
-              setError(null);
-            } catch (retryError) {
-              setError(retryError as Error);
-            } finally {
-              setIsRetrying(false);
-            }
+          setIsRetrying(true);
+          try {
+            await retryAction();
+            setError(null);
+          } catch (retryError) {
+            setError(retryError as Error);
+          } finally {
+            setIsRetrying(false);
           }
+        }
         : undefined,
     };
   }, []);

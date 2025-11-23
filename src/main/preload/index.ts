@@ -68,16 +68,16 @@ const chatAPI: ChatAPI = {
               const messageHandler = (event: MessageEvent) => {
                 const { type, chunk, error } = event.data;
                 switch (type) {
-                  case 'chat:chunk':
-                    resolveStream(chunk);
-                    break;
-                  case 'chat:complete':
-                    port.close();
-                    resolveStream(undefined);
-                    break;
-                  case 'chat:error':
-                    rejectStream(new Error(error));
-                    break;
+                case 'chat:chunk':
+                  resolveStream(chunk);
+                  break;
+                case 'chat:complete':
+                  port.close();
+                  resolveStream(undefined);
+                  break;
+                case 'chat:error':
+                  rejectStream(new Error(error));
+                  break;
                 }
               };
               port.onmessage = messageHandler;

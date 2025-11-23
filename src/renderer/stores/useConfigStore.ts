@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { merge } from 'lodash';
 import type { AppConfig, ProviderConfig } from '@/shared/types';
 import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
@@ -101,8 +102,9 @@ export const useConfigStore = create<ConfigStore>()(
         try {
           const service = requireConfigurationService();
           const config = await service.getConfig();
-          set({ config, loading: false }, false, 'loadConfig:success');
-          return config;
+          const merged = merge({}, DEFAULT_APP_CONFIG, config ?? {});
+          set({ config: merged, loading: false }, false, 'loadConfig:success');
+          return merged;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load config';
           set({ error: errorMessage, loading: false }, false, 'loadConfig:error');

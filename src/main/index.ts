@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setupAllIpcHandlers } from './handlers';
 import { setupSettingsHandlers } from './handlers/settings-handlers';
-import { serializeIPCError } from './handlers/ipc-error-handler';
+import { serializeIPCError, applyStructuredErrorHandling, getRegisteredIpcChannels } from './handlers/ipc-error-handler';
 import { createAppMenu } from './menu';
 import { MainThreadLogger } from './services/logger';
 
@@ -153,16 +153,7 @@ async function createWindow(): Promise<void> {
     backgroundColor: '#ffffff',
   });
 
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-    if (process.env.NODE_ENV !== 'production') {
-      win.webContents.openDevTools();
-    }
-    win.show();
-  } else {
-    win.loadFile(indexHtml);
-    win.show();
-  }
+  
 
   // Add proper cleanup on window close
   win.on('closed', () => {
@@ -185,7 +176,7 @@ async function createWindow(): Promise<void> {
     return { action: 'deny' };
   });
 
-  // Setup IPC handlers
+  
   // Get workspace from environment variable or command line arguments or use current directory as default
   const workspaceEnv = process.env.WORKSPACE_PATH;
   const workspaceArg = process.argv.find((arg) => !arg.includes('electron') && !arg.includes('--'));
@@ -219,6 +210,7 @@ async function createWindow(): Promise<void> {
     logger: loggerService,
   });
 
+  applyStructuredErrorHandling();
   setupSettingsHandlers({ configService });
 
   try {
@@ -297,6 +289,20 @@ async function createWindow(): Promise<void> {
     // Setup application menu
     const menu = createAppMenu(win);
     win.setMenu(menu);
+
+    const channels = getRegisteredIpcChannels();
+    console.log('IPC channels registered', { count: channels.length, channels });
+
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(VITE_DEV_SERVER_URL);
+      if (process.env.NODE_ENV !== 'production') {
+        win.webContents.openDevTools();
+      }
+      win.show();
+    } else {
+      win.loadFile(indexHtml);
+      win.show();
+    }
   } catch (error) {
     console.error('? Error initializing services:', error);
     reportMainError(error, 'services:init');

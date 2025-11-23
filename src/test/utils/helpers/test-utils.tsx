@@ -358,11 +358,11 @@ export const createMockConfig = (overrides: DeepPartial<AppConfig> = {}): AppCon
     hasAiOverride && aiOverrides === undefined
       ? undefined
       : {
-          ...baseAIConfig,
-          ...(aiOverrides ?? {}),
-          providers: mergeProviders(baseAIConfig.providers, aiOverrides?.providers),
-          modelTypes: mergeModelTypes(baseAIConfig.modelTypes, aiOverrides?.modelTypes),
-        };
+        ...baseAIConfig,
+        ...(aiOverrides ?? {}),
+        providers: mergeProviders(baseAIConfig.providers, aiOverrides?.providers),
+        modelTypes: mergeModelTypes(baseAIConfig.modelTypes, aiOverrides?.modelTypes),
+      };
 
   if (aiSection && aiOverrides) {
     if (

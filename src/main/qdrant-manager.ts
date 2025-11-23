@@ -37,7 +37,7 @@ const __dirname = path.dirname(__filename);
 class MainProcessQdrantService {
   private readonly client: any;
   private process: any = null;
-  private config: any;
+  private readonly config: any;
   private isStarting = false;
   private isReady = false;
   private outputBuffer: string[] = [];
@@ -189,7 +189,7 @@ class MainProcessQdrantService {
               }
             } finally {
               // 确保子进程被正确清理
-              if (childProcess && childProcess.pid) {
+              if (childProcess?.pid) {
                 childProcess.kill();
                 childProcess.unref();
               }
@@ -370,7 +370,7 @@ class MainProcessQdrantService {
       status: string;
       optimizer_status: string;
     }>
-  > {
+    > {
     const response = await this.client.get('/collections');
     return response.data.collections.map((col: any) => ({
       name: col.name,
@@ -899,7 +899,7 @@ export const createQdrantManager = () => {
         };
       }
     });
-    ipcMain.handle('knowledge:add', async (_, { item, embedding, provider }) => {
+    ipcMain.handle('qdrant:knowledge:add', async (_, { item, embedding, provider }) => {
       try {
         await knowledgeService.addKnowledgeItem(item, provider, embedding);
         return { success: true };
@@ -908,7 +908,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:search', async (_, { query, provider, limit, filters }) => {
+    ipcMain.handle('qdrant:knowledge:search', async (_, { query, provider, limit, filters }) => {
       try {
         const results = await knowledgeService.searchKnowledge(query, provider, limit, filters);
         return { success: true, results };
@@ -917,7 +917,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:get', async (_, { id }) => {
+    ipcMain.handle('qdrant:knowledge:get', async (_, { id }) => {
       try {
         const item = await knowledgeService.getKnowledgeItem(id);
         return { success: true, item };
@@ -926,7 +926,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:update', async (_, { id, updates, provider }) => {
+    ipcMain.handle('qdrant:knowledge:update', async (_, { id, updates, provider }) => {
       try {
         await knowledgeService.updateKnowledgeItem(id, updates, provider);
         return { success: true };
@@ -935,7 +935,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:delete', async (_, { id }) => {
+    ipcMain.handle('qdrant:knowledge:delete', async (_, { id }) => {
       try {
         await knowledgeService.deleteKnowledgeItem(id);
         return { success: true };
@@ -944,7 +944,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:storeContext', async (_, { sessionId, messages, provider }) => {
+    ipcMain.handle('qdrant:knowledge:storeContext', async (_, { sessionId, messages, provider }) => {
       try {
         await knowledgeService.storeConversationContext(sessionId, messages, provider);
         return { success: true };
@@ -953,7 +953,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:getContext', async (_, { sessionId, query, provider, limit }) => {
+    ipcMain.handle('qdrant:knowledge:getContext', async (_, { sessionId, query, provider, limit }) => {
       try {
         const context = await knowledgeService.getRelevantContext(
           sessionId,
@@ -967,7 +967,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:stats', async () => {
+    ipcMain.handle('qdrant:knowledge:stats', async () => {
       try {
         const stats = await knowledgeService.getKnowledgeStats();
         return { success: true, stats };
@@ -976,7 +976,7 @@ export const createQdrantManager = () => {
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-    ipcMain.handle('knowledge:clear', async () => {
+    ipcMain.handle('qdrant:knowledge:clear', async () => {
       try {
         await knowledgeService.clearAllKnowledge();
         return { success: true };

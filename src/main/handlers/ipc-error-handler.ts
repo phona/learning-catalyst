@@ -37,25 +37,29 @@ export const serializeIPCError = (error: unknown, channel = 'system'): IPCErrorP
   };
 };
 
+const registeredChannels = new Set<string>();
+
+export const getRegisteredIpcChannels = (): string[] => Array.from(registeredChannels);
+
 const handleWithError =
   <Args extends unknown[], Return>(
     channel: string,
     listener: (event: IpcMainInvokeEvent, ...args: Args) => Promise<Return>,
   ) =>
-  async (
-    event: IpcMainInvokeEvent,
-    ...args: Args
-  ): Promise<Return | { success: false; error: IPCErrorPayload }> => {
-    try {
-      return await listener(event, ...args);
-    } catch (error) {
-      console.error(`[main][IPC] ${channel} failed`, error);
-      return {
-        success: false,
-        error: serializeIPCError(error, channel),
-      };
-    }
-  };
+    async (
+      event: IpcMainInvokeEvent,
+      ...args: Args
+    ): Promise<Return | { success: false; error: IPCErrorPayload }> => {
+      try {
+        return await listener(event, ...args);
+      } catch (error) {
+        console.error(`[main][IPC] ${channel} failed`, error);
+        return {
+          success: false,
+          error: serializeIPCError(error, channel),
+        };
+      }
+    };
 
 export const applyStructuredErrorHandling = () => {
   const target = ipcMain as typeof ipcMain & { [PATCH_FLAG]?: boolean };
@@ -65,6 +69,10 @@ export const applyStructuredErrorHandling = () => {
 
   const originalHandle = target.handle.bind(target);
   target.handle = ((channel: string, listener: (...args: unknown[]) => Promise<unknown>) => {
+    if (registeredChannels.has(channel)) {
+      console.warn(`[main][IPC] duplicate handler registration`, { channel });
+    }
+    registeredChannels.add(channel);
     return originalHandle(channel, handleWithError(channel, listener));
   }) as typeof ipcMain.handle;
 

@@ -383,11 +383,11 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
 
     const parentConfig = row.parent_checkpoint_id
       ? {
-          configurable: {
-            ...config.configurable,
-            checkpoint_id: row.parent_checkpoint_id,
-          },
-        }
+        configurable: {
+          ...config.configurable,
+          checkpoint_id: row.parent_checkpoint_id,
+        },
+      }
       : undefined;
 
     return {

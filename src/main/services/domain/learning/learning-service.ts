@@ -107,12 +107,12 @@ const PATH_PREFIX = 'learning_path:';
 
 const difficultyToLevel = (value: string | undefined): number => {
   switch ((value ?? 'intermediate').toLowerCase()) {
-    case 'beginner':
-      return 1;
-    case 'advanced':
-      return 3;
-    default:
-      return 2;
+  case 'beginner':
+    return 1;
+  case 'advanced':
+    return 3;
+  default:
+    return 2;
   }
 };
 
@@ -369,7 +369,7 @@ export const createLearningService = ({
       .execute();
     return rows
       .map((row) => safeParseJson<LearningPath>(row.value, undefined))
-      .filter((path): path is LearningPath => Boolean(path && path.userId === userId));
+      .filter((path): path is LearningPath => Boolean(path?.userId === userId));
   };
 
   const generateRecommendedPaths = async (

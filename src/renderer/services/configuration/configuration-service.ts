@@ -161,7 +161,7 @@ export interface ConfigurationService {
   configureProvider: (params: {
     provider: string;
     config: Partial<ProviderConfig>;
-  }) => Promise<{ success: boolean; providerId: string; status: string }>;
+  }) => Promise<{ providerId: string; status: string }>;
   validateProvider: (
     providerType: string,
     apiKey: string,

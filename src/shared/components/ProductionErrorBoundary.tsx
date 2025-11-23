@@ -489,7 +489,7 @@ export class GlobalHealthMonitor {
       critical: number;
       error: number;
     };
-  } {
+    } {
     const components = this.healthData;
     const summary = {
       total: components.size,
@@ -501,18 +501,18 @@ export class GlobalHealthMonitor {
 
     components.forEach((status) => {
       switch (status.status) {
-        case 'healthy':
-          summary.healthy++;
-          break;
-        case 'degraded':
-          summary.degraded++;
-          break;
-        case 'critical':
-          summary.critical++;
-          break;
-        case 'error':
-          summary.error++;
-          break;
+      case 'healthy':
+        summary.healthy++;
+        break;
+      case 'degraded':
+        summary.degraded++;
+        break;
+      case 'critical':
+        summary.critical++;
+        break;
+      case 'error':
+        summary.error++;
+        break;
       }
     });
 

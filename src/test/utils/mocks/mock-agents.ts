@@ -419,10 +419,10 @@ export const mockAssessmentAgent = vi.fn().mockImplementation(function (config: 
           recommendations:
             score < 80
               ? [
-                  'Review learning materials',
-                  'Practice more exercises',
-                  'Consider additional study time',
-                ]
+                'Review learning materials',
+                'Practice more exercises',
+                'Consider additional study time',
+              ]
               : ['Move on to advanced topics', 'Help others learn'],
         },
         detailedResults: userAnswers.map((answer: any, index: number) => ({
@@ -781,9 +781,9 @@ export const mockAgentManager = vi.fn().mockImplementation(function (config: any
           averageDuration:
             sessions.length > 0
               ? sessions.reduce(
-                  (sum: number, s: any) => sum + (Date.now() - (s?.createdAt || 0)),
-                  0,
-                ) / sessions.length
+                (sum: number, s: any) => sum + (Date.now() - (s?.createdAt || 0)),
+                0,
+              ) / sessions.length
               : 0,
         },
         overall: agents.every((a: any) => a?.status !== 'error') ? 'healthy' : 'degraded',

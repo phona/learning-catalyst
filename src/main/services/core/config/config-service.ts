@@ -175,7 +175,7 @@ export const createConfigService = ({
      */
     getProviderConfig: async (name: string): Promise<ProviderConfig | undefined> => {
       const config = await service.getConfig();
-      if (!config || !config.ai || !config.ai.providers) {
+      if (!config?.ai?.providers) {
         return undefined;
       }
 
@@ -217,12 +217,12 @@ export const createConfigService = ({
      */
     isSetupComplete: async (): Promise<boolean> => {
       const config = await service.getConfig();
-      if (!config || !config.ai || !config.ai.modelTypes) {
+      if (!config?.ai?.modelTypes) {
         return false;
       }
 
       const chatConfig = config.ai.modelTypes.chat;
-      if (!chatConfig || !chatConfig.provider || !chatConfig.model) {
+      if (!chatConfig?.provider || !chatConfig.model) {
         return false;
       }
 

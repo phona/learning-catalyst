@@ -95,13 +95,13 @@ export class MainThreadLogger implements ServiceLogger {
 
     const errorMeta = error
       ? {
-          error: {
-            name: error.name,
-            message: error.message,
-            stack: error.stack,
-            cause: error.cause,
-          },
-        }
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          cause: error.cause,
+        },
+      }
       : {};
 
     const allMeta = { ...meta, ...errorMeta };

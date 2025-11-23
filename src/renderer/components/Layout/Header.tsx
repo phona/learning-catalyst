@@ -44,27 +44,27 @@ export const Header: React.FC = () => {
 
   const getThemeIcon = () => {
     switch (theme) {
-      case 'light':
-        return <SunIcon className="w-5 h-5" />;
-      case 'dark':
-        return <MoonIcon className="w-5 h-5" />;
-      case 'auto':
-        return <ComputerDesktopIcon className="w-5 h-5" />;
-      default:
-        return <SunIcon className="w-5 h-5" />;
+    case 'light':
+      return <SunIcon className="w-5 h-5" />;
+    case 'dark':
+      return <MoonIcon className="w-5 h-5" />;
+    case 'auto':
+      return <ComputerDesktopIcon className="w-5 h-5" />;
+    default:
+      return <SunIcon className="w-5 h-5" />;
     }
   };
 
   const getThemeLabel = () => {
     switch (theme) {
-      case 'light':
-        return 'Light';
-      case 'dark':
-        return 'Dark';
-      case 'auto':
-        return 'Auto';
-      default:
-        return 'Light';
+    case 'light':
+      return 'Light';
+    case 'dark':
+      return 'Dark';
+    case 'auto':
+      return 'Auto';
+    default:
+      return 'Light';
     }
   };
 

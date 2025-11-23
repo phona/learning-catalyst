@@ -693,17 +693,17 @@ export class ConversationAnalyzer {
 
     // Vibe-based logic
     switch (vibe) {
-      case 'understanding':
-      case 'breakthrough':
-        return true;
-      case 'confused':
-        return userContext.confidenceLevel > 0.4;
-      case 'practicing':
-        return false; // Already practicing
-      case 'misunderstanding':
-        return false; // Needs clarification first
-      default:
-        return false;
+    case 'understanding':
+    case 'breakthrough':
+      return true;
+    case 'confused':
+      return userContext.confidenceLevel > 0.4;
+    case 'practicing':
+      return false; // Already practicing
+    case 'misunderstanding':
+      return false; // Needs clarification first
+    default:
+      return false;
     }
   }
 

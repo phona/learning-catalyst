@@ -266,14 +266,14 @@ Provide your analysis in JSON format:
       const keyIndicators = Array.isArray(parsed.keyIndicators)
         ? parsed.keyIndicators
         : indicators
-            .map((indicator: any) =>
-              typeof indicator === 'string'
-                ? indicator
-                : indicator?.value !== undefined
-                  ? String(indicator.value)
-                  : (indicator?.type ?? ''),
-            )
-            .filter(Boolean);
+          .map((indicator: any) =>
+            typeof indicator === 'string'
+              ? indicator
+              : indicator?.value !== undefined
+                ? String(indicator.value)
+                : (indicator?.type ?? ''),
+          )
+          .filter(Boolean);
 
       return {
         vibe,

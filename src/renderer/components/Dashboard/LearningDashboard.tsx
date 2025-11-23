@@ -99,11 +99,11 @@ export const LearningDashboard: React.FC = () => {
       requirement:
         typeof a.requirement === 'object'
           ? {
-              target: (a.requirement as any).target,
-              current: (a.requirement as any).current,
-              unit: (a.requirement as any).unit,
-              metadata: (a.requirement as any).metadata,
-            }
+            target: (a.requirement as any).target,
+            current: (a.requirement as any).current,
+            unit: (a.requirement as any).unit,
+            metadata: (a.requirement as any).metadata,
+          }
           : { target: undefined },
     }));
 

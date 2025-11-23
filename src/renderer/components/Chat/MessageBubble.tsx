@@ -142,17 +142,17 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     if (!agentStatus) return null;
 
     switch (agentStatus.status) {
-      case 'thinking':
-        return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />;
-      case 'processing':
-        return <ClockIcon className="w-4 h-4 text-yellow-500 animate-pulse" />;
-      case 'responding':
-        return <SparklesIcon className="w-4 h-4 text-green-500 animate-pulse" />;
-      case 'error':
-        return <XCircleIcon className="w-4 h-4 text-red-500" />;
-      case 'idle':
-      default:
-        return <CheckCircleIcon className="w-4 h-4 text-gray-400" />;
+    case 'thinking':
+      return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />;
+    case 'processing':
+      return <ClockIcon className="w-4 h-4 text-yellow-500 animate-pulse" />;
+    case 'responding':
+      return <SparklesIcon className="w-4 h-4 text-green-500 animate-pulse" />;
+    case 'error':
+      return <XCircleIcon className="w-4 h-4 text-red-500" />;
+    case 'idle':
+    default:
+      return <CheckCircleIcon className="w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -160,17 +160,17 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
     if (!agentStatus) return '';
 
     switch (agentStatus.status) {
-      case 'thinking':
-        return 'text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-900/20 dark:border-blue-800';
-      case 'processing':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/20 dark:border-yellow-800';
-      case 'responding':
-        return 'text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800';
-      case 'error':
-        return 'text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800';
-      case 'idle':
-      default:
-        return 'text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-400 dark:bg-gray-900/20 dark:border-gray-800';
+    case 'thinking':
+      return 'text-blue-600 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-900/20 dark:border-blue-800';
+    case 'processing':
+      return 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/20 dark:border-yellow-800';
+    case 'responding':
+      return 'text-green-600 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800';
+    case 'error':
+      return 'text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800';
+    case 'idle':
+    default:
+      return 'text-gray-600 bg-gray-50 border-gray-200 dark:text-gray-400 dark:bg-gray-900/20 dark:border-gray-800';
     }
   };
 

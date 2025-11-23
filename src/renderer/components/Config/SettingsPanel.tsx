@@ -136,6 +136,12 @@ export const SettingsPanel: React.FC = () => {
   );
   const configService = useService('configService');
 
+  useEffect(() => {
+    if (!config) {
+      useConfigStore.getState().loadConfig().catch(() => {});
+    }
+  }, [config]);
+
   // Debounced save functionality
   const {
     save: debouncedSaveConfig,

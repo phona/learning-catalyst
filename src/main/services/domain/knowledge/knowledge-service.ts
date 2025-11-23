@@ -567,10 +567,10 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
 
     const neighborRows = neighborIds.length
       ? await db
-          .selectFrom('concepts')
-          .select(['id', 'name', 'metadata'])
-          .where('id', 'in', neighborIds)
-          .execute()
+        .selectFrom('concepts')
+        .select(['id', 'name', 'metadata'])
+        .where('id', 'in', neighborIds)
+        .execute()
       : [];
     const neighborMap = new Map(neighborRows.map((row) => [row.id, row.name]));
 
@@ -602,12 +602,12 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       categories,
       learningPaths: relatedConcepts.length
         ? [
-            {
-              path: relatedConcepts.slice(0, 3).map((concept) => concept.name),
-              difficulty: 'intermediate',
-              estimatedTime: '15 minutes',
-            },
-          ]
+          {
+            path: relatedConcepts.slice(0, 3).map((concept) => concept.name),
+            difficulty: 'intermediate',
+            estimatedTime: '15 minutes',
+          },
+        ]
         : [],
     };
   };

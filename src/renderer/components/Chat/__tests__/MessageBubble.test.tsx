@@ -323,8 +323,8 @@ You can create your own hooks to share stateful logic between components.
 - Use the linter plugin to enforce rules
 
 The introduction of hooks has made functional components much more powerful and has led to more reusable and testable code patterns in the React ecosystem.`.repeat(
-            10,
-          ), // Long content
+              10,
+            ), // Long content
         timestamp: new Date('2024-01-15T10:41:00'),
       });
 

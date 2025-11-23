@@ -11,7 +11,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { useChat } from '@/renderer/hooks/useChat';
+import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import { useFileService } from '@/renderer/services/services-provider';
 import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toast';
@@ -20,16 +20,14 @@ const ChatInputComponent: React.FC = () => {
   const [inputText, setInputText] = useState<string>('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
 
+  const chatState = useChatStore();
   const {
     isLoading,
     isStreaming,
     sendMessage: sendChatMessage,
-    sendMessageStream: sendChatMessageStream,
-    stopStreaming,
     error,
     setError,
-    selectedAgent,
-  } = useChat();
+  } = chatState;
 
   const { config, updateConfig } = useConfigStore();
   const fileService = useFileService();
@@ -61,28 +59,7 @@ const ChatInputComponent: React.FC = () => {
     setError(null);
 
     try {
-      // Check if streaming is supported and enabled
-      const useStreaming = chatModelConfig?.capabilities?.streaming;
-
-      if (useStreaming) {
-        // Use streaming for better user experience
-        await sendChatMessageStream(
-          message,
-          () => {
-            // Handle streaming chunks if needed
-          },
-          {
-            agentId: selectedAgent ?? undefined,
-          },
-        );
-      } else {
-        // Use non-streaming for simple responses
-        await sendChatMessage(message, {
-          agentId: selectedAgent ?? undefined,
-        });
-      }
-
-      // Visual feedback shows message in chat - no success toast needed
+      await sendChatMessage(message);
     } catch (error) {
       console.error('Failed to send message:', error);
       // Restore input text on error
@@ -133,12 +110,12 @@ const ChatInputComponent: React.FC = () => {
             ...(config.ai.modelTypes ?? {}),
             chat: chatModel
               ? {
-                  ...chatModel,
-                  capabilities: {
-                    ...chatModel.capabilities,
-                    thinking: newThinkingState,
-                  },
-                }
+                ...chatModel,
+                capabilities: {
+                  ...chatModel.capabilities,
+                  thinking: newThinkingState,
+                },
+              }
               : undefined,
           },
         },
@@ -265,31 +242,21 @@ const ChatInputComponent: React.FC = () => {
               )}
             </div>
 
-            {/* Send/Stop button */}
+            {/* Send button */}
             <button
-              type={isStreaming ? 'button' : 'submit'}
-              onClick={isStreaming ? stopStreaming : undefined}
+              type={'submit'}
               className={`px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                isStreaming
-                  ? 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500'
-                  : !isActionButtonDisabled
+                !isActionButtonDisabled
                     ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
               disabled={isActionButtonDisabled}
-              aria-label={isStreaming ? 'Stop generating response' : 'Send message'}
+              aria-label={'Send message'}
             >
-              {isStreaming ? (
-                <>
-                  <StopIcon className="w-5 h-5" />
-                  <span>Stop</span>
-                </>
-              ) : (
-                <>
-                  <PaperAirplaneIcon className="w-5 h-5" />
-                  <span>Send</span>
-                </>
-              )}
+              <>
+                <PaperAirplaneIcon className="w-5 h-5" />
+                <span>Send</span>
+              </>
             </button>
           </fieldset>
 

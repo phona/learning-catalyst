@@ -87,45 +87,45 @@ class MockResponseGenerator {
 class MockErrorGenerator {
   static generateError(scenario: ErrorScenario): Error {
     switch (scenario) {
-      case 'timeout':
-        const timeoutError = new Error('Request timeout');
-        (timeoutError as any).code = 'ETIMEDOUT';
-        (timeoutError as any).status = 408;
-        return timeoutError;
+    case 'timeout':
+      const timeoutError = new Error('Request timeout');
+      (timeoutError as any).code = 'ETIMEDOUT';
+      (timeoutError as any).status = 408;
+      return timeoutError;
 
-      case 'rate_limit':
-        const rateLimitError = new Error('Rate limit exceeded. Please try again later.');
-        (rateLimitError as any).code = 'rate_limit_exceeded';
-        (rateLimitError as any).status = 429;
-        (rateLimitError as any).retryAfter = 60;
-        return rateLimitError;
+    case 'rate_limit':
+      const rateLimitError = new Error('Rate limit exceeded. Please try again later.');
+      (rateLimitError as any).code = 'rate_limit_exceeded';
+      (rateLimitError as any).status = 429;
+      (rateLimitError as any).retryAfter = 60;
+      return rateLimitError;
 
-      case 'auth_error':
-        const authError = new Error('Invalid API key provided');
-        (authError as any).code = 'authentication_error';
-        (authError as any).status = 401;
-        return authError;
+    case 'auth_error':
+      const authError = new Error('Invalid API key provided');
+      (authError as any).code = 'authentication_error';
+      (authError as any).status = 401;
+      return authError;
 
-      case 'content_filter':
-        const contentFilterError = new Error('Content filtered due to policy violation');
-        (contentFilterError as any).code = 'content_filter';
-        (contentFilterError as any).status = 400;
-        return contentFilterError;
+    case 'content_filter':
+      const contentFilterError = new Error('Content filtered due to policy violation');
+      (contentFilterError as any).code = 'content_filter';
+      (contentFilterError as any).status = 400;
+      return contentFilterError;
 
-      case 'server_error':
-        const serverError = new Error('Internal server error');
-        (serverError as any).code = 'internal_server_error';
-        (serverError as any).status = 500;
-        return serverError;
+    case 'server_error':
+      const serverError = new Error('Internal server error');
+      (serverError as any).code = 'internal_server_error';
+      (serverError as any).status = 500;
+      return serverError;
 
-      case 'network_error':
-        const networkError = new Error('Network connection failed');
-        (networkError as any).code = 'ENOTFOUND';
-        (networkError as any).status = 0;
-        return networkError;
+    case 'network_error':
+      const networkError = new Error('Network connection failed');
+      (networkError as any).code = 'ENOTFOUND';
+      (networkError as any).status = 0;
+      return networkError;
 
-      default:
-        return new Error('Unknown error occurred');
+    default:
+      return new Error('Unknown error occurred');
     }
   }
 }

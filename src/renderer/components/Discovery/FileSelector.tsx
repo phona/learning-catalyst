@@ -124,25 +124,25 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
 
       // Type filter
       switch (filter) {
-        case 'markdown':
-          return item.isMarkdown;
-        case 'directories':
-          return item.isDirectory;
-        default:
-          return true;
+      case 'markdown':
+        return item.isMarkdown;
+      case 'directories':
+        return item.isDirectory;
+      default:
+        return true;
       }
     })
     .sort((a, b) => {
       // Sort logic
       switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'size':
-          return b.size - a.size;
-        case 'modified':
-          return b.modifiedTime.getTime() - a.modifiedTime.getTime();
-        default:
-          return 0;
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'size':
+        return b.size - a.size;
+      case 'modified':
+        return b.modifiedTime.getTime() - a.modifiedTime.getTime();
+      default:
+        return 0;
       }
     });
 

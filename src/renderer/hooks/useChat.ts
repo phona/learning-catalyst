@@ -116,9 +116,20 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         };
         setMessages((prev) => [...prev, userMessage]);
 
+        // Ensure session exists
+        let sessionId: string | undefined = currentSession?.id ?? options.sessionId;
+        if (!sessionId && chatService.createSession) {
+          const createdId = await chatService.createSession('Untitled Session');
+          if (!createdId) {
+            throw new Error('Failed to create session');
+          }
+          await loadSession(createdId);
+          sessionId = createdId;
+        }
+
         // Send message using chat service
         const response = await chatService.sendMessage(content, {
-          sessionId: currentSession?.id ?? options.sessionId,
+          sessionId,
           agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
         });
 
@@ -178,6 +189,17 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
         let streamingContent = '';
 
+        // Ensure session exists
+        let sessionId: string | undefined = currentSession?.id ?? options.sessionId;
+        if (!sessionId && chatService.createSession) {
+          const createdId = await chatService.createSession('Untitled Session');
+          if (!createdId) {
+            throw new Error('Failed to create session');
+          }
+          await loadSession(createdId);
+          sessionId = createdId;
+        }
+
         // Send streaming message using chat service
         const response = await chatService.sendMessageStream(
           content,
@@ -193,7 +215,7 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
             onChunk?.(chunk);
           },
           {
-            sessionId: currentSession?.id ?? options.sessionId,
+            sessionId,
             agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
           },
         );

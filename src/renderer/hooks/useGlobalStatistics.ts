@@ -206,7 +206,7 @@ export function useGlobalMessageCount(): {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-} {
+  } {
   const { statistics, loading, error, refresh } = useGlobalStatistics();
 
   return {

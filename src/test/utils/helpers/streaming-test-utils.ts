@@ -206,7 +206,7 @@ export class StreamingTestCollector {
 // MessageChannel streaming test utilities
 export class MessageChannelTestHelper {
   private messagePort: any;
-  private collector: StreamingTestCollector;
+  private readonly collector: StreamingTestCollector;
   private isConnected = false;
 
   constructor() {

@@ -219,21 +219,21 @@ export const simulateProductionError = (
   const baseServices = createProductionServiceContainer();
 
   switch (errorType) {
-    case 'missing_service':
-      // Remove sessionService key entirely
-      const { sessionService, ...servicesWithoutSession } = baseServices;
-      return servicesWithoutSession;
+  case 'missing_service':
+    // Remove sessionService key entirely
+    const { sessionService, ...servicesWithoutSession } = baseServices;
+    return servicesWithoutSession;
 
-    case 'null_service':
-      // Explicitly set sessionService to null (this is the production bug)
-      return baseServices;
+  case 'null_service':
+    // Explicitly set sessionService to null (this is the production bug)
+    return baseServices;
 
-    case 'undefined_service':
-      // Set sessionService to undefined
-      return { ...baseServices, sessionService: undefined };
+  case 'undefined_service':
+    // Set sessionService to undefined
+    return { ...baseServices, sessionService: undefined };
 
-    default:
-      return baseServices;
+  default:
+    return baseServices;
   }
 };
 

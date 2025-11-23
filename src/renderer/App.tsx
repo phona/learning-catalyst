@@ -5,6 +5,8 @@ import { Layout } from '@/renderer/components/Layout';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
 import { SessionManager } from '@/renderer/components/Session/SessionManager';
 import { DiscoveryPage } from '@/renderer/DiscoveryPage';
+import { SettingsPanel } from '@/renderer/components/Config/SettingsPanel';
+import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
 import {
   useAgentService,
   useConfigurationService,
@@ -21,6 +23,8 @@ const MainRoutes = () => (
       <Route index element={<ChatInterface />} />
       <Route path="sessions" element={<SessionManager />} />
       <Route path="discovery" element={<DiscoveryPage />} />
+      <Route path="progress" element={<LearningDashboard />} />
+      <Route path="settings" element={<SettingsPanel />} />
       <Route path="*" element={<ChatInterface />} />
     </Route>
   </Routes>

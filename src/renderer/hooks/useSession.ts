@@ -14,17 +14,17 @@ import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/el
 
 const mapDifficulty = (difficulty?: string): SessionDisplay['difficulty'] => {
   switch (difficulty) {
-    case 'beginner':
-    case 'easy':
-      return 'easy';
-    case 'intermediate':
-    case 'medium':
-      return 'medium';
-    case 'advanced':
-    case 'hard':
-      return 'hard';
-    default:
-      return 'medium';
+  case 'beginner':
+  case 'easy':
+    return 'easy';
+  case 'intermediate':
+  case 'medium':
+    return 'medium';
+  case 'advanced':
+  case 'hard':
+    return 'hard';
+  default:
+    return 'medium';
   }
 };
 

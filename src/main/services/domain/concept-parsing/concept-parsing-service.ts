@@ -104,14 +104,14 @@ const normalizeDifficulty = (value: number): number => {
 
 const difficultyFromLabel = (label?: ExtractedConcept['difficulty']): number => {
   switch (label) {
-    case 'beginner':
-      return 2;
-    case 'intermediate':
-      return 3;
-    case 'advanced':
-      return 4;
-    default:
-      return 3;
+  case 'beginner':
+    return 2;
+  case 'intermediate':
+    return 3;
+  case 'advanced':
+    return 4;
+  default:
+    return 3;
   }
 };
 

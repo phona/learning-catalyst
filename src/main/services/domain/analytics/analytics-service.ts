@@ -41,16 +41,16 @@ const metricTitle = (metric: string) =>
 
 const metricUnit = (metric: string) => {
   switch (metric) {
-    case 'mastery':
-      return '%';
-    case 'sessions':
-      return 'sessions';
-    case 'time':
-      return 'minutes';
-    case 'concepts':
-      return 'concepts';
-    default:
-      return '';
+  case 'mastery':
+    return '%';
+  case 'sessions':
+    return 'sessions';
+  case 'time':
+    return 'minutes';
+  case 'concepts':
+    return 'concepts';
+  default:
+    return '';
   }
 };
 

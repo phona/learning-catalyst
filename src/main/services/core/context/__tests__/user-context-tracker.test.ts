@@ -780,11 +780,11 @@ describe('UserContextTracker', () => {
           practiceResult:
             activities[i].type === 'practice_completion'
               ? {
-                  success: activities[i].success!,
-                  concept: `concept${i + 1}`,
-                  duration: 20,
-                  attempts: 1,
-                }
+                success: activities[i].success!,
+                concept: `concept${i + 1}`,
+                duration: 20,
+                attempts: 1,
+              }
               : undefined,
         };
 

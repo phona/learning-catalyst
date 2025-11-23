@@ -7,5 +7,6 @@ export function useChatStore(): ChatState;
 export function useChatStore<T>(selector: Selector<T>): T;
 export function useChatStore<T>(selector?: Selector<T>): T | ChatState {
   const store = useChatStoreContext();
-  return store(selector as Selector<T>);
+  const select = (selector ?? ((s: ChatState) => s as unknown as T)) as Selector<T>;
+  return store(select);
 }

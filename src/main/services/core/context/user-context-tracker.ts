@@ -576,19 +576,19 @@ export const createUserContextTracker = (
       };
 
       switch (request.messageType) {
-        case 'concept_introduction':
-          handleConceptIntroduction(request, changes);
-          break;
-        case 'practice_completion':
-          handlePracticeCompletion(request, changes);
-          break;
-        case 'user_message':
-        case 'assistant_message':
-          handleMessage(request, changes);
-          break;
-        default:
-          dependencies.logger.debug(`Unhandled message type: ${request.messageType}`);
-          break;
+      case 'concept_introduction':
+        handleConceptIntroduction(request, changes);
+        break;
+      case 'practice_completion':
+        handlePracticeCompletion(request, changes);
+        break;
+      case 'user_message':
+      case 'assistant_message':
+        handleMessage(request, changes);
+        break;
+      default:
+        dependencies.logger.debug(`Unhandled message type: ${request.messageType}`);
+        break;
       }
 
       updateContextualFactors(request);
@@ -682,13 +682,13 @@ export const createUserContextTracker = (
 
     const transformedProjectContext = projectContext
       ? {
-          name: projectContext.name,
-          type: projectContext.type,
-          files: projectContext.recentFiles.map((file) => file.path),
-          recentActivity: projectContext.recentFiles.map(
-            (file) => `${file.path}: ${file.concepts.join(', ')}`,
-          ),
-        }
+        name: projectContext.name,
+        type: projectContext.type,
+        files: projectContext.recentFiles.map((file) => file.path),
+        recentActivity: projectContext.recentFiles.map(
+          (file) => `${file.path}: ${file.concepts.join(', ')}`,
+        ),
+      }
       : undefined;
 
     return {
@@ -726,17 +726,17 @@ export const createUserContextTracker = (
   const setProjectContext = (projectContextUpdate: UserContext['currentProject']): void => {
     projectContext = projectContextUpdate
       ? {
-          name: projectContextUpdate.name,
-          type: projectContextUpdate.type,
-          technologies: projectContextUpdate.files || [],
-          recentFiles:
+        name: projectContextUpdate.name,
+        type: projectContextUpdate.type,
+        technologies: projectContextUpdate.files || [],
+        recentFiles:
             projectContextUpdate.files?.map((file) => ({
               path: file,
               lastModified: Date.now(),
               concepts: [],
             })) || [],
-          challenges: [],
-        }
+        challenges: [],
+      }
       : undefined;
 
     dependencies.logger.info('Project context updated', {

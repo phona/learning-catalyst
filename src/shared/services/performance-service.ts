@@ -236,18 +236,18 @@ export class ProductionPerformanceService {
 
   private applyBottleneckRemediation(bottleneck: PerformanceBottleneck): void {
     switch (bottleneck.operation) {
-      case 'database_query':
-        // Could implement query result caching
-        break;
-      case 'ai_response':
-        // Could implement response caching
-        break;
-      case 'ui_render':
-        // Could implement component memoization
-        break;
-      case 'ipc_call':
-        // Could implement call batching
-        break;
+    case 'database_query':
+      // Could implement query result caching
+      break;
+    case 'ai_response':
+      // Could implement response caching
+      break;
+    case 'ui_render':
+      // Could implement component memoization
+      break;
+    case 'ipc_call':
+      // Could implement call batching
+      break;
     }
   }
 
@@ -499,18 +499,18 @@ export class ProductionPerformanceService {
 
   private applyBottleneckRemediation(bottleneck: PerformanceBottleneck): void {
     switch (bottleneck.operation) {
-      case 'database_query':
-        // Could implement query result caching
-        break;
-      case 'ai_response':
-        // Could implement response caching
-        break;
-      case 'ui_render':
-        // Could implement component memoization
-        break;
-      case 'ipc_call':
-        // Could implement call batching
-        break;
+    case 'database_query':
+      // Could implement query result caching
+      break;
+    case 'ai_response':
+      // Could implement response caching
+      break;
+    case 'ui_render':
+      // Could implement component memoization
+      break;
+    case 'ipc_call':
+      // Could implement call batching
+      break;
     }
   }
 

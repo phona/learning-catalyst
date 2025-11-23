@@ -64,7 +64,7 @@ const ChatAreaComponent: React.FC = () => {
   };
 
   const chatState: ChatState = useChatStore() ?? fallbackState;
-  const [, practiceActions] = usePracticeSuggestions();
+  const [practiceState, practiceActions] = usePracticeSuggestions();
 
   const {
     messages = [],
@@ -78,26 +78,29 @@ const ChatAreaComponent: React.FC = () => {
 
   const chatMessages = Array.isArray(messages) ? messages : [];
   // Monitor messages to check for practice opportunities
+  const lastCheckedUserMessageIdRef = useRef<string | null>(null);
   useEffect((): void => {
-    if (chatMessages.length > 0) {
-      const lastMessage = chatMessages[chatMessages.length - 1] as MessageDisplay;
-      if (
-        lastMessage?.role === 'user' &&
-        currentSession?.id != null &&
-        lastMessage?.content != null
-      ) {
-        // Check for practice opportunities after user sends a message
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
-        practiceActions.checkForPracticeOpportunity(
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          currentSession.id,
-          lastMessage.content,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          currentSession.id,
-        );
-      }
+    if (chatMessages.length === 0) return;
+    const lastMessage = chatMessages[chatMessages.length - 1] as MessageDisplay;
+    if (
+      lastMessage?.role === 'user' &&
+      currentSession?.id != null &&
+      lastMessage?.content != null
+    ) {
+      const lastId = lastMessage.id;
+      if (practiceState.isLoading) return;
+      if (lastCheckedUserMessageIdRef.current === lastId) return;
+      lastCheckedUserMessageIdRef.current = lastId;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
+      practiceActions.checkForPracticeOpportunity(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        currentSession.id,
+        lastMessage.content,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        currentSession.id,
+      );
     }
-  }, [chatMessages, currentSession?.id, practiceActions]);
+  }, [chatMessages, currentSession?.id, practiceActions, practiceState.isLoading]);
 
   // Simple toggle function for individual message thinking visibility
   const handleToggleThinking = (messageId: string): void => {
@@ -150,14 +153,14 @@ const ChatAreaComponent: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const streamingMessage: MessageDisplayWithThinking | null = isStreaming
     ? {
-        id: 'streaming',
-        role: 'assistant' as const,
-        content: streamingContent,
-        timestamp: new Date().toISOString(),
-        status: 'typing' as const,
-        thinking_content: thinkingContent ?? undefined,
-        showThinking: true, // Show thinking during streaming
-      }
+      id: 'streaming',
+      role: 'assistant' as const,
+      content: streamingContent,
+      timestamp: new Date().toISOString(),
+      status: 'typing' as const,
+      thinking_content: thinkingContent ?? undefined,
+      showThinking: true, // Show thinking during streaming
+    }
     : null;
 
   return (

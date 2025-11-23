@@ -258,7 +258,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
     instantiatedServices: number;
     serviceNames: string[];
     isDisposed: boolean;
-  } {
+    } {
     const singletonServices = Array.from(this.services.values()).filter(
       (def) => def.singleton,
     ).length;

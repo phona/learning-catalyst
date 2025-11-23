@@ -42,27 +42,27 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'healthy':
-        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
-      case 'degraded':
-        return <ExclamationTriangleIcon className="w-4 h-4 text-yellow-500" />;
-      case 'failed':
-        return <XCircleIcon className="w-4 h-4 text-red-500" />;
-      default:
-        return <InformationCircleIcon className="w-4 h-4 text-gray-500" />;
+    case 'healthy':
+      return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
+    case 'degraded':
+      return <ExclamationTriangleIcon className="w-4 h-4 text-yellow-500" />;
+    case 'failed':
+      return <XCircleIcon className="w-4 h-4 text-red-500" />;
+    default:
+      return <InformationCircleIcon className="w-4 h-4 text-gray-500" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'healthy':
-        return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
-      case 'degraded':
-        return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900';
-      case 'failed':
-        return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900';
-      default:
-        return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900';
+    case 'healthy':
+      return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
+    case 'degraded':
+      return 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900';
+    case 'failed':
+      return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900';
+    default:
+      return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900';
     }
   };
 
