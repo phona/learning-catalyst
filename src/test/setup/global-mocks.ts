@@ -81,7 +81,7 @@ vi.mock('electron', () => ({
 }));
 
 // Mock Electron APIs for main process
-global.electronAPI = {
+(globalThis as Record<string, unknown>).electronAPI = {
   openFile: vi.fn(),
   saveFile: vi.fn(),
   showMessageBox: vi.fn(),

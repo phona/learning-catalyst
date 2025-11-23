@@ -41,8 +41,8 @@ export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends (infer U)[]
     ? DeepPartialArray<U>
     : T[P] extends object
-    ? DeepPartial<T[P]>
-    : T[P];
+      ? DeepPartial<T[P]>
+      : T[P];
 };
 
 export type DeepPartialArray<T> = Array<DeepPartial<T>>;
@@ -54,8 +54,8 @@ export type DeepRequired<T> = {
   [P in keyof T]-?: T[P] extends (infer U)[]
     ? DeepRequiredArray<U>
     : T[P] extends object
-    ? DeepRequired<T[P]>
-    : T[P];
+      ? DeepRequired<T[P]>
+      : T[P];
 };
 
 export type DeepRequiredArray<T> = Array<DeepRequired<T>>;
@@ -76,7 +76,9 @@ export type ExtractServiceMethods<T> = {
 export type ExtractServiceInterfaces<T> = {
   [K in keyof T]: T[K] extends {
     [method: string]: Function;
-  } ? K : never;
+  }
+    ? K
+    : never;
 }[keyof T];
 
 // ============================================================================
@@ -92,7 +94,7 @@ export function createServiceClient<T extends Record<string, (...args: any[]) =>
     timeout?: number;
     retryCount?: number;
     onError?: (error: Error, method: keyof T) => void;
-  }
+  },
 ): {
   [K in keyof T]: (...args: Parameters<T[K]>) => Promise<ExtractPromiseType<ReturnType<T[K]>>>;
 } {
@@ -112,8 +114,8 @@ export function createServiceClient<T extends Record<string, (...args: any[]) =>
           const result = await Promise.race([
             method(...args),
             new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Service call timeout')), timeout)
-            )
+              setTimeout(() => reject(new Error('Service call timeout')), timeout),
+            ),
           ]);
 
           clearTimeout(timeoutId);
@@ -126,14 +128,12 @@ export function createServiceClient<T extends Record<string, (...args: any[]) =>
             throw new ServiceMethodError(
               `Service call ${String(key)} failed after ${retryCount + 1} attempts`,
               key as string,
-              lastError
+              lastError,
             );
           }
 
           // Exponential backoff
-          await new Promise(resolve =>
-            setTimeout(resolve, Math.pow(2, attempt) * 1000)
-          );
+          await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
         }
       }
 
@@ -151,7 +151,7 @@ export class ServiceMethodError extends Error {
   constructor(
     message: string,
     public method: string,
-    public originalError: Error
+    public originalError: Error,
   ) {
     super(message);
     this.name = 'ServiceMethodError';
@@ -166,7 +166,7 @@ export class ServiceMethodError extends Error {
  * Create a type guard from a validator function
  */
 export function createTypeGuard<T>(
-  validator: (value: unknown) => value is T
+  validator: (value: unknown) => value is T,
 ): (value: unknown) => value is T {
   return validator;
 }
@@ -176,7 +176,7 @@ export function createTypeGuard<T>(
  */
 export function createUnionGuard<T, U>(
   guardA: (value: unknown) => value is T,
-  guardB: (value: unknown) => value is U
+  guardB: (value: unknown) => value is U,
 ): (value: unknown) => value is T | U {
   return (value: unknown): value is T | U => guardA(value) || guardB(value);
 }
@@ -186,7 +186,7 @@ export function createUnionGuard<T, U>(
  */
 export function createIntersectionGuard<T, U>(
   guardA: (value: unknown) => value is T,
-  guardB: (value: unknown) => value is U
+  guardB: (value: unknown) => value is U,
 ): (value: unknown) => value is T & U {
   return (value: unknown): value is T & U => guardA(value) && guardB(value);
 }
@@ -210,10 +210,7 @@ export function brand<T, Brand>(value: T, _brand: Brand): Branded<T, Brand> {
 /**
  * Check if a value is branded
  */
-export function isBranded<T, Brand>(
-  value: unknown,
-  _brand: Brand
-): value is Branded<T, Brand> {
+export function isBranded<T, Brand>(value: unknown, _brand: Brand): value is Branded<T, Brand> {
   return typeof value === typeof {}; // Simplified check
 }
 
@@ -233,7 +230,7 @@ export type Percentage = Branded<number, 'Percentage'>;
  */
 export function createTimeoutPromise<T>(
   timeoutMs: number,
-  error = new Error('Operation timed out')
+  error = new Error('Operation timed out'),
 ): Promise<T> {
   return new Promise((_, reject) => {
     setTimeout(() => reject(error), timeoutMs);
@@ -246,7 +243,7 @@ export function createTimeoutPromise<T>(
 export function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  error = new Error('Operation timed out')
+  error = new Error('Operation timed out'),
 ): Promise<T> {
   return Promise.race([promise, createTimeoutPromise<T>(timeoutMs, error)]);
 }
@@ -257,7 +254,7 @@ export function withTimeout<T>(
 export async function retryAsync<T>(
   operation: () => Promise<T>,
   maxRetries = 3,
-  baseDelay = 1000
+  baseDelay = 1000,
 ): Promise<T> {
   let lastError: Error;
 
@@ -273,7 +270,7 @@ export async function retryAsync<T>(
 
       // Exponential backoff with jitter
       const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
@@ -288,28 +285,21 @@ export async function retryAsync<T>(
  * Type-safe event emitter interface
  */
 export interface TypedEventEmitter<TEvents extends Record<string, any>> {
-  on<TKey extends keyof TEvents>(
-    event: TKey,
-    listener: (data: TEvents[TKey]) => void
-  ): void;
+  on<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 
-  off<TKey extends keyof TEvents>(
-    event: TKey,
-    listener: (data: TEvents[TKey]) => void
-  ): void;
+  off<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 
   emit<TKey extends keyof TEvents>(event: TKey, data: TEvents[TKey]): void;
 
-  once<TKey extends keyof TEvents>(
-    event: TKey,
-    listener: (data: TEvents[TKey]) => void
-  ): void;
+  once<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 }
 
 /**
  * Create a typed event emitter
  */
-export function createTypedEventEmitter<TEvents extends Record<string, any>>(): TypedEventEmitter<TEvents> {
+export function createTypedEventEmitter<
+  TEvents extends Record<string, any>,
+>(): TypedEventEmitter<TEvents> {
   const listeners = new Map<keyof TEvents, Set<(data: any) => void>>();
 
   return {
@@ -333,7 +323,7 @@ export function createTypedEventEmitter<TEvents extends Record<string, any>>(): 
     emit(event, data) {
       const eventListeners = listeners.get(event);
       if (eventListeners) {
-        eventListeners.forEach(listener => {
+        eventListeners.forEach((listener) => {
           try {
             listener(data);
           } catch (error) {
@@ -349,7 +339,7 @@ export function createTypedEventEmitter<TEvents extends Record<string, any>>(): 
         listener(data);
       };
       this.on(event, onceListener);
-    }
+    },
   };
 }
 
@@ -373,7 +363,7 @@ export interface CacheEntry<T> {
  */
 export interface TypeSafeCache<TKey, TValue> {
   get(key: TKey): TValue | undefined;
-  set(key: TKey, value: T, ttlMs?: number): void;
+  set(key: TKey, value: TValue, ttlMs?: number): void;
   has(key: TKey): boolean;
   delete(key: TKey): boolean;
   clear(): void;
@@ -381,22 +371,21 @@ export interface TypeSafeCache<TKey, TValue> {
   keys(): TKey[];
   values(): TValue[];
   entries(): Array<[TKey, TValue]>;
+  dispose(): void;
 }
 
 /**
  * Create a type-safe in-memory cache
  */
-export function createTypeSafeCache<TKey, TValue>(
-  options?: {
-    maxSize?: number;
-    defaultTtl?: number;
-    cleanupInterval?: number;
-  }
-): TypeSafeCache<TKey, TValue> {
+export function createTypeSafeCache<TKey, TValue>(options?: {
+  maxSize?: number;
+  defaultTtl?: number;
+  cleanupInterval?: number;
+}): TypeSafeCache<TKey, TValue> {
   const {
     maxSize = 100,
     defaultTtl = 5 * 60 * 1000, // 5 minutes
-    cleanupInterval = 60 * 1000 // 1 minute
+    cleanupInterval = 60 * 1000, // 1 minute
   } = options || {};
 
   const cache = new Map<TKey, CacheEntry<TValue>>();
@@ -412,8 +401,9 @@ export function createTypeSafeCache<TKey, TValue>(
 
     // LRU eviction if over size limit
     if (cache.size > maxSize) {
-      const entries = Array.from(cache.entries())
-        .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+      const entries = Array.from(cache.entries()).sort(
+        (a, b) => a[1].lastAccessed - b[1].lastAccessed,
+      );
 
       const toDelete = entries.slice(0, cache.size - maxSize);
       toDelete.forEach(([key]) => cache.delete(key));
@@ -448,7 +438,7 @@ export function createTypeSafeCache<TKey, TValue>(
         timestamp: now,
         expiresAt: ttlMs > 0 ? now + ttlMs : undefined,
         accessCount: 0,
-        lastAccessed: now
+        lastAccessed: now,
       });
 
       // Trigger cleanup if over limit
@@ -478,7 +468,7 @@ export function createTypeSafeCache<TKey, TValue>(
     },
 
     values(): TValue[] {
-      return Array.from(cache.values()).map(entry => entry.value);
+      return Array.from(cache.values()).map((entry) => entry.value);
     },
 
     entries(): Array<[TKey, TValue]> {
@@ -491,7 +481,7 @@ export function createTypeSafeCache<TKey, TValue>(
         cleanupTimer = null;
       }
       cache.clear();
-    }
+    },
   };
 }
 
@@ -538,7 +528,7 @@ export function createPerformanceMonitor() {
     async measure<T>(
       operation: string,
       fn: () => Promise<T>,
-      metadata?: Record<string, any>
+      metadata?: Record<string, any>,
     ): Promise<T> {
       const startTime = Date.now();
       let success = true;
@@ -560,7 +550,7 @@ export function createPerformanceMonitor() {
           duration: endTime - startTime,
           success,
           error,
-          metadata
+          metadata,
         });
       }
     },
@@ -575,18 +565,18 @@ export function createPerformanceMonitor() {
       maxDuration: number;
       successRate: number;
     } | null {
-      const operationMetrics = metrics.filter(m => m.operation === operation);
+      const operationMetrics = metrics.filter((m) => m.operation === operation);
       if (operationMetrics.length === 0) return null;
 
-      const successCount = operationMetrics.filter(m => m.success).length;
-      const durations = operationMetrics.map(m => m.duration);
+      const successCount = operationMetrics.filter((m) => m.success).length;
+      const durations = operationMetrics.map((m) => m.duration);
 
       return {
         count: operationMetrics.length,
         averageDuration: durations.reduce((sum, d) => sum + d, 0) / durations.length,
         minDuration: Math.min(...durations),
         maxDuration: Math.max(...durations),
-        successRate: successCount / operationMetrics.length
+        successRate: successCount / operationMetrics.length,
       };
     },
 
@@ -602,6 +592,6 @@ export function createPerformanceMonitor() {
      */
     clear(): void {
       metrics.length = 0;
-    }
+    },
   };
 }

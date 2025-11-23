@@ -7,12 +7,15 @@
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { act } from '@testing-library/react';
-import type { Message } from '@/shared/types/ai';
+import type { MessageDisplay } from '@/renderer/types/message';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Import factory and test utilities
 import { createChatStore } from '@/renderer/stores/chat/chatStore';
-import { createMockSessionService, createMockElectronAPI } from '@/renderer/stores/chat/__tests__/test-utils';
+import {
+  createMockSessionService,
+  createMockElectronAPI,
+} from '@/renderer/stores/chat/__tests__/test-utils';
 
 describe('Simplified Chat Store', () => {
   let mockSessionService: ReturnType<typeof createMockSessionService>;
@@ -67,11 +70,11 @@ describe('Simplified Chat Store', () => {
       // Create session and add messages
       const sessionId = await store.getState().createNewSession();
 
-      const testMessage: Message = {
+      const testMessage: MessageDisplay = {
         id: 'test-message',
         role: 'user',
         content: 'Hello world',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
         showThinking: false,
       };
@@ -83,11 +86,19 @@ describe('Simplified Chat Store', () => {
         expect(result.success).toBe(true);
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      expect(mockSessionService.saveSessionWithMessages).toHaveBeenCalledWith(
-        sessionId,
-        [testMessage]
-      );
+      const callArgs =
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+        (mockSessionService.saveSessionWithMessages as any).mock.calls[0] ?? [];
+      const [savedSession, savedMessages] = callArgs as [unknown, unknown[]];
+
+      expect((savedSession as { id: string }).id).toBe(sessionId);
+      expect(Array.isArray(savedMessages)).toBe(true);
+      expect((savedMessages as Array<Record<string, unknown>>)[0]).toMatchObject({
+        id: testMessage.id,
+        role: testMessage.role,
+        content: testMessage.content,
+      });
+      expect((savedMessages as Array<Record<string, unknown>>)[0].timestamp).toBeInstanceOf(Date);
     });
   });
 
@@ -96,11 +107,11 @@ describe('Simplified Chat Store', () => {
       const sessionId = 'test-session-123';
       store.getState().setCurrentSession(sessionId);
 
-      const testMessage: Message = {
+      const testMessage: MessageDisplay = {
         id: 'test-message',
         role: 'user',
         content: 'Test message',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
         showThinking: false,
       };
@@ -115,7 +126,7 @@ describe('Simplified Chat Store', () => {
       expect(savedMessage.id).toBe(testMessage.id);
       expect(savedMessage.role).toBe(testMessage.role);
       expect(savedMessage.content).toBe(testMessage.content);
-      expect(savedMessage.status).toBe(testMessage.status);
+      expect((savedMessage as any).status).toBe('delivered');
       expect(savedMessage.showThinking).toBe(testMessage.showThinking);
     });
 
@@ -124,11 +135,11 @@ describe('Simplified Chat Store', () => {
       store.getState().setCurrentSession(sessionId);
 
       // Add user message first
-      const userMessage: Message = {
+      const userMessage: MessageDisplay = {
         id: 'user-msg',
         role: 'user',
         content: 'What is React?',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
         showThinking: false,
       };
@@ -136,11 +147,11 @@ describe('Simplified Chat Store', () => {
       store.getState().addMessage(userMessage);
 
       // Add first assistant message
-      const assistantMessage: Message = {
+      const assistantMessage: MessageDisplay = {
         id: 'assistant-msg',
         role: 'assistant',
         content: 'React is a JavaScript library',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
         showThinking: false,
       };
@@ -148,13 +159,13 @@ describe('Simplified Chat Store', () => {
       store.getState().addMessage(assistantMessage);
 
       // Wait for async title generation
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(mockSessionService.generateAITitle).toHaveBeenCalledWith(
         'What is React?',
         'default-provider',
-        'default-model'
+        'default-model',
       );
     });
   });
@@ -172,7 +183,7 @@ describe('Simplified Chat Store', () => {
         data: {
           id: testSessionId,
           title: 'Test Session',
-          createdAt: new Date().toISOString(),
+          createdAt: new Date(),
           messages: [],
         },
       });
@@ -214,45 +225,45 @@ describe('Simplified Chat Store', () => {
 
     it('should update message content correctly', () => {
       const messageId = 'update-test-123';
-      const originalMessage: Message = {
+      const originalMessage: MessageDisplay = {
         id: messageId,
         role: 'user',
         content: 'Original content',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
       };
 
       store.getState().addMessage(originalMessage);
 
       // Update the message
-      store.getState().updateMessage(messageId, {
-        content: 'Updated content',
-        status: 'edited',
-      });
+      store.getState().updateMessage(
+        messageId,
+        { content: 'Updated content', status: 'edited' } as any,
+      );
 
       const state = store.getState();
-      const updatedMessage = state.messages.find(msg => msg.id === messageId);
+      const updatedMessage = state.messages.find((msg) => msg.id === messageId);
       expect(updatedMessage?.content).toBe('Updated content');
-      expect(updatedMessage?.status).toBe('edited');
+      expect((updatedMessage as any)?.status).toBe('edited');
     });
 
     it('should remove messages correctly', () => {
       const messageId1 = 'remove-test-1';
       const messageId2 = 'remove-test-2';
 
-      const message1: Message = {
+      const message1: MessageDisplay = {
         id: messageId1,
         role: 'user',
         content: 'Message 1',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
       };
 
-      const message2: Message = {
+      const message2: MessageDisplay = {
         id: messageId2,
         role: 'assistant',
         content: 'Message 2',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
       };
 
@@ -267,19 +278,19 @@ describe('Simplified Chat Store', () => {
     });
 
     it('should clear all messages', () => {
-      const message1: Message = {
+      const message1: MessageDisplay = {
         id: 'clear-test-1',
         role: 'user',
         content: 'Message 1',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
       };
 
-      const message2: Message = {
+      const message2: MessageDisplay = {
         id: 'clear-test-2',
         role: 'assistant',
         content: 'Message 2',
-        timestamp: new Date().toISOString(),
+        timestamp: new Date(),
         status: 'delivered',
       };
 

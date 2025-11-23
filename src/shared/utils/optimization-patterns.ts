@@ -73,8 +73,8 @@ export class ResourcePool<T> {
       const resource = await Promise.race([
         this.factory(),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Resource acquisition timeout')), this.timeout)
-        )
+          setTimeout(() => reject(new Error('Resource acquisition timeout')), this.timeout),
+        ),
       ]);
 
       this.inUse.add(resource);
@@ -122,7 +122,7 @@ export class ResourcePool<T> {
     const allResources = [...this.available, ...this.inUse];
 
     if (this.destroyer) {
-      await Promise.all(allResources.map(resource => this.destroyer!(resource)));
+      await Promise.all(allResources.map((resource) => this.destroyer!(resource)));
     }
 
     this.available = [];
@@ -133,7 +133,7 @@ export class ResourcePool<T> {
     return {
       available: this.available.length,
       inUse: this.inUse.size,
-      total: this.available.length + this.inUse.size
+      total: this.available.length + this.inUse.size,
     };
   }
 }
@@ -166,8 +166,8 @@ export class DataProcessor<T, R> {
       },
       {
         batchSize: this.batchSize,
-        flushInterval: options.flushInterval || 1000
-      }
+        flushInterval: options.flushInterval || 1000,
+      },
     );
   }
 
@@ -205,7 +205,7 @@ export class DataProcessor<T, R> {
   }
 
   onResults?: (results: R[]) => void;
-  onError?: (error: Error) => void;
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -236,10 +236,10 @@ export class StreamProcessor<T, R> {
       await this.acquireSemaphore();
 
       this.processChunk(chunk)
-        .then(chunkResults => {
+        .then((chunkResults) => {
           results.push(...chunkResults);
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Chunk processing error:', error);
         })
         .finally(() => {
@@ -249,7 +249,7 @@ export class StreamProcessor<T, R> {
 
     // Wait for all chunks to complete
     while (this.semaphore < this.concurrency) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     return results;
@@ -269,7 +269,7 @@ export class StreamProcessor<T, R> {
 
   private async acquireSemaphore(): Promise<void> {
     while (this.semaphore <= 0) {
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
     this.semaphore--;
   }
@@ -303,10 +303,10 @@ export class MultiLevelCache<K, V> {
   }) {
     this.levels = options.levels
       .sort((a, b) => a.priority - b.priority)
-      .map(level => ({
+      .map((level) => ({
         cache: level.cache,
         priority: level.priority,
-        ttl: level.ttl || 0
+        ttl: level.ttl || 0,
       }));
   }
 
@@ -350,7 +350,7 @@ export class MultiLevelCache<K, V> {
       level: index,
       size: level.cache.getStats().size,
       hits: 0, // Would need to track hits separately
-      misses: 0 // Would need to track misses separately
+      misses: 0, // Would need to track misses separately
     }));
   }
 }
@@ -378,11 +378,10 @@ export class RequestDeduplicator<K = string, R = any> {
     }
 
     // Create new request
-    const promise = requestFn()
-      .finally(() => {
-        // Clean up after request completes
-        this.pendingRequests.delete(key);
-      });
+    const promise = requestFn().finally(() => {
+      // Clean up after request completes
+      this.pendingRequests.delete(key);
+    });
 
     this.pendingRequests.set(key, promise);
     return promise;
@@ -504,7 +503,7 @@ export function createRetryPolicy(options: {
     baseDelay = 1000,
     maxDelay = 30000,
     backoffFactor = 2,
-    jitter = true
+    jitter = true,
   } = options;
 
   return {
@@ -521,21 +520,16 @@ export function createRetryPolicy(options: {
             throw lastError;
           }
 
-          const delay = Math.min(
-            baseDelay * Math.pow(backoffFactor, attempt - 1),
-            maxDelay
-          );
+          const delay = Math.min(baseDelay * Math.pow(backoffFactor, attempt - 1), maxDelay);
 
-          const jitterDelay = jitter
-            ? delay + Math.random() * delay * 0.1
-            : delay;
+          const jitterDelay = jitter ? delay + Math.random() * delay * 0.1 : delay;
 
-          await new Promise(resolve => setTimeout(resolve, jitterDelay));
+          await new Promise((resolve) => setTimeout(resolve, jitterDelay));
         }
       }
 
       throw lastError!;
-    }
+    },
   };
 }
 

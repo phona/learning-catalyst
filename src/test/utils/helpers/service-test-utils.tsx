@@ -6,8 +6,8 @@
  * reproduce and test the production error conditions.
  */
 
-import { vi, ReactNode } from 'vitest';
-import React from 'react';
+import { vi } from 'vitest';
+import React, { ReactNode } from 'react';
 import { renderHook, render } from '@testing-library/react';
 
 // Mock session service for testing
@@ -16,7 +16,7 @@ export const createMockSessionService = () => ({
   getSession: vi.fn().mockResolvedValue({
     id: 'test-session',
     title: 'Test Session',
-    messages: []
+    messages: [],
   }),
   deleteSession: vi.fn().mockResolvedValue(true),
   generateAITitle: vi.fn().mockResolvedValue('AI Generated Title'),
@@ -145,16 +145,16 @@ export const renderHookWithServices = (hook: () => any, services: any) => {
 export const testServiceDependency = (
   hookName: string,
   hookFactory: () => any,
-  requiredServices: string[]
+  requiredServices: string[],
 ) => {
   describe(`${hookName} Service Dependencies`, () => {
     it('should throw when required services are missing', () => {
       const incompleteServices = createProductionServiceContainer();
 
       // Remove required services one by one
-      requiredServices.forEach(requiredService => {
-        const services = { ...incompleteServices };
-        services[requiredService as keyof typeof services] = null;
+      requiredServices.forEach((requiredService) => {
+        const services = { ...incompleteServices } as Record<string, unknown>;
+        services[requiredService] = null;
 
         mockUseAppServices(services);
 
@@ -188,7 +188,7 @@ export const createTestComponent = (Component: React.ComponentType<any>, props?:
  */
 export const testServiceInitializationOrder = async (
   serviceOrder: string[],
-  initializationFunction: () => Promise<any>
+  initializationFunction: () => Promise<any>,
 ) => {
   const initOrder: string[] = [];
 
@@ -213,25 +213,27 @@ export const testServiceInitializationOrder = async (
 /**
  * Test helper to simulate production error scenarios
  */
-export const simulateProductionError = (errorType: 'missing_service' | 'null_service' | 'undefined_service') => {
+export const simulateProductionError = (
+  errorType: 'missing_service' | 'null_service' | 'undefined_service',
+) => {
   const baseServices = createProductionServiceContainer();
 
   switch (errorType) {
-  case 'missing_service':
-    // Remove sessionService key entirely
-    const { sessionService, ...servicesWithoutSession } = baseServices;
-    return servicesWithoutSession;
+    case 'missing_service':
+      // Remove sessionService key entirely
+      const { sessionService, ...servicesWithoutSession } = baseServices;
+      return servicesWithoutSession;
 
-  case 'null_service':
-    // Explicitly set sessionService to null (this is the production bug)
-    return baseServices;
+    case 'null_service':
+      // Explicitly set sessionService to null (this is the production bug)
+      return baseServices;
 
-  case 'undefined_service':
-    // Set sessionService to undefined
-    return { ...baseServices, sessionService: undefined };
+    case 'undefined_service':
+      // Set sessionService to undefined
+      return { ...baseServices, sessionService: undefined };
 
-  default:
-    return baseServices;
+    default:
+      return baseServices;
   }
 };
 
@@ -247,15 +249,16 @@ export const expectSpecificError = (error: any, expectedMessage: string) => {
  * Test helper to count available services
  */
 export const countAvailableServices = (services: any) => {
-  return Object.values(services).filter(service => service !== null && service !== undefined).length;
+  return Object.values(services).filter((service) => service !== null && service !== undefined)
+    .length;
 };
 
 /**
  * Test helper to get missing service names
  */
 export const getMissingServices = (services: any, requiredServices: string[]) => {
-  return requiredServices.filter(serviceName =>
-    services[serviceName] === null || services[serviceName] === undefined
+  return requiredServices.filter(
+    (serviceName) => services[serviceName] === null || services[serviceName] === undefined,
   );
 };
 

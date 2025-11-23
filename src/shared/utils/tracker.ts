@@ -5,7 +5,13 @@
  * Provides simplified API for common analytics operations.
  */
 
-import { SimpleAnalyticsModule, LearningSession, StudyMetrics, ConceptProgress, Achievement } from './simple-analytics';
+import {
+  SimpleAnalyticsModule,
+  LearningSession,
+  StudyMetrics,
+  ConceptProgress,
+  Achievement,
+} from './simple-analytics';
 
 // Define LearningGoals interface since it's not exported from simple-analytics
 export interface LearningGoals {
@@ -67,7 +73,7 @@ export class AnalyticsTracker {
       aiProvider?: string;
       aiModel?: string;
       goals?: string[];
-    } = {}
+    } = {},
   ): Promise<string> {
     const aiProvider = options.aiProvider || 'openai';
     const aiModel = options.aiModel || 'gpt-3.5-turbo';
@@ -87,13 +93,9 @@ export class AnalyticsTracker {
       difficultyRating?: number;
       confidenceLevel?: number;
       notes?: string;
-    }
+    },
   ): Promise<void> {
-    await this.analytics.trackConceptStudied(
-      conceptId,
-      conceptName,
-      masteryData.performanceScore
-    );
+    await this.analytics.trackConceptStudied(conceptId, conceptName, masteryData.performanceScore);
 
     // Additional tracking could be added here
     if (masteryData.timeSpentMinutes && masteryData.timeSpentMinutes > 0) {
@@ -108,7 +110,7 @@ export class AnalyticsTracker {
     question: string,
     correct: boolean,
     responseTimeSeconds?: number,
-    hintsUsed = 0
+    hintsUsed = 0,
   ): Promise<void> {
     await this.analytics.trackQuestionAnswered(correct, responseTimeSeconds);
 
@@ -132,17 +134,14 @@ export class AnalyticsTracker {
       mainAccomplishments: [
         'Mastered basic algebra concepts',
         'Completed practice problems',
-        'Reviewed previous material'
+        'Reviewed previous material',
       ],
-      areasForImprovement: [
-        'Speed in solving equations',
-        'Complex problem decomposition'
-      ],
+      areasForImprovement: ['Speed in solving equations', 'Complex problem decomposition'],
       nextSessionSuggestions: [
         'Practice advanced algebra problems',
         'Review calculus prerequisites',
-        'Work on word problems'
-      ]
+        'Work on word problems',
+      ],
     };
   }
 
@@ -151,7 +150,7 @@ export class AnalyticsTracker {
    */
   async generateWeeklyReport(weekOffset = 0): Promise<WeeklyReport> {
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() - (weekOffset * 7));
+    endDate.setDate(endDate.getDate() - weekOffset * 7);
     endDate.setHours(23, 59, 59, 999);
 
     const startDate = new Date(endDate);
@@ -161,11 +160,11 @@ export class AnalyticsTracker {
     const metrics = await this.analytics.getStudyMetrics();
     const goals = await this.analytics.getLearningGoals();
     const achievements = await this.analytics.getAchievements();
-    const unlockedAchievements = achievements.filter(a => a.unlockedAt);
+    const unlockedAchievements = achievements.filter((a) => a.unlockedAt);
 
     // Calculate goals progress
     const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - (weekOffset * 7) - 6);
+    weekStart.setDate(weekStart.getDate() - weekOffset * 7 - 6);
 
     const weeklyStudyTime = await this.getWeeklyStudyTime(weekStart, endDate);
     const weeklyConcepts = await this.getWeeklyConceptsStudied(weekStart, endDate);
@@ -186,19 +185,19 @@ export class AnalyticsTracker {
         dailyStudyTime: {
           target: goals.dailyStudyTime * 7,
           actual: weeklyStudyTime,
-          percentage: Math.round((weeklyStudyTime / (goals.dailyStudyTime * 7)) * 100)
+          percentage: Math.round((weeklyStudyTime / (goals.dailyStudyTime * 7)) * 100),
         },
         weeklyConcepts: {
           target: goals.weeklyConcepts,
           actual: weeklyConcepts,
-          percentage: Math.round((weeklyConcepts / goals.weeklyConcepts) * 100)
+          percentage: Math.round((weeklyConcepts / goals.weeklyConcepts) * 100),
         },
         practiceQuestions: {
           target: goals.practiceQuestionsPerDay * 7,
           actual: weeklyQuestions,
-          percentage: Math.round((weeklyQuestions / (goals.practiceQuestionsPerDay * 7)) * 100)
-        }
-      }
+          percentage: Math.round((weeklyQuestions / (goals.practiceQuestionsPerDay * 7)) * 100),
+        },
+      },
     };
   }
 
@@ -208,7 +207,7 @@ export class AnalyticsTracker {
   async getLearningInsights(): Promise<LearningInsight[]> {
     const insights: LearningInsight[] = [];
     const metrics = await this.analytics.getStudyMetrics();
-    const conceptProgress = await this.analytics.getConceptProgress(20);
+    const conceptProgress = await this.analytics.getConceptProgress();
 
     // Analyze study patterns
     if (metrics.streakDays >= 7) {
@@ -219,10 +218,10 @@ export class AnalyticsTracker {
         actionableSteps: [
           'Keep up the great work!',
           'Consider setting slightly higher daily goals',
-          'Share your success with study partners'
+          'Share your success with study partners',
         ],
         priority: 'high',
-        data: { streakDays: metrics.streakDays }
+        data: { streakDays: metrics.streakDays },
       });
     }
 
@@ -235,10 +234,10 @@ export class AnalyticsTracker {
         actionableSteps: [
           'Consider tackling more challenging concepts',
           'Try explaining concepts to others',
-          'Move on to advanced topics'
+          'Move on to advanced topics',
         ],
         priority: 'high',
-        data: { accuracyRate: metrics.accuracyRate }
+        data: { accuracyRate: metrics.accuracyRate },
       });
     } else if (metrics.accuracyRate < 60) {
       insights.push({
@@ -249,15 +248,17 @@ export class AnalyticsTracker {
           'Return to basic concepts',
           'Use additional learning resources',
           'Consider slower-paced learning',
-          'Practice more problems'
+          'Practice more problems',
         ],
         priority: 'high',
-        data: { accuracyRate: metrics.accuracyRate }
+        data: { accuracyRate: metrics.accuracyRate },
       });
     }
 
     // Analyze concept mastery
-    const strugglingConcepts = conceptProgress.filter(c => c.masteryLevel <= 2 && c.sessionsStudied >= 3);
+    const strugglingConcepts = conceptProgress.filter(
+      (c) => c.masteryLevel <= 2 && c.sessionsStudied >= 3,
+    );
     if (strugglingConcepts.length > 0) {
       insights.push({
         type: 'recommendation',
@@ -267,11 +268,11 @@ export class AnalyticsTracker {
           'Try alternative learning resources',
           'Break down concepts into smaller parts',
           'Seek help from instructors or peers',
-          'Use visual aids or practical examples'
+          'Use visual aids or practical examples',
         ],
         priority: 'medium',
-        relatedConcepts: strugglingConcepts.map(c => c.conceptId),
-        data: { strugglingConcepts: strugglingConcepts.length }
+        relatedConcepts: strugglingConcepts.map((c) => c.conceptId),
+        data: { strugglingConcepts: strugglingConcepts.length },
       });
     }
 
@@ -280,15 +281,16 @@ export class AnalyticsTracker {
       insights.push({
         type: 'recommendation',
         title: 'Short Sessions Detected',
-        description: 'Your average session length is quite short. Longer sessions may improve retention.',
+        description:
+          'Your average session length is quite short. Longer sessions may improve retention.',
         actionableSteps: [
           'Try scheduling longer study blocks',
           'Minimize distractions during study time',
           'Use the Pomodoro technique with longer focus periods',
-          'Prepare materials before starting'
+          'Prepare materials before starting',
         ],
         priority: 'medium',
-        data: { averageSessionLength: metrics.averageSessionLength }
+        data: { averageSessionLength: metrics.averageSessionLength },
       });
     }
 
@@ -307,7 +309,7 @@ export class AnalyticsTracker {
     const recommendations: string[] = [];
 
     // Extract actionable steps from insights
-    insights.forEach(insight => {
+    insights.forEach((insight) => {
       recommendations.push(...insight.actionableSteps);
     });
 
@@ -344,7 +346,9 @@ export class AnalyticsTracker {
     if (metrics.totalStudyTime >= goals.dailyStudyTime) {
       goalsAchieved.push(`Daily study time: ${metrics.totalStudyTime} minutes`);
     } else {
-      goalsBehind.push(`Daily study time: ${metrics.totalStudyTime}/${goals.dailyStudyTime} minutes`);
+      goalsBehind.push(
+        `Daily study time: ${metrics.totalStudyTime}/${goals.dailyStudyTime} minutes`,
+      );
       recommendations.push('Increase daily study time to meet your goal');
     }
 
@@ -352,7 +356,9 @@ export class AnalyticsTracker {
     if (metrics.conceptsStudied >= goals.weeklyConcepts) {
       goalsAchieved.push(`Weekly concepts: ${metrics.conceptsStudied} concepts`);
     } else {
-      goalsBehind.push(`Weekly concepts: ${metrics.conceptsStudied}/${goals.weeklyConcepts} concepts`);
+      goalsBehind.push(
+        `Weekly concepts: ${metrics.conceptsStudied}/${goals.weeklyConcepts} concepts`,
+      );
       recommendations.push('Focus on learning new concepts to meet your weekly goal');
     }
 
@@ -360,7 +366,9 @@ export class AnalyticsTracker {
     if (metrics.questionsAsked >= goals.practiceQuestionsPerDay) {
       goalsAchieved.push(`Daily practice questions: ${metrics.questionsAsked} questions`);
     } else {
-      goalsBehind.push(`Daily practice questions: ${metrics.questionsAsked}/${goals.practiceQuestionsPerDay} questions`);
+      goalsBehind.push(
+        `Daily practice questions: ${metrics.questionsAsked}/${goals.practiceQuestionsPerDay} questions`,
+      );
       recommendations.push('Complete more practice questions to reinforce learning');
     }
 
@@ -370,7 +378,7 @@ export class AnalyticsTracker {
       onTrack,
       goalsAchieved,
       goalsBehind,
-      recommendations
+      recommendations,
     };
   }
 
@@ -389,7 +397,7 @@ export class AnalyticsTracker {
       conceptProgress,
       trends,
       achievements,
-      goals: await this.analytics.getLearningGoals()
+      goals: await this.analytics.getLearningGoals(),
     };
 
     if (format === 'json') {
