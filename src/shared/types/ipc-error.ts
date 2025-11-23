@@ -29,7 +29,7 @@ export const isIPCErrorPayload = (value: unknown): value is IPCErrorPayload => {
 };
 
 export const createIPCError = (payload: IPCErrorPayload): IPCErrorPayload => ({
-  ...payload
+  ...payload,
 });
 
 export const IPC_ERROR_CHANNEL = 'ipc:error';

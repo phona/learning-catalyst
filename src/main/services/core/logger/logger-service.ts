@@ -3,11 +3,7 @@ import { ILogger } from '../../types';
 /**
  * Functional logger service factory
  */
-export const createLoggerService = ({ 
-  logger 
-}: { 
-  logger: ILogger; 
-}) => ({
+export const createLoggerService = ({ logger }: { logger: ILogger }) => ({
   /**
    * Log debug message
    */
@@ -53,11 +49,11 @@ export const createLoggerService = ({
       error: (message: string, error?: Error | unknown, ...args: unknown[]): void => {
         logger.error(message, error, { ...context, args });
       },
-	  child: (subContext: Record<string, unknown>) => {
+      child: (subContext: Record<string, unknown>) => {
         return createLoggerService({ logger: logger.child({ ...context, ...subContext }) });
-	  }
+      },
     };
-  }
+  },
 });
 
 export type LoggerService = ReturnType<typeof createLoggerService>;

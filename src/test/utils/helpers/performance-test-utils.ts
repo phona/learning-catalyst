@@ -2,7 +2,7 @@
  * Performance Test Utilities
  *
  * Comprehensive utilities for performance testing including load testing,
-  * stress testing, memory usage monitoring, concurrent operations,
+ * stress testing, memory usage monitoring, concurrent operations,
  * and resource leak detection. Enables validation of system performance
  * under various conditions and loads.
  */
@@ -87,12 +87,12 @@ export class MockResourceMonitor implements ResourceMonitor {
     this.monitoringInterval = setInterval(() => {
       this.memorySamples.push({
         timestamp: Date.now(),
-        usage: this._getCurrentMemoryUsage()
+        usage: this._getCurrentMemoryUsage(),
       });
 
       this.cpuSamples.push({
         timestamp: Date.now(),
-        usage: this._getCurrentCPUUsage()
+        usage: this._getCurrentCPUUsage(),
       });
     }, 100); // Sample every 100ms
   }
@@ -108,22 +108,25 @@ export class MockResourceMonitor implements ResourceMonitor {
   }
 
   getMetrics(): MemoryMetrics & CPUMetrics {
-    const memoryUsages = this.memorySamples.map(s => s.usage);
-    const cpuUsages = this.cpuSamples.map(s => s.usage);
+    const memoryUsages = this.memorySamples.map((s) => s.usage);
+    const cpuUsages = this.cpuSamples.map((s) => s.usage);
 
     const memoryMetrics: MemoryMetrics = {
       initial: this.initialMemory,
       peak: Math.max(...memoryUsages, this.initialMemory),
       final: memoryUsages[memoryUsages.length - 1] || this.initialMemory,
-      average: memoryUsages.length > 0 ? memoryUsages.reduce((a, b) => a + b, 0) / memoryUsages.length : this.initialMemory,
+      average:
+        memoryUsages.length > 0
+          ? memoryUsages.reduce((a, b) => a + b, 0) / memoryUsages.length
+          : this.initialMemory,
       leaked: 0, // Will be calculated by the performance tester
-      samples: this.memorySamples
+      samples: this.memorySamples,
     };
 
     const cpuMetrics: CPUMetrics = {
       average: cpuUsages.length > 0 ? cpuUsages.reduce((a, b) => a + b, 0) / cpuUsages.length : 0,
       peak: Math.max(...cpuUsages, 0),
-      samples: this.cpuSamples
+      samples: this.cpuSamples,
     };
 
     return { ...memoryMetrics, ...cpuMetrics };
@@ -159,7 +162,7 @@ export class PerformanceTestRunner {
 
   async runTest(
     config: PerformanceTestConfig,
-    operation: () => Promise<any>
+    operation: () => Promise<any>,
   ): Promise<PerformanceMetrics> {
     // Reset state
     this.operationTimes = [];
@@ -199,13 +202,13 @@ export class PerformanceTestRunner {
       } catch (error) {
         // Ignore errors during warmup
       }
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 
   private async _executeLoadTest(
     config: PerformanceTestConfig,
-    operation: () => Promise<any>
+    operation: () => Promise<any>,
   ): Promise<void> {
     const { duration, concurrency, rampUpTime = 0, thinkTime = 0 } = config;
     const startTime = Date.now();
@@ -213,7 +216,7 @@ export class PerformanceTestRunner {
 
     // Create concurrent workers
     const workers = Array.from({ length: concurrency }, (_, index) =>
-      this._createWorker(index, rampUpDelay * index, duration, thinkTime, operation, startTime)
+      this._createWorker(index, rampUpDelay * index, duration, thinkTime, operation, startTime),
     );
 
     // Wait for all workers to complete
@@ -226,11 +229,11 @@ export class PerformanceTestRunner {
     duration: number,
     thinkTime: number,
     operation: () => Promise<any>,
-    testStartTime: number
+    testStartTime: number,
   ): Promise<void> {
     // Wait for ramp-up delay
     if (rampUpDelay > 0) {
-      await new Promise(resolve => setTimeout(resolve, rampUpDelay));
+      await new Promise((resolve) => setTimeout(resolve, rampUpDelay));
     }
 
     const workerStartTime = Date.now();
@@ -248,7 +251,7 @@ export class PerformanceTestRunner {
 
       // Think time between operations
       if (thinkTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, thinkTime));
+        await new Promise((resolve) => setTimeout(resolve, thinkTime));
       }
     }
   }
@@ -257,7 +260,7 @@ export class PerformanceTestRunner {
     name: string,
     startTime: number,
     endTime: number,
-    resourceMetrics: MemoryMetrics & CPUMetrics
+    resourceMetrics: MemoryMetrics & CPUMetrics,
   ): PerformanceMetrics {
     const totalOperations = this.operationTimes.length + this.errors.length;
     const successfulOperations = this.operationTimes.length;
@@ -265,8 +268,10 @@ export class PerformanceTestRunner {
     const duration = endTime - startTime;
 
     const sortedTimes = [...this.operationTimes].sort((a, b) => a - b);
-    const averageResponseTime = this.operationTimes.length > 0 ?
-      this.operationTimes.reduce((a, b) => a + b, 0) / this.operationTimes.length : 0;
+    const averageResponseTime =
+      this.operationTimes.length > 0
+        ? this.operationTimes.reduce((a, b) => a + b, 0) / this.operationTimes.length
+        : 0;
 
     const metrics: PerformanceMetrics = {
       name,
@@ -290,13 +295,13 @@ export class PerformanceTestRunner {
         final: resourceMetrics.final,
         average: resourceMetrics.average,
         leaked: Math.max(0, resourceMetrics.final - resourceMetrics.initial),
-        samples: resourceMetrics.samples
+        samples: resourceMetrics.samples,
       },
       cpuUsage: {
         average: resourceMetrics.average,
         peak: resourceMetrics.peak,
-        samples: resourceMetrics.samples
-      }
+        samples: resourceMetrics.samples,
+      },
     };
 
     return metrics;
@@ -314,7 +319,7 @@ export class ConcurrentSessionTester {
   async runConcurrentSessionTest(
     sessionCount: number,
     operationsPerSession: number,
-    sessionOperation: (sessionId: number) => Promise<any>
+    sessionOperation: (sessionId: number) => Promise<any>,
   ): Promise<{
     totalSessions: number;
     successfulSessions: number;
@@ -338,7 +343,7 @@ export class ConcurrentSessionTester {
         errors.push({
           sessionId,
           error: error as Error,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
         return { sessionId, success: false };
       }
@@ -347,8 +352,8 @@ export class ConcurrentSessionTester {
     const results = await Promise.allSettled(sessionPromises);
     const endTime = Date.now();
 
-    const successfulSessions = results.filter(r =>
-      r.status === 'fulfilled' && (r.value as any).success
+    const successfulSessions = results.filter(
+      (r) => r.status === 'fulfilled' && (r.value as any).success,
     ).length;
 
     const failedSessions = results.length - successfulSessions;
@@ -360,7 +365,7 @@ export class ConcurrentSessionTester {
       averageSessionDuration: (endTime - startTime) / sessionCount,
       totalOperations: sessionCount * operationsPerSession,
       concurrentOperations: sessionCount,
-      errors
+      errors,
     };
   }
 }
@@ -376,7 +381,7 @@ export class LoadTester {
   async runLoadTest(
     targetRPS: number, // Requests per second
     duration: number,
-    operation: () => Promise<any>
+    operation: () => Promise<any>,
   ): Promise<PerformanceMetrics> {
     const thinkTime = 1000 / targetRPS; // Calculate think time to achieve target RPS
 
@@ -386,7 +391,7 @@ export class LoadTester {
       concurrency: Math.min(10, targetRPS), // Cap concurrency at 10
       thinkTime: Math.max(0, thinkTime - 50), // Account for processing time
       warmupTime: 5000, // 5 second warmup
-      cooldownTime: 2000 // 2 second cooldown
+      cooldownTime: 2000, // 2 second cooldown
     };
 
     return this.performanceRunner.runTest(config, operation);
@@ -394,7 +399,7 @@ export class LoadTester {
 
   async runStressTest(
     maxConcurrency: number,
-    operation: () => Promise<any>
+    operation: () => Promise<any>,
   ): Promise<{
     breakingPoint: number;
     metricsAtBreakingPoint: PerformanceMetrics;
@@ -410,7 +415,7 @@ export class LoadTester {
         name: `Stress Test - Concurrency ${concurrency}`,
         duration: 10000, // 10 seconds per test
         concurrency,
-        warmupTime: 2000
+        warmupTime: 2000,
       };
 
       const metrics = await this.performanceRunner.runTest(config, operation);
@@ -433,7 +438,7 @@ export class LoadTester {
     return {
       breakingPoint,
       metricsAtBreakingPoint,
-      degradationPoints
+      degradationPoints,
     };
   }
 }
@@ -445,7 +450,7 @@ export class MemoryLeakDetector {
   async detectMemoryLeaks(
     iterations: number,
     operation: () => Promise<any>,
-    operationName = 'test'
+    operationName = 'test',
   ): Promise<{
     hasLeak: boolean;
     leakRate: number; // Memory growth per iteration in bytes
@@ -480,13 +485,13 @@ export class MemoryLeakDetector {
       this.samples.push({
         timestamp: Date.now(),
         memory: memoryAfter,
-        operation: `${operationName}_${i}`
+        operation: `${operationName}_${i}`,
       });
     }
 
     const initialMemory = this.samples[0]?.memory || 0;
     const finalMemory = this.samples[this.samples.length - 1]?.memory || 0;
-    const peakMemory = Math.max(...this.samples.map(s => s.memory));
+    const peakMemory = Math.max(...this.samples.map((s) => s.memory));
 
     // Calculate leak rate using linear regression
     const leakRate = this._calculateLeakRate(this.samples);
@@ -498,7 +503,7 @@ export class MemoryLeakDetector {
       initialMemory,
       finalMemory,
       peakMemory,
-      samples: [...this.samples]
+      samples: [...this.samples],
     };
   }
 
@@ -527,7 +532,7 @@ export class PerformanceAssertions {
   static assertResponseTime(
     metrics: PerformanceMetrics,
     maxAverageResponseTime: number,
-    maxP95ResponseTime?: number
+    maxP95ResponseTime?: number,
   ): void {
     expect(metrics.averageResponseTime).toBeLessThan(maxAverageResponseTime);
 
@@ -536,24 +541,18 @@ export class PerformanceAssertions {
     }
   }
 
-  static assertThroughput(
-    metrics: PerformanceMetrics,
-    minThroughput: number
-  ): void {
+  static assertThroughput(metrics: PerformanceMetrics, minThroughput: number): void {
     expect(metrics.throughput).toBeGreaterThan(minThroughput);
   }
 
-  static assertErrorRate(
-    metrics: PerformanceMetrics,
-    maxErrorRate: number
-  ): void {
+  static assertErrorRate(metrics: PerformanceMetrics, maxErrorRate: number): void {
     expect(metrics.errorRate).toBeLessThan(maxErrorRate);
   }
 
   static assertMemoryUsage(
     metrics: PerformanceMetrics,
     maxMemoryUsage: number,
-    maxMemoryLeak?: number
+    maxMemoryLeak?: number,
   ): void {
     expect(metrics.memoryUsage.peak).toBeLessThan(maxMemoryUsage);
 
@@ -565,7 +564,7 @@ export class PerformanceAssertions {
   static assertConcurrency(
     testResult: any,
     minSuccessfulSessions: number,
-    maxFailureRate: number
+    maxFailureRate: number,
   ): void {
     expect(testResult.successfulSessions).toBeGreaterThanOrEqual(minSuccessfulSessions);
 
@@ -583,7 +582,7 @@ export const PerformanceTestScenarios = {
       duration: 30000, // 30 seconds
       concurrency: 5,
       rampUpTime: 5000, // 5 second ramp-up
-      warmupTime: 10000 // 10 second warmup
+      warmupTime: 10000, // 10 second warmup
     };
   },
 
@@ -594,7 +593,7 @@ export const PerformanceTestScenarios = {
       duration: 60000, // 1 minute
       concurrency: 10,
       rampUpTime: 10000,
-      warmupTime: 5000
+      warmupTime: 5000,
     };
   },
 
@@ -605,7 +604,7 @@ export const PerformanceTestScenarios = {
       duration: 45000, // 45 seconds
       concurrency: 3,
       thinkTime: 1000, // 1 second between streams
-      warmupTime: 5000
+      warmupTime: 5000,
     };
   },
 
@@ -616,9 +615,9 @@ export const PerformanceTestScenarios = {
       duration: 90000, // 1.5 minutes
       concurrency: 8,
       rampUpTime: 15000,
-      warmupTime: 10000
+      warmupTime: 10000,
     };
-  }
+  },
 };
 
 // All utilities are already exported as named exports above
@@ -629,5 +628,5 @@ export default {
   LoadTester,
   MemoryLeakDetector,
   PerformanceAssertions,
-  PerformanceTestScenarios
+  PerformanceTestScenarios,
 };

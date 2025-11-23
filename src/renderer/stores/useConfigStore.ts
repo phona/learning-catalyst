@@ -1,6 +1,3 @@
-
-
-
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { AppConfig, ProviderConfig } from '@/shared/types/config';
@@ -65,7 +62,9 @@ export const setConfigurationService = (service: ConfigurationService | null) =>
 
 const requireConfigurationService = (): ConfigurationService => {
   if (!configurationService) {
-    throw new Error('Configuration service has not been initialized. ServicesProvider must be mounted before using the config store.');
+    throw new Error(
+      'Configuration service has not been initialized. ServicesProvider must be mounted before using the config store.',
+    );
   }
   return configurationService;
 };
@@ -216,6 +215,6 @@ export const useConfigStore = create<ConfigStore>()(
         });
       },
     }),
-    { name: 'config-store' }
-  )
+    { name: 'config-store' },
+  ),
 );

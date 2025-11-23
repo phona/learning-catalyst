@@ -28,8 +28,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Import factory and test utilities
+import type { SessionService } from '@/renderer/services/session/session-service';
 import { createChatStore, type ChatStoreDependencies } from '@/renderer/stores/chat/chatStore';
-import { createMockSessionService, createMockElectronAPI, testScenarios } from '@/renderer/stores/chat/__tests__/test-utils';
+import {
+  createMockSessionService,
+  createMockElectronAPI,
+  testScenarios,
+} from '@/renderer/stores/chat/__tests__/test-utils';
 
 describe('useChatStore Error Scenarios', () => {
   beforeEach(() => {
@@ -52,9 +57,10 @@ describe('useChatStore Error Scenarios', () => {
     });
 
     it('should work with minimal session service implementation', () => {
+      const baseSessionService: SessionService = createMockSessionService();
       const dependencies: ChatStoreDependencies = {
         sessionService: {
-          createNewSession: vi.fn().mockResolvedValue('test-session'),
+          ...baseSessionService,
           saveSessionWithMessages: vi.fn().mockResolvedValue(undefined),
           generateAITitle: vi.fn().mockResolvedValue('Test Title'),
           updateSessionTitle: vi.fn().mockResolvedValue(undefined),
@@ -71,10 +77,11 @@ describe('useChatStore Error Scenarios', () => {
     });
 
     it('should handle session service errors gracefully', async () => {
+      const baseSessionService: SessionService = createMockSessionService();
       const dependencies: ChatStoreDependencies = {
         sessionService: {
-          createNewSession: vi.fn().mockRejectedValue(new Error('Session service failed')),
-          saveSessionWithMessages: vi.fn().mockResolvedValue(undefined),
+          ...baseSessionService,
+          saveSessionWithMessages: vi.fn().mockRejectedValue(new Error('Session service failed')),
           generateAITitle: vi.fn().mockResolvedValue('Test Title'),
           updateSessionTitle: vi.fn().mockResolvedValue(undefined),
           saveMessage: vi.fn().mockResolvedValue(undefined),
@@ -107,7 +114,7 @@ describe('useChatStore Error Scenarios', () => {
     it('should provide preloaded messages scenario', () => {
       const preloadedMessages = [
         { id: '1', role: 'user', content: 'Hello', timestamp: new Date() },
-        { id: '2', role: 'assistant', content: 'Hi there!', timestamp: new Date() }
+        { id: '2', role: 'assistant', content: 'Hi there!', timestamp: new Date() },
       ];
       const preloadedStore = testScenarios.withPreloadedMessages(preloadedMessages);
       expect(preloadedStore).toBeDefined();

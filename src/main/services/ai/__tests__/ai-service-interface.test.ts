@@ -7,32 +7,32 @@ vi.mock('../providers/openai-provider', () => ({
   createOpenAIService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 vi.mock('../providers/chatglm-provider', () => ({
   createChatGLMService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 vi.mock('../providers/deepseek-provider', () => ({
   createDeepSeekService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 vi.mock('../providers/local-model-provider', () => ({
   createLocalModelService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 describe('AI Service - Interface Tests', () => {
@@ -48,8 +48,8 @@ describe('AI Service - Interface Tests', () => {
         info: vi.fn(),
         debug: vi.fn(),
         error: vi.fn(),
-        warn: vi.fn()
-      }))
+        warn: vi.fn(),
+      })),
     } as any;
 
     mockConfig = {
@@ -58,23 +58,23 @@ describe('AI Service - Interface Tests', () => {
           openai: {
             provider_type: 'openai',
             api_key: 'test-openai-key',
-            model: 'gpt-4o'
-          }
+            model: 'gpt-4o',
+          },
         },
         model_types: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.7,
-            max_tokens: 4096
-          }
-        }
-      }
+            max_tokens: 4096,
+          },
+        },
+      },
     } as unknown as AppConfig;
 
     aiService = createAIService({
       loggerService: mockLoggerService,
-      config: mockConfig
+      config: mockConfig,
     });
   });
 
@@ -101,7 +101,7 @@ describe('AI Service - Interface Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-openai-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       });
     });
 
@@ -113,7 +113,7 @@ describe('AI Service - Interface Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-openai-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       });
     });
 
@@ -125,7 +125,7 @@ describe('AI Service - Interface Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-openai-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       });
     });
   });
@@ -137,7 +137,7 @@ describe('AI Service - Interface Tests', () => {
       expect(Array.isArray(models)).toBe(true);
       expect(models.length).toBeGreaterThan(0);
 
-      models.forEach(model => {
+      models.forEach((model) => {
         expect(model).toHaveProperty('id');
         expect(model).toHaveProperty('name');
         expect(model).toHaveProperty('provider');
@@ -153,7 +153,7 @@ describe('AI Service - Interface Tests', () => {
 
     it('should include expected predefined models', () => {
       const models = aiService.getAvailableModels();
-      const modelIds = models.map(m => m.id);
+      const modelIds = models.map((m) => m.id);
 
       expect(modelIds).toContain('gpt-4o');
       expect(modelIds).toContain('gpt-4-turbo');

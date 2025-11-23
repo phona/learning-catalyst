@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { cn } from '@/renderer/utils/cn';
 
@@ -8,8 +5,10 @@ import { cn } from '@/renderer/utils/cn';
 const buttonVariants = {
   variant: {
     primary: 'bg-primary-600 hover:bg-primary-700 text-white focus:ring-primary-500',
-    secondary: 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 focus:ring-gray-500',
-    ghost: 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 focus:ring-gray-500',
+    secondary:
+      'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-gray-100 focus:ring-gray-500',
+    ghost:
+      'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 focus:ring-gray-500',
     danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500',
     success: 'bg-green-600 hover:bg-green-700 text-white focus:ring-green-500',
   },
@@ -30,18 +29,21 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({
-    className,
-    variant = 'primary',
-    size = 'md',
-    loading = false,
-    icon,
-    iconPosition = 'left',
-    children,
-    disabled,
-    type = 'button',
-    ...props
-  }, ref) => {
+  (
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      loading = false,
+      icon,
+      iconPosition = 'left',
+      children,
+      disabled,
+      type = 'button',
+      ...props
+    },
+    ref,
+  ) => {
     const baseClasses = [
       // Base styles
       'inline-flex items-center justify-center',
@@ -64,11 +66,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       if (loading) {
         return (
           <>
-            <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
               <circle
                 className="opacity-25"
                 cx="12"
@@ -121,7 +119,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {renderContent()}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = 'Button';

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -37,8 +36,8 @@ import type { Session } from '@/shared/types/session';
 const mockSession: Session = {
   id: 'test-session-1',
   title: 'Test Session 1',
-  created_at: new Date('2024-01-01T10:00:00Z'),
-  updated_at: new Date('2024-01-01T12:00:00Z'),
+  createdAt: new Date('2024-01-01T10:00:00Z'),
+  updatedAt: new Date('2024-01-01T12:00:00Z'),
   messages: [
     {
       id: 'msg-1',
@@ -71,7 +70,8 @@ const mockSession: Session = {
       timestamp: new Date('2024-01-01T11:01:00Z'),
       provider: 'openai',
       model: 'gpt-3.5-turbo',
-      thinking_content: 'The user wants help with React testing. I should explain Testing Library, Vitest, and best practices.',
+      thinkingContent:
+        'The user wants help with React testing. I should explain Testing Library, Vitest, and best practices.',
     },
   ],
   metadata: {
@@ -80,40 +80,28 @@ const mockSession: Session = {
     tags: ['react', 'testing'],
     category: 'technical',
     difficulty: 'intermediate',
-    learning_objectives: ['learn React testing'],
-    topics_covered: ['react', 'testing'],
+    learningObjectives: ['learn React testing'],
+    topicsCovered: ['react', 'testing'],
     archived: false,
     pinned: false,
   },
   context: {
-    current_provider: 'openai',
-    current_model: 'gpt-3.5-turbo',
-    temperature: 0.7,
-    max_tokens: 4096,
-    enable_thinking: true,
-    conversation_style: 'educational',
-    language: 'en',
-    user_preferences: {
-      learning_style: 'reading',
-      detail_level: 'detailed',
-      example_preference: 'all',
-      response_length: 'medium',
-      technical_level: 'intermediate',
-    },
+    learningObjectives: ['learn React testing'],
+    notes: 'Testing context notes',
   },
   checkpoints: [],
   statistics: {
-    total_messages: 4,
-    user_messages: 2,
-    assistant_messages: 2,
-    total_tokens_used: 0,
-    total_thinking_tokens: 0,
-    session_duration: 7200,
-    average_response_time: 60,
-    concepts_learned: 0,
-    checkpoints_created: 0,
-    productivity_score: 0,
-    engagement_score: 0,
+    totalMessages: 4,
+    userMessages: 2,
+    assistantMessages: 2,
+    totalTokensUsed: 0,
+    totalThinkingTokens: 0,
+    sessionDuration: 7200,
+    averageResponseTime: 60,
+    conceptsLearned: 0,
+    checkpointsCreated: 0,
+    productivityScore: 0,
+    engagementScore: 0,
   },
 };
 
@@ -169,7 +157,7 @@ describe('Sidebar Recent Sessions Click Functionality', () => {
     render(
       <BrowserRouter>
         <Sidebar open={true} />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     // Check that the recent sessions section is visible
@@ -199,11 +187,13 @@ describe('Sidebar Recent Sessions Click Functionality', () => {
     render(
       <BrowserRouter>
         <Sidebar open={true} />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     // Check that empty state message is displayed
-    expect(screen.getAllByText(/no sessions yet|start your first conversation/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/no sessions yet|start your first conversation/i).length,
+    ).toBeGreaterThan(0);
   });
 
   it('should render sidebar with sessions when available', () => {
@@ -223,7 +213,7 @@ describe('Sidebar Recent Sessions Click Functionality', () => {
     render(
       <BrowserRouter>
         <Sidebar open={true} />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     // Check that the session title is rendered when sessions are available
@@ -234,7 +224,7 @@ describe('Sidebar Recent Sessions Click Functionality', () => {
     render(
       <BrowserRouter>
         <Sidebar open={true} />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
 
     // Find and click the refresh button

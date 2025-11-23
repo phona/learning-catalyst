@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,7 +6,6 @@ import { UISettings } from '@/renderer/components/Config/UISettings';
 import { createMockConfig } from '@/test/utils/helpers/test-utils';
 
 describe('UISettings', () => {
-
   const mockConfig = createMockConfig({
     ui: {
       theme: 'dark',
@@ -195,9 +193,18 @@ describe('UISettings', () => {
     render(<UISettings {...defaultProps} />);
 
     // All these settings should be enabled (aria-checked="true")
-    expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('switch', { name: 'Auto Save' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('switch', { name: 'Auto Scroll' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByRole('switch', { name: 'Auto Save' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByRole('switch', { name: 'Auto Scroll' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 
   it('should show correct toggle state for disabled settings', () => {
@@ -215,9 +222,18 @@ describe('UISettings', () => {
 
     render(<UISettings config={disabledConfig} onConfigChange={vi.fn()} />);
 
-    expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('switch', { name: 'Auto Save' })).toHaveAttribute('aria-checked', 'false');
-    expect(screen.getByRole('switch', { name: 'Auto Scroll' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+    expect(screen.getByRole('switch', { name: 'Auto Save' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
+    expect(screen.getByRole('switch', { name: 'Auto Scroll' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    );
   });
 
   it('should display descriptions for each toggle', () => {
@@ -240,7 +256,7 @@ describe('UISettings', () => {
 
     // Check that toggles have proper ARIA checked state
     const toggles = screen.getAllByRole('switch');
-    toggles.forEach(toggle => {
+    toggles.forEach((toggle) => {
       expect(toggle).toHaveAttribute('aria-checked');
     });
   });

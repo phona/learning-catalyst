@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRecentSessions } from '@/renderer/hooks/useRecentSessions';
@@ -31,9 +30,7 @@ export const SessionManager: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
             Loading Sessions
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Retrieving your learning sessions...
-          </p>
+          <p className="text-gray-600 dark:text-gray-400">Retrieving your learning sessions...</p>
         </div>
       </div>
     );
@@ -44,16 +41,24 @@ export const SessionManager: React.FC = () => {
       <div className="h-full flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-8 h-8 text-red-600 dark:text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </div>
           <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
             Error Loading Sessions
           </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {error}
-          </p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <div className="flex gap-3 justify-center">
             <button
               onClick={handleRefresh}
@@ -92,7 +97,12 @@ export const SessionManager: React.FC = () => {
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
               Refresh
             </button>
@@ -103,18 +113,29 @@ export const SessionManager: React.FC = () => {
         {sessions.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="w-8 h-8 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
             <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
               No Sessions Found
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You haven't created any learning sessions yet. Start a new chat to begin your learning journey.
+              You haven't created any learning sessions yet. Start a new chat to begin your learning
+              journey.
             </p>
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => (window.location.href = '/')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md font-medium transition-colors"
             >
               Start New Chat
@@ -147,7 +168,9 @@ export const SessionManager: React.FC = () => {
                     // Visual feedback is sufficient - no toast needed for session loading
                   } catch (error) {
                     console.error('[SessionManager] Failed to open session:', error);
-                    sessionToasts.loadError(error instanceof Error ? error.message : 'Unknown error');
+                    sessionToasts.loadError(
+                      error instanceof Error ? error.message : 'Unknown error',
+                    );
                   }
                 }}
               >
@@ -155,7 +178,11 @@ export const SessionManager: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       {session.metadata.pinned && (
-                        <svg className="w-4 h-4 text-yellow-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <svg
+                          className="w-4 h-4 text-yellow-500 flex-shrink-0"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
                           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                         </svg>
                       )}
@@ -171,9 +198,9 @@ export const SessionManager: React.FC = () => {
                     )}
 
                     <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                      <span>{session.statistics.total_messages} messages</span>
+                      <span>{session.statistics.totalMessages} messages</span>
                       <span>•</span>
-                      <span>{formatRelativeTime(session.updated_at)}</span>
+                      <span>{formatRelativeTime(session.updatedAt)}</span>
                       {session.metadata.tags.length > 0 && (
                         <>
                           <span>•</span>
@@ -218,3 +245,4 @@ export const SessionManager: React.FC = () => {
     </div>
   );
 };
+export default SessionManager;

@@ -1,6 +1,3 @@
-
-
-
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface UseDebouncedSaveOptions<T> {
@@ -43,44 +40,50 @@ export function useDebouncedSave<T = any>({
     return () => clearTimeout(timeout);
   }, []);
 
-  const performSave = useCallback(async (data: T) => {
-    if (!onSave) return;
+  const performSave = useCallback(
+    async (data: T) => {
+      if (!onSave) return;
 
-    setIsSaving(true);
-    setSaveStatus('idle');
+      setIsSaving(true);
+      setSaveStatus('idle');
 
-    try {
-      await onSave(data);
-      setSaveStatus('success');
-      onSuccess?.();
-      clearSuccessStatus();
-    } catch (error) {
-      console.error('Save failed:', error);
-      setSaveStatus('error');
-      onError?.(error instanceof Error ? error : new Error('Unknown save error'));
-      clearErrorStatus();
-    } finally {
-      setIsSaving(false);
-    }
-  }, [onSave, onSuccess, onError, clearSuccessStatus, clearErrorStatus]);
-
-  const save = useCallback((data: T) => {
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    // Store the latest data
-    pendingDataRef.current = data;
-
-    // Set new timeout for debounced save
-    timeoutRef.current = setTimeout(() => {
-      if (pendingDataRef.current !== null) {
-        performSave(pendingDataRef.current);
-        pendingDataRef.current = null;
+      try {
+        await onSave(data);
+        setSaveStatus('success');
+        onSuccess?.();
+        clearSuccessStatus();
+      } catch (error) {
+        console.error('Save failed:', error);
+        setSaveStatus('error');
+        onError?.(error instanceof Error ? error : new Error('Unknown save error'));
+        clearErrorStatus();
+      } finally {
+        setIsSaving(false);
       }
-    }, delay);
-  }, [delay, performSave]);
+    },
+    [onSave, onSuccess, onError, clearSuccessStatus, clearErrorStatus],
+  );
+
+  const save = useCallback(
+    (data: T) => {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Store the latest data
+      pendingDataRef.current = data;
+
+      // Set new timeout for debounced save
+      timeoutRef.current = setTimeout(() => {
+        if (pendingDataRef.current !== null) {
+          performSave(pendingDataRef.current);
+          pendingDataRef.current = null;
+        }
+      }, delay);
+    },
+    [delay, performSave],
+  );
 
   const cancel = useCallback(() => {
     if (timeoutRef.current) {

@@ -7,7 +7,7 @@ vi.mock('../learning-service', () => {
       id: 'session-123',
       title: 'Test Session',
       status: 'active',
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
     }),
     pauseSession: vi.fn().mockResolvedValue(true),
     resumeSession: vi.fn().mockResolvedValue(true),
@@ -15,24 +15,24 @@ vi.mock('../learning-service', () => {
     getSession: vi.fn().mockResolvedValue({
       id: 'session-123',
       title: 'Test Session',
-      status: 'active'
+      status: 'active',
     }),
     listSessions: vi.fn().mockResolvedValue([]),
     deleteSession: vi.fn().mockResolvedValue(true),
     updateSession: vi.fn().mockResolvedValue(true),
     getSessionProgress: vi.fn().mockResolvedValue({
       completionPercentage: 50,
-      timeSpent: 1800
+      timeSpent: 1800,
     }),
     addMessage: vi.fn().mockResolvedValue({
       id: 'msg-123',
       sessionId: 'session-123',
-      content: 'Test message'
-    })
+      content: 'Test message',
+    }),
   };
 
   return {
-    createLearningService: vi.fn(() => mockLearningService)
+    createLearningService: vi.fn(() => mockLearningService),
   };
 });
 
@@ -50,7 +50,7 @@ describe('Learning Service - Interface Tests', () => {
       selectFrom: vi.fn().mockReturnThis(),
       insertInto: vi.fn().mockReturnThis(),
       updateTable: vi.fn().mockReturnThis(),
-      deleteFrom: vi.fn().mockReturnThis()
+      deleteFrom: vi.fn().mockReturnThis(),
     };
 
     // Mock logger service
@@ -59,14 +59,30 @@ describe('Learning Service - Interface Tests', () => {
         info: vi.fn(),
         debug: vi.fn(),
         warn: vi.fn(),
-        error: vi.fn()
-      }))
+        error: vi.fn(),
+        child: vi.fn(() => ({
+          info: vi.fn(),
+          debug: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+        })),
+      })),
     };
 
     // Mock AI service
     mockAiService = {
       chatCompletion: vi.fn(),
-      getModelPreset: vi.fn()
+      getModelPreset: vi.fn(),
+      getProviders: vi.fn(() => []),
+      getAvailableModels: vi.fn(() => []),
+    };
+
+    // Mock domain agent
+    const mockDomainAgent = {
+      invoke: vi.fn().mockResolvedValue({ content: '{}' }),
+      stream: vi.fn().mockImplementation(async function* () {
+        yield { content: '{}' };
+      }),
     };
 
     // Import learning service
@@ -75,7 +91,8 @@ describe('Learning Service - Interface Tests', () => {
     learningService = createLearningService({
       db: mockDb,
       loggerService: mockLoggerService,
-      aiService: mockAiService
+      aiService: mockAiService,
+      domainAgent: mockDomainAgent as any,
     });
   });
 
@@ -103,7 +120,7 @@ describe('Learning Service - Interface Tests', () => {
       const sessionRequest = {
         title: 'React Learning',
         topic: 'React Hooks',
-        difficulty: 'medium' as const
+        difficulty: 'medium' as const,
       };
 
       const result = await learningService.startSession(sessionRequest);
@@ -112,7 +129,7 @@ describe('Learning Service - Interface Tests', () => {
         id: 'session-123',
         title: 'Test Session',
         status: 'active',
-        startedAt: expect.any(String)
+        startedAt: expect.any(String),
       });
     });
 
@@ -139,7 +156,7 @@ describe('Learning Service - Interface Tests', () => {
       expect(result).toMatchObject({
         id: 'session-123',
         title: 'Test Session',
-        status: 'active'
+        status: 'active',
       });
     });
 
@@ -153,7 +170,7 @@ describe('Learning Service - Interface Tests', () => {
 
       expect(result).toMatchObject({
         completionPercentage: expect.any(Number),
-        timeSpent: expect.any(Number)
+        timeSpent: expect.any(Number),
       });
     });
   });
@@ -163,7 +180,7 @@ describe('Learning Service - Interface Tests', () => {
       const messageRequest = {
         sessionId: 'session-123',
         content: 'This is a test message',
-        role: 'user' as const
+        role: 'user' as const,
       };
 
       const result = await learningService.addMessage(messageRequest);
@@ -171,7 +188,7 @@ describe('Learning Service - Interface Tests', () => {
       expect(result).toMatchObject({
         id: 'msg-123',
         sessionId: 'session-123',
-        content: 'Test message'
+        content: 'Test message',
       });
     });
   });
@@ -184,7 +201,7 @@ describe('Learning Service - Interface Tests', () => {
 
     it('should update sessions', async () => {
       const updateRequest = {
-        title: 'Updated Title'
+        title: 'Updated Title',
       };
 
       const result = await learningService.updateSession('session-123', updateRequest);

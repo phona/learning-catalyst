@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-return, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-unused-vars, @typescript-eslint/explicit-function-return-type */
 import React, { Suspense, lazy } from 'react';
 
@@ -13,15 +12,15 @@ interface SyntaxHighlighterWrapperProps {
 
 // Lazy load SyntaxHighlighter to reduce initial bundle size
 const SyntaxHighlighter = lazy(() =>
-  import('react-syntax-highlighter').then(module => ({
-    default: (module as any).Prism || (module as any).default
-  }))
+  import('react-syntax-highlighter').then((module) => ({
+    default: (module as any).Prism || (module as any).default,
+  })),
 );
 
 const SyntaxHighlighterStyles = lazy(() =>
-  import('react-syntax-highlighter/dist/esm/styles/prism').then(module => ({
-    default: (module as any).oneDark || (module as any).default
-  }))
+  import('react-syntax-highlighter/dist/esm/styles/prism').then((module) => ({
+    default: (module as any).oneDark || (module as any).default,
+  })),
 );
 
 /**
@@ -29,9 +28,7 @@ const SyntaxHighlighterStyles = lazy(() =>
  */
 const SyntaxHighlighterFallback: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-    <code className="text-sm font-mono">
-      {String(children).replace(/\n$/, '')}
-    </code>
+    <code className="text-sm font-mono">{String(children).replace(/\n$/, '')}</code>
   </div>
 );
 
@@ -57,7 +54,7 @@ export const SyntaxHighlighterWrapper: React.FC<SyntaxHighlighterWrapperProps> =
       try {
         const [highlighterModule, stylesResult] = await Promise.all([
           import('react-syntax-highlighter'),
-          import('react-syntax-highlighter/dist/esm/styles/prism')
+          import('react-syntax-highlighter/dist/esm/styles/prism'),
         ]);
 
         setSyntaxHighlighterModule(highlighterModule.Prism);
@@ -87,6 +84,6 @@ export const SyntaxHighlighterWrapper: React.FC<SyntaxHighlighterWrapperProps> =
       className,
       ...props,
     },
-    String(children).replace(/\n$/, '')
+    String(children).replace(/\n$/, ''),
   );
 };

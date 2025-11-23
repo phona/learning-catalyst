@@ -3,13 +3,19 @@ import { createKnowledgeService } from '../knowledge-service';
 import { createKyselyTestDb } from '@/test/utils/kysely-test-db';
 import type { ConceptParsingResult } from '@/shared/types/electron-api/knowledge-api';
 
-const createLoggerService = () => ({
-  child: () => ({
+const createLoggerService = () => {
+  const createLogger = () => ({
     info: vi.fn(),
+    debug: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn()
-  })
-});
+    error: vi.fn(),
+    child: createLogger,
+  });
+
+  return {
+    child: (meta: Record<string, unknown>) => createLogger(),
+  };
+};
 
 const buildParsingResult = (): ConceptParsingResult => ({
   success: true,
@@ -21,10 +27,8 @@ const buildParsingResult = (): ConceptParsingResult => ({
       type: 'topic',
       confidence: 0.8,
       difficulty: 3,
-      evidence: [
-        { type: 'segment', text: 'Alpha content', relevance: 0.9 }
-      ],
-      metadata: { segmentId: 'seg-alpha' }
+      evidence: [{ type: 'segment', text: 'Alpha content', relevance: 0.9 }],
+      metadata: { segmentId: 'seg-alpha' },
     },
     {
       id: 'concept-beta',
@@ -33,11 +37,9 @@ const buildParsingResult = (): ConceptParsingResult => ({
       type: 'skill',
       confidence: 0.75,
       difficulty: 4,
-      evidence: [
-        { type: 'segment', text: 'Beta content', relevance: 0.8 }
-      ],
-      metadata: { segmentId: 'seg-beta' }
-    }
+      evidence: [{ type: 'segment', text: 'Beta content', relevance: 0.8 }],
+      metadata: { segmentId: 'seg-beta' },
+    },
   ],
   relationships: [
     {
@@ -46,8 +48,8 @@ const buildParsingResult = (): ConceptParsingResult => ({
       type: 'prerequisite',
       strength: 0.85,
       confidence: 0.75,
-      description: 'Alpha precedes Beta'
-    }
+      description: 'Alpha precedes Beta',
+    },
   ],
   statistics: {
     totalConcepts: 2,
@@ -57,14 +59,14 @@ const buildParsingResult = (): ConceptParsingResult => ({
     difficultyDistribution: { 3: 1, 4: 1 },
     typeDistribution: { topic: 1, skill: 1 },
     processingTime: 10,
-    modelUsage: { 'concept.parsing': 1 }
+    modelUsage: { 'concept.parsing': 1 },
   },
   errors: [],
   metadata: {
     processingTime: 10,
     processedAt: new Date().toISOString(),
-    inputFiles: 1
-  }
+    inputFiles: 1,
+  },
 });
 
 describe('concept graph knowledge service', () => {
@@ -75,7 +77,7 @@ describe('concept graph knowledge service', () => {
     testDb = await createKyselyTestDb();
     service = createKnowledgeService({
       db: testDb.db,
-      loggerService: createLoggerService()
+      loggerService: createLoggerService(),
     });
   });
 
@@ -95,7 +97,10 @@ describe('concept graph knowledge service', () => {
   it('explores a concept using stored relationships', async () => {
     const result = buildParsingResult();
     await service.ingestConceptParsingResult(result);
-    const exploration = await service.exploreConcept({ conceptName: 'Concept Alpha', depth: 'basic' });
+    const exploration = await service.exploreConcept({
+      conceptName: 'Concept Alpha',
+      depth: 'basic',
+    });
     expect(exploration.relatedConcepts.some((rel) => rel.name === 'Concept Beta')).toBe(true);
     expect(exploration.concept.name).toBe('Concept Alpha');
   });

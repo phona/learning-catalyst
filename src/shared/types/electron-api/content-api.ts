@@ -170,7 +170,15 @@ export interface ContentRecommendationDisplay {
 /**
  * Content format information
  */
-export type ContentFormat = 'text' | 'video' | 'audio' | 'interactive' | 'code' | 'image' | 'pdf' | 'presentation';
+export type ContentFormat =
+  | 'text'
+  | 'video'
+  | 'audio'
+  | 'interactive'
+  | 'code'
+  | 'image'
+  | 'pdf'
+  | 'presentation';
 
 /**
  * Resource search results with intelligent filtering

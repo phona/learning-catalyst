@@ -53,7 +53,10 @@ const TOAST_MESSAGES = {
 /**
  * Success toast helper
  */
-export const showSuccess = (message: string, options?: Parameters<typeof toast.success>[1]): string => {
+export const showSuccess = (
+  message: string,
+  options?: Parameters<typeof toast.success>[1],
+): string => {
   return toast.success(message, options);
 };
 
@@ -67,7 +70,10 @@ export const showError = (message: string, options?: Parameters<typeof toast.err
 /**
  * Loading toast helper
  */
-export const showLoading = (message: string, options?: Parameters<typeof toast.loading>[1]): string => {
+export const showLoading = (
+  message: string,
+  options?: Parameters<typeof toast.loading>[1],
+): string => {
   return toast.loading(message, options);
 };
 
@@ -88,7 +94,7 @@ export const showPromise = <T>(
     success: string;
     error: string;
   },
-  options?: Parameters<typeof toast.promise>[2]
+  options?: Parameters<typeof toast.promise>[2],
 ): Promise<T> => {
   return toast.promise(promise, messages, options);
 };
@@ -101,10 +107,22 @@ export const sessionToasts = {
   saved: (): string => showSuccess(TOAST_MESSAGES.sessionSaved),
   deleted: (): string => showSuccess(TOAST_MESSAGES.sessionDeleted),
   loaded: (): string => showSuccess(TOAST_MESSAGES.sessionLoaded),
-  createError: (error?: string): string => showError(TOAST_MESSAGES.sessionCreateError + (error != null && error !== '' ? `: ${error}` : '')),
-  saveError: (error?: string): string => showError(TOAST_MESSAGES.sessionSaveError + (error != null && error !== '' ? `: ${error}` : '')),
-  deleteError: (error?: string): string => showError(TOAST_MESSAGES.sessionDeleteError + (error != null && error !== '' ? `: ${error}` : '')),
-  loadError: (error?: string): string => showError(TOAST_MESSAGES.sessionLoadError + (error != null && error !== '' ? `: ${error}` : '')),
+  createError: (error?: string): string =>
+    showError(
+      TOAST_MESSAGES.sessionCreateError + (error != null && error !== '' ? `: ${error}` : ''),
+    ),
+  saveError: (error?: string): string =>
+    showError(
+      TOAST_MESSAGES.sessionSaveError + (error != null && error !== '' ? `: ${error}` : ''),
+    ),
+  deleteError: (error?: string): string =>
+    showError(
+      TOAST_MESSAGES.sessionDeleteError + (error != null && error !== '' ? `: ${error}` : ''),
+    ),
+  loadError: (error?: string): string =>
+    showError(
+      TOAST_MESSAGES.sessionLoadError + (error != null && error !== '' ? `: ${error}` : ''),
+    ),
 };
 
 /**
@@ -113,7 +131,8 @@ export const sessionToasts = {
 export const chatToasts = {
   sending: (): string => showLoading(TOAST_MESSAGES.messageSending),
   sent: (): string => showSuccess(TOAST_MESSAGES.messageSent),
-  error: (error?: string): string => showError(TOAST_MESSAGES.messageError + (error != null && error !== '' ? `: ${error}` : '')),
+  error: (error?: string): string =>
+    showError(TOAST_MESSAGES.messageError + (error != null && error !== '' ? `: ${error}` : '')),
   cleared: (): string => showSuccess(TOAST_MESSAGES.messageCleared),
   regenerated: (): string => showSuccess(TOAST_MESSAGES.messageRegenerated),
 };
@@ -124,8 +143,13 @@ export const chatToasts = {
 export const settingsToasts = {
   saved: (): string => showSuccess(TOAST_MESSAGES.settingsSaved),
   reset: (): string => showSuccess(TOAST_MESSAGES.settingsReset),
-  providerConfigured: (provider: string): string => showSuccess(`${provider} ${TOAST_MESSAGES.providerConfigured}`),
-  providerError: (provider: string, error?: string): string => showError(`${provider} ${TOAST_MESSAGES.providerError}` + (error != null && error !== '' ? `: ${error}` : '')),
+  providerConfigured: (provider: string): string =>
+    showSuccess(`${provider} ${TOAST_MESSAGES.providerConfigured}`),
+  providerError: (provider: string, error?: string): string =>
+    showError(
+      `${provider} ${TOAST_MESSAGES.providerError}` +
+        (error != null && error !== '' ? `: ${error}` : ''),
+    ),
 };
 
 /**
@@ -134,7 +158,8 @@ export const settingsToasts = {
 export const knowledgeToasts = {
   added: (): string => showSuccess(TOAST_MESSAGES.knowledgeAdded),
   removed: (): string => showSuccess(TOAST_MESSAGES.knowledgeRemoved),
-  error: (error?: string): string => showError(TOAST_MESSAGES.knowledgeError + (error != null && error !== '' ? `: ${error}` : '')),
+  error: (error?: string): string =>
+    showError(TOAST_MESSAGES.knowledgeError + (error != null && error !== '' ? `: ${error}` : '')),
 };
 
 /**

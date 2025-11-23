@@ -35,7 +35,7 @@ describe('Logger Service - Interface Tests', () => {
       const childLogger = loggerService.child({
         service: 'test-service',
         component: 'test-component',
-        userId: 'user-123'
+        userId: 'user-123',
       });
 
       expect(childLogger).toBeDefined();
@@ -88,9 +88,9 @@ describe('Logger Service - Interface Tests', () => {
         timestamp: new Date(),
         nested: {
           deep: {
-            value: 'test'
-          }
-        }
+            value: 'test',
+          },
+        },
       };
 
       expect(() => childLogger.info('Complex metadata', complexMetadata)).not.toThrow();

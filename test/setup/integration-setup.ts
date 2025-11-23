@@ -17,7 +17,7 @@ const mockElectronAPI = {
     sendMessage: vi.fn().mockResolvedValue({
       success: true,
       messageId: 'test-message-id',
-      response: 'Test response'
+      response: 'Test response',
     }),
     sendMessageStream: vi.fn().mockImplementation(async (message, onChunk) => {
       onChunk({ type: 'content', content: 'Streaming response', timestamp: Date.now() });
@@ -26,15 +26,15 @@ const mockElectronAPI = {
     }),
     getConversationHistory: vi.fn().mockResolvedValue({
       success: true,
-      conversations: []
-    })
+      conversations: [],
+    }),
   },
 
   // Learning domain
   learning: {
     createSession: vi.fn().mockResolvedValue({
       success: true,
-      sessionId: 'test-session-id'
+      sessionId: 'test-session-id',
     }),
     getSession: vi.fn().mockResolvedValue({
       success: true,
@@ -42,51 +42,51 @@ const mockElectronAPI = {
         id: 'test-session-id',
         title: 'Test Session',
         messages: [],
-        createdAt: Date.now()
-      }
+        createdAt: Date.now(),
+      },
     }),
     updateSession: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     deleteSession: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     listSessions: vi.fn().mockResolvedValue({
       success: true,
-      sessions: []
+      sessions: [],
     }),
     associateAgent: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     removeAgent: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     getAgents: vi.fn().mockResolvedValue({
       success: true,
-      agents: []
-    })
+      agents: [],
+    }),
   },
 
   // Knowledge domain
   knowledge: {
     searchConcepts: vi.fn().mockResolvedValue({
       success: true,
-      concepts: []
+      concepts: [],
     }),
     getKnowledgeGraph: vi.fn().mockResolvedValue({
       success: true,
-      graph: { nodes: [], edges: [] }
+      graph: { nodes: [], edges: [] },
     }),
     addConcept: vi.fn().mockResolvedValue({
       success: true,
-      conceptId: 'test-concept-id'
+      conceptId: 'test-concept-id',
     }),
     updateConcept: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     deleteConcept: vi.fn().mockResolvedValue({
-      success: true
-    })
+      success: true,
+    }),
   },
 
   // Analytics domain
@@ -96,20 +96,20 @@ const mockElectronAPI = {
       progress: {
         totalSessions: 0,
         totalDuration: 0,
-        averageSessionDuration: 0
-      }
+        averageSessionDuration: 0,
+      },
     }),
     getStudyStreaks: vi.fn().mockResolvedValue({
       success: true,
-      streaks: []
+      streaks: [],
     }),
     getAchievements: vi.fn().mockResolvedValue({
       success: true,
-      achievements: []
+      achievements: [],
     }),
     trackEvent: vi.fn().mockResolvedValue({
-      success: true
-    })
+      success: true,
+    }),
   },
 
   // Agents domain
@@ -122,46 +122,46 @@ const mockElectronAPI = {
           name: 'Learning Agent',
           type: 'learning',
           description: 'Helps with learning tasks',
-          capabilities: ['concept-explanation', 'learning-path-generation']
-        }
-      ]
+          capabilities: ['concept-explanation', 'learning-path-generation'],
+        },
+      ],
     }),
     createAgent: vi.fn().mockResolvedValue({
       success: true,
-      agentId: 'test-agent-id'
+      agentId: 'test-agent-id',
     }),
     updateAgent: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     deleteAgent: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     activateAgent: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     deactivateAgent: vi.fn().mockResolvedValue({
-      success: true
-    })
+      success: true,
+    }),
   },
 
   // Content domain
   content: {
     importFile: vi.fn().mockResolvedValue({
       success: true,
-      importId: 'test-import-id'
+      importId: 'test-import-id',
     }),
     exportData: vi.fn().mockResolvedValue({
       success: true,
-      exportUrl: 'http://localhost:3000/export/test.zip'
+      exportUrl: 'http://localhost:3000/export/test.zip',
     }),
     getImports: vi.fn().mockResolvedValue({
       success: true,
-      imports: []
+      imports: [],
     }),
     getExports: vi.fn().mockResolvedValue({
       success: true,
-      exports: []
-    })
+      exports: [],
+    }),
   },
 
   // Settings domain
@@ -172,32 +172,32 @@ const mockElectronAPI = {
         interface: {
           theme: 'light',
           fontSize: 'medium',
-          compactMode: false
+          compactMode: false,
         },
         learning: {
           preferredDifficulty: 'intermediate',
-          learningStyle: 'visual'
+          learningStyle: 'visual',
         },
         privacy: {
           saveConversationHistory: true,
-          shareAnalytics: false
-        }
-      }
+          shareAnalytics: false,
+        },
+      },
     }),
     updatePreferences: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     resetPreferences: vi.fn().mockResolvedValue({
-      success: true
+      success: true,
     }),
     exportPreferences: vi.fn().mockResolvedValue({
       success: true,
-      exportUrl: 'http://localhost:3000/export/preferences.json'
+      exportUrl: 'http://localhost:3000/export/preferences.json',
     }),
     importPreferences: vi.fn().mockResolvedValue({
-      success: true
-    })
-  }
+      success: true,
+    }),
+  },
 };
 
 /**
@@ -211,7 +211,7 @@ beforeAll(async () => {
   // Mock window.electronAPI
   Object.defineProperty(window, 'electronAPI', {
     value: mockElectronAPI,
-    writable: true
+    writable: true,
   });
 
   // Initialize IPC interceptor for cross-process communication testing
@@ -240,9 +240,9 @@ beforeEach(async () => {
   vi.clearAllMocks();
 
   // Reset mock implementations to defaults
-  Object.values(mockElectronAPI).forEach(domain => {
+  Object.values(mockElectronAPI).forEach((domain) => {
     if (domain && typeof domain === 'object') {
-      Object.values(domain).forEach(method => {
+      Object.values(domain).forEach((method) => {
         if (typeof method === 'function' && 'mockReset' in method) {
           method.mockReset();
         }
@@ -254,7 +254,7 @@ beforeEach(async () => {
   mockElectronAPI.chat.sendMessage.mockResolvedValue({
     success: true,
     messageId: 'test-message-id',
-    response: 'Test response'
+    response: 'Test response',
   });
 
   mockElectronAPI.learning.getSession.mockResolvedValue({
@@ -263,8 +263,8 @@ beforeEach(async () => {
       id: 'test-session-id',
       title: 'Test Session',
       messages: [],
-      createdAt: Date.now()
-    }
+      createdAt: Date.now(),
+    },
   });
 });
 
@@ -292,18 +292,18 @@ export const IntegrationTestUtils = {
           id: 'msg-1',
           role: 'user',
           content: 'Hello',
-          timestamp: Date.now() - 1000
+          timestamp: Date.now() - 1000,
         },
         {
           id: 'msg-2',
           role: 'assistant',
           content: 'Hi there!',
-          timestamp: Date.now()
-        }
+          timestamp: Date.now(),
+        },
       ],
       createdAt: Date.now() - 5000,
       updatedAt: Date.now(),
-      ...overrides
+      ...overrides,
     };
   },
 
@@ -319,7 +319,7 @@ export const IntegrationTestUtils = {
       capabilities: ['concept-explanation', 'learning-path'],
       status: 'active',
       createdAt: Date.now(),
-      ...overrides
+      ...overrides,
     };
   },
 
@@ -334,7 +334,7 @@ export const IntegrationTestUtils = {
       difficulty: 'intermediate',
       prerequisites: [],
       relatedConcepts: [],
-      ...overrides
+      ...overrides,
     };
   },
 
@@ -342,7 +342,7 @@ export const IntegrationTestUtils = {
    * Wait for async operations with timeout
    */
   async waitFor(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   },
 
   /**
@@ -351,7 +351,7 @@ export const IntegrationTestUtils = {
   mockStreamingResponse(chunks: Array<{ type: string; content: string }>) {
     return vi.fn().mockImplementation(async (message, onChunk) => {
       for (const chunk of chunks) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         onChunk({ ...chunk, timestamp: Date.now() });
       }
       onChunk({ type: 'complete', timestamp: Date.now() });
@@ -371,7 +371,7 @@ export const IntegrationTestUtils = {
    */
   getMockElectronAPI() {
     return mockElectronAPI;
-  }
+  },
 };
 
 // Export mock database creation utility

@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/strict-boolean-expressions */
 import React, { useEffect, useRef, useCallback } from 'react';
 import { MessageBubble } from './MessageBubble';
@@ -6,6 +5,7 @@ import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { usePracticeSuggestions } from '@/renderer/hooks/usePracticeSuggestions';
 import { MessageErrorBoundary } from '@/renderer/components/UI/MessageErrorBoundary';
 import type { MessageDisplay } from '@/renderer/types';
+import type { ChatState } from '@/renderer/stores/chat/chatStore';
 
 // Extended interface for messages with thinking toggle support
 interface MessageDisplayWithThinking extends MessageDisplay {
@@ -21,8 +21,49 @@ interface CurrentSession {
 }
 
 const ChatAreaComponent: React.FC = () => {
-  // Always call hooks at the top level - no conditional hook calls
-  const chatStore = useChatStore();
+  const fallbackState: ChatState = {
+    currentSessionId: null,
+    currentSession: null,
+    messages: [],
+    currentAgent: null,
+    selectedProvider: undefined,
+    selectedModel: undefined,
+    isTyping: false,
+    isLoading: false,
+    isStreaming: false,
+    error: null,
+    autoScroll: true,
+    fontSize: 'medium',
+    showThinking: false,
+    thinkingContent: '',
+    streamingMessageId: null,
+    streamingContent: '',
+    setCurrentSession: async () => undefined,
+    addMessage: () => undefined,
+    updateMessage: () => undefined,
+    removeMessage: () => undefined,
+    clearMessages: () => undefined,
+    setTyping: () => undefined,
+    setLoading: () => undefined,
+    setError: () => undefined,
+    setCurrentAgent: () => undefined,
+    setAutoScroll: () => undefined,
+    setFontSize: () => undefined,
+    setShowThinking: () => undefined,
+    setThinkingContent: () => undefined,
+    startStreamingMessage: () => undefined,
+    appendStreamingContent: () => undefined,
+    finishStreamingMessage: () => undefined,
+    resetChatState: () => undefined,
+    createNewSession: async () => '',
+    saveCurrentSession: async () => ({ success: false }),
+    sendMessage: async () => undefined,
+    updateCurrentSessionTitle: async () => undefined,
+    setSelectedProvider: () => undefined,
+    setSelectedModel: () => undefined,
+  };
+
+  const chatState: ChatState = useChatStore() ?? fallbackState;
   const [, practiceActions] = usePracticeSuggestions();
 
   const {
@@ -31,25 +72,20 @@ const ChatAreaComponent: React.FC = () => {
     thinkingContent = '',
     streamingContent = '',
     autoScroll = true,
-    updateMessage = (): void => {
-      // Intentionally empty - will be implemented with proper functionality
-    },
+    updateMessage = (): void => {},
     currentSession,
-  } = chatStore ?? { // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    messages: [] as MessageDisplayWithThinking[],
-    isStreaming: false,
-    thinkingContent: '',
-    streamingContent: '',
-    autoScroll: true,
-    updateMessage: (): void => {},
-    currentSession: null as CurrentSession | null,
-  };
+  } = chatState;
 
+  const chatMessages = Array.isArray(messages) ? messages : [];
   // Monitor messages to check for practice opportunities
   useEffect((): void => {
-    if (Array.isArray(messages) && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1] as MessageDisplay;
-      if (lastMessage?.role === 'user' && currentSession?.id != null && lastMessage?.content != null) {
+    if (chatMessages.length > 0) {
+      const lastMessage = chatMessages[chatMessages.length - 1] as MessageDisplay;
+      if (
+        lastMessage?.role === 'user' &&
+        currentSession?.id != null &&
+        lastMessage?.content != null
+      ) {
         // Check for practice opportunities after user sends a message
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument
         practiceActions.checkForPracticeOpportunity(
@@ -57,22 +93,17 @@ const ChatAreaComponent: React.FC = () => {
           currentSession.id,
           lastMessage.content,
           // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-          currentSession.id
+          currentSession.id,
         );
       }
     }
-  }, [messages, currentSession?.id, practiceActions]);
+  }, [chatMessages, currentSession?.id, practiceActions]);
 
   // Simple toggle function for individual message thinking visibility
   const handleToggleThinking = (messageId: string): void => {
-    if (Array.isArray(messages)) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const message = messages.find((msg: MessageDisplayWithThinking) => msg.id === messageId);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-      if (message != null) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        updateMessage(messageId, { showThinking: !message.showThinking });
-      }
+    const message = chatMessages.find((msg: MessageDisplayWithThinking) => msg.id === messageId);
+    if (message != null) {
+      updateMessage(messageId, { showThinking: !message.showThinking });
     }
   };
 
@@ -88,7 +119,7 @@ const ChatAreaComponent: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingContent, autoScroll, scrollToBottom]);
+  }, [chatMessages, streamingContent, autoScroll, scrollToBottom]);
 
   // Handle scroll events to enable/disable auto-scroll
   useEffect(() => {
@@ -96,7 +127,11 @@ const ChatAreaComponent: React.FC = () => {
     if (!container) return;
 
     const handleScroll = (): void => {
-      const { scrollTop: _scrollTop, scrollHeight: _scrollHeight, clientHeight: _clientHeight } = container;
+      const {
+        scrollTop: _scrollTop,
+        scrollHeight: _scrollHeight,
+        clientHeight: _clientHeight,
+      } = container;
       // TODO: Implement autoScroll logic when user scrolls up
       // Currently unused but kept for future functionality
     };
@@ -113,20 +148,26 @@ const ChatAreaComponent: React.FC = () => {
 
   // Create a temporary streaming message
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const streamingMessage: MessageDisplayWithThinking | null = isStreaming ? {
-    id: 'streaming',
-    role: 'assistant' as const,
-    content: streamingContent,
-    timestamp: new Date().toISOString(),
-    status: 'typing' as const,
-    thinking_content: thinkingContent ?? undefined,
-    showThinking: true, // Show thinking during streaming
-  } : null;
+  const streamingMessage: MessageDisplayWithThinking | null = isStreaming
+    ? {
+        id: 'streaming',
+        role: 'assistant' as const,
+        content: streamingContent,
+        timestamp: new Date().toISOString(),
+        status: 'typing' as const,
+        thinking_content: thinkingContent ?? undefined,
+        showThinking: true, // Show thinking during streaming
+      }
+    : null;
 
   return (
-    <div className="flex-1 overflow-auto custom-scrollbar" ref={containerRef} data-testid="chat-area">
+    <div
+      className="flex-1 overflow-auto custom-scrollbar"
+      ref={containerRef}
+      data-testid="chat-area"
+    >
       <div className="h-full">
-        {Array.isArray(messages) && messages.length === 0 && !isStreaming ? (
+        {chatMessages.length === 0 && !isStreaming ? (
           /* Empty state */
           <div className="h-full flex items-center justify-center p-8">
             <div className="text-center max-w-md">
@@ -150,7 +191,8 @@ const ChatAreaComponent: React.FC = () => {
                   Welcome to Learning Catalyst
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Start a conversation with your AI learning companion. Ask questions, explore concepts, and enhance your understanding.
+                  Start a conversation with your AI learning companion. Ask questions, explore
+                  concepts, and enhance your understanding.
                 </p>
               </div>
 
@@ -198,14 +240,11 @@ const ChatAreaComponent: React.FC = () => {
           /* Messages */
           <div className="py-6">
             <div className="max-w-4xl mx-auto space-y-6">
-              {Array.isArray(messages) && messages.map((message: MessageDisplayWithThinking) => (
-                <MessageErrorBoundary key={message.id} messageId={message.id}>
-                  <MessageBubble
-                    message={message}
-                    onToggleThinking={handleToggleThinking}
-                  />
-                </MessageErrorBoundary>
-              ))}
+              {chatMessages.map((message: MessageDisplayWithThinking) => (
+                  <MessageErrorBoundary key={message.id} messageId={message.id}>
+                    <MessageBubble message={message} onToggleThinking={handleToggleThinking} />
+                  </MessageErrorBoundary>
+                ))}
 
               {/* Streaming message */}
               {streamingMessage && (
@@ -225,7 +264,7 @@ const ChatAreaComponent: React.FC = () => {
         )}
 
         {/* Scroll to bottom button */}
-        {Array.isArray(messages) && messages.length > 0 && (
+        {chatMessages.length > 0 && (
           <div className="sticky bottom-4 flex justify-end pr-6">
             <button
               onClick={scrollToBottom}
@@ -254,3 +293,5 @@ const ChatAreaComponent: React.FC = () => {
 };
 
 export const ChatArea = React.memo(ChatAreaComponent);
+
+export default ChatArea;

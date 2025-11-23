@@ -1,6 +1,8 @@
 # Learning Catalyst
 
-Learning Catalyst is an AI-powered personalized learning platform that adapts to individual learning styles and progress. It provides interactive learning experiences through AI-generated challenges and concept explanations.
+Learning Catalyst is an AI-powered personalized learning platform that adapts to individual learning
+styles and progress. It provides interactive learning experiences through AI-generated challenges
+and concept explanations.
 
 ## Project Structure
 
@@ -41,7 +43,9 @@ learning_catalyst/
 ## Key Components
 
 ### AI Abstraction Layer
+
 The AI module provides a unified interface for interacting with different AI providers:
+
 - OpenAI (GPT models)
 - Anthropic (Claude models)
 - ChatGLM (Zhipu AI models)
@@ -50,20 +54,28 @@ The AI module provides a unified interface for interacting with different AI pro
 - Local models (Ollama, Llama.cpp, etc.)
 
 ### Core Application Logic
+
 The core module contains the main application logic:
-- **CatalystAgent**: Main AI interaction handler that interprets user intents and generates responses
+
+- **CatalystAgent**: Main AI interaction handler that interprets user intents and generates
+  responses
 - **ChallengeEngine**: Generates and evaluates learning challenges
 - **KnowledgeNavigator**: Manages learning concepts and determines learning paths
 - **StateManager**: Handles application state persistence and checkpoint management
 
 ### Data Management
+
 The data module handles all data storage and retrieval:
-- **DatabaseManager**: SQLite database operations for user profiles, concepts, challenges, and progress
+
+- **DatabaseManager**: SQLite database operations for user profiles, concepts, challenges, and
+  progress
 - **VectorStorage**: Storage and retrieval of vector embeddings for semantic search
 - **Models**: Data classes for all application entities
 
 ### CLI Interface
+
 The CLI provides a rich command-line interface with:
+
 - Interactive learning sessions
 - Slash commands for system operations (/help, /concepts, /models, /tokens, etc.)
 - Configuration management
@@ -82,11 +94,13 @@ The CLI provides a rich command-line interface with:
 ## Getting Started
 
 1. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 2. Run the application:
+
    ```bash
    python -m src.cli.main
    ```
@@ -104,6 +118,7 @@ The CLI provides a rich command-line interface with:
 ### Architecture Overview
 
 The application follows a modular architecture with clear separation of concerns:
+
 - **AI Layer**: Abstracts different AI providers behind a unified interface
 - **Core Logic**: Implements the main application functionality
 - **Data Layer**: Handles all data persistence and retrieval
@@ -112,6 +127,7 @@ The application follows a modular architecture with clear separation of concerns
 ### Data Models
 
 Key data models include:
+
 - **Concept**: Learning concepts with prerequisites and difficulty levels
 - **Challenge**: AI-generated learning challenges
 - **UserProfile**: User preferences and competency profiles
@@ -121,6 +137,7 @@ Key data models include:
 ### Extensibility
 
 The application is designed to be easily extensible:
+
 - Add new AI providers by implementing the ModelAbstractionLayer interface
 - Extend data models by adding new classes in the data/models directory
 - Add new CLI commands by creating modules in the cli/commands directory

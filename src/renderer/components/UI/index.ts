@@ -1,4 +1,3 @@
-
 /**
  * 🎯 Learning Catalyst UI Component Library
  *
@@ -71,20 +70,8 @@ export type { InputProps } from './Input';
  * </Card>
  * ```
  */
-export {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter
-} from './Card';
-export type {
-  CardProps,
-  CardHeaderProps,
-  CardContentProps,
-  CardFooterProps
-} from './Card';
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card';
+export type { CardProps, CardHeaderProps, CardContentProps, CardFooterProps } from './Card';
 
 /**
  * 📎 Accordion Component
@@ -172,12 +159,7 @@ export { ModuleStatusIndicator } from './ModuleStatusIndicator';
  * <SettingsSkeleton />
  * ```
  */
-export {
-  Skeleton,
-  MessageSkeleton,
-  ChatListSkeleton,
-  SettingsSkeleton
-} from './Skeleton';
+export { Skeleton, MessageSkeleton, ChatListSkeleton, SettingsSkeleton } from './Skeleton';
 
 // ======================
 // LAYOUT UTILITIES

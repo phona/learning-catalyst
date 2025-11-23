@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -17,20 +17,20 @@ export default {
         ['session_id'],
         'learning_sessions',
         ['id'],
-        (fk) => fk.onDelete('cascade')
+        (fk) => fk.onDelete('cascade'),
       )
       .addForeignKeyConstraint(
         'session_concepts_concept_id_fkey',
         ['concept_id'],
         'concepts',
         ['id'],
-        (fk) => fk.onDelete('cascade')
+        (fk) => fk.onDelete('cascade'),
       )
       .addUniqueConstraint('uq_session_concept', ['session_id', 'concept_id'])
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
-    await db.schema.dropTable('session_concepts').execute()
-  }
-}
+    await db.schema.dropTable('session_concepts').execute();
+  },
+};

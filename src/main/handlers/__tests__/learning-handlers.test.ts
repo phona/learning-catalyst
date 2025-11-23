@@ -21,29 +21,32 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: (channel: string, handler: (...args: any[]) => any) => {
       handlerMap.set(channel, handler);
-    }
-  }
+    },
+  },
 }));
 
 const logger = {
   info: vi.fn(),
   warn: vi.fn(),
-  error: vi.fn()
+  error: vi.fn(),
 };
 
 const loggerService = {
-  child: vi.fn(() => logger)
+  child: vi.fn(() => logger),
 };
 
 const learningService = {
-  getLearningPath: vi.fn(async (pathId: string) => ({ id: pathId, title: 'Saved Path' })) as ReturnType<typeof vi.fn>,
+  getLearningPath: vi.fn(async (pathId: string) => ({
+    id: pathId,
+    title: 'Saved Path',
+  })) as ReturnType<typeof vi.fn>,
   startLearningSession: vi.fn(async (params: any) => ({ id: 'session-123', ...params })),
   getSessionProgress: vi.fn(async (sessionId: string) => ({ sessionId, overallProgress: 42 })),
   pauseSession: vi.fn(async (sessionId: string) => ({ success: true, resumeData: { sessionId } })),
   resumeSession: vi.fn(async (sessionId: string) => ({ success: true, context: { sessionId } })),
   completeSession: vi.fn(async (sessionId: string) => ({ sessionId, summary: {} })),
   getRecentSessions: vi.fn(async () => [{ id: 'session-1', topic: 'React' }]),
-  searchSessions: vi.fn(async () => ({ sessions: [], totalResults: 0 }))
+  searchSessions: vi.fn(async () => ({ sessions: [], totalResults: 0 })),
 };
 
 const getHandler = (channel: string) => {
@@ -58,7 +61,7 @@ describe('learning handlers', () => {
     vi.clearAllMocks();
     setupLearningHandlers(ipcMain, {
       learningService,
-      loggerService
+      loggerService,
     });
   });
 
@@ -75,7 +78,7 @@ describe('learning handlers', () => {
     const payload = {
       topic: 'Electron',
       goals: ['goal1'],
-      userId: 'user-x'
+      userId: 'user-x',
     };
     const result = await getHandler('learning:start-session')(null, payload);
 
@@ -86,7 +89,7 @@ describe('learning handlers', () => {
       difficulty: undefined,
       agentType: undefined,
       learningStyle: undefined,
-      userId: 'user-x'
+      userId: 'user-x',
     });
   });
 

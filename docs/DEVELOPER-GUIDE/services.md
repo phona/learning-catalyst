@@ -1,6 +1,7 @@
 # Services Guide
 
-Services form the **business logic layer** of Learning Catalyst. This guide covers the service architecture, patterns, and how to create and use services.
+Services form the **business logic layer** of Learning Catalyst. This guide covers the service
+architecture, patterns, and how to create and use services.
 
 ## Service Architecture Overview
 
@@ -53,7 +54,7 @@ export function createServiceName(dependencies: Dependencies): Service {
     // Private helper methods can be included
     helperMethod: (input: InputType): OutputType => {
       // Implementation
-    }
+    },
   };
 }
 ```
@@ -67,8 +68,13 @@ export function createServiceName(dependencies: Dependencies): Service {
 **Purpose**: Database connection and query execution
 
 **Usage**:
+
 ```typescript
-import { createSqliteDriverFactory, createDatabase, runMigrations } from '@/main/services/core/database/kysely-database';
+import {
+  createSqliteDriverFactory,
+  createDatabase,
+  runMigrations,
+} from '@/main/services/core/database/kysely-database';
 
 async function setupDatabase() {
   const dbPath = '.catalyst/learning_catalyst.db';
@@ -80,6 +86,7 @@ async function setupDatabase() {
 ```
 
 **Key Functions**:
+
 - `createSqliteDriverFactory(dbPath)` - Creates database driver
 - `createDatabase(driverFactory)` - Creates Kysely instance
 - `runMigrations(driverFactory)` - Applies migrations
@@ -90,6 +97,7 @@ async function setupDatabase() {
 **Purpose**: Configuration management
 
 **Usage**:
+
 ```typescript
 // Get configuration
 const config = await configService.get('ai.providers.openai.apiKey');
@@ -103,6 +111,7 @@ await configService.set('ai.providers.openai.model', 'gpt-4');
 **Purpose**: Structured logging
 
 **Usage**:
+
 ```typescript
 // Different log levels
 loggerService.info('User logged in', { userId: '123' });
@@ -120,6 +129,7 @@ loggerService.debug('Query executed', { query: sql, duration: '45ms' });
 **Purpose**: Handle chat conversations and AI interactions
 
 **Interface**:
+
 ```typescript
 interface ChatService {
   sendMessage(content: string, sessionId?: string): Promise<ChatResponse>;
@@ -128,12 +138,13 @@ interface ChatService {
   sendMessageStream(
     message: string,
     onChunk: (chunk: string) => void,
-    sessionId?: string
+    sessionId?: string,
   ): Promise<void>;
 }
 ```
 
 **Example Implementation**:
+
 ```typescript
 export function createChatService({ db, loggerService, aiService }: Dependencies) {
   return {
@@ -151,16 +162,14 @@ export function createChatService({ db, loggerService, aiService }: Dependencies
           content,
           timestamp: new Date().toISOString(),
           message_order: Date.now(),
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         })
         .returningAll()
         .executeTakeFirst();
 
       // Get AI response
       const aiResponse = await aiService.complete({
-        messages: [
-          { role: 'user', content }
-        ]
+        messages: [{ role: 'user', content }],
       });
 
       // Store AI response
@@ -176,14 +185,14 @@ export function createChatService({ db, loggerService, aiService }: Dependencies
           model: aiResponse.model,
           timestamp: new Date().toISOString(),
           message_order: Date.now() + 1,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         })
         .returningAll()
         .executeTakeFirst();
 
       return {
         userMessage,
-        assistantMessage
+        assistantMessage,
       };
     },
 
@@ -196,7 +205,7 @@ export function createChatService({ db, loggerService, aiService }: Dependencies
         .execute();
 
       return messages.map(toConversationDisplay);
-    }
+    },
   };
 }
 ```
@@ -208,6 +217,7 @@ export function createChatService({ db, loggerService, aiService }: Dependencies
 **Purpose**: Manage learning sessions and progress
 
 **Interface**:
+
 ```typescript
 interface LearningService {
   startSession(options: SessionStartOptions): Promise<LearningSessionDisplay>;
@@ -220,6 +230,7 @@ interface LearningService {
 ```
 
 **Example Implementation**:
+
 ```typescript
 export function createLearningService({ db, loggerService }: Dependencies) {
   return {
@@ -238,11 +249,11 @@ export function createLearningService({ db, loggerService }: Dependencies) {
             tags: options.tags || [],
             category: options.category || 'general',
             difficulty: options.difficulty || 'intermediate',
-            goals: options.goals || []
+            goals: options.goals || [],
           }),
           created_at: now,
           updated_at: now,
-          total_messages: 0
+          total_messages: 0,
         })
         .returningAll()
         .executeTakeFirst();
@@ -255,7 +266,7 @@ export function createLearningService({ db, loggerService }: Dependencies) {
     async updateProgress(
       sessionId: string,
       conceptId: string,
-      status: ProgressStatus
+      status: ProgressStatus,
     ): Promise<void> {
       await db
         .insertInto('concept_progress')
@@ -264,16 +275,17 @@ export function createLearningService({ db, loggerService }: Dependencies) {
           session_id: sessionId,
           concept_id: conceptId,
           status,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .onConflict((oc) =>
-          oc.column('session_id', 'concept_id')
-            .doUpdateSet({ status, updated_at: new Date().toISOString() })
+          oc
+            .column('session_id', 'concept_id')
+            .doUpdateSet({ status, updated_at: new Date().toISOString() }),
         )
         .execute();
 
       loggerService.info('Progress updated', { sessionId, conceptId, status });
-    }
+    },
   };
 }
 ```
@@ -285,6 +297,7 @@ export function createLearningService({ db, loggerService }: Dependencies) {
 **Purpose**: Manage knowledge graph and concepts
 
 **Interface**:
+
 ```typescript
 interface KnowledgeService {
   search(query: string): Promise<ConceptExplorationDisplay[]>;
@@ -296,6 +309,7 @@ interface KnowledgeService {
 ```
 
 **Example Implementation**:
+
 ```typescript
 export function createKnowledgeService({ db, loggerService }: Dependencies) {
   return {
@@ -303,11 +317,13 @@ export function createKnowledgeService({ db, loggerService }: Dependencies) {
       const concepts = await db
         .selectFrom('concepts')
         .selectAll()
-        .where((eb) => eb.or([
-          eb('name', 'like', `%${query}%`),
-          eb('description', 'like', `%${query}%`),
-          eb('tags', 'like', `%${query}%`)
-        ]))
+        .where((eb) =>
+          eb.or([
+            eb('name', 'like', `%${query}%`),
+            eb('description', 'like', `%${query}%`),
+            eb('tags', 'like', `%${query}%`),
+          ]),
+        )
         .limit(20)
         .execute();
 
@@ -321,7 +337,7 @@ export function createKnowledgeService({ db, loggerService }: Dependencies) {
         .where('source_concept_id', '=', conceptId)
         .execute();
 
-      const relatedConceptIds = relationships.map(r => r.target_concept_id);
+      const relatedConceptIds = relationships.map((r) => r.target_concept_id);
 
       if (relatedConceptIds.length === 0) {
         return { conceptId, related: [] };
@@ -335,9 +351,9 @@ export function createKnowledgeService({ db, loggerService }: Dependencies) {
 
       return {
         conceptId,
-        related: relatedConcepts.map(toRelatedConceptDisplay)
+        related: relatedConcepts.map(toRelatedConceptDisplay),
       };
-    }
+    },
   };
 }
 ```
@@ -349,6 +365,7 @@ export function createKnowledgeService({ db, loggerService }: Dependencies) {
 **Purpose**: Generate analytics and insights
 
 **Interface**:
+
 ```typescript
 interface AnalyticsService {
   getDashboard(): Promise<DashboardDisplay>;
@@ -360,6 +377,7 @@ interface AnalyticsService {
 ```
 
 **Example Implementation**:
+
 ```typescript
 export function createAnalyticsService({ db, loggerService }: Dependencies) {
   return {
@@ -391,7 +409,7 @@ export function createAnalyticsService({ db, loggerService }: Dependencies) {
         totalConcepts: Number(conceptCount?.count || 0),
         masteredConcepts: Number(masteredCount?.count || 0),
         currentStreak: streak,
-        averageSessionLength: await calculateAverageSessionLength(db)
+        averageSessionLength: await calculateAverageSessionLength(db),
       };
     },
 
@@ -404,10 +422,10 @@ export function createAnalyticsService({ db, loggerService }: Dependencies) {
           event_data: JSON.stringify(event.data),
           session_id: event.sessionId,
           timestamp: new Date().toISOString(),
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         })
         .execute();
-    }
+    },
   };
 }
 ```
@@ -421,6 +439,7 @@ export function createAnalyticsService({ db, loggerService }: Dependencies) {
 **Purpose**: Unified interface for all AI providers
 
 **Interface**:
+
 ```typescript
 interface AIService {
   complete(request: ChatCompletionRequest): Promise<ChatCompletionResponse>;
@@ -431,6 +450,7 @@ interface AIService {
 ```
 
 **Example Implementation**:
+
 ```typescript
 export function createAIService({ configService, loggerService }: Dependencies) {
   let currentProvider: AIProvider;
@@ -448,19 +468,16 @@ export function createAIService({ configService, loggerService }: Dependencies) 
         provider: provider.name,
         model: provider.model,
         promptLength: request.messages.length,
-        tokens: response.usage
+        tokens: response.usage,
       });
 
       return response;
     },
 
-    async stream(
-      request: ChatCompletionRequest,
-      onChunk: (chunk: string) => void
-    ): Promise<void> {
+    async stream(request: ChatCompletionRequest, onChunk: (chunk: string) => void): Promise<void> {
       const provider = await getCurrentProvider(configService);
       await provider.stream(request, onChunk);
-    }
+    },
   };
 }
 ```
@@ -468,6 +485,7 @@ export function createAIService({ configService, loggerService }: Dependencies) 
 ### Provider Services
 
 **OpenAI Provider**:
+
 ```typescript
 // src/main/services/ai/providers/openai-provider.ts
 export function createOpenAIProvider(config: OpenAIConfig): AIProvider {
@@ -477,19 +495,19 @@ export function createOpenAIProvider(config: OpenAIConfig): AIProvider {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           model: config.model,
           messages: request.messages,
-          temperature: request.temperature || 0.7
-        })
+          temperature: request.temperature || 0.7,
+        }),
       });
 
       const data = await response.json();
       return toChatCompletionResponse(data);
-    }
+    },
   };
 }
 ```
@@ -539,13 +557,10 @@ export function createMyService(dependencies: Dependencies): MyService {
 
     async anotherMethod(params: Params): Promise<void> {
       // Implementation
-      await db
-        .insertInto('my_table')
-        .values(params)
-        .execute();
+      await db.insertInto('my_table').values(params).execute();
 
       loggerService.info('anotherMethod completed', { params });
-    }
+    },
   };
 }
 ```
@@ -559,7 +574,7 @@ import { createMyService } from './services/domain/my-service/my-service';
 const myService = createMyService({
   db,
   loggerService,
-  configService
+  configService,
 });
 
 // Use in handlers
@@ -581,8 +596,8 @@ export function setupMyHandlers({ myService, loggerService }: Dependencies) {
         success: false,
         error: {
           code: 'MY_SERVICE_ERROR',
-          message: error.message
-        }
+          message: error.message,
+        },
       };
     }
   });
@@ -662,9 +677,7 @@ const result = await db
   .executeTakeFirst();
 
 // ❌ Bad - Raw SQL
-const result = await db.query(
-  `SELECT * FROM learning_sessions WHERE id = '${sessionId}'`
-);
+const result = await db.query(`SELECT * FROM learning_sessions WHERE id = '${sessionId}'`);
 ```
 
 ### 6. Return Standardized Responses
@@ -674,7 +687,7 @@ const result = await db.query(
 return {
   id: row.id,
   title: row.title,
-  createdAt: row.created_at
+  createdAt: row.created_at,
 };
 
 // ❌ Bad - Directly returning DB rows
@@ -702,7 +715,7 @@ describe('MyService', () => {
 
     myService = createMyService({
       db: mockDb,
-      loggerService: mockLogger
+      loggerService: mockLogger,
     });
   });
 
@@ -729,10 +742,7 @@ describe('MyService', () => {
     await myService.myMethod('test');
 
     // Assert
-    expect(mockLogger.info).toHaveBeenCalledWith(
-      'myMethod called',
-      { param: 'test' }
-    );
+    expect(mockLogger.info).toHaveBeenCalledWith('myMethod called', { param: 'test' });
   });
 });
 ```
@@ -809,7 +819,7 @@ function createMessageRepository(db: Kysely<Database>): MessageRepository {
 
     async delete(id) {
       await db.deleteFrom('messages').where('id', '=', id).execute();
-    }
+    },
   };
 }
 
@@ -824,11 +834,11 @@ export function createChatService({ db, loggerService }: Dependencies) {
         session_id: sessionId,
         role: 'user',
         content,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       });
 
       return message;
-    }
+    },
   };
 }
 ```
@@ -863,5 +873,4 @@ export function createProvider(type: ProviderType): AIProvider {
 
 ---
 
-**Last Updated**: November 2025
-**Version**: 1.0
+**Last Updated**: November 2025 **Version**: 1.0

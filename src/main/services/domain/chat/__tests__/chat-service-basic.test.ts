@@ -6,8 +6,8 @@ vi.mock('@/main/services/core/context', () => ({
   createUserContextTracker: vi.fn(() => ({
     updateContext: vi.fn(),
     getCurrentContext: vi.fn(() => ({})),
-    dispose: vi.fn()
-  }))
+    dispose: vi.fn(),
+  })),
 }));
 
 describe('Chat Service - Basic Structure Tests', () => {
@@ -27,7 +27,7 @@ describe('Chat Service - Basic Structure Tests', () => {
       selectFrom: vi.fn(),
       insertInto: vi.fn(),
       updateTable: vi.fn(),
-      deleteFrom: vi.fn()
+      deleteFrom: vi.fn(),
     };
 
     // Mock logger service
@@ -36,8 +36,8 @@ describe('Chat Service - Basic Structure Tests', () => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
-        debug: vi.fn()
-      }))
+        debug: vi.fn(),
+      })),
     };
 
     // Mock AI service
@@ -48,20 +48,20 @@ describe('Chat Service - Basic Structure Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       })),
       getProviders: vi.fn(),
-      getAvailableModels: vi.fn()
+      getAvailableModels: vi.fn(),
     };
 
     // Mock domain agent
     mockDomainAgent = {
-      stream: vi.fn()
+      stream: vi.fn(),
     };
 
     // Mock agent manager
     mockAgentManager = {
-      runAgent: vi.fn()
+      runAgent: vi.fn(),
     };
 
     // Import after mocks are set up
@@ -69,32 +69,34 @@ describe('Chat Service - Basic Structure Tests', () => {
       const originalModule = vi.importActual('../chat-service');
       return {
         ...originalModule,
-        createChatService: vi.fn().mockImplementation(({ db, loggerService, aiService, domainAgent, agentManager }) => {
-          aiService.getModelPreset('chat.reply');
-          loggerService.child({ service: 'chat' });
-          return {
-            createConversation: vi.fn().mockResolvedValue({
-              id: 'test-conv',
-              title: 'Test Conversation',
-              agentType: 'learning',
-              topic: 'React',
-              status: 'active',
-              messages: []
-            }),
-            sendMessage: vi.fn().mockResolvedValue({
-              userMessage: { id: 'user-msg', role: 'user', content: 'test' },
-              assistantMessage: { id: 'assistant-msg', role: 'assistant', content: 'response' }
-            }),
-            getConversation: vi.fn(),
-            listConversations: vi.fn().mockResolvedValue([]),
-            deleteConversation: vi.fn().mockResolvedValue(true),
-            streamAssistantResponse: vi.fn(),
-            getTypingIndicator: vi.fn(),
-            pauseConversation: vi.fn(),
-            resumeConversation: vi.fn(),
-            endConversation: vi.fn()
-          };
-        })
+        createChatService: vi
+          .fn()
+          .mockImplementation(({ db, loggerService, aiService, domainAgent, agentManager }) => {
+            aiService.getModelPreset('chat.reply');
+            loggerService.child({ service: 'chat' });
+            return {
+              createConversation: vi.fn().mockResolvedValue({
+                id: 'test-conv',
+                title: 'Test Conversation',
+                agentType: 'learning',
+                topic: 'React',
+                status: 'active',
+                messages: [],
+              }),
+              sendMessage: vi.fn().mockResolvedValue({
+                userMessage: { id: 'user-msg', role: 'user', content: 'test' },
+                assistantMessage: { id: 'assistant-msg', role: 'assistant', content: 'response' },
+              }),
+              getConversation: vi.fn(),
+              listConversations: vi.fn().mockResolvedValue([]),
+              deleteConversation: vi.fn().mockResolvedValue(true),
+              streamAssistantResponse: vi.fn(),
+              getTypingIndicator: vi.fn(),
+              pauseConversation: vi.fn(),
+              resumeConversation: vi.fn(),
+              endConversation: vi.fn(),
+            };
+          }),
       };
     });
 
@@ -105,7 +107,7 @@ describe('Chat Service - Basic Structure Tests', () => {
       loggerService: mockLoggerService,
       aiService: mockAiService,
       domainAgent: mockDomainAgent,
-      agentManager: mockAgentManager
+      agentManager: mockAgentManager,
     });
   });
 
@@ -133,7 +135,7 @@ describe('Chat Service - Basic Structure Tests', () => {
       const result = await chatService.createConversation({
         title: 'Test Conversation',
         agentType: 'learning',
-        topic: 'React'
+        topic: 'React',
       });
 
       expect(result).toMatchObject({
@@ -141,7 +143,7 @@ describe('Chat Service - Basic Structure Tests', () => {
         title: 'Test Conversation',
         agentType: 'learning',
         topic: 'React',
-        status: 'active'
+        status: 'active',
       });
 
       expect(Array.isArray(result.messages)).toBe(true);
@@ -150,14 +152,14 @@ describe('Chat Service - Basic Structure Tests', () => {
     it('should handle conversation creation with optional parameters', async () => {
       const result = await chatService.createConversation({
         title: 'Simple Conversation',
-        agentType: 'tutoring'
+        agentType: 'tutoring',
       });
 
       expect(result).toMatchObject({
         id: 'test-conv',
         title: 'Test Conversation',
         agentType: 'learning',
-        status: 'active'
+        status: 'active',
       });
     });
   });
@@ -167,20 +169,20 @@ describe('Chat Service - Basic Structure Tests', () => {
       const result = await chatService.sendMessage({
         conversationId: 'test-conv',
         role: 'user',
-        content: 'Hello, teach me React'
+        content: 'Hello, teach me React',
       });
 
       expect(result).toMatchObject({
         userMessage: {
           id: 'user-msg',
           role: 'user',
-          content: 'test'
+          content: 'test',
         },
         assistantMessage: {
           id: 'assistant-msg',
           role: 'assistant',
-          content: 'response'
-        }
+          content: 'response',
+        },
       });
     });
 
@@ -188,7 +190,7 @@ describe('Chat Service - Basic Structure Tests', () => {
       const result = await chatService.sendMessage({
         conversationId: 'test-conv',
         role: 'assistant',
-        content: 'Here is some information'
+        content: 'Here is some information',
       });
 
       // The message should be stored, and no assistant reply generated
@@ -198,7 +200,7 @@ describe('Chat Service - Basic Structure Tests', () => {
       expect(result.assistantMessage).toMatchObject({
         id: 'assistant-msg',
         role: 'assistant',
-        content: 'response'
+        content: 'response',
       });
     });
   });
@@ -251,7 +253,7 @@ describe('Chat Service - Basic Structure Tests', () => {
           loggerService: mockLoggerService,
           aiService: mockAiService,
           domainAgent: mockDomainAgent,
-          agentManager: mockAgentManager
+          agentManager: mockAgentManager,
         });
       }).not.toThrow();
     });

@@ -183,13 +183,12 @@ export interface ConceptProgressUpdate {
   notes?: string;
 }
 
-
 // Error types specific to analytics
 export class AnalyticsError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any
+    public details?: any,
   ) {
     super(message);
     this.name = 'AnalyticsError';
@@ -213,7 +212,7 @@ export class DataValidationError extends AnalyticsError {
     super(
       `Invalid data for field ${field}: expected ${expectedType}, got ${typeof value}`,
       'DATA_VALIDATION_ERROR',
-      { field, value, expectedType }
+      { field, value, expectedType },
     );
   }
 }

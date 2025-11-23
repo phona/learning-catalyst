@@ -1,6 +1,3 @@
-
-
-
 /**
  * Use Scroll Detection Hook
  *
@@ -51,17 +48,20 @@ export function useScrollDetection({
   const nearBottomCallbackRef = useRef<(() => void) | null>(null);
 
   // Calculate scroll percentage
-  const calculateScrollPercentage = useCallback((element: HTMLElement): number => {
-    if (horizontal) {
-      const scrollLeft = element.scrollLeft;
-      const scrollWidth = element.scrollWidth - element.clientWidth;
-      return scrollWidth > 0 ? scrollLeft / scrollWidth : 0;
-    } else {
-      const scrollTop = element.scrollTop;
-      const scrollHeight = element.scrollHeight - element.clientHeight;
-      return scrollHeight > 0 ? scrollTop / scrollHeight : 0;
-    }
-  }, [horizontal]);
+  const calculateScrollPercentage = useCallback(
+    (element: HTMLElement): number => {
+      if (horizontal) {
+        const scrollLeft = element.scrollLeft;
+        const scrollWidth = element.scrollWidth - element.clientWidth;
+        return scrollWidth > 0 ? scrollLeft / scrollWidth : 0;
+      } else {
+        const scrollTop = element.scrollTop;
+        const scrollHeight = element.scrollHeight - element.clientHeight;
+        return scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+      }
+    },
+    [horizontal],
+  );
 
   // Handle scroll events with debouncing
   const handleScroll = useCallback(() => {
@@ -92,7 +92,14 @@ export function useScrollDetection({
       scrollPercentageRef.current = percentage;
       isNearBottomRef.current = percentage >= threshold;
 
-      console.log('[useScrollDetection] Scroll percentage:', percentage.toFixed(3), 'threshold:', threshold, 'isNearBottom:', isNearBottomRef.current);
+      console.log(
+        '[useScrollDetection] Scroll percentage:',
+        percentage.toFixed(3),
+        'threshold:',
+        threshold,
+        'isNearBottom:',
+        isNearBottomRef.current,
+      );
 
       // Trigger callback if near bottom and callback exists
       if (isNearBottomRef.current && nearBottomCallbackRef.current) {
@@ -105,17 +112,21 @@ export function useScrollDetection({
   // Set up scroll event listener
   useEffect(() => {
     const element = scrollRef.current;
-    console.log('[useScrollDetection] Setting up scroll listener, element:', element ? 'found' : 'not found');
+    console.log(
+      '[useScrollDetection] Setting up scroll listener, element:',
+      element ? 'found' : 'not found',
+    );
     if (!element) return;
 
     // Check if element is actually scrollable
-    const isScrollable = element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth;
+    const isScrollable =
+      element.scrollHeight > element.clientHeight || element.scrollWidth > element.clientWidth;
     console.log('[useScrollDetection] Element scrollability check:', {
       scrollHeight: element.scrollHeight,
       clientHeight: element.clientHeight,
       scrollWidth: element.scrollWidth,
       clientWidth: element.clientWidth,
-      isScrollable
+      isScrollable,
     });
 
     if (!isScrollable) {
@@ -133,7 +144,7 @@ export function useScrollDetection({
     console.log('[useScrollDetection] Initial scroll state:', {
       percentage: initialPercentage,
       threshold,
-      isNearBottom: isNearBottomRef.current
+      isNearBottom: isNearBottomRef.current,
     });
 
     return () => {

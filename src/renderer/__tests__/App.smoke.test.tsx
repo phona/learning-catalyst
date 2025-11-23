@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { cleanup, screen, waitFor } from '@testing-library/react';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 import { renderWithServices } from '@/test/utils/renderWithServices';
-import type { MemoryRouterProps } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
 
 vi.mock('../stores/useAppStore', () => ({
@@ -48,16 +48,16 @@ const workspaceConfig = {
     model_types: {
       chat: {
         provider: 'openai',
-        model: 'gpt-4o'
-      }
+        model: 'gpt-4o',
+      },
     },
     providers: {
       openai: {
         provider_type: 'openai',
-        api_key: 'test-key'
-      }
-    }
-  }
+        api_key: 'test-key',
+      },
+    },
+  },
 };
 
 const originalElectronAPI = (window as typeof window & { electronAPI?: unknown }).electronAPI;
@@ -68,7 +68,8 @@ const buildElectronAPI = () => {
   return client;
 };
 
-const renderApp = (routerProps?: MemoryRouterProps) => renderWithServices(<App />, { routerProps });
+const renderApp = (routerProps?: React.ComponentProps<typeof MemoryRouter>) =>
+  renderWithServices(<App />, { routerProps });
 
 beforeEach(() => {
   (window as typeof window & { electronAPI?: unknown }).electronAPI = buildElectronAPI();
@@ -79,13 +80,16 @@ afterEach(() => {
   if (originalElectronAPI !== undefined) {
     (window as typeof window & { electronAPI?: unknown }).electronAPI = originalElectronAPI;
   } else {
-    delete (window as typeof window & { electronAPI?: unknown }).electronAPI;
+    const windowWithAPI = window as typeof window & { electronAPI?: unknown };
+    if (windowWithAPI.electronAPI) {
+      delete (windowWithAPI as any).electronAPI;
+    }
   }
 });
 
 describe('App Component - Basic Functionality', () => {
   it('should render without crashing', async () => {
-    renderApp({ routerProps: { initialEntries: ['/'] } });
+    renderApp({ initialEntries: ['/'] });
 
     await waitFor(() => {
       expect(screen.getByRole('main')).toBeInTheDocument();
@@ -96,7 +100,7 @@ describe('App Component - Basic Functionality', () => {
     const routes = ['/', '/chat', '/settings'];
 
     for (const route of routes) {
-      renderApp({ routerProps: { initialEntries: [route] } });
+      renderApp({ initialEntries: [route] });
 
       await waitFor(() => {
         expect(screen.getByRole('main')).toBeInTheDocument();
@@ -107,8 +111,8 @@ describe('App Component - Basic Functionality', () => {
   });
 
   it('should handle missing electronAPI gracefully', async () => {
-    (window as typeof window & { electronAPI?: unknown }).electronAPI = undefined;
-    renderApp({ routerProps: { initialEntries: ['/'] } });
+    (window as any).electronAPI = undefined;
+    renderApp({ initialEntries: ['/'] });
 
     await waitFor(() => {
       expect(screen.getByRole('main')).toBeInTheDocument();

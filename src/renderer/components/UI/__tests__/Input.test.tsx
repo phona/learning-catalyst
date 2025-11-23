@@ -1,4 +1,3 @@
-
 /**
  * Input Component Tests - Focused on Reliability
  *
@@ -47,12 +46,7 @@ describe('Input - Critical Reliability Tests', () => {
   });
 
   it('should not show helper text when error is present', () => {
-    render(
-      <Input
-        error="This field is required"
-        helperText="Enter your email address"
-      />
-    );
+    render(<Input error="This field is required" helperText="Enter your email address" />);
 
     // Should show error, not helper text
     expect(screen.getByText('This field is required')).toBeInTheDocument();
@@ -90,7 +84,7 @@ describe('Input - Critical Reliability Tests', () => {
       <form onSubmit={handleSubmit}>
         <Input name="username" onChange={handleChange} />
         <button type="submit">Submit</button>
-      </form>
+      </form>,
     );
 
     const input = screen.getByRole('textbox');
@@ -139,13 +133,7 @@ describe('Input - Critical Reliability Tests', () => {
     const leftIcon = <span data-testid="left-icon">←</span>;
     const rightIcon = <span data-testid="right-icon">→</span>;
 
-    render(
-      <Input
-        leftIcon={leftIcon}
-        rightIcon={rightIcon}
-        placeholder="With icons"
-      />
-    );
+    render(<Input leftIcon={leftIcon} rightIcon={rightIcon} placeholder="With icons" />);
 
     expect(screen.getByTestId('left-icon')).toBeInTheDocument();
     expect(screen.getByTestId('right-icon')).toBeInTheDocument();
@@ -164,7 +152,9 @@ describe('Input - Critical Reliability Tests', () => {
     unmountUndefined();
 
     // Null onChange (defensive) should not throw
-    const { unmount: unmountNullHandler } = render(<Input onChange={null as unknown as React.ChangeEventHandler<HTMLInputElement>} />);
+    const { unmount: unmountNullHandler } = render(
+      <Input onChange={null as unknown as React.ChangeEventHandler<HTMLInputElement>} />,
+    );
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     unmountNullHandler();
   });
@@ -179,9 +169,7 @@ describe('Input - Critical Reliability Tests', () => {
 
   it('should handle maxLength constraints', () => {
     const handleChange = vi.fn();
-    render(
-      <Input maxLength={10} onChange={handleChange} placeholder="Max 10 chars" />
-    );
+    render(<Input maxLength={10} onChange={handleChange} placeholder="Max 10 chars" />);
 
     const input = screen.getByPlaceholderText('Max 10 chars');
     expect(input).toHaveAttribute('maxlength', '10');

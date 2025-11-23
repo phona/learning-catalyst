@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Cog6ToothIcon,
@@ -25,10 +22,102 @@ import { AdvancedSettings } from './AdvancedSettings';
 import { ModelType } from '@/shared/types/ai';
 import type {
   AppConfig,
+  ModelCapabilities,
   ModelTypeConfig,
   ProviderConfig,
+  ProviderType,
+  SelectedChatModel,
+  SelectedModel,
 } from '@/shared/types/config';
 import { useService } from '@/renderer/services/services-provider';
+
+const MODEL_TYPES: ModelType[] = [ModelType.CHAT, ModelType.EMBEDDING, ModelType.RERANK];
+
+const DEFAULT_PROVIDER_TYPES: ProviderType[] = [
+  'openai',
+  'chatglm',
+  'deepseek',
+  'siliconflow',
+  'openai-compatible',
+];
+
+const resolveProviderTypes = (
+  providers?: Record<string, ProviderConfig>,
+): ProviderType[] => {
+  const providerSet = new Set<ProviderType>(DEFAULT_PROVIDER_TYPES);
+  Object.values(providers ?? {}).forEach((provider) => {
+    providerSet.add(provider.provider_type);
+    if (provider.type) {
+      providerSet.add(provider.type);
+    }
+  });
+  return Array.from(providerSet);
+};
+
+const buildModelTypeConfig = (
+  modelType: ModelType,
+  selectedModel?: SelectedModel,
+  providers?: Record<string, ProviderConfig>,
+): ModelTypeConfig => {
+  const chatModel = modelType === ModelType.CHAT ? (selectedModel as SelectedChatModel | undefined) : undefined;
+  const baseCapabilities: ModelCapabilities = {
+    streaming: modelType === ModelType.CHAT ? !!chatModel?.stream : false,
+    thinking: modelType === ModelType.CHAT ? !!chatModel?.enable_thinking : false,
+    function_calling: chatModel?.capabilities?.function_calling ?? false,
+    vision: chatModel?.capabilities?.vision ?? false,
+  };
+
+  const capabilities = chatModel?.capabilities
+    ? { ...baseCapabilities, ...chatModel.capabilities }
+    : baseCapabilities;
+
+  return {
+    default_provider: chatModel?.default_provider ?? selectedModel?.provider ?? '',
+    default_model: chatModel?.default_model ?? selectedModel?.model ?? '',
+    available_providers: resolveProviderTypes(providers),
+    settings: {
+      temperature: chatModel?.temperature,
+      max_tokens: chatModel?.max_tokens,
+      top_p: chatModel?.top_p,
+      frequency_penalty: chatModel?.frequency_penalty,
+      presence_penalty: chatModel?.presence_penalty,
+    },
+    capabilities,
+  };
+};
+
+const mapModelTypeConfigToSelectedModel = (
+  modelType: ModelType,
+  modelConfig: ModelTypeConfig,
+): SelectedModel | SelectedChatModel => {
+  const base: SelectedModel = {
+    provider: modelConfig.default_provider,
+    model: modelConfig.default_model,
+  };
+
+  if (modelType === ModelType.CHAT) {
+    const chatConfig: SelectedChatModel = {
+      ...base,
+      default_provider: modelConfig.default_provider,
+      default_model: modelConfig.default_model,
+      capabilities: modelConfig.capabilities,
+      enable_thinking: modelConfig.capabilities?.thinking,
+      stream: modelConfig.capabilities?.streaming,
+    };
+
+    if (modelConfig.settings) {
+      chatConfig.temperature = modelConfig.settings.temperature;
+      chatConfig.max_tokens = modelConfig.settings.max_tokens;
+      chatConfig.top_p = modelConfig.settings.top_p;
+      chatConfig.frequency_penalty = modelConfig.settings.frequency_penalty;
+      chatConfig.presence_penalty = modelConfig.settings.presence_penalty;
+    }
+
+    return chatConfig;
+  }
+
+  return base;
+};
 
 export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
@@ -37,11 +126,21 @@ export const SettingsPanel: React.FC = () => {
 
   // Local state for configuration
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(null);
-  const [modelTypeConfigs, setModelTypeConfigs] = useState<Record<string, ModelTypeConfig>>({});
-  const configService = useService('configService')
+  const [modelTypeConfigs, setModelTypeConfigs] = useState<Record<ModelType, ModelTypeConfig>>(() =>
+    MODEL_TYPES.reduce<Record<ModelType, ModelTypeConfig>>((acc, type) => {
+      acc[type] = buildModelTypeConfig(type);
+      return acc;
+    }, {} as Record<ModelType, ModelTypeConfig>),
+  );
+  const configService = useService('configService');
 
   // Debounced save functionality
-  const { save: debouncedSaveConfig, cancel: cancelDebouncedSave, isSaving, saveStatus } = useDebouncedSave<AppConfig>({
+  const {
+    save: debouncedSaveConfig,
+    cancel: cancelDebouncedSave,
+    isSaving,
+    saveStatus,
+  } = useDebouncedSave<AppConfig>({
     delay: 1000,
     onSave: async (configToSave) => {
       await configService!.saveConfig(configToSave);
@@ -56,47 +155,31 @@ export const SettingsPanel: React.FC = () => {
   });
 
   useEffect(() => {
-    if (config) {
-      // Ensure openai-compatible provider is available in all model types
-      const updatedModelTypes = { ...config.ai.model_types };
-      let hasUpdates = false;
+    if (!config) return;
 
-      Object.keys(updatedModelTypes).forEach(modelType => {
-        if (!updatedModelTypes[modelType as keyof typeof updatedModelTypes]?.available_providers?.includes('openai-compatible')) {
-          updatedModelTypes[modelType as keyof typeof updatedModelTypes] = {
-            ...updatedModelTypes[modelType as keyof typeof updatedModelTypes],
-            available_providers: [...(updatedModelTypes[modelType as keyof typeof updatedModelTypes]?.available_providers || []), 'openai-compatible']
-          };
-          hasUpdates = true;
-        }
-      });
+    const providerPool = config.ai.providers ?? {};
+    const normalizedModelTypes = MODEL_TYPES.reduce<Record<ModelType, ModelTypeConfig>>(
+      (acc, modelType) => {
+        acc[modelType] = buildModelTypeConfig(
+          modelType,
+          config.ai.model_types?.[modelType],
+          providerPool,
+        );
+        return acc;
+      },
+      {} as Record<ModelType, ModelTypeConfig>,
+    );
 
-      setLocalConfig({ ...config });
-      setModelTypeConfigs(updatedModelTypes);
-
-      // Auto-save if we added the openai-compatible provider to existing config
-      if (hasUpdates) {
-        const updatedConfig = {
-          ...config,
-          ai: {
-            ...config.ai,
-            model_types: updatedModelTypes as any
-          }
-        };
-        // Only auto-save if not currently saving manually
-        if (!isSaving) {
-          configService!.saveConfig(updatedConfig).catch(console.error);
-        }
-      }
-    }
-  }, [config, isSaving]);
+    setLocalConfig({ ...config });
+    setModelTypeConfigs(normalizedModelTypes);
+  }, [config]);
 
   const handleSaveConfig = async () => {
     if (!localConfig) return;
 
     // Cancel any pending debounced saves to prevent double saving
     cancelDebouncedSave();
-    
+
     // Immediate save without debouncing
     try {
       await configService!.saveConfig(localConfig);
@@ -104,89 +187,98 @@ export const SettingsPanel: React.FC = () => {
       // Visual feedback is shown in the header - no toast needed
     } catch (error) {
       console.error('Failed to save configuration:', error);
-      settingsToasts.providerError('Settings', error instanceof Error ? error.message : 'Unknown error');
+      settingsToasts.providerError(
+        'Settings',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
   };
 
-  const handleModelTypeConfigChange = (modelType: string, updates: Partial<ModelTypeConfig>) => {
-    let finalUpdates = { ...updates };
-
-    // Handle api_keys structure correctly
+  const handleModelTypeConfigChange = (modelType: ModelType, updates: Partial<ModelTypeConfig>) => {
     const currentConfig = modelTypeConfigs[modelType];
+    if (!currentConfig) return;
 
-    // If provider is being changed, clear the model and custom fields if switching away from openai-compatible
-    if (updates.default_provider && updates.default_provider !== currentConfig?.default_provider) {
-      finalUpdates.default_model = '';
-      if (updates.default_provider !== 'openai-compatible') {
-        finalUpdates.custom_provider_url = undefined;
-      }
-      // Removed auto-fetch - only manual refresh button will trigger fetching
-    }
-    if (updates.api_keys) {
-      finalUpdates.api_keys = {
-        ...currentConfig?.api_keys,
-        ...updates.api_keys
-      };
-      // Removed auto-fetch - only manual refresh button will trigger fetching
-    }
-
-    const updatedModelTypes = {
-      ...modelTypeConfigs,
-      [modelType]: {
-        ...currentConfig,
-        ...finalUpdates,
+    const mergedConfig: ModelTypeConfig = {
+      ...currentConfig,
+      ...updates,
+      settings: {
+        ...currentConfig.settings,
+        ...updates.settings,
+      },
+      capabilities: {
+        ...currentConfig.capabilities,
+        ...updates.capabilities,
       },
     };
-    setModelTypeConfigs(updatedModelTypes);
 
-    if (localConfig) {
-      const modelTypeConfig = updatedModelTypes[modelType];
+    setModelTypeConfigs((prev) => ({
+      ...prev,
+      [modelType]: mergedConfig,
+    }));
 
-      // Synchronize global AI config when chat model type is changed
-      let aiConfigUpdates = { ...localConfig.ai };
-      if (modelType === 'chat') {
-        aiConfigUpdates = {
-          ...aiConfigUpdates,
-          default_provider: modelTypeConfig?.default_provider || aiConfigUpdates.default_provider,
-          default_model: modelTypeConfig?.default_model || aiConfigUpdates.default_model,
-        };
-      }
+    if (!localConfig) return;
 
-      const updatedConfig = {
-        ...localConfig,
-        ai: {
-          ...aiConfigUpdates,
-          model_types: updatedModelTypes as any,
-        },
+    const existingModelTypes = localConfig.ai.model_types ?? {};
+    const selectedModel = mapModelTypeConfigToSelectedModel(modelType, mergedConfig);
+    const updatedModelTypes = {
+      ...existingModelTypes,
+      [modelType]: selectedModel,
+    };
+
+    let aiConfigUpdates = { ...localConfig.ai };
+    if (modelType === ModelType.CHAT) {
+      aiConfigUpdates = {
+        ...aiConfigUpdates,
+        default_provider: mergedConfig.default_provider || aiConfigUpdates.default_provider,
+        default_model: mergedConfig.default_model || aiConfigUpdates.default_model,
       };
-      setLocalConfig(updatedConfig);
+    }
 
-      // Auto-save to global config store with debouncing
-      debouncedSaveConfig(updatedConfig);
+    const updatedConfig: AppConfig = {
+      ...localConfig,
+      ai: {
+        ...aiConfigUpdates,
+        model_types: updatedModelTypes,
+      },
+    };
+    setLocalConfig(updatedConfig);
 
-      // Trigger model reload for chat type changes
-      if (modelType === 'chat' && modelTypeConfig) {
-        configService!.updateModelTypeConfig(ModelType.CHAT, modelTypeConfig).catch(console.error);
-      }
+    // Auto-save to global config store with debouncing
+    debouncedSaveConfig(updatedConfig);
+
+    // Trigger model reload for chat type changes
+    if (modelType === ModelType.CHAT) {
+      configService!.updateModelTypeConfig(ModelType.CHAT, mergedConfig).catch(console.error);
     }
   };
 
   const providerConfigs = useMemo(() => localConfig?.ai?.providers ?? {}, [localConfig]);
 
-  const modelAssignments = useMemo(() => ({
-    chat: {
-      provider_config_id: localConfig?.ai?.model_types?.chat?.provider || '',
-      model_id: localConfig?.ai?.model_types?.chat?.model || '',
-    },
-    embedding: {
-      provider_config_id: localConfig?.ai?.model_types?.embedding?.provider || '',
-      model_id: localConfig?.ai?.model_types?.embedding?.model || '',
-    },
-    rerank: {
-      provider_config_id: localConfig?.ai?.model_types?.rerank?.provider || '',
-      model_id: localConfig?.ai?.model_types?.rerank?.model || '',
-    },
-  }), [localConfig]);
+  const modelAssignments = useMemo<
+    Record<
+      ModelType,
+      {
+        provider_config_id: string;
+        model_id: string;
+      }
+    >
+  >(
+    () => ({
+      [ModelType.CHAT]: {
+        provider_config_id: localConfig?.ai?.model_types?.chat?.provider || '',
+        model_id: localConfig?.ai?.model_types?.chat?.model || '',
+      },
+      [ModelType.EMBEDDING]: {
+        provider_config_id: localConfig?.ai?.model_types?.embedding?.provider || '',
+        model_id: localConfig?.ai?.model_types?.embedding?.model || '',
+      },
+      [ModelType.RERANK]: {
+        provider_config_id: localConfig?.ai?.model_types?.rerank?.provider || '',
+        model_id: localConfig?.ai?.model_types?.rerank?.model || '',
+      },
+    }),
+    [localConfig],
+  );
 
   const handleProviderConfigChange = (providerId: string, providerConfig: ProviderConfig) => {
     if (!localConfig) return;
@@ -204,11 +296,7 @@ export const SettingsPanel: React.FC = () => {
     debouncedSaveConfig(updatedConfig);
   };
 
-  const handleModelAssignmentChange = (
-    modelType: string,
-    providerId: string,
-    modelId: string
-  ) => {
+  const handleModelAssignmentChange = (modelType: ModelType, providerId: string, modelId: string) => {
     if (!localConfig) return;
 
     const existingModelTypes = localConfig.ai.model_types ?? {};
@@ -245,23 +333,24 @@ export const SettingsPanel: React.FC = () => {
     }));
   };
 
-  const handleConfigChange = useCallback((updates: Partial<AppConfig>) => {
-    if (!localConfig) return;
+  const handleConfigChange = useCallback(
+    (updates: Partial<AppConfig>) => {
+      if (!localConfig) return;
 
-    const updatedConfig = {
-      ...localConfig,
-      ...updates,
-    };
+      const updatedConfig = {
+        ...localConfig,
+        ...updates,
+      };
 
-    setLocalConfig(updatedConfig);
-    debouncedSaveConfig(updatedConfig);
-  }, [localConfig, debouncedSaveConfig]);
+      setLocalConfig(updatedConfig);
+      debouncedSaveConfig(updatedConfig);
+    },
+    [localConfig, debouncedSaveConfig],
+  );
 
   const toggleSection = (sectionId: string) => {
-    setExpandedSections(prev =>
-      prev.includes(sectionId)
-        ? prev.filter(id => id !== sectionId)
-        : [...prev, sectionId]
+    setExpandedSections((prev) =>
+      prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId],
     );
   };
 
@@ -349,10 +438,7 @@ export const SettingsPanel: React.FC = () => {
                     />
                   </ComponentErrorBoundary>
                   <ComponentErrorBoundary componentName="Response Settings">
-                    <ResponseSettings
-                      config={localConfig}
-                      onConfigChange={handleConfigChange}
-                    />
+                    <ResponseSettings config={localConfig} onConfigChange={handleConfigChange} />
                   </ComponentErrorBoundary>
                 </div>
               </Accordion.Item>
@@ -365,10 +451,7 @@ export const SettingsPanel: React.FC = () => {
                 defaultExpanded={true}
               >
                 <ComponentErrorBoundary componentName="UI Settings">
-                  <UISettings
-                    config={localConfig}
-                    onConfigChange={handleConfigChange}
-                  />
+                  <UISettings config={localConfig} onConfigChange={handleConfigChange} />
                 </ComponentErrorBoundary>
               </Accordion.Item>
 
@@ -379,10 +462,7 @@ export const SettingsPanel: React.FC = () => {
                 description="Advanced configuration options and experimental features"
               >
                 <ComponentErrorBoundary componentName="Advanced Settings">
-                  <AdvancedSettings
-                    config={localConfig}
-                    onConfigChange={handleConfigChange}
-                  />
+                  <AdvancedSettings config={localConfig} onConfigChange={handleConfigChange} />
                 </ComponentErrorBoundary>
               </Accordion.Item>
             </Accordion>
@@ -392,3 +472,4 @@ export const SettingsPanel: React.FC = () => {
     </SettingsErrorBoundary>
   );
 };
+export default SettingsPanel;

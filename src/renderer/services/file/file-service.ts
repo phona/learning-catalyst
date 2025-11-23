@@ -6,20 +6,18 @@
 
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
+import type {
+  OpenDialogOptions,
+  OpenDialogReturnValue,
+  SaveDialogOptions,
+  SaveDialogReturnValue,
+} from 'electron';
 
-export interface FileOpenDialogOptions {
-  properties?: ('openFile' | 'openFiles' | 'multiSelections' | 'showHiddenFiles' | 'createDirectory' | 'promptToCreate' | 'noResolveAliases' | 'treatPackageAsDirectory' | 'dontAddToRecent')[];
-  filters?: Array<{ name: string; extensions: string[] }>;
-  title?: string;
-  defaultPath?: string;
-}
-
-export interface FileSaveDialogOptions {
-  defaultPath?: string;
-  filters?: Array<{ name: string; extensions: string[] }>;
-  title?: string;
-  buttonLabel?: string;
-}
+// Fix: Align dialog option/return types with Electron to prevent type mismatch
+// Rationale: Custom options previously allowed invalid 'openFiles' and returned generic string
+// Now using Electron's types ensures compatibility with main process and better type safety
+export type FileOpenDialogOptions = OpenDialogOptions;
+export type FileSaveDialogOptions = SaveDialogOptions;
 
 export interface FileOperationResult<T = string> {
   success: boolean;
@@ -32,7 +30,23 @@ export interface FileOperationResult<T = string> {
 }
 
 const MAX_FILE_SIZE = 50000; // 50KB limit
-const ALLOWED_EXTENSIONS = ['txt', 'md', 'js', 'ts', 'py', 'java', 'cpp', 'c', 'json', 'yml', 'yaml', 'xml', 'csv', 'html', 'css'];
+const ALLOWED_EXTENSIONS = [
+  'txt',
+  'md',
+  'js',
+  'ts',
+  'py',
+  'java',
+  'cpp',
+  'c',
+  'json',
+  'yml',
+  'yaml',
+  'xml',
+  'csv',
+  'html',
+  'css',
+];
 
 /**
  * Validates file content for security and size
@@ -45,8 +59,8 @@ function validateFileContent(content: unknown, filePath: string): FileOperationR
       error: {
         code: 'INVALID_CONTENT_TYPE',
         message: 'Invalid file content format - expected string',
-        details: { receivedType: typeof content, filePath }
-      }
+        details: { receivedType: typeof content, filePath },
+      },
     };
   }
 
@@ -57,8 +71,8 @@ function validateFileContent(content: unknown, filePath: string): FileOperationR
       error: {
         code: 'FILE_TOO_LARGE',
         message: `File is too large (max ${MAX_FILE_SIZE} bytes)`,
-        details: { fileSize: content.length, maxSize: MAX_FILE_SIZE, filePath }
-      }
+        details: { fileSize: content.length, maxSize: MAX_FILE_SIZE, filePath },
+      },
     };
   }
 
@@ -75,7 +89,7 @@ function sanitizeContent(content: string): string {
       '>': '&gt;',
       '&': '&amp;',
       '"': '&quot;',
-      "'": '&#x27;'
+      "'": '&#x27;',
     };
     return entities[match];
   });
@@ -98,15 +112,17 @@ export function createFileService(electronAPI: ElectronAPI) {
   /**
    * Shows an open dialog to select files
    */
-  const showOpenDialog = async (options?: FileOpenDialogOptions): Promise<FileOperationResult> => {
+  const showOpenDialog = async (
+    options?: FileOpenDialogOptions,
+  ): Promise<FileOperationResult<OpenDialogReturnValue>> => {
     try {
       if (!electronAPI?.showOpenDialog) {
         return {
           success: false,
           error: {
             code: 'SERVICE_UNAVAILABLE',
-            message: 'File dialog service is not available'
-          }
+            message: 'File dialog service is not available',
+          },
         };
       }
 
@@ -116,21 +132,29 @@ export function createFileService(electronAPI: ElectronAPI) {
           { name: 'Text Files', extensions: ALLOWED_EXTENSIONS },
           { name: 'All Files', extensions: ['*'] },
         ],
-        ...options
+        ...options,
       });
 
       return {
         success: true,
-        data: result
+        data: result,
       };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:showOpenDialog',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'DIALOG_ERROR',
           message: error instanceof Error ? error.message : 'Failed to open file dialog',
-          details: error
-        }
+          details: error,
+        },
       };
     }
   };
@@ -138,15 +162,17 @@ export function createFileService(electronAPI: ElectronAPI) {
   /**
    * Reads and validates file content
    */
-  const readFile = async (filePath: string): Promise<FileOperationResult<{ content: string; fileName: string }>> => {
+  const readFile = async (
+    filePath: string,
+  ): Promise<FileOperationResult<{ content: string; fileName: string }>> => {
     try {
       if (!filePath) {
         return {
           success: false,
           error: {
             code: 'INVALID_PATH',
-            message: 'File path is required'
-          }
+            message: 'File path is required',
+          },
         };
       }
 
@@ -158,7 +184,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       // Validate content
       const validation = validateFileContent(content, filePath);
       if (!validation.success) {
-        return validation as FileOperationResult;
+        return { success: false, error: validation.error };
       }
 
       // Sanitize content
@@ -168,17 +194,25 @@ export function createFileService(electronAPI: ElectronAPI) {
         success: true,
         data: {
           content: sanitizedContent,
-          fileName
-        }
+          fileName,
+        },
       };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:readFile',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'READ_ERROR',
           message: error instanceof Error ? error.message : 'Failed to read file',
-          details: { filePath, error }
-        }
+          details: { filePath, error },
+        },
       };
     }
   };
@@ -193,8 +227,8 @@ export function createFileService(electronAPI: ElectronAPI) {
           success: false,
           error: {
             code: 'INVALID_PATH',
-            message: 'File path is required'
-          }
+            message: 'File path is required',
+          },
         };
       }
 
@@ -203,8 +237,8 @@ export function createFileService(electronAPI: ElectronAPI) {
           success: false,
           error: {
             code: 'INVALID_CONTENT',
-            message: 'Content must be a string'
-          }
+            message: 'Content must be a string',
+          },
         };
       }
 
@@ -212,13 +246,21 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       return { success: true };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:writeFile',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'WRITE_ERROR',
           message: error instanceof Error ? error.message : 'Failed to write file',
-          details: { filePath, error }
-        }
+          details: { filePath, error },
+        },
       };
     }
   };
@@ -233,8 +275,8 @@ export function createFileService(electronAPI: ElectronAPI) {
           success: false,
           error: {
             code: 'INVALID_PATH',
-            message: 'File path is required'
-          }
+            message: 'File path is required',
+          },
         };
       }
 
@@ -242,16 +284,24 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       return {
         success: true,
-        data: exists
+        data: exists,
       };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:existsFile',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'EXISTS_CHECK_ERROR',
           message: error instanceof Error ? error.message : 'Failed to check file existence',
-          details: { filePath, error }
-        }
+          details: { filePath, error },
+        },
       };
     }
   };
@@ -259,15 +309,17 @@ export function createFileService(electronAPI: ElectronAPI) {
   /**
    * Shows a save dialog
    */
-  const showSaveDialog = async (options?: FileSaveDialogOptions): Promise<FileOperationResult> => {
+  const showSaveDialog = async (
+    options?: FileSaveDialogOptions,
+  ): Promise<FileOperationResult<SaveDialogReturnValue>> => {
     try {
       if (!electronAPI?.showSaveDialog) {
         return {
           success: false,
           error: {
             code: 'SERVICE_UNAVAILABLE',
-            message: 'Save dialog service is not available'
-          }
+            message: 'Save dialog service is not available',
+          },
         };
       }
 
@@ -275,16 +327,24 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       return {
         success: true,
-        data: result
+        data: result,
       };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:showSaveDialog',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'DIALOG_ERROR',
           message: error instanceof Error ? error.message : 'Failed to open save dialog',
-          details: error
-        }
+          details: error,
+        },
       };
     }
   };
@@ -293,7 +353,7 @@ export function createFileService(electronAPI: ElectronAPI) {
     dirPath: string,
     recursive = true,
     maxDepth = 3,
-    filterConfig?: DirectoryFilterConfig
+    filterConfig?: DirectoryFilterConfig,
   ): Promise<FileOperationResult<DirectoryScanResult[]>> => {
     try {
       if (!dirPath) {
@@ -301,8 +361,8 @@ export function createFileService(electronAPI: ElectronAPI) {
           success: false,
           error: {
             code: 'INVALID_PATH',
-            message: 'Directory path is required'
-          }
+            message: 'Directory path is required',
+          },
         };
       }
 
@@ -311,8 +371,8 @@ export function createFileService(electronAPI: ElectronAPI) {
           success: false,
           error: {
             code: 'SERVICE_UNAVAILABLE',
-            message: 'Directory listing service is not available'
-          }
+            message: 'Directory listing service is not available',
+          },
         };
       }
 
@@ -320,16 +380,24 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       return {
         success: true,
-        data: Array.isArray(items) ? items : []
+        data: Array.isArray(items) ? items : [],
       };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:readDirectory',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'READ_DIRECTORY_ERROR',
           message: error instanceof Error ? error.message : 'Failed to read directory',
-          details: { dirPath, error }
-        }
+          details: { dirPath, error },
+        },
       };
     }
   };
@@ -341,8 +409,8 @@ export function createFileService(electronAPI: ElectronAPI) {
           success: false,
           error: {
             code: 'SERVICE_UNAVAILABLE',
-            message: 'Workspace path service is not available'
-          }
+            message: 'Workspace path service is not available',
+          },
         };
       }
 
@@ -350,16 +418,24 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       return {
         success: true,
-        data: workspacePath || null
+        data: workspacePath || null,
       };
     } catch (error) {
+      // Log to centralized error handler when available
+      try {
+        electronAPI?.handleError?.(
+          error instanceof Error ? error : String(error),
+          'renderer:file-service:getWorkspacePath',
+          'error',
+        );
+      } catch {}
       return {
         success: false,
         error: {
           code: 'WORKSPACE_PATH_ERROR',
           message: error instanceof Error ? error.message : 'Failed to get workspace path',
-          details: error
-        }
+          details: error,
+        },
       };
     }
   };
@@ -371,7 +447,7 @@ export function createFileService(electronAPI: ElectronAPI) {
     existsFile,
     showSaveDialog,
     readDirectory,
-    getWorkspacePath
+    getWorkspacePath,
   };
 }
 

@@ -54,7 +54,7 @@ export interface IPCStreamMessage extends IPCMessage {
 }
 
 // Process types for testing
-export type MockMainProcess = EventEmitter
+export type MockMainProcess = EventEmitter;
 
 export interface MockRendererProcess extends EventEmitter {
   invoke: (channel: string, data: any) => Promise<any>;
@@ -132,10 +132,13 @@ export const IPC_EVENTS = {
 
 // Type guards
 export function isIPCMessage(obj: any): obj is IPCMessage {
-  return obj && typeof obj === 'object' &&
-         typeof obj.id === 'string' &&
-         typeof obj.channel === 'string' &&
-         typeof obj.timestamp === 'number';
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    typeof obj.channel === 'string' &&
+    typeof obj.timestamp === 'number'
+  );
 }
 
 export function isIPCRequest(obj: any): obj is IPCRequest {
@@ -151,8 +154,10 @@ export function isIPCEvent(obj: any): obj is IPCEvent {
 }
 
 export function isIPCStreamMessage(obj: any): obj is IPCStreamMessage {
-  return isIPCMessage(obj) &&
-         obj.type === 'stream' &&
-         typeof obj.streamId === 'string' &&
-         typeof obj.isComplete === 'boolean';
+  return (
+    isIPCMessage(obj) &&
+    obj.type === 'stream' &&
+    typeof obj.streamId === 'string' &&
+    typeof obj.isComplete === 'boolean'
+  );
 }

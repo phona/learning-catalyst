@@ -73,10 +73,5 @@
     "ask": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "context7",
-    "magic",
-    "sequential-thinking",
-    "langchain"
-  ]
+  "enabledMcpjsonServers": ["context7", "magic", "sequential-thinking", "langchain"]
 }

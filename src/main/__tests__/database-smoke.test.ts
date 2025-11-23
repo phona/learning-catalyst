@@ -5,7 +5,7 @@ import { setdbPath, executeQuery, fetchAll } from 'sqlite-electron';
 import {
   createSqliteDriverFactory,
   getDefaultDatabasePath,
-  runMigrations
+  runMigrations,
 } from '@/main/services/core/database/kysely-database';
 
 interface DatabaseRow {
@@ -28,16 +28,20 @@ describe('sqlite-electron smoke test', () => {
     await fs.mkdir(path.dirname(dbPath), { recursive: true });
     await setdbPath(dbPath, false, true);
 
-    await executeQuery('CREATE TABLE IF NOT EXISTS smoke_entries (id TEXT PRIMARY KEY, value TEXT)');
+    await executeQuery(
+      'CREATE TABLE IF NOT EXISTS smoke_entries (id TEXT PRIMARY KEY, value TEXT)',
+    );
 
     const entryId = `direct-${Date.now()}`;
     await executeQuery('INSERT INTO smoke_entries (id, value) VALUES (?, ?)', [entryId, 'ok']);
 
-    const rows = await fetchAll('SELECT value FROM smoke_entries WHERE id = ?', [entryId]) as DatabaseRow[] | QueryResult;
+    const rows = (await fetchAll('SELECT value FROM smoke_entries WHERE id = ?', [entryId])) as
+      | DatabaseRow[]
+      | QueryResult;
     const value =
       Array.isArray(rows) && rows.length
-        ? rows[0]?.value ?? (rows[0] as { VALUE?: string })?.VALUE
-        : (rows as QueryResult)?.result?.[0]?.value ?? (rows as QueryResult)?.rows?.[0]?.value;
+        ? (rows[0]?.value ?? (rows[0] as { VALUE?: string })?.VALUE)
+        : ((rows as QueryResult)?.result?.[0]?.value ?? (rows as QueryResult)?.rows?.[0]?.value);
 
     expect(value).toBe('ok');
 

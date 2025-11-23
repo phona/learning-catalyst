@@ -29,12 +29,14 @@ export interface VectorSearchOptions {
 export class VectorDatabaseModule {
   private qdrantManager = getQdrantManager();
 
-  async addDocument(document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>): Promise<void> {
+  async addDocument(
+    document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
+  ): Promise<void> {
     const vectorDoc: VectorDocument = {
       ...document,
       embedding: [0.1, 0.2, 0.3], // TODO: Generate real embeddings using AI service
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     await this.qdrantManager.addKnowledgeItem(vectorDoc, null);
@@ -43,16 +45,16 @@ export class VectorDatabaseModule {
   async search(query: string, options: VectorSearchOptions = {}): Promise<SearchResult[]> {
     const limit = options.limit ?? 10;
     const threshold = options.threshold ?? 0.6;
-    
+
     const results = await this.qdrantManager.searchKnowledge(query, null, limit);
-    
+
     return results
       .filter((result: any) => result.similarity >= threshold)
       .slice(0, limit)
       .map((result: any) => ({
         document: result.item,
         score: result.similarity,
-        metadata: result.item.metadata
+        metadata: result.item.metadata,
       }));
   }
 
@@ -63,13 +65,13 @@ export class VectorDatabaseModule {
   async getStats(): Promise<{ totalDocuments: number }> {
     const collections = await this.qdrantManager.listCollections();
     const knowledgeCollection = collections.find((col: any) => col.name === 'knowledge_items');
-    
+
     return {
-      totalDocuments: knowledgeCollection?.points_count || 0
+      totalDocuments: knowledgeCollection?.points_count || 0,
     };
   }
 
   async start(): Promise<void> {
-    await this.qdrantManager.start();
+    await this.qdrantManager.initialize();
   }
 }

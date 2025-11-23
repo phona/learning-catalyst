@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 
 interface StudyStreakProps {
@@ -14,7 +11,7 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({
   streakDays,
   lastStudyDate,
   goalDays = 7,
-  className = ''
+  className = '',
 }) => {
   const getStreakMessage = (): string => {
     if (streakDays === 0) return 'Start your learning journey!';
@@ -39,16 +36,16 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({
   const studiedToday = lastStudyDate?.toDateString() === today;
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Study Streak</h3>
         <span className="text-3xl">{getStreakEmoji()}</span>
       </div>
 
       <div className="text-center mb-6">
-        <div className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          {streakDays}
-        </div>
+        <div className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">{streakDays}</div>
         <div className="text-sm text-gray-600 dark:text-gray-400">
           day{streakDays !== 1 ? 's' : ''} in a row
         </div>
@@ -61,9 +58,7 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({
         {lastStudyDate && (
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
             Last studied:{' '}
-            <span data-testid="last-study-date">
-              {lastStudyDate.toLocaleDateString('en-US')}
-            </span>
+            <span data-testid="last-study-date">{lastStudyDate.toLocaleDateString('en-US')}</span>
             {studiedToday && <span aria-label="Studied today"> ✓</span>}
           </p>
         )}
@@ -73,7 +68,9 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600 dark:text-gray-400">Weekly Goal</span>
-          <span className="text-gray-900 dark:text-gray-100">{streakDays}/{goalDays} days</span>
+          <span className="text-gray-900 dark:text-gray-100">
+            {streakDays}/{goalDays} days
+          </span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div
@@ -96,7 +93,7 @@ export const StudyStreak: React.FC<StudyStreakProps> = ({
             const date = new Date();
             const dayIndex = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(day);
             date.setDate(date.getDate() - (6 - dayIndex));
-            const isStudied = dayIndex >= (7 - streakDays) && studiedToday && dayIndex === 6;
+            const isStudied = dayIndex >= 7 - streakDays && studiedToday && dayIndex === 6;
             const isPast = dayIndex < 6;
 
             return (

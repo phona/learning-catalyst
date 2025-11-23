@@ -71,15 +71,18 @@ export interface ChatAPI {
    * @param options.filter - Filter by message type or content
    * @returns Promise<ConversationHistory> - Paginated message history
    */
-  getConversationHistory: (conversationId: string, options?: {
-    limit?: number;
-    before?: string;
-    filter?: {
-      messageType?: 'user' | 'assistant' | 'all';
-      dateRange?: { start: Date; end: Date };
-      hasAttachments?: boolean;
-    };
-  }) => Promise<APIResponse<ConversationHistory>>;
+  getConversationHistory: (
+    conversationId: string,
+    options?: {
+      limit?: number;
+      before?: string;
+      filter?: {
+        messageType?: 'user' | 'assistant' | 'all';
+        dateRange?: { start: Date; end: Date };
+        hasAttachments?: boolean;
+      };
+    },
+  ) => Promise<APIResponse<ConversationHistory>>;
 
   /**
    * Pauses an active conversation

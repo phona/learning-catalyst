@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ExclamationTriangleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
@@ -46,7 +43,7 @@ interface SettingsErrorBoundaryProps {
  */
 export const SettingsErrorBoundary: React.FC<SettingsErrorBoundaryProps> = ({
   children,
-  onSaveError
+  onSaveError,
 }) => {
   const handleError = (error: Error) => {
     // Log settings-specific errors
@@ -67,7 +64,8 @@ export const SettingsErrorBoundary: React.FC<SettingsErrorBoundaryProps> = ({
           </p>
           <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded">
             <p className="text-xs text-yellow-800 dark:text-yellow-200">
-              <strong>Note:</strong> Your previous settings are still saved and active. Only the settings interface is affected.
+              <strong>Note:</strong> Your previous settings are still saved and active. Only the
+              settings interface is affected.
             </p>
           </div>
         </div>

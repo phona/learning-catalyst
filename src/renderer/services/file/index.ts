@@ -3,5 +3,5 @@ export type { FileService } from './file-service';
 export type {
   FileOpenDialogOptions,
   FileSaveDialogOptions,
-  FileOperationResult
+  FileOperationResult,
 } from './file-service';

@@ -20,20 +20,20 @@ vi.mock('../practice-service', () => {
           steps: ['Import useState', 'Initialize state', 'Implement handlers'],
           hints: ['Remember to call useState at top level'],
           expectedOutcome: 'Working counter component',
-          metadata: {}
-        }
+          metadata: {},
+        },
       ],
       suggestions: ['Practice consistently', 'Review examples'],
       metadata: {
         generatedAt: new Date().toISOString(),
         knowledgeNodes: 2,
-        knowledgeRelationships: 1
-      }
-    })
+        knowledgeRelationships: 1,
+      },
+    }),
   };
 
   return {
-    createPracticeService: vi.fn(() => mockPracticeService)
+    createPracticeService: vi.fn(() => mockPracticeService),
   };
 });
 
@@ -56,25 +56,27 @@ describe('Practice Service - Basic Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-key',
         temperature: presetId === 'practice.exercise' ? 0.2 : 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       })),
       getProviders: vi.fn(),
-      getAvailableModels: vi.fn()
+      getAvailableModels: vi.fn(),
     };
 
     // Mock domain agent
     mockDomainAgent = {
-      stream: vi.fn()
+      stream: vi.fn(),
     };
 
     // Mock knowledge service
     mockKnowledgeService = {
-      exploreConcepts: vi.fn().mockResolvedValue([
-        { id: 'concept-1', name: 'useState', description: 'State management hook' }
-      ]),
-      getRelatedConcepts: vi.fn().mockResolvedValue([
-        { id: 'concept-2', name: 'useEffect', strength: 0.8 }
-      ])
+      exploreConcepts: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 'concept-1', name: 'useState', description: 'State management hook' },
+        ]),
+      getRelatedConcepts: vi
+        .fn()
+        .mockResolvedValue([{ id: 'concept-2', name: 'useEffect', strength: 0.8 }]),
     };
 
     // Mock logger service
@@ -83,8 +85,8 @@ describe('Practice Service - Basic Tests', () => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
-        debug: vi.fn()
-      }))
+        debug: vi.fn(),
+      })),
     };
 
     // Import practice service
@@ -94,7 +96,7 @@ describe('Practice Service - Basic Tests', () => {
       aiService: mockAiService,
       domainAgent: mockDomainAgent,
       loggerService: mockLoggerService,
-      knowledgeService: mockKnowledgeService
+      knowledgeService: mockKnowledgeService,
     });
   });
 
@@ -123,7 +125,7 @@ describe('Practice Service - Basic Tests', () => {
       practiceType: 'coding' as const,
       content: 'Learning about useState and useEffect',
       vibe: 'hands-on learning',
-      context: 'building a todo app'
+      context: 'building a todo app',
     };
 
     it('should generate practice plan successfully', async () => {
@@ -136,7 +138,7 @@ describe('Practice Service - Basic Tests', () => {
         count: 3,
         summary: expect.stringContaining('React hooks'),
         exercises: expect.any(Array),
-        suggestions: expect.any(Array)
+        suggestions: expect.any(Array),
       });
 
       expect(result.exercises).toHaveLength(1);
@@ -144,13 +146,13 @@ describe('Practice Service - Basic Tests', () => {
         id: 'ex-1',
         title: 'Build a Counter Component',
         type: 'coding',
-        difficulty: 'medium'
+        difficulty: 'medium',
       });
     });
 
     it('should handle missing parameters with defaults', async () => {
       const minimalRequest = {
-        topic: 'JavaScript Functions'
+        topic: 'JavaScript Functions',
       };
 
       const result = await practiceService.generatePracticePlan(minimalRequest);
@@ -175,14 +177,17 @@ describe('Practice Service - Basic Tests', () => {
 
   describe('Different Practice Types', () => {
     const practiceTypes: Array<'coding' | 'conceptual' | 'problem_solving' | 'general'> = [
-      'coding', 'conceptual', 'problem_solving', 'general'
+      'coding',
+      'conceptual',
+      'problem_solving',
+      'general',
     ];
 
-    practiceTypes.forEach(practiceType => {
+    practiceTypes.forEach((practiceType) => {
       it(`should handle ${practiceType} practice type`, async () => {
         const request = {
           topic: 'Test Topic',
-          practiceType
+          practiceType,
         };
 
         const result = await practiceService.generatePracticePlan(request);
@@ -198,11 +203,11 @@ describe('Practice Service - Basic Tests', () => {
   describe('Different Difficulty Levels', () => {
     const difficulties: Array<'easy' | 'medium' | 'hard'> = ['easy', 'medium', 'hard'];
 
-    difficulties.forEach(difficulty => {
+    difficulties.forEach((difficulty) => {
       it(`should handle ${difficulty} difficulty level`, async () => {
         const request = {
           topic: 'Test Topic',
-          difficulty
+          difficulty,
         };
 
         const result = await practiceService.generatePracticePlan(request);
@@ -219,7 +224,7 @@ describe('Practice Service - Basic Tests', () => {
       const request = {
         topic: 'React Hooks',
         practiceType: 'coding',
-        count: 2
+        count: 2,
       };
 
       const result = await practiceService.generatePracticePlan(request);
@@ -236,14 +241,14 @@ describe('Practice Service - Basic Tests', () => {
         steps: expect.any(Array),
         hints: expect.any(Array),
         expectedOutcome: expect.any(String),
-        metadata: expect.any(Object)
+        metadata: expect.any(Object),
       });
     });
 
     it('should include metadata in exercises', async () => {
       const request = {
         topic: 'React Testing',
-        practiceType: 'coding'
+        practiceType: 'coding',
       };
 
       const result = await practiceService.generatePracticePlan(request);
@@ -257,7 +262,7 @@ describe('Practice Service - Basic Tests', () => {
     it('should provide practice suggestions', async () => {
       const request = {
         topic: 'Advanced Topic',
-        practiceType: 'conceptual'
+        practiceType: 'conceptual',
       };
 
       const result = await practiceService.generatePracticePlan(request);
@@ -269,11 +274,13 @@ describe('Practice Service - Basic Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle missing knowledge service gracefully', async () => {
-      vi.mocked(mockKnowledgeService.exploreConcepts).mockRejectedValue(new Error('Knowledge service unavailable'));
+      vi.mocked(mockKnowledgeService.exploreConcepts).mockRejectedValue(
+        new Error('Knowledge service unavailable'),
+      );
 
       const request = {
         topic: 'Error Topic',
-        practiceType: 'coding'
+        practiceType: 'coding',
       };
 
       // Should still generate a plan with fallback - using mocked return values
@@ -289,7 +296,7 @@ describe('Practice Service - Basic Tests', () => {
 
       const request = {
         topic: 'Fallback Topic',
-        practiceType: 'general'
+        practiceType: 'general',
       };
 
       // Should still generate a plan with fallback - using mocked return values
@@ -306,7 +313,7 @@ describe('Practice Service - Basic Tests', () => {
       const requestWithVibe = {
         topic: 'React Testing',
         vibe: 'practical testing',
-        practiceType: 'coding'
+        practiceType: 'coding',
       };
 
       const result = await practiceService.generatePracticePlan(requestWithVibe);
@@ -321,7 +328,7 @@ describe('Practice Service - Basic Tests', () => {
       const requestWithContext = {
         topic: 'Node.js APIs',
         context: 'building a REST API',
-        practiceType: 'coding'
+        practiceType: 'coding',
       };
 
       const result = await practiceService.generatePracticePlan(requestWithContext);
@@ -337,7 +344,7 @@ describe('Practice Service - Basic Tests', () => {
     it('should enrich plan metadata', async () => {
       const request = {
         topic: 'Advanced React',
-        practiceType: 'coding'
+        practiceType: 'coding',
       };
 
       const result = await practiceService.generatePracticePlan(request);
@@ -345,13 +352,13 @@ describe('Practice Service - Basic Tests', () => {
       expect(result.metadata).toMatchObject({
         generatedAt: expect.any(String),
         knowledgeNodes: expect.any(Number),
-        knowledgeRelationships: expect.any(Number)
+        knowledgeRelationships: expect.any(Number),
       });
     });
 
     it('should track generation time', async () => {
       const request = {
-        topic: 'Timed Exercise'
+        topic: 'Timed Exercise',
       };
 
       const result = await practiceService.generatePracticePlan(request);

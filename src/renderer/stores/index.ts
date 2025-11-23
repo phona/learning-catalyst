@@ -1,23 +1,22 @@
-
 /**
  * Stores Index - Clean Architecture State Management
  * Exports all Zustand stores organized by domain
  */
 
 // App Store - Global application state
-export { useAppStore, useCurrentView, useIsLoading, useError, useSuccess, useTheme, usePreferences, useIsConnected, useIsOnline, useNavigationState, useAppActions } from './app/appStore';
-
-// Chat Store - Chat functionality state
 export {
-  useChatStore,
-  useCurrentMessages,
-  useCurrentAgent,
-  useIsTyping,
-  useChatLoading,
-  useChatError,
-  useStreamingState,
-  useChatActions
-} from './chat/chatStore';
+  useAppStore,
+  useCurrentView,
+  useIsLoading,
+  useError,
+  useSuccess,
+  useTheme,
+  usePreferences,
+  useIsConnected,
+  useIsOnline,
+  useNavigationState,
+  useAppActions,
+} from './app/appStore';
 
 // Session Store - Session management state
 export {
@@ -27,7 +26,7 @@ export {
   useSessionsLoading,
   useSessionError,
   useFilteredSessions,
-  useSessionActions
+  useSessionActions,
 } from './sessions/sessionStore';
 
 // Agent Store - Agent management state
@@ -40,7 +39,7 @@ export {
   useAgentError,
   useFilteredAgents,
   useAgentStatus,
-  useAgentActions
+  useAgentActions,
 } from './agents/agentStore';
 
 // Legacy stores (for compatibility during migration)

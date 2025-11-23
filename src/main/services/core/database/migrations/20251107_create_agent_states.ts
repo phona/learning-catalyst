@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -9,19 +9,19 @@ export default {
       .addColumn('agent_id', 'text', (col) => col.notNull().unique())
       .addColumn('state_data', 'text', (col) => col.notNull()) // JSON object for state data
       .addColumn('version', 'integer', (col) => col.defaultTo(1).notNull())
-      .addColumn('created_at', 'integer', (col) => col.defaultTo(sql`strftime('%s', 'now')`).notNull())
-      .addColumn('updated_at', 'integer', (col) => col.defaultTo(sql`strftime('%s', 'now')`).notNull())
-      .addForeignKeyConstraint(
-        'fk_agent_states_agent_id',
-        ['agent_id'],
-        'agents',
-        ['id'],
-        (fk) => fk.onDelete('cascade')
+      .addColumn('created_at', 'integer', (col) =>
+        col.defaultTo(sql`strftime('%s', 'now')`).notNull(),
       )
-      .execute()
+      .addColumn('updated_at', 'integer', (col) =>
+        col.defaultTo(sql`strftime('%s', 'now')`).notNull(),
+      )
+      .addForeignKeyConstraint('fk_agent_states_agent_id', ['agent_id'], 'agents', ['id'], (fk) =>
+        fk.onDelete('cascade'),
+      )
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
-    await db.schema.dropTable('agent_states').execute()
-  }
-}
+    await db.schema.dropTable('agent_states').execute();
+  },
+};

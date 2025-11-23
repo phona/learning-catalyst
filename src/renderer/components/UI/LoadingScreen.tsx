@@ -1,13 +1,10 @@
-
-
-
 import React from 'react';
 import {
   CogIcon,
   SparklesIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
 interface LoadingScreenProps {
@@ -25,46 +22,56 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   error,
   onRetry,
   showProgress = false,
-  progress = 0
+  progress = 0,
 }) => {
   const getStateContent = () => {
     switch (state) {
-    case 'config':
-      return {
-        defaultMessage: 'Loading configuration...',
-        icon: <CogIcon className="w-8 h-8 text-blue-500" />
-      };
-    case 'services':
-      return {
-        defaultMessage: 'Initializing services...',
-        icon: <SparklesIcon className="w-8 h-8 text-purple-500" />
-      };
-    case 'database':
-      return {
-        defaultMessage: 'Preparing database...',
-        icon: <DocumentTextIcon className="w-8 h-8 text-green-500" />
-      };
-    case 'ai-provider':
-      return {
-        defaultMessage: 'Configuring AI provider...',
-        icon: <SparklesIcon className="w-8 h-8 text-indigo-500" />
-      };
-    case 'ready':
-      return {
-        defaultMessage: 'Ready to go!',
-        icon: (
-          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        )
-      };
-    default:
-      return {
-        defaultMessage: 'Initializing...',
-        icon: <CogIcon className="w-8 h-8 text-gray-500" />
-      };
+      case 'config':
+        return {
+          defaultMessage: 'Loading configuration...',
+          icon: <CogIcon className="w-8 h-8 text-blue-500" />,
+        };
+      case 'services':
+        return {
+          defaultMessage: 'Initializing services...',
+          icon: <SparklesIcon className="w-8 h-8 text-purple-500" />,
+        };
+      case 'database':
+        return {
+          defaultMessage: 'Preparing database...',
+          icon: <DocumentTextIcon className="w-8 h-8 text-green-500" />,
+        };
+      case 'ai-provider':
+        return {
+          defaultMessage: 'Configuring AI provider...',
+          icon: <SparklesIcon className="w-8 h-8 text-indigo-500" />,
+        };
+      case 'ready':
+        return {
+          defaultMessage: 'Ready to go!',
+          icon: (
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <svg
+                className="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+          ),
+        };
+      default:
+        return {
+          defaultMessage: 'Initializing...',
+          icon: <CogIcon className="w-8 h-8 text-gray-500" />,
+        };
     }
   };
 
@@ -82,9 +89,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
               Initialization Failed
             </h1>
 
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {error}
-            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
 
             <button
               onClick={onRetry || (() => window.location.reload())}
@@ -120,9 +125,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         </h1>
 
         {/* Message */}
-        <p className="text-gray-600 dark:text-gray-400 mb-4">
-          {displayMessage}
-        </p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">{displayMessage}</p>
 
         {/* Progress Bar */}
         {showProgress && (
@@ -133,17 +136,21 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {progress}% complete
-            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{progress}% complete</p>
           </div>
         )}
 
         {/* Animated dots */}
         <div className="flex justify-center space-x-1">
           <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-          <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-          <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+          <div
+            className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"
+            style={{ animationDelay: '0.2s' }}
+          ></div>
+          <div
+            className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"
+            style={{ animationDelay: '0.4s' }}
+          ></div>
         </div>
       </div>
     </div>

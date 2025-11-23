@@ -1,4 +1,3 @@
-
 /**
  * Input Component Behavior Tests - Testing Logic Without Rendering
  *
@@ -108,25 +107,16 @@ describe('Input Component - Behavior Testing', () => {
     });
 
     it('should validate email format', () => {
-      const validEmails = [
-        'test@example.com',
-        'user.name@domain.co.uk',
-        'user+tag@example.org'
-      ];
+      const validEmails = ['test@example.com', 'user.name@domain.co.uk', 'user+tag@example.org'];
 
-      const invalidEmails = [
-        'invalid-email',
-        '@example.com',
-        'user@',
-        'user..name@example.com'
-      ];
+      const invalidEmails = ['invalid-email', '@example.com', 'user@', 'user..name@example.com'];
 
-      validEmails.forEach(email => {
+      validEmails.forEach((email) => {
         const errors = validateInput(email, { email: true });
         expect(errors).not.toContain('Must be a valid email address');
       });
 
-      invalidEmails.forEach(email => {
+      invalidEmails.forEach((email) => {
         const errors = validateInput(email, { email: true });
         if (errors.length > 0) {
           expect(errors[0]).toMatch(/email|valid/i);
@@ -217,7 +207,7 @@ describe('Input Component - Behavior Testing', () => {
 
       const invalidInput = getAccessibilityProps({
         invalid: true,
-        id: 'email'
+        id: 'email',
       });
       expect(invalidInput['aria-invalid']).toBe('true');
       expect(invalidInput['aria-describedby']).toBe('email-error');
@@ -283,7 +273,7 @@ describe('Input Component - Behavior Testing', () => {
       const state = {
         value: '',
         touched: false,
-        errors: [] as string[]
+        errors: [] as string[],
       };
 
       const validateAndTouch = (value: string) => {
@@ -351,7 +341,7 @@ describe('Input Component - Behavior Testing', () => {
       // Should not have validated yet
       expect(state.validationCount).toBe(0);
 
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         setTimeout(() => {
           expect(state.validationCount).toBe(1);
           resolve(void 0);

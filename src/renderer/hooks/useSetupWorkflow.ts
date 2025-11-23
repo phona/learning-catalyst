@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { AppConfig } from '@/shared/types/config';
-import type { IConfigurationService } from '@/renderer/services/configuration/configuration-service';
+import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
+import { ModelType } from '@/shared/types/ai';
 
 export type SaveWorkflowStepId =
   | 'saveUi'
@@ -51,23 +52,26 @@ const WORKFLOW_STEP_IDS: SaveWorkflowStepId[] = [
 ];
 
 export const createInitialWorkflowStatus = (): Record<SaveWorkflowStepId, SaveWorkflowStepStatus> =>
-  WORKFLOW_STEP_IDS.reduce((acc, step) => {
-    acc[step] = 'idle';
-    return acc;
-  }, {} as Record<SaveWorkflowStepId, SaveWorkflowStepStatus>);
-
-export const useSetupWorkflow = (configService: IConfigurationService) => {
-  const [workflowStatus, setWorkflowStatus] = useState<Record<SaveWorkflowStepId, SaveWorkflowStepStatus>>(
-    () => createInitialWorkflowStatus()
+  WORKFLOW_STEP_IDS.reduce(
+    (acc, step) => {
+      acc[step] = 'idle';
+      return acc;
+    },
+    {} as Record<SaveWorkflowStepId, SaveWorkflowStepStatus>,
   );
+
+export const useSetupWorkflow = (configService: ConfigurationService) => {
+  const [workflowStatus, setWorkflowStatus] = useState<
+    Record<SaveWorkflowStepId, SaveWorkflowStepStatus>
+  >(() => createInitialWorkflowStatus());
   const [isSaving, setIsSaving] = useState(false);
   const [workflowError, setWorkflowError] = useState<string | null>(null);
 
   const updateWorkflowStep = useCallback(
     (step: SaveWorkflowStepId, status: SaveWorkflowStepStatus) => {
-      setWorkflowStatus(prev => ({ ...prev, [step]: status }));
+      setWorkflowStatus((prev) => ({ ...prev, [step]: status }));
     },
-    []
+    [],
   );
 
   const resetWorkflow = useCallback(() => {
@@ -109,9 +113,18 @@ export const useSetupWorkflow = (configService: IConfigurationService) => {
           });
         }
 
-        const applyModelType = async (model: 'chat' | 'embedding' | 'rerank', assignment?: ModelAssignment | null) => {
+        const applyModelType = async (
+          model: 'chat' | 'embedding' | 'rerank',
+          assignment?: ModelAssignment | null,
+        ) => {
           if (!assignment) return;
-          await configService.updateModelTypeConfig(model, {
+          const targetModel =
+            model === 'chat'
+              ? ModelType.CHAT
+              : model === 'embedding'
+                ? ModelType.EMBEDDING
+                : ModelType.RERANK;
+          await configService.updateModelTypeConfig(targetModel, {
             provider: assignment.providerId,
             model: assignment.model,
           });
@@ -152,7 +165,7 @@ export const useSetupWorkflow = (configService: IConfigurationService) => {
         setIsSaving(false);
       }
     },
-    [configService, resetWorkflow, updateWorkflowStep]
+    [configService, resetWorkflow, updateWorkflowStep],
   );
 
   return {

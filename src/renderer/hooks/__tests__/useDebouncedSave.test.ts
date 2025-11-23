@@ -1,4 +1,3 @@
-
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useDebouncedSave } from '@/renderer/hooks/useDebouncedSave';
@@ -30,7 +29,7 @@ describe('useDebouncedSave', () => {
       useDebouncedSave({
         delay,
         onSave: mockOnSave,
-      })
+      }),
     );
 
     act(() => {
@@ -51,7 +50,7 @@ describe('useDebouncedSave', () => {
       useDebouncedSave({
         delay,
         onSave: mockOnSave,
-      })
+      }),
     );
 
     act(() => {
@@ -74,7 +73,7 @@ describe('useDebouncedSave', () => {
       useDebouncedSave({
         delay,
         onSave: mockOnSave,
-      })
+      }),
     );
 
     act(() => {
@@ -98,7 +97,7 @@ describe('useDebouncedSave', () => {
       useDebouncedSave({
         delay,
         onSave: mockOnSave,
-      })
+      }),
     );
 
     act(() => {
@@ -144,7 +143,7 @@ describe('useDebouncedSave', () => {
       useDebouncedSave({
         onSave: mockOnSave,
         delay: 100,
-      })
+      }),
     );
 
     act(() => {

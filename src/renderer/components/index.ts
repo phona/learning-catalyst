@@ -1,4 +1,3 @@
-
 /**
  * Component Index - Clean Architecture Component Export
  * Exports all components organized by their architectural layer

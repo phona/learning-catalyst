@@ -21,30 +21,30 @@ const mockElectron = {
   app: {
     getPath: (name: string) => {
       switch (name) {
-      case 'userData':
-        return './test-data';
-      default:
-        return '.';
+        case 'userData':
+          return './test-data';
+        default:
+          return '.';
       }
-    }
+    },
   },
   ipcMain: {
     handle: () => {},
     removeHandler: () => {},
     on: () => {},
-    removeAllListeners: () => {}
+    removeAllListeners: () => {},
   },
   MessageChannelMain: class MockMessageChannelMain {
     port1 = { postMessage: () => {}, close: () => {}, closed: false };
     port2 = { postMessage: () => {}, close: () => {}, closed: false };
-  }
+  },
 };
 
 // Mock Node.js modules
 const mockFs = {
   readFile: async () => 'mock file content',
   writeFile: async () => {},
-  exists: async () => true
+  exists: async () => true,
 };
 
 /**
@@ -60,12 +60,12 @@ beforeAll(async () => {
   // Mock global objects
   (global as any).require = (moduleName: string) => {
     switch (moduleName) {
-    case 'electron':
-      return mockElectron;
-    case 'fs/promises':
-      return mockFs;
-    default:
-      return {};
+      case 'electron':
+        return mockElectron;
+      case 'fs/promises':
+        return mockFs;
+      default:
+        return {};
     }
   };
 
@@ -84,17 +84,17 @@ afterAll(async () => {
  */
 Object.defineProperty(console, 'log', {
   value: vi.fn(() => {}),
-  writable: true
+  writable: true,
 });
 
 Object.defineProperty(console, 'warn', {
   value: vi.fn(() => {}),
-  writable: true
+  writable: true,
 });
 
 Object.defineProperty(console, 'error', {
   value: vi.fn(() => {}),
-  writable: true
+  writable: true,
 });
 
 // Global cleanup
@@ -129,7 +129,7 @@ export function createMockDatabase(): Kysely<any> {
     executeTakeFirst: vi.fn().mockResolvedValue(null),
     executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null),
     returning: vi.fn().mockReturnThis(),
-    returningAll: vi.fn().mockReturnThis()
+    returningAll: vi.fn().mockReturnThis(),
   });
 
   const mockQueryBuilder = createQueryBuilder();
@@ -145,26 +145,26 @@ export function createMockDatabase(): Kysely<any> {
         returning: vi.fn().mockReturnValue({
           execute: vi.fn().mockResolvedValue([]),
           executeTakeFirst: vi.fn().mockResolvedValue(null),
-          executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+          executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null),
         }),
         returningAll: vi.fn().mockReturnValue({
           execute: vi.fn().mockResolvedValue([]),
           executeTakeFirst: vi.fn().mockResolvedValue(null),
-          executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+          executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null),
         }),
         onConflict: vi.fn().mockReturnValue({
           column: vi.fn().mockReturnValue({
             doUpdateSet: vi.fn().mockReturnValue({
               execute: vi.fn().mockResolvedValue({ insertId: 1 }),
               executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 }),
-              executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 })
-            })
-          })
-        })
-      })
+              executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 }),
+            }),
+          }),
+        }),
+      }),
     }),
     updateTable: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue(mockQueryBuilder)
+      set: vi.fn().mockReturnValue(mockQueryBuilder),
     }),
     deleteFrom: vi.fn().mockReturnValue(mockQueryBuilder),
     // Enhanced transaction support - supports both patterns
@@ -204,28 +204,28 @@ export function createMockDatabase(): Kysely<any> {
                   returning: vi.fn().mockReturnValue({
                     execute: vi.fn().mockResolvedValue([]),
                     executeTakeFirst: vi.fn().mockResolvedValue(null),
-                    executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+                    executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null),
                   }),
                   returningAll: vi.fn().mockReturnValue({
                     execute: vi.fn().mockResolvedValue([]),
                     executeTakeFirst: vi.fn().mockResolvedValue(null),
-                    executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null)
+                    executeTakeFirstOrThrow: vi.fn().mockResolvedValue(null),
                   }),
                   onConflict: vi.fn().mockReturnValue({
                     column: vi.fn().mockReturnValue({
                       doUpdateSet: vi.fn().mockReturnValue({
                         execute: vi.fn().mockResolvedValue({ insertId: 1 }),
                         executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 }),
-                        executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 })
-                      })
-                    })
-                  })
-                })
+                        executeTakeFirstOrThrow: vi.fn().mockResolvedValue({ insertId: 1 }),
+                      }),
+                    }),
+                  }),
+                }),
               }),
               updateTable: vi.fn().mockReturnValue({
-                set: vi.fn().mockReturnThis()
+                set: vi.fn().mockReturnThis(),
               }),
-              deleteFrom: vi.fn().mockReturnThis()
+              deleteFrom: vi.fn().mockReturnThis(),
             };
 
             try {
@@ -233,7 +233,7 @@ export function createMockDatabase(): Kysely<any> {
             } catch (error) {
               throw error;
             }
-          })
+          }),
         };
       }
       // Support transaction(fn) pattern
@@ -251,12 +251,12 @@ export function createMockDatabase(): Kysely<any> {
       mockQueryBuilder.execute.mockRejectedValue(new Error('Database connection failed'));
     },
     _resetMocks: () => {
-      Object.values(mockDb).forEach(value => {
+      Object.values(mockDb).forEach((value) => {
         if (typeof value === 'function' && 'mockReset' in value) {
           (value as any).mockReset?.();
         }
       });
-      Object.values(mockQueryBuilder).forEach(value => {
+      Object.values(mockQueryBuilder).forEach((value) => {
         if (typeof value === 'function' && 'mockReset' in value) {
           (value as any).mockReset?.();
         }
@@ -265,7 +265,7 @@ export function createMockDatabase(): Kysely<any> {
       mockQueryBuilder.execute.mockResolvedValue([]);
       mockQueryBuilder.executeTakeFirst.mockResolvedValue(null);
       mockQueryBuilder.executeTakeFirstOrThrow.mockResolvedValue(null);
-    }
+    },
   } as any;
 
   return mockDb;
@@ -287,16 +287,16 @@ export function createMockLogger() {
       error: logger.error.mock.calls,
       warn: logger.warn.mock.calls,
       debug: logger.debug.mock.calls,
-      trace: logger.trace.mock.calls
+      trace: logger.trace.mock.calls,
     }),
     reset: () => {
-      Object.values(logger).forEach(value => {
+      Object.values(logger).forEach((value) => {
         if (typeof value === 'function' && 'mockReset' in value) {
-          (value as any).mockReset?.()
+          (value as any).mockReset?.();
         }
-      })
-    }
-  }
+      });
+    },
+  };
   return logger;
 }
 
@@ -347,7 +347,7 @@ export function createMockAsyncLocalStorage() {
       }
       return context;
     },
-    exit: (fn: Function) => fn()
+    exit: (fn: Function) => fn(),
   };
 }
 
@@ -367,14 +367,16 @@ const mockLoggerFactory = {
       return mockAls.run(context, fn);
     }),
     getCurrentContext: vi.fn(() => mockAls.getStore()),
-    createContext: vi.fn((sessionId: string, operation: string, metadata: Record<string, any> = {}) => ({
-      id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sessionId,
-      requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      operation,
-      metadata
-    })),
+    createContext: vi.fn(
+      (sessionId: string, operation: string, metadata: Record<string, any> = {}) => ({
+        id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        sessionId,
+        requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        operation,
+        metadata,
+      }),
+    ),
   })),
   getLogger: vi.fn(() => mockLogger),
 };
@@ -430,7 +432,7 @@ export function createMockContext(sessionId = 'test-session', operation = 'test'
     requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     timestamp: Date.now(),
     operation,
-    metadata: { test: true }
+    metadata: { test: true },
   };
 }
 
@@ -448,7 +450,7 @@ export function createMockAgentConfig(agentId = 'test-agent', type = 'learning')
       model: 'gpt-3.5-turbo',
       temperature: 0.7,
       maxTokens: 1000,
-      timeout: 30000
+      timeout: 30000,
     },
     tools: ['database-query', 'file-read'],
     systemPrompt: 'You are a test assistant.',
@@ -456,8 +458,8 @@ export function createMockAgentConfig(agentId = 'test-agent', type = 'learning')
     enabled: true,
     metadata: {
       version: '1.0.0',
-      author: 'test-suite'
-    }
+      author: 'test-suite',
+    },
   };
 }
 
@@ -469,10 +471,10 @@ export function createMockAIProvider() {
     name: 'openai',
     config: {
       name: 'gpt-3.5-turbo',
-      apiKey: 'test-key'
+      apiKey: 'test-key',
     },
     chat: async () => ({ content: 'Mock response' }),
-    models: async () => [{ id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }]
+    models: async () => [{ id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }],
   };
 }
 
@@ -484,7 +486,7 @@ export function createMockToolRequest(toolId = 'test-tool', operation = 'test') 
     toolId,
     operation,
     parameters: { test: true },
-    context: createMockContext()
+    context: createMockContext(),
   };
 }
 
@@ -492,7 +494,7 @@ export function createMockToolRequest(toolId = 'test-tool', operation = 'test') 
  * Wait for async operation with timeout
  */
 export async function waitFor(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -510,7 +512,7 @@ export const TestUtils = {
   createMockAIProvider,
   waitFor,
   createMockToolRequest,
-  generateId
+  generateId,
 };
 
 // Export mock implementations

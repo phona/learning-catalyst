@@ -1,2 +1,1 @@
-
-export { ContentDiscovery } from './ContentDiscovery';
+export { default as LocalProjectExplorer } from './LocalProjectExplorer';

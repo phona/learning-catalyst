@@ -36,22 +36,27 @@ export interface AppConfig {
 }
 
 export interface SelectedModel {
-	provider?: string;
-	model?: string;
+  provider?: string;
+  model?: string;
 }
 
 export interface SelectedChatModel extends SelectedModel {
   temperature?: number;
   max_tokens?: number;
   top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
   enable_thinking?: boolean;
   stream?: boolean;
+  default_provider?: string;
+  default_model?: string;
+  capabilities?: ModelCapabilities;
 }
 
 export interface AIConfig {
   providers: Record<string, ProviderConfig>;
   // Enhanced model type support
-  model_types: {
+  model_types?: {
     chat?: SelectedChatModel;
     embedding?: SelectedModel;
     rerank?: SelectedModel;
@@ -60,6 +65,13 @@ export interface AIConfig {
     model_tests?: ModelTestResult[];
     [key: string]: any;
   };
+  default_provider?: string;
+  default_model?: string;
+  temperature?: number;
+  max_tokens?: number;
+  streaming?: boolean;
+  enable_thinking?: boolean;
+  context_window_size?: number;
 }
 
 export interface UIConfig {
@@ -218,13 +230,31 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = {
 export const AVAILABLE_PROVIDERS: ProviderConfig[] = [
   {
     provider_type: 'openai',
-    models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'],
+    models: [
+      'gpt-4',
+      'gpt-4-turbo',
+      'gpt-3.5-turbo',
+      'gpt-3.5-turbo-16k',
+      'text-embedding-ada-002',
+      'text-embedding-3-small',
+      'text-embedding-3-large',
+    ],
     base_url: 'https://api.openai.com/v1',
     api_key: '',
   },
   {
     provider_type: 'chatglm',
-    models: ['glm-4', 'glm-4-0520', 'glm-3-turbo', 'glm-4-plus', 'glm-4-air', 'glm-4-airx', 'glm-4-long', 'embedding-2', 'embedding-3'],
+    models: [
+      'glm-4',
+      'glm-4-0520',
+      'glm-3-turbo',
+      'glm-4-plus',
+      'glm-4-air',
+      'glm-4-airx',
+      'glm-4-long',
+      'embedding-2',
+      'embedding-3',
+    ],
     base_url: 'https://open.bigmodel.cn/api/paas/v4/',
     api_key: '',
   },
@@ -236,7 +266,14 @@ export const AVAILABLE_PROVIDERS: ProviderConfig[] = [
   },
   {
     provider_type: 'siliconflow',
-    models: ['deepseek-ai/DeepSeek-V3', 'meta-llama/Meta-Llama-3.1-8B-Instruct', '01-ai/Yi-1.5-9B-Chat-16K', 'BAAI/bge-large-en-v1.5', 'BAAI/bge-large-zh-v1.5', 'BAAI/bge-reranker-v2-m3'],
+    models: [
+      'deepseek-ai/DeepSeek-V3',
+      'meta-llama/Meta-Llama-3.1-8B-Instruct',
+      '01-ai/Yi-1.5-9B-Chat-16K',
+      'BAAI/bge-large-en-v1.5',
+      'BAAI/bge-large-zh-v1.5',
+      'BAAI/bge-reranker-v2-m3',
+    ],
     base_url: 'https://api.siliconflow.cn',
     api_key: '',
   },
@@ -246,7 +283,7 @@ export const AVAILABLE_PROVIDERS: ProviderConfig[] = [
     base_url: 'http://localhost:11434/v1',
     api_key: '',
   },
-]
+];
 
 // Configuration schema for validation
 export interface ConfigSchema {

@@ -9,7 +9,7 @@ import type { DomainAgent } from '@/main/services/agent/domain-agent';
 import type {
   ConceptParsingResult,
   ParsedConcept,
-  ParsedRelationship
+  ParsedRelationship,
 } from '@/shared/types/electron-api/knowledge-api';
 
 export interface ConceptParsingMaterial {
@@ -86,8 +86,8 @@ const DEFAULT_SETTINGS: ConceptParsingSettings = {
   vectorize: true,
   options: {
     confidenceThreshold: 0.6,
-    maxConceptsPerSegment: 32
-  }
+    maxConceptsPerSegment: 32,
+  },
 };
 
 const bucketizeConfidence = (value: number): string => {
@@ -102,18 +102,16 @@ const normalizeDifficulty = (value: number): number => {
   return rounded;
 };
 
-const difficultyFromLabel = (
-  label?: ExtractedConcept['difficulty']
-): number => {
+const difficultyFromLabel = (label?: ExtractedConcept['difficulty']): number => {
   switch (label) {
-  case 'beginner':
-    return 2;
-  case 'intermediate':
-    return 3;
-  case 'advanced':
-    return 4;
-  default:
-    return 3;
+    case 'beginner':
+      return 2;
+    case 'intermediate':
+      return 3;
+    case 'advanced':
+      return 4;
+    default:
+      return 3;
   }
 };
 
@@ -131,7 +129,7 @@ const shouldSkipSegment = (segment: ConceptSegment, settings: ConceptParsingSett
 
 const createSegmentsFromText = (
   content: string,
-  settings: ConceptParsingSettings
+  settings: ConceptParsingSettings,
 ): ConceptSegment[] => {
   const normalized = (content ?? '').replace(/\r\n/g, '\n').trim();
   if (!normalized) return [];
@@ -141,7 +139,7 @@ const createSegmentsFromText = (
   let current: Omit<ConceptSegment, 'order'> = {
     id: randomUUID(),
     title: 'Introduction',
-    content: ''
+    content: '',
   };
 
   lines.forEach((line) => {
@@ -152,7 +150,7 @@ const createSegmentsFromText = (
       current = {
         id: randomUUID(),
         title: trimmed.replace(/^#{1,6}\s+/, '').trim() || 'Section',
-        content: `${trimmed}\n`
+        content: `${trimmed}\n`,
       };
       return;
     }
@@ -174,7 +172,7 @@ const createSegmentsFromText = (
         id: randomUUID(),
         title: `Paragraph ${index + 1}`,
         content: paragraph,
-        order: index
+        order: index,
       }));
     }
   }
@@ -191,7 +189,11 @@ const createSegmentsFromText = (
     .map((segment, index) => ({ ...segment, order: index }));
 };
 
-const chunkSegment = (segment: ConceptSegment, maxChars: number, baseOrder: number): ConceptSegment[] => {
+const chunkSegment = (
+  segment: ConceptSegment,
+  maxChars: number,
+  baseOrder: number,
+): ConceptSegment[] => {
   if (!maxChars || segment.content.length <= maxChars) {
     return [{ ...segment, order: baseOrder }];
   }
@@ -207,7 +209,7 @@ const chunkSegment = (segment: ConceptSegment, maxChars: number, baseOrder: numb
       id: randomUUID(),
       title: `${segment.title} (part ${part})`,
       content: chunkContent,
-      order: baseOrder + chunks.length
+      order: baseOrder + chunks.length,
     });
     pointer += maxChars;
     part += 1;
@@ -220,14 +222,14 @@ const addSegmentToVector = async (
   segment: ConceptSegment,
   material: ConceptParsingMaterial,
   vectorDatabase?: VectorDatabaseModule,
-  logger?: ILogger
+  logger?: ILogger,
 ) => {
-  if (!vectorDatabase || !vectorDatabase.initialized) return;
+  if (!vectorDatabase) return;
 
   try {
     const preview = createPreparsedMaterial(segment.content, {
       filePath: material.filePath ?? material.title,
-      sourceLabel: material.title
+      sourceLabel: material.title,
     });
 
     await vectorDatabase.addDocument({
@@ -239,15 +241,18 @@ const addSegmentToVector = async (
         segmentTitle: segment.title,
         previewStats: preview.stats,
         source: 'concept-parsing',
-        format: material.format ?? 'markdown'
-      }
+        format: material.format ?? 'markdown',
+      },
     });
   } catch (error) {
     logger?.warn('Concept parsing vector insertion failed', error);
   }
 };
 
-const buildSegmentFallback = (segment: ConceptSegment, material: ConceptParsingMaterial): SegmentExtractionSchema => {
+const buildSegmentFallback = (
+  segment: ConceptSegment,
+  material: ConceptParsingMaterial,
+): SegmentExtractionSchema => {
   const descriptionPreview = segment.content.slice(0, 300);
   return {
     summary: `Segment from ${material.title}: ${descriptionPreview}`,
@@ -261,12 +266,12 @@ const buildSegmentFallback = (segment: ConceptSegment, material: ConceptParsingM
         confidence: 0.5,
         tags: ['segment'],
         metadata: {
-          generatedBy: 'concept-parsing:fallback'
-        }
-      }
+          generatedBy: 'concept-parsing:fallback',
+        },
+      },
     ],
     relationships: [],
-    recommendations: ['Review the segment and assign a concept label if needed.']
+    recommendations: ['Review the segment and assign a concept label if needed.'],
   };
 };
 
@@ -276,7 +281,7 @@ export const createConceptParsingService = ({
   aiService,
   domainAgent,
   vectorDatabase,
-  loggerService
+  loggerService,
 }: ConceptParsingDeps) => {
   const serviceLogger = loggerService.child({ service: 'concept-parsing' });
   const presetId = 'knowledge.extraction';
@@ -293,16 +298,16 @@ export const createConceptParsingService = ({
     aiService,
     domainAgent,
     logger: serviceLogger,
-    modelConfig
+    modelConfig,
   });
 
   const extractSegment = async (
     segment: ConceptSegment,
-    material: ConceptParsingMaterial
+    material: ConceptParsingMaterial,
   ): Promise<SegmentExtractionSchema> => {
     const preview = createPreparsedMaterial(segment.content, {
       filePath: material.filePath ?? material.title,
-      sourceLabel: material.title
+      sourceLabel: material.title,
     });
     const previewPayload = previewToPromptPayload(preview);
     const fallback = buildSegmentFallback(segment, material);
@@ -312,22 +317,18 @@ export const createConceptParsingService = ({
       input: previewPayload,
       fallbackPrompt: `Segment title: ${segment.title}\nPreview JSON:\n${previewPayload}`,
       fallback,
-      context: `concept-parsing-segment-${segment.id}`
+      context: `concept-parsing-segment-${segment.id}`,
     });
   };
 
   const mapConcept = (
     concept: ExtractedConcept,
     segment: ConceptSegment,
-    material: ConceptParsingMaterial
+    material: ConceptParsingMaterial,
   ): ParsedConcept => {
     const confidence = Math.min(
       1,
-      Math.max(
-        0,
-        concept.confidence ??
-          Number(concept.metadata?.confidence ?? 0.55)
-      )
+      Math.max(0, concept.confidence ?? Number(concept.metadata?.confidence ?? 0.55)),
     );
     const difficulty = normalizeDifficulty(difficultyFromLabel(concept.difficulty));
     const typeLabel = concept.type?.trim() || 'concept';
@@ -343,22 +344,22 @@ export const createConceptParsingService = ({
         {
           type: 'segment',
           text: segment.content.slice(0, 300),
-          relevance: Math.min(1, confidence + 0.15)
-        }
+          relevance: Math.min(1, confidence + 0.15),
+        },
       ],
       metadata: {
         ...concept.metadata,
         tags: concept.tags ?? [],
         segmentId: segment.id,
         segmentTitle: segment.title,
-        materialId: material.id
-      }
+        materialId: material.id,
+      },
     };
   };
 
   const mapRelationship = (
     relationship: ExtractedRelationship,
-    nameToId: Map<string, string>
+    nameToId: Map<string, string>,
   ): ParsedRelationship | null => {
     const sourceId = nameToId.get(relationship.from?.toLowerCase() ?? '');
     const targetId = nameToId.get(relationship.to?.toLowerCase() ?? '');
@@ -368,7 +369,7 @@ export const createConceptParsingService = ({
     const strength = Math.min(1, Math.max(0, relationship.strength ?? 0.5));
     const confidence = Math.min(
       1,
-      Math.max(0, relationship.confidence ?? Number(relationship.metadata?.confidence ?? 0.5))
+      Math.max(0, relationship.confidence ?? Number(relationship.metadata?.confidence ?? 0.5)),
     );
 
     return {
@@ -377,13 +378,13 @@ export const createConceptParsingService = ({
       type: relationship.type ?? 'related',
       strength,
       confidence,
-      description: relationship.description
+      description: relationship.description,
     };
   };
 
   const parseMaterials = async (
     materials: ConceptParsingMaterial[],
-    settings: ConceptParsingSettings = {}
+    settings: ConceptParsingSettings = {},
   ): Promise<ConceptParsingResult> => {
     if (!materials.length) {
       return {
@@ -398,14 +399,14 @@ export const createConceptParsingService = ({
           difficultyDistribution: {},
           typeDistribution: {},
           processingTime: 0,
-          modelUsage: {}
+          modelUsage: {},
         },
         errors: ['No materials provided for concept parsing.'],
         metadata: {
           processingTime: 0,
           processedAt: new Date().toISOString(),
-          inputFiles: 0
-        }
+          inputFiles: 0,
+        },
       };
     }
 
@@ -414,8 +415,8 @@ export const createConceptParsingService = ({
       ...settings,
       options: {
         ...DEFAULT_SETTINGS.options,
-        ...(settings.options ?? {})
-      }
+        ...(settings.options ?? {}),
+      },
     };
 
     const threshold = normalizedSettings.options?.confidenceThreshold ?? 0.6;
@@ -466,7 +467,8 @@ export const createConceptParsingService = ({
             totalConcepts += 1;
             const bucket = bucketizeConfidence(node.confidence);
             confidenceDistribution[bucket] = (confidenceDistribution[bucket] ?? 0) + 1;
-            difficultyDistribution[node.difficulty] = (difficultyDistribution[node.difficulty] ?? 0) + 1;
+            difficultyDistribution[node.difficulty] =
+              (difficultyDistribution[node.difficulty] ?? 0) + 1;
             typeDistribution[node.type] = (typeDistribution[node.type] ?? 0) + 1;
             if (node.confidence >= threshold) {
               validConcepts += 1;
@@ -483,7 +485,7 @@ export const createConceptParsingService = ({
           serviceLogger.warn('Concept parsing segment failed', {
             materialId: material.id,
             segmentId: segment.id,
-            error: message
+            error: message,
           });
         } finally {
           processingTime += Date.now() - start;
@@ -496,7 +498,7 @@ export const createConceptParsingService = ({
       processedAt: new Date().toISOString(),
       inputFiles: materials.length,
       aiProvider: 'langchain',
-      aiModel: modelConfig.model
+      aiModel: modelConfig.model,
     } as const;
 
     serviceLogger.info('Concept parsing completed', {
@@ -504,7 +506,7 @@ export const createConceptParsingService = ({
       segments: processedSegments,
       concepts: totalConcepts,
       relationships: totalRelationships,
-      errors: errors.length
+      errors: errors.length,
     });
 
     return {
@@ -520,16 +522,16 @@ export const createConceptParsingService = ({
         typeDistribution,
         processingTime,
         modelUsage: {
-          'concept.parsing': processedSegments
-        }
+          'concept.parsing': processedSegments,
+        },
       },
       errors,
-      metadata
+      metadata,
     };
   };
 
   return {
-    parseMaterials
+    parseMaterials,
   };
 };
 

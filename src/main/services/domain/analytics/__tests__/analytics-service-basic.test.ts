@@ -11,22 +11,22 @@ vi.mock('../analytics-service', () => {
         totalSessions: 0,
         totalTime: 0,
         averageSessionLength: 0,
-        conceptsLearned: 0
-      }
+        conceptsLearned: 0,
+      },
     }),
     getProgressChart: vi.fn().mockImplementation(({ metric, timeRange }) => ({
       period: timeRange || '30days',
       dataPoints: [],
       average: 0,
       peak: 0,
-      improvement: 0
+      improvement: 0,
     })),
     getConceptProgress: vi.fn().mockResolvedValue(null),
     updateConceptProgress: vi.fn().mockResolvedValue(true),
     trackSession: vi.fn().mockResolvedValue({
       id: 'session-123',
       title: 'Test Session',
-      status: 'active'
+      status: 'active',
     }),
     getSessionHistory: vi.fn().mockResolvedValue([]),
     getAchievements: vi.fn().mockResolvedValue([]),
@@ -36,28 +36,28 @@ vi.mock('../analytics-service', () => {
       studyFrequency: [],
       conceptAcquisition: [],
       engagementLevels: [],
-      recommendations: []
+      recommendations: [],
     }),
     getStudyStreak: vi.fn().mockResolvedValue({
       currentStreak: 0,
       longestStreak: 0,
-      studyDates: []
+      studyDates: [],
     }),
     getTimeStats: vi.fn().mockResolvedValue({
       totalTime: 0,
       averageSession: 0,
       bestTimeOfDay: 'morning',
-      productivityScore: 0
+      productivityScore: 0,
     }),
     exportData: vi.fn().mockResolvedValue({
       format: 'json',
       data: [],
-      metadata: { exportedAt: new Date().toISOString() }
+      metadata: { exportedAt: new Date().toISOString() },
     }),
     importData: vi.fn().mockResolvedValue({
       imported: 0,
       skipped: 0,
-      errors: []
+      errors: [],
     }),
     trackEvent: vi.fn().mockResolvedValue(true),
     unlockAchievement: vi.fn().mockResolvedValue(true),
@@ -66,23 +66,23 @@ vi.mock('../analytics-service', () => {
         totalLearningTime: 0,
         totalSessions: 0,
         conceptsLearned: 0,
-        accuracyRate: 0
+        accuracyRate: 0,
       },
       patterns: {},
       engagement: {},
-      metadata: { period: '30days' }
+      metadata: { period: '30days' },
     }),
     getTokenUsage: vi.fn().mockResolvedValue({
       total: 0,
       providers: {},
       features: {},
       projections: {},
-      metadata: { period: '30days' }
-    })
+      metadata: { period: '30days' },
+    }),
   };
 
   return {
-    createAnalyticsService: vi.fn(() => mockAnalyticsService)
+    createAnalyticsService: vi.fn(() => mockAnalyticsService),
   };
 });
 
@@ -100,7 +100,7 @@ describe('Analytics Service - Basic Tests', () => {
       selectFrom: vi.fn().mockReturnThis(),
       insertInto: vi.fn().mockReturnThis(),
       updateTable: vi.fn().mockReturnThis(),
-      deleteFrom: vi.fn().mockReturnThis()
+      deleteFrom: vi.fn().mockReturnThis(),
     };
 
     // Mock logger service
@@ -109,8 +109,8 @@ describe('Analytics Service - Basic Tests', () => {
         info: vi.fn(),
         debug: vi.fn(),
         warn: vi.fn(),
-        error: vi.fn()
-      }))
+        error: vi.fn(),
+      })),
     };
 
     // Import analytics service
@@ -118,7 +118,7 @@ describe('Analytics Service - Basic Tests', () => {
     createAnalyticsService = analyticsModule.createAnalyticsService;
     analyticsService = createAnalyticsService({
       db: mockDb,
-      loggerService: mockLoggerService
+      loggerService: mockLoggerService,
     });
   });
 
@@ -159,8 +159,8 @@ describe('Analytics Service - Basic Tests', () => {
           totalSessions: expect.any(Number),
           totalTime: expect.any(Number),
           averageSessionLength: expect.any(Number),
-          conceptsLearned: expect.any(Number)
-        })
+          conceptsLearned: expect.any(Number),
+        }),
       });
     });
   });
@@ -169,7 +169,7 @@ describe('Analytics Service - Basic Tests', () => {
     it('should get progress chart with default structure', async () => {
       const progressChart = await analyticsService.getProgressChart({
         metric: 'mastery',
-        timeRange: '30days'
+        timeRange: '30days',
       });
 
       expect(progressChart).toMatchObject({
@@ -177,7 +177,7 @@ describe('Analytics Service - Basic Tests', () => {
         dataPoints: expect.any(Array),
         average: expect.any(Number),
         peak: expect.any(Number),
-        improvement: expect.any(Number)
+        improvement: expect.any(Number),
       });
     });
 
@@ -187,7 +187,7 @@ describe('Analytics Service - Basic Tests', () => {
       for (const timeRange of timeRanges) {
         const chart = await analyticsService.getProgressChart({
           metric: 'mastery',
-          timeRange
+          timeRange,
         });
 
         expect(chart.period).toBe(timeRange);
@@ -200,7 +200,7 @@ describe('Analytics Service - Basic Tests', () => {
       for (const metric of metrics) {
         const chart = await analyticsService.getProgressChart({
           metric,
-          timeRange: '30days'
+          timeRange: '30days',
         });
 
         expect(chart).toBeDefined();
@@ -223,7 +223,7 @@ describe('Analytics Service - Basic Tests', () => {
         difficultyLevel: 3,
         estimatedDuration: 60,
         concepts: ['react', 'hooks'],
-        tags: ['frontend']
+        tags: ['frontend'],
       };
 
       const result = await analyticsService.trackSession(sessionRequest);
@@ -231,7 +231,7 @@ describe('Analytics Service - Basic Tests', () => {
       expect(result).toMatchObject({
         id: 'session-123',
         title: 'Test Session',
-        status: 'active'
+        status: 'active',
       });
     });
 
@@ -239,7 +239,7 @@ describe('Analytics Service - Basic Tests', () => {
       const result = await analyticsService.updateConceptProgress({
         conceptId: 'react-hooks',
         masteryLevel: 0.8,
-        sessionId: 'session-123'
+        sessionId: 'session-123',
       });
 
       expect(result).toBe(true);
@@ -255,7 +255,7 @@ describe('Analytics Service - Basic Tests', () => {
         studyFrequency: expect.any(Array),
         conceptAcquisition: expect.any(Array),
         engagementLevels: expect.any(Array),
-        recommendations: expect.any(Array)
+        recommendations: expect.any(Array),
       });
     });
 
@@ -265,7 +265,7 @@ describe('Analytics Service - Basic Tests', () => {
       expect(streak).toMatchObject({
         currentStreak: expect.any(Number),
         longestStreak: expect.any(Number),
-        studyDates: expect.any(Array)
+        studyDates: expect.any(Array),
       });
     });
 
@@ -276,7 +276,7 @@ describe('Analytics Service - Basic Tests', () => {
         totalTime: expect.any(Number),
         averageSession: expect.any(Number),
         bestTimeOfDay: expect.any(String),
-        productivityScore: expect.any(Number)
+        productivityScore: expect.any(Number),
       });
     });
   });
@@ -310,11 +310,11 @@ describe('Analytics Service - Basic Tests', () => {
           totalLearningTime: expect.any(Number),
           totalSessions: expect.any(Number),
           conceptsLearned: expect.any(Number),
-          accuracyRate: expect.any(Number)
+          accuracyRate: expect.any(Number),
         }),
         patterns: expect.any(Object),
         engagement: expect.any(Object),
-        metadata: expect.any(Object)
+        metadata: expect.any(Object),
       });
     });
 
@@ -326,7 +326,7 @@ describe('Analytics Service - Basic Tests', () => {
         providers: expect.any(Object),
         features: expect.any(Object),
         projections: expect.any(Object),
-        metadata: expect.any(Object)
+        metadata: expect.any(Object),
       });
     });
   });
@@ -336,7 +336,7 @@ describe('Analytics Service - Basic Tests', () => {
       const result = await analyticsService.trackEvent({
         eventType: 'concept_studied',
         eventData: { concept: 'react', mastery: 0.8 },
-        sessionId: 'session-123'
+        sessionId: 'session-123',
       });
 
       expect(result).toBe(true);
@@ -351,14 +351,14 @@ describe('Analytics Service - Basic Tests', () => {
         format: 'json',
         data: expect.any(Array),
         metadata: expect.objectContaining({
-          exportedAt: expect.any(String)
-        })
+          exportedAt: expect.any(String),
+        }),
       });
     });
 
     it('should import analytics data', async () => {
       const importData = {
-        events: []
+        events: [],
       };
 
       const result = await analyticsService.importData(importData, 'json');
@@ -366,7 +366,7 @@ describe('Analytics Service - Basic Tests', () => {
       expect(result).toMatchObject({
         imported: expect.any(Number),
         skipped: expect.any(Number),
-        errors: expect.any(Array)
+        errors: expect.any(Array),
       });
     });
   });

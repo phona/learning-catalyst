@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
@@ -57,17 +52,17 @@ class MainProcessQdrantService {
       grpcPort: 6334,
       configPath: path.join(process.cwd(), 'external', 'qdrant', 'config.yaml'),
       dataPath: app.getPath('userData'),
-      ...config
+      ...config,
     };
 
     this.client = axios.create({
       baseURL: `http://${this.config.host}:${this.config.port}`,
       timeout: 30000,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       // 添加连接池配置防止内存泄漏
-      maxRedirects: 5
+      maxRedirects: 5,
     });
 
     // 设置HTTP agents来控制连接池
@@ -84,14 +79,14 @@ class MainProcessQdrantService {
         keepAlive: true,
         maxSockets: 10,
         maxFreeSockets: 5,
-        timeout: 30000
+        timeout: 30000,
       });
 
       const httpsAgent = new https.Agent({
         keepAlive: true,
         maxSockets: 10,
         maxFreeSockets: 5,
-        timeout: 30000
+        timeout: 30000,
       });
 
       this.client.defaults.httpAgent = httpAgent;
@@ -112,7 +107,7 @@ class MainProcessQdrantService {
             error.socket.destroy();
           }
           throw error;
-        }
+        },
       );
     } catch (_error) {
       console.warn('Failed to set up HTTP agents:', _error);
@@ -167,16 +162,17 @@ class MainProcessQdrantService {
       try {
         const { exec } = await import('child_process');
 
-        const childProcess = exec(`wmic process where ProcessId=${this.process.pid} get PageFileUsage,WorkingSetSize /format:list`,
+        const childProcess = exec(
+          `wmic process where ProcessId=${this.process.pid} get PageFileUsage,WorkingSetSize /format:list`,
           { timeout: 10000 },
           (_error, stdout) => {
             try {
-            // 只在开发模式下输出监控信息
+              // 只在开发模式下输出监控信息
               if (process.env.NODE_ENV === 'development' && stdout) {
                 const lines = stdout.trim().split('\n');
                 const memoryUsage: any = {};
 
-                lines.forEach(line => {
+                lines.forEach((line) => {
                   if (line.includes('PageFileUsage=')) {
                     memoryUsage.pageFileUsage = parseInt(line.split('=')[1]) / 1024 / 1024;
                   }
@@ -186,22 +182,24 @@ class MainProcessQdrantService {
                 });
 
                 if (memoryUsage.pageFileUsage || memoryUsage.workingSetSize) {
-                  console.log(`Qdrant PID:${this.process.pid} | PF:${memoryUsage.pageFileUsage?.toFixed(1)}MB | WS:${memoryUsage.workingSetSize?.toFixed(1)}MB`);
+                  console.log(
+                    `Qdrant PID:${this.process.pid} | PF:${memoryUsage.pageFileUsage?.toFixed(1)}MB | WS:${memoryUsage.workingSetSize?.toFixed(1)}MB`,
+                  );
                 }
               }
             } finally {
-            // 确保子进程被正确清理
+              // 确保子进程被正确清理
               if (childProcess && childProcess.pid) {
                 childProcess.kill();
                 childProcess.unref();
               }
             }
-          });
+          },
+        );
 
         childProcess.on('timeout', () => {
           childProcess.kill();
         });
-
       } catch (_error) {
         // 静默处理监控错误
       }
@@ -236,11 +234,9 @@ class MainProcessQdrantService {
         throw new Error(`Qdrant binary not found at ${qdrantPath}`);
       }
 
-      this.process = spawn(qdrantPath, [
-        '--config-path', this.config.configPath
-      ], {
+      this.process = spawn(qdrantPath, ['--config-path', this.config.configPath], {
         stdio: ['ignore', 'pipe', 'pipe'],
-        cwd: path.dirname(qdrantPath)
+        cwd: path.dirname(qdrantPath),
       });
 
       // 启动进程监控
@@ -270,7 +266,6 @@ class MainProcessQdrantService {
       await this.waitForReady();
       this.isReady = true;
       console.log('Qdrant service started successfully');
-
     } catch (error) {
       this.isStarting = false;
       throw error;
@@ -292,11 +287,11 @@ class MainProcessQdrantService {
         this.stopProcessMonitoring();
 
         // Remove ALL event listeners to prevent memory leaks
-        this.process.removeAllListeners('exit')
-        this.process.removeAllListeners('error')
-        this.process.removeAllListeners('close')
-        this.process.stdout?.removeAllListeners()
-        this.process.stderr?.removeAllListeners()
+        this.process.removeAllListeners('exit');
+        this.process.removeAllListeners('error');
+        this.process.removeAllListeners('close');
+        this.process.stdout?.removeAllListeners();
+        this.process.stderr?.removeAllListeners();
 
         // 清理输出缓冲区
         this.outputBuffer = [];
@@ -347,7 +342,7 @@ class MainProcessQdrantService {
         // Server not ready yet
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     throw new Error('Qdrant server failed to start within timeout period');
@@ -361,20 +356,28 @@ class MainProcessQdrantService {
     const payload = {
       vectors: {
         size: vectorSize,
-        distance: distance
-      }
+        distance: distance,
+      },
     };
     await this.client.put(`/collections/${name}`, payload);
   }
 
-  async listCollections(): Promise<Array<{ name: string; vectors_count: number; points_count: number; status: string; optimizer_status: string }>> {
+  async listCollections(): Promise<
+    Array<{
+      name: string;
+      vectors_count: number;
+      points_count: number;
+      status: string;
+      optimizer_status: string;
+    }>
+  > {
     const response = await this.client.get('/collections');
     return response.data.collections.map((col: any) => ({
       name: col.name,
       vectors_count: col.vectors_count || 0,
       points_count: col.points_count || 0,
       status: col.status,
-      optimizer_status: col.optimizer_status?.status || 'unknown'
+      optimizer_status: col.optimizer_status?.status || 'unknown',
     }));
   }
 
@@ -387,23 +390,32 @@ class MainProcessQdrantService {
     await this.client.put(`/collections/${collectionName}/points`, payload);
   }
 
-  async searchVectors(collectionName: string, queryVector: number[], limit = 10, scoreThreshold = 0.7, filter?: any): Promise<any[]> {
+  async searchVectors(
+    collectionName: string,
+    queryVector: number[],
+    limit = 10,
+    scoreThreshold = 0.7,
+    filter?: any,
+  ): Promise<any[]> {
     const payload: any = {
       vector: queryVector,
       limit: limit,
       score_threshold: scoreThreshold,
-      with_payload: true
+      with_payload: true,
     };
 
     if (filter) {
       payload.filter = filter;
     }
 
-    const response = await this.client.post(`/collections/${collectionName}/points/search`, payload);
+    const response = await this.client.post(
+      `/collections/${collectionName}/points/search`,
+      payload,
+    );
     return response.data.result.map((result: any) => ({
       id: result.id,
       score: result.score,
-      payload: result.payload
+      payload: result.payload,
     }));
   }
 
@@ -411,14 +423,14 @@ class MainProcessQdrantService {
     const payload = {
       ids: ids,
       with_payload: true,
-      with_vector: true
+      with_vector: true,
     };
 
     const response = await this.client.post(`/collections/${collectionName}/points`, payload);
     return response.data.result.map((point: any) => ({
       id: point.id,
       vector: point.vector,
-      payload: point.payload
+      payload: point.payload,
     }));
   }
 
@@ -429,7 +441,7 @@ class MainProcessQdrantService {
 
   async clearCollection(collectionName: string): Promise<void> {
     const payload = {
-      points: { all: true }
+      points: { all: true },
     };
     await this.client.post(`/collections/${collectionName}/points/delete`, payload);
   }
@@ -467,7 +479,7 @@ class MainProcessKnowledgeService {
     KNOWLEDGE: 'knowledge_items',
     CONVERSATIONS: 'conversations',
     RESOURCES: 'learning_resources',
-    EMBEDDINGS: 'content_embeddings'
+    EMBEDDINGS: 'content_embeddings',
   };
   private readonly VECTOR_SIZE = 1536;
 
@@ -481,7 +493,7 @@ class MainProcessKnowledgeService {
       let attempts = 0;
 
       while (!this.qdrantService.isServiceReady() && attempts < maxWait) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         attempts++;
       }
 
@@ -496,7 +508,10 @@ class MainProcessKnowledgeService {
           console.log(`Created Qdrant collection: ${collectionName}`);
         } catch (error: any) {
           if (!error.response?.data?.status?.error?.includes('already exists')) {
-            console.error(`Failed to create collection ${collectionName}:`, error instanceof Error ? error.message : String(error));
+            console.error(
+              `Failed to create collection ${collectionName}:`,
+              error instanceof Error ? error.message : String(error),
+            );
           }
         }
       }
@@ -516,8 +531,8 @@ class MainProcessKnowledgeService {
         vector: embedding,
         payload: {
           ...item,
-          embedding: undefined
-        }
+          embedding: undefined,
+        },
       };
 
       await this.qdrantService.upsertVectors(this.COLLECTIONS.KNOWLEDGE, [vectorPoint]);
@@ -537,28 +552,28 @@ class MainProcessKnowledgeService {
         filter.must = filter.must || [];
         filter.must.push({
           key: 'type',
-          match: { value: filters.type }
+          match: { value: filters.type },
         });
       }
       if (filters?.topic) {
         filter.must = filter.must || [];
         filter.must.push({
           key: 'metadata.topic',
-          match: { value: filters.topic }
+          match: { value: filters.topic },
         });
       }
       if (filters?.sessionId) {
         filter.must = filter.must || [];
         filter.must.push({
           key: 'metadata.sessionId',
-          match: { value: filters.sessionId }
+          match: { value: filters.sessionId },
         });
       }
       if (filters?.tags?.length) {
         filter.must = filter.must || [];
         filter.must.push({
           key: 'metadata.tags',
-          match: { any: filters.tags }
+          match: { any: filters.tags },
         });
       }
 
@@ -567,13 +582,13 @@ class MainProcessKnowledgeService {
         queryEmbedding,
         limit,
         0.6,
-        filter
+        filter,
       );
 
-      return searchResults.map(result => ({
+      return searchResults.map((result) => ({
         item: result.payload,
         similarity: result.score,
-        relevance: this.calculateRelevance(result.score)
+        relevance: this.calculateRelevance(result.score),
       }));
     } catch (error) {
       console.error('Failed to search knowledge:', error);
@@ -607,7 +622,7 @@ class MainProcessKnowledgeService {
       const vectorPoint = {
         id: id,
         vector: embedding,
-        payload: updatedItem
+        payload: updatedItem,
       };
 
       await this.qdrantService.upsertVectors(this.COLLECTIONS.KNOWLEDGE, [vectorPoint]);
@@ -630,7 +645,7 @@ class MainProcessKnowledgeService {
 
   async storeConversationContext(sessionId: string, messages: any[], provider: any): Promise<void> {
     try {
-      const conversationText = messages.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+      const conversationText = messages.map((msg) => `${msg.role}: ${msg.content}`).join('\n');
       const embedding = new Array(this.VECTOR_SIZE).fill(0).map(() => Math.random());
 
       const vectorPoint = {
@@ -640,8 +655,8 @@ class MainProcessKnowledgeService {
           sessionId,
           messages,
           timestamp: Date.now(),
-          type: 'conversation'
-        }
+          type: 'conversation',
+        },
       };
 
       await this.qdrantService.upsertVectors(this.COLLECTIONS.CONVERSATIONS, [vectorPoint]);
@@ -650,7 +665,12 @@ class MainProcessKnowledgeService {
     }
   }
 
-  async getRelevantContext(sessionId: string, query: string, provider: any, limit = 5): Promise<string[]> {
+  async getRelevantContext(
+    sessionId: string,
+    query: string,
+    provider: any,
+    limit = 5,
+  ): Promise<string[]> {
     try {
       const queryEmbedding = new Array(this.VECTOR_SIZE).fill(0).map(() => Math.random());
 
@@ -659,10 +679,10 @@ class MainProcessKnowledgeService {
         queryEmbedding,
         limit,
         0.5,
-        { sessionId: sessionId }
+        { sessionId: sessionId },
       );
 
-      return searchResults.map(result => {
+      return searchResults.map((result) => {
         const payload = result.payload;
         return payload.messages?.map((msg: any) => msg.content).join('\n') || '';
       });
@@ -675,19 +695,21 @@ class MainProcessKnowledgeService {
   async getKnowledgeStats(): Promise<any> {
     try {
       const collections = await this.qdrantService.listCollections();
-      const knowledgeCollection = collections.find(col => col.name === this.COLLECTIONS.KNOWLEDGE);
+      const knowledgeCollection = collections.find(
+        (col) => col.name === this.COLLECTIONS.KNOWLEDGE,
+      );
 
       return {
         totalItems: knowledgeCollection?.points_count || 0,
         itemsByType: {},
-        itemsByTopic: {}
+        itemsByTopic: {},
       };
     } catch (error) {
       console.error('Failed to get knowledge stats:', error);
       return {
         totalItems: 0,
         itemsByType: {},
-        itemsByTopic: {}
+        itemsByTopic: {},
       };
     }
   }
@@ -742,7 +764,7 @@ export class QdrantManager {
       await this.qdrantService.start();
 
       // Wait a moment for the service to be fully ready
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
       // Initialize collections through knowledge service
       await this.knowledgeService['initializeCollections']?.();
@@ -781,15 +803,24 @@ export class QdrantManager {
 
       // 移除所有IPC处理函数
       const ipcHandlers = [
-        'qdrant:start', 'qdrant:stop', 'qdrant:status',
-        'knowledge:add', 'knowledge:search', 'knowledge:get',
-        'knowledge:update', 'knowledge:delete',
-        'knowledge:storeContext', 'knowledge:getContext',
-        'knowledge:stats', 'knowledge:clear',
-        'qdrant:collections', 'qdrant:createCollection', 'qdrant:deleteCollection'
+        'qdrant:start',
+        'qdrant:stop',
+        'qdrant:status',
+        'knowledge:add',
+        'knowledge:search',
+        'knowledge:get',
+        'knowledge:update',
+        'knowledge:delete',
+        'knowledge:storeContext',
+        'knowledge:getContext',
+        'knowledge:stats',
+        'knowledge:clear',
+        'qdrant:collections',
+        'qdrant:createCollection',
+        'qdrant:deleteCollection',
       ];
 
-      ipcHandlers.forEach(handler => {
+      ipcHandlers.forEach((handler) => {
         try {
           ipcMain.removeAllListeners(handler);
         } catch (_error) {
@@ -850,7 +881,15 @@ export class QdrantManager {
         return { success: true };
       } catch (error) {
         console.error('Failed to start Qdrant:', error);
-        return { success: false, error: error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) };
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error instanceof Error
+                ? error.message
+                : String(error)
+              : String(error),
+        };
       }
     });
 
@@ -860,7 +899,15 @@ export class QdrantManager {
         return { success: true };
       } catch (error) {
         console.error('Failed to stop Qdrant:', error);
-        return { success: false, error: error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) };
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error instanceof Error
+                ? error.message
+                : String(error)
+              : String(error),
+        };
       }
     });
 
@@ -876,16 +923,24 @@ export class QdrantManager {
             ready: this.isReady(),
             health,
             metrics,
-            collections: collections.map(col => ({
+            collections: collections.map((col) => ({
               name: col.name,
               points: col.points_count,
-              vectors: col.vectors_count
-            }))
-          }
+              vectors: col.vectors_count,
+            })),
+          },
         };
       } catch (error) {
         console.error('Failed to get Qdrant status:', error);
-        return { success: false, error: error instanceof Error ? error instanceof Error ? error.message : String(error) : String(error) };
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error instanceof Error
+                ? error.message
+                : String(error)
+              : String(error),
+        };
       }
     });
 
@@ -902,7 +957,12 @@ export class QdrantManager {
 
     ipcMain.handle('knowledge:search', async (_, { query, provider, limit, filters }) => {
       try {
-        const results = await this.knowledgeService.searchKnowledge(query, provider, limit, filters);
+        const results = await this.knowledgeService.searchKnowledge(
+          query,
+          provider,
+          limit,
+          filters,
+        );
         return { success: true, results };
       } catch (error) {
         console.error('Failed to search knowledge:', error);
@@ -952,7 +1012,12 @@ export class QdrantManager {
 
     ipcMain.handle('knowledge:getContext', async (_, { sessionId, query, provider, limit }) => {
       try {
-        const context = await this.knowledgeService.getRelevantContext(sessionId, query, provider, limit);
+        const context = await this.knowledgeService.getRelevantContext(
+          sessionId,
+          query,
+          provider,
+          limit,
+        );
         return { success: true, context };
       } catch (error) {
         console.error('Failed to get relevant context:', error);

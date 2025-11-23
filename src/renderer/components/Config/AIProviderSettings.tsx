@@ -1,21 +1,33 @@
-
-
-
 import React, { useState, useEffect } from 'react';
-import { CubeIcon, AcademicCapIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, ExclamationTriangleIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import {
+  CubeIcon,
+  AcademicCapIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/outline';
 import { utilityToasts } from '@/renderer/utils/toast';
 import { useService } from '@/renderer/services/services-provider';
-import type { ProviderConfig, ProviderValidationResult } from '@/shared/types/config';
-import type { ModelType } from '@/shared/types/ai';
+import type {
+  ProviderConfig,
+  ProviderValidationResult,
+  ProviderType,
+} from '@/shared/types/config';
+import { ModelType } from '@/shared/types/ai';
 import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';
-
 
 interface AIProviderSettingsProps {
   // New props for provider-based configuration
   providerConfigs?: Record<string, ProviderConfig>;
-  modelAssignments?: Record<string, { provider_config_id: string; model_id: string }>;
+  modelAssignments?: Partial<
+    Record<ModelType, { provider_config_id: string; model_id: string }>
+  >;
   onProviderConfigChange?: (providerId: string, config: ProviderConfig) => void;
-  onModelAssignmentChange?: (modelType: string, providerId: string, modelId: string) => void;
+  onModelAssignmentChange?: (modelType: ModelType, providerId: string, modelId: string) => void;
 }
 
 export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
@@ -27,15 +39,20 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   const configService = useService('configService');
 
   // Main component state according to plan
-  const [selectedProvider, setSelectedProvider] = useState<string>('');
-  const [configuredProviders, setConfiguredProviders] = useState<Record<string, ProviderConfig>>(providerConfigs);
-  const [validationStatus, setValidationStatus] = useState<Record<string, ProviderValidationResult>>({});
+  const [selectedProvider, setSelectedProvider] = useState<ProviderType | ''>('');
+  const [configuredProviders, setConfiguredProviders] =
+    useState<Record<string, ProviderConfig>>(providerConfigs);
+  const [validationStatus, setValidationStatus] = useState<
+    Record<string, ProviderValidationResult>
+  >({});
   const [discoveredModels, setDiscoveredModels] = useState<Record<string, string[]>>({});
   const [isValidating, setIsValidating] = useState(false);
   const [isFetchingModels, setIsFetchingModels] = useState(false);
 
   // UI state
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['provider-configuration', 'model-assignment']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(['provider-configuration', 'model-assignment']),
+  );
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [baseUrlInput, setBaseUrlInput] = useState('');
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
@@ -44,10 +61,9 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     setConfiguredProviders(providerConfigs);
   }, [providerConfigs]);
 
-  
   // Section expansion handlers
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => {
+    setExpandedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(section)) {
         newSet.delete(section);
@@ -59,13 +75,17 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   };
 
   // Provider configuration handlers
-  const handleProviderChange = (providerType: string) => {
+  const handleProviderChange = (providerType: ProviderType | '') => {
     setSelectedProvider(providerType);
-    const provider = PREDEFINED_PROVIDERS[providerType];
+    const provider = providerType ? PREDEFINED_PROVIDERS[providerType] : null;
     if (provider) {
       setBaseUrlInput(provider.base_url);
+      const typedProvider = providerType as ProviderType;
       // Reset validation status when switching providers
-      setValidationStatus(prev => ({ ...prev, [providerType]: {} }));
+      setValidationStatus((prev) => {
+        const { [typedProvider]: _, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -78,8 +98,13 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
 
     setIsValidating(true);
     try {
-      const result = await configService.validateProvider(selectedProvider, apiKeyInput.trim(), baseUrlInput);
-      setValidationStatus(prev => ({ ...prev, [selectedProvider]: result }));
+      const providerType = selectedProvider as ProviderType;
+      const result = await configService.validateProvider(
+        providerType,
+        apiKeyInput.trim(),
+        baseUrlInput,
+      );
+      setValidationStatus((prev) => ({ ...prev, [providerType]: result }));
 
       if (result.success) {
         utilityToasts.success('API key validated successfully');
@@ -88,9 +113,10 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown validation error';
-      setValidationStatus(prev => ({
+      const providerType = selectedProvider as ProviderType;
+      setValidationStatus((prev) => ({
         ...prev,
-        [selectedProvider]: { success: false, error: errorMessage }
+        [providerType]: { success: false, error: errorMessage },
       }));
       utilityToasts.error(`Validation failed: ${errorMessage}`);
     } finally {
@@ -111,14 +137,14 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       const models = await configService.getProviderModels(
         providerConfig.provider_type,
         providerConfig.api_key,
-        providerConfig.base_url
+        providerConfig.base_url,
       );
 
-      setDiscoveredModels(prev => ({ ...prev, [providerId]: models }));
+      setDiscoveredModels((prev) => ({ ...prev, [providerId]: models }));
 
       // Update provider config with discovered models
       const updatedConfig = { ...providerConfig, models };
-      setConfiguredProviders(prev => ({ ...prev, [providerId]: updatedConfig }));
+      setConfiguredProviders((prev) => ({ ...prev, [providerId]: updatedConfig }));
 
       if (onProviderConfigChange) {
         onProviderConfigChange(providerId, updatedConfig);
@@ -140,16 +166,17 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
       return;
     }
 
-    const providerId = `${selectedProvider}-${Date.now()}`;
+    const providerType = selectedProvider as ProviderType;
+    const providerId = `${providerType}-${Date.now()}`;
     const providerConfig: ProviderConfig = {
-      provider_type: selectedProvider,
+      provider_type: providerType,
       api_key: apiKeyInput.trim(),
       base_url: baseUrlInput,
       models: discoveredModels[providerId] || [],
     };
 
     try {
-      setConfiguredProviders(prev => ({ ...prev, [providerId]: providerConfig }));
+      setConfiguredProviders((prev) => ({ ...prev, [providerId]: providerConfig }));
 
       if (onProviderConfigChange) {
         onProviderConfigChange(providerId, providerConfig);
@@ -168,7 +195,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   };
 
   // Model type assignment handlers
-  const handleModelAssignmentChange = (modelType: string, providerId: string, modelId: string) => {
+  const handleModelAssignmentChange = (modelType: ModelType, providerId: string, modelId: string) => {
     if (onModelAssignmentChange) {
       onModelAssignmentChange(modelType, providerId, modelId);
     }
@@ -176,24 +203,27 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
 
   // UI helpers
   const toggleApiKeyVisibility = (providerId: string) => {
-    setShowApiKeys(prev => ({ ...prev, [providerId]: !prev[providerId] }));
+    setShowApiKeys((prev) => ({ ...prev, [providerId]: !prev[providerId] }));
   };
 
   const getAvailableModels = (providerId: string): string[] => {
     return discoveredModels[providerId] || configuredProviders[providerId]?.models || [];
   };
 
-  
   // Provider Configuration Section Component
   const ProviderConfigurationSection = () => (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Provider Configuration</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        Provider Configuration
+      </h3>
 
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Select Provider</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Select Provider
+        </label>
         <select
           value={selectedProvider}
-          onChange={(e) => handleProviderChange(e.target.value)}
+          onChange={(e) => handleProviderChange(e.target.value as ProviderType | '')}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="">Choose a provider...</option>
@@ -220,7 +250,9 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           </div>
 
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">API Key</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              API Key
+            </label>
             <div className="flex space-x-2">
               <input
                 type={showApiKeys[selectedProvider] ? 'text' : 'password'}
@@ -246,7 +278,9 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
             </div>
 
             {validationStatus[selectedProvider] && (
-              <div className={`text-sm ${validationStatus[selectedProvider].success ? 'text-green-600' : 'text-red-600'} flex items-center`}>
+              <div
+                className={`text-sm ${validationStatus[selectedProvider].success ? 'text-green-600' : 'text-red-600'} flex items-center`}
+              >
                 {validationStatus[selectedProvider].success ? (
                   <CheckCircleIcon className="w-4 h-4 mr-1" />
                 ) : (
@@ -254,8 +288,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                 )}
                 {validationStatus[selectedProvider].success
                   ? '✓ API key is valid'
-                  : `✗ ${validationStatus[selectedProvider].error}`
-                }
+                  : `✗ ${validationStatus[selectedProvider].error}`}
               </div>
             )}
           </div>
@@ -263,7 +296,9 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           {/* Custom Base URL (for openai-compatible providers) */}
           {selectedProvider === 'openai-compatible' && (
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Base URL</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Base URL
+              </label>
               <input
                 type="url"
                 value={baseUrlInput}
@@ -291,7 +326,10 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         <div className="space-y-2">
           <h4 className="font-medium text-gray-900 dark:text-gray-100">Configured Providers</h4>
           {Object.entries(configuredProviders).map(([providerId, config]) => (
-            <div key={providerId} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+            <div
+              key={providerId}
+              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg"
+            >
               <div>
                 <div className="font-medium text-gray-900 dark:text-gray-100">
                   {PREDEFINED_PROVIDERS[config.provider_type]?.name || config.provider_type}
@@ -334,13 +372,15 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
 
   // Model Type Assignment Section Component
   const ModelTypeAssignmentSection = () => {
-    const modelTypes: ModelType[] = ['chat', 'embedding', 'rerank'];
+    const modelTypes: ModelType[] = [ModelType.CHAT, ModelType.EMBEDDING, ModelType.RERANK];
 
     return (
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Model Type Assignment</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Model Type Assignment
+        </h3>
 
-        {modelTypes.map(modelType => (
+        {modelTypes.map((modelType) => (
           <div key={modelType} className="flex items-center space-x-4">
             <span className="capitalize w-24 text-gray-700 dark:text-gray-300">{modelType}:</span>
 
@@ -362,7 +402,8 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                 .filter(([_, config]) => config.api_key)
                 .map(([providerId]) => (
                   <option key={providerId} value={providerId}>
-                    {PREDEFINED_PROVIDERS[configuredProviders[providerId].provider_type]?.name || providerId}
+                    {PREDEFINED_PROVIDERS[configuredProviders[providerId].provider_type]?.name ||
+                      providerId}
                   </option>
                 ))}
             </select>
@@ -379,16 +420,23 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
               className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
             >
               <option value="">Select model...</option>
-              {getAvailableModels(modelAssignments[modelType]?.provider_config_id || '').map(model => (
-                <option key={model} value={model}>{model}</option>
-              ))}
+              {getAvailableModels(modelAssignments[modelType]?.provider_config_id || '').map(
+                (model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ),
+              )}
             </select>
 
             <button
-              onClick={() => fetchModelsForProvider(modelAssignments[modelType]?.provider_config_id || '')}
+              onClick={() =>
+                fetchModelsForProvider(modelAssignments[modelType]?.provider_config_id || '')
+              }
               disabled={
                 !modelAssignments[modelType]?.provider_config_id ||
-                !configuredProviders[modelAssignments[modelType]?.provider_config_id || '']?.api_key ||
+                !configuredProviders[modelAssignments[modelType]?.provider_config_id || '']
+                  ?.api_key ||
                 isFetchingModels
               }
               className="px-3 py-1 bg-green-500 text-white rounded-md text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"
@@ -415,7 +463,8 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           AI Provider Configuration
         </h2>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Configure AI providers and assign models to different task types. Each provider can be validated before use.
+          Configure AI providers and assign models to different task types. Each provider can be
+          validated before use.
         </p>
 
         <div className="space-y-6">
@@ -428,8 +477,12 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
               <div className="flex items-center space-x-3">
                 <CubeIcon className="w-5 h-5 text-blue-600" />
                 <div className="text-left">
-                  <h3 className="font-medium text-gray-900 dark:text-gray-100">Provider Configuration</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Set up and validate AI providers</p>
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                    Provider Configuration
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Set up and validate AI providers
+                  </p>
                 </div>
               </div>
               {expandedSections.has('provider-configuration') ? (
@@ -455,8 +508,12 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
               <div className="flex items-center space-x-3">
                 <AcademicCapIcon className="w-5 h-5 text-green-600" />
                 <div className="text-left">
-                  <h3 className="font-medium text-gray-900 dark:text-gray-100">Model Type Assignment</h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Assign providers and models to task types</p>
+                  <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                    Model Type Assignment
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Assign providers and models to task types
+                  </p>
                 </div>
               </div>
               {expandedSections.has('model-assignment') ? (
@@ -477,3 +534,4 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     </div>
   );
 };
+export default AIProviderSettings;

@@ -1,4 +1,3 @@
-
 /**
  * MessageBubble Component Tests
  *
@@ -16,6 +15,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MessageBubble } from '../MessageBubble';
+import type { MessageDisplay } from '@/renderer/types/message';
 
 // Mock the syntax highlighter
 vi.mock('@/renderer/components/UI/SyntaxHighlighterWrapper', () => ({
@@ -35,6 +35,17 @@ Object.assign(navigator, {
   clipboard: mockClipboard,
 });
 
+const DEFAULT_MESSAGE_TIMESTAMP = new Date('2024-01-15T10:30:00');
+
+const createMessage = (overrides: Partial<MessageDisplay> = {}): MessageDisplay => ({
+  id: overrides.id ?? `msg-${Math.random().toString(36).substring(2, 8)}`,
+  role: overrides.role ?? 'assistant',
+  content: overrides.content ?? '',
+  timestamp: overrides.timestamp ?? DEFAULT_MESSAGE_TIMESTAMP,
+  status: overrides.status ?? 'delivered',
+  ...overrides,
+});
+
 describe('MessageBubble - Real Message Scenarios', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,12 +53,12 @@ describe('MessageBubble - Real Message Scenarios', () => {
 
   describe('Basic Message Display', () => {
     it('should render user messages correctly', () => {
-      const userMessage = {
+      const userMessage = createMessage({
         id: 'msg-1',
         role: 'user',
         content: 'How do I use React hooks?',
         timestamp: new Date('2024-01-15T10:30:00'),
-      };
+      });
 
       render(<MessageBubble message={userMessage} />);
 
@@ -58,12 +69,12 @@ describe('MessageBubble - Real Message Scenarios', () => {
     });
 
     it('should render assistant messages correctly', () => {
-      const assistantMessage = {
+      const assistantMessage = createMessage({
         id: 'msg-2',
         role: 'assistant',
         content: 'React hooks allow functional components to use state and lifecycle features.',
         timestamp: new Date('2024-01-15T10:31:00'),
-      };
+      });
 
       render(<MessageBubble message={assistantMessage} />);
 
@@ -73,12 +84,12 @@ describe('MessageBubble - Real Message Scenarios', () => {
     });
 
     it('should render system messages correctly', () => {
-      const systemMessage = {
+      const systemMessage = createMessage({
         id: 'msg-3',
         role: 'system',
         content: 'Session started successfully',
         timestamp: new Date('2024-01-15T10:32:00'),
-      };
+      });
 
       render(<MessageBubble message={systemMessage} />);
 
@@ -90,14 +101,15 @@ describe('MessageBubble - Real Message Scenarios', () => {
 
   describe('Thinking Process Visualization', () => {
     it('should display thinking content when available', async () => {
-      const messageWithThinking = {
+      const messageWithThinking = createMessage({
         id: 'msg-4',
         role: 'assistant',
         content: 'React hooks are functions that let you use state...',
-        thinking_content: 'User asked about React hooks. Need to explain useState first, then useEffect. Consider practical examples.',
+        thinking_content:
+          'User asked about React hooks. Need to explain useState first, then useEffect. Consider practical examples.',
         timestamp: new Date('2024-01-15T10:33:00'),
         showThinking: true,
-      };
+      });
 
       render(<MessageBubble message={messageWithThinking} />);
 
@@ -110,23 +122,20 @@ describe('MessageBubble - Real Message Scenarios', () => {
 
     it('should toggle thinking content visibility', async () => {
       const user = userEvent.setup();
-      
-      const messageWithThinking = {
+
+      const messageWithThinking = createMessage({
         id: 'msg-5',
         role: 'assistant',
         content: 'Explanation of concepts',
         thinking_content: 'Internal reasoning about the explanation',
         timestamp: new Date('2024-01-15T10:34:00'),
         showThinking: false,
-      };
+      });
 
       const mockOnToggleThinking = vi.fn();
 
       render(
-        <MessageBubble 
-          message={messageWithThinking} 
-          onToggleThinking={mockOnToggleThinking}
-        />
+        <MessageBubble message={messageWithThinking} onToggleThinking={mockOnToggleThinking} />,
       );
 
       // Initially thinking should be hidden
@@ -141,14 +150,14 @@ describe('MessageBubble - Real Message Scenarios', () => {
     });
 
     it('should handle streaming thinking content', () => {
-      const streamingMessage = {
+      const streamingMessage = createMessage({
         id: 'msg-6',
         role: 'assistant',
         content: 'Partial response...',
         thinking_content: 'Currently analyzing user question...',
         timestamp: new Date('2024-01-15T10:35:00'),
         showThinking: true,
-      };
+      });
 
       render(<MessageBubble message={streamingMessage} isStreaming={true} />);
 
@@ -160,12 +169,12 @@ describe('MessageBubble - Real Message Scenarios', () => {
 
   describe('Code Block Rendering', () => {
     it('should render and highlight code blocks properly', async () => {
-      const messageWithCode = {
+      const messageWithCode = createMessage({
         id: 'msg-7',
         role: 'assistant',
         content: `Here's an example:\n\n\`\`\`javascript\nconst [count, setCount] = useState(0);\n\`\`\`\n\nThis demonstrates useState usage.`,
         timestamp: new Date('2024-01-15T10:36:00'),
-      };
+      });
 
       render(<MessageBubble message={messageWithCode} />);
 
@@ -178,13 +187,13 @@ describe('MessageBubble - Real Message Scenarios', () => {
 
     it('should allow copying code to clipboard', async () => {
       const user = userEvent.setup();
-      
-      const messageWithCode = {
+
+      const messageWithCode = createMessage({
         id: 'msg-8',
         role: 'assistant',
         content: `\`\`\`typescript\ninterface User {\n  name: string;\n  age: number;\n}\n\`\`\``,
         timestamp: new Date('2024-01-15T10:37:00'),
-      };
+      });
 
       render(<MessageBubble message={messageWithCode} />);
 
@@ -195,7 +204,7 @@ describe('MessageBubble - Real Message Scenarios', () => {
       // Since the clipboard function is async and may have issues in the test environment,
       // we'll test that the click happened and the button exists
       expect(copyButton).toBeInTheDocument();
-      
+
       // If the implementation uses navigator.clipboard, we may need to resolve the promise
       // that comes from the async clipboard operation
       await act(async () => {
@@ -208,12 +217,12 @@ describe('MessageBubble - Real Message Scenarios', () => {
     });
 
     it('should handle inline code properly', () => {
-      const messageWithInlineCode = {
+      const messageWithInlineCode = createMessage({
         id: 'msg-9',
         role: 'assistant',
         content: 'Use the `useState` hook to manage state in functional components.',
         timestamp: new Date('2024-01-15T10:38:00'),
-      };
+      });
 
       render(<MessageBubble message={messageWithInlineCode} />);
 
@@ -225,7 +234,7 @@ describe('MessageBubble - Real Message Scenarios', () => {
 
   describe('Tool Call Display', () => {
     it('should display tool calls when present in message', () => {
-      const messageWithToolCalls = {
+      const messageWithToolCalls = createMessage({
         id: 'msg-10',
         role: 'assistant',
         content: 'I need to search for information about React hooks.',
@@ -236,21 +245,23 @@ describe('MessageBubble - Real Message Scenarios', () => {
             type: 'function',
             function: {
               name: 'search_knowledge_base',
-              arguments: JSON.stringify({ query: 'React hooks documentation' })
-            }
-          }
-        ]
-      };
+              arguments: JSON.stringify({ query: 'React hooks documentation' }),
+            },
+          },
+        ],
+      });
 
       render(<MessageBubble message={messageWithToolCalls} />);
 
       // Tool calls section should be visible
       expect(screen.getByText('Tool Calls')).toBeInTheDocument();
-      expect(screen.getByText('search_knowledge_base({"query":"React hooks documentation"})')).toBeInTheDocument();
+      expect(
+        screen.getByText('search_knowledge_base({"query":"React hooks documentation"})'),
+      ).toBeInTheDocument();
     });
 
     it('should handle multiple tool calls', () => {
-      const messageWithMultipleTools = {
+      const messageWithMultipleTools = createMessage({
         id: 'msg-11',
         role: 'assistant',
         content: 'Processing your request with multiple tools.',
@@ -261,34 +272,37 @@ describe('MessageBubble - Real Message Scenarios', () => {
             type: 'function',
             function: {
               name: 'knowledge_extraction',
-              arguments: '{"query":"React performance optimization"}'
-            }
+              arguments: '{"query":"React performance optimization"}',
+            },
           },
           {
             id: 'call-2',
             type: 'function',
             function: {
               name: 'calculate',
-              arguments: '{"expression":"2 + 2 * 3"}'
-            }
-          }
-        ]
-      };
+              arguments: '{"expression":"2 + 2 * 3"}',
+            },
+          },
+        ],
+      });
 
       render(<MessageBubble message={messageWithMultipleTools} />);
 
       // Both tool calls should be displayed
-      expect(screen.getByText('knowledge_extraction({"query":"React performance optimization"})')).toBeInTheDocument();
+      expect(
+        screen.getByText('knowledge_extraction({"query":"React performance optimization"})'),
+      ).toBeInTheDocument();
       expect(screen.getByText('calculate({"expression":"2 + 2 * 3"})')).toBeInTheDocument();
     });
   });
 
   describe('Performance with Complex Content', () => {
     it('should handle long messages efficiently', async () => {
-      const longMessage = {
+      const longMessage = createMessage({
         id: 'msg-12',
         role: 'assistant',
-        content: `React hooks are a powerful feature introduced in React 16.8 that allow functional components to use state and other React features without writing a class. Here's a comprehensive explanation:
+        content:
+          `React hooks are a powerful feature introduced in React 16.8 that allow functional components to use state and other React features without writing a class. Here's a comprehensive explanation:
 
 ## Core Hooks
 - useState: manages state in functional components
@@ -308,24 +322,26 @@ You can create your own hooks to share stateful logic between components.
 - Only call hooks from React functions
 - Use the linter plugin to enforce rules
 
-The introduction of hooks has made functional components much more powerful and has led to more reusable and testable code patterns in the React ecosystem.`.repeat(10), // Long content
+The introduction of hooks has made functional components much more powerful and has led to more reusable and testable code patterns in the React ecosystem.`.repeat(
+            10,
+          ), // Long content
         timestamp: new Date('2024-01-15T10:41:00'),
-      };
+      });
 
       const startTime = performance.now();
       render(<MessageBubble message={longMessage} />);
 
       const renderTime = performance.now() - startTime;
-      
+
       // Should render efficiently even with long content
       expect(renderTime).toBeLessThan(500); // Less than 500ms for long content
-      
+
       // Use getAllByText since content is repeated due to repetition in the test string
       expect(screen.getAllByText(/React hooks are a powerful feature/)).toHaveLength(10);
     });
 
     it('should handle nested markdown elements', () => {
-      const complexMarkdownMessage = {
+      const complexMarkdownMessage = createMessage({
         id: 'msg-13',
         role: 'assistant',
         content: `# Main Topic
@@ -342,7 +358,7 @@ const code = 'with syntax highlighting';
 
 [Link to resource](https://example.com)`,
         timestamp: new Date('2024-01-15T10:42:00'),
-      };
+      });
 
       render(<MessageBubble message={complexMarkdownMessage} />);
 
@@ -360,12 +376,18 @@ const code = 'with syntax highlighting';
     });
 
     it('should handle streaming content updates', async () => {
-      const { rerender } = render(<MessageBubble message={{ 
-        id: 'msg-14', 
-        role: 'assistant', 
-        content: 'Partial ', 
-        timestamp: new Date('2024-01-15T10:43:00') 
-      }} isStreaming={true} />);
+      const { rerender } = render(
+        <MessageBubble
+          message={createMessage({
+            id: 'msg-14',
+            role: 'assistant',
+            content: 'Partial ',
+            timestamp: new Date('2024-01-15T10:43:00'),
+            status: 'typing',
+          })}
+          isStreaming={true}
+        />,
+      );
 
       // Verify initial streaming state
       expect(screen.getByText('Partial')).toBeInTheDocument();
@@ -373,12 +395,18 @@ const code = 'with syntax highlighting';
       expect(screen.getByLabelText('AI is typing')).toBeInTheDocument();
 
       // Update with more content (simulating streaming)
-      rerender(<MessageBubble message={{ 
-        id: 'msg-14', 
-        role: 'assistant', 
-        content: 'Partial complete response', 
-        timestamp: new Date('2024-01-15T10:43:00') 
-      }} isStreaming={true} />);
+      rerender(
+        <MessageBubble
+          message={createMessage({
+            id: 'msg-14',
+            role: 'assistant',
+            content: 'Partial complete response',
+            timestamp: new Date('2024-01-15T10:43:00'),
+            status: 'typing',
+          })}
+          isStreaming={true}
+        />,
+      );
 
       // Content should be updated
       expect(screen.getByText('Partial complete response')).toBeInTheDocument();
@@ -388,12 +416,12 @@ const code = 'with syntax highlighting';
 
   describe('Accessibility Features', () => {
     it('should have proper ARIA attributes for screen readers', () => {
-      const message = {
+      const message = createMessage({
         id: 'msg-15',
         role: 'assistant',
         content: 'This is an important message for accessibility testing.',
         timestamp: new Date('2024-01-15T10:44:00'),
-      };
+      });
 
       render(<MessageBubble message={message} />);
 
@@ -405,53 +433,52 @@ const code = 'with syntax highlighting';
 
     it('should provide keyboard navigation for interactive elements', async () => {
       const user = userEvent.setup();
-      
-      const messageWithThinking = {
+
+      const messageWithThinking = createMessage({
         id: 'msg-16',
         role: 'assistant',
         content: 'Explanation with thinking process',
         thinking_content: 'Internal reasoning shown to user',
         timestamp: new Date('2024-01-15T10:45:00'),
         showThinking: false,
-      };
+      });
 
       const mockOnToggleThinking = vi.fn();
 
       render(
-        <MessageBubble 
-          message={messageWithThinking} 
-          onToggleThinking={mockOnToggleThinking}
-        />
+        <MessageBubble message={messageWithThinking} onToggleThinking={mockOnToggleThinking} />,
       );
 
       // Find the show/hide thinking button - look for the button with the correct title
       const thinkingButton = screen.getByTitle('Show thinking process');
-      
-      // Should be focusable 
+
+      // Should be focusable
       thinkingButton.focus();
       expect(thinkingButton).toHaveFocus();
 
       // Should work with keyboard
       await user.keyboard('{Enter}');
-      
+
       expect(mockOnToggleThinking).toHaveBeenCalledWith('msg-16');
     });
 
     it('should provide proper labels for copy functionality', async () => {
       const user = userEvent.setup();
-      
-      const messageWithCode = {
+
+      const messageWithCode = createMessage({
         id: 'msg-17',
         role: 'assistant',
         content: `\`\`\`javascript\nconst x = 5;\n\`\`\``,
         timestamp: new Date('2024-01-15T10:46:00'),
-      };
+      });
 
       render(<MessageBubble message={messageWithCode} />);
 
       // Find the copy button - for messages with code, it has title "Copy message"
-      const copyButton = await screen.findByRole('button', { name: 'Copy message content to clipboard' });
-      
+      const copyButton = await screen.findByRole('button', {
+        name: 'Copy message content to clipboard',
+      });
+
       expect(copyButton).toBeInTheDocument();
       expect(copyButton).toHaveAttribute('title', 'Copy message');
     });
@@ -459,7 +486,7 @@ const code = 'with syntax highlighting';
 
   describe('Real-world Message Scenarios', () => {
     it('should handle educational content with examples', async () => {
-      const educationalMessage = {
+      const educationalMessage = createMessage({
         id: 'msg-18',
         role: 'assistant',
         content: `## React State Management
@@ -489,21 +516,24 @@ function Counter() {
 - React re-renders component when state changes
 - Use functional updates for state based on previous state`,
         timestamp: new Date('2024-01-15T10:47:00'),
-        thinking_content: 'User wants to learn React state management. Start with useState as it\'s the most fundamental, provide practical example, then mention key concepts.',
+        thinking_content:
+          "User wants to learn React state management. Start with useState as it's the most fundamental, provide practical example, then mention key concepts.",
         showThinking: false,
-      };
+      });
 
       render(<MessageBubble message={educationalMessage} />);
 
       // All educational elements should be present
-      expect(screen.getByRole('heading', { level: 2, name: 'React State Management' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'React State Management' }),
+      ).toBeInTheDocument();
       expect(screen.getByRole('heading', { level: 3, name: 'useState Hook' })).toBeInTheDocument();
       expect(screen.getByText(/const \[count, setCount\] = useState\(0\)/)).toBeInTheDocument();
       expect(screen.getByText('Key Points:')).toBeInTheDocument();
     });
 
     it('should handle complex code explanations with multiple languages', () => {
-      const multiLanguageMessage = {
+      const multiLanguageMessage = createMessage({
         id: 'msg-19',
         role: 'assistant',
         content: `Here are examples in different languages:
@@ -528,7 +558,7 @@ console.log(greeting);
 
 All demonstrate the same concept with language-specific syntax.`,
         timestamp: new Date('2024-01-15T10:48:00'),
-      };
+      });
 
       render(<MessageBubble message={multiLanguageMessage} />);
 
@@ -539,7 +569,7 @@ All demonstrate the same concept with language-specific syntax.`,
     });
 
     it('should handle error explanations with solutions', () => {
-      const errorExplanationMessage = {
+      const errorExplanationMessage = createMessage({
         id: 'msg-20',
         role: 'assistant',
         content: `## Error Explanation
@@ -576,12 +606,14 @@ function Component() {
 - React documentation on state management
 - Common pitfalls and best practices`,
         timestamp: new Date('2024-01-15T10:49:00'),
-      };
+      });
 
       render(<MessageBubble message={errorExplanationMessage} />);
 
       // All error explanation elements should be rendered
-      expect(screen.getByRole('heading', { level: 2, name: 'Error Explanation' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Error Explanation' }),
+      ).toBeInTheDocument();
       // The error text is inside a <p><strong>Error</strong>: ...</p> structure
       expect(screen.getByText(/Cannot update a component/)).toBeInTheDocument();
       // Solutions and Additional Resources are strong tags followed by colons
@@ -592,7 +624,7 @@ function Component() {
 
   describe('Token Usage Display', () => {
     it('should display token usage information when available', () => {
-      const messageWithTokens = {
+      const messageWithTokens = createMessage({
         id: 'msg-21',
         role: 'assistant',
         content: 'Detailed response with token information',
@@ -600,9 +632,9 @@ function Component() {
         tokens_used: {
           prompt_tokens: 15,
           completion_tokens: 45,
-          total_tokens: 60
-        }
-      };
+          total_tokens: 60,
+        },
+      });
 
       render(<MessageBubble message={messageWithTokens} />);
 
@@ -612,12 +644,12 @@ function Component() {
     });
 
     it('should handle missing token information gracefully', () => {
-      const messageWithoutTokens = {
+      const messageWithoutTokens = createMessage({
         id: 'msg-22',
         role: 'assistant',
         content: 'Response without token info',
         timestamp: new Date('2024-01-15T10:51:00'),
-      };
+      });
 
       render(<MessageBubble message={messageWithoutTokens} />);
 
@@ -628,26 +660,28 @@ function Component() {
 
   describe('Streaming Progress Indicators', () => {
     it('should show streaming progress', () => {
-      render(<MessageBubble 
-        message={{ 
-          id: 'msg-23', 
-          role: 'assistant', 
-          content: 'Partial content', 
-          timestamp: new Date('2024-01-15T10:52:00') 
-        }} 
-        isStreaming={true} 
-        streamingProgress={65}
-      />);
+      render(
+        <MessageBubble
+          message={{
+            id: 'msg-23',
+            role: 'assistant',
+            content: 'Partial content',
+            timestamp: new Date('2024-01-15T10:52:00'),
+          }}
+          isStreaming={true}
+          streamingProgress={65}
+        />,
+      );
 
       expect(screen.getByText('Generating response...')).toBeInTheDocument();
       // Use getAllByText since there might be multiple elements with '65%'
       expect(screen.getAllByText('65%')).toHaveLength(2); // progress bar and typing indicator
-      
+
       // Find the progress indicator by looking for the text "Generating response..."
       expect(screen.getByText('Generating response...')).toBeInTheDocument();
       // Use getAllByText since there might be multiple elements with '65%'
       expect(screen.getAllByText('65%')).toHaveLength(2); // progress bar and typing indicator
-      
+
       // Simply verify that the progress information is displayed
       // The progress bar may be in a complex structure that's difficult to query precisely
       // So we just confirm the progress-related text is present
@@ -655,29 +689,33 @@ function Component() {
     });
 
     it('should update streaming progress dynamically', async () => {
-      const { rerender } = render(<MessageBubble 
-        message={{ 
-          id: 'msg-24', 
-          role: 'assistant', 
-          content: 'Content', 
-          timestamp: new Date('2024-01-15T10:53:00') 
-        }} 
-        isStreaming={true} 
-        streamingProgress={30}
-      />);
+      const { rerender } = render(
+        <MessageBubble
+          message={{
+            id: 'msg-24',
+            role: 'assistant',
+            content: 'Content',
+            timestamp: new Date('2024-01-15T10:53:00'),
+          }}
+          isStreaming={true}
+          streamingProgress={30}
+        />,
+      );
 
       expect(screen.getAllByText('30%')).toHaveLength(2);
 
-      rerender(<MessageBubble 
-        message={{ 
-          id: 'msg-24', 
-          role: 'assistant', 
-          content: 'Content', 
-          timestamp: new Date('2024-01-15T10:53:00') 
-        }} 
-        isStreaming={true} 
-        streamingProgress={85}
-      />);
+      rerender(
+        <MessageBubble
+          message={{
+            id: 'msg-24',
+            role: 'assistant',
+            content: 'Content',
+            timestamp: new Date('2024-01-15T10:53:00'),
+          }}
+          isStreaming={true}
+          streamingProgress={85}
+        />,
+      );
 
       expect(screen.getAllByText('85%')).toHaveLength(2);
     });

@@ -1,7 +1,9 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
+import {
+  createMockConfigurationService,
+  createMockFileService,
+} from '@/test/utils/services-provider-stubs';
 import { LocalProjectExplorer } from '../LocalProjectExplorer';
 
 const mockConceptParsingService = {
@@ -10,16 +12,16 @@ const mockConceptParsingService = {
   getJobStatus: vi.fn(),
   cancelJob: vi.fn(),
   listActiveJobs: vi.fn(),
-  parseContent: vi.fn()
+  parseContent: vi.fn(),
 };
 
 const mockChatService = {
-  getProviderInfo: vi.fn()
+  getProviderInfo: vi.fn(),
 };
 
 const serviceMap: Record<string, any> = {
   conceptParsing: mockConceptParsingService,
-  chatService: mockChatService
+  chatService: mockChatService,
 };
 
 const configServiceMock = createMockConfigurationService();
@@ -45,7 +47,7 @@ const createDirectoryEntries = () => [
     modifiedTime: Date.now(),
     createdTime: Date.now(),
     accessedTime: Date.now(),
-    isMarkdown: false
+    isMarkdown: false,
   },
   {
     name: 'notes.md',
@@ -57,8 +59,8 @@ const createDirectoryEntries = () => [
     modifiedTime: Date.now(),
     createdTime: Date.now(),
     accessedTime: Date.now(),
-    isMarkdown: true
-  }
+    isMarkdown: true,
+  },
 ];
 
 beforeEach(() => {
@@ -67,7 +69,7 @@ beforeEach(() => {
   mockReadDirectory.mockResolvedValue(createDirectoryEntries());
   mockChatService.getProviderInfo.mockReturnValue({
     name: 'Test Provider',
-    type: 'openai'
+    type: 'openai',
   });
   mockConceptParsingService.getJobStatus.mockReturnValue(null);
 
@@ -91,7 +93,7 @@ describe('LocalProjectExplorer', () => {
         '/workspace',
         true,
         3,
-        expect.objectContaining({ excludePatterns: expect.any(Array) })
+        expect.objectContaining({ excludePatterns: expect.any(Array) }),
       );
     });
 
@@ -116,7 +118,7 @@ describe('LocalProjectExplorer', () => {
       stages: [],
       startedAt: new Date(),
       completedAt: new Date(),
-      result: { concepts: [{ id: 'concept-1' }] }
+      result: { concepts: [{ id: 'concept-1' }] },
     };
 
     mockConceptParsingService.parseFiles.mockResolvedValue(parsingJob);
@@ -126,9 +128,7 @@ describe('LocalProjectExplorer', () => {
     const markdownFile = await screen.findByText('notes.md');
     fireEvent.click(markdownFile);
 
-    expect(
-      await screen.findByText('1 markdown file selected')
-    ).toBeInTheDocument();
+    expect(await screen.findByText('1 markdown file selected')).toBeInTheDocument();
 
     const parseButton = screen.getByRole('button', { name: 'Parse Concepts' });
     fireEvent.click(parseButton);

@@ -14,7 +14,7 @@ import type {
   AgentDisplay,
   AgentCapabilitiesDisplay,
   ResponseStyleSettings,
-  FeatureDemoDisplay
+  FeatureDemoDisplay,
 } from '@/shared/types/electron-api/agent-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 
@@ -25,7 +25,11 @@ type AgentSelectionParams = {
 
 type PersonalityParams = {
   agentId: string;
-  personality: 'friendly encouraging' | 'formal professional' | 'casual friendly' | 'technical expert';
+  personality:
+    | 'friendly encouraging'
+    | 'formal professional'
+    | 'casual friendly'
+    | 'technical expert';
 };
 
 type ResponseStyleParams = {
@@ -52,7 +56,7 @@ const createMockAgent = (type: AgentDisplay['type'], id: string): AgentDisplay =
   specialties: [],
   languages: ['en'],
   difficulty: 'intermediate',
-  interactive: true
+  interactive: true,
 });
 
 const mockCapabilities: AgentCapabilitiesDisplay = {
@@ -63,7 +67,7 @@ const mockCapabilities: AgentCapabilitiesDisplay = {
   limitations: [],
   performanceMetrics: { accuracy: 0, responseTime: '0ms', userSatisfaction: 0 },
   supportedFeatures: [],
-  integrationPartners: []
+  integrationPartners: [],
 };
 
 const mockFeatureDemo = (agentId: string, feature: string): FeatureDemoDisplay => ({
@@ -75,7 +79,7 @@ const mockFeatureDemo = (agentId: string, feature: string): FeatureDemoDisplay =
   demoInteraction: { type: 'guided_example', steps: [] },
   expectedOutcome: 'Sample outcome',
   estimatedTime: '0m',
-  difficulty: 'easy'
+  difficulty: 'easy',
 });
 
 export const setupEnhancedAgentHandlers = (
@@ -85,7 +89,7 @@ export const setupEnhancedAgentHandlers = (
     learningService: LearningService;
     knowledgeService: KnowledgeService;
     loggerService: LoggerService;
-  }
+  },
 ): void => {
   const handlerLogger = services.loggerService.child({ handler: 'agent-enhanced' });
   const ok = <T>(data: T): APIResponse<T> => ({ success: true, data });
@@ -95,7 +99,7 @@ export const setupEnhancedAgentHandlers = (
       createMockAgent('learning', 'agent_learning'),
       createMockAgent('tutoring', 'agent_tutor'),
       createMockAgent('assessment', 'agent_assessment'),
-      createMockAgent('practice', 'agent_practice')
+      createMockAgent('practice', 'agent_practice'),
     ];
     handlerLogger.info('Returning available agents', { count: agents.length });
     return ok(agents);
@@ -103,45 +107,48 @@ export const setupEnhancedAgentHandlers = (
 
   ipcMainInstance.handle(
     'agents:select-for-session',
-    async (_event, params: AgentSelectionParams): Promise<{ success: boolean; selectedAgent: AgentDisplay }> => {
+    async (_event, params: AgentSelectionParams): Promise<APIResponse<AgentDisplay>> => {
       const selectedAgent = createMockAgent(params.agentType, `agent_${params.agentType}`);
       handlerLogger.info('Agent selected for session', params);
       return ok(selectedAgent);
-    }
+    },
   );
 
   ipcMainInstance.handle(
     'agents:set-personality',
-    async (_event, params: PersonalityParams): Promise<{ success: boolean; updatedPersonality: string }> => {
+    async (
+      _event,
+      params: PersonalityParams,
+    ): Promise<APIResponse<{ updatedPersonality: string }>> => {
       handlerLogger.info('Setting agent personality', params);
       return ok({ updatedPersonality: params.personality });
-    }
+    },
   );
 
   ipcMainInstance.handle(
     'agents:set-response-style',
-    async (_event, params: ResponseStyleParams): Promise<{ success: boolean; appliedSettings: ResponseStyleSettings }> => {
+    async (_event, params: ResponseStyleParams): Promise<APIResponse<ResponseStyleSettings>> => {
       handlerLogger.info('Setting response style', params);
       return ok(params.style);
-    }
+    },
   );
 
   ipcMainInstance.handle(
     'agents:get-capabilities',
-    async (_event, agentId: string): Promise<{ success: boolean; agentCapabilities: AgentCapabilitiesDisplay }> => {
+    async (_event, agentId: string): Promise<APIResponse<AgentCapabilitiesDisplay>> => {
       handlerLogger.info('Fetching capabilities for agent', { agentId });
       const caps = { ...mockCapabilities, agentId };
       return ok(caps);
-    }
+    },
   );
 
   ipcMainInstance.handle(
     'agents:try-feature',
-    async (_event, params: AgentFeatureParams): Promise<{ success: boolean; featureDemo: FeatureDemoDisplay }> => {
+    async (_event, params: AgentFeatureParams): Promise<APIResponse<FeatureDemoDisplay>> => {
       handlerLogger.info('Demonstrating feature', params);
       const demo = mockFeatureDemo(params.agentId, params.feature);
       return ok(demo);
-    }
+    },
   );
 
   handlerLogger.info('Enhanced agent handlers registered');

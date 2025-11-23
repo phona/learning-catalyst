@@ -6,7 +6,18 @@
  */
 
 import { AsyncLocalStorage } from 'async_hooks';
-import { ServiceLogger, ServiceExecutionContext } from './types';
+import { ServiceLogger } from './types';
+
+// Define ServiceExecutionContext locally since it's not exported from types
+export interface ServiceExecutionContext {
+  id?: string;
+  requestId?: string;
+  userId?: string;
+  sessionId?: string;
+  operation?: string;
+  timestamp?: number;
+  metadata?: Record<string, unknown>;
+}
 
 /**
  * Simple console-based logger implementation for main thread services
@@ -18,7 +29,7 @@ export class MainThreadLogger implements ServiceLogger {
     private readonly level: 'debug' | 'info' | 'warn' | 'error' = 'info',
     private readonly enableConsole: boolean = true,
     private readonly maxLogSize: number = 1000,
-    context: Record<string, any> = {}
+    context: Record<string, any> = {},
   ) {
     this.context = { ...context };
   }
@@ -27,27 +38,19 @@ export class MainThreadLogger implements ServiceLogger {
    * Create a child logger with additional context
    */
   child(context: Record<string, any>): ServiceLogger {
-    return new MainThreadLogger(
-      this.level,
-      this.enableConsole,
-      this.maxLogSize,
-      { ...this.context, ...context }
-    );
+    return new MainThreadLogger(this.level, this.enableConsole, this.maxLogSize, {
+      ...this.context,
+      ...context,
+    });
   }
 
   /**
    * Format log message with timestamp and context
    */
-  private formatMessage(
-    level: string,
-    message: string,
-    meta?: Record<string, any>
-  ): string {
+  private formatMessage(level: string, message: string, meta?: Record<string, any>): string {
     const timestamp = new Date().toISOString();
     const allMeta = { ...this.context, ...meta };
-    const metaString = Object.keys(allMeta).length > 0
-      ? ` ${JSON.stringify(allMeta)}`
-      : '';
+    const metaString = Object.keys(allMeta).length > 0 ? ` ${JSON.stringify(allMeta)}` : '';
 
     return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaString}`;
   }
@@ -90,14 +93,16 @@ export class MainThreadLogger implements ServiceLogger {
   error(message: string, error?: Error, meta?: Record<string, any>): void {
     if (!this.shouldLog('error') || !this.enableConsole) return;
 
-    const errorMeta = error ? {
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        cause: error.cause
-      }
-    } : {};
+    const errorMeta = error
+      ? {
+          error: {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+          },
+        }
+      : {};
 
     const allMeta = { ...meta, ...errorMeta };
     console.error(this.formatMessage('error', message, allMeta));
@@ -110,7 +115,7 @@ export class MainThreadLogger implements ServiceLogger {
 export class ContextAwareLogger implements ServiceLogger {
   constructor(
     private readonly als: AsyncLocalStorage<ServiceExecutionContext>,
-    private readonly baseLogger: ServiceLogger
+    private readonly baseLogger: ServiceLogger,
   ) {}
 
   /**
@@ -126,7 +131,7 @@ export class ContextAwareLogger implements ServiceLogger {
       userId: context.userId,
       requestId: context.requestId,
       operation: context.operation,
-      timestamp: context.timestamp
+      timestamp: context.timestamp,
     };
   }
 
@@ -198,12 +203,7 @@ export class LoggerFactory {
     maxLogSize?: number;
     context?: Record<string, any>;
   }): ServiceLogger {
-    const {
-      level = 'info',
-      enableConsole = true,
-      maxLogSize = 1000,
-      context = {}
-    } = config || {};
+    const { level = 'info', enableConsole = true, maxLogSize = 1000, context = {} } = config || {};
 
     return new MainThreadLogger(level, enableConsole, maxLogSize, context);
   }
@@ -219,10 +219,7 @@ export class LoggerFactory {
   /**
    * Run a function within an execution context
    */
-  async runWithContext<T>(
-    context: ServiceExecutionContext,
-    fn: () => Promise<T>
-  ): Promise<T> {
+  async runWithContext<T>(context: ServiceExecutionContext, fn: () => Promise<T>): Promise<T> {
     return this.als.run(context, fn);
   }
 
@@ -239,7 +236,7 @@ export class LoggerFactory {
   createContext(
     sessionId: string,
     operation: string,
-    metadata: Record<string, any> = {}
+    metadata: Record<string, any> = {},
   ): ServiceExecutionContext {
     return {
       id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -247,7 +244,7 @@ export class LoggerFactory {
       requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: Date.now(),
       operation,
-      metadata
+      metadata,
     };
   }
 }

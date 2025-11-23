@@ -1,6 +1,3 @@
-
-
-
 /**
  * App Services - Legacy Compatibility Layer
  *
@@ -11,11 +8,46 @@
  * @deprecated Use the ServiceProvider component and useService hook instead.
  */
 
-import { ServiceContainerManager } from '@/renderer/services/container';
+import type { ServiceContainer } from '@/renderer/services/service-container';
+import { createServiceContainer } from '@/renderer/services/service-container';
+import { createElectronAPIClient } from '@/renderer/services/api/electron-api-client';
+import type { ElectronAPI } from '@/shared/types/electron-api';
+
+class LegacyServiceContainerManager {
+  private container: ServiceContainer | null = null;
+  private electronApi: ElectronAPI | null = null;
+
+  private ensureElectronApi(): ElectronAPI {
+    if (!this.electronApi) {
+      this.electronApi = createElectronAPIClient();
+    }
+    return this.electronApi;
+  }
+
+  async getContainer(): Promise<ServiceContainer> {
+    if (!this.container) {
+      const api = this.ensureElectronApi();
+      this.container = createServiceContainer(api);
+    }
+    return this.container;
+  }
+
+  getCurrentContainer(): ServiceContainer | null {
+    return this.container;
+  }
+
+  async cleanup(): Promise<void> {
+    this.container = null;
+  }
+
+  isInitialized(): boolean {
+    return this.container != null;
+  }
+}
 
 // Global manager instance for backward compatibility
 // @deprecated This should be replaced with React Context-based DI
-const legacyManager = new ServiceContainerManager();
+const legacyManager = new LegacyServiceContainerManager();
 
 // For backward compatibility with existing code that expects appServices object
 // This now uses the new service container manager under the hood
@@ -27,11 +59,7 @@ export const appServices = {
     await legacyManager.cleanup();
   },
   getDatabase() {
-    const container = legacyManager.getCurrentContainer();
-    if (!container) {
-      throw new Error('Database not initialized. Use ServiceProvider component first.');
-    }
-    return container.database;
+    throw new Error('Database service not available in renderer container.');
   },
   getAnalytics() {
     const container = legacyManager.getCurrentContainer();
@@ -41,36 +69,24 @@ export const appServices = {
     return container.analytics;
   },
   getKnowledgeGraph() {
-    const container = legacyManager.getCurrentContainer();
-    if (!container) {
-      throw new Error('Knowledge graph not initialized. Use ServiceProvider component first.');
-    }
-    return container.knowledgeGraph;
+    throw new Error('Knowledge graph service not available in renderer container.');
   },
   getVectorDatabase() {
-    const container = legacyManager.getCurrentContainer();
-    if (!container) {
-      throw new Error('Vector database not initialized. Use ServiceProvider component first.');
-    }
-    return container.vectorDatabase;
+    throw new Error('Vector database service not available in renderer container.');
   },
   getSessionService() {
     const container = legacyManager.getCurrentContainer();
     if (!container) {
       throw new Error('Session service not initialized. Use ServiceProvider component first.');
     }
-    return container.sessionService;
+    return container.session;
   },
   getAgentManager() {
-    const container = legacyManager.getCurrentContainer();
-    if (!container) {
-      throw new Error('Agent manager not initialized. Use ServiceProvider component first.');
-    }
-    return container.agentManager;
+    throw new Error('Agent manager not available in renderer container.');
   },
   isInitialized() {
     return legacyManager.isInitialized();
-  }
+  },
 };
 
 // Legacy re-exports for backward compatibility

@@ -1,11 +1,11 @@
 import type { AppConfig, ProviderConfig, ModelTypeConfig } from '@/shared/types/config';
 
 const defaultUIConfig = {
-  theme: 'light',
+  theme: 'light' as 'auto' | 'light' | 'dark',
   show_token_usage: true,
-  display_format: 'detailed',
+  display_format: 'detailed' as 'detailed' | 'compact' | 'minimal',
   session_duration: 25,
-  font_size: 'medium',
+  font_size: 'medium' as 'small' | 'medium' | 'large',
   sidebar_width: 280,
   auto_save: true,
   auto_scroll: true,
@@ -18,13 +18,13 @@ const defaultUIConfig = {
 const defaultLearningConfig = {
   auto_save: true,
   session_timeout_minutes: 60,
-  difficulty: 'intermediate',
-  learning_style: 'visual',
+  difficulty: 'intermediate' as 'beginner' | 'intermediate' | 'advanced' | 'adaptive',
+  learning_style: 'visual' as 'visual' | 'auditory' | 'kinesthetic' | 'reading',
   personalization_enabled: true,
   checkpoint_interval: 15,
   max_session_history: 100,
   enable_analytics: false,
-  preferred_explanation_length: 'detailed',
+  preferred_explanation_length: 'detailed' as 'brief' | 'detailed' | 'comprehensive',
 };
 
 const defaultPrivacyConfig = {
@@ -34,7 +34,7 @@ const defaultPrivacyConfig = {
   crash_reporting: true,
   encrypt_local_storage: false,
   auto_cleanup: true,
-  export_format: 'json',
+  export_format: 'json' as 'json' | 'markdown' | 'txt',
 };
 
 const defaultPerformanceConfig = {

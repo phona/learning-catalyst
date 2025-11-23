@@ -78,12 +78,7 @@ export interface ConversationSummary {
   readingTime: number; // in minutes
 }
 
-export type ConversationStatus =
-  | 'active'
-  | 'archived'
-  | 'deleted'
-  | 'draft'
-  | 'paused';
+export type ConversationStatus = 'active' | 'archived' | 'deleted' | 'draft' | 'paused';
 
 export interface CreateConversationRequest {
   title?: string;
@@ -214,7 +209,7 @@ export class ChatError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any
+    public details?: any,
   ) {
     super(message);
     this.name = 'ChatError';
@@ -223,7 +218,9 @@ export class ChatError extends Error {
 
 export class ConversationNotFoundError extends ChatError {
   constructor(conversationId: string) {
-    super(`Conversation not found: ${conversationId}`, 'CONVERSATION_NOT_FOUND', { conversationId });
+    super(`Conversation not found: ${conversationId}`, 'CONVERSATION_NOT_FOUND', {
+      conversationId,
+    });
   }
 }
 
@@ -235,11 +232,10 @@ export class MessageNotFoundError extends ChatError {
 
 export class MessageTooLongError extends ChatError {
   constructor(length: number, maxLength: number) {
-    super(
-      `Message too long: ${length} characters (max: ${maxLength})`,
-      'MESSAGE_TOO_LONG',
-      { length, maxLength }
-    );
+    super(`Message too long: ${length} characters (max: ${maxLength})`, 'MESSAGE_TOO_LONG', {
+      length,
+      maxLength,
+    });
   }
 }
 
@@ -254,7 +250,7 @@ export class StreamingError extends ChatError {
     super(
       `Streaming failed for conversation ${conversationId}: ${originalError.message}`,
       'STREAMING_ERROR',
-      { conversationId, originalError }
+      { conversationId, originalError },
     );
   }
 }

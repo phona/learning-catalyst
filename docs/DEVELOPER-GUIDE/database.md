@@ -2,7 +2,9 @@
 
 ## Overview
 
-Learning Catalyst uses **Kysely** as a type-safe query builder with **SQLite** as the primary database and **Qdrant** for vector storage. This document describes the database schema, migration system, and access patterns.
+Learning Catalyst uses **Kysely** as a type-safe query builder with **SQLite** as the primary
+database and **Qdrant** for vector storage. This document describes the database schema, migration
+system, and access patterns.
 
 ## Architecture
 
@@ -270,7 +272,7 @@ export async function createSqliteDriverFactory(dbPath: string) {
 
       await sqliteExecuteQuery(sql, params);
       return { rows: [] };
-    }
+    },
     // ... transaction methods
   });
 }
@@ -281,7 +283,7 @@ export function createDatabase(driverFactory: () => Driver): Kysely<Database> {
     createDriver: driverFactory,
     createQueryCompiler: () => new SqliteQueryCompiler(),
     createAdapter: () => new SqliteAdapter(),
-    createIntrospector: (db: Kysely<Database>) => new SqliteIntrospector(db)
+    createIntrospector: (db: Kysely<Database>) => new SqliteIntrospector(db),
   };
 
   return new Kysely<Database>({ dialect });
@@ -321,19 +323,20 @@ export interface Database extends SharedDatabase {
 
 ```typescript
 interface LearningSessionRow {
-  id: string;                    // Primary key
-  title: string;                 // Session title
-  description: string | null;    // Optional description
-  start_time: string;            // ISO timestamp
-  end_time: string | null;       // End timestamp
-  metadata: string;              // JSON: tags, category, model config
-  created_at: string;            // ISO timestamp
-  updated_at: string;            // ISO timestamp
-  total_messages: number;        // Message count
+  id: string; // Primary key
+  title: string; // Session title
+  description: string | null; // Optional description
+  start_time: string; // ISO timestamp
+  end_time: string | null; // End timestamp
+  metadata: string; // JSON: tags, category, model config
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
+  total_messages: number; // Message count
 }
 ```
 
 **Example Query**:
+
 ```typescript
 // Get active sessions
 const sessions = await db
@@ -350,22 +353,23 @@ const sessions = await db
 
 ```typescript
 interface MessageRow {
-  id: string;                    // Primary key
-  session_id: string;            // Foreign key → learning_sessions.id
+  id: string; // Primary key
+  session_id: string; // Foreign key → learning_sessions.id
   role: 'user' | 'assistant' | 'system' | 'tool';
-  content: string;               // Message content
-  thinking_content: string | null;  // AI reasoning (ChatGLM)
-  provider: string | null;       // AI provider name
-  model: string | null;          // Model used
-  tokens_used: string | null;    // JSON: token counts
-  timestamp: string;             // ISO timestamp
-  message_order: number;         // Order within session
-  tool_calls: string | null;     // JSON: function calls
-  created_at: string;            // ISO timestamp
+  content: string; // Message content
+  thinking_content: string | null; // AI reasoning (ChatGLM)
+  provider: string | null; // AI provider name
+  model: string | null; // Model used
+  tokens_used: string | null; // JSON: token counts
+  timestamp: string; // ISO timestamp
+  message_order: number; // Order within session
+  tool_calls: string | null; // JSON: function calls
+  created_at: string; // ISO timestamp
 }
 ```
 
 **Example Query**:
+
 ```typescript
 // Get messages for a session
 const messages = await db
@@ -382,23 +386,24 @@ const messages = await db
 
 ```typescript
 interface ConceptRow {
-  id: string;                    // Primary key
-  name: string;                  // Concept name
-  description: string;           // Detailed description
-  category: string;              // Concept category
-  domain: string;                // Knowledge domain
-  difficulty: string;            // Difficulty level
-  content: string;               // Full content
-  summary: string | null;        // Brief summary
-  tags: string;                  // JSON array
-  metadata: string;              // JSON object
-  confidence: number;            // Confidence score (0-1)
-  created_at: string;            // ISO timestamp
-  updated_at: string;            // ISO timestamp
+  id: string; // Primary key
+  name: string; // Concept name
+  description: string; // Detailed description
+  category: string; // Concept category
+  domain: string; // Knowledge domain
+  difficulty: string; // Difficulty level
+  content: string; // Full content
+  summary: string | null; // Brief summary
+  tags: string; // JSON array
+  metadata: string; // JSON object
+  confidence: number; // Confidence score (0-1)
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
 }
 ```
 
 **Example Query**:
+
 ```typescript
 // Search concepts by category
 const concepts = await db
@@ -415,18 +420,19 @@ const concepts = await db
 
 ```typescript
 interface RelationshipRow {
-  id: string;                    // Primary key
-  source_concept_id: string;     // Foreign key → concepts.id
-  target_concept_id: string;     // Foreign key → concepts.id
-  relationship_type: string;     // Relationship type
-  strength: number;              // Relationship strength (0-1)
-  metadata: string;              // JSON object
-  created_at: string;            // ISO timestamp
-  updated_at: string;            // ISO timestamp
+  id: string; // Primary key
+  source_concept_id: string; // Foreign key → concepts.id
+  target_concept_id: string; // Foreign key → concepts.id
+  relationship_type: string; // Relationship type
+  strength: number; // Relationship strength (0-1)
+  metadata: string; // JSON object
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
 }
 ```
 
 **Example Query**:
+
 ```typescript
 // Get related concepts
 const related = await db
@@ -442,16 +448,16 @@ const related = await db
 
 ```typescript
 interface ConceptProgressRow {
-  id: string;                    // Primary key
-  user_id: string;               // User identifier
-  concept_id: string;            // Foreign key → concepts.id
+  id: string; // Primary key
+  user_id: string; // User identifier
+  concept_id: string; // Foreign key → concepts.id
   status: 'not_started' | 'in_progress' | 'mastered';
-  proficiency_level: number;     // 0-100
-  last_reviewed: string | null;  // ISO timestamp
-  review_count: number;          // Number of reviews
-  next_review: string | null;    // ISO timestamp
-  created_at: string;            // ISO timestamp
-  updated_at: string;            // ISO timestamp
+  proficiency_level: number; // 0-100
+  last_reviewed: string | null; // ISO timestamp
+  review_count: number; // Number of reviews
+  next_review: string | null; // ISO timestamp
+  created_at: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
 }
 ```
 
@@ -461,13 +467,13 @@ interface ConceptProgressRow {
 
 ```typescript
 interface KnowledgeGraphCacheRow {
-  id: string;                    // Primary key
-  session_id: string | null;     // Optional session reference
-  graph_data: string;            // JSON: graph structure
-  node_count: number;            // Number of nodes
-  edge_count: number;            // Number of edges
-  computation_time: number;      // Time to compute (ms)
-  created_at: string;            // ISO timestamp
+  id: string; // Primary key
+  session_id: string | null; // Optional session reference
+  graph_data: string; // JSON: graph structure
+  node_count: number; // Number of nodes
+  edge_count: number; // Number of edges
+  computation_time: number; // Time to compute (ms)
+  created_at: string; // ISO timestamp
 }
 ```
 
@@ -482,11 +488,11 @@ interface MemoryEntryRow {
   id: string;
   type: 'working' | 'episodic' | 'semantic' | 'procedural' | 'long_term';
   importance: 'critical' | 'high' | 'medium' | 'low';
-  content: string;               // Memory content
-  metadata: string;              // JSON object
-  retrieval_strength: number;    // 0-1 strength score
+  content: string; // Memory content
+  metadata: string; // JSON object
+  retrieval_strength: number; // 0-1 strength score
   consolidation_state: 'pending' | 'in_progress' | 'completed' | 'failed';
-  associations: string;          // JSON array
+  associations: string; // JSON array
   user_id?: string;
   session_id?: string;
   created_at: string;
@@ -503,12 +509,12 @@ interface EpisodicMemoryRow {
   id: string;
   session_id: string;
   user_id: string;
-  sequence: string;              // JSON: event sequence
-  context: string;               // JSON: learning context
-  outcomes: string;              // JSON: learning outcomes
-  reflections: string;           // JSON: user reflections
-  emotional_tags: string;        // JSON array
-  temporal_markers: string;      // JSON object
+  sequence: string; // JSON: event sequence
+  context: string; // JSON: learning context
+  outcomes: string; // JSON: learning outcomes
+  reflections: string; // JSON: user reflections
+  emotional_tags: string; // JSON array
+  temporal_markers: string; // JSON object
   created_at: string;
   updated_at: string;
 }
@@ -521,12 +527,12 @@ interface EpisodicMemoryRow {
 ```typescript
 interface SemanticMemoryRow {
   id: string;
-  concept: string;               // Core concept
-  definition: string;            // Concept definition
-  attributes: string;            // JSON object
-  relationships: string;         // JSON object
-  examples: string;              // JSON array
-  misconceptions: string;        // JSON array
+  concept: string; // Core concept
+  definition: string; // Concept definition
+  attributes: string; // JSON object
+  relationships: string; // JSON object
+  examples: string; // JSON array
+  misconceptions: string; // JSON array
   category: string;
   domain: string;
   difficulty: string;
@@ -545,15 +551,15 @@ interface SemanticMemoryRow {
 interface ProceduralMemoryRow {
   id: string;
   skill_name: string;
-  steps: string;                 // JSON array
-  prerequisites: string;         // JSON array
-  context_conditions: string;    // JSON object
-  success_criteria: string;      // JSON object
-  common_errors: string;         // JSON array
-  mastery_level: number;         // 0-100
+  steps: string; // JSON array
+  prerequisites: string; // JSON array
+  context_conditions: string; // JSON object
+  success_criteria: string; // JSON object
+  common_errors: string; // JSON array
+  mastery_level: number; // 0-100
   practice_count: number;
   success_rate: number;
-  automaticity_level: number;    // 0-100
+  automaticity_level: number; // 0-100
   created_at: string;
   updated_at: string;
 }
@@ -572,10 +578,10 @@ interface AgentRow {
   type: 'learning' | 'assessment' | 'tutoring' | 'practice' | 'general';
   status: 'inactive' | 'active' | 'error' | 'deleted';
   description?: string;
-  model_config: string;          // JSON object
-  tools: string;                 // JSON array
-  capabilities: string;          // JSON array
-  metadata: string;              // JSON object
+  model_config: string; // JSON object
+  tools: string; // JSON array
+  capabilities: string; // JSON array
+  metadata: string; // JSON object
   activated_at?: number;
   deactivated_at?: number;
   created_at: number;
@@ -595,7 +601,7 @@ interface AgentLifecycleEventRow {
   from_state?: string;
   to_state?: string;
   timestamp: number;
-  metadata: string;              // JSON object
+  metadata: string; // JSON object
   created_at: number;
 }
 ```
@@ -610,9 +616,9 @@ interface AgentLifecycleEventRow {
 interface SettingsRow {
   id: string;
   user_id: string;
-  category: string;              // 'learning' | 'ui' | 'ai' | 'system'
-  key: string;                   // Setting key
-  value: string;                 // Setting value (JSON)
+  category: string; // 'learning' | 'ui' | 'ai' | 'system'
+  key: string; // Setting key
+  value: string; // Setting value (JSON)
   created_at: string;
   updated_at: string;
 }
@@ -629,7 +635,7 @@ interface CheckpointRow {
   description?: string;
   session_id: string;
   user_id: string;
-  snapshot_data: string;         // JSON: session state
+  snapshot_data: string; // JSON: session state
   created_at: string;
 }
 ```
@@ -643,7 +649,7 @@ interface AnalyticsRow {
   id: string;
   user_id: string;
   event_type: string;
-  event_data: string;            // JSON object
+  event_data: string; // JSON object
   session_id?: string;
   timestamp: string;
   created_at: string;
@@ -683,7 +689,7 @@ export const migrations = [
   import('./20251107_create_agent_archives'),
 
   // Concept progress
-  import('./20251030_create_concept_progress')
+  import('./20251030_create_concept_progress'),
 ];
 ```
 
@@ -695,7 +701,7 @@ export const migrations = [
 export class MigrationManager {
   constructor(
     private db: Kysely<Database>,
-    private migrations: Migration[]
+    private migrations: Migration[],
   ) {}
 
   async migrateToLatest(): Promise<void> {
@@ -721,7 +727,7 @@ export class MigrationManager {
         .values({
           version: migration.version,
           name: migration.name,
-          applied_at: new Date().toISOString()
+          applied_at: new Date().toISOString(),
         })
         .execute();
     });
@@ -756,17 +762,9 @@ export async function up(db: Kysely<Database>): Promise<void> {
     .execute();
 
   // Create indexes
-  await db.schema
-    .createIndex('idx_concepts_category')
-    .on('concepts')
-    .column('category')
-    .execute();
+  await db.schema.createIndex('idx_concepts_category').on('concepts').column('category').execute();
 
-  await db.schema
-    .createIndex('idx_concepts_domain')
-    .on('concepts')
-    .column('domain')
-    .execute();
+  await db.schema.createIndex('idx_concepts_domain').on('concepts').column('domain').execute();
 }
 ```
 
@@ -807,14 +805,11 @@ export const JSONField = {
 
   stringify: (obj: any): string => {
     return JSON.stringify(obj);
-  }
+  },
 };
 
 // Usage
-const session = await db
-  .selectFrom('learning_sessions')
-  .selectAll()
-  .executeTakeFirst();
+const session = await db.selectFrom('learning_sessions').selectAll().executeTakeFirst();
 
 if (session) {
   const metadata = JSONField.parse(session.metadata, {});
@@ -836,7 +831,7 @@ const newSession = await db
     metadata: JSON.stringify({ category: 'programming' }),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    total_messages: 0
+    total_messages: 0,
   })
   .returningAll()
   .executeTakeFirst();
@@ -850,7 +845,7 @@ await db
   .updateTable('concepts')
   .set({
     updated_at: new Date().toISOString(),
-    confidence: 0.95
+    confidence: 0.95,
   })
   .where('id', '=', conceptId)
   .execute();
@@ -860,21 +855,13 @@ await db
 
 ```typescript
 // Delete with cascade
-await db
-  .transaction()
-  .execute(async (trx) => {
-    // Delete messages first
-    await trx
-      .deleteFrom('messages')
-      .where('session_id', '=', sessionId)
-      .execute();
+await db.transaction().execute(async (trx) => {
+  // Delete messages first
+  await trx.deleteFrom('messages').where('session_id', '=', sessionId).execute();
 
-    // Delete session
-    await trx
-      .deleteFrom('learning_sessions')
-      .where('id', '=', sessionId)
-      .execute();
-  });
+  // Delete session
+  await trx.deleteFrom('learning_sessions').where('id', '=', sessionId).execute();
+});
 ```
 
 ## Service Layer Integration
@@ -905,13 +892,13 @@ export function createChatService({ db, loggerService }: Dependencies) {
           content,
           timestamp: new Date().toISOString(),
           message_order: Date.now(),
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         })
         .execute();
 
       // Return result
       return { id: messageId, content, role: 'user' };
-    }
+    },
   };
 }
 ```
@@ -928,11 +915,7 @@ await db.schema
   .column('session_id')
   .execute();
 
-await db.schema
-  .createIndex('idx_messages_timestamp')
-  .on('messages')
-  .column('timestamp')
-  .execute();
+await db.schema.createIndex('idx_messages_timestamp').on('messages').column('timestamp').execute();
 
 await db.schema
   .createIndex('idx_concepts_search')
@@ -978,23 +961,23 @@ const db = createDatabase(driverFactory);
 ```typescript
 // Create Qdrant collection
 await qdrantClient.createCollection('concepts', {
-  vectors: { size: 1536, distance: 'Cosine' }
+  vectors: { size: 1536, distance: 'Cosine' },
 });
 
 // Store concept embeddings
 await qdrantClient.upsert('concepts', {
-  points: concepts.map(c => ({
+  points: concepts.map((c) => ({
     id: c.id,
     vector: c.embedding,
-    payload: { name: c.name, category: c.category }
-  }))
+    payload: { name: c.name, category: c.category },
+  })),
 });
 
 // Search similar concepts
 const results = await qdrantClient.search('concepts', {
   vector: queryEmbedding,
   limit: 10,
-  with_payload: true
+  with_payload: true,
 });
 ```
 
@@ -1010,7 +993,7 @@ const keywordResults = await db
 
 const semanticResults = await qdrantClient.search('concepts', {
   vector: embedQuery(query),
-  limit: 10
+  limit: 10,
 });
 
 // Merge and rank results
@@ -1063,7 +1046,7 @@ export async function restoreDatabase(backupPath: string): Promise<void> {
 const mockDb = createMock<Kysely<Database>>({
   selectFrom: jest.fn().mockReturnThis(),
   selectAll: jest.fn().mockReturnThis(),
-  execute: jest.fn().mockResolvedValue([])
+  execute: jest.fn().mockResolvedValue([]),
 });
 
 const chatService = createChatService({ db: mockDb, loggerService });
@@ -1084,7 +1067,7 @@ export function createTestSession(overrides: Partial<LearningSessionRow>) {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     total_messages: 0,
-    ...overrides
+    ...overrides,
   };
 }
 ```
@@ -1157,5 +1140,4 @@ for (const session of sessions) {
 
 ---
 
-**Last Updated**: November 2025
-**Version**: 1.0
+**Last Updated**: November 2025 **Version**: 1.0

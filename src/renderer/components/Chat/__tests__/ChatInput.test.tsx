@@ -7,8 +7,9 @@ import { renderWithServices } from '@/test/utils/renderWithServices';
 vi.mock('@/renderer/hooks/useChat');
 vi.mock('@/renderer/stores/useConfigStore');
 
-import { useChat } from '@/renderer/hooks/useChat';
+import { useChat, UseChatResult } from '@/renderer/hooks/useChat';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
+import type { AppConfig } from '@/shared/types/config';
 
 const mockShowOpenDialog = vi.fn();
 const mockReadFile = vi.fn();
@@ -17,7 +18,9 @@ const mockFileService = {
   readFile: mockReadFile,
   writeFile: vi.fn().mockResolvedValue({ success: true }),
   existsFile: vi.fn().mockResolvedValue({ success: true, data: true }),
-  showSaveDialog: vi.fn().mockResolvedValue({ success: true, data: { canceled: true, filePath: '' } }),
+  showSaveDialog: vi
+    .fn()
+    .mockResolvedValue({ success: true, data: { canceled: true, filePath: '' } }),
   readDirectory: vi.fn().mockResolvedValue({ success: true, data: [] }),
   getWorkspacePath: vi.fn().mockResolvedValue({ success: true, data: '/mock/workspace' }),
 };
@@ -30,8 +33,9 @@ vi.mock('@/renderer/services/services-provider', async () => {
   };
 });
 
-const baseConfig = {
+const baseConfig: AppConfig = {
   ai: {
+    providers: {},
     model_types: {
       chat: {
         default_provider: 'openai',
@@ -39,39 +43,126 @@ const baseConfig = {
         capabilities: {
           streaming: true,
           thinking: false,
+          function_calling: true,
+          vision: false,
         },
       },
     },
   },
+  ui: {
+    theme: 'light',
+    show_token_usage: false,
+    display_format: 'detailed',
+    session_duration: 25,
+    font_size: 'medium',
+    sidebar_width: 300,
+    auto_save: true,
+    auto_scroll: true,
+    show_line_numbers: false,
+    enable_markdown: true,
+    enable_syntax_highlighting: true,
+    compact_mode: false,
+  },
+  learning: {
+    auto_save: true,
+    session_timeout_minutes: 60,
+    difficulty: 'intermediate',
+    learning_style: 'visual',
+    personalization_enabled: true,
+    checkpoint_interval: 15,
+    max_session_history: 100,
+    enable_analytics: false,
+    preferred_explanation_length: 'detailed',
+  },
+  privacy: {
+    store_conversations: true,
+    retention_days: 90,
+    anonymous_analytics: false,
+    crash_reporting: true,
+    encrypt_local_storage: false,
+    auto_cleanup: true,
+    export_format: 'json',
+  },
+  performance: {
+    cache_size_mb: 100,
+    enable_caching: true,
+    max_concurrent_requests: 5,
+    request_timeout: 30,
+    memory_limit_mb: 512,
+    gpu_acceleration: false,
+    background_processing: true,
+    preload_models: false,
+  },
 };
 
-const createChatMock = () => ({
+const createChatMock = (): UseChatResult => ({
+  messages: [],
   isLoading: false,
   isStreaming: false,
+  error: null,
+  currentSession: null,
   sendMessage: vi.fn().mockResolvedValue(undefined),
   sendMessageStream: vi.fn().mockResolvedValue(undefined),
-  stopStreaming: vi.fn(),
-  error: null,
+  stopStreaming: vi.fn().mockResolvedValue(undefined),
+  clearMessages: vi.fn(),
   setError: vi.fn(),
+  createSession: vi.fn().mockResolvedValue(null),
+  loadSession: vi.fn(),
+  updateSessionTitle: vi.fn(),
+  getAvailableAgents: vi.fn().mockResolvedValue([]),
+  setSelectedAgent: vi.fn(),
   selectedAgent: null,
 });
 
-const mockUseChat = useChat as unknown as vi.MockedFunction<typeof useChat>;
-const mockUseConfigStore = useConfigStore as unknown as vi.MockedFunction<typeof useConfigStore>;
+type ConfigStoreState = {
+  config: AppConfig | null;
+  loading: boolean;
+  error: string | null;
+  loadConfig: () => Promise<AppConfig | null>;
+  setConfig: (config: AppConfig) => void;
+  saveConfig: (config: AppConfig) => Promise<void>;
+  updateConfig: (updates: Partial<AppConfig>) => Promise<void>;
+  resetConfig: () => Promise<AppConfig>;
+  getProviderConfig: (providerName: string) => unknown;
+  setProviderConfig: (providerName: string, config: unknown) => Promise<void>;
+  removeProviderConfig: (providerName: string) => Promise<void>;
+  setDefaultProvider: (providerName: string, modelName: string) => Promise<void>;
+};
+
+const createConfigStoreMock = (): ConfigStoreState => ({
+  config: baseConfig,
+  loading: false,
+  error: null,
+  loadConfig: vi.fn(),
+  setConfig: vi.fn(),
+  saveConfig: vi.fn().mockResolvedValue(undefined),
+  updateConfig: vi.fn().mockResolvedValue(undefined),
+  resetConfig: vi.fn().mockResolvedValue(baseConfig),
+  getProviderConfig: vi.fn(),
+  setProviderConfig: vi.fn().mockResolvedValue(undefined),
+  removeProviderConfig: vi.fn().mockResolvedValue(undefined),
+  setDefaultProvider: vi.fn().mockResolvedValue(undefined),
+});
+
+const mockUseChat = vi.mocked(useChat);
+const mockUseConfigStore = vi.mocked(useConfigStore);
 
 describe('ChatInput', () => {
-  let chatMock: ReturnType<typeof createChatMock>;
+  let chatMock: UseChatResult;
 
   beforeEach(() => {
     vi.clearAllMocks();
     chatMock = createChatMock();
-    mockUseChat.mockReturnValue(chatMock as any);
-    mockUseConfigStore.mockReturnValue({
-      config: baseConfig,
-      updateConfig: vi.fn(),
-    } as any);
+    mockUseChat.mockReturnValue(chatMock);
+    mockUseConfigStore.mockReturnValue(createConfigStoreMock());
 
-    mockShowOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
+    mockShowOpenDialog.mockResolvedValue({
+      success: true,
+      data: {
+        canceled: true,
+        filePaths: [],
+      },
+    });
     mockReadFile.mockResolvedValue({
       success: true,
       data: {
@@ -130,8 +221,11 @@ describe('ChatInput', () => {
 
   it('attaches file content when user selects a file', async () => {
     mockShowOpenDialog.mockResolvedValue({
-      canceled: false,
-      filePaths: ['/tmp/example.txt'],
+      success: true,
+      data: {
+        canceled: false,
+        filePaths: ['/tmp/example.txt'],
+      },
     });
     mockReadFile.mockResolvedValue({
       success: true,
@@ -151,16 +245,18 @@ describe('ChatInput', () => {
       expect(mockReadFile).toHaveBeenCalledWith('/tmp/example.txt');
     });
 
-    const textarea = screen.getByPlaceholderText('Type your message here...') as HTMLTextAreaElement;
+    const textarea = screen.getByPlaceholderText(
+      'Type your message here...',
+    ) as HTMLTextAreaElement;
     expect(textarea.value).toContain('Example file');
   });
 
   it('toggles deep thinking mode via updateConfig when advanced panel open', () => {
-    const updateConfigMock = vi.fn();
+    const updateConfigMock = vi.fn().mockResolvedValue(undefined);
     mockUseConfigStore.mockReturnValue({
-      config: baseConfig,
+      ...createConfigStoreMock(),
       updateConfig: updateConfigMock,
-    } as any);
+    });
 
     renderWithServices(<ChatInput />);
 
@@ -180,7 +276,7 @@ describe('ChatInput', () => {
             }),
           }),
         }),
-      })
+      }),
     );
   });
 });

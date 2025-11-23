@@ -1,77 +1,111 @@
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { PracticeOpportunityResult } from '@/shared/types/electron-api/chat-api';
-import type { Message, StreamChunk, ChatOptions } from '@/shared/types/ai';
-import type { Session } from '@/shared/types/session';
+import type { AgentDisplay } from '@/shared/types/electron-api/agent-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { Message, StreamChunk } from '@/shared/types/ai';
 
 export interface ChatService {
-  sendMessage(content: string, session: Session, options?: ChatOptions): Promise<Message>;
-  sendMessageStream(content: string, session: Session, onChunk: (chunk: StreamChunk) => void, options?: ChatOptions): Promise<void>;
+  sendMessage(
+    content: string,
+    options?: { sessionId?: string; agentId?: string; provider?: string; model?: string },
+  ): Promise<Message>;
+  sendMessageStream(
+    content: string,
+    onChunk: (chunk: StreamChunk) => void,
+    options?: { sessionId?: string; agentId?: string; provider?: string; model?: string },
+  ): Promise<Message>;
   checkPracticeOpportunity(params: {
     conversationId: string;
     userMessage: string;
     sessionId?: string;
   }): Promise<PracticeOpportunityResult>;
+  getSession?: (sessionId: string) => Promise<SessionDisplay | null>;
+  createSession?: (title: string, options?: { description?: string }) => Promise<string | null>;
+  updateSession?: (sessionId: string, updates: { title?: string }) => Promise<boolean>;
+  getAvailableAgents?: () => Promise<AgentDisplay[]>;
+  cancelExecution?: (executionId: string) => Promise<void>;
+  getProviderInfo?: () => { name?: string; provider?: string } | null;
 }
 
 /**
  * Functional implementation of chat service using the unified electronAPI client
  */
 export const createChatService = (apiClient: ElectronAPI): ChatService => {
-  // Private utility functions
-  const validateInputs = (content: string, session: Session) => {
-    if (!content || typeof content !== 'string') {
-      throw new Error('Invalid message content');
+  const ensureSessionId = (options?: { sessionId?: string }) => {
+    const sessionId = options?.sessionId;
+    if (!sessionId) {
+      throw new Error('Session ID is required for chat operations');
     }
-    if (!session?.id) {
-      throw new Error('Invalid session object');
-    }
+    return sessionId;
   };
 
   // Public service functions
   const sendMessage = async (
     content: string,
-    session: Session,
-    options?: { sessionId?: string; provider?: string; model?: string }
+    options?: { sessionId?: string; agentId?: string; provider?: string; model?: string },
   ): Promise<Message> => {
-    validateInputs(content, session);
+    if (!content || typeof content !== 'string') {
+      throw new Error('Invalid message content');
+    }
 
+    const sessionId = ensureSessionId(options);
     const response = await apiClient.chat.sendMessage({
-      conversationId: options?.sessionId || session.id,
-      message: content
+      conversationId: sessionId,
+      message: content,
     });
 
-    // MessageDisplay is the direct response, not wrapped in a success object
+    if (!response.success || response.data == null) {
+      throw new Error(response.error?.message ?? 'Failed to send message');
+    }
+
     return {
-      id: response.id || 'unknown',
-      role: 'assistant',
-      content: response.content || 'Response from AI',
-      timestamp: new Date(),
+      id: response.data.id,
+      role: response.data.role,
+      content: response.data.content,
+      timestamp: new Date(response.data.timestamp),
+      provider: response.data.conversationId,
     };
   };
 
   const sendMessageStream = async (
     content: string,
-    session: Session,
     onChunk: (chunk: StreamChunk) => void,
-    options?: { sessionId?: string; provider?: string; model?: string }
-  ): Promise<void> => {
-    validateInputs(content, session);
+    options?: { sessionId?: string; agentId?: string; provider?: string; model?: string },
+  ): Promise<Message> => {
+    if (!content || typeof content !== 'string') {
+      throw new Error('Invalid message content');
+    }
 
     if (typeof onChunk !== 'function') {
       throw new Error('onChunk callback is required for streaming');
     }
 
+    const sessionId = ensureSessionId(options);
+    let aggregated = '';
+    const assistantId = `assistant_${Date.now()}`;
+
     try {
-      const streamResult = await apiClient.chat.sendMessageStream({
-        conversationId: options?.sessionId || session.id,
-        message: content
+      const streamResponse = await apiClient.chat.sendMessageStream({
+        conversationId: sessionId,
+        message: content,
       });
 
-      // Process the stream and call onChunk for each received chunk
-      // sendMessageStream returns AsyncIterable<string> directly
-      for await (const chunk of streamResult) {
-        onChunk({ content: chunk });
+      if (!streamResponse.success || streamResponse.data == null) {
+        throw new Error(streamResponse.error?.message ?? 'Failed to start streaming');
       }
+
+      for await (const chunk of streamResponse.data) {
+        aggregated += chunk ?? '';
+        onChunk({ content: chunk, type: 'content' } as StreamChunk & { type?: string });
+      }
+
+      return {
+        id: assistantId,
+        role: 'assistant',
+        content: aggregated,
+        timestamp: new Date(),
+        provider: sessionId,
+      };
     } catch (error) {
       console.error('Error in sendMessageStream:', error);
       throw error;
@@ -84,17 +118,68 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     sessionId?: string;
   }): Promise<PracticeOpportunityResult> => {
     const { conversationId, userMessage } = params;
-    const result = await apiClient.chat.checkPracticeOpportunity({
+    const response = await apiClient.chat.checkPracticeOpportunity({
       conversationId,
-      userMessage
+      userMessage,
     });
 
-    return result;
+    if (!response.success || response.data == null) {
+      throw new Error(response.error?.message ?? 'Failed to check practice opportunity');
+    }
+
+    return response.data;
+  };
+
+  const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
+    const response = await apiClient.sessions.get(sessionId);
+    if (!response.success) return null;
+    return response.data ?? null;
+  };
+
+  const createSession = async (
+    title: string,
+    options?: { description?: string },
+  ): Promise<string | null> => {
+    const response = await apiClient.sessions.create({
+      title,
+      description: options?.description,
+    });
+    if (!response.success) return null;
+    return response.data?.sessionId ?? null;
+  };
+
+  const updateSession = async (
+    sessionId: string,
+    updates: { title?: string },
+  ): Promise<boolean> => {
+    const response = await apiClient.sessions.update(sessionId, updates);
+    return !!response.success;
+  };
+
+  const getAvailableAgents = async (): Promise<AgentDisplay[]> => {
+    const response = await apiClient.agents.getAvailableAgents();
+    if (!response.success || !response.data) return [];
+    return response.data;
+  };
+
+  const cancelExecution = async (executionId: string): Promise<void> => {
+    await apiClient.catalyst.cancelAgent(executionId);
+  };
+
+  const getProviderInfo = (): { name?: string; provider?: string } => {
+    // Basic stub; in a fuller implementation this could read from configuration
+    return { name: 'default', provider: 'chat' };
   };
 
   return {
     sendMessage,
     sendMessageStream,
     checkPracticeOpportunity,
+    getSession,
+    createSession,
+    updateSession,
+    getAvailableAgents,
+    cancelExecution,
+    getProviderInfo,
   };
 };

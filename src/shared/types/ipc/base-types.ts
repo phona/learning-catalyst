@@ -58,7 +58,7 @@ export interface ServiceError {
  * Type-safe IPC handler function signature
  */
 export type IPCHandler<TParams = any, TResult = any> = (
-  request: IPCRequest<TParams>
+  request: IPCRequest<TParams>,
 ) => Promise<IPCResponse<TResult>>;
 
 /**
@@ -207,7 +207,7 @@ export interface IPCServiceRegistry {
   register<TParams, TResult>(
     method: string,
     handler: IPCHandler<TParams, TResult>,
-    options?: IPCHandlerOptions
+    options?: IPCHandlerOptions,
   ): void;
 
   unregister(method: string): void;
@@ -243,25 +243,13 @@ export type ExtractMethod<T> = T extends IPCHandler<any, any> ? string : never;
  * Type-safe event emitter for IPC events
  */
 export interface IPCEventEmitter<TEvents extends Record<string, any>> {
-  on<TKey extends keyof TEvents>(
-    event: TKey,
-    listener: (data: TEvents[TKey]) => void
-  ): void;
+  on<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 
-  off<TKey extends keyof TEvents>(
-    event: TKey,
-    listener: (data: TEvents[TKey]) => void
-  ): void;
+  off<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 
-  emit<TKey extends keyof TEvents>(
-    event: TKey,
-    data: TEvents[TKey]
-  ): void;
+  emit<TKey extends keyof TEvents>(event: TKey, data: TEvents[TKey]): void;
 
-  once<TKey extends keyof TEvents>(
-    event: TKey,
-    listener: (data: TEvents[TKey]) => void
-  ): void;
+  once<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 }
 
 /**
@@ -287,14 +275,18 @@ export interface ContextualIPCRequest<T = any> extends IPCRequest<T> {
 /**
  * Type guard for checking IPC responses
  */
-export function isSuccessResponse<T>(response: IPCResponse<T>): response is IPCResponse<T> & { success: true; data: T } {
+export function isSuccessResponse<T>(
+  response: IPCResponse<T>,
+): response is IPCResponse<T> & { success: true; data: T } {
   return response.success === true && response.data !== undefined;
 }
 
 /**
  * Type guard for checking error responses
  */
-export function isErrorResponse<T>(response: IPCResponse<T>): response is IPCResponse<T> & { success: false; error: ServiceError } {
+export function isErrorResponse<T>(
+  response: IPCResponse<T>,
+): response is IPCResponse<T> & { success: false; error: ServiceError } {
   return response.success === false && response.error !== undefined;
 }
 
@@ -304,7 +296,7 @@ export function isErrorResponse<T>(response: IPCResponse<T>): response is IPCRes
 export function createSuccessResponse<T>(
   id: string,
   data: T,
-  metadata?: Partial<ResponseMetadata>
+  metadata?: Partial<ResponseMetadata>,
 ): IPCResponse<T> {
   return {
     id,
@@ -315,8 +307,8 @@ export function createSuccessResponse<T>(
       timestamp: new Date().toISOString(),
       processingTime: 0,
       requestId: id,
-      ...metadata
-    }
+      ...metadata,
+    },
   };
 }
 
@@ -326,7 +318,7 @@ export function createSuccessResponse<T>(
 export function createErrorResponse<T>(
   id: string,
   error: ServiceError,
-  metadata?: Partial<ResponseMetadata>
+  metadata?: Partial<ResponseMetadata>,
 ): IPCResponse<T> {
   return {
     id,
@@ -337,23 +329,19 @@ export function createErrorResponse<T>(
       timestamp: new Date().toISOString(),
       processingTime: 0,
       requestId: id,
-      ...metadata
-    }
+      ...metadata,
+    },
   };
 }
 
 /**
  * Create a service error
  */
-export function createServiceError(
-  code: string,
-  message: string,
-  details?: any
-): ServiceError {
+export function createServiceError(code: string, message: string, details?: any): ServiceError {
   return {
     code,
     message,
     details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }

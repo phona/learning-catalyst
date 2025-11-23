@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import {
   CheckCircleIcon,
@@ -13,14 +10,14 @@ import {
   MagnifyingGlassIcon,
   EyeIcon,
   ArrowDownTrayIcon,
-  XMarkIcon
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import type {
   ParsingJob,
   ParsingResult,
   Concept,
   ProposedRelationship,
-  ParsingStatistics
+  ParsingStatistics,
 } from '@/shared/types/concept-parsing';
 
 interface ConceptParsingResultsProps {
@@ -39,12 +36,18 @@ interface ConceptCardProps {
 const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onSelect }) => {
   const getDifficultyColor = (difficulty: number) => {
     switch (difficulty) {
-    case 1: return 'text-green-600 bg-green-100';
-    case 2: return 'text-lime-600 bg-lime-100';
-    case 3: return 'text-yellow-600 bg-yellow-100';
-    case 4: return 'text-orange-600 bg-orange-100';
-    case 5: return 'text-red-600 bg-red-100';
-    default: return 'text-gray-600 bg-gray-100';
+      case 1:
+        return 'text-green-600 bg-green-100';
+      case 2:
+        return 'text-lime-600 bg-lime-100';
+      case 3:
+        return 'text-yellow-600 bg-yellow-100';
+      case 4:
+        return 'text-orange-600 bg-orange-100';
+      case 5:
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -56,12 +59,18 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onSelect }) => {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-    case 'topic': return 'text-blue-600 bg-blue-100';
-    case 'skill': return 'text-purple-600 bg-purple-100';
-    case 'fact': return 'text-green-600 bg-green-100';
-    case 'procedure': return 'text-orange-600 bg-orange-100';
-    case 'principle': return 'text-indigo-600 bg-indigo-100';
-    default: return 'text-gray-600 bg-gray-100';
+      case 'topic':
+        return 'text-blue-600 bg-blue-100';
+      case 'skill':
+        return 'text-purple-600 bg-purple-100';
+      case 'fact':
+        return 'text-green-600 bg-green-100';
+      case 'procedure':
+        return 'text-orange-600 bg-orange-100';
+      case 'principle':
+        return 'text-indigo-600 bg-indigo-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -71,14 +80,14 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onSelect }) => {
       onClick={() => onSelect?.(concept.id)}
     >
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-          {concept.name}
-        </h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">{concept.name}</h3>
         <div className="flex items-center space-x-2">
           <span className={`text-xs px-2 py-1 rounded-full ${getTypeColor(concept.type)}`}>
             {concept.type}
           </span>
-          <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(concept.difficulty)}`}>
+          <span
+            className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(concept.difficulty)}`}
+          >
             Level {concept.difficulty}
           </span>
         </div>
@@ -103,9 +112,7 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onSelect }) => {
             </span>
           )}
         </div>
-        <span className="text-xs">
-          {concept.extractedAt.toLocaleDateString()}
-        </span>
+        <span className="text-xs">{concept.extractedAt.toLocaleDateString()}</span>
       </div>
 
       {concept.metadata.tags.length > 0 && (
@@ -134,9 +141,11 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   onClose,
   onExport,
   onConceptSelect,
-  className = ''
+  className = '',
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'concepts' | 'relationships' | 'statistics'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'concepts' | 'relationships' | 'statistics'
+  >('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'confidence' | 'difficulty' | 'date'>('confidence');
@@ -147,43 +156,54 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   const statistics = result?.statistics;
 
   // Filter concepts
-  const filteredConcepts = concepts.filter(concept => {
-    if (searchQuery && !concept.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (filterType !== 'all' && concept.type !== filterType) {
-      return false;
-    }
-    return true;
-  }).sort((a, b) => {
-    switch (sortBy) {
-    case 'name': return a.name.localeCompare(b.name);
-    case 'confidence': return b.confidence - a.confidence;
-    case 'difficulty': return b.difficulty - a.difficulty;
-    case 'date': return b.extractedAt.getTime() - a.extractedAt.getTime();
-    default: return 0;
-    }
-  });
+  const filteredConcepts = concepts
+    .filter((concept) => {
+      if (searchQuery && !concept.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (filterType !== 'all' && concept.type !== filterType) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'confidence':
+          return b.confidence - a.confidence;
+        case 'difficulty':
+          return b.difficulty - a.difficulty;
+        case 'date':
+          return b.extractedAt.getTime() - a.extractedAt.getTime();
+        default:
+          return 0;
+      }
+    });
 
   const getJobStatusIcon = () => {
     switch (job.status) {
-    case 'completed':
-      return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
-    case 'failed':
-      return <XCircleIcon className="w-5 h-5 text-red-500" />;
-    case 'processing':
-      return <ClockIcon className="w-5 h-5 text-blue-500 animate-spin" />;
-    default:
-      return <ClockIcon className="w-5 h-5 text-gray-400" />;
+      case 'completed':
+        return <CheckCircleIcon className="w-5 h-5 text-green-500" />;
+      case 'failed':
+        return <XCircleIcon className="w-5 h-5 text-red-500" />;
+      case 'processing':
+        return <ClockIcon className="w-5 h-5 text-blue-500 animate-spin" />;
+      default:
+        return <ClockIcon className="w-5 h-5 text-gray-400" />;
     }
   };
 
   const getStatusColor = () => {
     switch (job.status) {
-    case 'completed': return 'text-green-600 bg-green-100';
-    case 'failed': return 'text-red-600 bg-red-100';
-    case 'processing': return 'text-blue-600 bg-blue-100';
-    default: return 'text-gray-600 bg-gray-100';
+      case 'completed':
+        return 'text-green-600 bg-green-100';
+      case 'failed':
+        return 'text-red-600 bg-red-100';
+      case 'processing':
+        return 'text-blue-600 bg-blue-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
     }
   };
 
@@ -194,7 +214,9 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+    >
       {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between mb-4">
@@ -263,7 +285,8 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
               <div className="text-purple-600 dark:text-purple-400 font-semibold">
                 {statistics.validConcepts > 0
                   ? Math.round((statistics.validConcepts / statistics.totalConcepts) * 100)
-                  : 0}%
+                  : 0}
+                %
               </div>
               <div className="text-purple-600 dark:text-purple-400 text-xs">Avg Confidence</div>
             </div>
@@ -284,9 +307,13 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
             {[
               { id: 'overview', label: 'Overview', icon: ChartBarIcon },
               { id: 'concepts', label: `Concepts (${concepts.length})`, icon: AcademicCapIcon },
-              { id: 'relationships', label: `Relationships (${relationships.length})`, icon: FunnelIcon },
-              { id: 'statistics', label: 'Statistics', icon: ChartBarIcon }
-            ].map(tab => (
+              {
+                id: 'relationships',
+                label: `Relationships (${relationships.length})`,
+                icon: FunnelIcon,
+              },
+              { id: 'statistics', label: 'Statistics', icon: ChartBarIcon },
+            ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
@@ -321,9 +348,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
             <XCircleIcon className="w-12 h-12 mx-auto mb-3 text-red-500" />
             <p className="text-red-600 dark:text-red-400 font-medium">Parsing Failed</p>
             {job.errorMessage && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                {job.errorMessage}
-              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">{job.errorMessage}</p>
             )}
           </div>
         )}
@@ -350,7 +375,9 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                         </div>
                         <div className="flex justify-between">
                           <dt className="text-gray-600 dark:text-gray-400">Valid Concepts:</dt>
-                          <dd className="font-medium text-green-600">{statistics?.validConcepts || 0}</dd>
+                          <dd className="font-medium text-green-600">
+                            {statistics?.validConcepts || 0}
+                          </dd>
                         </div>
                         <div className="flex justify-between">
                           <dt className="text-gray-600 dark:text-gray-400">Relationships:</dt>
@@ -366,12 +393,19 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                       <dl className="space-y-1 text-sm">
                         <div className="flex justify-between">
                           <dt className="text-gray-600 dark:text-gray-400">Processing Time:</dt>
-                          <dd className="font-medium">{formatDuration(statistics?.processingTime || 0)}</dd>
+                          <dd className="font-medium">
+                            {formatDuration(statistics?.processingTime || 0)}
+                          </dd>
                         </div>
                         <div className="flex justify-between">
                           <dt className="text-gray-600 dark:text-gray-400">Average Confidence:</dt>
                           <dd className="font-medium">
-                            {statistics ? Math.round((statistics.validConcepts / statistics.totalConcepts) * 100) : 0}%
+                            {statistics
+                              ? Math.round(
+                                  (statistics.validConcepts / statistics.totalConcepts) * 100,
+                                )
+                              : 0}
+                            %
                           </dd>
                         </div>
                         <div className="flex justify-between">
@@ -393,7 +427,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                       {concepts
                         .sort((a, b) => b.confidence - a.confidence)
                         .slice(0, 4)
-                        .map(concept => (
+                        .map((concept) => (
                           <ConceptCard
                             key={concept.id}
                             concept={concept}
@@ -464,12 +498,8 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredConcepts.map(concept => (
-                      <ConceptCard
-                        key={concept.id}
-                        concept={concept}
-                        onSelect={onConceptSelect}
-                      />
+                    {filteredConcepts.map((concept) => (
+                      <ConceptCard key={concept.id} concept={concept} onSelect={onConceptSelect} />
                     ))}
                   </div>
                 )}
@@ -483,7 +513,9 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <FunnelIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p>No relationships found</p>
-                    <p className="text-sm mt-1">Relationship extraction will be available in future updates</p>
+                    <p className="text-sm mt-1">
+                      Relationship extraction will be available in future updates
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -617,12 +649,8 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                           }`}
                         >
                           <div className="flex items-center space-x-2">
-                            <span className="text-xs font-medium uppercase">
-                              {error.severity}
-                            </span>
-                            <span className="text-xs">
-                              {error.timestamp.toLocaleTimeString()}
-                            </span>
+                            <span className="text-xs font-medium uppercase">{error.severity}</span>
+                            <span className="text-xs">{error.timestamp.toLocaleTimeString()}</span>
                           </div>
                           <p className="text-sm mt-1">{error.message}</p>
                         </div>

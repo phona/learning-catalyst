@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, beforeEach, afterEach } from 'vitest';
@@ -27,7 +26,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary>
         <NormalComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.getByText('Normal component content')).toBeInTheDocument();
@@ -37,7 +36,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary>
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.getByText('Component failed to load')).toBeInTheDocument();
@@ -47,7 +46,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary componentName="MyCustomComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.getByText('MyCustomComponent failed to load')).toBeInTheDocument();
@@ -57,7 +56,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary variant="minimal" componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.getByText('TestComponent failed to load')).toBeInTheDocument();
@@ -69,7 +68,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary variant="inline" componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.getByText('TestComponent Error')).toBeInTheDocument();
@@ -82,7 +81,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary onRetry={onRetry} componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     const retryButton = screen.getByText('Retry');
@@ -96,7 +95,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.queryByText('Retry')).not.toBeInTheDocument();
@@ -108,7 +107,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary onError={onError} componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     // The error should be caught synchronously during render
@@ -122,7 +121,7 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary onRetry={onRetry} componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     // Should show error state initially
@@ -145,7 +144,7 @@ describe('ComponentErrorBoundary', () => {
         showErrorDetails={true}
       >
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     expect(screen.getByText('TestComponent Error')).toBeInTheDocument();
@@ -155,12 +154,20 @@ describe('ComponentErrorBoundary', () => {
     render(
       <ComponentErrorBoundary variant="minimal" componentName="TestComponent">
         <ThrowingComponent />
-      </ComponentErrorBoundary>
+      </ComponentErrorBoundary>,
     );
 
     const errorMessage = screen.getByText('TestComponent failed to load');
     // Go up two levels to get the outer container with the styling classes
     const outerContainer = errorMessage.closest('div')?.parentElement;
-    expect(outerContainer).toHaveClass('bg-gray-100', 'dark:bg-gray-800', 'border', 'border-gray-200', 'dark:border-gray-700', 'rounded', 'text-xs');
+    expect(outerContainer).toHaveClass(
+      'bg-gray-100',
+      'dark:bg-gray-800',
+      'border',
+      'border-gray-200',
+      'dark:border-gray-700',
+      'rounded',
+      'text-xs',
+    );
   });
 });

@@ -1,4 +1,3 @@
-
 /**
  * useSidebarNavigation Hook
  *
@@ -12,7 +11,7 @@ import {
   ChatBubbleBottomCenterTextIcon,
   AcademicCapIcon,
   MagnifyingGlassIcon,
-  CogIcon
+  CogIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import type { NavigationItem, NavigationItemId } from '../Sidebar.types';
@@ -77,7 +76,9 @@ const DEFAULT_NAVIGATION_ITEMS: readonly NavigationItem[] = [
  * @param options Configuration options for navigation
  * @returns Object containing navigation state and handlers
  */
-export const useSidebarNavigation = (options: UseSidebarNavigationOptions = {}): UseSidebarNavigationReturn => {
+export const useSidebarNavigation = (
+  options: UseSidebarNavigationOptions = {},
+): UseSidebarNavigationReturn => {
   const { customItems, basePath = '' } = options;
   const location = useLocation();
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ export const useSidebarNavigation = (options: UseSidebarNavigationOptions = {}):
       if (path === '/' && currentPath === '/') return true;
       return currentPath.startsWith(path) && path !== '/';
     },
-    [location.pathname]
+    [location.pathname],
   );
 
   // Current active path
@@ -123,8 +124,8 @@ export const useSidebarNavigation = (options: UseSidebarNavigationOptions = {}):
   const handleNavigation = useCallback(
     (item: NavigationItem): void => {
       try {
-        // Update global view state
-        setCurrentView(item.id);
+        // Update global view state (allow discovery passthrough for now)
+        setCurrentView(item.id as any);
 
         // Handle special navigation cases
         if (item.id === 'discovery') {
@@ -140,7 +141,7 @@ export const useSidebarNavigation = (options: UseSidebarNavigationOptions = {}):
         console.error('[useSidebarNavigation] Navigation failed:', error);
       }
     },
-    [setCurrentView, navigate]
+    [setCurrentView, navigate],
   );
 
   // Direct navigation function
@@ -153,7 +154,7 @@ export const useSidebarNavigation = (options: UseSidebarNavigationOptions = {}):
         console.error('[useSidebarNavigation] Direct navigation failed:', error);
       }
     },
-    [navigate]
+    [navigate],
   );
 
   return {

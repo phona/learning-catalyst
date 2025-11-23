@@ -4,9 +4,12 @@ Welcome to Learning Catalyst! This guide will get you up and running in 5 minute
 
 ## What is Learning Catalyst?
 
-Learning Catalyst is an **AI-powered desktop application** that makes learning feel like an adventure. Instead of boring textbooks, you'll have conversations with AI tutors, explore visual knowledge maps, and track your progress through achievements.
+Learning Catalyst is an **AI-powered desktop application** that makes learning feel like an
+adventure. Instead of boring textbooks, you'll have conversations with AI tutors, explore visual
+knowledge maps, and track your progress through achievements.
 
 **Think of it as having a personal learning mentor who:**
+
 - Explains concepts conversationally
 - Adapts to your learning style
 - Tracks what you've mastered
@@ -28,6 +31,7 @@ df -h
 ```
 
 **Requirements:**
+
 - ✅ Node.js 18+ (LTS recommended)
 - ✅ npm 9+ or pnpm 8+
 - ✅ 4GB RAM (8GB recommended)
@@ -74,6 +78,7 @@ npm run dev
 ```
 
 You should see:
+
 ```
 🚀 Learning Catalyst starting...
 ✓ Main process ready
@@ -87,6 +92,7 @@ You should see:
 ### Desktop App Window Opens
 
 A desktop window will appear with:
+
 - **Welcome Screen**: First-time setup
 - **Dashboard**: Your learning overview
 - **Chat Interface**: Start conversations
@@ -215,6 +221,7 @@ Python
 **Purpose**: See your learning at a glance
 
 **What you'll see:**
+
 - 📊 **Current Session**: What you're learning now
 - 🗺️ **Knowledge Map**: Your learning progress visualized
 - 🏆 **Achievements**: Badges you've earned
@@ -226,6 +233,7 @@ Python
 **Purpose**: Have conversations with AI tutors
 
 **Features:**
+
 - 💬 **Natural Language**: Ask questions in plain English
 - ⚡ **Streaming Responses**: Watch answers appear in real-time
 - 🧠 **Thinking Process**: See AI reasoning (ChatGLM models)
@@ -233,6 +241,7 @@ Python
 - 🎯 **Context Aware**: AI remembers your learning materials
 
 **Example conversation:**
+
 ```
 You: "I'm struggling with React hooks"
 AI: "Let's work through hooks together! What specific aspect is challenging you?"
@@ -248,6 +257,7 @@ AI: "Great choice! useState is fundamental. Think of it like giving a component 
 **Purpose**: Visualize what you've learned
 
 **How to use:**
+
 1. **View Map**: Click any concept to expand
 2. **See Connections**: Understand relationships
 3. **Track Progress**: Green = mastered, Blue = learning
@@ -258,6 +268,7 @@ AI: "Great choice! useState is fundamental. Think of it like giving a component 
 **Purpose**: Structured learning experiences
 
 **Features:**
+
 - 📚 **Topic-Based**: Focus on specific subjects
 - 📊 **Progress Tracking**: See completion percentage
 - 🎯 **Goals**: Set and track learning objectives
@@ -269,6 +280,7 @@ AI: "Great choice! useState is fundamental. Think of it like giving a component 
 **Purpose**: Customize your experience
 
 **Configuration Options:**
+
 - 🤖 **AI Providers**: Add/remove/configure models
 - 📊 **Learning Preferences**: Difficulty, pace, style
 - 💾 **Data Management**: Export/import/backup
@@ -357,6 +369,7 @@ Dashboard > Analytics
 ### For Effective Learning
 
 1. **Ask Follow-ups**: Dig deeper
+
    ```
    You: "What is machine learning?"
    AI: [Explanation]
@@ -366,6 +379,7 @@ Dashboard > Analytics
    ```
 
 2. **Practice Immediately**: Apply what you learn
+
    ```
    AI: "Try writing a function that..."
    You: [Write code]
@@ -373,6 +387,7 @@ Dashboard > Analytics
    ```
 
 3. **Make Connections**: Link to what you know
+
    ```
    You: "How is React similar to Vue.js?"
    You: "How does Python relate to JavaScript?"
@@ -471,6 +486,7 @@ Now that you're set up:
 ### For Developers
 
 Interested in contributing? See:
+
 - [DEVELOPER-GUIDE/README.md](DEVELOPER-GUIDE/README.md)
 - [DEVELOPER-GUIDE/architecture.md](DEVELOPER-GUIDE/architecture.md)
 
@@ -497,27 +513,37 @@ Ctrl + Q          # Quit
 ## Frequently Asked Questions
 
 ### Q: Is my data private?
-**A**: Yes! All data is stored locally on your machine. Nothing is sent to external servers except AI API calls.
+
+**A**: Yes! All data is stored locally on your machine. Nothing is sent to external servers except
+AI API calls.
 
 ### Q: Can I use this offline?
-**A**: Partially. You can view past sessions, but new AI conversations need internet (unless using local models).
+
+**A**: Partially. You can view past sessions, but new AI conversations need internet (unless using
+local models).
 
 ### Q: How much does it cost?
+
 **A**: The app is free. AI API calls cost:
+
 - OpenAI: ~$0.002 per 1K tokens
 - ChatGLM: ~$0.001 per 1K tokens
 - Local models: Free (but needs powerful computer)
 
 ### Q: Can I export my data?
+
 **A**: Yes! Settings > Data > Export gives you JSON files with all your sessions and progress.
 
 ### Q: How do I backup my learning?
+
 **A**: Simply copy the `.catalyst` folder. It contains your database and settings.
 
 ### Q: Can I use my own AI models?
+
 **A**: Yes! Configure local models (Ollama, Llama.cpp) in Settings > Providers.
 
 ### Q: What if I lose my API key?
+
 **A**: Keys are stored securely. You can regenerate them from your AI provider's dashboard.
 
 ## Get Help

@@ -1,4 +1,3 @@
-
 import { render, screen } from '@testing-library/react';
 import { LoadingScreen } from '@/renderer/components/UI/LoadingScreen';
 
@@ -6,9 +5,18 @@ describe('LoadingScreen', () => {
   it('renders the loading spinner', () => {
     render(<LoadingScreen />);
 
-    const spinner = screen.getByText('Learning Catalyst').parentElement?.parentElement?.querySelector('.animate-spin');
+    const spinner = screen
+      .getByText('Learning Catalyst')
+      .parentElement?.parentElement?.querySelector('.animate-spin');
     expect(spinner).toBeInTheDocument();
-    expect(spinner).toHaveClass('animate-spin', 'w-16', 'h-16', 'border-4', 'border-blue-200', 'border-t-blue-600');
+    expect(spinner).toHaveClass(
+      'animate-spin',
+      'w-16',
+      'h-16',
+      'border-4',
+      'border-blue-200',
+      'border-t-blue-600',
+    );
   });
 
   it('displays the application title', () => {
@@ -52,12 +60,7 @@ describe('LoadingScreen', () => {
 
     // Get the main container element
     const container = document.querySelector('.min-h-screen');
-    expect(container).toHaveClass(
-      'flex',
-      'items-center',
-      'justify-center',
-      'min-h-screen'
-    );
+    expect(container).toHaveClass('flex', 'items-center', 'justify-center', 'min-h-screen');
   });
 
   it('displays state-specific icons', () => {

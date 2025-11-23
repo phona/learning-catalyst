@@ -6,7 +6,7 @@ import type {
   ChatCompletionResult,
   EmbeddingParams,
   EmbeddingResult,
-  ModelType
+  ModelType,
 } from './ai-types';
 import { createOpenAIService } from './providers/openai-provider';
 import { createChatGLMService } from './providers/chatglm-provider';
@@ -28,29 +28,29 @@ type AiServiceDeps = {
 
 const resolveProviderApiKey = (
   providerType: ProviderType | undefined,
-  providers: AppConfig['ai']['providers']
+  providers: AppConfig['ai']['providers'],
 ): string => {
   if (!providerType) {
     return 'local-dev';
   }
 
   const entry = Object.values(providers ?? {}).find(
-    (provider) => provider.provider_type === providerType
+    (provider) => provider.provider_type === providerType,
   );
 
   return (entry?.api_key ?? (entry as any)?.apiKey) || 'local-dev';
 };
 
 const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
-  const chatDefaults = config.ai.model_types.chat ?? {};
-  const chatProvider = chatDefaults.provider as ProviderType | undefined;
+  const chatDefaults = config.ai.model_types?.chat;
+  const chatProvider = chatDefaults?.provider as ProviderType | undefined;
 
   const basePreset: ModelConfig = {
     provider: chatProvider ?? 'openai',
-    model: chatDefaults.model ?? 'llama-3.1-70b',
+    model: chatDefaults?.model ?? 'llama-3.1-70b',
     apiKey: resolveProviderApiKey(chatProvider ?? 'openai', config.ai.providers),
-    temperature: chatDefaults.temperature ?? 0.3,
-    maxTokens: chatDefaults.max_tokens ?? 1024
+    temperature: chatDefaults?.temperature ?? 0.3,
+    maxTokens: chatDefaults?.max_tokens ?? 1024,
   };
 
   return {
@@ -60,29 +60,29 @@ const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
       model: 'llama-3.1-70b',
       apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.2,
-      maxTokens: 2048
+      maxTokens: 2048,
     },
     'knowledge.extraction': {
       provider: 'local',
       model: 'llama-3.1-70b',
       apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.15,
-      maxTokens: 2048
+      maxTokens: 2048,
     },
     'learning.plan': {
       provider: 'local',
       model: 'llama-3.1-70b',
       apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.35,
-      maxTokens: 3072
+      maxTokens: 3072,
     },
     'chat.reply': {
       provider: chatProvider ?? 'openai',
-      model: chatDefaults.model ?? 'gpt-4o',
+      model: chatDefaults?.model ?? 'gpt-4o',
       apiKey: resolveProviderApiKey(chatProvider ?? 'openai', config.ai.providers),
       temperature: 0.7,
-      maxTokens: 4096
-    }
+      maxTokens: 4096,
+    },
   };
 };
 
@@ -99,7 +99,7 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
     chatglm: chatGLMService,
     deepseek: deepSeekService,
     local: localModelService,
-    ollama: localModelService
+    ollama: localModelService,
   };
 
   const availableModels: ModelType[] = [
@@ -111,8 +111,8 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
       description: "OpenAI's most advanced model, optimized for speed and cost",
       pricing: {
         inputCost: 5.0,
-        outputCost: 15.0
-      }
+        outputCost: 15.0,
+      },
     },
     {
       id: 'gpt-4-turbo',
@@ -122,8 +122,8 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
       description: "OpenAI's advanced model with 128K context window",
       pricing: {
         inputCost: 10.0,
-        outputCost: 30.0
-      }
+        outputCost: 30.0,
+      },
     },
     {
       id: 'chatglm-pro',
@@ -133,8 +133,8 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
       description: "Zhipu AI's high-accuracy model for complex reasoning",
       pricing: {
         inputCost: 0.5,
-        outputCost: 0.5
-      }
+        outputCost: 0.5,
+      },
     },
     {
       id: 'deepseek-coder',
@@ -144,23 +144,23 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
       description: 'Specialized model for coding tasks',
       pricing: {
         inputCost: 0.14,
-        outputCost: 0.28
-      }
+        outputCost: 0.28,
+      },
     },
     {
       id: 'llama-3.1-70b',
       name: 'Llama 3.1 70B',
       provider: 'local',
       maxTokens: 131072,
-      description: "Meta's Llama 3.1 model (70B parameters)"
+      description: "Meta's Llama 3.1 model (70B parameters)",
     },
     {
       id: 'mistral-nemo',
       name: 'Mistral Nemo',
       provider: 'local',
       maxTokens: 131072,
-      description: "Mistral AI's high-quality model"
-    }
+      description: "Mistral AI's high-quality model",
+    },
   ];
 
   const modelPresets = buildModelPresets(config);
@@ -171,19 +171,22 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
 
   const runChatCompletion = async (params: ChatCompletionParams): Promise<ChatCompletionResult> => {
     serviceLogger.info('Chat completion requested', { model: params.modelConfig.model });
-    const providerKey = (params.modelConfig.provider ?? params.modelConfig.model ?? '').toString().toLowerCase();
-    const provider = providerKey ? providers[providerKey] : undefined;
+    const providerKey = (params.modelConfig.provider ?? params.modelConfig.model ?? '')
+      .toString()
+      .toLowerCase();
+    const provider = providerKey && providerKey in providers ? providers[providerKey] : undefined;
 
     if (!provider) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
         code: 'ai.provider.not_found',
-        message: 'Requested AI provider is not available. Verify your provider settings or pick another model.',
+        message:
+          'Requested AI provider is not available. Verify your provider settings or pick another model.',
         needsSetup: true,
         action: 'openProviderSetup',
         details: {
-          requestedProvider: providerKey || params.modelConfig.model
-        }
+          requestedProvider: providerKey || params.modelConfig.model,
+        },
       });
     }
 
@@ -200,7 +203,7 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
     chatCompletion: runChatCompletion,
     getModelPreset,
     getProviders: () => providers,
-    getAvailableModels: () => availableModels
+    getAvailableModels: () => availableModels,
   };
 };
 

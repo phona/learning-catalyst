@@ -1,8 +1,9 @@
-
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/strict-boolean-expressions */
 import { useState, useCallback } from 'react';
-import { PracticeOpportunity } from '@/shared/types/practice';
-import type { PracticeOpportunityResult } from '@/shared/types/electron-api/chat-api';
+import type {
+  PracticeOpportunity,
+  PracticeOpportunityResult,
+} from '@/shared/types/electron-api/chat-api';
 import { useChatService } from '@/renderer/services/services-provider';
 
 export interface PracticeSuggestionState {
@@ -13,7 +14,11 @@ export interface PracticeSuggestionState {
 }
 
 export interface PracticeSuggestionActions {
-  checkForPracticeOpportunity: (conversationId: string, userMessage: string, sessionId?: string) => Promise<void>;
+  checkForPracticeOpportunity: (
+    conversationId: string,
+    userMessage: string,
+    sessionId?: string,
+  ) => Promise<void>;
   acceptSuggestion: () => void;
   declineSuggestion: () => void;
   postponeSuggestion: () => void;
@@ -25,87 +30,90 @@ export const usePracticeSuggestions = (): [PracticeSuggestionState, PracticeSugg
     currentSuggestion: null,
     suggestionsHistory: [],
     isLoading: false,
-    error: null
+    error: null,
   });
 
   const chatService = useChatService();
 
-  const checkForPracticeOpportunity = useCallback(async (conversationId: string, userMessage: string, sessionId?: string) => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
+  const checkForPracticeOpportunity = useCallback(
+    async (conversationId: string, userMessage: string, sessionId?: string) => {
+      try {
+        setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
-      const payload: PracticeOpportunityResult = await chatService.checkPracticeOpportunity({
-        conversationId,
-        userMessage,
-        ...(sessionId ? { sessionId } : {})
-      });
+        const payload: PracticeOpportunityResult = await chatService.checkPracticeOpportunity({
+          conversationId,
+          userMessage,
+          ...(sessionId ? { sessionId } : {}),
+        });
 
-      if (payload.hasOpportunity && payload.opportunity) {
-        setState(prev => ({
+        if (payload.hasOpportunity && payload.opportunity) {
+          setState((prev) => ({
+            ...prev,
+            currentSuggestion: payload.opportunity ?? null,
+            isLoading: false,
+          }));
+        } else {
+          setState((prev) => ({
+            ...prev,
+            currentSuggestion: null,
+            isLoading: false,
+          }));
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setState((prev) => ({
           ...prev,
-          currentSuggestion: payload.opportunity,
-          isLoading: false
-        }));
-      } else {
-        setState(prev => ({
-          ...prev,
-          currentSuggestion: null,
-          isLoading: false
+          error: `Failed to check for practice opportunity: ${message}`,
+          isLoading: false,
         }));
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setState(prev => ({
-        ...prev,
-        error: `Failed to check for practice opportunity: ${message}`,
-        isLoading: false
-      }));
-    }
-  }, [chatService]);
+    },
+    [chatService],
+  );
 
   const acceptSuggestion = useCallback(() => {
-    setState(prev => {
+    setState((prev) => {
       if (!prev.currentSuggestion) {
         return prev;
       }
       return {
         ...prev,
         currentSuggestion: null,
-        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion]
+        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion],
       };
     });
   }, []);
 
   const declineSuggestion = useCallback(() => {
-    setState(prev => {
+    setState((prev) => {
       if (!prev.currentSuggestion) {
         return prev;
       }
       return {
         ...prev,
         currentSuggestion: null,
-        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion]
+        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion],
       };
     });
   }, []);
 
   const postponeSuggestion = useCallback(() => {
-    setState(prev => {
+    setState((prev) => {
       if (!prev.currentSuggestion) {
         return prev;
       }
       return {
         ...prev,
         currentSuggestion: null,
-        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion]
+        suggestionsHistory: [...prev.suggestionsHistory, prev.currentSuggestion],
       };
     });
   }, []);
 
   const dismissSuggestion = useCallback(() => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      currentSuggestion: null
+      currentSuggestion: null,
     }));
   }, []);
 
@@ -114,7 +122,7 @@ export const usePracticeSuggestions = (): [PracticeSuggestionState, PracticeSugg
     acceptSuggestion,
     declineSuggestion,
     postponeSuggestion,
-    dismissSuggestion
+    dismissSuggestion,
   };
 
   return [state, actions];

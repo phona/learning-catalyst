@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -20,9 +19,7 @@ describe('Achievements', () => {
   });
 
   it('renders loading state initially', () => {
-    mockAnalytics.getAchievements.mockImplementation(() =>
-      new Promise(() => {})
-    );
+    mockAnalytics.getAchievements.mockImplementation(() => new Promise(() => {}));
 
     render(<Achievements analytics={mockAnalytics} />);
 
@@ -201,7 +198,9 @@ describe('Achievements', () => {
     render(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('No achievements yet')).toBeInTheDocument();
-    expect(screen.getByText('Start your learning journey to unlock amazing rewards!')).toBeInTheDocument();
+    expect(
+      screen.getByText('Start your learning journey to unlock amazing rewards!'),
+    ).toBeInTheDocument();
   });
 
   it('categorizes achievements correctly', async () => {
@@ -242,21 +241,51 @@ describe('Achievements', () => {
   });
 
   it('applies className prop correctly', () => {
-    mockAnalytics.getAchievements.mockImplementation(() =>
-      new Promise(() => {})
-    );
+    mockAnalytics.getAchievements.mockImplementation(() => new Promise(() => {}));
 
-    const { container } = render(<Achievements analytics={mockAnalytics} className="custom-class" />);
+    const { container } = render(
+      <Achievements analytics={mockAnalytics} className="custom-class" />,
+    );
 
     expect(container.firstChild).toHaveClass('custom-class');
   });
 
   it('calculates overall progress correctly', async () => {
     const mockAchievements = [
-      { id: '1', title: 'Achievement 1', category: 'time' as const, requirement: {}, progress: 50, icon: '', unlockedAt: new Date('2025-01-01') },
-      { id: '2', title: 'Achievement 2', category: 'concepts' as const, requirement: {}, progress: 100, icon: '', unlockedAt: new Date('2025-01-02') },
-      { id: '3', title: 'Achievement 3', category: 'streaks' as const, requirement: {}, progress: 75, icon: '' },
-      { id: '4', title: 'Achievement 4', category: 'performance' as const, requirement: {}, progress: 25, icon: '' },
+      {
+        id: '1',
+        title: 'Achievement 1',
+        category: 'time' as const,
+        requirement: {},
+        progress: 50,
+        icon: '',
+        unlockedAt: new Date('2025-01-01'),
+      },
+      {
+        id: '2',
+        title: 'Achievement 2',
+        category: 'concepts' as const,
+        requirement: {},
+        progress: 100,
+        icon: '',
+        unlockedAt: new Date('2025-01-02'),
+      },
+      {
+        id: '3',
+        title: 'Achievement 3',
+        category: 'streaks' as const,
+        requirement: {},
+        progress: 75,
+        icon: '',
+      },
+      {
+        id: '4',
+        title: 'Achievement 4',
+        category: 'performance' as const,
+        requirement: {},
+        progress: 25,
+        icon: '',
+      },
     ];
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);

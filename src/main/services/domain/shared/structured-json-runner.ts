@@ -74,16 +74,16 @@ export const createStructuredJsonRunner = ({
   aiService,
   domainAgent,
   logger,
-  modelConfig
+  modelConfig,
 }: StructuredJsonRunnerDeps) => {
   const runAiJson = async <T>(prompt: string, fallback: T, context: string): Promise<T> => {
     try {
       const response = await aiService.chatCompletion({
         messages: [
           { role: 'system', content: 'You are an AI assistant that only returns valid JSON.' },
-          { role: 'user', content: prompt }
+          { role: 'user', content: prompt },
         ],
-        modelConfig
+        modelConfig,
       });
 
       const raw = response.content?.trim();
@@ -100,15 +100,18 @@ export const createStructuredJsonRunner = ({
 
   // Primary path: run through LangChain so the service benefits from agents, tools,
   // and any provider-side fallbacks configured inside LangChain itself.
-  const runAgentJson = async <T>(systemPrompt: string, input: string, context: string): Promise<T> => {
-    const response = await domainAgent.run({
-      conversationId: context,
-      topic: undefined,
-      userId: undefined,
-      messages: [{ role: 'user', content: input }],
-      systemPrompt
+  const runAgentJson = async <T>(
+    systemPrompt: string,
+    input: string,
+    context: string,
+  ): Promise<T> => {
+    const response = await domainAgent.invoke({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: input },
+      ],
     });
-    const raw = response.content?.trim();
+    const raw = String(response)?.trim();
     if (!raw) {
       throw new Error('Empty agent response');
     }
@@ -125,7 +128,7 @@ export const createStructuredJsonRunner = ({
     input,
     fallbackPrompt,
     fallback,
-    context
+    context,
   }: StructuredJsonRequest<T>): Promise<T> => {
     try {
       return await runAgentJson<T>(systemPrompt, input, context);
@@ -137,6 +140,6 @@ export const createStructuredJsonRunner = ({
   };
 
   return {
-    runStructuredJson
+    runStructuredJson,
   };
 };

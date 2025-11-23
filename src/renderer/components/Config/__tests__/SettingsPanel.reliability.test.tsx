@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -8,13 +7,13 @@ import { renderWithSettings } from '@/test/utils/renderWithServices';
 vi.mock('@/renderer/utils/toast', () => ({
   utilityToasts: {
     success: vi.fn(),
-    error: vi.fn()
+    error: vi.fn(),
   },
   settingsToasts: {
     providerError: vi.fn(),
     saved: vi.fn(),
-    reset: vi.fn()
-  }
+    reset: vi.fn(),
+  },
 }));
 
 describe('SettingsPanel reliability', () => {
@@ -54,7 +53,9 @@ describe('SettingsPanel reliability', () => {
     const apiKeyInput = screen.getByPlaceholderText('Enter API key...');
     await user.type(apiKeyInput, 'bad-key');
 
-    const validateButton = screen.getAllByRole('button').find((b) => b.textContent?.trim() === 'Validate');
+    const validateButton = screen
+      .getAllByRole('button')
+      .find((b) => b.textContent?.trim() === 'Validate');
     expect(validateButton).toBeDefined();
     await user.click(validateButton!);
 

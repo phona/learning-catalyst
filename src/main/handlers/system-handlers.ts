@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * System & Health Check IPC Handlers
  */
@@ -9,12 +8,12 @@ import type { APIResponse } from '@/shared/types/electron-api';
 const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
   success: true,
   data,
-  metadata
+  metadata,
 });
 
 const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
   success: false,
-  error: { code, message, details }
+  error: { code, message, details },
 });
 
 export function setupSystemHandlers(): void {
@@ -25,7 +24,7 @@ export function setupSystemHandlers(): void {
         errorId: `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         timestamp: new Date().toISOString(),
         acknowledged: true,
-        details: errorData
+        details: errorData,
       };
       return ok(payload);
     } catch (error) {
@@ -46,8 +45,8 @@ export function setupSystemHandlers(): void {
           agents: { status: 'healthy' },
           content: { status: 'healthy' },
           settings: { status: 'healthy' },
-          sessions: { status: 'healthy' }
-        }
+          sessions: { status: 'healthy' },
+        },
       };
       return ok(healthStatus);
     } catch (error) {
@@ -60,7 +59,7 @@ export function setupSystemHandlers(): void {
       const version = {
         version: app.getVersion(),
         build: 'dev',
-        platform: process.platform
+        platform: process.platform,
       };
       return ok(version);
     } catch (error) {

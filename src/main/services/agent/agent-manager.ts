@@ -10,14 +10,8 @@ import { createLearningAgent } from './learning-agent';
 import { createPracticeAgent } from './practice-agent';
 import { createSupervisorAgent } from './supervisor-agent';
 import { createTutoringAgent } from './tutoring-agent';
-import {
-  formatMessages,
-  pickAssistantMessage
-} from './specialized-agent';
-import type {
-  SpecializedAgent,
-  SpecializedAgentResult
-} from './specialized-agent';
+import { formatMessages, pickAssistantMessage } from './specialized-agent';
+import type { SpecializedAgent, SpecializedAgentResult } from './specialized-agent';
 import { needsAgentRebuild } from './provider-utils';
 import type { AppConfig } from '@/shared/types/config';
 import { createProviderFactory } from './provider-factory';
@@ -53,7 +47,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     learningService: deps.learningService,
     loggerService: deps.loggerService,
     configService: deps.configService,
-    providerFactory
+    providerFactory,
   };
 
   // Function to create all agents
@@ -67,7 +61,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
       learning: learningAgent,
       tutoring: tutoringAgent,
       assessment: assessmentAgent,
-      practice: practiceAgent
+      practice: practiceAgent,
     };
   };
 
@@ -84,7 +78,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
   // Handle configuration changes
   const handleConfigChange = async (newConfig: AppConfig) => {
     if (!currentConfig) return;
-    
+
     if (needsAgentRebuild(currentConfig, newConfig)) {
       deps.loggerService.info('Agent config changed, rebuilding agents');
       try {
@@ -103,16 +97,14 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
 
   const runAgent = async (request: AgentManagerRequest): Promise<AgentManagerResult> => {
     const agent =
-      request.agentType === 'supervisor'
-        ? supervisorAgent
-        : agentInstances[request.agentType];
+      request.agentType === 'supervisor' ? supervisorAgent : agentInstances[request.agentType];
     if (!agent) {
       throw new Error(`Unsupported agent type: ${request.agentType}`);
     }
 
     const logger = deps.loggerService.child({
       agent: request.agentType,
-      conversationId: request.conversationId
+      conversationId: request.conversationId,
     });
 
     const formattedMessages = formatMessages(request.messages, request.topic);
@@ -131,31 +123,31 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
       properties: {
         agentType: request.agentType,
         provider: providerSettings.providerName,
-        model: providerSettings.model
+        model: providerSettings.model,
       },
       context: {
         conversationId: request.conversationId,
-        topic: request.topic
-      }
+        topic: request.topic,
+      },
     });
 
     logger.info('Agent response generated', {
       provider: providerSettings.providerName,
-      conversationId: request.conversationId
+      conversationId: request.conversationId,
     });
 
     const resultPayload: AgentManagerResult = {
       content: assistantMessage.content,
       model: providerSettings.model,
       provider: providerSettings.providerName,
-      agentType: request.agentType
+      agentType: request.agentType,
     };
 
     return resultPayload;
   };
 
   return {
-    runAgent
+    runAgent,
   };
 };
 

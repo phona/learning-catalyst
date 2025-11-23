@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -11,11 +10,11 @@ const baseConfig = {
       chat: {
         capabilities: {
           streaming: true,
-          thinking: false
-        }
-      }
-    }
-  }
+          thinking: false,
+        },
+      },
+    },
+  },
 } as any;
 
 describe('ResponseSettings', () => {
@@ -24,10 +23,8 @@ describe('ResponseSettings', () => {
 
     expect(screen.getByText(/Response Settings/i)).toBeInTheDocument();
     const buttons = screen.getAllByRole('button');
-    expect(buttons.every(btn => btn.hasAttribute('disabled'))).toBe(true);
-    expect(
-      screen.getByText(/Chat model configuration is unavailable/i)
-    ).toBeInTheDocument();
+    expect(buttons.every((btn) => btn.hasAttribute('disabled'))).toBe(true);
+    expect(screen.getByText(/Chat model configuration is unavailable/i)).toBeInTheDocument();
   });
 
   it('toggles streaming capability', async () => {
@@ -37,7 +34,7 @@ describe('ResponseSettings', () => {
     const streamingToggle = screen
       .getAllByRole('button')
       .find((btn) =>
-        btn.previousElementSibling?.textContent?.includes('Enable Streaming Responses')
+        btn.previousElementSibling?.textContent?.includes('Enable Streaming Responses'),
       );
     expect(streamingToggle).toBeDefined();
     await userEvent.setup().click(streamingToggle!);
@@ -47,11 +44,11 @@ describe('ResponseSettings', () => {
         model_types: expect.objectContaining({
           chat: expect.objectContaining({
             capabilities: expect.objectContaining({
-              streaming: false
-            })
-          })
-        })
-      })
+              streaming: false,
+            }),
+          }),
+        }),
+      }),
     });
   });
 
@@ -61,9 +58,7 @@ describe('ResponseSettings', () => {
 
     const thinkingToggle = screen
       .getAllByRole('button')
-      .find((btn) =>
-        btn.previousElementSibling?.textContent?.includes('Enable Thinking Display')
-      );
+      .find((btn) => btn.previousElementSibling?.textContent?.includes('Enable Thinking Display'));
     expect(thinkingToggle).toBeDefined();
     await userEvent.setup().click(thinkingToggle!);
 
@@ -72,11 +67,11 @@ describe('ResponseSettings', () => {
         model_types: expect.objectContaining({
           chat: expect.objectContaining({
             capabilities: expect.objectContaining({
-              thinking: true
-            })
-          })
-        })
-      })
+              thinking: true,
+            }),
+          }),
+        }),
+      }),
     });
   });
 });

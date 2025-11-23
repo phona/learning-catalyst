@@ -12,7 +12,7 @@ import type {
   ImportResultDisplay,
   ProjectDisplay,
   ResourceSearchResultDisplay,
-  ConceptExtractionDisplay
+  ConceptExtractionDisplay,
 } from '@/shared/types/electron-api/content-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 import type { ILogger } from '../services/types';
@@ -20,7 +20,9 @@ import type { ILogger } from '../services/types';
 type ContentService = {
   exploreLocalProjects: () => Promise<ProjectDisplay[]>;
   importLearningContent: (files: FileList) => Promise<ImportResultDisplay>;
-  getRecommendedContent: (params: Parameters<ContentAPI['getRecommendedContent']>[0]) => Promise<ContentRecommendationDisplay[]>;
+  getRecommendedContent: (
+    params: Parameters<ContentAPI['getRecommendedContent']>[0],
+  ) => Promise<ContentRecommendationDisplay[]>;
   searchLearningResources: (query: string) => Promise<ResourceSearchResultDisplay>;
   analyzeDocument: (filePath: string) => Promise<DocumentAnalysisDisplay>;
   extractConcepts: (content: string) => Promise<ConceptExtractionDisplay[]>;
@@ -41,17 +43,17 @@ type ImportParams = {
 
 export const setupContentHandlers = (
   ipcMainInstance: typeof ipcMain,
-  services: ContentHandlersDeps
+  services: ContentHandlersDeps,
 ): void => {
   const handlerLogger = services.loggerService.child({ handler: 'content' });
   const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
     success: true,
     data,
-    metadata
+    metadata,
   });
   const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
     success: false,
-    error: { code, message, details }
+    error: { code, message, details },
   });
 
   ipcMainInstance.handle('content:explore-projects', async () => {
@@ -72,7 +74,7 @@ export const setupContentHandlers = (
     try {
       const importResults = await services.contentService.importLearningContent(params.files);
       handlerLogger.info('Content import completed', {
-        processed: importResults.processedFiles
+        processed: importResults.processedFiles,
       });
       return ok(importResults);
     } catch (error) {
@@ -81,16 +83,19 @@ export const setupContentHandlers = (
     }
   });
 
-  ipcMainInstance.handle('content:get-recommendations', async (_event, params: Parameters<ContentAPI['getRecommendedContent']>[0]) => {
-    handlerLogger.info('Handling get recommended content request', params);
-    try {
-      const recommendedContent = await services.contentService.getRecommendedContent(params);
-      return ok(recommendedContent);
-    } catch (error) {
-      handlerLogger.error('Failed to get recommended content', error);
-      return fail('content.recommend_failed', 'Unable to get recommended content', error);
-    }
-  });
+  ipcMainInstance.handle(
+    'content:get-recommendations',
+    async (_event, params: Parameters<ContentAPI['getRecommendedContent']>[0]) => {
+      handlerLogger.info('Handling get recommended content request', params);
+      try {
+        const recommendedContent = await services.contentService.getRecommendedContent(params);
+        return ok(recommendedContent);
+      } catch (error) {
+        handlerLogger.error('Failed to get recommended content', error);
+        return fail('content.recommend_failed', 'Unable to get recommended content', error);
+      }
+    },
+  );
 
   ipcMainInstance.handle('content:search-resources', async (_event, query: string) => {
     handlerLogger.info('Handling search resources request', { query });

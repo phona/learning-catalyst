@@ -21,15 +21,11 @@ describe('UserContextTracker', () => {
         info: vi.fn(),
         debug: vi.fn(),
         error: vi.fn(),
-        warn: vi.fn()
-      }
+        warn: vi.fn(),
+      },
     };
 
-    userContextTracker = createUserContextTracker(
-      'test-user',
-      'test-session',
-      mockDependencies
-    );
+    userContextTracker = createUserContextTracker('test-user', 'test-session', mockDependencies);
   });
 
   describe('Context Updates', () => {
@@ -41,7 +37,7 @@ describe('UserContextTracker', () => {
         timestamp: Date.now(),
         concepts: ['React hooks', 'useState'],
         confidence: 0.7,
-        sentiment: 0.5
+        sentiment: 0.5,
       };
 
       const result = await userContextTracker.updateContext(request);
@@ -64,8 +60,8 @@ describe('UserContextTracker', () => {
           success: true,
           concept: 'React hooks',
           duration: 15,
-          attempts: 2
-        }
+          attempts: 2,
+        },
       };
 
       const result = await userContextTracker.updateContext(request);
@@ -87,8 +83,8 @@ describe('UserContextTracker', () => {
           success: false,
           concept: 'React hooks',
           duration: 25,
-          attempts: 3
-        }
+          attempts: 3,
+        },
       };
 
       const result = await userContextTracker.updateContext(request);
@@ -106,7 +102,7 @@ describe('UserContextTracker', () => {
         timestamp: Date.now(),
         concepts: ['React', 'state'],
         confidence: 0.6,
-        sentiment: -0.2
+        sentiment: -0.2,
       };
 
       const result = await userContextTracker.updateContext(request);
@@ -124,7 +120,7 @@ describe('UserContextTracker', () => {
         content: 'Learning about useState',
         timestamp: Date.now(),
         concepts: ['useState'],
-        confidence: 0.6
+        confidence: 0.6,
       };
 
       await userContextTracker.updateContext(request);
@@ -143,7 +139,7 @@ describe('UserContextTracker', () => {
         content: 'Learning about useState',
         timestamp: Date.now(),
         concepts: ['useState'],
-        confidence: 0.5
+        confidence: 0.5,
       };
 
       await userContextTracker.updateContext(request1);
@@ -155,7 +151,7 @@ describe('UserContextTracker', () => {
         content: 'Now I understand useState better',
         timestamp: Date.now() + 1000,
         concepts: ['useState'],
-        confidence: 0.8
+        confidence: 0.8,
       };
 
       const result = await userContextTracker.updateContext(request2);
@@ -163,7 +159,7 @@ describe('UserContextTracker', () => {
       expect(result.changes.confidenceChanges['useState']).toBeGreaterThan(0);
 
       const currentContext = userContextTracker.getCurrentContext();
-      const useStateConcept = currentContext.recentConcepts.find(c => c.concept === 'useState');
+      const useStateConcept = currentContext.recentConcepts.find((c) => c.concept === 'useState');
       expect(useStateConcept?.confidence).toBe(0.8);
     });
 
@@ -175,7 +171,7 @@ describe('UserContextTracker', () => {
         content: 'Trying to understand React hooks',
         timestamp: Date.now(),
         concepts: ['React hooks'],
-        confidence: 0.4
+        confidence: 0.4,
       };
 
       await userContextTracker.updateContext(request1);
@@ -187,13 +183,13 @@ describe('UserContextTracker', () => {
         content: 'Aha! I finally understand how hooks work',
         timestamp: Date.now() + 5000,
         concepts: ['React hooks'],
-        confidence: 0.9
+        confidence: 0.9,
       };
 
       await userContextTracker.updateContext(request2);
 
       const analytics = userContextTracker.getLearningAnalytics();
-      const hooksPattern = analytics.patterns.find(p => p.concept === 'React hooks');
+      const hooksPattern = analytics.patterns.find((p) => p.concept === 'React hooks');
 
       expect(hooksPattern?.breakthroughMoments).toHaveLength(1);
       expect(hooksPattern?.breakthroughMoments[0].confidenceBefore).toBe(0.4);
@@ -206,11 +202,12 @@ describe('UserContextTracker', () => {
       const engagedRequest: ContextUpdateRequest = {
         sessionId: 'test-session',
         messageType: 'user_message',
-        content: 'This is really interesting! I have so many questions about how this works. Can you explain more?',
+        content:
+          'This is really interesting! I have so many questions about how this works. Can you explain more?',
         timestamp: Date.now(),
         concepts: ['concept'],
         confidence: 0.7,
-        sentiment: 0.8
+        sentiment: 0.8,
       };
 
       await userContextTracker.updateContext(engagedRequest);
@@ -231,8 +228,8 @@ describe('UserContextTracker', () => {
           success: true,
           concept: 'concept',
           duration: 20,
-          attempts: 1
-        }
+          attempts: 1,
+        },
       };
 
       await userContextTracker.updateContext(successRequest);
@@ -251,7 +248,7 @@ describe('UserContextTracker', () => {
           content: 'Learning concept A',
           timestamp: Date.now(),
           concepts: ['conceptA'],
-          confidence: 0.5
+          confidence: 0.5,
         },
         {
           sessionId: 'test-session',
@@ -259,12 +256,12 @@ describe('UserContextTracker', () => {
           content: 'Learning concept B',
           timestamp: Date.now() + 30000, // 30 seconds later
           concepts: ['conceptB'],
-          confidence: 0.6
-        }
+          confidence: 0.6,
+        },
       ];
 
       for (const request of requests) {
-        await userContextTracker.updateContext(request);
+        await userContextTracker.updateContext(request as ContextUpdateRequest);
       }
 
       const analytics = userContextTracker.getLearningAnalytics();
@@ -285,8 +282,8 @@ describe('UserContextTracker', () => {
           success: false,
           concept: 'difficult concept',
           duration: 30,
-          attempts: 5
-        }
+          attempts: 5,
+        },
       };
 
       const result = await userContextTracker.updateContext(failedRequest);
@@ -310,8 +307,8 @@ describe('UserContextTracker', () => {
           success: false,
           concept: 'tricky concept',
           duration: 25,
-          attempts: 3
-        }
+          attempts: 3,
+        },
       };
 
       await userContextTracker.updateContext(failedRequest);
@@ -328,8 +325,8 @@ describe('UserContextTracker', () => {
           success: true,
           concept: 'tricky concept',
           duration: 15,
-          attempts: 1
-        }
+          attempts: 1,
+        },
       };
 
       const result = await userContextTracker.updateContext(successRequest);
@@ -355,8 +352,8 @@ describe('UserContextTracker', () => {
             success: false,
             concept: 'recurring problem',
             duration: 20,
-            attempts: 2
-          }
+            attempts: 2,
+          },
         };
 
         await userContextTracker.updateContext(failedRequest);
@@ -373,8 +370,8 @@ describe('UserContextTracker', () => {
             success: true,
             concept: 'recurring problem',
             duration: 10,
-            attempts: 1
-          }
+            attempts: 1,
+          },
         };
 
         await userContextTracker.updateContext(successRequest);
@@ -383,7 +380,9 @@ describe('UserContextTracker', () => {
       const analytics = userContextTracker.getLearningAnalytics();
       expect(analytics.stuckPointAnalysis.resolutionPatterns).toHaveLength(3);
       expect(analytics.stuckPointAnalysis.resolutionPatterns[0].concept).toBe('recurring problem');
-      expect(analytics.stuckPointAnalysis.resolutionPatterns[0].resolutionMethod).toBe('practice_success');
+      expect(analytics.stuckPointAnalysis.resolutionPatterns[0].resolutionMethod).toBe(
+        'practice_success',
+      );
     });
   });
 
@@ -401,8 +400,8 @@ describe('UserContextTracker', () => {
             success: true,
             concept: 'concept1',
             duration: 15,
-            attempts: 1
-          }
+            attempts: 1,
+          },
         },
         {
           sessionId: 'test-session',
@@ -415,13 +414,13 @@ describe('UserContextTracker', () => {
             success: false,
             concept: 'concept2',
             duration: 30,
-            attempts: 3
-          }
-        }
+            attempts: 3,
+          },
+        },
       ];
 
       for (const request of practiceRequests) {
-        await userContextTracker.updateContext(request);
+        await userContextTracker.updateContext(request as ContextUpdateRequest);
       }
 
       const currentContext = userContextTracker.getCurrentContext();
@@ -439,7 +438,7 @@ describe('UserContextTracker', () => {
         { success: false, concept: 'b', duration: 20, attempts: 2 },
         { success: true, concept: 'c', duration: 15, attempts: 1 },
         { success: true, concept: 'd', duration: 12, attempts: 1 },
-        { success: false, concept: 'e', duration: 25, attempts: 3 }
+        { success: false, concept: 'e', duration: 25, attempts: 3 },
       ].map((practice, index) => ({
         sessionId: 'test-session',
         messageType: 'practice_completion',
@@ -447,11 +446,11 @@ describe('UserContextTracker', () => {
         timestamp: Date.now() + index * 60000,
         concepts: [practice.concept],
         confidence: 0.6,
-        practiceResult: practice
+        practiceResult: practice,
       }));
 
       for (const request of practiceRequests) {
-        await userContextTracker.updateContext(request);
+        await userContextTracker.updateContext(request as ContextUpdateRequest);
       }
 
       const currentContext = userContextTracker.getCurrentContext();
@@ -482,7 +481,7 @@ describe('UserContextTracker', () => {
         content: 'Learning about advanced React patterns',
         timestamp: Date.now(),
         concepts: ['advanced React patterns', 'context API', 'useReducer'],
-        confidence: 0.7
+        confidence: 0.7,
       };
 
       await userContextTracker.updateContext(request);
@@ -501,15 +500,15 @@ describe('UserContextTracker', () => {
         timestamp: Date.now(),
         concepts: ['React hooks'],
         confidence: 0.9,
-        sentiment: 0.8
+        sentiment: 0.8,
       };
 
       const result = await userContextTracker.updateContext(request);
 
       expect(result.recommendations.length).toBeGreaterThan(0);
-      const practiceRecommendation = result.recommendations.find(r => r.type === 'practice');
+      const practiceRecommendation = result.recommendations.find((r) => r.type === 'practice');
       expect(practiceRecommendation).toBeDefined();
-      expect(practiceRecommendation.priority).toBe('high');
+      expect(practiceRecommendation?.priority).toBe('high');
     });
 
     it('should suggest review for stuck points', async () => {
@@ -525,8 +524,8 @@ describe('UserContextTracker', () => {
           success: false,
           concept: 'confusing concept',
           duration: 25,
-          attempts: 4
-        }
+          attempts: 4,
+        },
       };
 
       await userContextTracker.updateContext(failedRequest);
@@ -535,12 +534,13 @@ describe('UserContextTracker', () => {
         sessionId: 'test-session',
         messageType: 'user_message',
         content: 'Another message',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        concepts: ['confusing concept'],
       });
 
-      const reviewRecommendation = result.recommendations.find(r => r.type === 'review');
+      const reviewRecommendation = result.recommendations.find((r) => r.type === 'review');
       expect(reviewRecommendation).toBeDefined();
-      expect(reviewRecommendation.description).toContain('confusing concept');
+      expect(reviewRecommendation?.description).toContain('confusing concept');
     });
 
     it('should suggest advancement for high confidence in multiple concepts', async () => {
@@ -552,7 +552,7 @@ describe('UserContextTracker', () => {
           content: 'Mastered concept 1',
           timestamp: Date.now(),
           concepts: ['concept1'],
-          confidence: 0.9
+          confidence: 0.9,
         },
         {
           sessionId: 'test-session',
@@ -560,7 +560,7 @@ describe('UserContextTracker', () => {
           content: 'Mastered concept 2',
           timestamp: Date.now() + 10000,
           concepts: ['concept2'],
-          confidence: 0.85
+          confidence: 0.85,
         },
         {
           sessionId: 'test-session',
@@ -568,24 +568,25 @@ describe('UserContextTracker', () => {
           content: 'Mastered concept 3',
           timestamp: Date.now() + 20000,
           concepts: ['concept3'],
-          confidence: 0.95
-        }
+          confidence: 0.95,
+        },
       ];
 
       for (const request of highConfidenceRequests) {
-        await userContextTracker.updateContext(request);
+        await userContextTracker.updateContext(request as ContextUpdateRequest);
       }
 
       const result = await userContextTracker.updateContext({
         sessionId: 'test-session',
         messageType: 'user_message',
         content: 'Ready for next challenge',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        concepts: ['concept1', 'concept2', 'concept3'],
       });
 
-      const advanceRecommendation = result.recommendations.find(r => r.type === 'advance');
+      const advanceRecommendation = result.recommendations.find((r) => r.type === 'advance');
       expect(advanceRecommendation).toBeDefined();
-      expect(advanceRecommendation.priority).toBe('low');
+      expect(advanceRecommendation?.priority).toBe('low');
     });
   });
 
@@ -596,8 +597,9 @@ describe('UserContextTracker', () => {
         messageType: 'user_message',
         content: 'I love this! Can we do more?',
         timestamp: Date.now(),
+        concepts: ['learning'],
         confidence: 0.8,
-        sentiment: 0.9
+        sentiment: 0.9,
       };
 
       const result = await userContextTracker.updateContext(request);
@@ -611,12 +613,12 @@ describe('UserContextTracker', () => {
       // Simulate high cognitive load through multiple complex messages
       const complexRequests = Array.from({ length: 10 }, (_, index) => ({
         sessionId: 'test-session',
-        messageType: 'user_message',
+        messageType: 'user_message' as const,
         content: `This is a very complex message ${index} with lots of technical details and questions about multiple related and unrelated topics that increases cognitive load substantially.`,
         timestamp: Date.now() + index * 5000,
         confidence: 0.6,
         concepts: ['complex topic'],
-        sentiment: 0.1
+        sentiment: 0.1,
       }));
 
       for (const request of complexRequests) {
@@ -627,10 +629,11 @@ describe('UserContextTracker', () => {
         sessionId: 'test-session',
         messageType: 'user_message',
         content: 'Ready for more',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        concepts: ['complex topic'],
       });
 
-      expect(result.nextSteps.optimalTiming).toBeGreaterThan(30);
+      expect(result.nextSteps.optimalPracticeTiming).toBeGreaterThan(30);
     });
 
     it('should adjust difficulty based on confidence and success rate', async () => {
@@ -646,8 +649,8 @@ describe('UserContextTracker', () => {
           success: true,
           concept: 'advanced concept',
           duration: 10,
-          attempts: 1
-        }
+          attempts: 1,
+        },
       };
 
       await userContextTracker.updateContext(request);
@@ -655,8 +658,9 @@ describe('UserContextTracker', () => {
       const result = await userContextTracker.updateContext({
         sessionId: 'test-session',
         messageType: 'user_message',
-        content: 'What\'s next?',
-        timestamp: Date.now()
+        content: "What's next?",
+        timestamp: Date.now(),
+        concepts: ['advanced concept'],
       });
 
       expect(result.nextSteps.suggestedDifficulty).toBe('hard');
@@ -669,7 +673,8 @@ describe('UserContextTracker', () => {
         sessionId: 'test-session',
         messageType: 'invalid_type' as any,
         content: 'Test content',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        concepts: ['test'],
       };
 
       const result = await userContextTracker.updateContext(malformedRequest);
@@ -685,7 +690,8 @@ describe('UserContextTracker', () => {
         sessionId: 'test-session',
         messageType: 'user_message',
         content: 'Minimal message',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        concepts: [],
       };
 
       const result = await userContextTracker.updateContext(minimalRequest);
@@ -700,8 +706,9 @@ describe('UserContextTracker', () => {
     it('should allow setting and retrieving project context', () => {
       const projectContext = {
         name: 'My React App',
-        type: 'react',
-        files: ['/src/App.tsx'] // files array is what the implementation expects
+        type: 'react' as const,
+        files: ['/src/App.tsx'], // files array is what the implementation expects
+        recentActivity: ['/src/App.tsx: '],
       };
 
       userContextTracker.setProjectContext(projectContext);
@@ -711,17 +718,16 @@ describe('UserContextTracker', () => {
         name: 'My React App',
         type: 'react',
         files: ['/src/App.tsx'],
-        recentActivity: ['/src/App.tsx: ']
+        recentActivity: ['/src/App.tsx: '],
       });
     });
 
     it('should use project context in recommendations', async () => {
       userContextTracker.setProjectContext({
         name: 'Todo App',
-        type: 'react',
-        technologies: ['React', 'TypeScript'],
-        recentFiles: [],
-        challenges: []
+        type: 'react' as const,
+        files: [],
+        recentActivity: [],
       });
 
       const request: ContextUpdateRequest = {
@@ -730,7 +736,7 @@ describe('UserContextTracker', () => {
         content: 'Learning about useState',
         timestamp: Date.now(),
         concepts: ['useState'],
-        confidence: 0.7
+        confidence: 0.7,
       };
 
       const result = await userContextTracker.updateContext(request);
@@ -755,12 +761,12 @@ describe('UserContextTracker', () => {
     it('should track performance trends over time', async () => {
       // Simulate activity over time
       const activities = [
-        { type: 'concept_introduction', confidence: 0.4 },
-        { type: 'concept_introduction', confidence: 0.6 },
-        { type: 'practice_completion', success: true },
-        { type: 'concept_introduction', confidence: 0.8 },
-        { type: 'practice_completion', success: false },
-        { type: 'user_message', confidence: 0.7 }
+        { type: 'concept_introduction' as const, confidence: 0.4 },
+        { type: 'concept_introduction' as const, confidence: 0.6 },
+        { type: 'practice_completion' as const, success: true },
+        { type: 'concept_introduction' as const, confidence: 0.8 },
+        { type: 'practice_completion' as const, success: false },
+        { type: 'user_message' as const, confidence: 0.7 },
       ];
 
       for (let i = 0; i < activities.length; i++) {
@@ -771,12 +777,15 @@ describe('UserContextTracker', () => {
           timestamp: Date.now() + i * 30000,
           concepts: [`concept${i + 1}`],
           confidence: activities[i].confidence,
-          practiceResult: activities[i].type === 'practice_completion' ? {
-            success: activities[i].success,
-            concept: `concept${i + 1}`,
-            duration: 20,
-            attempts: 1
-          } : undefined
+          practiceResult:
+            activities[i].type === 'practice_completion'
+              ? {
+                  success: activities[i].success!,
+                  concept: `concept${i + 1}`,
+                  duration: 20,
+                  attempts: 1,
+                }
+              : undefined,
         };
 
         await userContextTracker.updateContext(request);
@@ -800,7 +809,7 @@ describe('UserContextTracker', () => {
           content: `Activity ${i}`,
           timestamp: Date.now() + i * 1000,
           concepts: [`concept${i}`],
-          confidence: 0.5
+          confidence: 0.5,
         };
 
         await userContextTracker.updateContext(request);
@@ -832,8 +841,8 @@ describe('UserContextTracker', () => {
         expect.stringContaining('UserContextTracker disposed'),
         expect.objectContaining({
           userId: 'test-user',
-          sessionId: 'test-session'
-        })
+          sessionId: 'test-session',
+        }),
       );
     });
   });

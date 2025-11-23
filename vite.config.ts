@@ -1,23 +1,23 @@
-import { rmSync } from 'node:fs'
-import path from 'node:path'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import electron from 'vite-plugin-electron/simple'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { rmSync } from 'node:fs';
+import path from 'node:path';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import electron from 'vite-plugin-electron/simple';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 // import viteMemoryPlugin from './src/utils/vite-memory-plugin.js'
 // @ts-ignore
-import pkg from './package.json'
+import pkg from './package.json';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
-  rmSync('dist-electron', { recursive: true, force: true })
+  rmSync('dist-electron', { recursive: true, force: true });
 
-  const isServe = command === 'serve'
-  const isBuild = command === 'build'
-  const sourcemap = isServe || !!process.env.VSCODE_DEBUG
+  const isServe = command === 'serve';
+  const isBuild = command === 'build';
+  const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
 
   // Get workspace from environment variable
-  const workspace = process.env.WORKSPACE_PATH || process.cwd()
+  const workspace = process.env.WORKSPACE_PATH || process.cwd();
 
   // Pass workspace to the renderer process via define
   return {
@@ -30,7 +30,7 @@ export default defineConfig(({ command }) => {
       },
     },
     define: {
-      __WORKSPACE_PATH__: JSON.stringify(workspace)
+      __WORKSPACE_PATH__: JSON.stringify(workspace),
     },
     // Memory optimization settings
     esbuild: {
@@ -46,13 +46,16 @@ export default defineConfig(({ command }) => {
         // Add Babel configuration to handle semicolon imports correctly
         babel: {
           presets: [
-            ['@babel/preset-react', {
-              runtime: 'automatic',
-              development: isServe,
-              importSource: undefined
-            }]
-          ]
-        }
+            [
+              '@babel/preset-react',
+              {
+                runtime: 'automatic',
+                development: isServe,
+                importSource: undefined,
+              },
+            ],
+          ],
+        },
       }),
       // Node.js polyfills for LangChain compatibility
       nodePolyfills({
@@ -69,12 +72,12 @@ export default defineConfig(({ command }) => {
           'url',
           'querystring',
           'path',
-          'fs'
+          'fs',
         ],
         // Exclude polyfills that might cause issues in browser
         exclude: [
-          'buffer' // Use Vite's built-in buffer polyfill
-        ]
+          'buffer', // Use Vite's built-in buffer polyfill
+        ],
       }),
       // Memory leak prevention plugin for development
       // ...(isServe ? [viteMemoryPlugin({
@@ -89,9 +92,9 @@ export default defineConfig(({ command }) => {
           entry: 'src/main/index.ts',
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
-              console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')
+              console.log(/* For `.vscode/.debug.script.mjs` */ '[startup] Electron App');
             } else {
-              args.startup()
+              args.startup();
             }
           },
           vite: {
@@ -108,13 +111,10 @@ export default defineConfig(({ command }) => {
               minify: isBuild,
               outDir: 'dist-electron/main',
               rollupOptions: {
-                external: [
-                  'sqlite-electron',
-                  'electron'
-                ],
+                external: ['sqlite-electron', 'electron'],
                 output: {
-                  format: 'cjs'
-                }
+                  format: 'cjs',
+                },
               },
             },
           },
@@ -139,18 +139,22 @@ export default defineConfig(({ command }) => {
               rollupOptions: {
                 external: [
                   ...Object.keys('dependencies' in pkg ? pkg.dependencies : {}),
-                  'sqlite-electron'
+                  'sqlite-electron',
                 ],
                 output: {
                   format: 'cjs',
-                  entryFileNames: '[name].cjs'
-                }
+                  entryFileNames: '[name].cjs',
+                },
               },
             },
           },
         },
       }),
     ],
+    test: {
+      globals: true,
+      environment: 'jsdom',
+    },
     server: (() => {
       const baseConfig = {
         // Memory optimization settings for development server
@@ -169,7 +173,7 @@ export default defineConfig(({ command }) => {
             '**/dist-electron/**',
             '**/.git/**',
             '**/test_workspace/**',
-            '**/external/**'
+            '**/external/**',
           ],
         },
         hmr: {
@@ -179,7 +183,7 @@ export default defineConfig(({ command }) => {
       };
 
       if (process.env.VSCODE_DEBUG) {
-        const url = new URL(pkg.debug?.env?.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173/')
+        const url = new URL(pkg.debug?.env?.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173/');
         return {
           ...baseConfig,
           host: url.hostname,
@@ -204,16 +208,12 @@ export default defineConfig(({ command }) => {
         'langchain',
         '@langchain/community',
         '@langchain/core',
-        '@langchain/textsplitters'
+        '@langchain/textsplitters',
       ],
       // Memory optimization for dependency management
       force: false, // Don't force rebuild unless necessary
       // Exclude large dependencies that cause memory issues
-      exclude: [
-        '@anthropic-ai/claude-code',
-        'qdrant-js',
-        'sqlite-electron'
-      ],
+      exclude: ['@anthropic-ai/claude-code', 'qdrant-js', 'sqlite-electron'],
       // Add Node.js polyfills for LangChain
       add: [
         'async_hooks',
@@ -223,7 +223,7 @@ export default defineConfig(({ command }) => {
         'stream',
         'string_decoder',
         'url',
-        'querystring'
+        'querystring',
       ],
       // Limit the size of pre-bundled chunks
       maxChunkSize: 500000, // 500KB chunks
@@ -261,5 +261,5 @@ export default defineConfig(({ command }) => {
         chunkSizeWarningLimit: 1000,
       }),
     },
-  }
-})
+  };
+});

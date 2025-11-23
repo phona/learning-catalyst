@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely'
+import { Kysely } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -49,7 +49,7 @@ export default {
           icon: 'briefcase',
         },
       ])
-      .execute()
+      .execute();
 
     // Initialize user stats
     await db
@@ -57,7 +57,7 @@ export default {
       .values({
         id: 'user',
       })
-      .execute()
+      .execute();
 
     // Insert default settings
     await db
@@ -92,13 +92,13 @@ export default {
           description: 'Show learning tips',
         },
       ])
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
     // Remove default data
-    await db.deleteFrom('settings').where('id', 'in', ['1', '2', '3', '4']).execute()
-    await db.deleteFrom('user_stats').where('id', '=', 'user').execute()
-    await db.deleteFrom('categories').where('id', 'in', ['1', '2', '3', '4', '5', '6']).execute()
-  }
-}
+    await db.deleteFrom('settings').where('id', 'in', ['1', '2', '3', '4']).execute();
+    await db.deleteFrom('user_stats').where('id', '=', 'user').execute();
+    await db.deleteFrom('categories').where('id', 'in', ['1', '2', '3', '4', '5', '6']).execute();
+  },
+};

@@ -1,13 +1,11 @@
-
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 
-
-import { describe, it, expect, vi } from "vitest";
-import { createElectronAPIClient, createMockElectronAPIClient } from "../api/electron-api-client";
-import { createSessionService } from "../session/session-service";
-import { createAnalyticsService } from "../analytics/analytics-service";
-import { createChatService } from "../chat/chat-service";
-import { SessionDisplay } from "@/shared/types/session";
+import { describe, it, expect, vi } from 'vitest';
+import { createElectronAPIClient, createMockElectronAPIClient } from '../api/electron-api-client';
+import { createSessionService } from '../session/session-service';
+import { createAnalyticsService } from '../analytics/analytics-service';
+import { createChatService } from '../chat/chat-service';
+import type { SessionDisplay } from '@/renderer/types/session';
 
 describe('Simplified electronAPI Abstraction', () => {
   describe('ElectronAPI client', () => {
@@ -18,7 +16,7 @@ describe('Simplified electronAPI Abstraction', () => {
         sessions: {},
         chat: {},
         agents: {},
-        knowledge: {}
+        knowledge: {},
       };
 
       // @ts-ignore: Allow setting window.electronAPI for testing
@@ -52,8 +50,8 @@ describe('Simplified electronAPI Abstraction', () => {
       mockAPIClient.sessions.getRecentSessions = vi.fn().mockResolvedValue({
         success: true,
         data: [
-          { id: 'session-1', title: 'Test Session', lastActivity: '2023-01-01' } as SessionDisplay
-        ]
+          { id: 'session-1', title: 'Test Session', lastActivity: '2023-01-01' } as SessionDisplay,
+        ],
       });
 
       const sessionService = createSessionService(mockAPIClient);
@@ -72,7 +70,7 @@ describe('Simplified electronAPI Abstraction', () => {
       // Mock the analytics API
       mockAPIClient.analytics.getDashboard = vi.fn().mockResolvedValue({
         success: true,
-        data: { totalSessions: 10, totalConcepts: 5 }
+        data: { totalSessions: 10, totalConcepts: 5 },
       });
 
       const analyticsService = createAnalyticsService(mockAPIClient);

@@ -1,4 +1,3 @@
-
 /**
  * Button Component Tests - Real React Testing Library Tests
  *
@@ -56,7 +55,11 @@ describe('Button Component', () => {
 
     it('should not trigger when disabled', async () => {
       const handleClick = vi.fn();
-      render(<Button disabled onClick={handleClick}>Disabled</Button>);
+      render(
+        <Button disabled onClick={handleClick}>
+          Disabled
+        </Button>,
+      );
 
       const button = screen.getByRole('button');
       expect(button).toBeDisabled();
@@ -67,7 +70,11 @@ describe('Button Component', () => {
 
     it('should not trigger when loading', async () => {
       const handleClick = vi.fn();
-      render(<Button loading onClick={handleClick}>Loading</Button>);
+      render(
+        <Button loading onClick={handleClick}>
+          Loading
+        </Button>,
+      );
 
       const button = screen.getByRole('button');
       expect(button).toBeDisabled();
@@ -192,7 +199,11 @@ describe('Button Component', () => {
 
     it('should render icon on right when specified', () => {
       const icon = <span data-testid="icon">🔵</span>;
-      render(<Button icon={icon} iconPosition="right">With Icon</Button>);
+      render(
+        <Button icon={icon} iconPosition="right">
+          With Icon
+        </Button>,
+      );
 
       const button = screen.getByRole('button');
       const iconElement = screen.getByTestId('icon');
@@ -258,7 +269,7 @@ describe('Button Component', () => {
       render(
         <form onSubmit={handleSubmit}>
           <Button type="submit">Submit</Button>
-        </form>
+        </form>,
       );
 
       const button = screen.getByRole('button');
@@ -281,7 +292,6 @@ describe('Button Component', () => {
         render(<Button>No handler</Button>);
       }).not.toThrow();
     });
-
   });
 
   describe('Forward Ref', () => {

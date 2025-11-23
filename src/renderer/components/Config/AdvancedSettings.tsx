@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import type { AppConfig } from '@/shared/types/config';
 
@@ -31,9 +28,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
                   min="1"
                   max="1000"
                   value={config.performance.cache_size_mb}
-                  onChange={(e) => onConfigChange({
-                    performance: { ...config.performance, cache_size_mb: parseInt(e.target.value) }
-                  })}
+                  onChange={(e) =>
+                    onConfigChange({
+                      performance: {
+                        ...config.performance,
+                        cache_size_mb: parseInt(e.target.value),
+                      },
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -46,9 +48,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
                   min="1"
                   max="10"
                   value={config.performance.max_concurrent_requests}
-                  onChange={(e) => onConfigChange({
-                    performance: { ...config.performance, max_concurrent_requests: parseInt(e.target.value) }
-                  })}
+                  onChange={(e) =>
+                    onConfigChange({
+                      performance: {
+                        ...config.performance,
+                        max_concurrent_requests: parseInt(e.target.value),
+                      },
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -60,11 +67,31 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
             <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-4">Privacy</h3>
             <div className="space-y-4">
               {[
-                { key: 'store_conversations', label: 'Store Conversations', description: 'Save conversation history locally' },
-                { key: 'anonymous_analytics', label: 'Anonymous Analytics', description: 'Share anonymous usage data' },
-                { key: 'crash_reporting', label: 'Crash Reporting', description: 'Send crash reports automatically' },
-                { key: 'encrypt_local_storage', label: 'Encrypt Local Storage', description: 'Encrypt stored data' },
-                { key: 'auto_cleanup', label: 'Auto Cleanup', description: 'Automatically clean old data' },
+                {
+                  key: 'store_conversations',
+                  label: 'Store Conversations',
+                  description: 'Save conversation history locally',
+                },
+                {
+                  key: 'anonymous_analytics',
+                  label: 'Anonymous Analytics',
+                  description: 'Share anonymous usage data',
+                },
+                {
+                  key: 'crash_reporting',
+                  label: 'Crash Reporting',
+                  description: 'Send crash reports automatically',
+                },
+                {
+                  key: 'encrypt_local_storage',
+                  label: 'Encrypt Local Storage',
+                  description: 'Encrypt stored data',
+                },
+                {
+                  key: 'auto_cleanup',
+                  label: 'Auto Cleanup',
+                  description: 'Automatically clean old data',
+                },
               ].map(({ key, label, description }) => (
                 <div key={key} className="flex items-center justify-between">
                   <div>
@@ -72,16 +99,25 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
                     <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
                   </div>
                   <button
-                    onClick={() => onConfigChange({
-                      privacy: { ...config.privacy, [key]: !config.privacy[key as keyof typeof config.privacy] }
-                    })}
+                    onClick={() =>
+                      onConfigChange({
+                        privacy: {
+                          ...config.privacy,
+                          [key]: !config.privacy[key as keyof typeof config.privacy],
+                        },
+                      })
+                    }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      config.privacy[key as keyof typeof config.privacy] ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      config.privacy[key as keyof typeof config.privacy]
+                        ? 'bg-blue-600'
+                        : 'bg-gray-200 dark:bg-gray-700'
                     }`}
                   >
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        config.privacy[key as keyof typeof config.privacy] ? 'translate-x-6' : 'translate-x-1'
+                        config.privacy[key as keyof typeof config.privacy]
+                          ? 'translate-x-6'
+                          : 'translate-x-1'
                       }`}
                     />
                   </button>
@@ -94,3 +130,4 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
     </div>
   );
 };
+export default AdvancedSettings;

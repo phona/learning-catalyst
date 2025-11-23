@@ -7,9 +7,9 @@ describe('Provider Factory - Interface Tests', () => {
         createProvider: vi.fn().mockReturnValue({
           chatCompletion: vi.fn(),
           getModels: vi.fn().mockResolvedValue([]),
-          getEmbeddings: vi.fn().mockResolvedValue([])
+          getEmbeddings: vi.fn().mockResolvedValue([]),
         }),
-        validateSettings: vi.fn().mockReturnValue(true)
+        validateSettings: vi.fn().mockReturnValue(true),
       };
 
       expect(providerFactory).toHaveProperty('createProvider');
@@ -29,10 +29,10 @@ describe('Provider Factory - Interface Tests', () => {
             settings: config.settings || {},
             chatCompletion: vi.fn(),
             getModels: vi.fn().mockResolvedValue([]),
-            getEmbeddings: vi.fn().mockResolvedValue([])
+            getEmbeddings: vi.fn().mockResolvedValue([]),
           };
         }),
-        validateSettings: vi.fn().mockReturnValue(true)
+        validateSettings: vi.fn().mockReturnValue(true),
       };
 
       const config = {
@@ -42,8 +42,8 @@ describe('Provider Factory - Interface Tests', () => {
         settings: {
           apiKey: 'sk-test-key',
           model: 'gpt-4',
-          temperature: 0.7
-        }
+          temperature: 0.7,
+        },
       };
 
       const provider = providerFactory.createProvider(config);
@@ -55,8 +55,8 @@ describe('Provider Factory - Interface Tests', () => {
         settings: {
           apiKey: 'sk-test-key',
           model: 'gpt-4',
-          temperature: 0.7
-        }
+          temperature: 0.7,
+        },
       });
 
       expect(providerFactory.createProvider).toHaveBeenCalledWith(config);
@@ -68,8 +68,8 @@ describe('Provider Factory - Interface Tests', () => {
       const validator = {
         validateSettings: vi.fn().mockImplementation((settings) => {
           const required = ['apiKey', 'model'];
-          return required.every(field => settings.hasOwnProperty(field) && settings[field]);
-        })
+          return required.every((field) => settings.hasOwnProperty(field) && settings[field]);
+        }),
       };
 
       const validSettings = { apiKey: 'key-123', model: 'gpt-4' };
@@ -84,7 +84,7 @@ describe('Provider Factory - Interface Tests', () => {
         isSupportedType: vi.fn().mockImplementation((type) => {
           const supportedTypes = ['openai', 'chatglm', 'deepseek', 'local'];
           return supportedTypes.includes(type);
-        })
+        }),
       };
 
       expect(typeValidator.isSupportedType('openai')).toBe(true);
@@ -112,13 +112,13 @@ describe('Provider Factory - Interface Tests', () => {
         }),
         list: vi.fn().mockImplementation(() => {
           return Array.from(providers.keys());
-        })
+        }),
       };
 
       const mockProvider = {
         id: 'test-provider',
         name: 'Test Provider',
-        type: 'test'
+        type: 'test',
       };
 
       expect(providerManager.register('test', mockProvider)).toBe(true);
@@ -142,12 +142,12 @@ describe('Provider Factory - Interface Tests', () => {
         reload: vi.fn().mockImplementation((id) => {
           // Mock reload logic
           return Promise.resolve(true);
-        })
+        }),
       };
 
       const newConfig = {
         temperature: 0.8,
-        maxTokens: 2048
+        maxTokens: 2048,
       };
 
       expect(configManager.update('openai', newConfig)).toBe(true);
@@ -170,7 +170,7 @@ describe('Provider Factory - Interface Tests', () => {
             return 'openai-gpt4';
           }
           return 'default-provider';
-        })
+        }),
       };
 
       expect(selector.selectProvider({ task: 'coding' })).toBe('deepseek-coder');
@@ -191,7 +191,7 @@ describe('Provider Factory - Interface Tests', () => {
             }
           }
           throw new Error('All providers failed');
-        })
+        }),
       };
 
       const mockOperation = vi.fn().mockImplementation(async (provider) => {
@@ -204,15 +204,17 @@ describe('Provider Factory - Interface Tests', () => {
         throw new Error(`${provider} failed`);
       });
 
-      expect(await fallbackManager.tryWithFallback(mockOperation, fallbackManager.providers))
-        .toBe('openai-result');
+      expect(await fallbackManager.tryWithFallback(mockOperation, fallbackManager.providers)).toBe(
+        'openai-result',
+      );
 
       mockOperation.mockImplementation(async (provider) => {
         throw new Error(`${provider} failed`);
       });
 
-      await expect(fallbackManager.tryWithFallback(mockOperation, fallbackManager.providers))
-        .rejects.toThrow('All providers failed');
+      await expect(
+        fallbackManager.tryWithFallback(mockOperation, fallbackManager.providers),
+      ).rejects.toThrow('All providers failed');
     });
   });
 
@@ -235,7 +237,7 @@ describe('Provider Factory - Interface Tests', () => {
           return Array.from(metrics.entries())
             .filter(([key]) => key.startsWith(provider))
             .map(([key, value]) => [key, value]);
-        })
+        }),
       };
 
       metricsCollector.recordExecution('openai', 'chatCompletion', 100);
@@ -255,15 +257,15 @@ describe('Provider Factory - Interface Tests', () => {
       const pricing = {
         'openai-gpt4': { input: 0.03, output: 0.06 },
         'openai-gpt-3.5': { input: 0.002, output: 0.002 },
-        'local-llama': { input: 0, output: 0 }
+        'local-llama': { input: 0, output: 0 },
       };
       const costCalculator = {
         pricing,
         calculateCost: vi.fn().mockImplementation((model, inputTokens, outputTokens) => {
-          const modelPricing = pricing[model];
+          const modelPricing = pricing[model as keyof typeof pricing];
           if (!modelPricing) return 0;
           return (modelPricing.input * inputTokens + modelPricing.output * outputTokens) / 1000;
-        })
+        }),
       };
 
       expect(costCalculator.calculateCost('openai-gpt4', 1000, 500)).toBe(0.06);
@@ -277,9 +279,9 @@ describe('Provider Factory - Interface Tests', () => {
       const connectivityTester = {
         testConnection: vi.fn().mockImplementation(async (provider) => {
           // Mock connection test
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           return { provider, status: 'connected', latency: 50 };
-        })
+        }),
       };
 
       const result = await connectivityTester.testConnection('openai');
@@ -287,7 +289,7 @@ describe('Provider Factory - Interface Tests', () => {
       expect(result).toMatchObject({
         provider: 'openai',
         status: 'connected',
-        latency: expect.any(Number)
+        latency: expect.any(Number),
       });
     });
 
@@ -301,21 +303,22 @@ describe('Provider Factory - Interface Tests', () => {
             return { valid: false, error: 'Missing content or choices' };
           }
           return { valid: true };
-        })
+        }),
       };
 
       const validResponse = {
         content: 'Test response',
         model: 'gpt-4',
-        usage: { promptTokens: 10, completionTokens: 20 }
+        usage: { promptTokens: 10, completionTokens: 20 },
       };
 
       const invalidResponse = 'not a proper response object';
 
-      expect(responseValidator.validateResponse('openai', validResponse))
-        .toEqual({ valid: true });
-      expect(responseValidator.validateResponse('openai', invalidResponse))
-        .toEqual({ valid: false, error: 'Invalid response format' });
+      expect(responseValidator.validateResponse('openai', validResponse)).toEqual({ valid: true });
+      expect(responseValidator.validateResponse('openai', invalidResponse)).toEqual({
+        valid: false,
+        error: 'Invalid response format',
+      });
     });
   });
 });

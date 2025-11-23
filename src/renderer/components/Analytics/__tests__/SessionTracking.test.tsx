@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -15,12 +14,12 @@ const createSession = (overrides: Partial<LearningSession> = {}): LearningSessio
   aiModel: overrides.aiModel ?? 'gpt-4',
   conceptsCovered: overrides.conceptsCovered ?? ['react'],
   sessionType: overrides.sessionType ?? 'study',
-  status: overrides.status ?? 'completed'
+  status: overrides.status ?? 'completed',
 });
 
 describe('SessionTracking', () => {
   const analytics = {
-    getStudyMetrics: vi.fn()
+    getStudyMetrics: vi.fn(),
   };
 
   beforeEach(() => {
@@ -35,7 +34,7 @@ describe('SessionTracking', () => {
   it('shows a loading indicator while sessions are fetched', (): void => {
     const loadSessions = (): Promise<LearningSession[]> => new Promise<LearningSession[]>(() => {});
     const { container } = render(
-      <SessionTracking analytics={analytics} loadSessions={loadSessions} />
+      <SessionTracking analytics={analytics} loadSessions={loadSessions} />,
     );
 
     expect(container.querySelector('.animate-spin')).toBeTruthy();
@@ -48,22 +47,22 @@ describe('SessionTracking', () => {
         title: 'React Fundamentals',
         durationMinutes: 60,
         conceptsCovered: ['hooks', 'state'],
-        sessionType: 'study'
+        sessionType: 'study',
       }),
       createSession({
         id: 'two',
         title: 'Async Patterns',
         durationMinutes: 45,
         conceptsCovered: ['promises'],
-        sessionType: 'review'
+        sessionType: 'review',
       }),
       createSession({
         id: 'three',
         title: 'TypeScript Basics',
         durationMinutes: 30,
         conceptsCovered: ['types', 'interfaces', 'generics'],
-        sessionType: 'study'
-      })
+        sessionType: 'study',
+      }),
     ]);
 
     render(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);

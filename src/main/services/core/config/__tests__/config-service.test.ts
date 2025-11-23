@@ -1,6 +1,6 @@
 /**
  * Config Service Tests
- * 
+ *
  * Comprehensive tests for the configuration service including:
  * - Null safety fixes
  * - Recursive merging functionality
@@ -10,7 +10,14 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createConfigService } from '../config-service';
-import type { AppConfig, ProviderConfig, UIConfig, PerformanceConfig } from '@/shared/types/config';
+import type {
+  AppConfig,
+  ModelCapabilities,
+  ProviderConfig,
+  UIConfig,
+  PerformanceConfig,
+  SelectedChatModel,
+} from '@/shared/types/config';
 
 // Mock dependencies
 vi.mock('../storage', () => {
@@ -18,8 +25,8 @@ vi.mock('../storage', () => {
     createConfigStorage: vi.fn().mockReturnValue({
       loadConfig: vi.fn(),
       saveConfig: vi.fn(),
-      getConfigPath: vi.fn().mockResolvedValue('/test/path/config.json')
-    })
+      getConfigPath: vi.fn().mockResolvedValue('/test/path/config.json'),
+    }),
   };
 });
 
@@ -29,8 +36,8 @@ vi.mock('../../logger/logger-service', () => {
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-      debug: vi.fn()
-    }))
+      debug: vi.fn(),
+    })),
   };
 });
 
@@ -39,79 +46,168 @@ describe('ConfigService Tests', () => {
   let mockStorage: any;
   let mockLogger: any;
 
-  // Test fixtures
-  const createMockConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
-    ai: {
-      providers: {
-        openai: {
-          provider_type: 'openai',
-          api_key: 'test-key',
-          base_url: 'https://api.openai.com/v1',
-          models: ['gpt-4', 'gpt-3.5-turbo']
-        }
-      },
-      model_types: {
-        chat: {
-          provider: 'openai',
-          model: 'gpt-4',
-          temperature: 0.7,
-          max_tokens: 2048
-        }
-      }
+  const defaultChatCapabilities: ModelCapabilities = {
+    streaming: true,
+    thinking: true,
+    function_calling: false,
+    vision: false,
+    max_input_tokens: 4096,
+    max_output_tokens: 2048,
+  };
+
+  const defaultChatModel: SelectedChatModel = {
+    provider: 'openai',
+    model: 'gpt-4',
+    temperature: 0.7,
+    max_tokens: 2048,
+    top_p: 1,
+    enable_thinking: true,
+    stream: true,
+    default_provider: 'openai',
+    default_model: 'gpt-4',
+    capabilities: defaultChatCapabilities,
+  };
+
+  const baseAIConfig: AppConfig['ai'] = {
+    providers: {
+    openai: {
+      provider_type: 'openai',
+      api_key: 'test-key',
+      base_url: 'https://api.openai.com/v1',
+      models: ['gpt-4', 'gpt-3.5-turbo'],
+      streaming: true,
     },
-    ui: {
-      theme: 'light',
-      show_token_usage: false,
-      display_format: 'detailed',
-      session_duration: 25,
-      font_size: 'medium',
-      sidebar_width: 300,
-      auto_save: true,
-      auto_scroll: true,
-      show_line_numbers: false,
-      enable_markdown: true,
-      enable_syntax_highlighting: true,
-      compact_mode: false
     },
-    learning: {
-      auto_save: true,
-      session_timeout_minutes: 60,
-      difficulty: 'intermediate',
-      learning_style: 'visual',
-      personalization_enabled: true,
-      checkpoint_interval: 15,
-      max_session_history: 100,
-      enable_analytics: false,
-      preferred_explanation_length: 'detailed'
+    model_types: {
+      chat: defaultChatModel,
     },
-    privacy: {
-      store_conversations: true,
-      retention_days: 90,
-      anonymous_analytics: false,
-      crash_reporting: true,
-      encrypt_local_storage: false,
-      auto_cleanup: true,
-      export_format: 'json'
+    metadata: {
+      model_tests: [],
     },
-    performance: {
-      cache_size_mb: 100,
-      enable_caching: true,
-      max_concurrent_requests: 5,
-      request_timeout: 30,
-      memory_limit_mb: 512,
-      gpu_acceleration: false,
-      background_processing: true,
-      preload_models: false
-    },
-    ...overrides
+    default_provider: 'openai',
+    default_model: 'gpt-4',
+    temperature: 0.7,
+    max_tokens: 2048,
+    streaming: true,
+    enable_thinking: true,
+    context_window_size: 4096,
+  };
+
+  const baseUIConfig: AppConfig['ui'] = {
+    theme: 'light',
+    show_token_usage: false,
+    display_format: 'detailed',
+    session_duration: 25,
+    font_size: 'medium',
+    sidebar_width: 300,
+    auto_save: true,
+    auto_scroll: true,
+    show_line_numbers: false,
+    enable_markdown: true,
+    enable_syntax_highlighting: true,
+    compact_mode: false,
+  };
+
+  const baseLearningConfig: AppConfig['learning'] = {
+    auto_save: true,
+    session_timeout_minutes: 60,
+    difficulty: 'intermediate',
+    learning_style: 'visual',
+    personalization_enabled: true,
+    checkpoint_interval: 15,
+    max_session_history: 100,
+    enable_analytics: false,
+    preferred_explanation_length: 'detailed',
+  };
+
+  const basePrivacyConfig: AppConfig['privacy'] = {
+    store_conversations: true,
+    retention_days: 90,
+    anonymous_analytics: false,
+    crash_reporting: true,
+    encrypt_local_storage: false,
+    auto_cleanup: true,
+    export_format: 'json',
+  };
+
+  const basePerformanceConfig: AppConfig['performance'] = {
+    cache_size_mb: 100,
+    enable_caching: true,
+    max_concurrent_requests: 5,
+    request_timeout: 30,
+    memory_limit_mb: 512,
+    gpu_acceleration: false,
+    background_processing: true,
+    preload_models: false,
+  };
+
+  const mergeProviders = (
+    original: Record<string, ProviderConfig>,
+    overrides?: Record<string, ProviderConfig>,
+  ): Record<string, ProviderConfig> => ({
+    ...original,
+    ...(overrides ?? {}),
   });
+
+  const mergeModelTypes = (
+    original: AppConfig['ai']['model_types'] = {},
+    overrides?: AppConfig['ai']['model_types'],
+  ) => ({
+    ...(original ?? {}),
+    ...(overrides ?? {}),
+  });
+
+  const createMockConfig = (overrides: Partial<AppConfig> = {}): AppConfig => {
+    const aiOverrides = overrides.ai as Partial<AppConfig['ai']> | undefined;
+    const hasAiOverride = Object.prototype.hasOwnProperty.call(overrides, 'ai');
+
+    const config: Partial<AppConfig> = {
+      ui: {
+        ...baseUIConfig,
+        ...(overrides.ui ?? {}),
+      },
+      learning: {
+        ...baseLearningConfig,
+        ...(overrides.learning ?? {}),
+      },
+      privacy: {
+        ...basePrivacyConfig,
+        ...(overrides.privacy ?? {}),
+      },
+      performance: {
+        ...basePerformanceConfig,
+        ...(overrides.performance ?? {}),
+      },
+    };
+
+    if (hasAiOverride && aiOverrides === undefined) {
+      (config as any).ai = undefined;
+    } else {
+      config.ai = {
+        ...baseAIConfig,
+        ...(aiOverrides ?? {}),
+        providers: mergeProviders(baseAIConfig.providers, aiOverrides?.providers),
+        model_types: mergeModelTypes(baseAIConfig.model_types, aiOverrides?.model_types),
+      };
+
+      if (
+        aiOverrides &&
+        Object.prototype.hasOwnProperty.call(aiOverrides, 'providers') &&
+        aiOverrides.providers === undefined
+      ) {
+        delete (config.ai as any).providers;
+      }
+    }
+
+    return config as AppConfig;
+  };
 
   const createMockProviderConfig = (overrides: Partial<ProviderConfig> = {}): ProviderConfig => ({
     provider_type: 'openai',
     base_url: 'https://api.openai.com/v1',
     api_key: 'test-key',
     models: ['gpt-4', 'gpt-3.5-turbo'],
-    ...overrides
+    ...overrides,
   });
 
   // Helper function for creating partial UI updates
@@ -129,12 +225,14 @@ describe('ConfigService Tests', () => {
       enable_markdown: true,
       enable_syntax_highlighting: true,
       compact_mode: false,
-      ...updates
-    }
+      ...updates,
+    },
   });
 
   // Helper function for creating partial performance updates
-  const createPartialPerformanceUpdate = (updates: Partial<PerformanceConfig>): Partial<AppConfig> => ({
+  const createPartialPerformanceUpdate = (
+    updates: Partial<PerformanceConfig>,
+  ): Partial<AppConfig> => ({
     performance: {
       cache_size_mb: 100,
       enable_caching: true,
@@ -144,8 +242,8 @@ describe('ConfigService Tests', () => {
       gpu_acceleration: false,
       background_processing: true,
       preload_models: false,
-      ...updates
-    }
+      ...updates,
+    },
   });
 
   beforeEach(() => {
@@ -155,20 +253,20 @@ describe('ConfigService Tests', () => {
     mockStorage = {
       loadConfig: vi.fn(),
       saveConfig: vi.fn(),
-      getConfigPath: vi.fn().mockResolvedValue('/test/path/config.json')
+      getConfigPath: vi.fn().mockResolvedValue('/test/path/config.json'),
     };
 
     mockLogger = {
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-      debug: vi.fn()
+      debug: vi.fn(),
     };
 
     // Create config service instance
     configService = createConfigService({
       storage: mockStorage,
-      logger: mockLogger as any
+      logger: mockLogger as any,
     });
   });
 
@@ -224,16 +322,16 @@ describe('ConfigService Tests', () => {
               provider_type: 'openai',
               api_key: 'old-key',
               base_url: 'https://api.openai.com/v1',
-              models: ['gpt-3.5-turbo']
-            }
+              models: ['gpt-3.5-turbo'],
+            },
           },
           model_types: {
             chat: {
               provider: 'openai',
               model: 'gpt-3.5-turbo',
-              temperature: 0.7
-            }
-          }
+              temperature: 0.7,
+            },
+          },
         },
         ui: {
           theme: 'light',
@@ -247,8 +345,8 @@ describe('ConfigService Tests', () => {
           show_line_numbers: false,
           enable_markdown: true,
           enable_syntax_highlighting: true,
-          compact_mode: false
-        }
+          compact_mode: false,
+        },
       });
 
       const updates: Partial<AppConfig> = {
@@ -257,23 +355,23 @@ describe('ConfigService Tests', () => {
             openai: {
               provider_type: 'openai',
               api_key: 'new-key', // Should update existing provider
-              models: ['gpt-4'] // Should replace models array
+              models: ['gpt-4'], // Should replace models array
             },
             chatglm: {
               provider_type: 'chatglm',
               api_key: 'chatglm-key',
-              base_url: 'https://open.bigmodel.cn/api/paas/v4'
-            } // Should add new provider
+              base_url: 'https://open.bigmodel.cn/api/paas/v4',
+            }, // Should add new provider
           },
           model_types: {
             chat: {
               provider: 'openai',
               model: 'gpt-3.5-turbo',
-              temperature: 0.7
-            }
-          }
+              temperature: 0.7,
+            },
+          },
         },
-        ui: createPartialUIUpdate({ theme: 'dark' }).ui
+        ui: createPartialUIUpdate({ theme: 'dark' }).ui,
       };
 
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
@@ -281,14 +379,14 @@ describe('ConfigService Tests', () => {
       await configService.setConfig(updates as any);
 
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
-     
+
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
-      
+
       // Verify existing provider was updated
       expect(savedConfig.ai.providers.openai.api_key).toBe('new-key');
       expect(savedConfig.ai.providers.openai.provider_type).toBe('openai'); // Should preserve
       expect(savedConfig.ai.providers.openai.base_url).toBe('https://api.openai.com/v1'); // Should preserve
-      
+
       // Verify new provider was added
       expect(savedConfig.ai.providers.chatglm).toBeDefined();
       expect(savedConfig.ai.providers.chatglm.provider_type).toBe('chatglm');
@@ -304,7 +402,7 @@ describe('ConfigService Tests', () => {
       const currentConfig = createMockConfig();
       const partialUpdate = createPartialPerformanceUpdate({
         cache_size_mb: 256,
-        memory_limit_mb: 1024
+        memory_limit_mb: 1024,
       });
 
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
@@ -312,17 +410,17 @@ describe('ConfigService Tests', () => {
       await configService.setConfig(partialUpdate);
 
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
-      
+
       // Verify performance settings were updated
       expect(savedConfig.performance.cache_size_mb).toBe(256);
       expect(savedConfig.performance.memory_limit_mb).toBe(1024);
-      
+
       // Verify other sections were preserved
       expect(savedConfig.ai).toBeDefined();
       expect(savedConfig.ui).toBeDefined();
       expect(savedConfig.learning).toBeDefined();
       expect(savedConfig.privacy).toBeDefined();
-      
+
       // Verify existing performance properties were preserved
       expect(savedConfig.performance.enable_caching).toBe(true);
       expect(savedConfig.performance.max_concurrent_requests).toBe(5);
@@ -340,7 +438,8 @@ describe('ConfigService Tests', () => {
         provider_type: 'openai',
         api_key: 'test-key',
         base_url: 'https://api.openai.com/v1',
-        models: ['gpt-4', 'gpt-3.5-turbo']
+        models: ['gpt-4', 'gpt-3.5-turbo'],
+        streaming: true,
       });
     });
 
@@ -374,8 +473,8 @@ describe('ConfigService Tests', () => {
       const configWithoutProviders = createMockConfig({
         ai: {
           providers: undefined as any,
-          model_types: {}
-        }
+          model_types: {},
+        },
       });
       mockStorage.loadConfig.mockResolvedValue(configWithoutProviders);
 
@@ -393,7 +492,7 @@ describe('ConfigService Tests', () => {
       await configService.setProviderConfig('openai', providerConfig);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Current config is null, cannot set provider config'
+        'Current config is null, cannot set provider config',
       );
       expect(mockStorage.saveConfig).not.toHaveBeenCalled();
     });
@@ -401,13 +500,13 @@ describe('ConfigService Tests', () => {
     it('should create AI config structure when missing', async () => {
       const configWithoutAI = createMockConfig({ ai: undefined as any });
       const providerConfig = createMockProviderConfig({ api_key: 'new-key' });
-      
+
       mockStorage.loadConfig.mockResolvedValue(configWithoutAI);
 
       await configService.setProviderConfig('openai', providerConfig);
 
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
-      
+
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
       expect(savedConfig.ai).toBeDefined();
       expect(savedConfig.ai.providers).toBeDefined();
@@ -418,13 +517,13 @@ describe('ConfigService Tests', () => {
     it('should merge provider config with existing provider', async () => {
       const currentConfig = createMockConfig();
       const update = { api_key: 'updated-key', temperature: 0.8 };
-      
+
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
 
       await configService.setProviderConfig('openai', update as any);
 
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
-      
+
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
       expect(savedConfig.ai.providers.openai.api_key).toBe('updated-key');
       expect(savedConfig.ai.providers.openai.temperature).toBe(0.8);
@@ -437,15 +536,15 @@ describe('ConfigService Tests', () => {
       const newProvider = createMockProviderConfig({
         provider_type: 'chatglm',
         api_key: 'chatglm-key',
-        base_url: 'https://open.bigmodel.cn/api/paas/v4'
+        base_url: 'https://open.bigmodel.cn/api/paas/v4',
       });
-      
+
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
 
       await configService.setProviderConfig('chatglm', newProvider);
 
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
-      
+
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
       expect(savedConfig.ai.providers.chatglm).toBeDefined();
       expect(savedConfig.ai.providers.chatglm.provider_type).toBe('chatglm');
@@ -457,17 +556,17 @@ describe('ConfigService Tests', () => {
       const configWithoutProviders = createMockConfig({
         ai: {
           providers: undefined as any,
-          model_types: {}
-        }
+          model_types: {},
+        },
       });
       const providerConfig = createMockProviderConfig();
-      
+
       mockStorage.loadConfig.mockResolvedValue(configWithoutProviders);
 
       await configService.setProviderConfig('openai', providerConfig);
 
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
-      
+
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
       expect(savedConfig.ai.providers).toBeDefined();
       expect(savedConfig.ai.providers.openai).toBeDefined();
@@ -476,15 +575,14 @@ describe('ConfigService Tests', () => {
     it('should log configuration changes', async () => {
       const currentConfig = createMockConfig();
       const providerConfig = createMockProviderConfig({ api_key: 'new-key' });
-      
+
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
 
       await configService.setProviderConfig('openai', providerConfig);
 
-      expect(mockLogger.info).toHaveBeenCalledWith(
-        'Setting provider config for: openai',
-        { config: providerConfig }
-      );
+      expect(mockLogger.info).toHaveBeenCalledWith('Setting provider config for: openai', {
+        config: providerConfig,
+      });
     });
   });
 
@@ -523,8 +621,9 @@ describe('ConfigService Tests', () => {
       mockStorage.loadConfig.mockResolvedValue(createMockConfig());
       mockStorage.saveConfig.mockRejectedValue(saveError);
 
-      await expect(configService.setConfig(createPartialUIUpdate({ theme: 'dark' })))
-        .rejects.toThrow('Save failed');
+      await expect(
+        configService.setConfig(createPartialUIUpdate({ theme: 'dark' })),
+      ).rejects.toThrow('Save failed');
     });
 
     it('should handle malformed config data', async () => {
@@ -542,7 +641,7 @@ describe('ConfigService Tests', () => {
       for (let i = 0; i < 100; i++) {
         largeConfig.ai.providers[`provider${i}`] = createMockProviderConfig({
           provider_type: `provider${i}` as any,
-          api_key: `key${i}`
+          api_key: `key${i}`,
         });
       }
 
@@ -559,10 +658,7 @@ describe('ConfigService Tests', () => {
 
       mockStorage.loadConfig.mockResolvedValue(createMockConfig());
 
-      const promises = [
-        configService.setConfig(config1),
-        configService.setConfig(config2)
-      ];
+      const promises = [configService.setConfig(config1), configService.setConfig(config2)];
 
       await Promise.all(promises);
 
@@ -626,9 +722,11 @@ describe('ConfigService Tests', () => {
       await configService.setConfig(testConfig);
 
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
-      expect(mockStorage.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
-        ui: expect.objectContaining({ theme: 'dark' })
-      }));
+      expect(mockStorage.saveConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ui: expect.objectContaining({ theme: 'dark' }),
+        }),
+      );
     });
 
     it('should handle storage path retrieval', async () => {

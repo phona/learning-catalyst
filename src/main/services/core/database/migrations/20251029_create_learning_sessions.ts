@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -14,18 +14,20 @@ export default {
       .addColumn('total_messages', 'integer', (col) => col.defaultTo(0))
       .addColumn('concepts_studied', 'integer', (col) => col.defaultTo(0))
       .addColumn('difficulty_level', 'integer', (col) =>
-        col.defaultTo(1).check(sql`difficulty_level BETWEEN 1 AND 5`)
+        col.defaultTo(1).check(sql`difficulty_level BETWEEN 1 AND 5`),
       )
       .addColumn('session_type', 'text', (col) =>
-        col.defaultTo('general').check(sql`session_type IN ('general', 'practice', 'review', 'assessment')`)
+        col
+          .defaultTo('general')
+          .check(sql`session_type IN ('general', 'practice', 'review', 'assessment')`),
       )
       .addColumn('metadata', 'text') // JSON object
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
-    await db.schema.dropTable('learning_sessions').execute()
-  }
-}
+    await db.schema.dropTable('learning_sessions').execute();
+  },
+};

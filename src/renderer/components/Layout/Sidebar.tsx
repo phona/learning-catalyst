@@ -1,6 +1,10 @@
-
 import React from 'react';
-import { PlusIcon, ArrowPathIcon, DocumentTextIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import {
+  PlusIcon,
+  ArrowPathIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useRecentSessions } from '@/renderer/hooks/useRecentSessions';
 import { useScrollDetection } from '@/renderer/hooks/useScrollDetection';
@@ -28,14 +32,11 @@ const sidebarConfig = {
 } as const;
 
 export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
-  const {
-    createNewSession,
-    setCurrentSession,
-    clearMessages,
-    currentSession,
-    saveCurrentSession
-  } = useChatStore();
-  const { sessions, loading, error, refresh, hasMore, loadMore } = useRecentSessions(sidebarConfig.maxInitialSessions);
+  const { createNewSession, setCurrentSession, clearMessages, currentSession, saveCurrentSession } =
+    useChatStore();
+  const { sessions, loading, error, refresh, hasMore, loadMore } = useRecentSessions(
+    sidebarConfig.maxInitialSessions,
+  );
   const { scrollRef, onNearBottom } = useScrollDetection({
     threshold: sidebarConfig.scrollThreshold,
     debounceMs: sidebarConfig.scrollDebounceMs,
@@ -46,7 +47,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
     enableCleanup: true,
   });
 
-  const { navigationItems, handleNavigation, navigateTo, currentView, isActive, activePath } = useSidebarNavigation();
+  const { navigationItems, handleNavigation, navigateTo, currentView, isActive, activePath } =
+    useSidebarNavigation();
 
   // Handle new chat creation
   const handleNewChat = async (): Promise<void> => {
@@ -91,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         console.log(`[Sidebar] Saving current session before switching: ${currentSession.id}`);
         // Use setTimeout to avoid blocking the UI
         setTimeout(() => {
-          saveCurrentSession().catch(error => {
+          saveCurrentSession().catch((error) => {
             console.warn('[Sidebar] Failed to save current session before switching:', error);
           });
         }, 100);

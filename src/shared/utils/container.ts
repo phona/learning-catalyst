@@ -6,9 +6,7 @@
  */
 
 // Export only pure interfaces and types that are safe for shared use
-export type {
-  ServiceMethodError
-} from './type-utils';
+export type { ServiceMethodError } from './type-utils';
 
 // Pure interface for renderer service discovery
 export interface RendererServiceInterface {

@@ -6,7 +6,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const conceptAnalyzer = {
         calculateDifficulty: vi.fn().mockReturnValue(0.7),
         getDifficultyCategory: vi.fn().mockReturnValue('medium'),
-        assessPrerequisites: vi.fn().mockReturnValue(['basic-concept'])
+        assessPrerequisites: vi.fn().mockReturnValue(['basic-concept']),
       };
 
       expect(typeof conceptAnalyzer.calculateDifficulty).toBe('function');
@@ -18,7 +18,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const patternAnalyzer = {
         detectLearningStyle: vi.fn().mockReturnValue('visual'),
         calculateOptimalSessionLength: vi.fn().mockReturnValue(45),
-        identifyKnowledgeGaps: vi.fn().mockReturnValue(['advanced-concepts'])
+        identifyKnowledgeGaps: vi.fn().mockReturnValue(['advanced-concepts']),
       };
 
       expect(typeof patternAnalyzer.detectLearningStyle).toBe('function');
@@ -32,7 +32,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const performanceCalculator = {
         calculateSuccessRate: vi.fn().mockReturnValue(0.85),
         calculateTimeSpent: vi.fn().mockReturnValue(3600),
-        calculateEngagementScore: vi.fn().mockReturnValue(0.9)
+        calculateEngagementScore: vi.fn().mockReturnValue(0.9),
       };
 
       expect(typeof performanceCalculator.calculateSuccessRate).toBe('function');
@@ -44,7 +44,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const progressTracker = {
         generateProgressChart: vi.fn().mockReturnValue({ labels: [], data: [] }),
         calculateLearningVelocity: vi.fn().mockReturnValue(2.5),
-        predictCompletionTime: vi.fn().mockReturnValue(new Date('2024-01-01'))
+        predictCompletionTime: vi.fn().mockReturnValue(new Date('2024-01-01')),
       };
 
       expect(typeof progressTracker.generateProgressChart).toBe('function');
@@ -58,7 +58,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const textAnalyzer = {
         calculateReadabilityScore: vi.fn().mockReturnValue(75),
         extractKeyConcepts: vi.fn().mockReturnValue(['react', 'hooks']),
-        analyzeTechnicalLevel: vi.fn().mockReturnValue('intermediate')
+        analyzeTechnicalLevel: vi.fn().mockReturnValue('intermediate'),
       };
 
       expect(typeof textAnalyzer.calculateReadabilityScore).toBe('function');
@@ -70,7 +70,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const contentCategorizer = {
         categorizeByTopic: vi.fn().mockReturnValue('programming'),
         identifyContentType: vi.fn().mockReturnValue('tutorial'),
-        suggestRelatedTopics: vi.fn().mockReturnValue(['javascript', 'frontend'])
+        suggestRelatedTopics: vi.fn().mockReturnValue(['javascript', 'frontend']),
       };
 
       expect(typeof contentCategorizer.categorizeByTopic).toBe('function');
@@ -84,7 +84,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const errorAnalyzer = {
         classifyErrorType: vi.fn().mockReturnValue('syntax'),
         suggestFixes: vi.fn().mockReturnValue(['check syntax', 'review imports']),
-        calculateErrorSeverity: vi.fn().mockReturnValue('medium')
+        calculateErrorSeverity: vi.fn().mockReturnValue('medium'),
       };
 
       expect(typeof errorAnalyzer.classifyErrorType).toBe('function');
@@ -99,7 +99,7 @@ describe('Analysis Utils - Interface Tests', () => {
         calculateMean: vi.fn().mockReturnValue(42),
         calculateMedian: vi.fn().mockReturnValue(40),
         calculateStandardDeviation: vi.fn().mockReturnValue(5.2),
-        findOutliers: vi.fn().mockReturnValue([100, 0])
+        findOutliers: vi.fn().mockReturnValue([100, 0]),
       };
 
       expect(typeof statsCalculator.calculateMean).toBe('function');
@@ -112,7 +112,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const trendAnalyzer = {
         identifyTrends: vi.fn().mockReturnValue(['upward', 'seasonal']),
         predictNextValues: vi.fn().mockReturnValue([50, 55, 60]),
-        calculateCorrelation: vi.fn().mockReturnValue(0.85)
+        calculateCorrelation: vi.fn().mockReturnValue(0.85),
       };
 
       expect(typeof trendAnalyzer.identifyTrends).toBe('function');
@@ -126,7 +126,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const dataValidator = {
         validateDataStructure: vi.fn().mockReturnValue(true),
         checkDataCompleteness: vi.fn().mockReturnValue(0.95),
-        detectAnomalies: vi.fn().mockReturnValue([])
+        detectAnomalies: vi.fn().mockReturnValue([]),
       };
 
       expect(typeof dataValidator.validateDataStructure).toBe('function');
@@ -140,7 +140,7 @@ describe('Analysis Utils - Interface Tests', () => {
       const reportGenerator = {
         createSummaryReport: vi.fn().mockReturnValue({ summary: 'Test report' }),
         exportToCSV: vi.fn().mockReturnValue('data.csv'),
-        createVisualizationData: vi.fn().mockReturnValue({ charts: [] })
+        createVisualizationData: vi.fn().mockReturnValue({ charts: [] }),
       };
 
       expect(typeof reportGenerator.createSummaryReport).toBe('function');

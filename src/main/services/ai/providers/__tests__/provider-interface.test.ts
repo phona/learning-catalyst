@@ -6,7 +6,7 @@ describe('AI Providers - Interface Tests', () => {
       const mockProvider = {
         chatCompletion: vi.fn(),
         getModels: vi.fn(),
-        getEmbeddings: vi.fn()
+        getEmbeddings: vi.fn(),
       };
 
       expect(mockProvider).toHaveProperty('chatCompletion');
@@ -26,7 +26,7 @@ describe('AI Providers - Interface Tests', () => {
         name: 'Test Model',
         provider: 'test-provider',
         maxTokens: 4096,
-        description: 'A test model for unit testing'
+        description: 'A test model for unit testing',
       };
 
       expect(mockModel).toHaveProperty('id');
@@ -48,16 +48,14 @@ describe('AI Providers - Interface Tests', () => {
       const mockProvider = {
         chatCompletion: vi.fn().mockResolvedValue({
           content: 'Test response',
-          role: 'assistant'
-        })
+          role: 'assistant',
+        }),
       };
 
       const chatRequest = {
-        messages: [
-          { role: 'user', content: 'Hello' }
-        ],
+        messages: [{ role: 'user', content: 'Hello' }],
         temperature: 0.7,
-        maxTokens: 1000
+        maxTokens: 1000,
       };
 
       expect(() => mockProvider.chatCompletion(chatRequest)).not.toThrow();
@@ -71,16 +69,16 @@ describe('AI Providers - Interface Tests', () => {
         usage: {
           promptTokens: 10,
           completionTokens: 15,
-          totalTokens: 25
-        }
+          totalTokens: 25,
+        },
       };
 
       const mockProvider = {
-        chatCompletion: vi.fn().mockResolvedValue(mockResponse)
+        chatCompletion: vi.fn().mockResolvedValue(mockResponse),
       };
 
       const response = await mockProvider.chatCompletion({
-        messages: [{ role: 'user', content: 'Test' }]
+        messages: [{ role: 'user', content: 'Test' }],
       });
 
       expect(response).toEqual(mockResponse);
@@ -97,19 +95,19 @@ describe('AI Providers - Interface Tests', () => {
           name: 'Model 1',
           provider: 'test',
           maxTokens: 2048,
-          description: 'First test model'
+          description: 'First test model',
         },
         {
           id: 'model-2',
           name: 'Model 2',
           provider: 'test',
           maxTokens: 4096,
-          description: 'Second test model'
-        }
+          description: 'Second test model',
+        },
       ];
 
       const mockProvider = {
-        getModels: vi.fn().mockResolvedValue(mockModels)
+        getModels: vi.fn().mockResolvedValue(mockModels),
       };
 
       const models = await mockProvider.getModels();
@@ -125,15 +123,15 @@ describe('AI Providers - Interface Tests', () => {
     it('should handle embedding requests', async () => {
       const mockEmbedding = {
         embedding: [0.1, 0.2, 0.3],
-        usage: { promptTokens: 5 }
+        usage: { promptTokens: 5 },
       };
 
       const mockProvider = {
-        getEmbeddings: vi.fn().mockResolvedValue(mockEmbedding)
+        getEmbeddings: vi.fn().mockResolvedValue(mockEmbedding),
       };
 
       const embedding = await mockProvider.getEmbeddings({
-        input: 'Test text to embed'
+        input: 'Test text to embed',
       });
 
       expect(embedding).toEqual(mockEmbedding);
@@ -147,7 +145,7 @@ describe('AI Providers - Interface Tests', () => {
       const mockProvider = {
         chatCompletion: vi.fn().mockRejectedValue(new Error('Provider error')),
         getModels: vi.fn().mockRejectedValue(new Error('Models error')),
-        getEmbeddings: vi.fn().mockRejectedValue(new Error('Embeddings error'))
+        getEmbeddings: vi.fn().mockRejectedValue(new Error('Embeddings error')),
       };
 
       await expect(mockProvider.chatCompletion({ messages: [] })).rejects.toThrow('Provider error');

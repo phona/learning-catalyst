@@ -107,12 +107,12 @@ const PATH_PREFIX = 'learning_path:';
 
 const difficultyToLevel = (value: string | undefined): number => {
   switch ((value ?? 'intermediate').toLowerCase()) {
-  case 'beginner':
-    return 1;
-  case 'advanced':
-    return 3;
-  default:
-    return 2;
+    case 'beginner':
+      return 1;
+    case 'advanced':
+      return 3;
+    default:
+      return 2;
   }
 };
 
@@ -147,14 +147,11 @@ const mapSessionRow = (row: LearningSessionRow): LearningSession => {
     progress: metadata.progress ?? 0,
     duration: row.duration_seconds,
     userId: metadata.userId,
-    metadata
+    metadata,
   };
 };
 
-const computeProgressSnapshot = (
-  session: LearningSession,
-  blueprint?: SessionBlueprint
-) => {
+const computeProgressSnapshot = (session: LearningSession, blueprint?: SessionBlueprint) => {
   const moduleCount = blueprint?.modules?.length ?? 4;
   const completedModules = Math.round((session.progress / 100) * moduleCount);
   return {
@@ -167,33 +164,33 @@ const computeProgressSnapshot = (
     conceptsLearned: Math.max(3, completedModules + 2),
     skillsAcquired: ['Concept Reinforcement', 'Applied Practice', 'Reflection'].slice(
       0,
-      Math.max(1, completedModules)
+      Math.max(1, completedModules),
     ),
     masteryLevels: {
       basic: Math.min(100, 40 + session.progress),
       intermediate: Math.min(100, 20 + session.progress),
-      advanced: Math.min(100, session.progress)
+      advanced: Math.min(100, session.progress),
     },
     achievements: [
       {
         id: 'ach_consistency',
         name: 'Consistency Builder',
         description: 'Maintained steady learning momentum',
-        earnedAt: session.updatedAt
-      }
+        earnedAt: session.updatedAt,
+      },
     ],
     nextActions: blueprint?.recommendations ?? [
       'Schedule a focused review',
       'Apply the concept to a personal project',
-      'Capture open questions for the next session'
-    ]
+      'Capture open questions for the next session',
+    ],
   };
 };
 
 const buildLearningPathFromModules = ({
   pathId,
   params,
-  modules
+  modules,
 }: {
   pathId: string;
   params: {
@@ -202,7 +199,12 @@ const buildLearningPathFromModules = ({
     userId: string;
     metadata?: Record<string, unknown>;
   };
-  modules: Array<{ title: string; description: string; type: LearningModule['type']; order: number }>;
+  modules: Array<{
+    title: string;
+    description: string;
+    type: LearningModule['type'];
+    order: number;
+  }>;
 }): LearningPath => {
   const now = new Date().toISOString();
   return {
@@ -221,9 +223,9 @@ const buildLearningPathFromModules = ({
       order: module.order,
       type: module.type,
       content: module.description,
-      completed: false
+      completed: false,
     })),
-    metadata: params.metadata
+    metadata: params.metadata,
   };
 };
 
@@ -231,7 +233,7 @@ export const createLearningService = ({
   db,
   loggerService,
   aiService,
-  domainAgent
+  domainAgent,
 }: {
   db: Kysely<CoreDatabase>;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
@@ -244,7 +246,7 @@ export const createLearningService = ({
     aiService,
     domainAgent,
     logger: serviceLogger,
-    modelConfig: learningModelPreset
+    modelConfig: learningModelPreset,
   });
 
   const ensureSessionRow = async (sessionId: string): Promise<LearningSessionRow> => {
@@ -262,7 +264,7 @@ export const createLearningService = ({
   const updateSessionMetadata = async (
     sessionId: string,
     updater: (metadata: LearningSessionMetadata) => LearningSessionMetadata,
-    extraUpdates: Partial<LearningSessionRow> = {}
+    extraUpdates: Partial<LearningSessionRow> = {},
   ) => {
     const row = await ensureSessionRow(sessionId);
     const currentMetadata = safeParseJson<LearningSessionMetadata>(row.metadata, {});
@@ -272,7 +274,7 @@ export const createLearningService = ({
       .set({
         ...extraUpdates,
         metadata: JSON.stringify(nextMetadata),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .where('id', '=', sessionId)
       .execute();
@@ -288,12 +290,16 @@ export const createLearningService = ({
     const fallbackModules = (params.goals.length ? params.goals : ['Understand core concept']).map(
       (goal, index) => ({
         title: `Focus ${index + 1}: ${goal}`,
-        type: index === params.goals.length - 1 ? 'assessment' : 'lesson',
+        type: (index === params.goals.length - 1 ? 'assessment' : 'lesson') as
+          | 'assessment'
+          | 'exercise'
+          | 'quiz'
+          | 'lesson',
         focus: goal,
         durationMinutes: 25 + index * 10,
         objectives: [goal, 'Apply in practice', 'Reflect on learning'],
-        resources: ['Review notes', 'Hands-on exercise', 'Reflection prompts']
-      })
+        resources: ['Review notes', 'Hands-on exercise', 'Reflection prompts'],
+      }),
     );
 
     const fallback: SessionBlueprint = {
@@ -302,8 +308,8 @@ export const createLearningService = ({
       modules: fallbackModules.slice(0, 4),
       recommendations: [
         'Capture quick wins after each module',
-        'Schedule a follow-up practice session tomorrow'
-      ]
+        'Schedule a follow-up practice session tomorrow',
+      ],
     };
 
     const sessionDescriptor = {
@@ -311,7 +317,7 @@ export const createLearningService = ({
       goals: params.goals,
       difficulty: params.difficulty,
       learningStyle: params.learningStyle,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     const systemPrompt =
@@ -323,7 +329,7 @@ export const createLearningService = ({
       input: userInput,
       fallbackPrompt: `${systemPrompt}\n${userInput}`,
       fallback,
-      context: 'learning-session-blueprint'
+      context: 'learning-session-blueprint',
     });
   };
 
@@ -339,7 +345,7 @@ export const createLearningService = ({
         data_type: 'json',
         description: `Learning path for ${path.userId}`,
         created_at: path.createdAt,
-        updated_at: path.updatedAt
+        updated_at: path.updatedAt,
       })
       .execute();
     return path;
@@ -352,7 +358,7 @@ export const createLearningService = ({
       .where('key', '=', `${PATH_PREFIX}${pathId}`)
       .executeTakeFirst();
     if (!row) return null;
-    return safeParseJson<LearningPath>(row.value, null);
+    return safeParseJson<LearningPath>(row.value, undefined);
   };
 
   const listLearningPathsForUser = async (userId: string): Promise<LearningPath[]> => {
@@ -362,13 +368,13 @@ export const createLearningService = ({
       .where('key', 'like', `${PATH_PREFIX}%`)
       .execute();
     return rows
-      .map((row) => safeParseJson<LearningPath>(row.value, null))
+      .map((row) => safeParseJson<LearningPath>(row.value, undefined))
       .filter((path): path is LearningPath => Boolean(path && path.userId === userId));
   };
 
   const generateRecommendedPaths = async (
     userId: string,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown>,
   ): Promise<LearningPath[]> => {
     const fallbackPaths: LearningPath[] = [
       buildLearningPathFromModules({
@@ -377,13 +383,18 @@ export const createLearningService = ({
           title: 'Strengthen Core Concepts',
           description: 'Reinforce fundamental topics before moving forward.',
           userId,
-          metadata: context
+          metadata: context,
         },
         modules: [
           { title: 'Concept Review', description: 'Summarize key ideas', type: 'lesson', order: 0 },
-          { title: 'Targeted Practice', description: 'Hands-on drills', type: 'exercise', order: 1 },
-          { title: 'Reflection', description: 'Document takeaways', type: 'assessment', order: 2 }
-        ]
+          {
+            title: 'Targeted Practice',
+            description: 'Hands-on drills',
+            type: 'exercise',
+            order: 1,
+          },
+          { title: 'Reflection', description: 'Document takeaways', type: 'assessment', order: 2 },
+        ],
       }),
       buildLearningPathFromModules({
         pathId: `rec_${Date.now()}_2`,
@@ -391,23 +402,28 @@ export const createLearningService = ({
           title: 'Project-Based Deep Dive',
           description: 'Apply concepts within a self-directed project.',
           userId,
-          metadata: context
+          metadata: context,
         },
         modules: [
           { title: 'Scoping', description: 'Define project goals', type: 'lesson', order: 0 },
           { title: 'Implementation', description: 'Build iteratively', type: 'exercise', order: 1 },
-          { title: 'Review & Feedback', description: 'Assess outcomes', type: 'assessment', order: 2 }
-        ]
-      })
+          {
+            title: 'Review & Feedback',
+            description: 'Assess outcomes',
+            type: 'assessment',
+            order: 2,
+          },
+        ],
+      }),
     ];
 
     const payload = JSON.stringify(
       {
         userId,
-        context
+        context,
       },
       null,
-      2
+      2,
     );
 
     const systemPrompt =
@@ -430,10 +446,10 @@ export const createLearningService = ({
         modules: path.modules.map((module) => ({
           title: module.title,
           description: module.description,
-          type: module.type
-        }))
+          type: module.type,
+        })),
       })),
-      context: 'learning-path-recommendations'
+      context: 'learning-path-recommendations',
     });
 
     return suggestions.map((suggestion, index) =>
@@ -443,13 +459,13 @@ export const createLearningService = ({
           title: suggestion.title,
           description: suggestion.description,
           userId,
-          metadata: { context, rationale: suggestion.rationale }
+          metadata: { context, rationale: suggestion.rationale },
         },
         modules: suggestion.modules.map((module, order) => ({
           ...module,
-          order
-        }))
-      })
+          order,
+        })),
+      }),
     );
   };
 
@@ -458,7 +474,12 @@ export const createLearningService = ({
       title: string;
       description: string;
       userId: string;
-      modules: Array<{ title: string; description: string; type: LearningModule['type']; order: number }>;
+      modules: Array<{
+        title: string;
+        description: string;
+        type: LearningModule['type'];
+        order: number;
+      }>;
       metadata?: Record<string, unknown>;
     }): Promise<LearningPath> => {
       serviceLogger.info('Creating learning path', { title: params.title, userId: params.userId });
@@ -466,7 +487,7 @@ export const createLearningService = ({
       const path = buildLearningPathFromModules({
         pathId,
         params,
-        modules: params.modules
+        modules: params.modules,
       });
       await persistLearningPath(path);
       return path;
@@ -494,9 +515,11 @@ export const createLearningService = ({
         completedPaths: completed.map((row) => row.id),
         currentPathId: current?.id,
         currentModuleId: undefined,
-        progressPercentage: sessions.length ? Math.round(completed.length / sessions.length * 100) : 0,
+        progressPercentage: sessions.length
+          ? Math.round((completed.length / sessions.length) * 100)
+          : 0,
         lastActiveAt: current?.updated_at ?? new Date().toISOString(),
-        metadata: { totalSessions: sessions.length }
+        metadata: { totalSessions: sessions.length },
       };
     },
 
@@ -521,7 +544,7 @@ export const createLearningService = ({
         topic: params.topic,
         goals: params.goals ?? [],
         difficulty: params.difficulty ?? 'intermediate',
-        learningStyle: params.learningStyle ?? 'visual'
+        learningStyle: params.learningStyle ?? 'visual',
       });
 
       const metadata: LearningSessionMetadata = {
@@ -535,7 +558,7 @@ export const createLearningService = ({
         blueprint,
         recommendations: blueprint.recommendations,
         timeline: blueprint.timeline,
-        userId: params.userId
+        userId: params.userId,
       };
 
       const now = new Date().toISOString();
@@ -552,7 +575,7 @@ export const createLearningService = ({
         session_type: 'general',
         metadata: JSON.stringify(metadata),
         created_at: now,
-        updated_at: now
+        updated_at: now,
       };
 
       await db.insertInto('learning_sessions').values(row).execute();
@@ -564,40 +587,45 @@ export const createLearningService = ({
       const row = await ensureSessionRow(sessionId);
       const session = mapSessionRow(row);
       const blueprint = session.metadata?.blueprint;
-      const snapshot = computeProgressSnapshot(session, blueprint);
+      const snapshot = computeProgressSnapshot(
+        session,
+        blueprint &&
+          typeof blueprint === 'object' &&
+          blueprint !== null &&
+          'summary' in blueprint &&
+          'timeline' in blueprint &&
+          'modules' in blueprint &&
+          'recommendations' in blueprint
+          ? (blueprint as SessionBlueprint)
+          : undefined,
+      );
       serviceLogger.info('Session progress calculated', { sessionId });
       return snapshot;
     },
 
     pauseSession: async (sessionId: string) => {
-      const metadata = await updateSessionMetadata(
-        sessionId,
-        (current) => ({
-          ...current,
-          status: 'paused',
-          pausedAt: new Date().toISOString()
-        })
-      );
+      const metadata = await updateSessionMetadata(sessionId, (current) => ({
+        ...current,
+        status: 'paused',
+        pausedAt: new Date().toISOString(),
+      }));
       serviceLogger.info('Session paused', { sessionId });
       return {
         success: true,
         resumeData: {
           sessionId,
           lastProgress: metadata.progress ?? 0,
-          pausedAt: metadata.pausedAt
-        }
+          pausedAt: metadata.pausedAt,
+        },
       };
     },
 
     resumeSession: async (sessionId: string) => {
-      const metadata = await updateSessionMetadata(
-        sessionId,
-        (current) => ({
-          ...current,
-          status: 'active',
-          resumeAt: new Date().toISOString()
-        })
-      );
+      const metadata = await updateSessionMetadata(sessionId, (current) => ({
+        ...current,
+        status: 'active',
+        resumeAt: new Date().toISOString(),
+      }));
       serviceLogger.info('Session resumed', { sessionId });
       return {
         success: true,
@@ -605,8 +633,8 @@ export const createLearningService = ({
           sessionId,
           topic: metadata.topic,
           progress: metadata.progress ?? 0,
-          resumeAt: metadata.resumeAt
-        }
+          resumeAt: metadata.resumeAt,
+        },
       };
     },
 
@@ -621,22 +649,22 @@ export const createLearningService = ({
           keyTakeaways: ['Documented understanding', 'Applied concepts', 'Identified next steps'],
           strengths: ['Consistency', 'Reflection'],
           areasForImprovement: ['Deeper practice'],
-          nextSteps: ['Schedule advanced session', 'Review notes tomorrow']
+          nextSteps: ['Schedule advanced session', 'Review notes tomorrow'],
         },
         performance: {
           accuracy: 0.85,
           engagement: 0.92,
-          retention: 0.81
-        }
+          retention: 0.81,
+        },
       };
 
       const payload = JSON.stringify(
         {
           session,
-          blueprint
+          blueprint,
         },
         null,
-        2
+        2,
       );
 
       const summary = await runStructuredJson<typeof fallbackSummary>({
@@ -645,7 +673,7 @@ export const createLearningService = ({
         input: payload,
         fallbackPrompt: `${payload}`,
         fallback: fallbackSummary,
-        context: 'learning-session-summary'
+        context: 'learning-session-summary',
       });
 
       await updateSessionMetadata(
@@ -654,13 +682,13 @@ export const createLearningService = ({
           ...current,
           status: 'completed',
           progress: 100,
-          summary: summary.summary
+          summary: summary.summary,
         }),
         {
           end_time: new Date().toISOString(),
           duration_seconds: session.duration,
-          updated_at: new Date().toISOString()
-        }
+          updated_at: new Date().toISOString(),
+        },
       );
 
       serviceLogger.info('Session completed', { sessionId });
@@ -668,7 +696,7 @@ export const createLearningService = ({
         sessionId,
         title: session.topic,
         summary: summary.summary,
-        performance: summary.performance
+        performance: summary.performance,
       };
     },
 
@@ -701,11 +729,18 @@ export const createLearningService = ({
       if (query?.trim()) {
         const like = `%${query.trim()}%`;
         builder = builder.where((eb) =>
-          eb.or([eb('title', 'like', like), eb('description', 'like', like), eb('metadata', 'like', like)])
+          eb.or([
+            eb('title', 'like', like),
+            eb('description', 'like', like),
+            eb('metadata', 'like', like),
+          ]),
         );
       }
 
-      const rows = await builder.orderBy('updated_at', 'desc').limit(filters?.limit ?? 20).execute();
+      const rows = await builder
+        .orderBy('updated_at', 'desc')
+        .limit(filters?.limit ?? 20)
+        .execute();
       const sessions = rows.map(mapSessionRow);
 
       return {
@@ -713,9 +748,9 @@ export const createLearningService = ({
         totalResults: sessions.length,
         sessions,
         appliedFilters: filters || {},
-        limit: filters?.limit ?? sessions.length
+        limit: filters?.limit ?? sessions.length,
       };
-    }
+    },
   };
 };
 

@@ -1,4 +1,3 @@
-/* eslint-disable */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -10,48 +9,48 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
 
-import { app, BrowserWindow, shell } from 'electron'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { setupAllIpcHandlers } from './handlers'
-import { setupSettingsHandlers } from './handlers/settings-handlers'
-import { serializeIPCError } from './handlers/ipc-error-handler'
-import { createAppMenu } from './menu'
-import { LoggerFactory } from './services/logger'
+import { app, BrowserWindow, shell } from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { setupAllIpcHandlers } from './handlers';
+import { setupSettingsHandlers } from './handlers/settings-handlers';
+import { serializeIPCError } from './handlers/ipc-error-handler';
+import { createAppMenu } from './menu';
+import { LoggerFactory } from './services/logger';
 
 // Import the new service factories
-import { createConfigService } from '@/main/services/core/config/config-service'
-import { createLoggerService } from '@/main/services/core/logger/logger-service'
-import { createChatService } from '@/main/services/domain/chat/chat-service'
-import { createLearningService } from '@/main/services/domain/learning/learning-service'
-import { createKnowledgeService } from '@/main/services/domain/knowledge/knowledge-service'
-import { createConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service'
-import { createPracticeService } from '@/main/services/domain/practice/practice-service'
-import { createContentService } from '@/main/services/domain/content/content-service'
-import { createAnalyticsService } from '@/main/services/domain/analytics/analytics-service'
-import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager'
-import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager'
-import { createDomainAgent } from '@/main/services/agent/domain-agent'
-import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error'
-import { VectorDatabaseModule } from './services/domain/knowledge/vector/vector-database'
+import { createConfigService } from '@/main/services/core/config/config-service';
+import { createLoggerService } from '@/main/services/core/logger/logger-service';
+import { createChatService } from '@/main/services/domain/chat/chat-service';
+import { createLearningService } from '@/main/services/domain/learning/learning-service';
+import { createKnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
+import { createConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
+import { createPracticeService } from '@/main/services/domain/practice/practice-service';
+import { createContentService } from '@/main/services/domain/content/content-service';
+import { createAnalyticsService } from '@/main/services/domain/analytics/analytics-service';
+import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager';
+import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager';
+import { createDomainAgent } from '@/main/services/agent/domain-agent';
+import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
+import { VectorDatabaseModule } from './services/domain/knowledge/vector/vector-database';
 
-import type { IPCErrorPayload } from '@/shared/types/ipc-error'
+import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 
 // Import database from existing implementation
 import {
   createDatabase,
   createSqliteDriverFactory,
   getDefaultDatabasePath,
-  runMigrations
-} from './services/core/database/kysely-database'
-import { createConfigStorage } from './services/core/config/storage'
+  runMigrations,
+} from './services/core/database/kysely-database';
+import { createConfigStorage } from './services/core/config/storage';
 
 // Memory debugging utility for development
-import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug'
+import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug';
 
 // Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // The built directory structure
 //
@@ -63,61 +62,61 @@ const __dirname = path.dirname(__filename)
 // ├─┬ dist
 // │ └── index.html    > Electron-Renderer
 //
-process.env.APP_ROOT = path.join(__dirname, '../..')
+process.env.APP_ROOT = path.join(__dirname, '../..');
 
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-export const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
+export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
+export const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, 'public')
-  : RENDERER_DIST
+  : RENDERER_DIST;
 
-let win: BrowserWindow | null = null
-let isShuttingDown = false
-const pendingIpcErrors: IPCErrorPayload[] = []
+let win: BrowserWindow | null = null;
+let isShuttingDown = false;
+const pendingIpcErrors: IPCErrorPayload[] = [];
 
 const enqueueIpcError = (payload: IPCErrorPayload) => {
   if (win && win.webContents && !win.webContents.isDestroyed()) {
-    win.webContents.send(IPC_ERROR_CHANNEL, payload)
-    return
+    win.webContents.send(IPC_ERROR_CHANNEL, payload);
+    return;
   }
 
-  pendingIpcErrors.push(payload)
-}
+  pendingIpcErrors.push(payload);
+};
 
 const flushPendingIpcErrors = () => {
   if (!win || !win.webContents || win.webContents.isDestroyed()) {
-    return
+    return;
   }
 
   while (pendingIpcErrors.length > 0) {
-    const payload = pendingIpcErrors.shift()
+    const payload = pendingIpcErrors.shift();
     if (!payload) {
-      continue
+      continue;
     }
-    win.webContents.send(IPC_ERROR_CHANNEL, payload)
+    win.webContents.send(IPC_ERROR_CHANNEL, payload);
   }
-}
+};
 
 const reportMainError = (error: unknown, channel = 'main') => {
-  const payload = serializeIPCError(error, channel)
-  enqueueIpcError(payload)
-  return payload
-}
+  const payload = serializeIPCError(error, channel);
+  enqueueIpcError(payload);
+  return payload;
+};
 
 process.on('uncaughtException', (error) => {
-  console.error('[Main] Uncaught exception', error)
-  reportMainError(error, 'uncaughtException')
-})
+  console.error('[Main] Uncaught exception', error);
+  reportMainError(error, 'uncaughtException');
+});
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[Main] Unhandled rejection', reason)
-  reportMainError(reason, 'unhandledRejection')
-})
+  console.error('[Main] Unhandled rejection', reason);
+  reportMainError(reason, 'unhandledRejection');
+});
 
-const preload = path.join(__dirname, '../preload/index.cjs')
-const indexHtml = path.join(RENDERER_DIST, 'index.html')
+const preload = path.join(__dirname, '../preload/index.cjs');
+const indexHtml = path.join(RENDERER_DIST, 'index.html');
 
 async function createWindow(): Promise<void> {
   win = new BrowserWindow({
@@ -154,57 +153,61 @@ async function createWindow(): Promise<void> {
     // Fix GPU cache permission issues and memory optimization
     show: false,
     backgroundColor: '#ffffff',
-  })
+  });
 
   // Suppress DevTools warnings
   win.webContents.on('console-message', (event, _level, message, _line, _sourceId) => {
     // Ignore autofill-related DevTools errors that are common in Electron
     if (message.includes('Autofill.enable') || message.includes('Autofill.setAddresses')) {
-      event.preventDefault()
+      event.preventDefault();
     }
-  })
+  });
 
   // Add proper cleanup on window close
   win.on('closed', () => {
-    win = null
-  })
+    win = null;
+  });
 
   // Enhanced native memory cleanup when window is closing
   win.webContents.on('will-navigate', () => {
     // Clear resources before navigation
     if (win && win.webContents.session?.clearCache) {
-      win.webContents.session.clearCache()
+      win.webContents.session.clearCache();
     }
-  })
+  });
 
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    win.loadURL(VITE_DEV_SERVER_URL);
     // Only open DevTools in development and not in production
     if (process.env.NODE_ENV !== 'production') {
-      win.webContents.openDevTools()
+      win.webContents.openDevTools();
     }
-    win.show() // Show window after loading
+    win.show(); // Show window after loading
   } else {
-    win.loadFile(indexHtml)
-    win.show() // Show window after loading
+    win.loadFile(indexHtml);
+    win.show(); // Show window after loading
   }
 
   win.webContents.once('did-finish-load', () => {
-    flushPendingIpcErrors()
-  })
+    flushPendingIpcErrors();
+  });
 
   // Make all links open with the browser, not with the application
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https:')) shell.openExternal(url)
-    return { action: 'deny' }
-  })
+    if (url.startsWith('https:')) shell.openExternal(url);
+    return { action: 'deny' };
+  });
 
   // Setup IPC handlers
   // Get workspace from environment variable or command line arguments or use current directory as default
-  const workspaceEnv = process.env.WORKSPACE_PATH
-  const workspaceArg = process.argv.find(arg => !arg.includes('electron') && !arg.includes('--'))
-  const workspacePath = workspaceEnv ? path.resolve(workspaceEnv) : (workspaceArg ? path.resolve(workspaceArg) : process.cwd())
-  console.log(`Using workspace: ${workspacePath}`)
+  const workspaceEnv = process.env.WORKSPACE_PATH;
+  const workspaceArg = process.argv.find((arg) => !arg.includes('electron') && !arg.includes('--'));
+  const workspacePath = workspaceEnv
+    ? path.resolve(workspaceEnv)
+    : workspaceArg
+      ? path.resolve(workspaceArg)
+      : process.cwd();
+  console.log(`Using workspace: ${workspacePath}`);
 
   // Initialize all services using the new functional architecture
   const loggerFactory = LoggerFactory.getInstance();
@@ -225,42 +228,47 @@ async function createWindow(): Promise<void> {
 
   const configService = createConfigService({
     storage: configStorage,
-    logger
+    logger,
   });
 
   try {
     const domainAgent = await createDomainAgent({
-      configService
+      configService,
     });
 
     console.log('[Main] Creating AI service manager...');
     const aiServiceManager = createAiServiceManager({
       loggerService,
-      configService
+      configService,
     });
     console.log('[Main] AI service manager created. Waiting for ready...');
     await aiServiceManager.waitForReady();
     console.log('[Main] AI service manager is ready');
     const aiService = aiServiceManager;
 
-    const learningService = createLearningService({ db: database, loggerService, aiService, domainAgent });
+    const learningService = createLearningService({
+      db: database,
+      loggerService,
+      aiService,
+      domainAgent,
+    });
     const vectorDatabase = new VectorDatabaseModule();
     await vectorDatabase.start();
     const knowledgeService = createKnowledgeService({
       db: database,
-      loggerService
+      loggerService,
     });
     const conceptParsingService = createConceptParsingService({
       aiService,
       domainAgent,
       vectorDatabase,
-      loggerService
+      loggerService,
     });
     const practiceService = createPracticeService({
       aiService,
       domainAgent,
       loggerService,
-      knowledgeService
+      knowledgeService,
     });
     const analyticsService = createAnalyticsService({ db: database, loggerService });
     const contentService = createContentService({ loggerService, aiService });
@@ -270,7 +278,7 @@ async function createWindow(): Promise<void> {
       conceptParsingService,
       learningService,
       loggerService,
-      configService
+      configService,
     });
 
     const chatService = createChatService({
@@ -278,7 +286,7 @@ async function createWindow(): Promise<void> {
       loggerService,
       aiService,
       domainAgent,
-      agentManager
+      agentManager,
     });
 
     // Setup IPC handlers with all services
@@ -292,25 +300,25 @@ async function createWindow(): Promise<void> {
       contentService,
       aiService,
       loggerService,
-      configService
+      configService,
     });
 
     // Setup application menu
-    const menu = createAppMenu(win)
-    win.setMenu(menu)
+    const menu = createAppMenu(win);
+    win.setMenu(menu);
   } catch (error) {
     console.error('? Error initializing services:', error);
-    reportMainError(error, 'services:init')
-    return
+    reportMainError(error, 'services:init');
+    return;
   }
 }
 
 // Cleanup function to prevent memory leaks
 async function cleanup() {
-  if (isShuttingDown) return
-  isShuttingDown = true
+  if (isShuttingDown) return;
+  isShuttingDown = true;
 
-  console.log('🧹 Cleaning up resources...')
+  console.log('🧹 Cleaning up resources...');
 
   // Clean up memory debugging
   cleanupMemoryDebug();
@@ -323,7 +331,7 @@ async function cleanup() {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  console.log('🚀 Learning Catalyst starting with new architecture...')
+  console.log('🚀 Learning Catalyst starting with new architecture...');
 
   // Initialize memory debugging for development
   startMemoryDebug();
@@ -331,31 +339,31 @@ app.whenReady().then(async () => {
   // Create the main window
   await createWindow();
 
-  console.log('✅ Learning Catalyst ready with new service architecture!')
-})
+  console.log('✅ Learning Catalyst ready with new service architecture!');
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with cmd + Q.
 app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
-    await cleanup()
-    app.quit()
+    await cleanup();
+    app.quit();
   }
-})
+});
 
 app.on('activate', () => {
   // On macOS it's common to re-create a window in the app when the
   // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-})
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
 
 // Handle app before-quit for proper cleanup
 app.on('before-quit', async () => {
-  await cleanup()
-})
+  await cleanup();
+});
 
 // Handle app will-quit for final cleanup
 app.on('will-quit', async () => {
-  await cleanup()
-})
+  await cleanup();
+});

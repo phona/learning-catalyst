@@ -26,11 +26,7 @@ const MIN_SNIPPET_LENGTH = 80;
 const MAX_OUTLINE_ITEMS = 12;
 
 const sanitizeForAi = (text: string) =>
-  text
-    .replace(/\r/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, MAX_AI_SNIPPET_LENGTH);
+  text.replace(/\r/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_AI_SNIPPET_LENGTH);
 
 const detectHeadingLabel = (line: string): string | null => {
   if (!line) {
@@ -42,7 +38,9 @@ const detectHeadingLabel = (line: string): string | null => {
     return markdownHeading[1].trim();
   }
 
-  const declarationHeading = line.match(/^(?:export\s+)?(?:class|function|interface|type)\s+[A-Za-z0-9_]+/i);
+  const declarationHeading = line.match(
+    /^(?:export\s+)?(?:class|function|interface|type)\s+[A-Za-z0-9_]+/i,
+  );
   if (declarationHeading) {
     return declarationHeading[0].trim();
   }
@@ -73,13 +71,13 @@ const buildSectionsFromContent = (lines: string[]) => {
         sections.push({
           label: current.label,
           startLine: current.startLine,
-          content: current.buffer.join('\n')
+          content: current.buffer.join('\n'),
         });
       }
       current = {
         label: heading,
         startLine: index + 1,
-        buffer: []
+        buffer: [],
       };
     }
 
@@ -90,7 +88,7 @@ const buildSectionsFromContent = (lines: string[]) => {
     sections.push({
       label: current.label,
       startLine: current.startLine,
-      content: current.buffer.join('\n')
+      content: current.buffer.join('\n'),
     });
   }
 
@@ -105,7 +103,7 @@ const buildFallbackSegments = (content: string): DocumentPreviewSnippet[] => {
     .map((chunk, index) => ({
       label: `Segment ${index + 1}`,
       excerpt: chunk,
-      startLine: index * 5 + 1
+      startLine: index * 5 + 1,
     }));
 
   if (!filtered.length && content.trim()) {
@@ -113,8 +111,8 @@ const buildFallbackSegments = (content: string): DocumentPreviewSnippet[] => {
       {
         label: 'Segment 1',
         excerpt: sanitizeForAi(content),
-        startLine: 1
-      }
+        startLine: 1,
+      },
     ];
   }
 
@@ -123,14 +121,14 @@ const buildFallbackSegments = (content: string): DocumentPreviewSnippet[] => {
 
 const selectSnippetsFromSections = (
   sections: Array<{ label: string; content: string; startLine: number }>,
-  rawContent: string
+  rawContent: string,
 ): DocumentPreviewSnippet[] => {
   const scored = sections
     .map((section) => ({
       label: section.label || `Section ${section.startLine}`,
       startLine: section.startLine,
       excerpt: sanitizeForAi(section.content),
-      score: section.content.length
+      score: section.content.length,
     }))
     .filter((section) => section.excerpt.length >= MIN_SNIPPET_LENGTH)
     .sort((a, b) => b.score - a.score);
@@ -150,7 +148,7 @@ const selectSnippetsFromSections = (
     snippets.push({
       label: section.label,
       excerpt: section.excerpt,
-      startLine: section.startLine
+      startLine: section.startLine,
     });
   }
 
@@ -176,7 +174,7 @@ const selectSnippetsFromSections = (
 
 export const createPreparsedMaterial = (
   rawContent: string,
-  options?: { filePath?: string; sourceLabel?: string }
+  options?: { filePath?: string; sourceLabel?: string },
 ): DocumentPreview => {
   const safeContent = rawContent ?? '';
   const lines = safeContent.split(/\r?\n/);
@@ -201,8 +199,8 @@ export const createPreparsedMaterial = (
       lineCount: lines.length,
       approxReadingMinutes: Math.max(1, Math.round(wordCount / 220)),
       codeBlockCount,
-      fileExtension: options?.filePath ? path.extname(options.filePath) : undefined
-    }
+      fileExtension: options?.filePath ? path.extname(options.filePath) : undefined,
+    },
   };
 };
 
@@ -212,8 +210,8 @@ export const previewToPromptPayload = (preview: DocumentPreview): string =>
       source: preview.source,
       stats: preview.stats,
       outline: preview.outline,
-      snippets: preview.snippets
+      snippets: preview.snippets,
     },
     null,
-    2
+    2,
   );

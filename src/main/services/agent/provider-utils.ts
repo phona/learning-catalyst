@@ -1,6 +1,6 @@
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { AppConfig, ProviderType } from '@/shared/types/config';
-import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import type { IPCErrorPayload, IPCError } from '@/shared/types/ipc-error';
 import { createIPCError, IPCErrorException } from '@/shared/types/ipc-error';
 
 export type ProviderSettings = {
@@ -22,63 +22,72 @@ export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   apiKey: process.env.OPENAI_API_KEY,
   baseUrl: 'https://api.openai.com/v1',
   temperature: 0.4,
-  maxTokens: 2048
+  maxTokens: 2048,
 };
 
-const requireChatConfig = (): IPCError => {
+const requireChatConfig = (): IPCErrorPayload => {
   return createIPCError({
     type: 'CONFIG_ERROR',
     code: 'provider.config.chat_missing',
-    message: 'Chat model configuration is missing. Please configure a provider before starting an agent.',
+    message:
+      'Chat model configuration is missing. Please configure a provider before starting an agent.',
     needsSetup: true,
     action: 'openProviderSetup',
-    details: { section: 'ai.model_types.chat' }
+    details: { section: 'ai.model_types.chat' },
   });
 };
 
-const missingProviderConfigError = (providerName: string): IPCError => {
+const missingProviderConfigError = (providerName: string): IPCErrorPayload => {
   return createIPCError({
     type: 'CONFIG_ERROR',
     code: 'provider.config.missing',
     message: `Provider "${providerName}" is not configured yet. Set up your provider credentials in the settings.`,
     needsSetup: true,
     action: 'openProviderSetup',
-    details: { providerName }
+    details: { providerName },
   });
 };
 
-const missingApiKeyError = (providerName: string): IPCError => {
+const missingApiKeyError = (providerName: string): IPCErrorPayload => {
   return createIPCError({
     type: 'CONFIG_ERROR',
     code: 'provider.config.missing_api_key',
     message: `API key for provider "${providerName}" is required. Provide a valid key in the settings.`,
     needsSetup: true,
     action: 'openProviderSetup',
-    details: { providerName }
+    details: { providerName },
   });
 };
 
-export const resolveProviderSettings = async (configService: ConfigService): Promise<ProviderSettings> => {
+export const resolveProviderSettings = async (
+  configService: ConfigService,
+): Promise<ProviderSettings> => {
   const config = await configService.getConfig();
   if (!config?.ai?.model_types?.chat?.provider || !config?.ai?.model_types?.chat?.model) {
-    throw new IPCErrorException(requireChatConfig());
+    throw requireChatConfig();
   }
 
   const chatConfig = config.ai.model_types.chat;
+  if (!chatConfig?.provider) {
+    throw requireChatConfig();
+  }
+
   const providerName = chatConfig.provider.toLowerCase();
   const providerConfig = config.ai.providers?.[providerName];
 
   if (!providerConfig) {
-    throw new IPCErrorException(missingProviderConfigError(providerName));
+    throw missingProviderConfigError(providerName);
   }
 
   const resolvedApiKey = providerConfig.api_key ?? (providerConfig as any)?.apiKey;
 
   if (!resolvedApiKey) {
-    throw new IPCErrorException(missingApiKeyError(providerName));
+    throw missingApiKeyError(providerName);
   }
 
-  const providerType = (providerConfig.provider_type ?? providerConfig.type ?? 'openai') as ProviderType;
+  const providerType = (providerConfig.provider_type ??
+    providerConfig.type ??
+    'openai') as ProviderType;
   const model = chatConfig.model || providerConfig.model || DEFAULT_PROVIDER_SETTINGS.model;
   const baseUrl = providerConfig.base_url ?? DEFAULT_PROVIDER_SETTINGS.baseUrl;
   const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
@@ -91,11 +100,14 @@ export const resolveProviderSettings = async (configService: ConfigService): Pro
     apiKey: resolvedApiKey,
     baseUrl,
     temperature,
-    maxTokens
+    maxTokens,
   };
 };
 
-export const buildLearnerPrompt = async (basePrompt: string, configService: ConfigService): Promise<string> => {
+export const buildLearnerPrompt = async (
+  basePrompt: string,
+  configService: ConfigService,
+): Promise<string> => {
   const config = await configService.getConfig();
   if (!config?.learning) {
     return basePrompt;
@@ -106,7 +118,8 @@ export const buildLearnerPrompt = async (basePrompt: string, configService: Conf
     learningPrefs.learning_style && `Learning style: ${learningPrefs.learning_style}`,
     learningPrefs.difficulty && `Difficulty preference: ${learningPrefs.difficulty}`,
     learningPrefs.personalization_enabled && 'Personalize responses based on learner preferences',
-    learningPrefs.preferred_explanation_length && `Preferred explanation length: ${learningPrefs.preferred_explanation_length}`
+    learningPrefs.preferred_explanation_length &&
+      `Preferred explanation length: ${learningPrefs.preferred_explanation_length}`,
   ]
     .filter(Boolean)
     .join('. ');
@@ -117,13 +130,13 @@ export const buildLearnerPrompt = async (basePrompt: string, configService: Conf
 export const needsAgentRebuild = (oldConfig: AppConfig, newConfig: AppConfig): boolean => {
   const oldChat = oldConfig.ai.model_types?.chat;
   const newChat = newConfig.ai.model_types?.chat;
-  
+
   return (
     oldChat?.provider !== newChat?.provider ||
     oldChat?.model !== newChat?.model ||
     oldConfig.ai.providers[oldChat?.provider || '']?.api_key !==
-    newConfig.ai.providers[newChat?.provider || '']?.api_key ||
+      newConfig.ai.providers[newChat?.provider || '']?.api_key ||
     oldConfig.ai.providers[oldChat?.provider || '']?.base_url !==
-    newConfig.ai.providers[newChat?.provider || '']?.base_url
+      newConfig.ai.providers[newChat?.provider || '']?.base_url
   );
 };

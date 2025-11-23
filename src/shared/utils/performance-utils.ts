@@ -22,7 +22,7 @@ export class LRUCache<TKey, TValue> {
   constructor(
     maxSize = 100,
     maxMemoryMB?: number,
-    cleanupIntervalMs = 60 * 1000 // 1 minute
+    cleanupIntervalMs = 60 * 1000, // 1 minute
   ) {
     this.maxSize = maxSize;
     this.maxMemory = maxMemoryMB ? maxMemoryMB * 1024 * 1024 : undefined;
@@ -39,7 +39,10 @@ export class LRUCache<TKey, TValue> {
     }
 
     // Evict if over capacity
-    if (this.cache.size >= this.maxSize || (this.maxMemory && this.currentMemory >= this.maxMemory)) {
+    if (
+      this.cache.size >= this.maxSize ||
+      (this.maxMemory && this.currentMemory >= this.maxMemory)
+    ) {
       this.evictOldest();
     }
 
@@ -123,7 +126,7 @@ export class LRUCache<TKey, TValue> {
     }
 
     // Remove stale entries
-    staleEntries.forEach(key => {
+    staleEntries.forEach((key) => {
       if (this.remove(key)) {
         evictedCount++;
       }
@@ -147,14 +150,14 @@ export class LRUCache<TKey, TValue> {
     memoryLimitMB?: number;
     utilizationPercent: number;
     cleanupIntervalMs?: number;
-    } {
+  } {
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
       memoryUsageMB: this.maxMemory ? this.currentMemory / (1024 * 1024) : undefined,
       memoryLimitMB: this.maxMemory ? this.maxMemory / (1024 * 1024) : undefined,
       utilizationPercent: (this.cache.size / this.maxSize) * 100,
-      cleanupIntervalMs: this.cleanupInterval ? undefined : undefined
+      cleanupIntervalMs: this.cleanupInterval ? undefined : undefined,
     };
   }
 
@@ -183,7 +186,7 @@ export class PromiseCache {
     options?: {
       ttl?: number; // time to live in milliseconds
       maxSize?: number;
-    }
+    },
   ): Promise<T> {
     const existing = this.cache.get(key);
     if (existing) {
@@ -263,7 +266,7 @@ export class PerformanceMonitor {
       name,
       duration,
       timestamp: Date.now(),
-      metadata
+      metadata,
     };
 
     let nameMetrics = this.metrics.get(name);
@@ -283,10 +286,7 @@ export class PerformanceMonitor {
   /**
    * Measure an async operation
    */
-  async measureAsync<T>(
-    name: string,
-    operation: () => Promise<T>
-  ): Promise<T> {
+  async measureAsync<T>(name: string, operation: () => Promise<T>): Promise<T> {
     const start = performance.now();
     let error: Error | undefined;
 
@@ -312,11 +312,9 @@ export class PerformanceMonitor {
       return null;
     }
 
-    const durations = nameMetrics
-      .filter(m => !m.metadata?.error)
-      .map(m => m.duration);
+    const durations = nameMetrics.filter((m) => !m.metadata?.error).map((m) => m.duration);
 
-    const errorCount = nameMetrics.filter(m => m.metadata?.error).length;
+    const errorCount = nameMetrics.filter((m) => m.metadata?.error).length;
     const totalCount = nameMetrics.length;
 
     if (durations.length === 0) {
@@ -328,7 +326,7 @@ export class PerformanceMonitor {
         maxDuration: 0,
         medianDuration: 0,
         p95Duration: 0,
-        p99Duration: 0
+        p99Duration: 0,
       };
     }
 
@@ -347,7 +345,7 @@ export class PerformanceMonitor {
       maxDuration: durations[durations.length - 1],
       medianDuration: median,
       p95Duration: p95,
-      p99Duration: p99
+      p99Duration: p99,
     };
   }
 
@@ -370,7 +368,7 @@ export class PerformanceMonitor {
             if (entry.entryType === 'longtask') {
               this.recordMetric('longtask', entry.duration, {
                 type: entry.name,
-                start: entry.startTime
+                start: entry.startTime,
               });
             }
           }
@@ -387,7 +385,7 @@ export class PerformanceMonitor {
           for (const entry of list.getEntries()) {
             if (entry.entryType === 'measure') {
               this.recordMetric(entry.name, entry.duration, {
-                startTime: entry.startTime
+                startTime: entry.startTime,
               });
             }
           }
@@ -404,7 +402,7 @@ export class PerformanceMonitor {
    * Stop monitoring and clean up
    */
   stopMonitoring(): void {
-    this.observers.forEach(observer => {
+    this.observers.forEach((observer) => {
       try {
         observer.disconnect();
       } catch (err) {
@@ -446,9 +444,7 @@ export class PerformanceMonitor {
 
   private calculateMedian(values: number[]): number {
     const mid = Math.floor(values.length / 2);
-    return values.length % 2
-      ? values[mid]
-      : (values[mid - 1] + values[mid]) / 2;
+    return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
   }
 
   private calculatePercentile(values: number[], percentile: number): number {
@@ -516,20 +512,14 @@ export class MemoryPool<T> {
   private readonly factory: () => T;
   private readonly reset: (obj: T) => void;
 
-  constructor(
-    factory: () => T,
-    reset: (obj: T) => void,
-    maxSize = 100
-  ) {
+  constructor(factory: () => T, reset: (obj: T) => void, maxSize = 100) {
     this.factory = factory;
     this.reset = reset;
     this.maxSize = maxSize;
   }
 
   acquire(): T {
-    const obj = this.pool.length > 0
-      ? this.pool.pop()!
-      : this.factory();
+    const obj = this.pool.length > 0 ? this.pool.pop()! : this.factory();
 
     return obj;
   }
@@ -548,7 +538,7 @@ export class MemoryPool<T> {
   getStats(): { poolSize: number; maxSize: number } {
     return {
       poolSize: this.pool.length,
-      maxSize: this.maxSize
+      maxSize: this.maxSize,
     };
   }
 }
@@ -573,7 +563,7 @@ export class Debounced<T extends (...args: any[]) => any> {
       leading?: boolean;
       trailing?: boolean;
       maxWait?: number;
-    } = { leading: false, trailing: true }
+    } = { leading: false, trailing: true },
   ) {}
 
   cancel(): void {
@@ -648,7 +638,7 @@ export class Throttled<T extends (...args: any[]) => any> {
 
   constructor(
     private readonly func: T,
-    private readonly limit: number
+    private readonly limit: number,
   ) {}
 
   execute(...args: Parameters<T>): void {
@@ -692,7 +682,7 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
     ttl?: number;
     maxSize?: number;
     keyGenerator?: (...args: Parameters<T>) => string;
-  }
+  },
 ): T {
   const cache = new PromiseCache();
   const { keyGenerator, ttl = 5 * 60 * 1000 } = options || {};
@@ -702,7 +692,7 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
 
     return await cache.get(key, () => func(...args), {
       ttl,
-      maxSize: options?.maxSize
+      maxSize: options?.maxSize,
     });
   }) as T;
 }
@@ -726,7 +716,7 @@ export class EventBatcher<T> {
     options: {
       batchSize?: number;
       flushInterval?: number;
-    } = {}
+    } = {},
   ) {
     this.handler = handler;
     this.batchSize = options.batchSize || 50;
@@ -789,7 +779,7 @@ export class OptimizedScrollHandler {
     options?: {
       throttleMs?: number;
       passive?: boolean;
-    }
+    },
   ) {
     this.handler = handler;
     this.throttleDelay = options?.throttleMs || this.throttleDelay;
@@ -818,7 +808,7 @@ export class OptimizedScrollHandler {
   }
 
   detach(): void {
-    this.cleanupCallbacks.forEach(cleanup => cleanup());
+    this.cleanupCallbacks.forEach((cleanup) => cleanup());
     this.cleanupCallbacks = [];
   }
 }

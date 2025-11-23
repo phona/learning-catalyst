@@ -42,12 +42,12 @@ vi.mock('@/stores/useConfigStore', () => ({
           chat: {
             default_provider: 'openai',
             default_model: 'gpt-3.5-turbo',
-          }
-        }
+          },
+        },
       },
       ui: {
         theme: 'dark',
-      }
+      },
     },
     setConfig: vi.fn(),
     loadConfig: vi.fn().mockResolvedValue({
@@ -56,12 +56,12 @@ vi.mock('@/stores/useConfigStore', () => ({
           chat: {
             default_provider: 'openai',
             default_model: 'gpt-3.5-turbo',
-          }
-        }
+          },
+        },
       },
       ui: {
         theme: 'dark',
-      }
+      },
     }),
   })),
 }));
@@ -121,7 +121,7 @@ afterEach(() => {
   if (originalElectronAPI !== undefined) {
     (window as typeof window & { electronAPI?: unknown }).electronAPI = originalElectronAPI;
   } else {
-    delete (window as typeof window & { electronAPI?: unknown }).electronAPI;
+    delete (window as any).electronAPI;
   }
 });
 
@@ -139,7 +139,7 @@ describe('App Component - Simplified Initialization', () => {
     });
 
     it('should handle missing electronAPI gracefully', async () => {
-      (window as typeof window & { electronAPI?: unknown }).electronAPI = undefined;
+      (window as any).electronAPI = undefined;
 
       renderApp({ electronUnavailable: true });
 
@@ -207,5 +207,4 @@ describe('App Component - Simplified Initialization', () => {
       expect(true).toBe(true); // Placeholder test
     });
   });
-
 });

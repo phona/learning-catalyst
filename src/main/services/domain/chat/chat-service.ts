@@ -78,7 +78,7 @@ export const createChatService = ({
   loggerService,
   aiService,
   domainAgent,
-  agentManager
+  agentManager,
 }: {
   db: Kysely<CoreDatabase>;
   loggerService: LoggerService;
@@ -105,7 +105,11 @@ export const createChatService = ({
   const getTrackerForConversation = (conversationId: string, userId?: string) => {
     let tracker = contextTrackers.get(conversationId);
     if (!tracker) {
-      tracker = createUserContextTracker(userId ?? 'anonymous-user', conversationId, trackerDependencies);
+      tracker = createUserContextTracker(
+        userId ?? 'anonymous-user',
+        conversationId,
+        trackerDependencies,
+      );
       contextTrackers.set(conversationId, tracker);
     }
     return tracker;
@@ -125,7 +129,7 @@ export const createChatService = ({
         content: params.content,
         timestamp: Date.now(),
         concepts: extractConceptsFromContent(params.content),
-        confidence: 0.5
+        confidence: 0.5,
       });
     } catch (error) {
       trackerLogger.warn('Failed to update user context tracker', error as Error);
@@ -143,7 +147,18 @@ export const createChatService = ({
   const loadMessages = async (sessionId: string): Promise<Message[]> => {
     const rows = await db
       .selectFrom('messages')
-      .select(['id', 'session_id', 'role', 'content', 'timestamp', 'message_order', 'provider', 'model', 'tokens_used', 'thinking_content'])
+      .select([
+        'id',
+        'session_id',
+        'role',
+        'content',
+        'timestamp',
+        'message_order',
+        'provider',
+        'model',
+        'tokens_used',
+        'thinking_content',
+      ])
       .where('session_id', '=', sessionId)
       .orderBy('message_order')
       .execute();
@@ -158,19 +173,19 @@ export const createChatService = ({
         provider: row.provider,
         model: row.model,
         thinking: row.thinking_content,
-        tokens: safeParseJson<Record<string, unknown>>(row.tokens_used, {})
-      }
+        tokens: safeParseJson<Record<string, unknown>>(row.tokens_used, {}),
+      },
     }));
   };
 
   const buildConversation = async (
     session: LearningSessionRow,
-    includeMessages = true
+    includeMessages = true,
   ): Promise<Conversation> => {
     const metadata = safeParseJson<ConversationMetadata>(session.metadata, {
       agentType: 'learning',
       topic: session.title,
-      status: 'active'
+      status: 'active',
     });
 
     return {
@@ -182,7 +197,7 @@ export const createChatService = ({
       updatedAt: session.updated_at,
       status: (metadata.status as Conversation['status']) ?? 'active',
       messages: includeMessages ? await loadMessages(session.id) : [],
-      metadata
+      metadata,
     };
   };
 
@@ -201,7 +216,7 @@ export const createChatService = ({
       topic: params.topic ?? params.title,
       status: 'active',
       sessionId: params.sessionId,
-      ...params.metadata
+      ...params.metadata,
     };
 
     const row: LearningSessionRow = {
@@ -217,7 +232,7 @@ export const createChatService = ({
       session_type: 'general',
       metadata: serializeMetadata(metadata),
       created_at: now,
-      updated_at: now
+      updated_at: now,
     };
 
     await db.insertInto('learning_sessions').values(row).execute();
@@ -241,7 +256,7 @@ export const createChatService = ({
     const session = await createSessionRow({
       id: conversationId,
       title: `Conversation ${conversationId}`,
-      agentType: 'learning'
+      agentType: 'learning',
     });
     return buildConversation(session, true);
   };
@@ -257,8 +272,8 @@ export const createChatService = ({
           ...conversation.metadata,
           agentType: conversation.agentType,
           topic: conversation.topic,
-          status: conversation.status
-        })
+          status: conversation.status,
+        }),
       })
       .where('id', '=', conversation.id)
       .execute();
@@ -275,27 +290,35 @@ export const createChatService = ({
 
   const saveMessage = async (
     message: Message,
-    options?: { provider?: string; model?: string; tokens?: Record<string, unknown>; thinkingContent?: string }
+    options?: {
+      provider?: string;
+      model?: string;
+      tokens?: Record<string, unknown>;
+      thinkingContent?: string;
+    },
   ): Promise<void> => {
     const order = await getNextMessageOrder(message.conversationId);
-    await db.insertInto('messages').values({
-      id: message.id,
-      session_id: message.conversationId,
-      role: message.role,
-      content: message.content,
-      thinking_content: options?.thinkingContent,
-      provider: options?.provider,
-      model: options?.model,
-      tokens_used: JSON.stringify(options?.tokens ?? {}),
-      timestamp: message.timestamp,
-      message_order: order,
-      created_at: message.timestamp
-    } satisfies MessageRow).execute();
+    await db
+      .insertInto('messages')
+      .values({
+        id: message.id,
+        session_id: message.conversationId,
+        role: message.role,
+        content: message.content,
+        thinking_content: options?.thinkingContent,
+        provider: options?.provider,
+        model: options?.model,
+        tokens_used: JSON.stringify(options?.tokens ?? {}),
+        timestamp: message.timestamp,
+        message_order: order,
+        created_at: message.timestamp,
+      } satisfies MessageRow)
+      .execute();
   };
 
   const buildAssistantMessage = (
     conversation: Conversation,
-    reply: AssistantReplyPayload
+    reply: AssistantReplyPayload,
   ): Message => ({
     id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     conversationId: conversation.id,
@@ -306,31 +329,35 @@ export const createChatService = ({
       reasoning: reply.reasoning ?? [],
       suggestions: reply.suggestions ?? [],
       confidence: reply.confidence ?? 0.75,
-      agentType: conversation.agentType
-    }
+      agentType: conversation.agentType,
+    },
   });
 
-  const generateAssistantReply = async (conversation: Conversation, userMessage: Message): Promise<Message> => {
+  const generateAssistantReply = async (
+    conversation: Conversation,
+    userMessage: Message,
+  ): Promise<Message> => {
     const agentResponse = await agentManager.runAgent({
       agentType: normalizeAgentType(conversation.agentType),
       conversationId: conversation.id,
       topic: conversation.topic,
       userId: userMessage.metadata?.userId as string | undefined,
       messages: conversation.messages
-        .filter((message): message is Message & { role: 'user' | 'assistant' } =>
-          message.role === 'user' || message.role === 'assistant'
+        .filter(
+          (message): message is Message & { role: 'user' | 'assistant' } =>
+            message.role === 'user' || message.role === 'assistant',
         )
         .map((message) => ({
           role: message.role,
-          content: message.content
-        }))
+          content: message.content,
+        })),
     });
 
     return buildAssistantMessage(conversation, {
       reply: agentResponse.content,
       reasoning: [],
       suggestions: [],
-      confidence: 0.75
+      confidence: 0.75,
     });
   };
 
@@ -348,7 +375,7 @@ export const createChatService = ({
         agentType: params.agentType,
         topic: params.topic,
         sessionId: params.sessionId,
-        metadata: params.preferences
+        metadata: params.preferences,
       });
       serviceLogger.info('Conversation created successfully', { conversationId: session.id });
       return buildConversation(session, true);
@@ -372,8 +399,8 @@ export const createChatService = ({
         timestamp: new Date().toISOString(),
         metadata: {
           ...params.metadata,
-          attachments: params.attachments || []
-        }
+          attachments: params.attachments || [],
+        },
       };
 
       conversation.messages.push(message);
@@ -385,7 +412,7 @@ export const createChatService = ({
         conversationId: params.conversationId,
         messageType: params.role === 'assistant' ? 'assistant_message' : 'user_message',
         content: params.content,
-        userId: params.metadata?.userId as string | undefined
+        userId: params.metadata?.userId as string | undefined,
       });
 
       let assistantMessage: Message | undefined;
@@ -399,7 +426,7 @@ export const createChatService = ({
           conversationId: params.conversationId,
           messageType: 'assistant_message',
           content: assistantMessage.content,
-          userId: params.metadata?.userId as string | undefined
+          userId: params.metadata?.userId as string | undefined,
         });
       }
 
@@ -417,14 +444,19 @@ export const createChatService = ({
         .orderBy('updated_at', 'desc')
         .limit(50)
         .execute();
-      const conversations = await Promise.all(sessions.map((session) => buildConversation(session, false)));
+      const conversations = await Promise.all(
+        sessions.map((session) => buildConversation(session, false)),
+      );
       return conversations;
     },
 
     deleteConversation: async (conversationId: string): Promise<boolean> => {
       serviceLogger.info('Deleting conversation', { conversationId });
       await db.deleteFrom('messages').where('session_id', '=', conversationId).execute();
-      const result = await db.deleteFrom('learning_sessions').where('id', '=', conversationId).executeTakeFirst();
+      const result = await db
+        .deleteFrom('learning_sessions')
+        .where('id', '=', conversationId)
+        .executeTakeFirst();
       disposeTracker(conversationId);
       return Boolean(result?.numDeletedRows ?? 0);
     },
@@ -435,7 +467,7 @@ export const createChatService = ({
         conversationId,
         isTyping: Boolean(conversation?.metadata?.assistantTyping),
         agentType: conversation?.agentType ?? 'learning',
-        topic: conversation?.topic ?? 'General'
+        topic: conversation?.topic ?? 'General',
       };
     },
 
@@ -444,7 +476,7 @@ export const createChatService = ({
       conversation.status = 'paused';
       conversation.metadata = {
         ...conversation.metadata,
-        pausedAt: new Date().toISOString()
+        pausedAt: new Date().toISOString(),
       };
       conversation.updatedAt = new Date().toISOString();
       await persistConversation(conversation);
@@ -455,7 +487,7 @@ export const createChatService = ({
       conversation.status = 'active';
       conversation.metadata = {
         ...conversation.metadata,
-        resumedAt: new Date().toISOString()
+        resumedAt: new Date().toISOString(),
       };
       conversation.updatedAt = new Date().toISOString();
       await persistConversation(conversation);
@@ -466,7 +498,7 @@ export const createChatService = ({
       conversation.status = 'closed';
       conversation.metadata = {
         ...conversation.metadata,
-        endedAt: new Date().toISOString()
+        endedAt: new Date().toISOString(),
       };
       conversation.updatedAt = new Date().toISOString();
       await persistConversation(conversation);
@@ -489,8 +521,8 @@ export const createChatService = ({
         timestamp: new Date().toISOString(),
         metadata: {
           ...params.metadata,
-          attachments: params.attachments || []
-        }
+          attachments: params.attachments || [],
+        },
       };
 
       conversation.messages.push(userMessage);
@@ -502,7 +534,7 @@ export const createChatService = ({
         conversationId: params.conversationId,
         messageType: 'user_message',
         content: userMessage.content,
-        userId: params.metadata?.userId as string | undefined
+        userId: params.metadata?.userId as string | undefined,
       });
 
       const history = conversation.messages
@@ -529,7 +561,7 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             conversationId: conversation.id,
             topic: conversation.topic,
             userId: params.metadata?.userId as string | undefined,
-            messages: [{ role: 'user', content: input }]
+            messages: [{ role: 'user', content: input }],
           });
 
           // Convert the response to a stream
@@ -545,7 +577,7 @@ Respond to the latest user message in a helpful, encouraging tone.`;
           fallbackUsed = true;
           serviceLogger.warn('Streaming assistant reply failed, using fallback text', {
             conversationId: conversation.id,
-            error
+            error,
           });
           const chunks = fallbackText.match(/.{1,60}/g) ?? [fallbackText];
           for (const chunk of chunks) {
@@ -557,14 +589,14 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             reply: aggregated || fallbackText,
             reasoning: [],
             suggestions: [],
-            confidence: fallbackUsed ? 0.4 : 0.75
+            confidence: fallbackUsed ? 0.4 : 0.75,
           });
 
           conversation.messages.push(assistantMessage);
           conversation.updatedAt = assistantMessage.timestamp;
           conversation.metadata = {
             ...conversation.metadata,
-            assistantTyping: false
+            assistantTyping: false,
           };
           await saveMessage(assistantMessage);
           await persistConversation(conversation);
@@ -572,13 +604,13 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             conversationId: params.conversationId,
             messageType: 'assistant_message',
             content: assistantMessage.content,
-            userId: params.metadata?.userId as string | undefined
+            userId: params.metadata?.userId as string | undefined,
           });
         }
       };
 
       return { userMessage, stream: stream() };
-    }
+    },
   };
 };
 

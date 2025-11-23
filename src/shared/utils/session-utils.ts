@@ -21,7 +21,7 @@ export function generateSimpleTitle(message: string, maxLength = 50): string {
   const words = message
     .replace(/[^\w\s]/g, '') // Remove punctuation
     .split(/\s+/) // Split by whitespace
-    .filter(word => word.length > 2) // Remove very short words
+    .filter((word) => word.length > 2) // Remove very short words
     .slice(0, 4); // Take first 4 meaningful words
 
   if (words.length === 0) {
@@ -29,13 +29,12 @@ export function generateSimpleTitle(message: string, maxLength = 50): string {
     return `Learning Session ${now.toLocaleDateString()}`;
   }
 
-  const title = words.map(word =>
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
+  const title = words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 
   return title.length > maxLength ? title.substring(0, maxLength - 3) + '...' : title;
 }
-
 
 /**
  * Generate unique message ID
@@ -100,7 +99,7 @@ export function formatRelativeTime(date: Date): string {
  * @returns Array of extracted topics
  */
 export function extractTopics(messages: Array<{ content: string }>): string[] {
-  const allText = messages.map(msg => msg.content).join(' ');
+  const allText = messages.map((msg) => msg.content).join(' ');
 
   // Simple keyword extraction - in a real implementation,
   // this would use NLP or AI to extract meaningful topics
@@ -108,13 +107,13 @@ export function extractTopics(messages: Array<{ content: string }>): string[] {
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter(word => word.length > 4)
-    .filter(word => !isCommonWord(word));
+    .filter((word) => word.length > 4)
+    .filter((word) => !isCommonWord(word));
 
   // Get unique keywords and limit to top 5
   const uniqueKeywords = [...new Set(keywords)]
     .slice(0, 5)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1));
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 
   return uniqueKeywords;
 }
@@ -127,26 +126,181 @@ export function extractTopics(messages: Array<{ content: string }>): string[] {
  */
 function isCommonWord(word: string): boolean {
   const commonWords = new Set([
-    'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
-    'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before',
-    'after', 'above', 'below', 'between', 'under', 'along', 'following',
-    'across', 'behind', 'beyond', 'plus', 'except', 'but', 'yet', 'nor',
-    'once', 'here', 'there', 'when', 'where', 'why', 'how', 'all', 'any',
-    'both', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no',
-    'only', 'own', 'same', 'so', 'than', 'too', 'very', 'can', 'will',
-    'just', 'should', 'could', 'would', 'about', 'over', 'again', 'way',
-    'how', 'its', 'who', 'may', 'get', 'him', 'has', 'her', 'his', 'how',
-    'our', 'out', 'see', 'she', 'than', 'their', 'them', 'then', 'there',
-    'these', 'they', 'think', 'time', 'very', 'when', 'more', 'more', 'most',
-    'some', 'them', 'then', 'than', 'only', 'new', 'now', 'say', 'see', 'she',
-    'should', 'so', 'take', 'than', 'that', 'their', 'them', 'then', 'there',
-    'these', 'they', 'thing', 'think', 'this', 'those', 'though', 'thought',
-    'three', 'through', 'thus', 'time', 'to', 'together', 'too', 'toward',
-    'turn', 'two', 'under', 'until', 'upon', 'us', 'use', 'used', 'using',
-    'various', 'very', 'via', 'want', 'was', 'way', 'we', 'well', 'went',
-    'were', 'what', 'when', 'where', 'whether', 'which', 'while', 'who',
-    'whole', 'whose', 'why', 'will', 'with', 'within', 'without', 'work',
-    'world', 'would', 'write', 'year', 'yes', 'yet', 'you', 'young', 'your'
+    'the',
+    'and',
+    'or',
+    'but',
+    'in',
+    'on',
+    'at',
+    'to',
+    'for',
+    'of',
+    'with',
+    'by',
+    'from',
+    'up',
+    'about',
+    'into',
+    'through',
+    'during',
+    'before',
+    'after',
+    'above',
+    'below',
+    'between',
+    'under',
+    'along',
+    'following',
+    'across',
+    'behind',
+    'beyond',
+    'plus',
+    'except',
+    'but',
+    'yet',
+    'nor',
+    'once',
+    'here',
+    'there',
+    'when',
+    'where',
+    'why',
+    'how',
+    'all',
+    'any',
+    'both',
+    'each',
+    'few',
+    'more',
+    'most',
+    'other',
+    'some',
+    'such',
+    'no',
+    'only',
+    'own',
+    'same',
+    'so',
+    'than',
+    'too',
+    'very',
+    'can',
+    'will',
+    'just',
+    'should',
+    'could',
+    'would',
+    'about',
+    'over',
+    'again',
+    'way',
+    'how',
+    'its',
+    'who',
+    'may',
+    'get',
+    'him',
+    'has',
+    'her',
+    'his',
+    'how',
+    'our',
+    'out',
+    'see',
+    'she',
+    'than',
+    'their',
+    'them',
+    'then',
+    'there',
+    'these',
+    'they',
+    'think',
+    'time',
+    'very',
+    'when',
+    'more',
+    'more',
+    'most',
+    'some',
+    'them',
+    'then',
+    'than',
+    'only',
+    'new',
+    'now',
+    'say',
+    'see',
+    'she',
+    'should',
+    'so',
+    'take',
+    'than',
+    'that',
+    'their',
+    'them',
+    'then',
+    'there',
+    'these',
+    'they',
+    'thing',
+    'think',
+    'this',
+    'those',
+    'though',
+    'thought',
+    'three',
+    'through',
+    'thus',
+    'time',
+    'to',
+    'together',
+    'too',
+    'toward',
+    'turn',
+    'two',
+    'under',
+    'until',
+    'upon',
+    'us',
+    'use',
+    'used',
+    'using',
+    'various',
+    'very',
+    'via',
+    'want',
+    'was',
+    'way',
+    'we',
+    'well',
+    'went',
+    'were',
+    'what',
+    'when',
+    'where',
+    'whether',
+    'which',
+    'while',
+    'who',
+    'whole',
+    'whose',
+    'why',
+    'will',
+    'with',
+    'within',
+    'without',
+    'work',
+    'world',
+    'would',
+    'write',
+    'year',
+    'yes',
+    'yet',
+    'you',
+    'young',
+    'your',
   ]);
 
   return commonWords.has(word);
@@ -186,17 +340,20 @@ export function validateSessionData(data: {
     errors.push('Tags must be an array');
   }
 
-  if (data.tags?.some(tag => typeof tag !== 'string')) {
+  if (data.tags?.some((tag) => typeof tag !== 'string')) {
     errors.push('All tags must be strings');
   }
 
-  if (data.difficulty && !['easy', 'medium', 'hard', 'beginner', 'intermediate', 'advanced'].includes(data.difficulty)) {
+  if (
+    data.difficulty &&
+    !['easy', 'medium', 'hard', 'beginner', 'intermediate', 'advanced'].includes(data.difficulty)
+  ) {
     errors.push('Difficulty must be easy, medium, hard, beginner, intermediate, or advanced');
   }
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -218,12 +375,14 @@ export function estimateReadingTime(text: string): number {
  * @param messages - Array of messages
  * @returns Session statistics
  */
-export function generateSessionStatistics(messages: Array<{
-  role: string;
-  content: string;
-  timestamp: Date;
-  tokens_used?: number;
-}>): {
+export function generateSessionStatistics(
+  messages: Array<{
+    role: string;
+    content: string;
+    timestamp: Date;
+    tokens_used?: number;
+  }>,
+): {
   totalMessages: number;
   userMessages: number;
   assistantMessages: number;
@@ -231,8 +390,8 @@ export function generateSessionStatistics(messages: Array<{
   sessionDuration: number;
   averageResponseTime: number;
 } {
-  const userMessages = messages.filter(msg => msg.role === 'user').length;
-  const assistantMessages = messages.filter(msg => msg.role === 'assistant').length;
+  const userMessages = messages.filter((msg) => msg.role === 'user').length;
+  const assistantMessages = messages.filter((msg) => msg.role === 'assistant').length;
   const totalTokensUsed = messages.reduce((sum, msg) => sum + (msg.tokens_used || 0), 0);
 
   let sessionDuration = 0;
@@ -256,7 +415,8 @@ export function generateSessionStatistics(messages: Array<{
     }
   }
 
-  const averageResponseTime = responseCount > 0 ? Math.floor(totalResponseTime / responseCount / 1000) : 0;
+  const averageResponseTime =
+    responseCount > 0 ? Math.floor(totalResponseTime / responseCount / 1000) : 0;
 
   return {
     totalMessages: messages.length,
@@ -264,6 +424,6 @@ export function generateSessionStatistics(messages: Array<{
     assistantMessages,
     totalTokensUsed,
     sessionDuration,
-    averageResponseTime
+    averageResponseTime,
   };
 }

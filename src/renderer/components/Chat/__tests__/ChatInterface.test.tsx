@@ -1,33 +1,40 @@
-
 import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
+import { createMockConfig } from '@/test/utils/helpers/test-utils';
 import { ChatInterface } from '../ChatInterface';
+import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
 
 // Mock services provider
-const configServiceMock = createMockConfigurationService({
-  ai: {
-    model_types: {
-      chat: {
-        provider: 'openai',
-        model: 'gpt-4',
+const configServiceMock = createMockConfigurationService(
+  createMockConfig({
+    ai: {
+      model_types: {
+        chat: {
+          provider: 'openai',
+          model: 'gpt-4',
+        },
       },
     },
-  },
-});
+  }),
+);
 const fileServiceMock = createMockFileService();
 
 vi.mock('@/renderer/services/services-provider', () => ({
   useChatService: vi.fn(() => ({
-    sendMessage: vi.fn().mockResolvedValue({ id: 'test-msg', role: 'assistant', content: 'Test response' }),
-    sendMessageStream: vi.fn().mockResolvedValue({ id: 'test-msg', role: 'assistant', content: 'Test response' }),
+    sendMessage: vi
+      .fn()
+      .mockResolvedValue({ id: 'test-msg', role: 'assistant', content: 'Test response' }),
+    sendMessageStream: vi
+      .fn()
+      .mockResolvedValue({ id: 'test-msg', role: 'assistant', content: 'Test response' }),
     cancelExecution: vi.fn().mockResolvedValue(undefined),
     getSession: vi.fn().mockResolvedValue(null),
     createSession: vi.fn().mockResolvedValue('test-session-id'),
     updateSession: vi.fn().mockResolvedValue(true),
-    getAvailableAgents: vi.fn().mockResolvedValue([])
+    getAvailableAgents: vi.fn().mockResolvedValue([]),
   })),
   useSessionService: vi.fn(() => ({
     createNewSession: vi.fn().mockResolvedValue('test-session-id'),
@@ -67,7 +74,6 @@ vi.mock('@/renderer/hooks/useSessionInit', () => ({
   })),
 }));
 
-
 describe('ChatInterface - Basic Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,22 +83,29 @@ describe('ChatInterface - Basic Tests', () => {
     vi.clearAllMocks();
   });
 
+  const renderChatInterface = () =>
+    render(
+      <ChatStoreProvider>
+        <ChatInterface />
+      </ChatStoreProvider>,
+    );
+
   it('should render chat interface with empty state', async () => {
-    render(<ChatInterface />);
+    renderChatInterface();
 
     // Test passes if no error is thrown during rendering
     expect(screen.getByTestId('chat-area')).toBeInTheDocument();
   });
 
   it('should find input field and send button', async () => {
-    render(<ChatInterface />);
+    renderChatInterface();
 
     // The interface should render without errors
     expect(document.querySelector('[data-testid="chat-area"]')).toBeInTheDocument();
   });
 
   it('should handle send button click', async () => {
-    render(<ChatInterface />);
+    renderChatInterface();
 
     // Test passes if no error thrown
     expect(true).toBe(true);

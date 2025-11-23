@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { cn } from '@/renderer/utils/cn';
 
@@ -86,7 +83,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
         'bg-gray-200 dark:bg-gray-700',
         variantClasses[variant],
         animationClasses[animation],
-        className
+        className,
       )}
       style={style}
       {...props}
@@ -117,19 +114,18 @@ export const MessageSkeleton: React.FC<MessageSkeletonProps> = ({
   className,
   ...props
 }) => {
+  const { ['data-testid']: dataTestId, ...rest } = props as Record<string, unknown>;
+
   return (
     <div
       className={cn('flex gap-3 p-4', isUser && 'flex-row-reverse', className)}
-      data-testid={props['data-testid'] ?? `message-skeleton-${isUser ? 'user' : 'assistant'}`}
-      {...props}
+      data-testid={
+        (dataTestId as string | undefined) ?? `message-skeleton-${isUser ? 'user' : 'assistant'}`
+      }
+      {...(rest as React.HTMLAttributes<HTMLDivElement>)}
     >
       {/* Avatar skeleton */}
-      <Skeleton
-        variant="circular"
-        width={32}
-        height={32}
-        className="flex-shrink-0"
-      />
+      <Skeleton variant="circular" width={32} height={32} className="flex-shrink-0" />
 
       {/* Message content skeleton */}
       <div className={cn('flex-1 space-y-2', isUser && 'items-end')}>
@@ -173,7 +169,10 @@ export const ChatListSkeleton: React.FC<{ count?: number }> = ({ count = 5 }) =>
   return (
     <div className="space-y-2 p-2">
       {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+        <div
+          key={index}
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+        >
           <Skeleton variant="circular" width={40} height={40} />
           <div className="flex-1 min-w-0">
             <Skeleton width="60%" height={16} className="mb-1" />

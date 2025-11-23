@@ -8,7 +8,7 @@ describe('serializeIPCError', () => {
       type: 'CONFIG_ERROR',
       code: 'test.code',
       message: 'Setup is required',
-      needsSetup: true
+      needsSetup: true,
     });
 
     const structured = new IPCErrorException(payload);
@@ -31,7 +31,7 @@ describe('serializeIPCError', () => {
     const payload = createIPCError({
       type: 'SYSTEM_ERROR',
       code: 'custom.payload',
-      message: 'already structured'
+      message: 'already structured',
     });
 
     expect(serializeIPCError(payload, 'ignored')).toBe(payload);

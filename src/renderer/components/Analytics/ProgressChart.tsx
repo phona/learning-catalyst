@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 
 interface ProgressChartProps {
@@ -23,7 +20,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
   size = 'medium',
   showLabel = true,
   className = '',
-  animated = true
+  animated = true,
 }) => {
   const [displayPercentage, setDisplayPercentage] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -32,7 +29,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
   const sizeClasses = {
     small: 'w-20 h-20',
     medium: 'w-28 h-28',
-    large: 'w-36 h-36'
+    large: 'w-36 h-36',
   };
 
   const gradientColors = {
@@ -42,13 +39,13 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
     red: ['from-red-400', 'to-red-600', 'stroke-red-500'],
     purple: ['from-purple-400', 'to-purple-600', 'stroke-purple-500'],
     orange: ['from-orange-400', 'to-orange-600', 'stroke-orange-500'],
-    primary: ['from-primary-400', 'to-primary-600', 'stroke-primary-500']
+    primary: ['from-primary-400', 'to-primary-600', 'stroke-primary-500'],
   };
 
   const textSizeClasses = {
     small: 'text-lg',
     medium: 'text-xl',
-    large: 'text-2xl'
+    large: 'text-2xl',
   };
 
   const radius = size === 'small' ? 32 : size === 'medium' ? 44 : 56;
@@ -56,7 +53,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
   const strokeDashoffset = circumference - (displayPercentage / 100) * circumference;
   const [gradientId] = useState<string>(`gradient-${Math.random().toString(36).substr(2, 9)}`);
 
-  useEffect((): void => {
+  useEffect(() => {
     if (animated) {
       const timer = setTimeout(() => {
         setDisplayPercentage(percentage);
@@ -76,7 +73,9 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
       <div className={`relative ${sizeClasses[size]}`}>
         {/* Simple glow effect */}
         {displayPercentage > 0 && (
-          <div className={`absolute inset-0 rounded-full ${gradientColors[color as keyof typeof gradientColors]?.[0] || gradientColors.primary[0]} ${gradientColors[color as keyof typeof gradientColors]?.[1] || gradientColors.primary[1]} opacity-10 blur-lg`}></div>
+          <div
+            className={`absolute inset-0 rounded-full ${gradientColors[color as keyof typeof gradientColors]?.[0] || gradientColors.primary[0]} ${gradientColors[color as keyof typeof gradientColors]?.[1] || gradientColors.primary[1]} opacity-10 blur-lg`}
+          ></div>
         )}
 
         <svg className="relative transform -rotate-90 w-full h-full">
@@ -99,8 +98,16 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
           />
           <defs>
             <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="currentColor" className="text-gray-300 dark:text-gray-600" />
-              <stop offset="100%" stopColor="currentColor" className="text-gray-200 dark:text-gray-700" />
+              <stop
+                offset="0%"
+                stopColor="currentColor"
+                className="text-gray-300 dark:text-gray-600"
+              />
+              <stop
+                offset="100%"
+                stopColor="currentColor"
+                className="text-gray-200 dark:text-gray-700"
+              />
             </linearGradient>
           </defs>
 
@@ -114,7 +121,7 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
             className={`transition-all duration-1000 ease-out ${gradientColors[color as keyof typeof gradientColors]?.[2] || gradientColors.primary[2]}`}
             style={{
               strokeDasharray: circumference,
-              strokeDashoffset
+              strokeDashoffset,
             }}
             strokeLinecap="round"
             stroke="url(#gradient)"
@@ -123,7 +130,9 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
 
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <div className={`${textSizeClasses[size]} font-bold ${gradientColors[color as keyof typeof gradientColors]?.[2] || gradientColors.primary[2]}`}>
+          <div
+            className={`${textSizeClasses[size]} font-bold ${gradientColors[color as keyof typeof gradientColors]?.[2] || gradientColors.primary[2]}`}
+          >
             {Math.round(displayPercentage)}%
           </div>
 
@@ -131,22 +140,17 @@ export const ProgressChart: React.FC<ProgressChartProps> = ({
           {isComplete && (
             <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full"></div>
           )}
-
         </div>
-
       </div>
 
       {showLabel && (
         <div className="text-center mt-3">
-          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {title}
-          </div>
+          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</div>
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
             <span className="font-medium">{value}</span>
             <span className="mx-1 opacity-50">/</span>
             <span>{maxValue}</span>
           </div>
-
         </div>
       )}
     </div>
@@ -174,7 +178,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   className = '',
   animated = true,
   showGlow = false,
-  height = 'medium'
+  height = 'medium',
 }: ProgressBarProps) => {
   const [displayPercentage, setDisplayPercentage] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
@@ -187,16 +191,16 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     red: 'from-red-500 to-red-600',
     purple: 'from-purple-500 to-purple-600',
     orange: 'from-orange-500 to-orange-600',
-    primary: 'from-primary-500 to-primary-600'
+    primary: 'from-primary-500 to-primary-600',
   };
 
   const heightClasses = {
     small: 'h-2',
     medium: 'h-3',
-    large: 'h-4'
+    large: 'h-4',
   };
 
-  useEffect((): void => {
+  useEffect(() => {
     if (animated) {
       const timer = setTimeout(() => {
         setDisplayPercentage(percentage);
@@ -216,28 +220,29 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors duration-200">
             {title}
           </span>
-          {isComplete && (
-            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-          )}
+          {isComplete && <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>}
         </div>
         {showPercentage && (
-          <span className={`text-sm font-medium transition-all duration-300 ${
-            isComplete
-              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-              : 'text-primary-600 dark:text-primary-400'
-          }`}>
+          <span
+            className={`text-sm font-medium transition-all duration-300 ${
+              isComplete
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-primary-600 dark:text-primary-400'
+            }`}
+          >
             {Math.round(displayPercentage)}%
           </span>
         )}
       </div>
 
-      <div className={`relative w-full bg-gray-200 dark:bg-gray-700 rounded-full ${heightClasses[height]} overflow-hidden`}>
+      <div
+        className={`relative w-full bg-gray-200 dark:bg-gray-700 rounded-full ${heightClasses[height]} overflow-hidden`}
+      >
         {/* Progress bar with simple styling */}
         <div
           className={`h-full bg-gradient-to-r ${gradientColors[color as keyof typeof gradientColors] || gradientColors.primary} rounded-full transition-all duration-1000 ease-out ${showGlow && displayPercentage > 0 ? 'shadow-lg' : ''}`}
           style={{ width: `${displayPercentage}%` }}
-        >
-        </div>
+        ></div>
       </div>
     </div>
   );

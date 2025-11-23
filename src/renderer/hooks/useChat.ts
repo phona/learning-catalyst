@@ -1,6 +1,3 @@
-
-
-
 /**
  * Use Chat Hook - Simplified Chat Interface
  *
@@ -11,8 +8,11 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useChatService } from '@/renderer/services/services-provider';
-import type { ChatMessage, ChatStreamChunk } from '@/renderer/services/ChatService';
-import type { SessionInfo } from '@/renderer/services/interfaces/IAnalyticsService';
+import type { Message as ChatMessage, StreamChunk as BaseStreamChunk } from '@/shared/types/ai';
+import type { ChatService } from '@/renderer/services/chat/chat-service';
+import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+
+type ChatStreamChunk = BaseStreamChunk & { type?: string };
 
 export interface UseChatOptions {
   sessionId?: string;
@@ -27,14 +27,14 @@ export interface UseChatResult {
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
-  currentSession: SessionInfo | null;
+  currentSession: SessionDisplay | null;
 
   // Actions
   sendMessage: (content: string, options?: { agentId?: string }) => Promise<void>;
   sendMessageStream: (
     content: string,
     onChunk?: (chunk: ChatStreamChunk) => void,
-    options?: { agentId?: string }
+    options?: { agentId?: string },
   ) => Promise<void>;
   stopStreaming: () => Promise<void>;
   clearMessages: () => void;
@@ -56,37 +56,40 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentSession, setCurrentSession] = useState<any | null>(null);
+  const [currentSession, setCurrentSession] = useState<SessionDisplay | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(options.agentId ?? null);
 
   const streamingExecutionRef = useRef<string | null>(null);
   const chatService = useChatService();
 
   // Load session by ID - define before useEffect to fix dependency issue
-  const loadSession = useCallback(async (sessionId: string) => {
-    if (!chatService) return;
-    
-    try {
-      setIsLoading(true);
-      setError(null);
+  const loadSession = useCallback(
+    async (sessionId: string) => {
+      if (!chatService) return;
 
-      const session = await chatService.getSession ? await chatService.getSession(sessionId) : null;
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      if (session) {
-        setCurrentSession(session);
-        // Messages would need to be loaded separately
-        setMessages([]);
-      } else {
-        setError('Session not found');
+        const session = chatService.getSession ? await chatService.getSession(sessionId) : null;
+
+        if (session) {
+          setCurrentSession(session);
+          // Messages would need to be loaded separately
+          setMessages([]);
+        } else {
+          setError('Session not found');
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load session';
+        setError(errorMessage);
+        options.onError?.(new Error(errorMessage));
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load session';
-      setError(errorMessage);
-      options.onError?.(new Error(errorMessage));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [chatService, options.onError]);
+    },
+    [chatService, options.onError],
+  );
 
   // Load initial session if provided
   useEffect(() => {
@@ -96,125 +99,138 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
   }, [options.sessionId, chatService, loadSession]);
 
   // Send a simple message
-  const sendMessage = useCallback(async (
-    content: string,
-    sendOptions: { agentId?: string } = {}
-  ) => {
-    if (!chatService) return;
-    
-    try {
-      setIsLoading(true);
-      setError(null);
+  const sendMessage = useCallback(
+    async (content: string, sendOptions: { agentId?: string } = {}) => {
+      if (!chatService) return;
 
-      // Add user message to local state
-      const userMessage: ChatMessage = {
-        id: `user_${Date.now()}`,
-        role: 'user',
-        content,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, userMessage]);
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      // Send message using chat service
-      const response = await chatService.sendMessage(content, {
-        sessionId: currentSession?.id ?? options.sessionId,
-        agentId: sendOptions.agentId ?? selectedAgent ?? undefined
-      });
+        // Add user message to local state
+        const userMessage: ChatMessage = {
+          id: `user_${Date.now()}`,
+          role: 'user',
+          content,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, userMessage]);
 
-      // Add assistant message to local state
-      setMessages(prev => [...prev, response]);
-      options.onMessage?.(response);
+        // Send message using chat service
+        const response = await chatService.sendMessage(
+          content,
+          {
+            sessionId: currentSession?.id ?? options.sessionId,
+            agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
+          },
+        );
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
-      setError(errorMessage);
-      options.onError?.(new Error(errorMessage));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [chatService, currentSession, options.sessionId, selectedAgent, options.onMessage, options.onError]);
+        // Add assistant message to local state
+        setMessages((prev) => [...prev, response]);
+        options.onMessage?.(response);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+        setError(errorMessage);
+        options.onError?.(new Error(errorMessage));
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      chatService,
+      currentSession,
+      options.sessionId,
+      selectedAgent,
+      options.onMessage,
+      options.onError,
+    ],
+  );
 
   // Send a message with streaming response
-  const sendMessageStream = useCallback(async (
-    content: string,
-    onChunk?: (chunk: ChatStreamChunk) => void,
-    sendOptions: { agentId?: string } = {}
-  ) => {
-    if (!chatService) return;
-    
-    try {
-      setIsLoading(true);
-      setIsStreaming(true);
-      setError(null);
+  const sendMessageStream = useCallback(
+    async (
+      content: string,
+      onChunk?: (chunk: ChatStreamChunk) => void,
+      sendOptions: { agentId?: string } = {},
+    ) => {
+      if (!chatService) return;
 
-      // Add user message to local state
-      const userMessage: ChatMessage = {
-        id: `user_${Date.now()}`,
-        role: 'user',
-        content,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, userMessage]);
+      try {
+        setIsLoading(true);
+        setIsStreaming(true);
+        setError(null);
 
-      // Create a placeholder assistant message for streaming
-      const assistantMessageId = `assistant_${Date.now()}`;
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+        // Add user message to local state
+        const userMessage: ChatMessage = {
+          id: `user_${Date.now()}`,
+          role: 'user',
+          content,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, userMessage]);
 
-      let streamingContent = '';
+        // Create a placeholder assistant message for streaming
+        const assistantMessageId = `assistant_${Date.now()}`;
+        const assistantMessage: ChatMessage = {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
 
-      // Send streaming message using chat service
-      const response = await chatService.sendMessageStream(
-        content,
-        (chunk: ChatStreamChunk) => {
-          // Update streaming content
-          if (chunk.type === 'content') {
-            streamingContent += chunk.content;
+        let streamingContent = '';
 
-            // Update the assistant message in local state
-            setMessages(prev => prev.map(msg =>
-              msg.id === assistantMessageId
-                ? { ...msg, content: streamingContent }
-                : msg
-            ));
-          }
+        // Send streaming message using chat service
+        const response = await chatService.sendMessageStream(
+          content,
+          (chunk: ChatStreamChunk) => {
+            if (chunk.type === 'content' && chunk.content) {
+              streamingContent += chunk.content;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessageId ? { ...msg, content: streamingContent } : msg,
+                ),
+              );
+            }
+            onChunk?.(chunk);
+          },
+          {
+            sessionId: currentSession?.id ?? options.sessionId,
+            agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
+          },
+        );
 
-          // Call external chunk handler
-          onChunk?.(chunk);
-        },
-        {
-          sessionId: currentSession?.id ?? options.sessionId,
-          agentId: sendOptions.agentId ?? selectedAgent ?? undefined
-        }
-      );
+        // Update the final assistant message
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId ? { ...msg, content: response.content } : msg,
+          ),
+        );
 
-      // Update the final assistant message
-      setMessages(prev => prev.map(msg =>
-        msg.id === assistantMessageId
-          ? { ...msg, content: response.content }
-          : msg
-      ));
-
-      options.onMessage?.(response);
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
-      setError(errorMessage);
-      options.onError?.(new Error(errorMessage));
-    } finally {
-      setIsLoading(false);
-      setIsStreaming(false);
-    }
-  }, [chatService, currentSession, options.sessionId, selectedAgent, options.onMessage, options.onError]);
+        options.onMessage?.(response);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+        setError(errorMessage);
+        options.onError?.(new Error(errorMessage));
+      } finally {
+        setIsLoading(false);
+        setIsStreaming(false);
+      }
+    },
+    [
+      chatService,
+      currentSession,
+      options.sessionId,
+      selectedAgent,
+      options.onMessage,
+      options.onError,
+    ],
+  );
 
   // Stop streaming
   const stopStreaming = useCallback(async () => {
-    if (streamingExecutionRef.current && chatService) {
+    if (streamingExecutionRef.current && chatService?.cancelExecution) {
       try {
         await chatService.cancelExecution(streamingExecutionRef.current);
         streamingExecutionRef.current = null;
@@ -232,45 +248,55 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
   }, []);
 
   // Create new session
-  const createSession = useCallback(async (title: string, description?: string) => {
-    try {
-      const sessionId = await chatService.createSession ? await chatService.createSession(title, { description }) : null;
+  const createSession = useCallback(
+    async (title: string, description?: string) => {
+      try {
+        const sessionId = chatService.createSession
+          ? await chatService.createSession(title, { description })
+          : null;
 
-      if (sessionId) {
-        // Load the newly created session
-        await loadSession(sessionId);
+        if (sessionId) {
+          // Load the newly created session
+          await loadSession(sessionId);
+        }
+
+        return sessionId;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
+        setError(errorMessage);
+        options.onError?.(new Error(errorMessage));
+        return null;
       }
-
-      return sessionId;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
-      setError(errorMessage);
-      options.onError?.(new Error(errorMessage));
-      return null;
-    }
-  }, [loadSession, options.onError]);
+    },
+    [loadSession, options.onError],
+  );
 
   // Update session title
-  const updateSessionTitle = useCallback(async (title: string) => {
-    if (!currentSession) return;
+  const updateSessionTitle = useCallback(
+    async (title: string) => {
+      if (!currentSession) return;
 
-    try {
-      const success = await chatService.updateSession ? await chatService.updateSession(currentSession.id, { title }) : false;
+      try {
+        const success = chatService.updateSession
+          ? await chatService.updateSession(currentSession.id, { title })
+          : false;
 
-      if (success) {
-        setCurrentSession((prev: SessionInfo | null) => prev ? { ...prev, title } : null);
+        if (success) {
+          setCurrentSession((prev: SessionDisplay | null) => (prev ? { ...prev, title } : null));
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to update session';
+        setError(errorMessage);
+        options.onError?.(new Error(errorMessage));
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update session';
-      setError(errorMessage);
-      options.onError?.(new Error(errorMessage));
-    }
-  }, [currentSession, options.onError]);
+    },
+    [currentSession, options.onError],
+  );
 
   // Get available agents
   const getAvailableAgents = useCallback(async () => {
     try {
-      return await chatService.getAvailableAgents();
+      return chatService.getAvailableAgents ? await chatService.getAvailableAgents() : [];
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get agents';
       setError(errorMessage);
@@ -302,6 +328,6 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
     // Agent management
     getAvailableAgents,
     setSelectedAgent,
-    selectedAgent
+    selectedAgent,
   };
 }

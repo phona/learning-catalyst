@@ -1,6 +1,9 @@
 import { ipcMain, MessageChannelMain } from 'electron';
 import type { ChatService } from '@/main/services/domain/chat/chat-service';
-import type { PracticeService, PracticePlan } from '@/main/services/domain/practice/practice-service';
+import type {
+  PracticeService,
+  PracticePlan,
+} from '@/main/services/domain/practice/practice-service';
 import { ILogger } from '../services/types';
 import type {
   AgentDisplay,
@@ -11,7 +14,7 @@ import type {
   PracticeOpportunity,
   PracticeOpportunityResult,
   UserLearningContext,
-  ChatAPI
+  ChatAPI,
 } from '@/shared/types/electron-api/chat-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 
@@ -26,7 +29,10 @@ type SendMessageParams = Parameters<ChatAPI['sendMessage']>[0];
 type CheckPracticeParams = Parameters<ChatAPI['checkPracticeOpportunity']>[0];
 type GetPracticeSuggestionParams = Parameters<ChatAPI['getPracticeSuggestion']>[0];
 
-const buildAgentDisplay = (agentType: string, status: ConversationDisplay['status']): AgentDisplay => ({
+const buildAgentDisplay = (
+  agentType: string,
+  status: ConversationDisplay['status'],
+): AgentDisplay => ({
   id: agentType,
   type: agentType as AgentDisplay['type'],
   name: `${agentType.charAt(0).toUpperCase() + agentType.slice(1)} Guide`,
@@ -38,8 +44,8 @@ const buildAgentDisplay = (agentType: string, status: ConversationDisplay['statu
   category: 'learning',
   stats: {
     sessionsCount: 120,
-    avgRating: 4.8
-  }
+    avgRating: 4.8,
+  },
 });
 
 const toMessageDisplay = (message: {
@@ -58,10 +64,12 @@ const toMessageDisplay = (message: {
   timestamp: message.timestamp,
   relativeTime: 'just now',
   metadata: message.metadata,
-  attachments: (message.metadata?.attachments as MessageDisplay['attachments']) ?? []
+  attachments: (message.metadata?.attachments as MessageDisplay['attachments']) ?? [],
 });
 
-const toConversationDisplay = (conversation: Awaited<ReturnType<ChatService['getConversation']>>): ConversationDisplay => {
+const toConversationDisplay = (
+  conversation: Awaited<ReturnType<ChatService['getConversation']>>,
+): ConversationDisplay => {
   const messages = conversation?.messages.map(toMessageDisplay) ?? [];
   const status = (conversation?.status === 'closed' ? 'ended' : conversation?.status) ?? 'active';
   return {
@@ -75,23 +83,25 @@ const toConversationDisplay = (conversation: Awaited<ReturnType<ChatService['get
     metadata: {
       totalMessages: messages.length,
       duration: '0m',
-      lastActivity: 'just now'
-    }
+      lastActivity: 'just now',
+    },
   };
 };
 
-const buildHistory = (conversation: Awaited<ReturnType<ChatService['getConversation']>>): ConversationHistory => ({
+const buildHistory = (
+  conversation: Awaited<ReturnType<ChatService['getConversation']>>,
+): ConversationHistory => ({
   conversationId: conversation?.id ?? 'unknown',
   messages: conversation?.messages.map(toMessageDisplay) ?? [],
   pagination: {
     hasMore: false,
-    total: conversation?.messages.length ?? 0
+    total: conversation?.messages.length ?? 0,
   },
   summary: {
     totalMessages: conversation?.messages.length ?? 0,
     timeSpan: 'current session',
-    keyTopics: [conversation?.topic ?? 'General']
-  }
+    keyTopics: [conversation?.topic ?? 'General'],
+  },
 });
 
 const detectPracticeOpportunity = (content: string): PracticeOpportunityResult => {
@@ -106,13 +116,15 @@ const detectPracticeOpportunity = (content: string): PracticeOpportunityResult =
     confidence,
     timing: hasPracticeCue ? 'immediate' : 'soon',
     concept,
-    reasoning: hasPracticeCue ? 'User explicitly asked to practice' : 'Conversation hints at a learning moment',
+    reasoning: hasPracticeCue
+      ? 'User explicitly asked to practice'
+      : 'Conversation hints at a learning moment',
     detectedFrom: [hasPracticeCue ? 'keyword-match' : 'question-detection'],
     practiceReadiness: Math.min(1, confidence),
     suggestedTopics: [concept],
     naturalPrompt: `Let me help you practice ${concept}`,
     estimatedTime: 15,
-    difficulty: 'medium'
+    difficulty: 'medium',
   };
 
   return {
@@ -121,14 +133,14 @@ const detectPracticeOpportunity = (content: string): PracticeOpportunityResult =
     shouldSuggest: hasPracticeCue || hasQuestion,
     reason: hasPracticeCue ? 'Practice intent detected' : 'Curiosity detected via questions',
     timing: hasPracticeCue ? 'immediate' : 'wait',
-    confidence: hasPracticeCue ? Math.min(1, confidence + 0.1) : confidence
+    confidence: hasPracticeCue ? Math.min(1, confidence + 0.1) : confidence,
   };
 };
 
 const buildPracticeSuggestion = (
   plan: PracticePlan,
   opportunity?: PracticeOpportunity,
-  userContext?: UserLearningContext
+  userContext?: UserLearningContext,
 ): NaturalPracticeSuggestion => {
   const focusConcept = plan.focusConcepts[0] ?? opportunity?.concept ?? 'this topic';
   const baseChallenge = plan.exercises.map((exercise) => exercise.title).join(' ? ');
@@ -144,9 +156,9 @@ const buildPracticeSuggestion = (
     introduction = `Would you like to explore ${focusConcept} together?`;
   }
   const options = {
-    accept: feedbackStyle === 'direct' ? "I'm ready, let's do this" : 'Yes, let\'s do it',
+    accept: feedbackStyle === 'direct' ? "I'm ready, let's do this" : "Yes, let's do it",
     decline: 'Maybe later',
-    postpone: 'Remind me in a bit'
+    postpone: 'Remind me in a bit',
   };
 
   return {
@@ -160,44 +172,50 @@ const buildPracticeSuggestion = (
     vibe,
     timing: {
       when: opportunity?.timing === 'immediate' ? 'right now' : 'soon',
-      urgency: opportunity?.timing === 'immediate' ? 'high' : 'medium'
+      urgency: opportunity?.timing === 'immediate' ? 'high' : 'medium',
     },
     options,
     metadata: {
       concept: focusConcept,
       relatedTopics: plan.focusConcepts,
       prerequisites: [focusConcept],
-      nextSteps: plan.suggestions
-    }
+      nextSteps: plan.suggestions,
+    },
   };
 };
 
 export const setupChatHandlers = (
   ipcMainInstance: typeof ipcMain,
-  services: ChatHandlersDeps
+  services: ChatHandlersDeps,
 ): void => {
   const handlerLogger = services.loggerService.child({ handler: 'chat' });
   const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
     success: true,
     data,
-    metadata
+    metadata,
   });
   const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
     success: false,
-    error: { code, message, details }
+    error: { code, message, details },
   });
 
-  ipcMainInstance.handle('chat:start-conversation', async (_event, params: StartConversationParams) => {
-    handlerLogger.info('Starting new conversation', { agentType: params.agentType, topic: params.topic });
-    const conversation = await services.chatService.createConversation({
-      title: params.topic ?? 'New conversation',
-      agentType: params.agentType,
-      topic: params.topic,
-      preferences: params.preferences
-    });
-    const display = toConversationDisplay(conversation);
-    return ok(display);
-  });
+  ipcMainInstance.handle(
+    'chat:start-conversation',
+    async (_event, params: StartConversationParams) => {
+      handlerLogger.info('Starting new conversation', {
+        agentType: params.agentType,
+        topic: params.topic,
+      });
+      const conversation = await services.chatService.createConversation({
+        title: params.topic ?? 'New conversation',
+        agentType: params.agentType,
+        topic: params.topic,
+        preferences: params.preferences,
+      });
+      const display = toConversationDisplay(conversation);
+      return ok(display);
+    },
+  );
 
   ipcMainInstance.handle('chat:send-message', async (_event, params: SendMessageParams) => {
     handlerLogger.info('Sending chat message', { conversationId: params.conversationId });
@@ -205,11 +223,13 @@ export const setupChatHandlers = (
       conversationId: params.conversationId,
       role: 'user',
       content: params.message,
-      attachments: params.attachments
+      attachments: params.attachments,
     });
     const payload = {
       userMessage: toMessageDisplay(result.userMessage),
-      assistantMessage: result.assistantMessage ? toMessageDisplay(result.assistantMessage) : undefined
+      assistantMessage: result.assistantMessage
+        ? toMessageDisplay(result.assistantMessage)
+        : undefined,
     };
     return ok(payload);
   });
@@ -223,7 +243,7 @@ export const setupChatHandlers = (
       const { stream } = await services.chatService.streamAssistantResponse({
         conversationId: params.conversationId,
         content: params.message,
-        attachments: params.attachments
+        attachments: params.attachments,
       });
       for await (const chunk of stream) {
         channel.port2.postMessage({ type: 'chat:chunk', chunk });
@@ -233,7 +253,7 @@ export const setupChatHandlers = (
       handlerLogger.error('Chat stream failed', error);
       channel.port2.postMessage({
         type: 'chat:error',
-        error: error instanceof Error ? error.message : 'Unknown streaming error'
+        error: error instanceof Error ? error.message : 'Unknown streaming error',
       });
     } finally {
       channel.port2.close();
@@ -274,32 +294,45 @@ export const setupChatHandlers = (
       keyTopics: [],
       duration: '0m',
       messageCount: 0,
-      suggestedFollowUps: []
+      suggestedFollowUps: [],
     };
     return ok(summary);
   });
 
-  ipcMainInstance.handle('chat:check-practice-opportunity', async (_event, params: CheckPracticeParams) => {
-    handlerLogger.info('Checking practice opportunity', { conversationId: params.conversationId });
-    const result = detectPracticeOpportunity(params.userMessage);
-    return ok(result);
-  });
+  ipcMainInstance.handle(
+    'chat:check-practice-opportunity',
+    async (_event, params: CheckPracticeParams) => {
+      handlerLogger.info('Checking practice opportunity', {
+        conversationId: params.conversationId,
+      });
+      const result = detectPracticeOpportunity(params.userMessage);
+      return ok(result);
+    },
+  );
 
-  ipcMainInstance.handle('chat:get-practice-suggestion', async (_event, params: GetPracticeSuggestionParams) => {
-    handlerLogger.info('Generating practice suggestion', { conversationId: params.conversationId });
-    const detection = detectPracticeOpportunity(params.userMessage);
-    if (!detection.opportunity) {
-      return fail('chat.practice_missing_opportunity', 'Practice opportunity required before requesting a suggestion');
-    }
+  ipcMainInstance.handle(
+    'chat:get-practice-suggestion',
+    async (_event, params: GetPracticeSuggestionParams) => {
+      handlerLogger.info('Generating practice suggestion', {
+        conversationId: params.conversationId,
+      });
+      const detection = detectPracticeOpportunity(params.userMessage);
+      if (!detection.opportunity) {
+        return fail(
+          'chat.practice_missing_opportunity',
+          'Practice opportunity required before requesting a suggestion',
+        );
+      }
 
-    const plan = await services.practiceService.generatePracticePlan({
-      topic: detection.opportunity.concept,
-      content: detection.opportunity.reasoning,
-      difficulty: detection.opportunity.difficulty ?? 'medium',
-      count: params.userContext?.preferences.practiceFrequency === 'high' ? 5 : 3,
-      userId: params.userContext?.id
-    });
-    const suggestion = buildPracticeSuggestion(plan, detection.opportunity, params.userContext);
-    return ok(suggestion);
-  });
+      const plan = await services.practiceService.generatePracticePlan({
+        topic: detection.opportunity.concept,
+        content: detection.opportunity.reasoning,
+        difficulty: detection.opportunity.difficulty ?? 'medium',
+        count: params.userContext?.preferences.practiceFrequency === 'high' ? 5 : 3,
+        userId: params.userContext?.id,
+      });
+      const suggestion = buildPracticeSuggestion(plan, detection.opportunity, params.userContext);
+      return ok(suggestion);
+    },
+  );
 };

@@ -2,15 +2,19 @@
 
 ## Variables and Data Types
 
-In Python, variables are containers for storing data values. Unlike other programming languages, Python has no command for declaring a variable. A variable is created the moment you first assign a value to it.
+In Python, variables are containers for storing data values. Unlike other programming languages,
+Python has no command for declaring a variable. A variable is created the moment you first assign a
+value to it.
 
 ### Example:
+
 ```python
 x = 5
 y = "Hello, World!"
 ```
 
 ### Data Types:
+
 - **Text Type**: str
 - **Numeric Types**: int, float, complex
 - **Sequence Types**: list, tuple, range
@@ -22,6 +26,7 @@ y = "Hello, World!"
 ## Control Flow
 
 ### If Statements
+
 ```python
 if x > 0:
     print("Positive")
@@ -32,6 +37,7 @@ else:
 ```
 
 ### Loops
+
 ```python
 for i in range(5):
     print(i)
@@ -58,6 +64,7 @@ return_value = my_function_with_args("Alice")
 ## Lists and Dictionaries
 
 ### Lists
+
 ```python
 my_list = [1, 2, 3, 4, 5]
 my_list.append(6)
@@ -65,6 +72,7 @@ my_list[0] = 0
 ```
 
 ### Dictionaries
+
 ```python
 my_dict = {"name": "Alice", "age": 25}
 my_dict["city"] = "New York"

@@ -85,11 +85,11 @@ export interface ConfidenceScoring {
     behavioral: number; // 0-1
   };
   breakdown: {
-    keywordMatches: Array<{keyword: string; confidence: number; weight: number}>;
-    phrasePatterns: Array<{phrase: string; confidence: number; weight: number}>;
-    sentimentAnalysis: {score: number; confidence: number};
-    engagementMetrics: {level: number; consistency: number};
-    timingFactors: {optimal: boolean; recency: number};
+    keywordMatches: Array<{ keyword: string; confidence: number; weight: number }>;
+    phrasePatterns: Array<{ phrase: string; confidence: number; weight: number }>;
+    sentimentAnalysis: { score: number; confidence: number };
+    engagementMetrics: { level: number; consistency: number };
+    timingFactors: { optimal: boolean; recency: number };
   };
 }
 
@@ -161,14 +161,18 @@ export const VIBE_PATTERNS: Record<VibeType, VibePattern[]> = {
         { type: 'keyword', pattern: 'got it', weight: 0.8 },
         { type: 'keyword', pattern: 'understand', weight: 0.7 },
         { type: 'keyword', pattern: 'makes sense', weight: 0.8 },
-        { type: 'phrase', pattern: /\b(I get|that makes|now I see|clear now|understood)\b/i, weight: 0.9 },
-        { type: 'sentiment', pattern: 'positive', weight: 0.5 }
+        {
+          type: 'phrase',
+          pattern: /\b(I get|that makes|now I see|clear now|understood)\b/i,
+          weight: 0.9,
+        },
+        { type: 'sentiment', pattern: 'positive', weight: 0.5 },
       ],
       conditions: {
         minConfidence: 0.6,
-        minMessages: 2
-      }
-    }
+        minMessages: 2,
+      },
+    },
   ],
   confused: [
     {
@@ -180,14 +184,18 @@ export const VIBE_PATTERNS: Record<VibeType, VibePattern[]> = {
         { type: 'keyword', pattern: 'confused', weight: 0.9 },
         { type: 'keyword', pattern: "don't understand", weight: 0.8 },
         { type: 'keyword', pattern: 'unclear', weight: 0.7 },
-        { type: 'phrase', pattern: /\b(I don't|not sure|what do you mean|can you explain|why does)\b/i, weight: 0.8 },
-        { type: 'sentiment', pattern: 'negative', weight: 0.4 }
+        {
+          type: 'phrase',
+          pattern: /\b(I don't|not sure|what do you mean|can you explain|why does)\b/i,
+          weight: 0.8,
+        },
+        { type: 'sentiment', pattern: 'negative', weight: 0.4 },
       ],
       conditions: {
         minConfidence: 0.6,
-        minMessages: 1
-      }
-    }
+        minMessages: 1,
+      },
+    },
   ],
   breakthrough: [
     {
@@ -199,14 +207,18 @@ export const VIBE_PATTERNS: Record<VibeType, VibePattern[]> = {
         { type: 'keyword', pattern: 'aha', weight: 0.9 },
         { type: 'keyword', pattern: 'finally', weight: 0.8 },
         { type: 'keyword', pattern: 'eureka', weight: 0.9 },
-        { type: 'phrase', pattern: /\b(oh I see|now I get it|that clicks|suddenly|it hits me)\b/i, weight: 0.9 },
-        { type: 'sentiment', pattern: 'excited', weight: 0.7 }
+        {
+          type: 'phrase',
+          pattern: /\b(oh I see|now I get it|that clicks|suddenly|it hits me)\b/i,
+          weight: 0.9,
+        },
+        { type: 'sentiment', pattern: 'excited', weight: 0.7 },
       ],
       conditions: {
         minConfidence: 0.7,
-        minMessages: 2
-      }
-    }
+        minMessages: 2,
+      },
+    },
   ],
   practicing: [
     {
@@ -219,13 +231,13 @@ export const VIBE_PATTERNS: Record<VibeType, VibePattern[]> = {
         { type: 'keyword', pattern: 'working on', weight: 0.7 },
         { type: 'keyword', pattern: 'implement', weight: 0.8 },
         { type: 'phrase', pattern: /\b(let me|I'll try|how do I|can I implement)\b/i, weight: 0.7 },
-        { type: 'timing', pattern: 'active', weight: 0.5 }
+        { type: 'timing', pattern: 'active', weight: 0.5 },
       ],
       conditions: {
         minConfidence: 0.5,
-        minMessages: 1
-      }
-    }
+        minMessages: 1,
+      },
+    },
   ],
   misunderstanding: [
     {
@@ -236,15 +248,19 @@ export const VIBE_PATTERNS: Record<VibeType, VibePattern[]> = {
       patterns: [
         { type: 'keyword', pattern: 'wrong', weight: 0.8 },
         { type: 'keyword', pattern: 'error', weight: 0.7 },
-        { type: 'phrase', pattern: /\b(I thought|but isn't|shouldn't it|that doesn't make sense)\b/i, weight: 0.8 },
-        { type: 'sentiment', pattern: 'frustrated', weight: 0.6 }
+        {
+          type: 'phrase',
+          pattern: /\b(I thought|but isn't|shouldn't it|that doesn't make sense)\b/i,
+          weight: 0.8,
+        },
+        { type: 'sentiment', pattern: 'frustrated', weight: 0.6 },
       ],
       conditions: {
         minConfidence: 0.6,
-        minMessages: 2
-      }
-    }
-  ]
+        minMessages: 2,
+      },
+    },
+  ],
 };
 
 // Confidence calculation weights
@@ -252,7 +268,7 @@ export const CONFIDENCE_WEIGHTS = {
   keywordMatch: 0.4,
   phraseMatch: 0.3,
   sentiment: 0.2,
-  timing: 0.1
+  timing: 0.1,
 };
 
 // Vibe transition patterns (what vibes can logically follow others)
@@ -261,5 +277,5 @@ export const VALID_VIBE_TRANSITIONS: Record<VibeType, VibeType[]> = {
   confused: ['understanding', 'breakthrough', 'misunderstanding'],
   breakthrough: ['practicing', 'understanding'],
   practicing: ['understanding', 'confused', 'breakthrough', 'misunderstanding'],
-  misunderstanding: ['confused', 'understanding']
+  misunderstanding: ['confused', 'understanding'],
 };

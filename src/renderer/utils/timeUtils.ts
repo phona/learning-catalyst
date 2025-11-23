@@ -27,7 +27,7 @@ export function formatTimestamp(timestamp?: Date | string | number): string {
   if (isNaN(date.getTime())) {
     return '';
   }
-  return format(date, 'h:mm a');  // e.g., "2:30 PM"
+  return format(date, 'h:mm a'); // e.g., "2:30 PM"
 }
 
 /**

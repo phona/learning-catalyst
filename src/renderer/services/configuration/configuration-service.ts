@@ -36,14 +36,16 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   /**
    * Get configuration value
    */
-  const getConfiguration = async (key?: string): Promise<ConfigurationValue | Record<string, ConfigurationValue>> => {
+  const getConfiguration = async (
+    key?: string,
+  ): Promise<ConfigurationValue | Record<string, ConfigurationValue>> => {
     // Mock implementation for testing
     if (key) {
       const mockValue: ConfigurationValue = {
         key,
         value: key === 'ai.provider' ? 'openai' : 'default_value',
         dataType: 'string',
-        lastModified: new Date()
+        lastModified: new Date(),
       };
       return mockValue;
     }
@@ -54,14 +56,14 @@ export function createConfigurationService(apiClient: ElectronAPI) {
         key: 'ai.provider',
         value: 'openai',
         dataType: 'string',
-        lastModified: new Date()
+        lastModified: new Date(),
       },
       'ai.model': {
         key: 'ai.model',
         value: 'gpt-3.5-turbo',
         dataType: 'string',
-        lastModified: new Date()
-      }
+        lastModified: new Date(),
+      },
     };
 
     return allConfig;
@@ -70,14 +72,18 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   /**
    * Set configuration value
    */
-  const setConfiguration = async (key: string, value: unknown, dataType?: string): Promise<boolean> => {
+  const setConfiguration = async (
+    key: string,
+    value: unknown,
+    dataType?: string,
+  ): Promise<boolean> => {
     try {
       // Mock implementation for testing
       const configValue: ConfigurationValue = {
         key,
         value,
         dataType: (dataType as any) || typeof value,
-        lastModified: new Date()
+        lastModified: new Date(),
       };
 
       cache.set(key, configValue);
@@ -115,7 +121,10 @@ export function createConfigurationService(apiClient: ElectronAPI) {
             showProgressIndicators: config.ui?.show_token_usage,
           },
           learning: {
-            preferredDifficulty: config.learning?.difficulty === 'adaptive' ? 'intermediate' : config.learning?.difficulty,
+            preferredDifficulty:
+              config.learning?.difficulty === 'adaptive'
+                ? 'intermediate'
+                : config.learning?.difficulty,
             learningStyle: config.learning?.learning_style,
           },
           privacy: {
@@ -158,17 +167,16 @@ export function createConfigurationService(apiClient: ElectronAPI) {
    */
   const updateModelTypeConfig = async (
     modelType: ModelType,
-    modelConfig: SelectedModel | ModelTypeConfig
+    modelConfig: SelectedModel | ModelTypeConfig,
   ): Promise<void> => {
     // Normalize input to SelectedModel
-    const normalized: SelectedModel = (
+    const normalized: SelectedModel =
       (modelConfig as any).provider && (modelConfig as any).model
-    )
-      ? { provider: (modelConfig as any).provider, model: (modelConfig as any).model }
-      : {
-        provider: (modelConfig as any).default_provider ?? '',
-        model: (modelConfig as any).default_model ?? '',
-      };
+        ? { provider: (modelConfig as any).provider, model: (modelConfig as any).model }
+        : {
+            provider: (modelConfig as any).default_provider ?? '',
+            model: (modelConfig as any).default_model ?? '',
+          };
 
     if (!normalized.provider || !normalized.model) {
       throw new Error('Provider and model are required to update model type configuration');
@@ -203,18 +211,18 @@ export function createConfigurationService(apiClient: ElectronAPI) {
         provider: 'openai',
         model: 'gpt-3.5-turbo',
         temperature: 0.7,
-        maxTokens: 2048
+        maxTokens: 2048,
       },
       ui: {
         theme: 'dark',
         language: 'en',
-        fontSize: 14
+        fontSize: 14,
       },
       learning: {
         dailyGoal: 60, // minutes
         reminderEnabled: true,
-        autoSave: true
-      }
+        autoSave: true,
+      },
     };
 
     return sections[section] || {};
@@ -258,7 +266,10 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   /**
    * Import configuration
    */
-  const importConfiguration = async (configData: string, format: 'json' = 'json'): Promise<boolean> => {
+  const importConfiguration = async (
+    configData: string,
+    format: 'json' = 'json',
+  ): Promise<boolean> => {
     try {
       if (format === 'json') {
         const config = JSON.parse(configData);
@@ -287,7 +298,7 @@ export function createConfigurationService(apiClient: ElectronAPI) {
       'ai.temperature': (v) => typeof v === 'number' && v >= 0 && v <= 2,
       'ai.maxTokens': (v) => typeof v === 'number' && v > 0,
       'ui.fontSize': (v) => typeof v === 'number' && v >= 8 && v <= 32,
-      'learning.dailyGoal': (v) => typeof v === 'number' && v > 0
+      'learning.dailyGoal': (v) => typeof v === 'number' && v > 0,
     };
 
     const validator = validations[key];
@@ -314,13 +325,16 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   const validateProvider = async (
     providerType: string,
     apiKey: string,
-    baseUrl?: string
+    baseUrl?: string,
   ): Promise<ProviderValidationResult> => {
     try {
       // Get available providers from settings API
       const response = await apiClient.settings.getAvailableProviders();
-      const providers = response.providers || [];
-      const provider = providers.find(p => p.id === providerType);
+      if (!response.success || !response.data) {
+        return { success: false, error: 'Provider list unavailable' };
+      }
+      const providers = response.data.providers || [];
+      const provider = providers.find((p) => p.id === providerType);
 
       if (!provider) {
         return { success: false, error: `Unknown provider: ${providerType}` };
@@ -350,20 +364,23 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   const getProviderModels = async (
     providerType: string,
     apiKey: string,
-    baseUrl?: string
+    baseUrl?: string,
   ): Promise<string[]> => {
     try {
       // Get available providers from settings API
       const response = await apiClient.settings.getAvailableProviders();
-      const providers = response.providers || [];
-      const provider = providers.find(p => p.id === providerType);
+      if (!response.success || !response.data) {
+        throw new Error('Failed to fetch providers');
+      }
+      const providers = response.data.providers || [];
+      const provider = providers.find((p) => p.id === providerType);
 
       if (!provider) {
         throw new Error(`Unknown provider: ${providerType}`);
       }
 
       // Extract model IDs from provider models
-      return provider.models.map(model => model.id);
+      return provider.models.map((model) => model.id);
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch models');
     }
@@ -375,17 +392,18 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   const getAvailableProviders = async () => {
     try {
       const response = await apiClient.settings.getAvailableProviders();
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error('Failed to get providers');
       }
+      const { providers = [], summary } = response.data;
       return {
         success: true,
-        providers: response.providers || [],
+        providers,
         summary: {
-          total: response.providers?.length || 0,
-          connected: response.summary?.connected || 0,
-          configured: response.summary?.configured || 0
-        }
+          total: providers.length,
+          connected: summary?.connected || 0,
+          configured: summary?.configured || 0,
+        },
       };
     } catch (error) {
       console.error('Failed to get available providers:', error);
@@ -396,14 +414,11 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   /**
    * Configure an AI provider (alias for addProvider to maintain compatibility)
    */
-  const configureProvider = async (params: {
-    provider: string;
-    config: any;
-  }) => {
+  const configureProvider = async (params: { provider: string; config: any }) => {
     try {
       const response = await apiClient.settings.configureProvider({
         provider: params.provider,
-        config: params.config
+        config: params.config,
       });
       if (!response.success) {
         throw new Error('Failed to configure provider');

@@ -40,13 +40,10 @@ const agentDescriptions: Record<Exclude<AgentType, 'supervisor'>, string> = {
   assessment:
     'Constructs and evaluates quizzes/exercises, interprets responses via rubrics, and outputs structured feedback for mastery checks.',
   practice:
-    'Generates practice challenges or drills that reinforce the learner’s recent concepts, monitors attempts, and surfaces retry suggestions.'
+    'Generates practice challenges or drills that reinforce the learner’s recent concepts, monitors attempts, and surfaces retry suggestions.',
 };
 
-const createAgentTool = (
-  agentName: Exclude<AgentType, 'supervisor'>,
-  agent: SpecializedAgent
-) =>
+const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: SpecializedAgent) =>
   tool(
     async (rawInput: string) => {
       const payload = parseJsonInput<SupervisorToolInput>(rawInput, {
@@ -54,7 +51,7 @@ const createAgentTool = (
         topic: undefined,
         userId: undefined,
         messages: undefined,
-        content: rawInput
+        content: rawInput,
       });
 
       const inboundMessages = payload.messages?.filter((entry) => Boolean(entry?.content)) ?? [];
@@ -67,7 +64,7 @@ const createAgentTool = (
         messages: formattedMessages,
         conversationId: payload.conversationId,
         topic: payload.topic,
-        userId: payload.userId
+        userId: payload.userId,
       });
 
       const assistantMessage = pickAssistantMessage(result.messages ?? []);
@@ -75,13 +72,13 @@ const createAgentTool = (
     },
     {
       name: `${agentName}_assistant`,
-      description: `Proxy to the ${agentName} agent for task-specific handling. ${agentDescriptions[agentName]}`
-    }
+      description: `Proxy to the ${agentName} agent for task-specific handling. ${agentDescriptions[agentName]}`,
+    },
   );
 
 export const buildSupervisorTools = (
   deps: AgentToolDeps,
-  agents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent>
+  agents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent>,
 ): ToolRegistry => {
   return Object.entries(agents).reduce<ToolRegistry>((registry, [name, agent]) => {
     const toolName = `${name}_assistant`;

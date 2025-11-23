@@ -1,6 +1,7 @@
 # Dashboard Guide
 
-The Dashboard is your **command center** - a visual overview of your learning progress, current activities, and achievements.
+The Dashboard is your **command center** - a visual overview of your learning progress, current
+activities, and achievements.
 
 ## Opening the Dashboard
 
@@ -54,12 +55,14 @@ The Dashboard is your **command center** - a visual overview of your learning pr
 **Purpose**: High-level overview of your learning
 
 **What you'll see:**
+
 - 📚 **Total Sessions**: Number of learning sessions completed
 - 🎯 **Concepts Mastered**: Total concepts you've learned
 - ⏱️ **Time Spent**: Total learning time across all sessions
 - 🔥 **Current Streak**: Consecutive days you've learned
 
 **How to use:**
+
 - Get quick sense of your progress
 - Identify if you're on track with goals
 - Celebrate streaks and milestones
@@ -69,12 +72,14 @@ The Dashboard is your **command center** - a visual overview of your learning pr
 **Purpose**: Continue your active learning
 
 **What you'll see:**
+
 - **Session Name**: Title of your current learning session
 - **Progress**: Visual bar showing completion percentage
 - **Time Spent**: How long you've been learning
 - **Controls**: Continue, Pause, Save Checkpoint buttons
 
 **How to use:**
+
 ```
 1. Click "Continue" to return to your chat
 2. Click "Pause" to save state without ending
@@ -82,6 +87,7 @@ The Dashboard is your **command center** - a visual overview of your learning pr
 ```
 
 **Example**:
+
 ```
 Current Session: Machine Learning Fundamentals
 Progress: ████████████████░░░░░░ 60%
@@ -94,6 +100,7 @@ Time Spent: 45 minutes
 **Purpose**: Celebrate your learning milestones
 
 **Achievement Types**:
+
 - 🏆 **First Concept**: Your first mastered concept
 - 🔥 **Week Streak**: 7+ days of consistent learning
 - ⭐ **Helper Badge**: Helped someone else learn
@@ -102,6 +109,7 @@ Time Spent: 45 minutes
 - 📚 **Deep Diver**: Completed a 5+ hour session
 
 **How achievements work:**
+
 - Automatically detected as you learn
 - Stored permanently in your profile
 - Shareable milestones
@@ -111,6 +119,7 @@ Time Spent: 45 minutes
 **Purpose**: Visual representation of what you've learned
 
 **Features:**
+
 - **Interactive Graph**: Click nodes to explore
 - **Color Coding**:
   - 🟢 Green: Mastered concepts
@@ -120,6 +129,7 @@ Time Spent: 45 minutes
 - **Zoom & Pan**: Navigate large maps
 
 **How to use:**
+
 ```
 1. Click any concept to see details
 2. Hover over connections to see relationships
@@ -129,6 +139,7 @@ Time Spent: 45 minutes
 ```
 
 **Example Navigation**:
+
 ```
 React (Mastered)
   ├── Components (Mastered)
@@ -144,12 +155,14 @@ React (Mastered)
 **Purpose**: Quick access to your learning history
 
 **Shows:**
+
 - Last 5 learning sessions
 - Session titles and timestamps
 - Session durations
 - Quick resume buttons
 
 **How to use:**
+
 ```
 1. Click session to resume
 2. View activity history
@@ -157,6 +170,7 @@ React (Mastered)
 ```
 
 **Example**:
+
 ```
 Recent Activity:
 • Python Data Structures - 2 hours ago (1.5 hrs)
@@ -173,11 +187,13 @@ Recent Activity:
 ### Search
 
 **How to use:**
+
 - Click search bar in header
 - Type concept, topic, or session name
 - Results appear in dropdown
 
 **What you can search:**
+
 ```
 • "React" - Find React-related sessions
 • "functions" - Find Python function content
@@ -188,6 +204,7 @@ Recent Activity:
 ### Quick Actions
 
 **Available from dashboard:**
+
 - ➕ **New Session**: Start learning something new
 - 📊 **View Analytics**: Detailed progress charts
 - 💾 **Export Data**: Backup your learning
@@ -197,6 +214,7 @@ Recent Activity:
 ### Time Range Filter
 
 **View different time periods:**
+
 - **Today**: Today's learning only
 - **This Week**: Current week's progress
 - **This Month**: Monthly overview
@@ -207,6 +225,7 @@ Recent Activity:
 ### Layout Options
 
 **Choose your view:**
+
 - **Compact**: Smaller cards, more info visible
 - **Comfortable**: Balanced spacing
 - **Spacious**: Large cards, easier to read
@@ -216,6 +235,7 @@ Recent Activity:
 ### Widget Configuration
 
 **Show/hide widgets:**
+
 - ✅ Quick Stats
 - ✅ Current Session
 - ✅ Recent Achievements
@@ -223,12 +243,14 @@ Recent Activity:
 - ✅ Recent Activity
 
 **Reorder widgets:**
+
 - Drag and drop sections
 - Persist your preferred layout
 
 ### Theme
 
 **Choose your style:**
+
 - Light theme (default)
 - Dark theme
 - High contrast
@@ -241,6 +263,7 @@ Recent Activity:
 ### 1. Daily Check-in
 
 Make the dashboard your daily routine:
+
 ```
 Every morning:
 1. Open dashboard (Ctrl+1)
@@ -253,6 +276,7 @@ Every morning:
 ### 2. Progress Monitoring
 
 Use the dashboard to stay on track:
+
 ```
 Weekly Review:
 1. Check total concepts mastered 🎯
@@ -264,6 +288,7 @@ Weekly Review:
 ### 3. Quick Resume
 
 Jump back into learning fast:
+
 ```
 From dashboard:
 1. See current session at top
@@ -275,6 +300,7 @@ From dashboard:
 ### 4. Achievement Hunting
 
 Chase achievements for motivation:
+
 ```
 Achievement Checklist:
 □ First Concept (automatic)
@@ -287,6 +313,7 @@ Achievement Checklist:
 ### 5. Visual Learning
 
 Use the knowledge map effectively:
+
 ```
 Map Navigation:
 1. Start with green (mastered) nodes
@@ -346,6 +373,7 @@ Map Navigation:
 **Symptoms**: Blank or white dashboard
 
 **Solutions**:
+
 ```
 1. Press F5 to refresh
 2. Restart application
@@ -358,6 +386,7 @@ Map Navigation:
 **Symptoms**: No concepts visible
 
 **Solutions**:
+
 ```
 1. Start a learning session first
 2. Ask AI to teach you something
@@ -370,6 +399,7 @@ Map Navigation:
 **Symptoms**: Inaccurate counts or times
 
 **Solutions**:
+
 ```
 1. Settings → Data → Recalculate Stats
 2. Check for database corruption
@@ -382,6 +412,7 @@ Map Navigation:
 **Symptoms**: Delayed loading or scrolling
 
 **Solutions**:
+
 ```
 1. Close other apps to free memory
 2. Settings → Interface → Compact view
@@ -401,6 +432,7 @@ Now that you understand the dashboard:
 ---
 
 **Quick Reference**
+
 - Open Dashboard: `Ctrl+1`
 - Search: Click search bar
 - New Session: "New Session" button

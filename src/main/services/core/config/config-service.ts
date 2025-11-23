@@ -6,8 +6,8 @@ import { merge } from 'lodash';
 
 type DeepPaths<T> = T extends object
   ? {
-      [K in Extract<keyof T, string>]: T[K] extends object
-        ? `${K}` | `${K}.${DeepPaths<T[K]>}`
+      [K in Extract<keyof T, string>]: NonNullable<T[K]> extends object
+        ? `${K}` | `${K}.${DeepPaths<NonNullable<T[K]>>}`
         : `${K}`;
     }[Extract<keyof T, string>]
   : never;
@@ -17,17 +17,17 @@ type PathValue<T, P extends string> = P extends `${infer Head}.${infer Tail}`
     ? PathValue<T[Head], Tail>
     : undefined
   : P extends keyof T
-  ? T[P]
-  : undefined;
+    ? T[P]
+    : undefined;
 
-type ConfigPath = DeepPaths<AppConfig>;
+export type ConfigPath = DeepPaths<AppConfig>;
 
 /**
  * Functional config service factory
  */
 export const createConfigService = ({
   storage,
-  logger
+  logger,
 }: {
   storage: ConfigStorage;
   logger: LoggerService;
@@ -79,7 +79,9 @@ export const createConfigService = ({
     /**
      * Get a nested config value referenced by a dot path (e.g., 'ai.contentAnalysisModel')
      */
-    get: async <Path extends ConfigPath>(key: Path): Promise<PathValue<AppConfig, Path> | undefined> => {
+    get: async <Path extends ConfigPath>(
+      key: Path,
+    ): Promise<PathValue<AppConfig, Path> | undefined> => {
       const config = await service.getConfig();
       if (!config) {
         return undefined;
@@ -122,9 +124,9 @@ export const createConfigService = ({
       const updatedConfig = merge({}, currentConfig, {
         ai: {
           providers: {
-            [name]: config
-          }
-        }
+            [name]: config,
+          },
+        },
       });
 
       await service.setConfig(updatedConfig);
@@ -151,7 +153,7 @@ export const createConfigService = ({
       }
 
       return true;
-    }
+    },
   };
 
   return service;

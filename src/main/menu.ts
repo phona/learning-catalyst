@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { Menu, MenuItemConstructorOptions, BrowserWindow, app } from 'electron';
 
 export function createAppMenu(mainWindow: BrowserWindow | null): Menu {
@@ -8,21 +7,21 @@ export function createAppMenu(mainWindow: BrowserWindow | null): Menu {
     // macOS App Menu
     ...(isMac
       ? [
-        {
-          label: app.getName(),
-          submenu: [
-            { role: 'about' as const },
-            { type: 'separator' as const },
-            { role: 'services' as const },
-            { type: 'separator' as const },
-            { role: 'hide' as const },
-            { role: 'hideOthers' as const },
-            { role: 'unhide' as const },
-            { type: 'separator' as const },
-            { role: 'quit' as const },
-          ],
-        },
-      ]
+          {
+            label: app.getName(),
+            submenu: [
+              { role: 'about' as const },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
       : []),
 
     // File Menu
@@ -62,26 +61,26 @@ export function createAppMenu(mainWindow: BrowserWindow | null): Menu {
         ...(isMac
           ? []
           : [
-            {
-              label: 'Settings',
-              accelerator: 'CmdOrCtrl+,',
-              click: () => {
-                mainWindow?.webContents.send('menu:action', 'open-settings');
+              {
+                label: 'Settings',
+                accelerator: 'CmdOrCtrl+,',
+                click: () => {
+                  mainWindow?.webContents.send('menu:action', 'open-settings');
+                },
               },
-            },
-            { type: 'separator' as const },
-          ]),
+              { type: 'separator' as const },
+            ]),
         ...(isMac
           ? []
           : [
-            {
-              label: 'Quit',
-              accelerator: 'CmdOrCtrl+Q',
-              click: () => {
-                app.quit();
+              {
+                label: 'Quit',
+                accelerator: 'CmdOrCtrl+Q',
+                click: () => {
+                  app.quit();
+                },
               },
-            },
-          ]),
+            ]),
       ],
     },
 
@@ -97,15 +96,15 @@ export function createAppMenu(mainWindow: BrowserWindow | null): Menu {
         { role: 'paste' as const },
         ...(isMac
           ? [
-            { role: 'pasteAndMatchStyle' as const },
-            { role: 'delete' as const },
-            { role: 'selectAll' as const },
-            { type: 'separator' as const },
-            {
-              label: 'Speech',
-              submenu: [{ role: 'startSpeaking' as const }, { role: 'stopSpeaking' as const }],
-            },
-          ]
+              { role: 'pasteAndMatchStyle' as const },
+              { role: 'delete' as const },
+              { role: 'selectAll' as const },
+              { type: 'separator' as const },
+              {
+                label: 'Speech',
+                submenu: [{ role: 'startSpeaking' as const }, { role: 'stopSpeaking' as const }],
+              },
+            ]
           : [{ role: 'selectAll' as const }]),
       ],
     },
@@ -258,11 +257,11 @@ export function createAppMenu(mainWindow: BrowserWindow | null): Menu {
         { role: 'close' as const },
         ...(isMac
           ? [
-            { type: 'separator' as const },
-            { role: 'front' as const },
-            { type: 'separator' as const },
-            { role: 'window' as const },
-          ]
+              { type: 'separator' as const },
+              { role: 'front' as const },
+              { type: 'separator' as const },
+              { role: 'window' as const },
+            ]
           : []),
       ],
     },
@@ -300,13 +299,13 @@ export function createAppMenu(mainWindow: BrowserWindow | null): Menu {
         { type: 'separator' as const },
         ...(!isMac
           ? [
-            {
-              label: 'About Learning Catalyst',
-              click: () => {
-                mainWindow?.webContents.send('menu:action', 'about');
+              {
+                label: 'About Learning Catalyst',
+                click: () => {
+                  mainWindow?.webContents.send('menu:action', 'about');
+                },
               },
-            },
-          ]
+            ]
           : []),
       ],
     },

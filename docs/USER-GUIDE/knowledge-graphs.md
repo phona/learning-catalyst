@@ -1,6 +1,7 @@
 # Knowledge Graphs Guide
 
-Knowledge Graphs provide a **visual map** of what you've learned, showing concepts and their relationships at a glance.
+Knowledge Graphs provide a **visual map** of what you've learned, showing concepts and their
+relationships at a glance.
 
 ## Opening Knowledge Graphs
 
@@ -13,6 +14,7 @@ Knowledge Graphs provide a **visual map** of what you've learned, showing concep
 **A visual representation of your learning**
 
 Think of it like a **treasure map** where:
+
 - **🟢 Green nodes** = Concepts you've mastered
 - **🔵 Blue nodes** = Concepts you're currently learning
 - **⚪ White nodes** = New concepts you haven't explored
@@ -99,6 +101,7 @@ R: Reset layout
 ### Finding Concepts
 
 **Search:**
+
 ```
 1. Click search box (or press Ctrl+F)
 2. Type concept name
@@ -107,6 +110,7 @@ R: Reset layout
 ```
 
 **Browse by category:**
+
 ```
 Filter dropdown:
 • All Concepts
@@ -159,18 +163,21 @@ React Components
 ### Node Status Meanings
 
 **🟢 Mastered (Green)**
+
 - You've demonstrated understanding
 - Can explain and use the concept
 - Ready to move on to advanced topics
 - Confidence: 80%+
 
 **🔵 Learning (Blue)**
+
 - Currently studying this concept
 - Have basic understanding
 - Need more practice
 - Confidence: 40-79%
 
 **⚪ New (White/Gray)**
+
 - Not yet explored
 - Available to learn
 - Or hidden/deferred
@@ -341,6 +348,7 @@ Difficulty Filter:
 ```
 
 **How to use:**
+
 ```
 1. Click "Filter" button
 2. Check/uncheck categories
@@ -614,6 +622,7 @@ Use visual cues:
 **Symptoms**: Empty or loading forever
 
 **Solutions**:
+
 ```
 1. Refresh page (F5)
 2. Check internet connection
@@ -627,6 +636,7 @@ Use visual cues:
 **Symptoms**: Know you learned it but can't see it
 
 **Solutions**:
+
 ```
 1. Search for it (Ctrl+F)
 2. Check filters (show all)
@@ -640,6 +650,7 @@ Use visual cues:
 **Symptoms**: Too many nodes, hard to read
 
 **Solutions**:
+
 ```
 1. Filter to current category
 2. Use hierarchical layout
@@ -653,6 +664,7 @@ Use visual cues:
 **Symptoms**: Lag when navigating
 
 **Solutions**:
+
 ```
 1. Close other apps
 2. Reduce detail level
@@ -687,6 +699,7 @@ Now that you understand knowledge graphs:
 ---
 
 **Quick Reference**
+
 - Open Knowledge Graph: `Ctrl+3`
 - Search: `Ctrl+F`
 - Fit to screen: `Space`

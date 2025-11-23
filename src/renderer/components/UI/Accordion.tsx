@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { cn } from '@/renderer/utils/cn';
@@ -21,12 +18,27 @@ export interface AccordionProps {
   defaultExpandedIds?: string[];
 }
 
-const AccordionItem: React.FC<AccordionItemProps & {
+type AccordionItemInternalProps = AccordionItemProps & {
   expanded: boolean;
   onToggle: () => void;
-}> = ({ id, title, description, children, expanded, onToggle, className }) => {
+};
+
+const AccordionItem: React.FC<AccordionItemInternalProps> = ({
+  id,
+  title,
+  description,
+  children,
+  expanded,
+  onToggle,
+  className,
+}) => {
   return (
-    <div className={cn('border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden', className)}>
+    <div
+      className={cn(
+        'border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden',
+        className,
+      )}
+    >
       <button
         onClick={onToggle}
         className="w-full px-4 py-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-between text-left"
@@ -62,20 +74,22 @@ const AccordionItem: React.FC<AccordionItemProps & {
   );
 };
 
-export const Accordion: React.FC<AccordionProps> = ({
+type AccordionComponent = React.FC<AccordionProps> & {
+  Item: React.FC<AccordionItemProps>;
+};
+
+const Accordion: AccordionComponent = ({
   children,
   className,
   multiple = false,
-  defaultExpandedIds = []
+  defaultExpandedIds = [],
 }) => {
   const [expandedIds, setExpandedIds] = useState<string[]>(defaultExpandedIds);
 
   const handleToggle = (id: string) => {
-    setExpandedIds(prev => {
+    setExpandedIds((prev) => {
       if (multiple) {
-        return prev.includes(id)
-          ? prev.filter(expandedId => expandedId !== id)
-          : [...prev, id];
+        return prev.includes(id) ? prev.filter((expandedId) => expandedId !== id) : [...prev, id];
       } else {
         return prev.includes(id) ? [] : [id];
       }
@@ -84,11 +98,11 @@ export const Accordion: React.FC<AccordionProps> = ({
 
   return (
     <div className={cn('space-y-3', className)}>
-      {React.Children.map(children, child => {
+      {React.Children.map(children, (child) => {
         if (React.isValidElement(child) && child.type === AccordionItem) {
           return React.cloneElement(child, {
             expanded: expandedIds.includes(child.props.id),
-            onToggle: () => handleToggle(child.props.id)
+            onToggle: () => handleToggle(child.props.id),
           });
         }
         return child;
@@ -97,4 +111,6 @@ export const Accordion: React.FC<AccordionProps> = ({
   );
 };
 
-Accordion.Item = AccordionItem;
+Accordion.Item = AccordionItem as React.FC<AccordionItemProps>;
+
+export { Accordion };

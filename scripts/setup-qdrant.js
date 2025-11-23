@@ -77,9 +77,14 @@ async function downloadQdrant() {
     // Extract the archive
     console.log('📦 Extracting Qdrant...');
     if (platform === 'windows') {
-      execSync(`powershell -Command "Expand-Archive -Path '${tempFile}' -DestinationPath '${qdrantDir}' -Force"`, { stdio: 'inherit' });
+      execSync(
+        `powershell -Command "Expand-Archive -Path '${tempFile}' -DestinationPath '${qdrantDir}' -Force"`,
+        { stdio: 'inherit' },
+      );
     } else {
-      execSync(`tar -xzf "${tempFile}" -C "${qdrantDir}" --strip-components=1`, { stdio: 'inherit' });
+      execSync(`tar -xzf "${tempFile}" -C "${qdrantDir}" --strip-components=1`, {
+        stdio: 'inherit',
+      });
     }
 
     // Clean up the archive

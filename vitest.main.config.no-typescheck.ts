@@ -18,7 +18,7 @@ export default defineConfig({
     include: [
       'src/main/**/*.test.ts',
       'src/main/**/*.spec.ts',
-      'src/main/**/__tests__/**/*.{test,spec}.{js,ts}'
+      'src/main/**/__tests__/**/*.{test,spec}.{js,ts}',
     ],
     exclude: [
       'node_modules',
@@ -26,7 +26,7 @@ export default defineConfig({
       'src/renderer/**',
       'src/shared/**/__tests__/integration/**',
       'src/test/fixtures/**',
-      'src/test/mocks/**'
+      'src/test/mocks/**',
     ],
 
     // Test execution settings
@@ -44,34 +44,27 @@ export default defineConfig({
         isolate: true,
         singleThread: false,
         minThreads: 1,
-        maxThreads: 4
-      }
+        maxThreads: 4,
+      },
     },
 
     // File watching
     watch: false,
-    watchExclude: [
-      'node_modules/**',
-      'dist/**',
-      'src/test/fixtures/**',
-      'src/test/mocks/**'
-    ],
+    watchExclude: ['node_modules/**', 'dist/**', 'src/test/fixtures/**', 'src/test/mocks/**'],
 
     // Setup files
-    setupFiles: [
-      './src/test/setup/main-process/setup.ts'
-    ],
+    setupFiles: ['./src/test/setup/main-process/setup.ts'],
 
     // Reporting configuration
     reporters: ['verbose'],
     outputFile: {
-      json: 'test-results/main-process/results.json'
+      json: 'test-results/main-process/results.json',
     },
 
     // Disable TypeScript checking temporarily
     typecheck: {
-      enabled: false
-    }
+      enabled: false,
+    },
   },
 
   // Path resolution
@@ -80,25 +73,25 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@/main': path.resolve(__dirname, './src/main'),
       '@/shared': path.resolve(__dirname, './src/shared'),
-      '@/test': path.resolve(__dirname, './src/test')
-    }
+      '@/test': path.resolve(__dirname, './src/test'),
+    },
   },
 
   // Environment variables
   define: {
     'process.env.NODE_ENV': '"test"',
     __TEST__: 'true',
-    __MAIN_PROCESS__: 'true'
+    __MAIN_PROCESS__: 'true',
   },
 
   // Build optimization for Node.js testing
   esbuild: {
     target: 'node18',
-    format: 'esm'
+    format: 'esm',
   },
 
   // Optimize dependencies
   optimizeDeps: {
-    disabled: true
-  }
+    disabled: true,
+  },
 });

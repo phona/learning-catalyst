@@ -1,4 +1,3 @@
-
 /**
  * UI/UX related types
  * Re-exports from shared types with renderer-specific extensions

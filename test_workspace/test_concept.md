@@ -10,6 +10,7 @@ y = "Hello"
 ```
 
 Python has several built-in data types:
+
 - Integer: `int`
 - Floating point: `float`
 - String: `str`

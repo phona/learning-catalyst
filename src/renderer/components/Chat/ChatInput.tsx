@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -29,19 +28,19 @@ const ChatInputComponent: React.FC = () => {
     stopStreaming,
     error,
     setError,
-    selectedAgent
+    selectedAgent,
   } = useChat();
 
   const { config, updateConfig } = useConfigStore();
   const fileService = useFileService();
 
   // Use config values for provider/model since new service architecture doesn't expose these directly
-  const selectedProvider = config?.ai?.model_types?.chat?.default_provider ?? 'openai';
-  const selectedModel = config?.ai?.model_types?.chat?.default_model ?? 'gpt-3.5-turbo';
+  const chatModelConfig = config?.ai?.model_types?.chat;
+  const selectedProvider = chatModelConfig?.default_provider ?? 'openai';
+  const selectedModel = chatModelConfig?.default_model ?? 'gpt-3.5-turbo';
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -63,7 +62,7 @@ const ChatInputComponent: React.FC = () => {
 
     try {
       // Check if streaming is supported and enabled
-      const useStreaming = config?.ai?.model_types?.chat?.capabilities?.streaming;
+      const useStreaming = chatModelConfig?.capabilities?.streaming;
 
       if (useStreaming) {
         // Use streaming for better user experience
@@ -73,13 +72,13 @@ const ChatInputComponent: React.FC = () => {
             // Handle streaming chunks if needed
           },
           {
-            agentId: selectedAgent ?? undefined
-          }
+            agentId: selectedAgent ?? undefined,
+          },
         );
       } else {
         // Use non-streaming for simple responses
         await sendChatMessage(message, {
-          agentId: selectedAgent ?? undefined
+          agentId: selectedAgent ?? undefined,
         });
       }
 
@@ -119,28 +118,38 @@ const ChatInputComponent: React.FC = () => {
   const toggleDeepThinking = async (): Promise<void> => {
     if (!config) return;
 
-    const newThinkingState = !config.ai.model_types.chat.capabilities.thinking;
+    const chatModel = config.ai.model_types?.chat;
+    if (!chatModel?.capabilities) {
+      return;
+    }
+
+    const newThinkingState = !chatModel.capabilities.thinking;
 
     try {
       await updateConfig({
         ai: {
           ...config.ai,
           model_types: {
-            ...config.ai.model_types,
-            chat: {
-              ...config.ai.model_types.chat,
-              capabilities: {
-                ...config.ai.model_types.chat.capabilities,
-                thinking: newThinkingState
-              }
-            }
-          }
-        }
+            ...(config.ai.model_types ?? {}),
+            chat: chatModel
+              ? {
+                  ...chatModel,
+                  capabilities: {
+                    ...chatModel.capabilities,
+                    thinking: newThinkingState,
+                  },
+                }
+              : undefined,
+          },
+        },
       });
       // Button provides visual feedback - no toast needed
     } catch (error) {
       console.error('Failed to update thinking config:', error);
-      settingsToasts.providerError('Settings', error instanceof Error ? error.message : 'Unknown error');
+      settingsToasts.providerError(
+        'Settings',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
   };
 
@@ -154,8 +163,13 @@ const ChatInputComponent: React.FC = () => {
         ],
       });
 
-      if (!result.canceled && result.filePaths.length > 0) {
-        const filePath = result.filePaths[0];
+      if (!result.success || !result.data) {
+        utilityToasts.error(result.error?.message ?? 'Failed to open file dialog');
+        return;
+      }
+
+      if (!result.data.canceled && result.data.filePaths.length > 0) {
+        const filePath = result.data.filePaths[0];
         if (!filePath) {
           utilityToasts.error('No file selected');
           return;
@@ -167,7 +181,12 @@ const ChatInputComponent: React.FC = () => {
           return;
         }
 
-        setInputText(prev => prev + `\n\n📎 Attached file: ${fileResult.data.fileName}\n\n${fileResult.data.content}`);
+        const fileData = fileResult.data;
+        setInputText(
+          (prev) =>
+            prev +
+            `\n\n📎 Attached file: ${fileData.fileName}\n\n${fileData.content}`,
+        );
       }
     } catch (error) {
       console.error('Failed to select file:', error);
@@ -176,7 +195,6 @@ const ChatInputComponent: React.FC = () => {
     }
   };
 
-  
   const currentProviderName = selectedProvider;
   const currentModelName = selectedModel;
 
@@ -188,10 +206,14 @@ const ChatInputComponent: React.FC = () => {
       role="region"
       aria-label="Chat input area"
     >
-
       {/* Main Input */}
       <div className="p-6">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto" noValidate data-testid="chat-input-form">
+        <form
+          onSubmit={handleSubmit}
+          className="max-w-4xl mx-auto"
+          noValidate
+          data-testid="chat-input-form"
+        >
           <fieldset className="flex items-end space-x-4" disabled={isStreaming || isLoading}>
             <legend className="sr-only">Message input form</legend>
 
@@ -207,11 +229,7 @@ const ChatInputComponent: React.FC = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={
-                    isStreaming
-                      ? 'AI is responding...'
-                      : 'Type your message here...'
-                  }
+                  placeholder={isStreaming ? 'AI is responding...' : 'Type your message here...'}
                   disabled={isStreaming || isLoading}
                   aria-label="Type your message here"
                   aria-describedby="input-help"
@@ -284,15 +302,21 @@ const ChatInputComponent: React.FC = () => {
             role="note"
           >
             <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">Enter</kbd>
+              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">
+                Enter
+              </kbd>
               <span>send</span>
             </div>
             <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">Shift+Enter</kbd>
+              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">
+                Shift+Enter
+              </kbd>
               <span>new line</span>
             </div>
             <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">Esc</kbd>
+              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">
+                Esc
+              </kbd>
               <span>clear</span>
             </div>
           </div>
@@ -308,7 +332,9 @@ const ChatInputComponent: React.FC = () => {
           aria-expanded={showAdvancedOptions}
           aria-controls="advanced-options"
         >
-          <div className={`p-1 rounded-lg bg-gray-100 dark:bg-gray-800 ${showAdvancedOptions ? 'bg-primary-100 dark:bg-primary-900/30' : ''}`}>
+          <div
+            className={`p-1 rounded-lg bg-gray-100 dark:bg-gray-800 ${showAdvancedOptions ? 'bg-primary-100 dark:bg-primary-900/30' : ''}`}
+          >
             {showAdvancedOptions ? (
               <ChevronUpIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />
             ) : (
@@ -316,7 +342,9 @@ const ChatInputComponent: React.FC = () => {
             )}
           </div>
           <span className="font-medium">Advanced Options</span>
-          <div className={`w-2 h-2 rounded-full ${showAdvancedOptions ? 'bg-primary-500' : 'bg-gray-400'}`}></div>
+          <div
+            className={`w-2 h-2 rounded-full ${showAdvancedOptions ? 'bg-primary-500' : 'bg-gray-400'}`}
+          ></div>
         </button>
       </div>
 
@@ -328,19 +356,29 @@ const ChatInputComponent: React.FC = () => {
         >
           <div className="max-w-4xl mx-auto space-y-5">
             {/* Provider/Model Info */}
-            <div className="flex items-center justify-between text-sm p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700" role="status" aria-live="polite">
+            <div
+              className="flex items-center justify-between text-sm p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
+              role="status"
+              aria-live="polite"
+            >
               <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
                   <span className="text-gray-600 dark:text-gray-400">Provider:</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100 bg-primary-100 dark:bg-primary-900/30 px-2 py-1 rounded" aria-label={`Current AI provider: ${currentProviderName}`}>
+                  <span
+                    className="font-semibold text-gray-900 dark:text-gray-100 bg-primary-100 dark:bg-primary-900/30 px-2 py-1 rounded"
+                    aria-label={`Current AI provider: ${currentProviderName}`}
+                  >
                     {currentProviderName}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
                   <span className="text-gray-600 dark:text-gray-400">Model:</span>
-                  <span className="font-semibold text-gray-900 dark:text-gray-100 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded" aria-label={`Current AI model: ${currentModelName}`}>
+                  <span
+                    className="font-semibold text-gray-900 dark:text-gray-100 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded"
+                    aria-label={`Current AI model: ${currentModelName}`}
+                  >
                     {currentModelName}
                   </span>
                 </div>
@@ -354,14 +392,18 @@ const ChatInputComponent: React.FC = () => {
                     ? 'bg-primary-500 text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400'
                 }`}
-                title={config?.ai?.model_types?.chat?.capabilities?.thinking ? 'Disable deep thinking mode (Ctrl+T)' : 'Enable deep thinking mode (Ctrl+T)'}
+                title={
+                  config?.ai?.model_types?.chat?.capabilities?.thinking
+                    ? 'Disable deep thinking mode (Ctrl+T)'
+                    : 'Enable deep thinking mode (Ctrl+T)'
+                }
                 aria-pressed={config?.ai?.model_types?.chat?.capabilities?.thinking}
                 aria-describedby="deep-thinking-status"
               >
-                <SparklesIcon className={`w-4 h-4 ${config?.ai?.model_types?.chat?.capabilities?.thinking ? 'text-white' : ''}`} />
-                <span className="text-sm font-semibold">
-                  Deep Thinking
-                </span>
+                <SparklesIcon
+                  className={`w-4 h-4 ${config?.ai?.model_types?.chat?.capabilities?.thinking ? 'text-white' : ''}`}
+                />
+                <span className="text-sm font-semibold">Deep Thinking</span>
                 <div
                   id="deep-thinking-status"
                   className={`w-2.5 h-2.5 rounded-full ${
@@ -390,18 +432,30 @@ const ChatInputComponent: React.FC = () => {
 
             {/* Enhanced Additional keyboard shortcuts */}
             <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-              <span className="font-semibold text-amber-800 dark:text-amber-200 text-sm mb-2 block">Pro Tips:</span>
+              <span className="font-semibold text-amber-800 dark:text-amber-200 text-sm mb-2 block">
+                Pro Tips:
+              </span>
               <div className="flex items-center flex-wrap gap-3">
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-700">
-                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">Ctrl+T</kbd>
-                  <span className="text-amber-700 dark:text-amber-300 text-xs">toggle thinking</span>
+                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">
+                    Ctrl+T
+                  </kbd>
+                  <span className="text-amber-700 dark:text-amber-300 text-xs">
+                    toggle thinking
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-700">
-                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">Ctrl+K</kbd>
-                  <span className="text-amber-700 dark:text-amber-300 text-xs">command palette</span>
+                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">
+                    Ctrl+K
+                  </kbd>
+                  <span className="text-amber-700 dark:text-amber-300 text-xs">
+                    command palette
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-700">
-                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">Ctrl+/</kbd>
+                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">
+                    Ctrl+/
+                  </kbd>
                   <span className="text-amber-700 dark:text-amber-300 text-xs">keyboard help</span>
                 </div>
               </div>
@@ -414,3 +468,5 @@ const ChatInputComponent: React.FC = () => {
 };
 
 export const ChatInput = memo(ChatInputComponent);
+
+export default ChatInput;

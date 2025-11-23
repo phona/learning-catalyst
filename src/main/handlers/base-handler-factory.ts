@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * IPC Handler Factory
  *
@@ -6,31 +5,36 @@
  * Each handler just defines its configuration - all common logic is shared.
  */
 
-import { ipcMain } from 'electron';
+import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { LoggerService } from '../services/core/logger/logger-service';
 
-export interface HandlerConfig {
+export interface HandlerConfig<R = unknown> {
   channel: string;
   service: string;
   method: string;
   requiredParams?: string[];
-  transform?: (result: any) => any;
+  transform?: (result: unknown) => R;
 }
+
+type ServiceMap = { loggerService?: LoggerService } & Record<string, unknown>;
 
 /**
  * Base handler factory that eliminates 80% of duplication
  */
-export const createHandler = (config: HandlerConfig, services: { loggerService?: LoggerService } & Record<string, any>) => {
-  const logger = services.loggerService?.child({ handler: config.service }) || console;
-  
-  return async (event: any, ...args: any[]) => {
+export const createHandler = (
+  config: HandlerConfig,
+  services: ServiceMap,
+): ((event: IpcMainInvokeEvent, ...args: unknown[]) => Promise<{ success: boolean; data: unknown }>) => {
+  const logger = services.loggerService?.child({ handler: config.service }) ?? console;
+
+  return async (_event: IpcMainInvokeEvent, ...args: unknown[]) => {
     logger.info(`Handling ${config.channel} request`);
-    
+
     try {
       // Basic validation
       if (config.requiredParams) {
-        const params = args[0] || {};
-        const missing = config.requiredParams.filter(param => params[param] === undefined);
+        const params = (args[0] ?? {}) as Record<string, unknown>;
+        const missing = config.requiredParams.filter((param) => params[param] === undefined);
         if (missing.length > 0) {
           throw new Error(`Missing required parameters: ${missing.join(', ')}`);
         }
@@ -41,13 +45,13 @@ export const createHandler = (config: HandlerConfig, services: { loggerService?:
       if (!service) {
         throw new Error(`Service ${config.service} not found`);
       }
-      
-      const method = service[config.method];
+
+      const method = (service as Record<string, unknown>)[config.method];
       if (!method || typeof method !== 'function') {
         throw new Error(`Method ${config.method} not found on service ${config.service}`);
       }
-      
-      const result = await method.apply(service, args);
+
+      const result = await (method as (...innerArgs: unknown[]) => unknown).apply(service, args);
 
       // Apply transformation if provided
       const transformedResult = config.transform ? config.transform(result) : result;
@@ -55,9 +59,9 @@ export const createHandler = (config: HandlerConfig, services: { loggerService?:
       logger.info(`${config.channel} completed successfully`);
       return {
         success: true,
-        data: transformedResult
+        data: transformedResult,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error(`${config.channel} failed`, error);
       throw error; // Let errors bubble up naturally
     }
@@ -67,7 +71,7 @@ export const createHandler = (config: HandlerConfig, services: { loggerService?:
 /**
  * Register handler with IPC main
  */
-export const registerHandler = (config: HandlerConfig, services: any) => {
+export const registerHandler = (config: HandlerConfig, services: ServiceMap): void => {
   const handler = createHandler(config, services);
   ipcMain.handle(config.channel, handler);
 };
@@ -82,48 +86,48 @@ export const handlerConfigs = {
       channel: 'learning:get-path',
       service: 'learningService',
       method: 'getLearningPath',
-      requiredParams: ['pathId']
+      requiredParams: ['pathId'],
     },
     startSession: {
       channel: 'learning:start-session',
-      service: 'learningService', 
+      service: 'learningService',
       method: 'startLearningSession',
-      requiredParams: ['topic']
+      requiredParams: ['topic'],
     },
     getProgress: {
       channel: 'learning:get-progress',
       service: 'learningService',
       method: 'getSessionProgress',
-      requiredParams: ['sessionId']
+      requiredParams: ['sessionId'],
     },
     pauseSession: {
       channel: 'learning:pause-session',
       service: 'learningService',
       method: 'pauseSession',
-      requiredParams: ['sessionId']
+      requiredParams: ['sessionId'],
     },
     resumeSession: {
       channel: 'learning:resume-session',
       service: 'learningService',
       method: 'resumeSession',
-      requiredParams: ['sessionId']
+      requiredParams: ['sessionId'],
     },
     completeSession: {
       channel: 'learning:complete-session',
       service: 'learningService',
       method: 'completeSession',
-      requiredParams: ['sessionId']
+      requiredParams: ['sessionId'],
     },
     getRecentSessions: {
       channel: 'learning:get-recent-sessions',
       service: 'learningService',
-      method: 'getRecentSessions'
+      method: 'getRecentSessions',
     },
     searchSessions: {
       channel: 'learning:search-sessions',
       service: 'learningService',
-      method: 'searchSessions'
-    }
+      method: 'searchSessions',
+    },
   },
 
   // Analytics handlers
@@ -131,46 +135,46 @@ export const handlerConfigs = {
     getDashboard: {
       channel: 'analytics:get-dashboard',
       service: 'analyticsService',
-      method: 'getDashboard'
+      method: 'getDashboard',
     },
     getProgressChart: {
       channel: 'analytics:get-progress-chart',
       service: 'analyticsService',
-      method: 'getProgressChart'
+      method: 'getProgressChart',
     },
     getAchievements: {
       channel: 'analytics:get-achievements',
       service: 'analyticsService',
-      method: 'getAchievements'
+      method: 'getAchievements',
     },
     unlockAchievement: {
       channel: 'analytics:unlock-achievement',
       service: 'analyticsService',
       method: 'unlockAchievement',
-      requiredParams: ['achievementId']
+      requiredParams: ['achievementId'],
     },
     getUsageStats: {
       channel: 'analytics:get-usage-stats',
       service: 'analyticsService',
-      method: 'getUsageStats'
+      method: 'getUsageStats',
     },
     getTokenUsage: {
       channel: 'analytics:get-token-usage',
       service: 'analyticsService',
-      method: 'getTokenUsage'
+      method: 'getTokenUsage',
     },
     trackEvent: {
       channel: 'analytics:track-event',
       service: 'analyticsService',
       method: 'trackEvent',
-      requiredParams: ['eventType']
+      requiredParams: ['eventType'],
     },
     getConceptProgress: {
       channel: 'analytics:get-concept-progress',
       service: 'analyticsService',
       method: 'getConceptProgress',
-      requiredParams: ['conceptId']
-    }
+      requiredParams: ['conceptId'],
+    },
   },
 
   // Chat handlers
@@ -179,44 +183,44 @@ export const handlerConfigs = {
       channel: 'chat:start-conversation',
       service: 'chatService',
       method: 'createConversation',
-      requiredParams: ['title', 'agentType']
+      requiredParams: ['title', 'agentType'],
     },
     sendMessage: {
       channel: 'chat:send-message',
       service: 'chatService',
       method: 'sendMessage',
-      requiredParams: ['conversationId', 'message']
+      requiredParams: ['conversationId', 'message'],
     },
     getTypingIndicator: {
       channel: 'chat:get-typing-indicator',
       service: 'chatService',
       method: 'getTypingIndicator',
-      requiredParams: ['conversationId']
+      requiredParams: ['conversationId'],
     },
     getHistory: {
       channel: 'chat:get-history',
       service: 'chatService',
       method: 'getConversation',
-      requiredParams: ['conversationId']
+      requiredParams: ['conversationId'],
     },
     pauseConversation: {
       channel: 'chat:pause-conversation',
       service: 'chatService',
       method: 'pauseConversation',
-      requiredParams: ['conversationId']
+      requiredParams: ['conversationId'],
     },
     resumeConversation: {
       channel: 'chat:resume-conversation',
       service: 'chatService',
       method: 'resumeConversation',
-      requiredParams: ['conversationId']
+      requiredParams: ['conversationId'],
     },
     endConversation: {
       channel: 'chat:end-conversation',
       service: 'chatService',
       method: 'endConversation',
-      requiredParams: ['conversationId']
-    }
+      requiredParams: ['conversationId'],
+    },
   },
 
   // Agent handlers
@@ -225,44 +229,44 @@ export const handlerConfigs = {
       channel: 'agent:processMessage',
       service: 'agentDirector',
       method: 'runAgent',
-      requiredParams: ['agentType', 'content']
+      requiredParams: ['agentType', 'content'],
     },
     getModels: {
       channel: 'agent:getModels',
       service: 'aiService',
-      method: 'getAvailableModels'
+      method: 'getAvailableModels',
     },
     validateModelConfig: {
       channel: 'agent:validateModelConfig',
       service: 'aiService',
       method: 'validateModelConfig',
-      requiredParams: ['config']
+      requiredParams: ['config'],
     },
     extractKnowledge: {
       channel: 'agent:extractKnowledge',
       service: 'agentDirector',
       method: 'extractKnowledge',
-      requiredParams: ['content']
+      requiredParams: ['content'],
     },
     generateLearningPath: {
       channel: 'agent:generateLearningPath',
       service: 'agentDirector',
       method: 'generateLearningPath',
-      requiredParams: ['topic']
+      requiredParams: ['topic'],
     },
     getCapabilities: {
       channel: 'agent:getCapabilities',
       service: 'agentDirector',
       method: 'getCapabilities',
-      requiredParams: ['agentType']
+      requiredParams: ['agentType'],
     },
     testFunctionality: {
       channel: 'agent:testFunctionality',
       service: 'agentDirector',
       method: 'testFunctionality',
-      requiredParams: ['agentType', 'testType']
-    }
-  }
+      requiredParams: ['agentType', 'testType'],
+    },
+  },
 };
 
 /**
@@ -270,41 +274,49 @@ export const handlerConfigs = {
  */
 export const setupLearningHandlers = (ipcMainInstance: typeof ipcMain, services: any) => {
   const { learning } = handlerConfigs;
-  
+
   Object.values(learning).forEach((config: any) => {
     registerHandler(config, services);
   });
-  
-  services.loggerService?.child({ handler: 'learning' })?.info('✅ Learning handlers registered successfully');
+
+  services.loggerService
+    ?.child({ handler: 'learning' })
+    ?.info('✅ Learning handlers registered successfully');
 };
 
 export const setupAnalyticsHandlers = (ipcMainInstance: typeof ipcMain, services: any) => {
   const { analytics } = handlerConfigs;
-  
+
   Object.values(analytics).forEach((config: any) => {
     registerHandler(config, services);
   });
-  
-  services.loggerService?.child({ handler: 'analytics' })?.info('✅ Analytics handlers registered successfully');
+
+  services.loggerService
+    ?.child({ handler: 'analytics' })
+    ?.info('✅ Analytics handlers registered successfully');
 };
 
 export const setupChatHandlers = (ipcMainInstance: typeof ipcMain, services: any) => {
   const { chat } = handlerConfigs;
-  
+
   Object.values(chat).forEach((config: any) => {
     registerHandler(config, services);
   });
-  
-  services.loggerService?.child({ handler: 'chat' })?.info('✅ Chat handlers registered successfully');
+
+  services.loggerService
+    ?.child({ handler: 'chat' })
+    ?.info('✅ Chat handlers registered successfully');
 };
 
 export const setupAgentHandlers = (ipcMainInstance: typeof ipcMain, services: any) => {
   const { agent } = handlerConfigs;
-  
+
   Object.values(agent).forEach((config: any) => {
     registerHandler(config, services);
   });
-  
-  services.loggerService?.child({ handler: 'agent' })?.info('✅ Agent handlers registered successfully');
+
+  services.loggerService
+    ?.child({ handler: 'agent' })
+    ?.info('✅ Agent handlers registered successfully');
 };
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-nullish-coalescing */

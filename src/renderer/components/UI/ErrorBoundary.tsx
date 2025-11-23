@@ -1,6 +1,3 @@
-
-
-
 import React, { Component, ReactNode } from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon, HomeIcon } from '@heroicons/react/24/outline';
 
@@ -232,7 +229,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </button>
 
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={() => (window.location.href = '/')}
                 className="w-full flex items-center justify-center space-x-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium py-2 px-4 rounded-lg transition-colors"
               >
                 <HomeIcon className="w-4 h-4" />

@@ -1,12 +1,14 @@
 # Learning Sessions Guide
 
-Learning Sessions help you **structure your study time**, track progress, and maintain continuity in your learning journey.
+Learning Sessions help you **structure your study time**, track progress, and maintain continuity in
+your learning journey.
 
 ## What Are Learning Sessions?
 
 **Organized periods of focused learning**
 
 Think of sessions like **chapters in a book**:
+
 - Each session has a **specific focus** (e.g., "React Hooks")
 - You can **start, pause, and resume** anytime
 - Progress is **saved automatically**
@@ -284,6 +286,7 @@ Breakdown:
 **Snapshots of important moments**
 
 Think of checkpoints like **save points in a game**:
+
 - Capture current state
 - Can restore anytime
 - Preserve context
@@ -535,6 +538,7 @@ Monthly review:
 **Symptoms**: Progress lost, can't resume
 
 **Solutions**:
+
 ```
 1. Check internet connection
 2. Verify database write permissions
@@ -548,6 +552,7 @@ Monthly review:
 **Symptoms**: Session disappeared
 
 **Solutions**:
+
 ```
 1. Dashboard → "All Sessions" tab
 2. Search by date/topic
@@ -561,6 +566,7 @@ Monthly review:
 **Symptoms**: Progress bar not moving
 
 **Solutions**:
+
 ```
 1. Refresh dashboard
 2. Complete an activity
@@ -574,6 +580,7 @@ Monthly review:
 **Symptoms**: Can't save or restore
 
 **Solutions**:
+
 ```
 1. Check checkpoint limit (100 max)
 2. Verify session exists
@@ -726,6 +733,7 @@ Now that you understand sessions:
 ---
 
 **Quick Reference**
+
 - New Session: `Ctrl+N`
 - Save Checkpoint: `Ctrl+S`
 - Pause: `Ctrl+P`

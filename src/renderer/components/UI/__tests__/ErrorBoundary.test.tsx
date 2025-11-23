@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -27,7 +26,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <div>Normal content</div>
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     expect(screen.getByText('Normal content')).toBeInTheDocument();
@@ -37,11 +36,13 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     expect(screen.getByText('Application Error')).toBeInTheDocument();
-    expect(screen.getByText('Learning Catalyst encountered an unexpected error.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Learning Catalyst encountered an unexpected error.'),
+    ).toBeInTheDocument();
   });
 
   it('displays error details in development mode', () => {
@@ -51,7 +52,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     const errorDetails = screen.getByText('Error Details (Development Mode)');
@@ -72,7 +73,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     expect(screen.queryByText('Error details')).not.toBeInTheDocument();
@@ -86,7 +87,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary fallback={customFallback}>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     expect(screen.getByText('Custom error UI')).toBeInTheDocument();
@@ -100,7 +101,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     const restartButton = screen.getByText('Restart Application');
@@ -113,7 +114,7 @@ describe('ErrorBoundary', () => {
     const { rerender } = render(
       <ErrorBoundary>
         <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     expect(screen.getByText('Application Error')).toBeInTheDocument();
@@ -128,7 +129,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     // Verify console.error was called at least once
@@ -139,7 +140,7 @@ describe('ErrorBoundary', () => {
       expect.objectContaining({
         error: expect.any(Error),
         errorId: expect.any(String),
-      })
+      }),
     );
   });
 
@@ -147,7 +148,7 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     // Check for proper heading structure
@@ -166,13 +167,10 @@ describe('ErrorBoundary', () => {
     render(
       <ErrorBoundary>
         <ThrowError />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
 
     const container = screen.getByText('Application Error').closest('div');
-    expect(container?.parentElement?.parentElement).toHaveClass(
-      'bg-gray-50',
-      'dark:bg-gray-900'
-    );
+    expect(container?.parentElement?.parentElement).toHaveClass('bg-gray-50', 'dark:bg-gray-900');
   });
 });

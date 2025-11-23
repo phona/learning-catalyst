@@ -1,11 +1,13 @@
-
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AIProviderSettings } from '@/renderer/components/Config/AIProviderSettings';
 import { useService } from '@/renderer/services/services-provider';
-import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
+import {
+  createMockConfigurationService,
+  createMockFileService,
+} from '@/test/utils/services-provider-stubs';
 
 // Temporary debug log to inspect environment.
 console.log('[AIProviderSettings tests] NODE_ENV:', process.env.NODE_ENV);
@@ -66,7 +68,7 @@ describe('AIProviderSettings (current UI)', () => {
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
-      />
+      />,
     );
 
     expect(screen.getByText('AI Provider Configuration')).toBeInTheDocument();
@@ -85,7 +87,7 @@ describe('AIProviderSettings (current UI)', () => {
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
-      />
+      />,
     );
 
     // Provider configuration section should be expanded by default
@@ -105,9 +107,12 @@ describe('AIProviderSettings (current UI)', () => {
     const validateButton = screen.getByRole('button', { name: 'Validate' });
     await user.click(validateButton);
 
-    await waitFor(() => {
-      expect(validateProvider).toHaveBeenCalledWith('openai', 'key-123', expect.any(String));
-    }, { timeout: 5000 });
+    await waitFor(
+      () => {
+        expect(validateProvider).toHaveBeenCalledWith('openai', 'key-123', expect.any(String));
+      },
+      { timeout: 5000 },
+    );
 
     // Save should be enabled after successful validation
     const saveButton = screen.getByRole('button', { name: 'Save Configuration' });
@@ -123,7 +128,7 @@ describe('AIProviderSettings (current UI)', () => {
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
-      />
+      />,
     );
 
     // Provider appears in configured list (should be visible since sections are expanded by default)
@@ -132,16 +137,23 @@ describe('AIProviderSettings (current UI)', () => {
     // Find the Fetch Models button in the configured providers section
     // Use getAllByText because there might be multiple Fetch Models buttons
     const fetchButtons = screen.getAllByText('Fetch Models');
-    const configuredProviderFetchBtn = fetchButtons.find(btn =>
-      btn.closest('button')?.hasAttribute('disabled') === false
+    const configuredProviderFetchBtn = fetchButtons.find(
+      (btn) => btn.closest('button')?.hasAttribute('disabled') === false,
     );
 
     if (configuredProviderFetchBtn) {
       await user.click(configuredProviderFetchBtn);
 
-      await waitFor(() => {
-        expect(getProviderModels).toHaveBeenCalledWith('openai', 'test-openai-key', 'https://api.openai.com/v1');
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(getProviderModels).toHaveBeenCalledWith(
+            'openai',
+            'test-openai-key',
+            'https://api.openai.com/v1',
+          );
+        },
+        { timeout: 5000 },
+      );
     }
   }, 10000);
 
@@ -154,7 +166,7 @@ describe('AIProviderSettings (current UI)', () => {
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
         onModelAssignmentChange={onModelAssignmentChange}
-      />
+      />,
     );
 
     const modelSelect = screen.getByDisplayValue('gpt-3.5-turbo');

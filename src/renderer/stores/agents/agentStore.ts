@@ -1,4 +1,3 @@
-
 /**
  * Agent Store - Frontend state management for agents
  * Clean architecture with display-optimized state
@@ -17,7 +16,9 @@ export const setAgentService = (service: AgentService | null) => {
 
 const requireAgentService = (): AgentService => {
   if (!agentServiceInstance) {
-    throw new Error('Agent service is not initialized. Did you forget to configure it after mounting ServicesProvider?');
+    throw new Error(
+      'Agent service is not initialized. Did you forget to configure it after mounting ServicesProvider?',
+    );
   }
   return agentServiceInstance;
 };
@@ -59,8 +60,14 @@ interface AgentState {
   setSelectedCategory: (category: string) => void;
 
   // Agent status actions
-  setAgentStatus: (agentId: string, status: { isOnline: boolean; isProcessing: boolean; currentTask?: string }) => void;
-  updateAgentStatus: (agentId: string, updates: Partial<{ isOnline: boolean; isProcessing: boolean; currentTask?: string }>) => void;
+  setAgentStatus: (
+    agentId: string,
+    status: { isOnline: boolean; isProcessing: boolean; currentTask?: string },
+  ) => void;
+  updateAgentStatus: (
+    agentId: string,
+    updates: Partial<{ isOnline: boolean; isProcessing: boolean; currentTask?: string }>,
+  ) => void;
 
   // API actions
   loadAgents: () => Promise<void>;
@@ -89,24 +96,27 @@ export const useAgentStore = create<AgentState>()(
     ...initialState,
 
     // State setters
-    setAgents: (agents) => set({ agents, availableAgents: agents.filter(a => a.isAvailable) }),
-    addAgent: (agent) => set((state) => ({
-      agents: [...state.agents, agent],
-      availableAgents: agent.isAvailable
-        ? [...state.availableAgents, agent]
-        : state.availableAgents
-    })),
-    updateAgent: (agentId, updates) => set((state) => ({
-      agents: state.agents.map(agent =>
-        agent.id === agentId ? { ...agent, ...updates } : agent
-      ),
-      availableAgents: state.availableAgents.map(agent =>
-        agent.id === agentId ? { ...agent, ...updates } : agent
-      ),
-      selectedAgent: state.selectedAgent?.id === agentId
-        ? { ...state.selectedAgent, ...updates }
-        : state.selectedAgent
-    })),
+    setAgents: (agents) => set({ agents, availableAgents: agents.filter((a) => a.isAvailable) }),
+    addAgent: (agent) =>
+      set((state) => ({
+        agents: [...state.agents, agent],
+        availableAgents: agent.isAvailable
+          ? [...state.availableAgents, agent]
+          : state.availableAgents,
+      })),
+    updateAgent: (agentId, updates) =>
+      set((state) => ({
+        agents: state.agents.map((agent) =>
+          agent.id === agentId ? { ...agent, ...updates } : agent,
+        ),
+        availableAgents: state.availableAgents.map((agent) =>
+          agent.id === agentId ? { ...agent, ...updates } : agent,
+        ),
+        selectedAgent:
+          state.selectedAgent?.id === agentId
+            ? { ...state.selectedAgent, ...updates }
+            : state.selectedAgent,
+      })),
     setSelectedAgent: (selectedAgent) => set({ selectedAgent }),
 
     setLoading: (loading) => set({ loading }),
@@ -119,15 +129,20 @@ export const useAgentStore = create<AgentState>()(
     setSelectedCategory: (selectedCategory) => set({ selectedCategory }),
 
     // Agent status actions
-    setAgentStatus: (agentId, status) => set((state) => ({
-      agentStatuses: new Map(state.agentStatuses.set(agentId, status))
-    })),
-    updateAgentStatus: (agentId, updates) => set((state) => {
-      const currentStatus = state.agentStatuses.get(agentId) || { isOnline: true, isProcessing: false };
-      const newStatus = { ...currentStatus, ...updates };
-      const newStatuses = new Map(state.agentStatuses.set(agentId, newStatus));
-      return { agentStatuses: newStatuses };
-    }),
+    setAgentStatus: (agentId, status) =>
+      set((state) => ({
+        agentStatuses: new Map(state.agentStatuses.set(agentId, status)),
+      })),
+    updateAgentStatus: (agentId, updates) =>
+      set((state) => {
+        const currentStatus = state.agentStatuses.get(agentId) || {
+          isOnline: true,
+          isProcessing: false,
+        };
+        const newStatus = { ...currentStatus, ...updates };
+        const newStatuses = new Map(state.agentStatuses.set(agentId, newStatus));
+        return { agentStatuses: newStatuses };
+      }),
 
     // API actions
     loadAgents: async () => {
@@ -138,8 +153,8 @@ export const useAgentStore = create<AgentState>()(
 
         set({
           agents,
-          availableAgents: agents.filter(a => a.isAvailable),
-          loading: false
+          availableAgents: agents.filter((a) => a.isAvailable),
+          loading: false,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to load agents';
@@ -154,7 +169,7 @@ export const useAgentStore = create<AgentState>()(
         const service = requireAgentService();
         const selectedAgent = await service.selectAgentForSession({
           sessionId: request.sessionId,
-          agentType: request.agentType
+          agentType: request.agentType,
         });
 
         if (selectedAgent) {
@@ -177,20 +192,20 @@ export const useAgentStore = create<AgentState>()(
         get().setAgentStatus(agentId, {
           isOnline: status.isOnline,
           isProcessing: status.isProcessing,
-          currentTask: status.currentTask
+          currentTask: status.currentTask,
         });
       } catch (error) {
         console.error('Failed to get agent status:', error);
         get().setAgentStatus(agentId, {
           isOnline: false,
-          isProcessing: false
+          isProcessing: false,
         });
       }
     },
 
     // Utility actions
-    resetAgentState: () => set(initialState)
-  }))
+    resetAgentState: () => set(initialState),
+  })),
 );
 
 // Selectors for derived state
@@ -199,41 +214,45 @@ export const useAvailableAgents = () => useAgentStore((state) => state.available
 export const useSelectedAgent = () => useAgentStore((state) => state.selectedAgent);
 export const useAgentsLoading = () => useAgentStore((state) => state.loading);
 export const useAgentError = () => useAgentStore((state) => state.error);
-export const useFilteredAgents = () => useAgentStore((state) => {
-  const { availableAgents, searchQuery, selectedCategory } = state;
+export const useFilteredAgents = () =>
+  useAgentStore((state) => {
+    const { availableAgents, searchQuery, selectedCategory } = state;
 
-  let filtered = availableAgents;
+    let filtered = availableAgents;
 
-  // Apply search query
-  if (searchQuery) {
-    filtered = filtered.filter(agent =>
-      agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      agent.capabilities.some(cap => cap.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }
+    // Apply search query
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (agent) =>
+          agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          agent.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          agent.capabilities.some((cap) => cap.toLowerCase().includes(searchQuery.toLowerCase())),
+      );
+    }
 
-  // Apply category filter
-  if (selectedCategory) {
-    filtered = filtered.filter(agent => agent.category === selectedCategory);
-  }
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter((agent) => agent.category === selectedCategory);
+    }
 
-  return filtered;
-});
-export const useAgentStatus = (agentId: string) => useAgentStore((state) => state.agentStatuses.get(agentId));
+    return filtered;
+  });
+export const useAgentStatus = (agentId: string) =>
+  useAgentStore((state) => state.agentStatuses.get(agentId));
 
 // Actions hook
-export const useAgentActions = () => useAgentStore((state) => ({
-  setAgents: state.setAgents,
-  addAgent: state.addAgent,
-  updateAgent: state.updateAgent,
-  setSelectedAgent: state.setSelectedAgent,
-  loadAgents: state.loadAgents,
-  selectAgent: state.selectAgent,
-  getAgentStatus: state.getAgentStatus,
-  setAgentStatus: state.setAgentStatus,
-  updateAgentStatus: state.updateAgentStatus,
-  setSearchQuery: state.setSearchQuery,
-  setSelectedCategory: state.setSelectedCategory,
-  resetAgentState: state.resetAgentState
-}));
+export const useAgentActions = () =>
+  useAgentStore((state) => ({
+    setAgents: state.setAgents,
+    addAgent: state.addAgent,
+    updateAgent: state.updateAgent,
+    setSelectedAgent: state.setSelectedAgent,
+    loadAgents: state.loadAgents,
+    selectAgent: state.selectAgent,
+    getAgentStatus: state.getAgentStatus,
+    setAgentStatus: state.setAgentStatus,
+    updateAgentStatus: state.updateAgentStatus,
+    setSearchQuery: state.setSearchQuery,
+    setSelectedCategory: state.setSelectedCategory,
+    resetAgentState: state.resetAgentState,
+  }));

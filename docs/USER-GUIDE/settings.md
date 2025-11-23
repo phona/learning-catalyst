@@ -64,12 +64,14 @@ Settings
 ```
 
 **Finding your OpenAI API key:**
+
 - Visit: https://platform.openai.com/api-keys
 - Sign in or create account
 - Click "Create new secret key"
 - Copy key (starts with `sk-`)
 
 **Cost estimation:**
+
 ```
 GPT-4o: ~$0.005 per 1K tokens
 GPT-4: ~$0.03 per 1K tokens
@@ -94,12 +96,14 @@ GPT-3.5: ~$0.001 per 1K tokens
 ```
 
 **ChatGLM features:**
+
 - 🧠 **Thinking Visualization**: See AI reasoning
 - 💡 **Smart Suggestions**: Better context
 - 💰 **Competitive Pricing**: Often cheaper
 - 🇨🇳 **Chinese Support**: Bilingual
 
 **Finding your ChatGLM API key:**
+
 - Visit: https://open.bigmodel.cn/
 - Register and verify account
 - Go to API Key management
@@ -121,6 +125,7 @@ GPT-3.5: ~$0.001 per 1K tokens
 ```
 
 **Best for:**
+
 - Programming questions
 - Code reviews
 - Technical discussions
@@ -148,12 +153,14 @@ GPT-3.5: ~$0.001 per 1K tokens
 ```
 
 **Benefits:**
+
 - ✅ Completely free
 - ✅ No data leaves your machine
 - ✅ Works offline
 - ✅ Unlimited usage
 
 **Requirements:**
+
 - 8GB+ RAM for good models
 - 16GB+ for large models (70B+)
 - Modern CPU or GPU recommended
@@ -188,6 +195,7 @@ Default: Intermediate
 ```
 
 **How it affects AI:**
+
 - **Beginner**: Uses analogies, simple terms, step-by-step
 - **Intermediate**: Balanced detail, real-world examples
 - **Advanced**: Assumes base knowledge, focuses on nuances
@@ -208,6 +216,7 @@ Default: Medium (30-60 min)
 ```
 
 **How it affects sessions:**
+
 - AI structures content to fit timeframe
 - Shorter = more breaks, bite-sized lessons
 - Longer = comprehensive coverage, fewer interruptions
@@ -334,6 +343,7 @@ Custom locations:
 ```
 
 **What's stored:**
+
 - Learning sessions
 - Messages and transcripts
 - Knowledge concepts
@@ -356,6 +366,7 @@ Default: Weekly
 ```
 
 **Backup location:**
+
 - Same folder as data
 - Timestamped: `backup-2025-01-15.zip`
 - Includes all sessions and settings
@@ -365,6 +376,7 @@ Default: Weekly
 **Download your learning data**
 
 **Export formats:**
+
 ```
 JSON - Machine-readable, complete data
 Markdown - Human-readable, formatted text
@@ -373,6 +385,7 @@ CSV - Spreadsheet-compatible
 ```
 
 **How to export:**
+
 ```
 1. Settings → Data & Privacy → Export Data
 2. Choose format
@@ -382,6 +395,7 @@ CSV - Spreadsheet-compatible
 ```
 
 **What's included:**
+
 - All learning sessions
 - Chat transcripts
 - Knowledge concepts
@@ -470,6 +484,7 @@ Verbose Mode
 **View and manage application logs**
 
 **Log types:**
+
 ```
 Application Logs - General app behavior
 Error Logs - Errors and exceptions
@@ -479,6 +494,7 @@ Database Logs - Database operations
 ```
 
 **How to view:**
+
 ```
 1. Settings → Advanced → Logs
 2. Select log type
@@ -565,6 +581,7 @@ Debug Mode: Disabled
 ### "API Key Invalid"
 
 **Solutions:**
+
 ```
 1. Double-check key (no extra spaces)
 2. Regenerate key from provider
@@ -576,6 +593,7 @@ Debug Mode: Disabled
 ### "Connection Failed"
 
 **Solutions:**
+
 ```
 1. Check internet connection
 2. Verify provider is up: provider-status.com
@@ -587,6 +605,7 @@ Debug Mode: Disabled
 ### "Settings Not Saving"
 
 **Solutions:**
+
 ```
 1. Check write permissions to config folder
 2. Close other instances of app
@@ -598,6 +617,7 @@ Debug Mode: Disabled
 ### "High Memory Usage"
 
 **Solutions:**
+
 ```
 1. Reduce memory limit: Settings → Advanced → Performance
 2. Clear cache: Advanced → Reset → Clear Cache
@@ -609,6 +629,7 @@ Debug Mode: Disabled
 ### "Theme Not Changing"
 
 **Solutions:**
+
 ```
 1. Restart application
 2. Check system theme setting
@@ -622,6 +643,7 @@ Debug Mode: Disabled
 ### 1. Multiple AI Providers
 
 Use different providers for different tasks:
+
 ```
 OpenAI - Best for general learning
 ChatGLM - Good for thinking process
@@ -632,6 +654,7 @@ Local - Privacy and unlimited use
 ### 2. Gradual Difficulty Increase
 
 Start easy, increase over time:
+
 ```
 Week 1: Beginner
 Week 2-3: Intermediate
@@ -641,6 +664,7 @@ Week 4+: Advanced
 ### 3. Regular Backups
 
 Protect your learning:
+
 ```
 1. Enable auto-backup (weekly)
 2. Export data monthly
@@ -651,6 +675,7 @@ Protect your learning:
 ### 4. Performance Tuning
 
 Optimize for your hardware:
+
 ```
 Low-end PC: Compact layout, conservative settings
 Mid-range: Balanced settings
@@ -678,6 +703,7 @@ Now that you've configured settings:
 ---
 
 **Quick Reference**
+
 - Open Settings: `Ctrl+,`
 - Save: Settings save automatically
 - Reset: Settings → Advanced → Reset Settings

@@ -23,7 +23,7 @@ export const mockApp = {
       pictures: './test-data/pictures',
       videos: './test-data/videos',
       logs: './test-data/logs',
-      crashDumps: './test-data/crashes'
+      crashDumps: './test-data/crashes',
     };
     return paths[name] || './test-data/default';
   }),
@@ -45,7 +45,7 @@ export const mockApp = {
     openAtLogin: false,
     openAsHidden: false,
     path: '',
-    args: []
+    args: [],
   }),
   setLoginItemSettings: vi.fn(),
   isPackaged: false,
@@ -53,8 +53,8 @@ export const mockApp = {
     hasSwitch: vi.fn().mockReturnValue(false),
     getSwitchValue: vi.fn().mockReturnValue(''),
     appendSwitch: vi.fn(),
-    removeSwitch: vi.fn()
-  }
+    removeSwitch: vi.fn(),
+  },
 };
 
 // Mock IPC Main
@@ -70,7 +70,7 @@ export const mockIpcMain = {
   postMessage: vi.fn(),
   removeHandler: vi.fn(),
   removeAllListeners: vi.fn(),
-  listeners: new Map()
+  listeners: new Map(),
 };
 
 // Mock Browser Window
@@ -148,8 +148,8 @@ export const mockBrowserWindow = vi.fn().mockImplementation((options: any) => ({
     minimized: false,
     maximized: false,
     fullscreen: false,
-    destroyed: false
-  }
+    destroyed: false,
+  },
 }));
 
 // Mock Web Contents
@@ -222,7 +222,7 @@ export const mockWebContents = vi.fn().mockImplementation(() => ({
 
   // Debugging
   debug: vi.fn(),
-  getDebugInfo: vi.fn().mockReturnValue({})
+  getDebugInfo: vi.fn().mockReturnValue({}),
 }));
 
 // Mock Message Channel Main
@@ -240,22 +240,25 @@ export const mockMessageChannelMain = vi.fn().mockImplementation(() => {
       _listeners: new Map(),
 
       // Helper methods for testing
-      _receiveMessage: function(message: any) {
-        this._messages.push(message);
-        if (this.onmessage) {
-          this.onmessage({ data: message });
+      _receiveMessage: (message: any) => {
+        port._messages.push(message);
+        if (port.onmessage) {
+          port.onmessage({ data: message });
         }
-        this._listeners.get('message')?.forEach((listener: any) => listener(message));
+        port._listeners.get('message')?.forEach((listener: any) => listener(message));
       },
 
-      addEventListener: vi.fn().mockImplementation(function(event: string, listener: any) {
-        this._listeners.set(event, [...(this._listeners.get(event) || []), listener]);
+      addEventListener: vi.fn().mockImplementation((event: string, listener: any) => {
+        port._listeners.set(event, [...(port._listeners.get(event) || []), listener]);
       }),
 
-      removeEventListener: vi.fn().mockImplementation(function(event: string, listener: any) {
-        const listeners = this._listeners.get(event) || [];
-        this._listeners.set(event, listeners.filter((l: any) => l !== listener));
-      })
+      removeEventListener: vi.fn().mockImplementation((event: string, listener: any) => {
+        const listeners = port._listeners.get(event) || [];
+        port._listeners.set(
+          event,
+          listeners.filter((l: any) => l !== listener),
+        );
+      }),
     };
 
     return port;
@@ -280,12 +283,12 @@ export const mockMessageChannelMain = vi.fn().mockImplementation(() => {
     port2,
 
     // Test helper methods
-    _simulateDisconnection: function() {
+    _simulateDisconnection: function () {
       port1.closed = true;
       port2.closed = true;
       port1.close();
       port2.close();
-    }
+    },
   };
 });
 
@@ -300,11 +303,11 @@ export const mockMenu = {
     remove: vi.fn(),
     getMenuItemById: vi.fn(),
     enableMenuItemById: vi.fn(),
-    disableMenuItemById: vi.fn()
+    disableMenuItemById: vi.fn(),
   })),
   setApplicationMenu: vi.fn(),
   getApplicationMenu: vi.fn().mockReturnValue(null),
-  sendActionToFirstResponder: vi.fn()
+  sendActionToFirstResponder: vi.fn(),
 };
 
 // Mock MenuItem
@@ -324,7 +327,7 @@ export const mockMenuItem = vi.fn().mockImplementation((options: any) => ({
   on: vi.fn(),
   once: vi.fn(),
   removeAllListeners: vi.fn(),
-  emit: vi.fn()
+  emit: vi.fn(),
 }));
 
 // Mock Dialog
@@ -332,25 +335,25 @@ export const mockDialog = {
   showOpenDialog: vi.fn().mockResolvedValue({
     canceled: false,
     filePaths: ['/path/to/file.txt'],
-    bookmarks: []
+    bookmarks: [],
   }),
   showOpenDialogSync: vi.fn().mockReturnValue({
     canceled: false,
     filePaths: ['/path/to/file.txt'],
-    bookmarks: []
+    bookmarks: [],
   }),
   showSaveDialog: vi.fn().mockResolvedValue({
     canceled: false,
-    filePath: '/path/to/save.txt'
+    filePath: '/path/to/save.txt',
   }),
   showSaveDialogSync: vi.fn().mockReturnValue({
     canceled: false,
-    filePath: '/path/to/save.txt'
+    filePath: '/path/to/save.txt',
   }),
   showMessageBox: vi.fn().mockResolvedValue({ response: 0, checkboxChecked: false }),
   showMessageBoxSync: vi.fn().mockReturnValue(0),
   showErrorBox: vi.fn(),
-  showCertificateTrustDialog: vi.fn().mockResolvedValue(undefined)
+  showCertificateTrustDialog: vi.fn().mockResolvedValue(undefined),
 };
 
 // Mock Shell
@@ -364,9 +367,9 @@ export const mockShell = {
     target: '/path/to/target',
     cwd: '/path/to/cwd',
     args: [],
-    description: ''
+    description: '',
   }),
-  writeShortcutLink: vi.fn().mockReturnValue(true)
+  writeShortcutLink: vi.fn().mockReturnValue(true),
 };
 
 // Mock System Preferences
@@ -377,7 +380,7 @@ export const mockSystemPreferences = {
   postNotification: vi.fn(),
   subscribeNotification: vi.fn(),
   unsubscribeNotification: vi.fn(),
-  getAppleActionOnMouseDown: vi.fn().mockReturnValue(0)
+  getAppleActionOnMouseDown: vi.fn().mockReturnValue(0),
 };
 
 // Mock Power Monitor
@@ -392,7 +395,7 @@ export const mockPowerMonitor = {
   onSuspend: false,
   onResume: false,
   onLockScreen: false,
-  onUnlockScreen: false
+  onUnlockScreen: false,
 };
 
 // Mock Auto Updater
@@ -402,9 +405,9 @@ export const mockAutoUpdater = {
   checkForUpdates: vi.fn().mockResolvedValue({
     updateInfo: {
       version: '1.0.1',
-      releaseNotes: 'Bug fixes and improvements'
+      releaseNotes: 'Bug fixes and improvements',
     },
-    cancellationToken: { cancel: vi.fn() }
+    cancellationToken: { cancel: vi.fn() },
   }),
   quitAndInstall: vi.fn(),
   on: vi.fn(),
@@ -417,15 +420,15 @@ export const mockAutoUpdater = {
   updateDownloaded: false,
 
   // Test helpers
-  _setUpdateAvailable: function(available: boolean) {
+  _setUpdateAvailable: function (available: boolean) {
     this.updateAvailable = available;
     this.emit('update-available', { version: '1.0.1' });
   },
 
-  _setUpdateDownloaded: function(downloaded: boolean) {
+  _setUpdateDownloaded: function (downloaded: boolean) {
     this.updateDownloaded = downloaded;
     this.emit('update-downloaded', { version: '1.0.1' });
-  }
+  },
 };
 
 // Mock Screen
@@ -435,7 +438,7 @@ const primaryDisplay = {
   workArea: { x: 0, y: 0, width: 1920, height: 1040 },
   scaleFactor: 1,
   rotation: 0,
-  touchSupport: 'available'
+  touchSupport: 'available',
 };
 
 export const mockScreen = {
@@ -446,7 +449,7 @@ export const mockScreen = {
   on: vi.fn(),
   once: vi.fn(),
   removeAllListeners: vi.fn(),
-  emit: vi.fn()
+  emit: vi.fn(),
 };
 
 // Mock Global Shortcut
@@ -454,7 +457,7 @@ export const mockGlobalShortcut = {
   register: vi.fn().mockReturnValue(true),
   isRegistered: vi.fn().mockReturnValue(false),
   unregister: vi.fn(),
-  unregisterAll: vi.fn()
+  unregisterAll: vi.fn(),
 };
 
 // Mock Native Theme
@@ -470,10 +473,10 @@ export const mockNativeTheme = {
   emit: vi.fn(),
 
   // Test helpers
-  _setShouldUseDarkColors: function(dark: boolean) {
+  _setShouldUseDarkColors: function (dark: boolean) {
     this.shouldUseDarkColors = dark;
     this.emit('updated');
-  }
+  },
 };
 
 // Export comprehensive mock collection
@@ -497,7 +500,7 @@ export const ElectronMainMocks = {
   autoUpdater: mockAutoUpdater,
   screen: mockScreen,
   globalShortcut: mockGlobalShortcut,
-  nativeTheme: mockNativeTheme
+  nativeTheme: mockNativeTheme,
 };
 
 // Export default mock collection

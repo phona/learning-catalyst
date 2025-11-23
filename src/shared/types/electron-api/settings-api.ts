@@ -21,24 +21,28 @@ export interface SettingsAPI {
    * @param preferences - Partial preferences object to update
    * @returns Promise<{ success: boolean; updatedSettings: any; changes: string[] }>
    */
-  updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<APIResponse<{
-    updatedSettings: any;
-    changes: string[];
-  }>>;
+  updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<
+    APIResponse<{
+      updatedSettings: any;
+      changes: string[];
+    }>
+  >;
 
   /**
    * Gets available AI providers and their status
    * Returns configured and available AI providers
    * @returns Promise<{ success: boolean; providers: ProviderDisplay[]; summary: { total: number; connected: number; configured: number } }> - Response with providers and summary
    */
-  getAvailableProviders: () => Promise<APIResponse<{
-    providers: ProviderDisplay[];
-    summary: {
-      total: number;
-      connected: number;
-      configured: number;
-    };
-  }>>;
+  getAvailableProviders: () => Promise<
+    APIResponse<{
+      providers: ProviderDisplay[];
+      summary: {
+        total: number;
+        connected: number;
+        configured: number;
+      };
+    }>
+  >;
 
   /**
    * Configures an AI provider with authentication and settings
@@ -65,11 +69,12 @@ export interface SettingsAPI {
    * @param settings - Learning settings to update
    * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
    */
-  updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<APIResponse<{
-    updatedSettings: any;
-    impact: string[];
-  }>>;
-
+  updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<
+    APIResponse<{
+      updatedSettings: any;
+      impact: string[];
+    }>
+  >;
 }
 
 // ============================================================================
@@ -276,7 +281,15 @@ export interface ProviderModel {
 /**
  * Provider capability
  */
-export type ProviderCapability = 'chat' | 'completion' | 'embedding' | 'image' | 'audio' | 'function-calling' | 'streaming' | 'long-context';
+export type ProviderCapability =
+  | 'chat'
+  | 'completion'
+  | 'embedding'
+  | 'image'
+  | 'audio'
+  | 'function-calling'
+  | 'streaming'
+  | 'long-context';
 
 /**
  * Provider configuration object

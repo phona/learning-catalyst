@@ -1,26 +1,26 @@
-import type { Migration } from 'kysely'
-import { MigrationManager } from './tools'
+import type { Migration } from 'kysely';
+import { MigrationManager } from './tools';
 
 // Static imports for all migration modules
-import createConcepts from './20251029_create_concepts'
-import { createConceptProgress } from './20251030_create_concept_progress'
-import createRelationships from './20251029_create_relationships'
-import createLearningSessions from './20251029_create_learning_sessions'
-import createMessages from './20251029_create_messages'
-import createSessionConcepts from './20251029_create_session_concepts'
-import createAnalytics from './20251029_create_analytics'
-import createAchievements from './20251029_create_achievements'
-import createSettings from './20251029_create_settings'
-import createKnowledgeGraphCache from './20251029_create_knowledge_graph_cache'
-import createCategories from './20251029_create_categories'
-import createUserStats from './20251029_create_user_stats'
-import insertDefaultData from './20251029_insert_default_data'
-import createCheckpoints from './20251102_create_checkpoints'
-import createAgents from './20251107_create_agents'
-import createAgentStates from './20251107_create_agent_states'
-import createAgentLifecycleEvents from './20251107_create_agent_lifecycle_events'
-import createAgentArchives from './20251107_create_agent_archives'
-import createMemorySystemTables from './20251111_create_memory_system_tables'
+import createConcepts from './20251029_create_concepts';
+import { createConceptProgress } from './20251030_create_concept_progress';
+import createRelationships from './20251029_create_relationships';
+import createLearningSessions from './20251029_create_learning_sessions';
+import createMessages from './20251029_create_messages';
+import createSessionConcepts from './20251029_create_session_concepts';
+import createAnalytics from './20251029_create_analytics';
+import createAchievements from './20251029_create_achievements';
+import createSettings from './20251029_create_settings';
+import createKnowledgeGraphCache from './20251029_create_knowledge_graph_cache';
+import createCategories from './20251029_create_categories';
+import createUserStats from './20251029_create_user_stats';
+import insertDefaultData from './20251029_insert_default_data';
+import createCheckpoints from './20251102_create_checkpoints';
+import createAgents from './20251107_create_agents';
+import createAgentStates from './20251107_create_agent_states';
+import createAgentLifecycleEvents from './20251107_create_agent_lifecycle_events';
+import createAgentArchives from './20251107_create_agent_archives';
+import createMemorySystemTables from './20251111_create_memory_system_tables';
 
 /**
  * Load all migration files from the migrations directory
@@ -46,8 +46,8 @@ export async function loadAllMigrations(): Promise<Record<string, Migration>> {
     '20251107_create_agent_lifecycle_events': createAgentLifecycleEvents,
     '20251107_create_agent_archives': createAgentArchives,
     '20251111_create_memory_system_tables': createMemorySystemTables,
-  }
+  };
 }
 
 // Re-export MigrationManager for external use
-export { MigrationManager }
+export { MigrationManager };

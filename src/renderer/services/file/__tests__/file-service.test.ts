@@ -12,7 +12,7 @@ const mockElectronAPI: Partial<ElectronAPI> = {
   showSaveDialog: vi.fn(),
   readFile: vi.fn(),
   writeFile: vi.fn(),
-  existsFile: vi.fn()
+  existsFile: vi.fn(),
 };
 
 describe('FileService', () => {
@@ -32,6 +32,26 @@ describe('FileService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockResult);
+    });
+
+    it('should merge defaults with provided options', async () => {
+      const mockResult = { canceled: false, filePaths: ['/path/to/dir'] };
+      vi.mocked(mockElectronAPI.showOpenDialog!).mockResolvedValue(mockResult);
+
+      const options = {
+        properties: ['openDirectory', 'multiSelections'] as Array<
+          'openDirectory' | 'multiSelections' | 'openFile' | 'createDirectory'
+        >,
+        title: 'Pick Dir',
+      };
+      const result = await fileService.showOpenDialog(options);
+
+      expect(result.success).toBe(true);
+      expect(mockElectronAPI.showOpenDialog).toHaveBeenCalled();
+      const callArg = vi.mocked(mockElectronAPI.showOpenDialog!).mock.calls[0][0] as any;
+      expect(callArg.properties).toEqual(['openDirectory', 'multiSelections']);
+      expect(callArg.title).toBe('Pick Dir');
+      expect(callArg.filters).toBeDefined();
     });
 
     it('should handle service unavailability', async () => {
@@ -137,6 +157,17 @@ describe('FileService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockResult);
+    });
+
+    it('should pass through provided options', async () => {
+      const mockResult = { canceled: false, filePath: '/path/to/save.txt' };
+      vi.mocked(mockElectronAPI.showSaveDialog!).mockResolvedValue(mockResult);
+
+      const options = { defaultPath: '/path/to/default.txt', title: 'Save As' };
+      const result = await fileService.showSaveDialog(options);
+
+      expect(result.success).toBe(true);
+      expect(mockElectronAPI.showSaveDialog).toHaveBeenCalledWith(options);
     });
 
     it('should handle service unavailability', async () => {

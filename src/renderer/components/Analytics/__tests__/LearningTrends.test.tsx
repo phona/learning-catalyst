@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -11,8 +10,8 @@ class MockSimpleAnalyticsModule implements SimpleAnalyticsModule {
     Promise.resolve({
       dailyStudyTime: [],
       masteryProgress: [],
-      sessionTypes: {}
-    })
+      sessionTypes: {},
+    }),
   );
   getStudyMetrics = vi.fn();
   getAchievements = vi.fn();
@@ -27,9 +26,7 @@ describe('LearningTrends', () => {
   });
 
   it('renders loading state initially', () => {
-    mockAnalytics.getLearningTrends.mockImplementation(() =>
-      new Promise(() => {})
-    );
+    mockAnalytics.getLearningTrends.mockImplementation(() => new Promise(() => {}));
 
     render(<LearningTrends analytics={mockAnalytics} />);
 
@@ -41,7 +38,9 @@ describe('LearningTrends', () => {
 
     render(<LearningTrends analytics={mockAnalytics} />);
 
-    expect(await screen.findByText('Error loading trends: Failed to load trends')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Error loading trends: Failed to load trends'),
+    ).toBeInTheDocument();
   });
 
   it('renders trends data when loaded successfully', async () => {
@@ -57,8 +56,8 @@ describe('LearningTrends', () => {
         { date: '2025-01-22', avgMastery: 3.2 },
       ],
       sessionTypes: {
-        'study': 5,
-        'review': 2,
+        study: 5,
+        review: 2,
       },
     };
 
@@ -126,9 +125,9 @@ describe('LearningTrends', () => {
       dailyStudyTime: [],
       masteryProgress: [],
       sessionTypes: {
-        'study': 8,
-        'review': 3,
-        'assessment': 2,
+        study: 8,
+        review: 3,
+        assessment: 2,
       },
     };
 
@@ -230,11 +229,11 @@ describe('LearningTrends', () => {
   });
 
   it('applies className prop correctly', () => {
-    mockAnalytics.getLearningTrends.mockImplementation(() =>
-      new Promise(() => {})
-    );
+    mockAnalytics.getLearningTrends.mockImplementation(() => new Promise(() => {}));
 
-    const { container } = render(<LearningTrends analytics={mockAnalytics} className="custom-class" />);
+    const { container } = render(
+      <LearningTrends analytics={mockAnalytics} className="custom-class" />,
+    );
 
     expect(container.firstChild).toHaveClass('custom-class');
   });

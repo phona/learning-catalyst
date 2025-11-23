@@ -7,32 +7,32 @@ vi.mock('../providers/openai-provider', () => ({
   createOpenAIService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 vi.mock('../providers/chatglm-provider', () => ({
   createChatGLMService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 vi.mock('../providers/deepseek-provider', () => ({
   createDeepSeekService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 vi.mock('../providers/local-model-provider', () => ({
   createLocalModelService: vi.fn(() => ({
     chatCompletion: vi.fn(),
     getModels: vi.fn(() => []),
-    getEmbeddings: vi.fn()
-  }))
+    getEmbeddings: vi.fn(),
+  })),
 }));
 
 describe('AI Service - Basic Tests', () => {
@@ -48,8 +48,8 @@ describe('AI Service - Basic Tests', () => {
         info: vi.fn(),
         debug: vi.fn(),
         error: vi.fn(),
-        warn: vi.fn()
-      }))
+        warn: vi.fn(),
+      })),
     } as any;
 
     mockConfig = {
@@ -58,23 +58,23 @@ describe('AI Service - Basic Tests', () => {
           openai: {
             provider_type: 'openai',
             api_key: 'test-openai-key',
-            model: 'gpt-4o'
-          }
+            model: 'gpt-4o',
+          },
         },
         model_types: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.7,
-            max_tokens: 4096
-          }
-        }
-      }
+            max_tokens: 4096,
+          },
+        },
+      },
     } as unknown as AppConfig;
 
     aiService = createAIService({
       loggerService: mockLoggerService,
-      config: mockConfig
+      config: mockConfig,
     });
   });
 
@@ -105,7 +105,7 @@ describe('AI Service - Basic Tests', () => {
       expect(Array.isArray(models)).toBe(true);
       expect(models.length).toBeGreaterThan(0);
 
-      models.forEach(model => {
+      models.forEach((model) => {
         expect(model).toHaveProperty('id');
         expect(model).toHaveProperty('name');
         expect(model).toHaveProperty('provider');
@@ -124,7 +124,7 @@ describe('AI Service - Basic Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-openai-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       });
     });
 
@@ -135,7 +135,7 @@ describe('AI Service - Basic Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.2,
-        maxTokens: 2048
+        maxTokens: 2048,
       });
     });
 
@@ -146,7 +146,7 @@ describe('AI Service - Basic Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.15,
-        maxTokens: 2048
+        maxTokens: 2048,
       });
     });
 
@@ -157,7 +157,7 @@ describe('AI Service - Basic Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.35,
-        maxTokens: 3072
+        maxTokens: 3072,
       });
     });
 
@@ -169,7 +169,7 @@ describe('AI Service - Basic Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-openai-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       });
     });
 
@@ -181,7 +181,7 @@ describe('AI Service - Basic Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-openai-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       });
     });
   });
@@ -189,7 +189,7 @@ describe('AI Service - Basic Tests', () => {
   describe('Available Models', () => {
     it('should include all predefined models', () => {
       const models = aiService.getAvailableModels();
-      const modelIds = models.map(m => m.id);
+      const modelIds = models.map((m) => m.id);
 
       expect(modelIds).toContain('gpt-4o');
       expect(modelIds).toContain('gpt-4-turbo');
@@ -202,7 +202,7 @@ describe('AI Service - Basic Tests', () => {
     it('should have proper metadata for each model', () => {
       const models = aiService.getAvailableModels();
 
-      models.forEach(model => {
+      models.forEach((model) => {
         expect(typeof model.id).toBe('string');
         expect(typeof model.name).toBe('string');
         expect(typeof model.provider).toBe('string');
@@ -220,16 +220,16 @@ describe('AI Service - Basic Tests', () => {
           providers: {
             openai: {
               provider_type: 'openai',
-              api_key: 'resolved-key'
-            }
+              api_key: 'resolved-key',
+            },
           },
-          model_types: {}
-        }
+          model_types: {},
+        },
       } as unknown as AppConfig;
 
       const service = createAIService({
         loggerService: mockLoggerService,
-        config: configWithProviderType
+        config: configWithProviderType,
       });
 
       const preset = service.getModelPreset('default');
@@ -241,21 +241,21 @@ describe('AI Service - Basic Tests', () => {
         ai: {
           providers: {
             unknown: {
-              provider_type: 'unknown'
-            }
+              provider_type: 'unknown',
+            },
           },
           model_types: {
             chat: {
               provider: 'unknown',
-              model: 'unknown-model'
-            }
-          }
-        }
+              model: 'unknown-model',
+            },
+          },
+        },
       } as unknown as AppConfig;
 
       const service = createAIService({
         loggerService: mockLoggerService,
-        config: configWithoutKey
+        config: configWithoutKey,
       });
 
       const preset = service.getModelPreset('default');
@@ -269,7 +269,7 @@ describe('AI Service - Basic Tests', () => {
 
       const service = createAIService({
         loggerService: mockLoggerService,
-        config: minimalConfig
+        config: minimalConfig,
       });
 
       const defaultPreset = service.getModelPreset('default');
@@ -278,7 +278,7 @@ describe('AI Service - Basic Tests', () => {
         model: 'llama-3.1-70b',
         apiKey: 'local-dev',
         temperature: 0.3,
-        maxTokens: 1024
+        maxTokens: 1024,
       });
     });
   });
@@ -293,13 +293,13 @@ describe('AI Service - Basic Tests', () => {
         debug: vi.fn(),
         info: vi.fn(),
         error: vi.fn(),
-        warn: vi.fn()
+        warn: vi.fn(),
       };
       mockLoggerService.child = vi.fn().mockReturnValue(mockChildLogger);
 
       const service = createAIService({
         loggerService: mockLoggerService,
-        config: mockConfig
+        config: mockConfig,
       });
 
       service.getModelPreset('chat.reply');

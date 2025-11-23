@@ -1,8 +1,52 @@
-
-
-
 import React from 'react';
-import type { AppConfig } from '@/shared/types/config';
+import type { AppConfig, UIConfig } from '@/shared/types/config';
+
+type ToggleSettingKey = Extract<
+  keyof UIConfig,
+  | 'show_token_usage'
+  | 'auto_save'
+  | 'auto_scroll'
+  | 'enable_markdown'
+  | 'enable_syntax_highlighting'
+  | 'compact_mode'
+>;
+
+const TOGGLE_SETTINGS: ReadonlyArray<{
+  key: ToggleSettingKey;
+  label: string;
+  description: string;
+}> = [
+  {
+    key: 'show_token_usage',
+    label: 'Show Token Usage',
+    description: 'Display token usage statistics',
+  },
+  {
+    key: 'auto_save',
+    label: 'Auto Save',
+    description: 'Automatically save conversations',
+  },
+  {
+    key: 'auto_scroll',
+    label: 'Auto Scroll',
+    description: 'Automatically scroll to new messages',
+  },
+  {
+    key: 'enable_markdown',
+    label: 'Enable Markdown',
+    description: 'Render markdown formatting',
+  },
+  {
+    key: 'enable_syntax_highlighting',
+    label: 'Syntax Highlighting',
+    description: 'Highlight code syntax',
+  },
+  {
+    key: 'compact_mode',
+    label: 'Compact Mode',
+    description: 'Use compact interface layout',
+  },
+];
 
 interface UISettingsProps {
   config: AppConfig;
@@ -10,6 +54,15 @@ interface UISettingsProps {
 }
 
 export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }) => {
+  const updateUIConfig = <K extends keyof UIConfig>(key: K, value: UIConfig[K]) => {
+    onConfigChange({
+      ui: {
+        ...config.ui,
+        [key]: value,
+      },
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
@@ -25,9 +78,9 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
             <select
               id="theme-selector"
               value={config.ui.theme}
-              onChange={(e) => onConfigChange({
-                ui: { ...config.ui, theme: e.target.value as any }
-              })}
+              onChange={(event) =>
+                updateUIConfig('theme', event.target.value as UIConfig['theme'])
+              }
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               aria-label="Theme"
             >
@@ -44,9 +97,9 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
             <select
               id="font-size-selector"
               value={config.ui.font_size}
-              onChange={(e) => onConfigChange({
-                ui: { ...config.ui, font_size: e.target.value as any }
-              })}
+              onChange={(event) =>
+                updateUIConfig('font_size', event.target.value as UIConfig['font_size'])
+              }
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               aria-label="Font Size"
             >
@@ -57,43 +110,38 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
           </div>
 
           <div className="space-y-4">
-            {[
-              { key: 'show_token_usage', label: 'Show Token Usage', description: 'Display token usage statistics' },
-              { key: 'auto_save', label: 'Auto Save', description: 'Automatically save conversations' },
-              { key: 'auto_scroll', label: 'Auto Scroll', description: 'Automatically scroll to new messages' },
-              { key: 'enable_markdown', label: 'Enable Markdown', description: 'Render markdown formatting' },
-              { key: 'enable_syntax_highlighting', label: 'Syntax Highlighting', description: 'Highlight code syntax' },
-              { key: 'compact_mode', label: 'Compact Mode', description: 'Use compact interface layout' },
-            ].map(({ key, label, description }) => (
-              <div key={key} className="flex items-center justify-between">
-                <div>
-                  <label className="font-medium text-gray-900 dark:text-gray-100">{label}</label>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={config.ui[key as keyof typeof config.ui]}
-                  aria-label={label}
-                  onClick={() => onConfigChange({
-                    ui: { ...config.ui, [key]: !config.ui[key as keyof typeof config.ui] }
-                  })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    config.ui[key as keyof typeof config.ui] ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      config.ui[key as keyof typeof config.ui] ? 'translate-x-6' : 'translate-x-1'
+            {TOGGLE_SETTINGS.map(({ key, label, description }) => {
+              const isEnabled = config.ui[key];
+              return (
+                <div key={key} className="flex items-center justify-between">
+                  <div>
+                    <label className="font-medium text-gray-900 dark:text-gray-100">{label}</label>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={isEnabled}
+                    aria-label={label}
+                    onClick={() => updateUIConfig(key, !isEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`}
-                    aria-hidden="true"
-                  />
-                </button>
-              </div>
-            ))}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
     </div>
   );
 };
+export default UISettings;

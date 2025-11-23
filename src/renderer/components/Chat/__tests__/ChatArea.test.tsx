@@ -1,6 +1,3 @@
-
-
-
 /**
  * ChatArea Component Tests - Focused on Reliability
  *
@@ -23,7 +20,13 @@ vi.mock('@/renderer/hooks/useChatStore', () => ({
 }));
 
 vi.mock('@/renderer/components/Chat/MessageBubble', () => ({
-  MessageBubble: ({ message, _onToggleThinking }: { message: Message; onToggleThinking?: (messageId: string) => void }) => (
+  MessageBubble: ({
+    message,
+    onToggleThinking,
+  }: {
+    message: Message;
+    onToggleThinking?: (messageId: string) => void;
+  }) => (
     <div data-testid={`message-bubble-${message.id}`}>
       {message.role}: {message.content}
     </div>
@@ -36,14 +39,14 @@ describe('ChatArea - Critical Reliability Tests', () => {
   const mockMessages: Message[] = [
     {
       id: 'msg-1',
-      role: 'user',
+      role: 'user' as const,
       content: 'Hello',
       timestamp: new Date('2024-01-01T10:00:00Z'),
       provider: 'openai',
     },
     {
       id: 'msg-2',
-      role: 'assistant',
+      role: 'assistant' as const,
       content: 'Hi there!',
       timestamp: new Date('2024-01-01T10:00:01Z'),
       provider: 'openai',
@@ -85,9 +88,10 @@ describe('ChatArea - Critical Reliability Tests', () => {
     renderWithServices(<ChatArea />);
 
     // Should show some kind of empty state or welcome message
-    const chatArea = screen.getByTestId('chat-area') ||
-                     document.querySelector('[data-testid="chat-area"]') ||
-                     document.querySelector('.chat-area');
+    const chatArea =
+      screen.getByTestId('chat-area') ||
+      document.querySelector('[data-testid="chat-area"]') ||
+      document.querySelector('.chat-area');
 
     expect(chatArea).toBeInTheDocument();
     // Should not crash or show message bubbles
@@ -96,9 +100,9 @@ describe('ChatArea - Critical Reliability Tests', () => {
 
   it('should handle malformed messages gracefully', () => {
     const malformedMessages = [
-      { id: 'msg-1', role: 'user', content: null }, // null content
-      { id: 'msg-2', role: 'assistant', content: undefined }, // undefined content
-      { id: 'msg-3', role: 'user', content: 'Normal message' }, // normal message
+      { id: 'msg-1', role: 'user' as const, content: null }, // null content
+      { id: 'msg-2', role: 'assistant' as const, content: undefined }, // undefined content
+      { id: 'msg-3', role: 'user' as const, content: 'Normal message' }, // normal message
     ] as Message[];
 
     (useChatStore as any).mockReturnValue({
@@ -124,7 +128,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     const messagesWithLongContent: Message[] = [
       {
         id: 'msg-long',
-        role: 'assistant',
+        role: 'assistant' as const,
         content: longContent,
         timestamp: new Date(),
         provider: 'openai',
@@ -233,10 +237,10 @@ describe('ChatArea - Critical Reliability Tests', () => {
 
     const { unmount } = renderWithServices(<ChatArea />);
     expect(screen.getByTestId('message-bubble-msg-1')).toBeInTheDocument();
-    
+
     // Clean up and test with both messages
     unmount();
-    
+
     (useChatStore as any).mockReturnValue({
       messages: mockMessages,
       isStreaming: false,
@@ -287,7 +291,7 @@ describe('ChatArea - Critical Reliability Tests', () => {
     const specialMessages: Message[] = [
       {
         id: 'msg-special',
-        role: 'user',
+        role: 'user' as const,
         content: 'Message with emoji 😊 and unicode ñáéíóú',
         timestamp: new Date(),
         provider: 'openai',

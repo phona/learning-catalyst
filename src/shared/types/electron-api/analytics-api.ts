@@ -15,7 +15,7 @@ import type {
   StudyStreakDisplay,
   TimeStatsDisplay,
   CreateLearningSessionRequest,
-  ConceptProgressUpdate
+  ConceptProgressUpdate,
 } from '@/shared/interfaces/analytics.interface';
 
 export interface AnalyticsAPI {
@@ -82,7 +82,7 @@ export interface AnalyticsAPI {
    */
   updateConceptProgress: (
     conceptId: string,
-    update: ConceptProgressUpdate
+    update: ConceptProgressUpdate,
   ) => Promise<APIResponse<void>>;
 
   /**

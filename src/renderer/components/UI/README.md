@@ -2,11 +2,13 @@
 
 ## 📋 Overview
 
-A comprehensive, type-safe UI component library built for the Learning Catalyst desktop application. Provides consistent user experiences, proper error handling, and excellent loading states.
+A comprehensive, type-safe UI component library built for the Learning Catalyst desktop application.
+Provides consistent user experiences, proper error handling, and excellent loading states.
 
 ## 🏗️ Architecture
 
 ### Core Principles
+
 - **Consistency**: Single source of truth for UI components
 - **Accessibility**: WCAG compliant with keyboard navigation
 - **Performance**: Optimized rendering with proper memoization
@@ -16,6 +18,7 @@ A comprehensive, type-safe UI component library built for the Learning Catalyst 
 ### Component Categories
 
 #### 🎯 Core Primitives
+
 - **Button**: Versatile button with variants, sizes, and loading states
 - **Input**: Form inputs with validation, icons, and helper text
 - **Card**: Flexible content containers with multiple variants
@@ -23,12 +26,14 @@ A comprehensive, type-safe UI component library built for the Learning Catalyst 
 - **Container**: Responsive layout utilities
 
 #### 🚨 Error Handling System
+
 - **ErrorBoundary**: Configurable error boundary with 3 display variants
 - **ChatErrorBoundary**: Chat-specific error recovery
 - **ComponentErrorBoundary**: Generic component error handling
 - **SettingsErrorBoundary**: Settings configuration error handling
 
 #### ⏳ Loading State System
+
 - **LoadingScreen**: Full-screen application loading
 - **Skeleton**: Content-aware loading placeholders
 - **MessageSkeleton**: Chat message loading state
@@ -211,6 +216,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 ## 🎯 Best Practices
 
 ### Component Usage
+
 1. **Consistency**: Always import from `@/renderer/components/UI`
 2. **Type Safety**: Use TypeScript interfaces for all props
 3. **Accessibility**: Include proper ARIA labels and keyboard navigation
@@ -218,18 +224,21 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 5. **Error Handling**: Wrap components in appropriate error boundaries
 
 ### Error Boundaries
+
 1. **Application Level**: Use `variant="full"` for app-wide errors
 2. **Feature Level**: Use `variant="inline"` for feature sections
 3. **Component Level**: Use `variant="minimal"` for individual components
 4. **Context**: Use specialized boundaries (Chat, Settings) when appropriate
 
 ### Loading States
+
 1. **Skeletons**: Prefer skeleton loading over spinners for content
 2. **Dimensions**: Match skeleton dimensions to actual content
 3. **Context**: Use specialized skeletons (Message, ChatList) when available
 4. **Animations**: Use appropriate animation types (pulse vs wave)
 
 ### Performance
+
 1. **Memoization**: Use React.memo for components with expensive renders
 2. **Code Splitting**: Lazy load components when appropriate
 3. **Bundle Size**: Import only the components you need
@@ -238,6 +247,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 ## 🔧 Development Guidelines
 
 ### Adding New Components
+
 1. Create component file in `src/renderer/components/UI/`
 2. Follow the existing documentation pattern
 3. Include TypeScript interfaces
@@ -246,6 +256,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 6. Add tests in `__tests__/` directory
 
 ### Component Structure
+
 ```typescript
 /**
  * Component description with purpose and usage
@@ -260,6 +271,7 @@ export const Component: React.FC<ComponentProps> = ({ prop }) => {
 ```
 
 ### Testing
+
 1. Unit tests for component behavior
 2. Integration tests for user interactions
 3. Accessibility tests for keyboard navigation
@@ -268,18 +280,21 @@ export const Component: React.FC<ComponentProps> = ({ prop }) => {
 ## 🚨 Migration Guide
 
 ### From Duplicate Components
+
 1. Replace `shared/forms/Button` with `UI/Button`
 2. Replace `shared/forms/Input` with `UI/Input`
 3. Replace `shared/layout/Card` with `UI/Card`
 4. Replace `shared/feedback/LoadingScreen` with `UI/LoadingScreen`
 
 ### Error Boundary Updates
+
 1. Replace basic `ErrorBoundary` with configurable `ErrorBoundary`
 2. Add appropriate `variant` prop based on usage context
 3. Implement `onRetry` handlers where appropriate
 4. Use specialized boundaries for specific contexts
 
 ### Loading State Improvements
+
 1. Replace spinners with skeleton components
 2. Use context-specific skeletons when available
 3. Match skeleton dimensions to actual content
@@ -289,17 +304,17 @@ export const Component: React.FC<ComponentProps> = ({ prop }) => {
 
 ### Common Issues
 
-**Problem**: TypeScript errors for missing props
-**Solution**: Check the component interfaces and ensure all required props are provided
+**Problem**: TypeScript errors for missing props **Solution**: Check the component interfaces and
+ensure all required props are provided
 
-**Problem**: Error boundaries not catching errors
-**Solution**: Ensure error boundaries wrap components properly and aren't in development mode
+**Problem**: Error boundaries not catching errors **Solution**: Ensure error boundaries wrap
+components properly and aren't in development mode
 
-**Problem**: Skeleton components not matching content
-**Solution**: Adjust width and height props to match actual content dimensions
+**Problem**: Skeleton components not matching content **Solution**: Adjust width and height props to
+match actual content dimensions
 
-**Problem**: Performance issues with re-renders
-**Solution**: Add React.memo and useCallback hooks where appropriate
+**Problem**: Performance issues with re-renders **Solution**: Add React.memo and useCallback hooks
+where appropriate
 
 ### Getting Help
 

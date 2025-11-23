@@ -1,4 +1,3 @@
-
 import type { AppConfig } from '@/shared/types/config';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
 
@@ -179,7 +178,11 @@ export function validateConfig(config: any): config is AppConfig {
     return false;
   }
 
-  if (typeof config.ai.temperature !== 'number' || config.ai.temperature < 0 || config.ai.temperature > 2) {
+  if (
+    typeof config.ai.temperature !== 'number' ||
+    config.ai.temperature < 0 ||
+    config.ai.temperature > 2
+  ) {
     return false;
   }
 

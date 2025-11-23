@@ -6,10 +6,10 @@
  */
 
 interface MemoryUsage {
-  rss: number;        // Resident Set Size
-  heapUsed: number;   // Heap memory used
-  heapTotal: number;  // Total heap memory allocated
-  external: number;   // Memory used by C++ objects
+  rss: number; // Resident Set Size
+  heapUsed: number; // Heap memory used
+  heapTotal: number; // Total heap memory allocated
+  external: number; // Memory used by C++ objects
   arrayBuffers: number; // Memory used by ArrayBuffer objects
 }
 
@@ -83,7 +83,9 @@ class MemoryDebugLogger {
       const arrayBuffers = Math.round((usage as any).arrayBuffers / 1024 / 1024);
 
       console.log(`🧠 Memory Debug [${timestamp}]:`);
-      console.log(`   RSS: ${rss}MB | Heap: ${heapUsed}MB/${heapTotal}MB | External: ${external}MB | Arrays: ${arrayBuffers}MB`);
+      console.log(
+        `   RSS: ${rss}MB | Heap: ${heapUsed}MB/${heapTotal}MB | External: ${external}MB | Arrays: ${arrayBuffers}MB`,
+      );
 
       // Check for potential memory issues
       const heapUsagePercent = (heapUsed / heapTotal) * 100;
@@ -116,7 +118,7 @@ class MemoryDebugLogger {
       heapUsed: usage.heapUsed,
       heapTotal: usage.heapTotal,
       external: usage.external,
-      arrayBuffers: (usage as any).arrayBuffers || 0
+      arrayBuffers: (usage as any).arrayBuffers || 0,
     };
   }
 
@@ -137,13 +139,15 @@ let memoryLogger: MemoryDebugLogger | null = null;
 export function getMemoryLogger(): MemoryDebugLogger {
   if (!memoryLogger) {
     // Check if memory debugging is enabled
-    const enabled = process.env.DEBUG_MEMORY === 'true' ||
-                   process.argv.includes('--debug-memory') ||
-                   process.env.NODE_ENV !== 'production';
+    const enabled =
+      process.env.DEBUG_MEMORY === 'true' ||
+      process.argv.includes('--debug-memory') ||
+      process.env.NODE_ENV !== 'production';
 
     if (enabled) {
-      const interval = process.env.DEBUG_MEMORY_INTERVAL ?
-        parseInt(process.env.DEBUG_MEMORY_INTERVAL, 10) : 10000;
+      const interval = process.env.DEBUG_MEMORY_INTERVAL
+        ? parseInt(process.env.DEBUG_MEMORY_INTERVAL, 10)
+        : 10000;
       memoryLogger = new MemoryDebugLogger(interval);
     }
   }

@@ -1,6 +1,7 @@
 # Performance & Optimization Guide
 
-This guide covers **performance optimization strategies** for Learning Catalyst, including memory management, build optimization, and runtime performance.
+This guide covers **performance optimization strategies** for Learning Catalyst, including memory
+management, build optimization, and runtime performance.
 
 ## Performance Overview
 
@@ -37,6 +38,7 @@ Learning Catalyst runs **multiple processes**, each with different performance c
 **Problem**: Development server memory growing from 300MB to 1GB+
 
 **Root Cause**:
+
 - Vite file watching 50,000+ node_modules files
 - No exclusions for large directories
 - Unlimited chunk sizes
@@ -55,28 +57,28 @@ Learning Catalyst runs **multiple processes**, each with different performance c
 export default defineConfig({
   server: {
     watch: {
-      usePolling: false,      // Reduces CPU usage
-      interval: 1000,         // Check every second (not continuous)
+      usePolling: false, // Reduces CPU usage
+      interval: 1000, // Check every second (not continuous)
 
       // CRITICAL: Exclude large directories
       ignored: [
-        '**/node_modules/**',      // 50,000+ files
-        '**/dist/**',              // Build artifacts
-        '**/dist-electron/**',     // Electron builds
-        '**/.git/**',             // Git history
-        '**/test_workspace/**',   // User data (can be large)
-        '**/external/**',         // Large binaries
-        '**/coverage/**',         // Test coverage
-        '**/.cache/**',           // Cache directories
-        '**/*.log',               // Log files
-        '**/.DS_Store',           // System files
-        '**/Thumbs.db'            // System files
-      ]
+        '**/node_modules/**', // 50,000+ files
+        '**/dist/**', // Build artifacts
+        '**/dist-electron/**', // Electron builds
+        '**/.git/**', // Git history
+        '**/test_workspace/**', // User data (can be large)
+        '**/external/**', // Large binaries
+        '**/coverage/**', // Test coverage
+        '**/.cache/**', // Cache directories
+        '**/*.log', // Log files
+        '**/.DS_Store', // System files
+        '**/Thumbs.db', // System files
+      ],
     },
     hmr: {
-      port: 5174  // Separate HMR port
-    }
-  }
+      port: 5174, // Separate HMR port
+    },
+  },
 });
 ```
 
@@ -90,7 +92,7 @@ export default defineConfig({
       'react',
       'react-dom',
       'zustand',
-      '@tanstack/react-query'
+      '@tanstack/react-query',
     ],
 
     exclude: [
@@ -102,9 +104,9 @@ export default defineConfig({
     ],
 
     // Limit pre-bundling
-    force: false,  // Don't force rebuild
-    maxSize: 1000 * 1000  // 1MB chunks
-  }
+    force: false, // Don't force rebuild
+    maxSize: 1000 * 1000, // 1MB chunks
+  },
 });
 ```
 
@@ -123,7 +125,7 @@ export default defineConfig({
           'vendor-electron': ['electron'],
 
           // Limit chunk size
-          maxFileSize: 500 * 1024,  // 500KB per chunk
+          maxFileSize: 500 * 1024, // 500KB per chunk
 
           // Add warnings
           chunkFileNames: (chunkInfo) => {
@@ -131,18 +133,18 @@ export default defineConfig({
               ? chunkInfo.facadeModuleId.split('/').pop()
               : 'chunk';
             return `js/[name]-[hash].js`;
-          }
-        }
-      }
+          },
+        },
+      },
     },
 
     // Dev build optimizations
     ...(isServe && {
-      minify: false,           // Skip minification (faster builds)
-      sourcemap: true,         // But keep sourcemaps
-      chunkSizeWarningLimit: 1000
-    })
-  }
+      minify: false, // Skip minification (faster builds)
+      sourcemap: true, // But keep sourcemaps
+      chunkSizeWarningLimit: 1000,
+    }),
+  },
 });
 ```
 
@@ -156,7 +158,7 @@ function viteMemoryPlugin(options: MemoryPluginOptions = {}) {
     maxMemoryMB = 600,
     checkIntervalMs = 15000,
     enableCleanup = true,
-    verbose = false
+    verbose = false,
   } = options;
 
   return {
@@ -171,16 +173,12 @@ function viteMemoryPlugin(options: MemoryPluginOptions = {}) {
         const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
 
         if (verbose) {
-          console.log(
-            `📊 Memory: RSS=${rssMB.toFixed(1)}MB, Heap=${heapUsedMB.toFixed(1)}MB`
-          );
+          console.log(`📊 Memory: RSS=${rssMB.toFixed(1)}MB, Heap=${heapUsedMB.toFixed(1)}MB`);
         }
 
         // Check if over limit
         if (rssMB > maxMemoryMB) {
-          console.warn(
-            `⚠️  High memory usage: ${rssMB.toFixed(1)}MB (limit: ${maxMemoryMB}MB)`
-          );
+          console.warn(`⚠️  High memory usage: ${rssMB.toFixed(1)}MB (limit: ${maxMemoryMB}MB)`);
 
           // Force garbage collection (if available)
           if (global.gc && enableCleanup) {
@@ -197,9 +195,9 @@ function viteMemoryPlugin(options: MemoryPluginOptions = {}) {
           // Warn about potential issues
           console.warn(
             '💡 Consider:\n' +
-            '   - Restarting dev server\n' +
-            '   - Closing other apps\n' +
-            '   - Checking for memory leaks in code'
+              '   - Restarting dev server\n' +
+              '   - Closing other apps\n' +
+              '   - Checking for memory leaks in code',
           );
         }
       }, checkIntervalMs);
@@ -208,7 +206,7 @@ function viteMemoryPlugin(options: MemoryPluginOptions = {}) {
       server.httpServer?.on('close', () => {
         clearInterval(checkInterval);
       });
-    }
+    },
   };
 }
 ```
@@ -223,15 +221,17 @@ export default defineConfig({
     react(),
 
     // Memory monitoring in dev only
-    ...(isServe ? [
-      viteMemoryPlugin({
-        maxMemoryMB: 600,
-        checkIntervalMs: 15000,
-        enableCleanup: true,
-        verbose: process.env.DEBUG_MEMORY === 'true'
-      })
-    ] : [])
-  ]
+    ...(isServe
+      ? [
+          viteMemoryPlugin({
+            maxMemoryMB: 600,
+            checkIntervalMs: 15000,
+            enableCleanup: true,
+            verbose: process.env.DEBUG_MEMORY === 'true',
+          }),
+        ]
+      : []),
+  ],
 });
 ```
 
@@ -260,24 +260,21 @@ class MultiProcessMemoryMonitor {
           (err, stdout) => {
             if (err) return reject(err);
             resolve(this.parseWindowsProcesses(stdout));
-          }
+          },
         );
       } else {
         // Unix-like
-        exec(
-          "ps aux | grep -E 'node|vite|electron' | grep -v grep",
-          (err, stdout) => {
-            if (err) return reject(err);
-            resolve(this.parseUnixProcesses(stdout));
-          }
-        );
+        exec("ps aux | grep -E 'node|vite|electron' | grep -v grep", (err, stdout) => {
+          if (err) return reject(err);
+          resolve(this.parseUnixProcesses(stdout));
+        });
       }
     });
   }
 
   parseWindowsProcesses(output) {
     const processes = [];
-    const lines = output.split('\r\r\n').filter(l => l.trim());
+    const lines = output.split('\r\r\n').filter((l) => l.trim());
 
     for (const line of lines) {
       if (line.includes('learning-catalyst') || line.includes('vite')) {
@@ -302,7 +299,7 @@ class MultiProcessMemoryMonitor {
           name: parts[10],
           cpu: parts[2],
           mem: parts[3],
-          command: parts.slice(10).join(' ')
+          command: parts.slice(10).join(' '),
         });
       }
     }
@@ -342,14 +339,14 @@ class MultiProcessMemoryMonitor {
         if (growth > 5) {
           console.log(
             `🚨 MEMORY LEAK: PID ${process.pid} (${process.command}) ` +
-            `growing at ${growth.toFixed(1)}MB/check`
+              `growing at ${growth.toFixed(1)}MB/check`,
           );
         }
 
         // Log memory usage
         console.log(
           `📊 PID ${process.pid}: ${memoryMB.toFixed(1)}MB ` +
-          `(growth: ${growth > 0 ? '+' : ''}${growth.toFixed(1)}MB) - ${process.command}`
+            `(growth: ${growth > 0 ? '+' : ''}${growth.toFixed(1)}MB) - ${process.command}`,
         );
       }
     } catch (error) {
@@ -386,7 +383,7 @@ if (require.main === module) {
     process.exit(0);
   });
 
-  monitor.start(30000);  // Check every 30 seconds
+  monitor.start(30000); // Check every 30 seconds
 }
 
 module.exports = MultiProcessMemoryMonitor;
@@ -484,11 +481,7 @@ await db.schema
   .column('session_id')
   .execute();
 
-await db.schema
-  .createIndex('idx_messages_timestamp')
-  .on('messages')
-  .column('timestamp')
-  .execute();
+await db.schema.createIndex('idx_messages_timestamp').on('messages').column('timestamp').execute();
 
 await db.schema
   .createIndex('idx_concepts_search')
@@ -503,7 +496,7 @@ await db.schema
 // ✅ Select only needed columns
 const sessions = await db
   .selectFrom('learning_sessions')
-  .select(['id', 'title', 'start_time', 'updated_at'])  // Only needed columns
+  .select(['id', 'title', 'start_time', 'updated_at']) // Only needed columns
   .where('end_time', 'is', null)
   .limit(50)
   .execute();
@@ -511,7 +504,7 @@ const sessions = await db
 // ❌ Avoid SELECT *
 const sessions = await db
   .selectFrom('learning_sessions')
-  .selectAll()  // Returns unnecessary columns
+  .selectAll() // Returns unnecessary columns
   .execute();
 ```
 
@@ -565,13 +558,13 @@ class MemoryCache<T> {
   set(key: string, data: T): void {
     this.store.set(key, {
       data,
-      expires: Date.now() + this.ttl
+      expires: Date.now() + this.ttl,
     });
   }
 }
 
 // Usage
-const sessionCache = new MemoryCache<Session>(5 * 60 * 1000);  // 5 minutes
+const sessionCache = new MemoryCache<Session>(5 * 60 * 1000); // 5 minutes
 
 async function getSession(sessionId: string): Promise<Session> {
   const cached = sessionCache.get(sessionId);
@@ -602,7 +595,7 @@ async function getKnowledgeMap(sessionId: string) {
     .execute();
 
   // Cache result
-  await cache.set(cacheKey, graphData, 60 * 60 * 1000);  // 1 hour
+  await cache.set(cacheKey, graphData, 60 * 60 * 1000); // 1 hour
   return graphData;
 }
 ```
@@ -615,7 +608,7 @@ async function getKnowledgeMap(sessionId: string) {
 // Stream AI responses for better UX
 export async function sendMessageStream(
   message: string,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
 ): Promise<void> {
   const stream = await aiService.stream(message);
 
@@ -675,11 +668,7 @@ class PerformanceMonitor {
   static trackRenderEnd(componentName: string) {
     if (process.env.NODE_ENV === 'development') {
       performance.mark(`${componentName}-end`);
-      performance.measure(
-        componentName,
-        `${componentName}-start`,
-        `${componentName}-end`
-      );
+      performance.measure(componentName, `${componentName}-start`, `${componentName}-end`);
     }
   }
 }
@@ -746,11 +735,11 @@ Focus on:
 
 ```typescript
 // ✅ Good: Use Map for frequent lookups
-const conceptMap = new Map(concepts.map(c => [c.id, c]));
-const concept = conceptMap.get(conceptId);  // O(1) lookup
+const conceptMap = new Map(concepts.map((c) => [c.id, c]));
+const concept = conceptMap.get(conceptId); // O(1) lookup
 
 // ❌ Avoid: Array.find() for frequent lookups
-const concept = concepts.find(c => c.id === conceptId);  // O(n) lookup
+const concept = concepts.find((c) => c.id === conceptId); // O(n) lookup
 ```
 
 ### 4. Avoid Premature Optimization
@@ -759,10 +748,10 @@ const concept = concepts.find(c => c.id === conceptId);  // O(n) lookup
 // ❌ Bad: Premature optimization
 const complexOptimization = useMemo(() => {
   return expensiveCalculation(data);
-}, [data]);  // Only use if data actually changes
+}, [data]); // Only use if data actually changes
 
 // ✅ Good: Only optimize when needed
-const value = simpleCalculation(data);  // Simple first
+const value = simpleCalculation(data); // Simple first
 ```
 
 ### 5. Monitor Memory in Development
@@ -785,6 +774,7 @@ node monitor-memory.js
 **Symptoms**: Dev server uses 1GB+ memory
 
 **Solutions**:
+
 ```bash
 1. Add file watching exclusions (see above)
 2. Enable memory plugin
@@ -798,6 +788,7 @@ node monitor-memory.js
 **Symptoms**: `npm run dev` takes 30+ seconds
 
 **Solutions**:
+
 ```typescript
 // In vite.config.ts
 export default defineConfig({
@@ -810,11 +801,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom']
-        }
-      }
-    }
-  }
+          vendor: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
 });
 ```
 
@@ -823,6 +814,7 @@ export default defineConfig({
 **Symptoms**: Database queries take 1+ seconds
 
 **Solutions**:
+
 ```typescript
 1. Add indexes (see above)
 2. Use selective queries
@@ -836,6 +828,7 @@ export default defineConfig({
 **Symptoms**: UI doesn't respond smoothly
 
 **Solutions**:
+
 ```typescript
 1. Use React.memo for expensive components
 2. Implement virtualization for lists
@@ -847,6 +840,7 @@ export default defineConfig({
 ## Performance Checklist
 
 ### Development
+
 - [ ] File watching exclusions configured
 - [ ] Memory monitoring enabled
 - [ ] Build chunk sizes limited
@@ -854,6 +848,7 @@ export default defineConfig({
 - [ ] Lazy loading implemented
 
 ### Database
+
 - [ ] Indexes on foreign keys
 - [ ] Selective column queries
 - [ ] Query batching where appropriate
@@ -861,6 +856,7 @@ export default defineConfig({
 - [ ] Slow queries identified
 
 ### React/UI
+
 - [ ] React.memo for expensive components
 - [ ] useCallback for event handlers
 - [ ] Virtualization for large lists
@@ -868,6 +864,7 @@ export default defineConfig({
 - [ ] Debounced search/input
 
 ### Monitoring
+
 - [ ] Performance marks in place
 - [ ] Memory monitor running
 - [ ] React DevTools Profiler setup
@@ -898,5 +895,4 @@ DEBUG=vite:*
 
 ---
 
-**Last Updated**: November 2025
-**Version**: 1.0
+**Last Updated**: November 2025 **Version**: 1.0

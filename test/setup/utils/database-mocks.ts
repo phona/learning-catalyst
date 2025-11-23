@@ -37,7 +37,7 @@ export function createMockDatabase(): MockDatabase {
     executeTakeFirst: vi.fn().mockImplementation(async () => null),
     executeTakeFirstOrThrow: vi.fn().mockImplementation(async () => {
       throw new Error('No rows found');
-    })
+    }),
   };
 
   const mockQuery = vi.fn().mockImplementation((query: string, params?: any) => {
@@ -59,18 +59,20 @@ export function createMockDatabase(): MockDatabase {
     insertInto: vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
         execute: vi.fn().mockImplementation(async () => ({ insertId: 1, rowsAffected: 1 })),
-        executeTakeFirst: vi.fn().mockImplementation(async () => ({ insertId: 1, rowsAffected: 1 }))
-      })
+        executeTakeFirst: vi
+          .fn()
+          .mockImplementation(async () => ({ insertId: 1, rowsAffected: 1 })),
+      }),
     }),
     updateTable: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue(mockQueryBuilder)
+      set: vi.fn().mockReturnValue(mockQueryBuilder),
     }),
     deleteFrom: vi.fn().mockReturnValue(mockQueryBuilder),
     transaction: vi.fn().mockImplementation(async (fn) => {
       return fn(createMockDatabase());
     }),
     query: mockQuery,
-    close: vi.fn().mockResolvedValue(undefined)
+    close: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -87,15 +89,15 @@ export function createMockKyselyDatabase(): any {
     // Add schema introspection
     schema: {
       hasTable: vi.fn().mockResolvedValue(true),
-      getColumnMetadata: vi.fn().mockResolvedValue([])
+      getColumnMetadata: vi.fn().mockResolvedValue([]),
     },
     // Add connection pool info
     pool: {
       numUsed: 0,
       numFree: 5,
       numPending: 0,
-      total: 5
-    }
+      total: 5,
+    },
   };
 }
 
@@ -110,7 +112,7 @@ export function createMockAgentRegistryData() {
         capabilities: ['concept-explanation', 'learning-path'],
         status: 'active',
         createdAt: Date.now() - 86400000,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       },
       {
         id: 'assessment-agent-1',
@@ -120,8 +122,8 @@ export function createMockAgentRegistryData() {
         capabilities: ['quiz-generation', 'skill-assessment'],
         status: 'inactive',
         createdAt: Date.now() - 172800000,
-        updatedAt: Date.now() - 86400000
-      }
+        updatedAt: Date.now() - 86400000,
+      },
     ],
     sessions: [
       {
@@ -133,18 +135,18 @@ export function createMockAgentRegistryData() {
             id: 'msg-1',
             role: 'user',
             content: 'Help me learn TypeScript',
-            timestamp: Date.now() - 3600000
+            timestamp: Date.now() - 3600000,
           },
           {
             id: 'msg-2',
             role: 'assistant',
-            content: 'I\'ll help you learn TypeScript step by step.',
-            timestamp: Date.now() - 3000000
-          }
+            content: "I'll help you learn TypeScript step by step.",
+            timestamp: Date.now() - 3000000,
+          },
         ],
         createdAt: Date.now() - 7200000,
-        updatedAt: Date.now() - 3000000
-      }
+        updatedAt: Date.now() - 3000000,
+      },
     ],
     concepts: [
       {
@@ -155,7 +157,7 @@ export function createMockAgentRegistryData() {
         prerequisites: [],
         relatedConcepts: ['concept-2'],
         createdAt: Date.now() - 86400000,
-        updatedAt: Date.now() - 43200000
+        updatedAt: Date.now() - 43200000,
       },
       {
         id: 'concept-2',
@@ -165,9 +167,9 @@ export function createMockAgentRegistryData() {
         prerequisites: ['concept-1'],
         relatedConcepts: ['concept-3'],
         createdAt: Date.now() - 86400000,
-        updatedAt: Date.now() - 43200000
-      }
-    ]
+        updatedAt: Date.now() - 43200000,
+      },
+    ],
   };
 }
 
@@ -180,8 +182,8 @@ export function createMockCatalystServiceData() {
         content: 'TypeScript is a typed superset of JavaScript',
         confidence: 0.95,
         extractionMethod: 'nlp',
-        createdAt: Date.now()
-      }
+        createdAt: Date.now(),
+      },
     ],
     knowledgeGraph: {
       nodes: [
@@ -191,9 +193,9 @@ export function createMockCatalystServiceData() {
           type: 'concept',
           properties: {
             difficulty: 'beginner',
-            description: 'Programming language'
-          }
-        }
+            description: 'Programming language',
+          },
+        },
       ],
       edges: [
         {
@@ -202,11 +204,11 @@ export function createMockCatalystServiceData() {
           target: 'node-2',
           label: 'relates-to',
           properties: {
-            strength: 0.8
-          }
-        }
-      ]
-    }
+            strength: 0.8,
+          },
+        },
+      ],
+    },
   };
 }
 
@@ -219,7 +221,7 @@ export function createMockLangChainData() {
         provider: 'openai',
         capabilities: ['chat', 'completion'],
         contextLength: 4096,
-        pricing: { input: 0.001, output: 0.002 }
+        pricing: { input: 0.001, output: 0.002 },
       },
       {
         id: 'gpt-4',
@@ -227,8 +229,8 @@ export function createMockLangChainData() {
         provider: 'openai',
         capabilities: ['chat', 'completion', 'function-calling'],
         contextLength: 8192,
-        pricing: { input: 0.03, output: 0.06 }
-      }
+        pricing: { input: 0.03, output: 0.06 },
+      },
     ],
     conversations: [
       {
@@ -236,11 +238,11 @@ export function createMockLangChainData() {
         model: 'gpt-3.5-turbo',
         messages: [
           { role: 'user', content: 'Hello' },
-          { role: 'assistant', content: 'Hi there!' }
+          { role: 'assistant', content: 'Hi there!' },
         ],
-        createdAt: Date.now()
-      }
-    ]
+        createdAt: Date.now(),
+      },
+    ],
   };
 }
 
@@ -274,18 +276,18 @@ export function mockDatabaseWithData(mockDb: MockDatabase, data: Record<string, 
     }),
     executeTakeFirstOrThrow: vi.fn().mockImplementation(async () => {
       throw new Error('No rows found');
-    })
+    }),
   };
 
   mockDb.selectFrom = vi.fn().mockReturnValue(mockQueryBuilder);
   mockDb.insertInto = vi.fn().mockReturnValue({
     values: vi.fn().mockReturnValue({
       execute: vi.fn().mockImplementation(async () => ({ insertId: 1, rowsAffected: 1 })),
-      executeTakeFirst: vi.fn().mockImplementation(async () => ({ insertId: 1, rowsAffected: 1 }))
-    })
+      executeTakeFirst: vi.fn().mockImplementation(async () => ({ insertId: 1, rowsAffected: 1 })),
+    }),
   });
   mockDb.updateTable = vi.fn().mockReturnValue({
-    set: vi.fn().mockReturnValue(mockQueryBuilder)
+    set: vi.fn().mockReturnValue(mockQueryBuilder),
   });
   mockDb.deleteFrom = vi.fn().mockReturnValue(mockQueryBuilder);
 }

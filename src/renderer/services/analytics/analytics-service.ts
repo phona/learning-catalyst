@@ -53,31 +53,31 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   // Private helper methods
   const convertTimeRange = (period: string): '7days' | '30days' | '90days' | '1year' => {
     switch (period) {
-    case 'week':
-      return '7days';
-    case 'month':
-      return '30days';
-    case 'quarter':
-      return '90days';
-    case 'year':
-      return '1year';
-    default:
-      return '30days';
+      case 'week':
+        return '7days';
+      case 'month':
+        return '30days';
+      case 'quarter':
+        return '90days';
+      case 'year':
+        return '1year';
+      default:
+        return '30days';
     }
   };
 
   const getUnitForMetric = (metric: string): string => {
     switch (metric) {
-    case 'mastery':
-      return '%';
-    case 'sessions':
-      return 'sessions';
-    case 'time':
-      return 'minutes';
-    case 'concepts':
-      return 'concepts';
-    default:
-      return '';
+      case 'mastery':
+        return '%';
+      case 'sessions':
+        return 'sessions';
+      case 'time':
+        return 'minutes';
+      case 'concepts':
+        return 'concepts';
+      default:
+        return '';
     }
   };
 
@@ -97,7 +97,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
       timeRange: convertTimeRange(params.period),
       metric: params.metric,
       conceptIds: params.conceptIds,
-      includeGoal: true
+      includeGoal: true,
     });
 
     if (!response.success || !response.data) {
@@ -108,13 +108,13 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     return {
       title: `${params.metric.charAt(0).toUpperCase() + params.metric.slice(1)} Progress`,
       type: response.data.chartType === 'scatter' ? 'line' : response.data.chartType,
-      data: response.data.data.map(point => ({
+      data: response.data.data.map((point) => ({
         date: new Date(point.date),
         value: point.minutes || point.sessions || point.concepts || 0,
-        label: point.date
+        label: point.date,
       })),
       unit: getUnitForMetric(params.metric),
-      period: params.period
+      period: params.period,
     };
   };
 
@@ -131,7 +131,10 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     return response.data;
   };
 
-  const updateConceptProgress = async (conceptId: string, update: ConceptProgressUpdate): Promise<void> => {
+  const updateConceptProgress = async (
+    conceptId: string,
+    update: ConceptProgressUpdate,
+  ): Promise<void> => {
     const response = await apiClient.analytics.updateConceptProgress(conceptId, update);
 
     if (!response.success) {
@@ -152,7 +155,10 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     return response.data;
   };
 
-  const updateSession = async (sessionId: string, updates: Partial<LearningSession>): Promise<void> => {
+  const updateSession = async (
+    sessionId: string,
+    updates: Partial<LearningSession>,
+  ): Promise<void> => {
     // Note: The API doesn't have a specific updateSession method,
     // so we'll need to implement this through the main process
     // For now, this is a placeholder that would need the corresponding IPC handler
@@ -163,7 +169,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.getSessionHistory({
       limit: limit || 10,
       sortBy: 'createdAt',
-      sortOrder: 'desc'
+      sortOrder: 'desc',
     });
 
     if (!response.success || !response.data) {
@@ -187,11 +193,16 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
       id: achievement.id,
       title: achievement.name, // Convert 'name' to 'title'
       description: achievement.description,
-      category: achievement.category as 'time' | 'concepts' | 'streaks' | 'performance' | 'engagement',
+      category: achievement.category as
+        | 'time'
+        | 'concepts'
+        | 'streaks'
+        | 'performance'
+        | 'engagement',
       requirement: {}, // Default empty requirement object
       progress: achievement.progress.percentage, // Extract percentage from nested progress object
       icon: achievement.icon,
-      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined
+      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined,
     }));
   };
 
@@ -209,11 +220,16 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
       id: achievement.id,
       title: achievement.name, // Convert 'name' to 'title'
       description: achievement.description,
-      category: achievement.category as 'time' | 'concepts' | 'streaks' | 'performance' | 'engagement',
+      category: achievement.category as
+        | 'time'
+        | 'concepts'
+        | 'streaks'
+        | 'performance'
+        | 'engagement',
       requirement: {}, // Default empty requirement object
       progress: achievement.progress.percentage, // Extract percentage from nested progress object
       icon: achievement.icon,
-      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined
+      unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined,
     }));
   };
 
@@ -222,14 +238,14 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const periodMap: Record<number, 'daily' | 'weekly' | 'monthly'> = {
       1: 'daily',
       7: 'weekly',
-      30: 'monthly'
+      30: 'monthly',
     };
-    
+
     const apiPeriod = period && periodMap[period] ? periodMap[period] : 'weekly';
-    
+
     const response = await apiClient.analytics.getLearningTrends({
       period: apiPeriod,
-      metric: 'mastery'
+      metric: 'mastery',
     });
 
     if (!response.success || !response.data) {
@@ -238,15 +254,15 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
 
     // Transform the API response to match the IAnalyticsService LearningTrends interface
     return {
-      dailyStudyTime: response.data.dataPoints.map(point => ({
+      dailyStudyTime: response.data.dataPoints.map((point) => ({
         date: point.date.toISOString().split('T')[0],
-        minutes: point.value
+        minutes: point.value,
       })),
-      masteryProgress: response.data.dataPoints.map(point => ({
+      masteryProgress: response.data.dataPoints.map((point) => ({
         date: point.date.toISOString().split('T')[0],
-        avgMastery: point.value
+        avgMastery: point.value,
       })),
-      sessionTypes: {} // Default empty object
+      sessionTypes: {}, // Default empty object
     };
   };
 
@@ -263,7 +279,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   const getTimeStats = async (): Promise<TimeStatsDisplay> => {
     const response = await apiClient.analytics.getTimeStats({
       includeBreakdown: true,
-      includeComparisons: true
+      includeComparisons: true,
     });
 
     if (!response.success || !response.data) {
@@ -277,7 +293,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.exportData({
       format,
       includeSensitive: false,
-      compress: false
+      compress: false,
     });
 
     if (!response.success || !response.data) {
@@ -292,7 +308,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
       data,
       format,
       overwrite: false,
-      validateOnly: false
+      validateOnly: false,
     });
 
     if (!response.success) {
@@ -329,7 +345,10 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     throw new Error('trackEvent not yet implemented');
   };
 
-  const updateAchievementProgress = async (achievementId: string, progress: number): Promise<void> => {
+  const updateAchievementProgress = async (
+    achievementId: string,
+    progress: number,
+  ): Promise<void> => {
     // This would need to be implemented based on the available API methods
     // For now, return a placeholder implementation
     throw new Error('updateAchievementProgress not yet implemented');

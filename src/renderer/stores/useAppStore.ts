@@ -1,6 +1,3 @@
-
-
-
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { UIState } from '../types/ui';
@@ -46,7 +43,8 @@ export const useAppStore = create<AppStore>()(
 
         setFocusMode: (enabled) => set({ focus_mode: enabled }, false, 'setFocusMode'),
 
-        toggleFocusMode: () => set((state) => ({ focus_mode: !state.focus_mode }), false, 'toggleFocusMode'),
+        toggleFocusMode: () =>
+          set((state) => ({ focus_mode: !state.focus_mode }), false, 'toggleFocusMode'),
 
         setTheme: (theme) => {
           // Apply theme to document
@@ -66,20 +64,35 @@ export const useAppStore = create<AppStore>()(
 
         setLoading: (loading) => set({ loading }, false, 'setLoading'),
 
-        setError: (error) => set({
-          error_message: error && error.trim().length > 0 ? error : undefined,
-          success_message: undefined
-        }, false, 'setError'),
+        setError: (error) =>
+          set(
+            {
+              error_message: error && error.trim().length > 0 ? error : undefined,
+              success_message: undefined,
+            },
+            false,
+            'setError',
+          ),
 
-        setSuccess: (message) => set({
-          success_message: message && message.trim().length > 0 ? message : undefined,
-          error_message: undefined
-        }, false, 'setSuccess'),
+        setSuccess: (message) =>
+          set(
+            {
+              success_message: message && message.trim().length > 0 ? message : undefined,
+              error_message: undefined,
+            },
+            false,
+            'setSuccess',
+          ),
 
-        clearMessages: () => set({
-          error_message: undefined,
-          success_message: undefined
-        }, false, 'clearMessages'),
+        clearMessages: () =>
+          set(
+            {
+              error_message: undefined,
+              success_message: undefined,
+            },
+            false,
+            'clearMessages',
+          ),
       }),
       {
         name: 'app-store',
@@ -87,8 +100,8 @@ export const useAppStore = create<AppStore>()(
           sidebar_open: state.sidebar_open,
           theme: state.theme,
         }),
-      }
+      },
     ),
-    { name: 'app-store' }
-  )
+    { name: 'app-store' },
+  ),
 );

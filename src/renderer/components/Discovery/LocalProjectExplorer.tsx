@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import {
   FolderIcon,
@@ -17,9 +14,13 @@ import {
   XMarkIcon,
   SparklesIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
-import type { DirectoryScanResult, ProjectStructure, DirectoryFilterConfig } from '@/shared/types/filesystem';
+import type {
+  DirectoryScanResult,
+  ProjectStructure,
+  DirectoryFilterConfig,
+} from '@/shared/types/filesystem';
 import type { ParsingJob, ParsingOptions } from '@/shared/types/concept-parsing';
 import { ConceptParsingResults } from './ConceptParsingResults';
 import { useFileService, useService } from '@/renderer/services/services-provider';
@@ -49,7 +50,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   selectedFiles,
   selectedDirectories,
   onFileToggle,
-  onDirectoryToggle
+  onDirectoryToggle,
 }) => {
   const [isExpanded, setIsExpanded] = useState(level < 2); // Auto-expand first 2 levels
   const hasChildren = item.children && item.children.length > 0;
@@ -101,7 +102,8 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   return (
     <div className="select-none">
       <div
-        className={`flex items-center py-1 px-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500' : ''
+        className={`flex items-center py-1 px-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+          isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500' : ''
         }`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={handleToggle}
@@ -117,14 +119,15 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           </div>
         )}
 
-        <div className="mr-2">
-          {getIcon()}
-        </div>
+        <div className="mr-2">{getIcon()}</div>
 
-        <span className={`text-sm truncate ${item.isDirectory
-          ? 'font-medium text-gray-900 dark:text-gray-100'
-          : 'text-gray-700 dark:text-gray-300'
-        }`}>
+        <span
+          className={`text-sm truncate ${
+            item.isDirectory
+              ? 'font-medium text-gray-900 dark:text-gray-100'
+              : 'text-gray-700 dark:text-gray-300'
+          }`}
+        >
           {item.name}
         </span>
 
@@ -165,7 +168,7 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   onFileSelect,
   onDirectorySelect,
-  className = ''
+  className = '',
 }) => {
   const conceptParsingService = useService('conceptParsing');
   const chatService = useService('chatService');
@@ -215,10 +218,15 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       // Create filter configuration
       const filterConfig: DirectoryFilterConfig = {
         showHiddenFiles: false,
-        excludePatterns: ['node_modules', '.git', '.vscode', '.idea', 'dist', 'build']
+        excludePatterns: ['node_modules', '.git', '.vscode', '.idea', 'dist', 'build'],
       };
 
-      const directoryResult = await fileService.readDirectory(dirPath, true, maxDepth, filterConfig);
+      const directoryResult = await fileService.readDirectory(
+        dirPath,
+        true,
+        maxDepth,
+        filterConfig,
+      );
       if (!directoryResult.success || !directoryResult.data) {
         throw new Error(directoryResult.error?.message || 'Failed to load directory');
       }
@@ -229,9 +237,9 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 
       // Calculate statistics
       const allItems = flattenTree(tree);
-      const totalFiles = allItems.filter(item => item.isFile).length;
-      const totalDirectories = allItems.filter(item => item.isDirectory).length;
-      const markdownFiles = allItems.filter(item => item.isMarkdown).length;
+      const totalFiles = allItems.filter((item) => item.isFile).length;
+      const totalDirectories = allItems.filter((item) => item.isDirectory).length;
+      const markdownFiles = allItems.filter((item) => item.isMarkdown).length;
 
       setProjectStructure({
         rootPath: dirPath,
@@ -239,7 +247,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
         totalFiles,
         totalDirectories,
         markdownFiles,
-        scanDepth: maxDepth
+        scanDepth: maxDepth,
       });
 
       setCurrentPath(dirPath);
@@ -250,28 +258,35 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     }
   };
 
-  const buildTreeStructure = (items: any[], rootPath: string, currentDepth: number): DirectoryScanResult[] => {
+  const buildTreeStructure = (
+    items: any[],
+    rootPath: string,
+    currentDepth: number,
+  ): DirectoryScanResult[] => {
     const itemMap = new Map();
     const rootItems: DirectoryScanResult[] = [];
 
     // Create map of all items
-    items.forEach(item => {
+    items.forEach((item) => {
       const relativePath = item.path.replace(rootPath, '').replace(/^[\/\\]/, '');
       const pathParts = relativePath.split(/[\/\\]/);
 
       const treeItem: DirectoryScanResult = {
         ...item,
         depth: currentDepth + pathParts.length - 1,
-        children: []
+        children: [],
       };
 
       itemMap.set(item.path, treeItem);
     });
 
     // Build tree hierarchy
-    items.forEach(item => {
+    items.forEach((item) => {
       const treeItem = itemMap.get(item.path);
-      const parentPath = item.path.substring(0, item.path.lastIndexOf(/[\/\\]/.exec(item.path)?.[0] || ''));
+      const parentPath = item.path.substring(
+        0,
+        item.path.lastIndexOf(/[\/\\]/.exec(item.path)?.[0] || ''),
+      );
 
       if (parentPath === rootPath || !itemMap.has(parentPath)) {
         rootItems.push(treeItem);
@@ -297,7 +312,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const flattenTree = (items: DirectoryScanResult[]): DirectoryScanResult[] => {
     let result: DirectoryScanResult[] = [];
 
-    items.forEach(item => {
+    items.forEach((item) => {
       result.push(item);
       if (item.children) {
         result = result.concat(flattenTree(item.children));
@@ -308,7 +323,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   };
 
   const handleFileToggle = (filePath: string) => {
-    setSelectedFiles(prev => {
+    setSelectedFiles((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(filePath)) {
         newSet.delete(filePath);
@@ -320,7 +335,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   };
 
   const handleDirectoryToggle = (dirPath: string) => {
-    setSelectedDirectories(prev => {
+    setSelectedDirectories((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(dirPath)) {
         newSet.delete(dirPath);
@@ -340,7 +355,10 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 
   const handleNavigateUp = () => {
     if (currentPath) {
-      const parentPath = currentPath.substring(0, currentPath.lastIndexOf(/[\/\\]/.exec(currentPath)?.[0] || ''));
+      const parentPath = currentPath.substring(
+        0,
+        currentPath.lastIndexOf(/[\/\\]/.exec(currentPath)?.[0] || ''),
+      );
       if (parentPath && parentPath !== currentPath) {
         loadDirectory(parentPath);
       }
@@ -355,9 +373,9 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 
   // Concept parsing functions
   const getSelectedMarkdownFiles = () => {
-    return Array.from(selectedFiles).filter(filePath =>
-      filePath.toLowerCase().endsWith('.md') ||
-      filePath.toLowerCase().endsWith('.markdown')
+    return Array.from(selectedFiles).filter(
+      (filePath) =>
+        filePath.toLowerCase().endsWith('.md') || filePath.toLowerCase().endsWith('.markdown'),
     );
   };
 
@@ -376,17 +394,17 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
         showErrorDialog(
           'AI Service Not Available',
           'The AI service is not initialized. Please restart the application and try again.',
-          'service'
+          'service',
         );
         return;
       }
 
-      const providerInfo = chatService.getProviderInfo();
+      const providerInfo = chatService?.getProviderInfo ? chatService.getProviderInfo() : null;
       if (!providerInfo) {
         showErrorDialog(
           'No AI Provider Configured',
           'Please configure an AI provider in Settings > AI Providers before using concept parsing.',
-          'configure'
+          'configure',
         );
         return;
       }
@@ -398,7 +416,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
         showErrorDialog(
           'AI Provider Incomplete',
           `The ${providerInfo.name || 'selected'} provider is not properly configured. Please add a valid API key in Settings > AI Providers.`,
-          'configure'
+          'configure',
         );
         return;
       }
@@ -409,17 +427,16 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
         showErrorDialog(
           'AI Provider Unreachable',
           `Unable to connect to ${providerInfo.name}. Please check your internet connection, API key, and provider settings.`,
-          'retry'
+          'retry',
         );
         return;
       }
-
     } catch (error) {
       console.error('AI provider validation failed:', error);
       showErrorDialog(
         'AI Provider Validation Failed',
         'An error occurred while validating the AI provider. Please check your configuration and try again.',
-        'configure'
+        'configure',
       );
       return;
     }
@@ -429,7 +446,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       const job = await conceptParsingService!.parseFiles(markdownFiles, {
         confidenceThreshold: 0.6,
         maxConceptsPerFile: 50,
-        includeRelationships: true
+        includeRelationships: true,
       });
 
       setActiveParsingJob(job);
@@ -448,13 +465,12 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
           }
         }
       }, 1000);
-
     } catch (error) {
       console.error('Failed to start concept parsing:', error);
       showErrorDialog(
         'Parsing Failed',
         'Failed to start concept parsing. Please check your file selection and try again.',
-        'retry'
+        'retry',
       );
     }
   };
@@ -467,14 +483,18 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   };
 
   const retryParsing = async () => {
-    if (!activeParsingJob || (activeParsingJob.status !== 'failed' && activeParsingJob.status !== 'completed')) return;
+    if (
+      !activeParsingJob ||
+      (activeParsingJob.status !== 'failed' && activeParsingJob.status !== 'completed')
+    )
+      return;
 
     try {
       // Reset job status for retry
       const retryJob = await conceptParsingService!.parseFiles(getSelectedMarkdownFiles(), {
         confidenceThreshold: 0.6,
         maxConceptsPerFile: 50,
-        includeRelationships: true
+        includeRelationships: true,
       });
 
       setActiveParsingJob(retryJob);
@@ -493,7 +513,6 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
           }
         }
       }, 1000);
-
     } catch (error) {
       console.error('Failed to retry concept parsing:', error);
       alert('Failed to retry concept parsing. Please try again.');
@@ -519,13 +538,18 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   };
 
   // Enhanced error handling functions
-  const showErrorDialog = (title: string, message: string, actionType: 'configure' | 'retry' | 'service') => {
+  const showErrorDialog = (
+    title: string,
+    message: string,
+    actionType: 'configure' | 'retry' | 'service',
+  ) => {
     // For now, use alert - can be enhanced to a modal later
-    const actionText = actionType === 'configure'
-      ? '\n\nWould you like to open Settings to configure your AI provider?'
-      : actionType === 'retry'
-        ? '\n\nPlease check your configuration and try again.'
-        : '\n\nPlease restart the application and try again.';
+    const actionText =
+      actionType === 'configure'
+        ? '\n\nWould you like to open Settings to configure your AI provider?'
+        : actionType === 'retry'
+          ? '\n\nPlease check your configuration and try again.'
+          : '\n\nPlease restart the application and try again.';
 
     if (confirm(`${title}\n\n${message}${actionText}`) && actionType === 'configure') {
       // Navigate to settings
@@ -537,33 +561,36 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     try {
       // Simple config validation - no network call for now
       // Can be enhanced to include actual connectivity testing later
-      return !!(providerInfo?.name);
+      return !!providerInfo?.name;
     } catch (error) {
       console.error('Provider connectivity test failed:', error);
       return false;
     }
   };
 
-  const filteredItems = projectStructure?.items.filter(item => {
-    if (!searchQuery) return true;
+  const filteredItems =
+    projectStructure?.items.filter((item) => {
+      if (!searchQuery) return true;
 
-    const itemMatches = (item: DirectoryScanResult): boolean => {
-      if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return true;
-      }
-      if (item.children) {
-        return item.children.some(child => itemMatches(child));
-      }
-      return false;
-    };
+      const itemMatches = (item: DirectoryScanResult): boolean => {
+        if (item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+          return true;
+        }
+        if (item.children) {
+          return item.children.some((child) => itemMatches(child));
+        }
+        return false;
+      };
 
-    return itemMatches(item);
-  }) || [];
+      return itemMatches(item);
+    }) || [];
 
   const selectedMarkdownFiles = getSelectedMarkdownFiles();
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+    >
       {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between mb-4">
@@ -632,10 +659,10 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
               <div className="flex items-center space-x-2">
                 <SparklesIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  {selectedMarkdownFiles.length} markdown file{selectedMarkdownFiles.length > 1 ? 's' : ''} selected
+                  {selectedMarkdownFiles.length} markdown file
+                  {selectedMarkdownFiles.length > 1 ? 's' : ''} selected
                 </span>
 
-                
                 {/* Info Tooltip */}
                 <div className="group relative">
                   <InformationCircleIcon className="w-4 h-4 text-blue-500 cursor-help" />
@@ -665,23 +692,30 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
               )}
             </div>
 
-            
             {/* Active Parsing Job */}
             {activeParsingJob && (
               <div className="mt-3 p-2 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${
-                      activeParsingJob.status === 'completed' ? 'bg-green-500' :
-                        activeParsingJob.status === 'failed' ? 'bg-red-500' :
-                          activeParsingJob.status === 'processing' ? 'bg-blue-500 animate-pulse' :
-                            'bg-gray-400'
-                    }`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        activeParsingJob.status === 'completed'
+                          ? 'bg-green-500'
+                          : activeParsingJob.status === 'failed'
+                            ? 'bg-red-500'
+                            : activeParsingJob.status === 'processing'
+                              ? 'bg-blue-500 animate-pulse'
+                              : 'bg-gray-400'
+                      }`}
+                    />
                     <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {activeParsingJob.status === 'processing' ? 'Parsing...' :
-                        activeParsingJob.status === 'completed' ? 'Completed' :
-                          activeParsingJob.status === 'failed' ? 'Failed' :
-                            'Starting...'}
+                      {activeParsingJob.status === 'processing'
+                        ? 'Parsing...'
+                        : activeParsingJob.status === 'completed'
+                          ? 'Completed'
+                          : activeParsingJob.status === 'failed'
+                            ? 'Failed'
+                            : 'Starting...'}
                     </span>
                     {activeParsingJob.status === 'processing' && (
                       <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -747,7 +781,8 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                           Parsing Completed Successfully
                         </div>
                         <div className="text-xs text-green-700 dark:text-green-400">
-                          {activeParsingJob.result?.concepts?.length || 0} concepts extracted from {selectedMarkdownFiles.length} files
+                          {activeParsingJob.result?.concepts?.length || 0} concepts extracted from{' '}
+                          {selectedMarkdownFiles.length} files
                         </div>
                         <div className="mt-2 flex items-center space-x-2">
                           <button
@@ -838,10 +873,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
         ) : error ? (
           <div className="p-4 text-center">
             <div className="text-red-500 mb-2">Error: {error}</div>
-            <button
-              onClick={handleRefresh}
-              className="text-blue-500 hover:text-blue-700 text-sm"
-            >
+            <button onClick={handleRefresh} className="text-blue-500 hover:text-blue-700 text-sm">
               Try again
             </button>
           </div>
@@ -897,3 +929,4 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     </div>
   );
 };
+export default LocalProjectExplorer;

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Bars3Icon,
@@ -45,27 +44,27 @@ export const Header: React.FC = () => {
 
   const getThemeIcon = () => {
     switch (theme) {
-    case 'light':
-      return <SunIcon className="w-5 h-5" />;
-    case 'dark':
-      return <MoonIcon className="w-5 h-5" />;
-    case 'auto':
-      return <ComputerDesktopIcon className="w-5 h-5" />;
-    default:
-      return <SunIcon className="w-5 h-5" />;
+      case 'light':
+        return <SunIcon className="w-5 h-5" />;
+      case 'dark':
+        return <MoonIcon className="w-5 h-5" />;
+      case 'auto':
+        return <ComputerDesktopIcon className="w-5 h-5" />;
+      default:
+        return <SunIcon className="w-5 h-5" />;
     }
   };
 
   const getThemeLabel = () => {
     switch (theme) {
-    case 'light':
-      return 'Light';
-    case 'dark':
-      return 'Dark';
-    case 'auto':
-      return 'Auto';
-    default:
-      return 'Light';
+      case 'light':
+        return 'Light';
+      case 'dark':
+        return 'Dark';
+      case 'auto':
+        return 'Auto';
+      default:
+        return 'Light';
     }
   };
 
@@ -105,7 +104,10 @@ export const Header: React.FC = () => {
 
   // Handle save title
   const handleSaveTitle = async () => {
-    if (editingTitle.trim() && editingTitle.trim() !== (currentSession?.metadata.title || currentSession?.title)) {
+    if (
+      editingTitle.trim() &&
+      editingTitle.trim() !== (currentSession?.metadata.title || currentSession?.title)
+    ) {
       try {
         await updateCurrentSessionTitle(editingTitle.trim());
       } catch (error) {
@@ -218,7 +220,9 @@ export const Header: React.FC = () => {
             {!focus_mode && (
               <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-accent-purple-500 rounded-xl opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
             )}
-            <EyeIcon className={`w-5 h-5 relative z-10 transition-all duration-200 ${focus_mode ? 'text-white' : ''}`} />
+            <EyeIcon
+              className={`w-5 h-5 relative z-10 transition-all duration-200 ${focus_mode ? 'text-white' : ''}`}
+            />
             {focus_mode && (
               <div className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
             )}

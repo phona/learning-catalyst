@@ -53,7 +53,7 @@ type PracticeDeps = {
 
 const DEFAULT_PRACTICE_SETTINGS: Required<Pick<PracticeRequest, 'difficulty' | 'count'>> = {
   difficulty: 'medium',
-  count: 3
+  count: 3,
 };
 
 const practiceTypeFromContent = (content: string): PracticePlan['practiceType'] => {
@@ -67,13 +67,13 @@ const practiceTypeFromContent = (content: string): PracticePlan['practiceType'] 
 const practiceDifficultyMap: Record<string, 'easy' | 'medium' | 'hard'> = {
   easy: 'easy',
   medium: 'medium',
-  hard: 'hard'
+  hard: 'hard',
 };
 
 const buildFallbackExercise = (
   topic: string,
   difficulty: PracticePlan['difficulty'],
-  index: number
+  index: number,
 ): PracticeExerciseOutput => ({
   id: `practice_${Date.now()}_${index}`,
   title: `Practice ${index + 1} — ${topic}`,
@@ -83,19 +83,29 @@ const buildFallbackExercise = (
   steps: [
     `Review ${topic} key points`,
     'Apply the concept in a short scenario or code snippet',
-    'Reflect on what went well and what could improve'
+    'Reflect on what went well and what could improve',
   ],
-  hints: ['Break the problem into smaller steps', 'Write down any assumptions', 'Check your reasoning'],
+  hints: [
+    'Break the problem into smaller steps',
+    'Write down any assumptions',
+    'Check your reasoning',
+  ],
   expectedOutcome: 'Demonstrate the core idea through a concise response or example.',
-  metadata: {}
+  metadata: {},
 });
 
-const buildFallbackPlan = (params: PracticeRequest & { focusConcepts?: string[]; practiceType: PracticePlan['practiceType'] }): PracticePlan => {
-  const difficulty = practiceDifficultyMap[params.difficulty ?? DEFAULT_PRACTICE_SETTINGS.difficulty];
+const buildFallbackPlan = (
+  params: PracticeRequest & {
+    focusConcepts?: string[];
+    practiceType: PracticePlan['practiceType'];
+  },
+): PracticePlan => {
+  const difficulty =
+    practiceDifficultyMap[params.difficulty ?? DEFAULT_PRACTICE_SETTINGS.difficulty];
   const count = params.count ?? DEFAULT_PRACTICE_SETTINGS.count;
   const focusConcepts = params.focusConcepts ?? [params.topic];
   const exercises = Array.from({ length: count }, (_, index) =>
-    buildFallbackExercise(params.topic, difficulty, index)
+    buildFallbackExercise(params.topic, difficulty, index),
   );
 
   return {
@@ -106,12 +116,16 @@ const buildFallbackPlan = (params: PracticeRequest & { focusConcepts?: string[];
     summary: `Practice ${params.topic} through ${count} ${difficulty.toLowerCase()} exercises.`,
     focusConcepts,
     exercises,
-    suggestions: ['Practice consistently', 'Explain your reasoning out loud', 'Pair with concept mapping'],
+    suggestions: [
+      'Practice consistently',
+      'Explain your reasoning out loud',
+      'Pair with concept mapping',
+    ],
     metadata: {
       generatedAt: new Date().toISOString(),
       knowledgeNodes: focusConcepts.length,
-      knowledgeRelationships: 0
-    }
+      knowledgeRelationships: 0,
+    },
   };
 };
 
@@ -119,7 +133,7 @@ export const createPracticeService = ({
   aiService,
   domainAgent,
   loggerService,
-  knowledgeService
+  knowledgeService,
 }: PracticeDeps) => {
   const serviceLogger = loggerService.child({ service: 'practice' });
   const presetId = 'practice.exercise';
@@ -136,14 +150,14 @@ export const createPracticeService = ({
     aiService,
     domainAgent,
     logger: serviceLogger,
-    modelConfig
+    modelConfig,
   });
 
   const generatePracticePlan = async (request: PracticeRequest): Promise<PracticePlan> => {
     const normalized: PracticeRequest = {
       ...request,
       difficulty: request.difficulty ?? DEFAULT_PRACTICE_SETTINGS.difficulty,
-      count: request.count ?? DEFAULT_PRACTICE_SETTINGS.count
+      count: request.count ?? DEFAULT_PRACTICE_SETTINGS.count,
     };
 
     const practiceType =
@@ -152,11 +166,11 @@ export const createPracticeService = ({
 
     const searchResult = await knowledgeService.searchKnowledge({
       query: focusQuery,
-      limit: 6
+      limit: 6,
     });
 
     const focusConcepts = Array.from(
-      new Set(searchResult.results.map((result) => result.title).filter(Boolean))
+      new Set(searchResult.results.map((result) => result.title).filter(Boolean)),
     ).slice(0, 5);
 
     const relatedSet = new Set<string>();
@@ -170,7 +184,7 @@ export const createPracticeService = ({
       normalized.context ??
       [
         `Focus concepts: ${focusConcepts.join(', ') || 'none'}`,
-        `Related concepts: ${relatedConcepts.join(', ') || 'none'}`
+        `Related concepts: ${relatedConcepts.join(', ') || 'none'}`,
       ].join(' | ');
 
     const promptPayload = JSON.stringify(
@@ -182,10 +196,10 @@ export const createPracticeService = ({
         focusConcepts,
         relatedConcepts,
         vibe: normalized.vibe ?? 'focused',
-        context: contextSummary
+        context: contextSummary,
       },
       null,
-      2
+      2,
     );
 
     const systemPrompt =
@@ -198,7 +212,7 @@ export const createPracticeService = ({
       input: promptPayload,
       fallbackPrompt: `${systemPrompt}\n${promptPayload}`,
       fallback,
-      context: 'practice-plan-generation'
+      context: 'practice-plan-generation',
     });
 
     const enriched: PracticePlan = {
@@ -207,21 +221,21 @@ export const createPracticeService = ({
         ...response.metadata,
         generatedAt: new Date().toISOString(),
         knowledgeNodes: focusConcepts.length,
-        knowledgeRelationships: relatedConcepts.length
-      }
+        knowledgeRelationships: relatedConcepts.length,
+      },
     };
 
     serviceLogger.info('Practice plan generated', {
       topic: enriched.topic,
       exercises: enriched.exercises.length,
-      practiceType: enriched.practiceType
+      practiceType: enriched.practiceType,
     });
 
     return enriched;
   };
 
   return {
-    generatePracticePlan
+    generatePracticePlan,
   };
 };
 

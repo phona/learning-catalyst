@@ -1,18 +1,22 @@
 # CLAUDE.md
 
-Learning Catalyst - AI-powered desktop application for personalized learning with multi-agent orchestration. Built with TypeScript, Electron, React, and LangChain integration.
+Learning Catalyst - AI-powered desktop application for personalized learning with multi-agent
+orchestration. Built with TypeScript, Electron, React, and LangChain integration.
 
 ## 🎯 Product Vision
 
-**Core Mission**: Transform learning from passive reading into active discovery through AI-guided exploration.
+**Core Mission**: Transform learning from passive reading into active discovery through AI-guided
+exploration.
 
 **User Experience**: Make the study → assess → review loop feel like an engaging game:
+
 - **Discovery** 🗺️, not studying
 - **Conversation** 💬, not lectures
 - **Achievement** 🏆, not testing
 - **Adventure** 🚀, not curriculum
 
 **Key Documents**:
+
 - 📋 [Product Blueprint](./docs/product-blueprint.md) - User-focused vision
 - 🏗️ This document - Technical implementation
 
@@ -41,6 +45,7 @@ npm run test:coverage    # Coverage reports
 ## Architecture
 
 **Multi-Process Electron App:**
+
 - **Main Process** (Node.js): AI services, database, agent orchestration → **provides electronAPI**
 - **Renderer Process** (Browser): React UI, state management → **consumes electronAPI**
 - **IPC Layer**: Secure communication via preload scripts
@@ -87,7 +92,9 @@ export function Component({ prop }: Props) {
   ```
   Main → IPC Handler → Preload → window.electronAPI → Renderer
   ```
-- Renderer code now subscribes to `onIPCError` so structured IPC payloads surface as toasts/setup guidance whenever the main process cannot initialize (missing chat config, startup failures). That ensures the UI never falls back to hidden defaults.
+- Renderer code now subscribes to `onIPCError` so structured IPC payloads surface as toasts/setup
+  guidance whenever the main process cannot initialize (missing chat config, startup failures). That
+  ensures the UI never falls back to hidden defaults.
 - **Main Process**: NEVER accesses electronAPI (only provides it)
 - **Service Pattern**: Pass dependencies as function parameters
 - **Agent Tools**: Call service functions only (not lower-level APIs)
@@ -102,7 +109,8 @@ export function Component({ prop }: Props) {
 - Full TypeScript coverage with strict mode
 - Use `.tsx` for React components/JSX and `.ts` for TypeScript-only files
 - IPC contracts defined in `@/shared/types/electron-api/` ensure type-safe communication
-- Maintain dependency injection for internal communication (never access `window.electronAPI` from the main process)
+- Maintain dependency injection for internal communication (never access `window.electronAPI` from
+  the main process)
 - Favor direct, purposeful code modifications without unnecessary prefixes
 - Limit `any` usage to maintain type safety
 - Avoid try/catch blocks that only silence errors
@@ -135,17 +143,20 @@ src/
 ### Service Architecture
 
 **Core Services** (Infrastructure):
+
 - Database: `createDatabase()`, `createSqliteDriverFactory()`
 - Config: `createConfigService()`
 - Logger: `createLoggerService()`
 
 **Domain Services** (Business Logic):
+
 - `createChatService({ db, loggerService })`
 - `createLearningService({ db, aiService })`
 - `createKnowledgeService({ db, vectorService })`
 - `createAnalyticsService({ db })`
 
 **AI Services**:
+
 - `createAIService({ config, logger })`
 - Provider modules: `openai-provider.ts`, `chatglm-provider.ts`, etc.
 
@@ -174,12 +185,14 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 ### Component Development
 
 **React Best Practices:**
+
 - ✅ Functional components with hooks
 - ✅ TypeScript interfaces for props
 - ✅ useCallback, useMemo for optimization
 - ❌ Class components
 
 **State Management:**
+
 - Zustand: Global application state
 - React useState: Component-local state
 - Electron store: Persistent configuration
@@ -187,12 +200,14 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 ## Key Features
 
 **Modern Desktop App:**
+
 - React UI with Tailwind CSS
 - Real-time streaming responses
 - Zustand state management
 - Cross-platform support
 
 **Core Capabilities:**
+
 - AI chat (multiple providers) → **Conversational Learning Adventures**
 - Knowledge graphs → **Visual Knowledge Discovery Maps**
 - Session management → **Learning Quest Persistence**
@@ -203,12 +218,14 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 ## AI Integration
 
 **Supported Providers:**
+
 - OpenAI (GPT models)
 - ChatGLM (thinking process visualization)
 - DeepSeek, SiliconFlow
 - Local models (Ollama, Llama.cpp)
 
 **Advanced Features:**
+
 - Real-time reasoning visualization (ChatGLM)
 - Seamless provider switching
 - Automatic model discovery with timeout
@@ -218,12 +235,14 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 ## Multi-Agent System
 
 **Specialized Agents:**
+
 - **Learning** → Learning Guide (explores concepts conversationally)
 - **Assessment** → Understanding Coach (checks mastery naturally)
 - **Tutoring** → Learning Mentor (personalized help and motivation)
 - **Practice** → Practice Master (gamified challenges)
 
 **Configuration Schema:**
+
 ```typescript
 interface AgentConfiguration {
   id: string;
@@ -246,37 +265,35 @@ interface AgentConfiguration {
 
 ### Naming Guidelines
 
-**Folders**: kebab-case (`user-management`, `knowledge-graph`)
-**Components**: PascalCase (`UserProfile.tsx`, `ChatInterface.tsx`)
-**Services**: camelCase (`chatService.ts`, `databaseManager.ts`)
-**Utilities**: camelCase (`dateUtils.ts`, `validationHelpers.ts`)
+**Folders**: kebab-case (`user-management`, `knowledge-graph`) **Components**: PascalCase
+(`UserProfile.tsx`, `ChatInterface.tsx`) **Services**: camelCase (`chatService.ts`,
+`databaseManager.ts`) **Utilities**: camelCase (`dateUtils.ts`, `validationHelpers.ts`)
 
 ### Anti-Patterns to Avoid
 
-❌ `IUserInterface.ts` (prefixes)
-❌ `UserServiceClass.ts` (suffixes)
-❌ `utils.ts` (too generic)
-❌ `component1.ts` (non-descriptive)
+❌ `IUserInterface.ts` (prefixes) ❌ `UserServiceClass.ts` (suffixes) ❌ `utils.ts` (too generic) ❌
+`component1.ts` (non-descriptive)
 
-✅ `user-types.ts` (clear purpose)
-✅ `UserService.ts` (clean naming)
-✅ `dateUtils.ts` (specific functionality)
-✅ `UserProfile.tsx` (descriptive)
+✅ `user-types.ts` (clear purpose) ✅ `UserService.ts` (clean naming) ✅ `dateUtils.ts` (specific
+functionality) ✅ `UserProfile.tsx` (descriptive)
 
 ## Testing Strategy
 
 **Multi-Environment:**
+
 - **Main Process**: AI services, database, agents
 - **Renderer**: React components, hooks, UI
 - **Integration**: IPC communication
 - **Performance**: Memory leaks, resource management
 
 **Frameworks:**
+
 - Vitest + React Testing Library
 - jsdom for DOM simulation
 - Custom Electron integration setup
 
 **Coverage Targets:**
+
 - Main Process: >90%
 - Renderer: >90%
 - Integration: >80%
@@ -285,12 +302,14 @@ interface AgentConfiguration {
 ## Memory & Performance
 
 **Development Optimization:**
+
 - Node.js: 512MB heap, 64MB semispace
 - Manual code splitting
 - Optimized file watching
 - Memory monitoring and alerts
 
 **Best Practices:**
+
 - Monitor memory usage during development
 - Use performance test suite regularly
 - Follow cleanup patterns for event listeners
@@ -310,26 +329,29 @@ interface AgentConfiguration {
 ### Key Patterns
 
 **Creating Services:**
+
 ```ts
-const dbPath = getDefaultDatabasePath()
-const driverFactory = await createSqliteDriverFactory(dbPath)
-await runMigrations(driverFactory)
-const db = createDatabase(driverFactory)
+const dbPath = getDefaultDatabasePath();
+const driverFactory = await createSqliteDriverFactory(dbPath);
+await runMigrations(driverFactory);
+const db = createDatabase(driverFactory);
 
 // Use factory pattern
-const chatService = createChatService({ db, loggerService })
+const chatService = createChatService({ db, loggerService });
 ```
 
 **Creating Agents:**
+
 ```ts
 const agent = createLearningAgent({
   learningService,
   knowledgeService,
-  aiService
-})
+  aiService,
+});
 ```
 
 **IPC Communication:**
+
 ```ts
 // Main process - EXPOSE electronAPI
 const setupChatHandlers = ({ chatService }) => {
@@ -354,12 +376,14 @@ const response = await window.electronAPI.chat.sendMessage(message);
 ## 🎯 Development Alignment
 
 **Before implementing any feature, ask:**
+
 - Does this make learning feel like discovery? 🗺️
 - Does this create conversational interaction? 💬
 - Does this provide achievement and progress? 🏆
 - Does this feel like an adventure, not studying? 🚀
 
 **User Experience Validation:**
+
 - [ ] Feature supports study → assess → review loop
 - [ ] Technical complexity hidden from users
 - [ ] Language emphasizes exploration over education
@@ -367,6 +391,7 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - [ ] Interaction feels conversational, not mechanical
 
 **Implementation Priority:**
+
 1. User experience > Technical sophistication
 2. Conversational flow > Feature completeness
 3. Achievement motivation > Data accuracy
@@ -375,12 +400,14 @@ const response = await window.electronAPI.chat.sendMessage(message);
 ## Key Files
 
 **Core Implementation:**
+
 - `src/main/index.ts` - Electron main entry
 - `src/renderer/App.tsx` - React app root
 - `package.json` - Project configuration
 - `vite.config.ts` - Build setup
 
 **Business Logic:**
+
 - Database: `src/main/services/core/database/`
 - Config: `src/main/services/core/config/`
 - Chat: `src/main/services/domain/chat/`
@@ -392,6 +419,7 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - IPC Handlers: `src/main/handlers/`
 
 **Testing:**
+
 - `vitest*.config.ts` - Test configurations
 - `src/test/` - Global test utilities
 
@@ -402,4 +430,5 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - Multi-process debugging in VSCode
 - Services use dependency injection for modularity
 - All main process code should NEVER reference or access `window.electronAPI`
-- `electronAPI` now exposes documented sessions/catalyst domains and filesystem/dialog helpers with matching IPC handlers.
+- `electronAPI` now exposes documented sessions/catalyst domains and filesystem/dialog helpers with
+  matching IPC handlers.

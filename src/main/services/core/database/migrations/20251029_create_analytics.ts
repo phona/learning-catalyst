@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -7,7 +7,11 @@ export default {
       .createTable('analytics')
       .addColumn('id', 'text', (col) => col.primaryKey())
       .addColumn('event_type', 'text', (col) =>
-        col.notNull().check(sql`event_type IN ('session_start', 'session_end', 'message_sent', 'concept_studied', 'mastery_improved', 'achievement_unlocked')`)
+        col
+          .notNull()
+          .check(
+            sql`event_type IN ('session_start', 'session_end', 'message_sent', 'concept_studied', 'mastery_improved', 'achievement_unlocked')`,
+          ),
       )
       .addColumn('session_id', 'text')
       .addColumn('concept_id', 'text')
@@ -19,19 +23,19 @@ export default {
         ['session_id'],
         'learning_sessions',
         ['id'],
-        (fk) => fk.onDelete('set null')
+        (fk) => fk.onDelete('set null'),
       )
       .addForeignKeyConstraint(
         'analytics_concept_id_fkey',
         ['concept_id'],
         'concepts',
         ['id'],
-        (fk) => fk.onDelete('set null')
+        (fk) => fk.onDelete('set null'),
       )
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
-    await db.schema.dropTable('analytics').execute()
-  }
-}
+    await db.schema.dropTable('analytics').execute();
+  },
+};

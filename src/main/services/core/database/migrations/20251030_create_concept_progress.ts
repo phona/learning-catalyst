@@ -1,4 +1,4 @@
-import type { Migration } from 'kysely'
+import type { Migration } from 'kysely';
 
 export const createConceptProgress: Migration = {
   async up(db) {
@@ -17,10 +17,10 @@ export const createConceptProgress: Migration = {
       .addColumn('last_studied', 'text', (col) => col.notNull())
       .addColumn('created_at', 'text', (col) => col.notNull())
       .addColumn('updated_at', 'text', (col) => col.notNull())
-      .execute()
+      .execute();
   },
 
   async down(db) {
-    await db.schema.dropTable('concept_progress').execute()
-  }
-}
+    await db.schema.dropTable('concept_progress').execute();
+  },
+};

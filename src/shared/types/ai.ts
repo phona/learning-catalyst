@@ -31,20 +31,24 @@ export interface ToolDefinition {
     description: string;
     parameters: {
       type: 'object';
-      properties: Record<string, {
-        type: string;
-        description?: string;
-        enum?: string[];
-        items?: Record<string, any>;
-        properties?: Record<string, any>;
-        required?: string[];
-      }>;
+      properties: Record<
+        string,
+        {
+          type: string;
+          description?: string;
+          enum?: string[];
+          items?: Record<string, any>;
+          properties?: Record<string, any>;
+          required?: string[];
+        }
+      >;
       required: string[];
     };
   };
 }
 
 export interface StreamChunk {
+  type?: 'content' | 'metadata' | 'tool_call' | 'error' | 'complete';
   content?: string;
   reasoning_content?: string;
   thinkingContent?: string; // Alias for reasoning_content for consistency
@@ -81,7 +85,7 @@ export interface AIModel {
 export enum ModelType {
   CHAT = 'chat',
   EMBEDDING = 'embedding',
-  RERANK = 'rerank'
+  RERANK = 'rerank',
 }
 
 export interface ProviderConfig {
@@ -103,7 +107,7 @@ export interface AIProvider {
   initialize(config: ProviderConfig): Promise<void>;
   sendMessage(
     messages: Message[],
-    options?: ChatOptions
+    options?: ChatOptions,
   ): Promise<ChatResponse | AsyncGenerator<StreamChunk>>;
   listModels(): Promise<ModelList>;
   validateConfig(config: ProviderConfig): Promise<boolean>;
@@ -166,7 +170,7 @@ export class AIError extends Error {
     message: string,
     public provider: string,
     public code?: string,
-    public statusCode?: number
+    public statusCode?: number,
   ) {
     super(message);
     this.name = 'AIError';

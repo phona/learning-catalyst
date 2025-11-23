@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import toast from 'react-hot-toast';
 import {
@@ -27,7 +26,7 @@ vi.mock('react-hot-toast', () => ({
       loading: vi.fn(),
       promise: vi.fn(),
       dismiss: vi.fn(),
-    }
+    },
   ),
 }));
 
@@ -136,7 +135,10 @@ describe('Toast Utils', () => {
 
       sessionToasts.createError(error);
 
-      expect(toast.error).toHaveBeenCalledWith('Failed to create session: Database error', undefined);
+      expect(toast.error).toHaveBeenCalledWith(
+        'Failed to create session: Database error',
+        undefined,
+      );
     });
 
     it('should show session create error without message', () => {
@@ -220,7 +222,10 @@ describe('Toast Utils', () => {
 
       settingsToasts.providerConfigured(provider);
 
-      expect(toast.success).toHaveBeenCalledWith('OpenAI AI provider configured successfully', undefined);
+      expect(toast.success).toHaveBeenCalledWith(
+        'OpenAI AI provider configured successfully',
+        undefined,
+      );
     });
 
     it('should show provider error with details', () => {
@@ -229,7 +234,10 @@ describe('Toast Utils', () => {
 
       settingsToasts.providerError(provider, error);
 
-      expect(toast.error).toHaveBeenCalledWith('ChatGLM Failed to configure AI provider: Invalid API key', undefined);
+      expect(toast.error).toHaveBeenCalledWith(
+        'ChatGLM Failed to configure AI provider: Invalid API key',
+        undefined,
+      );
     });
 
     it('should show provider error without details', () => {
@@ -237,7 +245,10 @@ describe('Toast Utils', () => {
 
       settingsToasts.providerError(provider);
 
-      expect(toast.error).toHaveBeenCalledWith('DeepSeek Failed to configure AI provider', undefined);
+      expect(toast.error).toHaveBeenCalledWith(
+        'DeepSeek Failed to configure AI provider',
+        undefined,
+      );
     });
   });
 
@@ -259,7 +270,10 @@ describe('Toast Utils', () => {
 
       knowledgeToasts.error(error);
 
-      expect(toast.error).toHaveBeenCalledWith('Failed to update knowledge: Processing error', undefined);
+      expect(toast.error).toHaveBeenCalledWith(
+        'Failed to update knowledge: Processing error',
+        undefined,
+      );
     });
 
     it('should show knowledge error without message', () => {
@@ -390,7 +404,7 @@ describe('Toast Utils', () => {
           success: 'Data loaded successfully!',
           error: 'Failed to load data',
         },
-        undefined
+        undefined,
       );
     });
 
@@ -398,11 +412,15 @@ describe('Toast Utils', () => {
       const testPromise = Promise.resolve();
       const options = { duration: 5000 };
 
-      showPromise(testPromise, {
-        loading: 'Processing...',
-        success: 'Complete!',
-        error: 'Failed',
-      }, options);
+      showPromise(
+        testPromise,
+        {
+          loading: 'Processing...',
+          success: 'Complete!',
+          error: 'Failed',
+        },
+        options,
+      );
 
       expect(toast.promise).toHaveBeenCalledWith(
         testPromise,
@@ -411,7 +429,7 @@ describe('Toast Utils', () => {
           success: 'Complete!',
           error: 'Failed',
         },
-        options
+        options,
       );
     });
   });

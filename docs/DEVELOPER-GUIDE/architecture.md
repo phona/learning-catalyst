@@ -1,9 +1,12 @@
 # System Architecture
+
 t o
 
 ## Overview
 
-Learning Catalyst uses a **multi-process Electron architecture** with a service-oriented design. This document describes the complete system architecture, component relationships, and design patterns.
+Learning Catalyst uses a **multi-process Electron architecture** with a service-oriented design.
+This document describes the complete system architecture, component relationships, and design
+patterns.
 
 ## High-Level Architecture
 
@@ -47,6 +50,7 @@ Learning Catalyst uses a **multi-process Electron architecture** with a service-
 ### 1. Main Process (Node.js)
 
 **Responsibilities:**
+
 - AI provider management and API calls
 - Database operations (Kysely + SQLite)
 - Agent orchestration and lifecycle
@@ -55,6 +59,7 @@ Learning Catalyst uses a **multi-process Electron architecture** with a service-
 - IPC handler registration
 
 **Key Components:**
+
 ```
 src/main/
 ├── index.ts                    # Main process entry
@@ -87,6 +92,7 @@ src/main/
 ### 2. Renderer Process (React)
 
 **Responsibilities:**
+
 - User interface rendering
 - Component state management
 - User interaction handling
@@ -94,6 +100,7 @@ src/main/
 - Visualization (knowledge graphs, charts)
 
 **Key Components:**
+
 ```
 src/renderer/
 ├── main.tsx                    # React entry
@@ -119,6 +126,7 @@ src/renderer/
 ### 3. Preload Script (Security Boundary)
 
 **Responsibilities:**
+
 - Expose limited API to renderer
 - Input validation and sanitization
 - Secure IPC channel setup
@@ -135,16 +143,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   chat: {
     sendMessage: (message: string, sessionId?: string) =>
       ipcRenderer.invoke('chat:sendMessage', message, sessionId),
-    getHistory: (sessionId: string) =>
-      ipcRenderer.invoke('chat:getHistory', sessionId)
+    getHistory: (sessionId: string) => ipcRenderer.invoke('chat:getHistory', sessionId),
   },
 
   // Learning API
   learning: {
     startSession: (options: SessionStartOptions) =>
       ipcRenderer.invoke('learning:startSession', options),
-    getProgress: () =>
-      ipcRenderer.invoke('learning:getProgress')
+    getProgress: () => ipcRenderer.invoke('learning:getProgress'),
   },
 
   // Add other API domains...
@@ -175,7 +181,7 @@ export function createChatService({ db, loggerService, aiService }: Dependencies
       const response = await aiService.complete(content);
 
       return { message, response };
-    }
+    },
   };
 }
 
@@ -184,7 +190,7 @@ export class ChatService {
   constructor(
     private db: Database,
     private logger: Logger,
-    private ai: AIService
+    private ai: AIService,
   ) {}
 
   async sendMessage(content: string) {
@@ -368,8 +374,8 @@ export function setupChatHandlers({ chatService }: Dependencies) {
         success: false,
         error: {
           code: 'CHAT_ERROR',
-          message: error.message
-        }
+          message: error.message,
+        },
       };
     }
   });
@@ -384,8 +390,8 @@ export function setupChatHandlers({ chatService }: Dependencies) {
         success: false,
         error: {
           code: 'HISTORY_ERROR',
-          message: error.message
-        }
+          message: error.message,
+        },
       };
     }
   });
@@ -403,7 +409,7 @@ export interface ChatAPI {
   sendMessageStream: (
     message: string,
     onChunk: (chunk: string) => void,
-    sessionId?: string
+    sessionId?: string,
   ) => Promise<APIResponse<void>>;
   getHistory: (sessionId: string) => Promise<APIResponse<ConversationDisplay[]>>;
   deleteMessage: (messageId: string) => Promise<APIResponse<void>>;
@@ -432,7 +438,7 @@ type AgentType = 'learning' | 'assessment' | 'tutoring' | 'practice' | 'general'
 export function createLearningAgent({
   aiService,
   knowledgeService,
-  loggerService
+  loggerService,
 }: Dependencies): Agent {
   return {
     type: 'learning',
@@ -443,16 +449,14 @@ export function createLearningAgent({
       const concepts = await knowledgeService.search(input.query);
 
       // Generate explanation using AI
-      const explanation = await aiService.complete(
-        `Explain ${input.query} in detail`
-      );
+      const explanation = await aiService.complete(`Explain ${input.query} in detail`);
 
       return {
         response: explanation,
         concepts,
-        suggestions: generateSuggestions(concepts)
+        suggestions: generateSuggestions(concepts),
       };
-    }
+    },
   };
 }
 ```
@@ -499,13 +503,15 @@ export const useUserStore = create<UserState>((set) => ({
   preferences: {},
   actions: {
     setCurrentSession: (session) => set({ currentSession: session }),
-    addSession: (session) => set((state) => ({
-      sessions: [...state.sessions, session]
-    })),
-    updatePreferences: (prefs) => set((state) => ({
-      preferences: { ...state.preferences, ...prefs }
-    }))
-  }
+    addSession: (session) =>
+      set((state) => ({
+        sessions: [...state.sessions, session],
+      })),
+    updatePreferences: (prefs) =>
+      set((state) => ({
+        preferences: { ...state.preferences, ...prefs },
+      })),
+  },
 }));
 ```
 
@@ -656,12 +662,12 @@ export function useSession(sessionId?: string) {
 server: {
   watch: {
     ignored: [
-      '**/node_modules/**',      // 50,000+ files
-      '**/dist/**',              // Build artifacts
-      '**/.git/**',             // Git history
-      '**/test_workspace/**',   // User data
-      '**/external/**'          // Large binaries
-    ]
+      '**/node_modules/**', // 50,000+ files
+      '**/dist/**', // Build artifacts
+      '**/.git/**', // Git history
+      '**/test_workspace/**', // User data
+      '**/external/**', // Large binaries
+    ];
   }
 }
 ```
@@ -720,7 +726,7 @@ export function createChatRepository(db: Kysely<Database>): ChatRepository {
   return {
     async createMessage(data) {
       return await db.insertInto('messages').values(data).returningAll().executeTakeFirst();
-    }
+    },
   };
 }
 ```
@@ -741,7 +747,7 @@ export function createOpenAIProvider(config: OpenAIConfig): AIProvider {
     },
     async stream(prompt, onChunk) {
       // OpenAI streaming implementation
-    }
+    },
   };
 }
 ```
@@ -749,30 +755,35 @@ export function createOpenAIProvider(config: OpenAIConfig): AIProvider {
 ## Architecture Benefits
 
 ### 1. Maintainability
+
 - Clear separation of concerns
 - Functional pattern (no classes)
 - Explicit dependencies
 - Type-safe throughout
 
 ### 2. Testability
+
 - Easy to mock dependencies
 - Pure functions
 - Isolated unit tests
 - Integration test support
 
 ### 3. Security
+
 - Process isolation
 - Preload security boundary
 - Input validation
 - Type safety
 
 ### 4. Performance
+
 - Multi-process architecture
 - Optimized IPC
 - Lazy loading
 - Memory monitoring
 
 ### 5. Extensibility
+
 - Plugin-friendly services
 - Provider abstraction
 - Modular architecture
@@ -788,5 +799,4 @@ export function createOpenAIProvider(config: OpenAIConfig): AIProvider {
 
 ---
 
-**Last Updated**: November 2025
-**Version**: 1.0
+**Last Updated**: November 2025 **Version**: 1.0

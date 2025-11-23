@@ -5,7 +5,9 @@ describe('Type Utils - Interface Tests', () => {
     it('should check for valid agent types', () => {
       const validAgentTypes = ['learning', 'tutoring', 'assessment', 'practice'];
 
-      const isAgentType = (type: any): type is 'learning' | 'tutoring' | 'assessment' | 'practice' => {
+      const isAgentType = (
+        type: any,
+      ): type is 'learning' | 'tutoring' | 'assessment' | 'practice' => {
         return validAgentTypes.includes(type);
       };
 
@@ -35,7 +37,9 @@ describe('Type Utils - Interface Tests', () => {
     it('should check for valid practice types', () => {
       const validTypes = ['coding', 'conceptual', 'problem_solving', 'general'];
 
-      const isPracticeType = (type: any): type is 'coding' | 'conceptual' | 'problem_solving' | 'general' => {
+      const isPracticeType = (
+        type: any,
+      ): type is 'coding' | 'conceptual' | 'problem_solving' | 'general' => {
         return validTypes.includes(type);
       };
 
@@ -53,14 +57,14 @@ describe('Type Utils - Interface Tests', () => {
         id: '123',
         title: 'Test Session',
         created_at: '2024-01-01T00:00:00Z',
-        user_id: 'user-123'
+        user_id: 'user-123',
       };
 
       const toDomainSession = (api: any) => ({
         id: api.id,
         title: api.title,
         createdAt: new Date(api.created_at),
-        userId: api.user_id
+        userId: api.user_id,
       });
 
       const domainSession = toDomainSession(apiResponse);
@@ -68,7 +72,7 @@ describe('Type Utils - Interface Tests', () => {
       expect(domainSession).toMatchObject({
         id: '123',
         title: 'Test Session',
-        userId: 'user-123'
+        userId: 'user-123',
       });
       expect(domainSession.createdAt).toBeInstanceOf(Date);
     });
@@ -76,7 +80,7 @@ describe('Type Utils - Interface Tests', () => {
     it('should handle optional fields gracefully', () => {
       const partialData = {
         id: '123',
-        title: 'Test'
+        title: 'Test',
         // missing optional fields
       };
 
@@ -84,7 +88,7 @@ describe('Type Utils - Interface Tests', () => {
         id: data.id,
         title: data.title,
         description: data.description || 'Default description',
-        status: data.status || 'draft'
+        status: data.status || 'draft',
       });
 
       const result = withDefaults(partialData);
@@ -93,7 +97,7 @@ describe('Type Utils - Interface Tests', () => {
         id: '123',
         title: 'Test',
         description: 'Default description',
-        status: 'draft'
+        status: 'draft',
       });
     });
   });
@@ -114,7 +118,8 @@ describe('Type Utils - Interface Tests', () => {
 
     it('should validate UUID format', () => {
       const isValidUUID = (uuid: string): boolean => {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         return uuidRegex.test(uuid);
       };
 
@@ -198,25 +203,31 @@ describe('Type Utils - Interface Tests', () => {
 
     it('should group arrays by key', () => {
       const groupBy = <T, K extends keyof T>(arr: T[], key: K): Record<string, T[]> => {
-        return arr.reduce((groups, item) => {
-          const groupKey = String(item[key]);
-          groups[groupKey] = groups[groupKey] || [];
-          groups[groupKey].push(item);
-          return groups;
-        }, {} as Record<string, T[]>);
+        return arr.reduce(
+          (groups, item) => {
+            const groupKey = String(item[key]);
+            groups[groupKey] = groups[groupKey] || [];
+            groups[groupKey].push(item);
+            return groups;
+          },
+          {} as Record<string, T[]>,
+        );
       };
 
       const items = [
         { id: 1, category: 'A' },
         { id: 2, category: 'B' },
-        { id: 3, category: 'A' }
+        { id: 3, category: 'A' },
       ];
 
       const grouped = groupBy(items, 'category');
 
       expect(grouped).toMatchObject({
-        A: [{ id: 1, category: 'A' }, { id: 3, category: 'A' }],
-        B: [{ id: 2, category: 'B' }]
+        A: [
+          { id: 1, category: 'A' },
+          { id: 3, category: 'A' },
+        ],
+        B: [{ id: 2, category: 'B' }],
       });
     });
   });
@@ -226,7 +237,7 @@ describe('Type Utils - Interface Tests', () => {
       const deepClone = <T>(obj: T): T => {
         if (obj === null || typeof obj !== 'object') return obj;
         if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
-        if (Array.isArray(obj)) return obj.map(item => deepClone(item)) as unknown as T;
+        if (Array.isArray(obj)) return obj.map((item) => deepClone(item)) as unknown as T;
 
         const cloned = {} as T;
         for (const key in obj) {
@@ -240,7 +251,7 @@ describe('Type Utils - Interface Tests', () => {
       const original = {
         name: 'Test',
         date: new Date('2024-01-01'),
-        nested: { value: 42 }
+        nested: { value: 42 },
       };
 
       const cloned = deepClone(original);
@@ -251,9 +262,9 @@ describe('Type Utils - Interface Tests', () => {
     });
 
     it('should pick specified properties', () => {
-      const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
+      const pick = <T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
         const result = {} as Pick<T, K>;
-        keys.forEach(key => {
+        keys.forEach((key) => {
           if (key in obj) {
             result[key] = obj[key];
           }
@@ -270,7 +281,7 @@ describe('Type Utils - Interface Tests', () => {
     it('should omit specified properties', () => {
       const omit = <T, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> => {
         const result = { ...obj } as any;
-        keys.forEach(key => delete result[key]);
+        keys.forEach((key) => delete result[key]);
         return result;
       };
 

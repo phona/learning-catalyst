@@ -21,7 +21,9 @@ export async function compress(data: string): Promise<string> {
     const compressedBuffer = await deflateAsync(inputBuffer);
     return compressedBuffer.toString('base64');
   } catch (error) {
-    throw new Error(`Compression failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Compression failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
   }
 }
 
@@ -34,7 +36,9 @@ export async function decompress(compressedData: string): Promise<string> {
     const decompressedBuffer = await inflateAsync(compressedBuffer);
     return decompressedBuffer.toString('utf8');
   } catch (error) {
-    throw new Error(`Decompression failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Decompression failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
   }
 }
 

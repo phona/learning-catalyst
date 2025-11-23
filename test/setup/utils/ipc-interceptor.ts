@@ -57,7 +57,7 @@ export class ElectronIpcInterceptor {
    * Get messages for a specific channel
    */
   getMessagesForChannel(channel: string): IPCMessage[] {
-    return this.interceptedMessages.filter(msg => msg.channel === channel);
+    return this.interceptedMessages.filter((msg) => msg.channel === channel);
   }
 
   /**
@@ -81,19 +81,27 @@ export class ElectronIpcInterceptor {
     // Mock window.electronAPI methods that send IPC messages
     if (window.electronAPI) {
       // Wrap each domain method to intercept calls
-      const domains = ['chat', 'learning', 'knowledge', 'analytics', 'agents', 'content', 'settings'] as const;
+      const domains = [
+        'chat',
+        'learning',
+        'knowledge',
+        'analytics',
+        'agents',
+        'content',
+        'settings',
+      ] as const;
 
-      domains.forEach(domain => {
+      domains.forEach((domain) => {
         const domainAPI = (window.electronAPI as any)[domain];
         if (domainAPI && typeof domainAPI === 'object') {
-          Object.keys(domainAPI).forEach(methodName => {
+          Object.keys(domainAPI).forEach((methodName) => {
             const originalMethod = domainAPI[methodName];
             if (typeof originalMethod === 'function') {
               domainAPI[methodName] = vi.fn().mockImplementation(async (...args: any[]) => {
                 const message: IPCMessage = {
                   channel: `${domain}.${methodName}`,
                   args,
-                  requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                  requestId: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                 };
 
                 this.interceptedMessages.push(message);
@@ -122,7 +130,7 @@ export class ElectronIpcInterceptor {
       on: vi.fn(),
       off: vi.fn(),
       once: vi.fn(),
-      removeAllListeners: vi.fn()
+      removeAllListeners: vi.fn(),
     };
 
     // Add mock event emitter to window.electronAPI if it exists
@@ -141,7 +149,7 @@ export class ElectronIpcInterceptor {
       type,
       data,
       timestamp: Date.now(),
-      id: `progress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      id: `progress_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
@@ -150,17 +158,19 @@ export class ElectronIpcInterceptor {
    */
   async simulateStreamResponse(
     channel: string,
-    chunks: Array<{ type: string; data: any; delay?: number }>
+    chunks: Array<{ type: string; data: any; delay?: number }>,
   ): Promise<void> {
     for (const chunk of chunks) {
-      await new Promise(resolve => setTimeout(resolve, chunk.delay || 10));
+      await new Promise((resolve) => setTimeout(resolve, chunk.delay || 10));
 
       const event = this.createMockProgressEvent(chunk.type, chunk.data);
 
       // Emit the event through the appropriate domain
       if (window.electronAPI) {
         const domain = channel.split('.')[0];
-        const eventEmitter = (window.electronAPI as any)[`on${domain.charAt(0).toUpperCase() + domain.slice(1)}Event`];
+        const eventEmitter = (window.electronAPI as any)[
+          `on${domain.charAt(0).toUpperCase() + domain.slice(1)}Event`
+        ];
         if (typeof eventEmitter === 'function') {
           eventEmitter(event);
         }
@@ -171,18 +181,15 @@ export class ElectronIpcInterceptor {
   /**
    * Wait for a specific IPC message
    */
-  async waitForMessage(
-    channel: string,
-    timeout: number = 5000
-  ): Promise<IPCMessage | null> {
+  async waitForMessage(channel: string, timeout: number = 5000): Promise<IPCMessage | null> {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
-      const message = this.interceptedMessages.find(msg => msg.channel === channel);
+      const message = this.interceptedMessages.find((msg) => msg.channel === channel);
       if (message) {
         return message;
       }
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     return null;
@@ -198,11 +205,13 @@ export class ElectronIpcInterceptor {
     }
 
     if (args) {
-      const matchingMessage = messages.find(msg =>
-        JSON.stringify(msg.args) === JSON.stringify(args)
+      const matchingMessage = messages.find(
+        (msg) => JSON.stringify(msg.args) === JSON.stringify(args),
       );
       if (!matchingMessage) {
-        throw new Error(`Message sent on ${channel} but with different args. Expected: ${JSON.stringify(args)}, Got: ${JSON.stringify(messages.map(m => m.args))}`);
+        throw new Error(
+          `Message sent on ${channel} but with different args. Expected: ${JSON.stringify(args)}, Got: ${JSON.stringify(messages.map((m) => m.args))}`,
+        );
       }
     }
   }
@@ -213,7 +222,7 @@ export class ElectronIpcInterceptor {
   getMessageStats(): Record<string, number> {
     const stats: Record<string, number> = {};
 
-    this.interceptedMessages.forEach(message => {
+    this.interceptedMessages.forEach((message) => {
       stats[message.channel] = (stats[message.channel] || 0) + 1;
     });
 

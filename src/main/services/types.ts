@@ -27,7 +27,7 @@ export class ServiceError extends Error {
     this.code = code;
     this.service = service;
     this.originalError = originalError;
-    
+
     // Set the prototype explicitly for proper instanceof checks
     Object.setPrototypeOf(this, ServiceError.prototype);
   }
@@ -40,3 +40,6 @@ export interface ServiceDependencies {
   logger: ILogger;
   eventBus?: IEventBus;
 }
+
+// Export ServiceLogger type for use across the codebase
+export type ServiceLogger = ILogger;

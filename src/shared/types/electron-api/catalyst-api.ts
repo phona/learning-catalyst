@@ -28,7 +28,10 @@ export interface CatalystAPI {
    * @param port - MessagePort for streaming communication
    * @returns Promise<AgentExecutionResult> - Initial execution result
    */
-  executeAgentStream: (params: AgentExecutionRequest, port: MessagePort) => Promise<APIResponse<AgentExecutionResult>>;
+  executeAgentStream: (
+    params: AgentExecutionRequest,
+    port: MessagePort,
+  ) => Promise<APIResponse<AgentExecutionResult>>;
 
   /**
    * Cancel a running agent execution
@@ -61,7 +64,9 @@ export interface CatalystAPI {
    * @param agentConfig - Agent configuration to register
    * @returns Promise<{ success: boolean; agentId?: string }> - Registration result
    */
-  registerAgent: (agentConfig: AgentRegistrationRequest) => Promise<APIResponse<{ agentId: string }>>;
+  registerAgent: (
+    agentConfig: AgentRegistrationRequest,
+  ) => Promise<APIResponse<{ agentId: string }>>;
 
   /**
    * Unregister an agent

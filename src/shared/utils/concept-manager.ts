@@ -69,7 +69,7 @@ export class ConceptManager {
       ...data,
       tags: data.tags || [],
       metadata: data.metadata || {},
-      masteryLevel: 0
+      masteryLevel: 0,
     });
 
     // Auto-create relationships if parent concept is specified
@@ -80,7 +80,7 @@ export class ConceptManager {
           concept.id,
           'contains',
           0.8,
-          'Parent-child relationship'
+          'Parent-child relationship',
         );
       } catch (error) {
         console.warn('Failed to create parent relationship:', error);
@@ -123,7 +123,9 @@ export class ConceptManager {
     // Check for dependent concepts
     if (!force) {
       const relationships = await this.knowledgeGraph.getRelationships(id);
-      const dependents = relationships.filter(rel => rel.relationshipType === 'prerequisite' && rel.targetConceptId === id);
+      const dependents = relationships.filter(
+        (rel) => rel.relationshipType === 'prerequisite' && rel.targetConceptId === id,
+      );
 
       if (dependents.length > 0) {
         const dependentNames = [];
@@ -134,7 +136,9 @@ export class ConceptManager {
           }
         }
 
-        throw new Error(`Cannot delete concept "${concept.name}" because it is a prerequisite for: ${dependentNames.join(', ')}. Use force=true to override.`);
+        throw new Error(
+          `Cannot delete concept "${concept.name}" because it is a prerequisite for: ${dependentNames.join(', ')}. Use force=true to override.`,
+        );
       }
     }
 
@@ -157,13 +161,13 @@ export class ConceptManager {
 
     // Add tag filtering to query if specified
     if (params.tags && params.tags.length > 0) {
-      const tagQuery = params.tags.map(tag => `tag:${tag}`).join(' ');
+      const tagQuery = params.tags.map((tag) => `tag:${tag}`).join(' ');
       query = query ? `${query} ${tagQuery}` : tagQuery;
     }
 
     // Add concept type filtering to query if specified
     if (params.types && params.types.length > 0) {
-      const typeQuery = params.types.map(type => `type:${type}`).join(' ');
+      const typeQuery = params.types.map((type) => `type:${type}`).join(' ');
       query = query ? `${query} ${typeQuery}` : typeQuery;
     }
 
@@ -174,16 +178,18 @@ export class ConceptManager {
     let filteredResults = allResults;
 
     if (params.difficultyRange) {
-      filteredResults = filteredResults.filter(concept =>
-        concept.difficultyLevel >= params.difficultyRange![0] &&
-        concept.difficultyLevel <= params.difficultyRange![1]
+      filteredResults = filteredResults.filter(
+        (concept) =>
+          concept.difficultyLevel >= params.difficultyRange![0] &&
+          concept.difficultyLevel <= params.difficultyRange![1],
       );
     }
 
     if (params.masteryRange) {
-      filteredResults = filteredResults.filter(concept =>
-        concept.masteryLevel >= params.masteryRange![0] &&
-        concept.masteryLevel <= params.masteryRange![1]
+      filteredResults = filteredResults.filter(
+        (concept) =>
+          concept.masteryLevel >= params.masteryRange![0] &&
+          concept.masteryLevel <= params.masteryRange![1],
       );
     }
 
@@ -199,7 +205,7 @@ export class ConceptManager {
     const results = await this.knowledgeGraph.searchConcepts(name, 100);
 
     // Find exact match
-    return results.find(concept => concept.name.toLowerCase() === name.toLowerCase()) || null;
+    return results.find((concept) => concept.name.toLowerCase() === name.toLowerCase()) || null;
   }
 
   /**
@@ -211,7 +217,7 @@ export class ConceptManager {
 
     const allConcepts = await this.knowledgeGraph.searchConcepts('', 10000);
 
-    return allConcepts.filter(concept => {
+    return allConcepts.filter((concept) => {
       // Note: Concept type doesn't have lastReviewed field, so we'll use updatedAt instead
       const conceptDate = new Date(concept.updatedAt);
       const needsReview = conceptDate < thresholdDate;
@@ -244,8 +250,10 @@ export class ConceptManager {
       // Get prerequisites
       const relationships = await this.knowledgeGraph.getRelationships(concept.id);
       const prerequisiteIds = relationships
-        .filter(rel => rel.relationshipType === 'prerequisite' && rel.targetConceptId === concept.id)
-        .map(rel => rel.sourceConceptId);
+        .filter(
+          (rel) => rel.relationshipType === 'prerequisite' && rel.targetConceptId === concept.id,
+        )
+        .map((rel) => rel.sourceConceptId);
 
       const prerequisites: Concept[] = [];
       for (const prereqId of prerequisiteIds) {
@@ -256,7 +264,7 @@ export class ConceptManager {
       }
 
       // Check if prerequisites are met
-      const unmetPrerequisites = prerequisites.filter(prereq => prereq.masteryLevel < 3);
+      const unmetPrerequisites = prerequisites.filter((prereq) => prereq.masteryLevel < 3);
       if (unmetPrerequisites.length > 0) {
         continue; // Skip if prerequisites aren't met
       }
@@ -266,7 +274,7 @@ export class ConceptManager {
         reason: this.generateRecommendationReason(concept, prerequisites),
         priority,
         estimatedTime: this.estimateStudyTime(concept),
-        prerequisites
+        prerequisites,
       });
     }
 
@@ -289,7 +297,11 @@ export class ConceptManager {
   /**
    * Update concept mastery after study session
    */
-  async updateMastery(conceptId: string, performanceScore: number, timeSpent: number): Promise<Concept | null> {
+  async updateMastery(
+    conceptId: string,
+    performanceScore: number,
+    timeSpent: number,
+  ): Promise<Concept | null> {
     const concept = await this.knowledgeGraph.getConcept(conceptId);
     if (!concept) {
       throw new Error('Concept not found');
@@ -319,9 +331,9 @@ export class ConceptManager {
           date: new Date().toISOString(),
           performanceScore,
           timeSpent,
-          previousMasteryLevel: concept.masteryLevel
-        }
-      }
+          previousMasteryLevel: concept.masteryLevel,
+        },
+      },
     });
 
     return updated;
@@ -341,8 +353,10 @@ export class ConceptManager {
 
       const relationships = await this.knowledgeGraph.getRelationships(conceptId);
       const prerequisiteIds = relationships
-        .filter(rel => rel.relationshipType === 'prerequisite' && rel.targetConceptId === conceptId)
-        .map(rel => rel.sourceConceptId);
+        .filter(
+          (rel) => rel.relationshipType === 'prerequisite' && rel.targetConceptId === conceptId,
+        )
+        .map((rel) => rel.sourceConceptId);
 
       const prerequisites: Concept[] = [];
       for (const prereqId of prerequisiteIds) {
@@ -371,13 +385,18 @@ export class ConceptManager {
     const relatedConcepts = await this.knowledgeGraph.getRelatedConcepts(conceptId);
 
     // Calculate various metrics
-    const prerequisites = relationships.filter(rel => rel.relationshipType === 'prerequisite' && rel.targetConceptId === conceptId);
-    const contains = relationships.filter(rel => rel.relationshipType === 'contains' && rel.sourceConceptId === conceptId);
-    const related = relationships.filter(rel => rel.relationshipType === 'related');
+    const prerequisites = relationships.filter(
+      (rel) => rel.relationshipType === 'prerequisite' && rel.targetConceptId === conceptId,
+    );
+    const contains = relationships.filter(
+      (rel) => rel.relationshipType === 'contains' && rel.sourceConceptId === conceptId,
+    );
+    const related = relationships.filter((rel) => rel.relationshipType === 'related');
 
-    const avgRelationshipStrength = relationships.length > 0
-      ? relationships.reduce((sum, rel) => sum + rel.strength, 0) / relationships.length
-      : 0;
+    const avgRelationshipStrength =
+      relationships.length > 0
+        ? relationships.reduce((sum, rel) => sum + rel.strength, 0) / relationships.length
+        : 0;
 
     return {
       concept,
@@ -390,14 +409,16 @@ export class ConceptManager {
       daysSinceLastReview: concept.lastReviewed
         ? Math.floor((Date.now() - concept.lastReviewed.getTime()) / (1000 * 60 * 60 * 24))
         : null,
-      studyEfficiency: concept.reviewCount > 0 ? concept.masteryLevel / concept.reviewCount : 0
+      studyEfficiency: concept.reviewCount > 0 ? concept.masteryLevel / concept.reviewCount : 0,
     };
   }
 
   /**
    * Bulk import concepts from data
    */
-  async importConcepts(conceptsData: ConceptCreateData[]): Promise<{ imported: number; errors: string[] }> {
+  async importConcepts(
+    conceptsData: ConceptCreateData[],
+  ): Promise<{ imported: number; errors: string[] }> {
     const errors: string[] = [];
     let imported = 0;
 
@@ -481,7 +502,7 @@ export class ConceptManager {
     }
 
     if (prerequisites.length > 0) {
-      const prereqNames = prerequisites.map(p => p.name).join(', ');
+      const prereqNames = prerequisites.map((p) => p.name).join(', ');
       return `Build upon: ${prereqNames} → ${concept.name}`;
     }
 

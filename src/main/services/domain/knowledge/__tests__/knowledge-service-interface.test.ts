@@ -8,38 +8,38 @@ vi.mock('../knowledge-service', () => {
         id: 'concept-1',
         name: 'React Hooks',
         description: 'React state management hooks',
-        metadata: {}
-      }
+        metadata: {},
+      },
     ]),
     getRelatedConcepts: vi.fn().mockResolvedValue([
       {
         id: 'concept-2',
         name: 'useState',
         strength: 0.9,
-        relationship: 'uses'
-      }
+        relationship: 'uses',
+      },
     ]),
     searchKnowledge: vi.fn().mockResolvedValue({
       concepts: [],
       relationships: [],
-      total: 0
+      total: 0,
     }),
     getConcept: vi.fn().mockResolvedValue({
       id: 'concept-1',
       name: 'React Hooks',
-      description: 'React state management hooks'
+      description: 'React state management hooks',
     }),
     updateConcept: vi.fn().mockResolvedValue(true),
     deleteConcept: vi.fn().mockResolvedValue(true),
     ingestConcepts: vi.fn().mockResolvedValue({
       ingested: 5,
       skipped: 0,
-      errors: []
-    })
+      errors: [],
+    }),
   };
 
   return {
-    createKnowledgeService: vi.fn(() => mockKnowledgeService)
+    createKnowledgeService: vi.fn(() => mockKnowledgeService),
   };
 });
 
@@ -57,7 +57,7 @@ describe('Knowledge Service - Interface Tests', () => {
       selectFrom: vi.fn().mockReturnThis(),
       insertInto: vi.fn().mockReturnThis(),
       updateTable: vi.fn().mockReturnThis(),
-      deleteFrom: vi.fn().mockReturnThis()
+      deleteFrom: vi.fn().mockReturnThis(),
     };
 
     // Mock logger service
@@ -66,14 +66,8 @@ describe('Knowledge Service - Interface Tests', () => {
         info: vi.fn(),
         debug: vi.fn(),
         warn: vi.fn(),
-        error: vi.fn()
-      }))
-    };
-
-    // Mock AI service
-    mockAiService = {
-      chatCompletion: vi.fn(),
-      getModelPreset: vi.fn()
+        error: vi.fn(),
+      })),
     };
 
     // Import knowledge service
@@ -82,7 +76,6 @@ describe('Knowledge Service - Interface Tests', () => {
     knowledgeService = createKnowledgeService({
       db: mockDb,
       loggerService: mockLoggerService,
-      aiService: mockAiService
     });
   });
 
@@ -112,7 +105,7 @@ describe('Knowledge Service - Interface Tests', () => {
         id: 'concept-1',
         name: 'React Hooks',
         description: 'React state management hooks',
-        metadata: expect.any(Object)
+        metadata: expect.any(Object),
       });
     });
 
@@ -125,7 +118,7 @@ describe('Knowledge Service - Interface Tests', () => {
         id: 'concept-2',
         name: 'useState',
         strength: expect.any(Number),
-        relationship: expect.any(String)
+        relationship: expect.any(String),
       });
     });
   });
@@ -134,7 +127,7 @@ describe('Knowledge Service - Interface Tests', () => {
     it('should search knowledge base', async () => {
       const searchRequest = {
         query: 'React hooks',
-        limit: 10
+        limit: 10,
       };
 
       const result = await knowledgeService.searchKnowledge(searchRequest);
@@ -142,7 +135,7 @@ describe('Knowledge Service - Interface Tests', () => {
       expect(result).toMatchObject({
         concepts: expect.any(Array),
         relationships: expect.any(Array),
-        total: expect.any(Number)
+        total: expect.any(Number),
       });
     });
   });
@@ -154,14 +147,14 @@ describe('Knowledge Service - Interface Tests', () => {
       expect(result).toMatchObject({
         id: 'concept-1',
         name: 'React Hooks',
-        description: 'React state management hooks'
+        description: 'React state management hooks',
       });
     });
 
     it('should update concept', async () => {
       const updateData = {
         name: 'Updated Concept',
-        description: 'Updated description'
+        description: 'Updated description',
       };
 
       const result = await knowledgeService.updateConcept('concept-1', updateData);
@@ -181,9 +174,9 @@ describe('Knowledge Service - Interface Tests', () => {
           {
             id: 'concept-new',
             name: 'New Concept',
-            description: 'A newly discovered concept'
-          }
-        ]
+            description: 'A newly discovered concept',
+          },
+        ],
       };
 
       const result = await knowledgeService.ingestConcepts(ingestRequest);
@@ -191,7 +184,7 @@ describe('Knowledge Service - Interface Tests', () => {
       expect(result).toMatchObject({
         ingested: expect.any(Number),
         skipped: expect.any(Number),
-        errors: expect.any(Array)
+        errors: expect.any(Array),
       });
     });
   });
@@ -206,11 +199,6 @@ describe('Knowledge Service - Interface Tests', () => {
       expect(mockLoggerService).toBeDefined();
       expect(typeof mockLoggerService.child).toBe('function');
     });
-
-    it('should accept AI service dependency', () => {
-      expect(mockAiService).toBeDefined();
-      expect(typeof mockAiService.chatCompletion).toBe('function');
-    });
   });
 
   describe('Data Structures', () => {
@@ -221,8 +209,8 @@ describe('Knowledge Service - Interface Tests', () => {
         description: 'A test concept',
         metadata: {
           difficulty: 'medium',
-          category: 'programming'
-        }
+          category: 'programming',
+        },
       };
 
       expect(concept).toHaveProperty('id');
@@ -238,7 +226,7 @@ describe('Knowledge Service - Interface Tests', () => {
         targetId: 'concept-2',
         type: 'uses',
         strength: 0.8,
-        metadata: {}
+        metadata: {},
       };
 
       expect(relationship).toHaveProperty('id');

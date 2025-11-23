@@ -9,17 +9,17 @@ export const setupCompleteAnalyticsHandlers = (
   services: {
     analyticsService: AnalyticsService;
     loggerService: { child: (meta: Record<string, unknown>) => ILogger };
-  }
+  },
 ) => {
   const handlerLogger = services.loggerService.child({ handler: 'analytics-complete' });
   const ok = <T>(data?: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
     success: true,
     data,
-    metadata
+    metadata,
   });
   const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
     success: false,
-    error: { code, message, details }
+    error: { code, message, details },
   });
 
   ipcMainInstance.handle('analytics:get-dashboard', async () => {
@@ -40,7 +40,7 @@ export const setupCompleteAnalyticsHandlers = (
       const progressChart = await services.analyticsService.getProgressChart({
         period: params.period ?? 'week',
         metric: params.metric ?? 'sessions',
-        conceptIds: params.conceptIds
+        conceptIds: params.conceptIds,
       });
       handlerLogger.info('Progress chart retrieved successfully');
       return ok(progressChart);
@@ -80,7 +80,7 @@ export const setupCompleteAnalyticsHandlers = (
       const stats = await services.analyticsService.getUsageStats(
         params.timeRange ?? '30days',
         params.includePatterns,
-        params.includeEngagement
+        params.includeEngagement,
       );
       handlerLogger.info('Usage stats retrieved successfully');
       return ok(stats);
@@ -97,7 +97,7 @@ export const setupCompleteAnalyticsHandlers = (
         params.timeRange ?? '30days',
         params.includeByProvider,
         params.includeByFeature,
-        params.includeProjections
+        params.includeProjections,
       );
       handlerLogger.info('Token usage retrieved successfully');
       return ok(tokenUsage);

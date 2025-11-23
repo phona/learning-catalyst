@@ -1,4 +1,3 @@
-
 /**
  * Message representation optimized for UI display
  * Transforms complex message data into frontend-friendly format
@@ -12,15 +11,15 @@ export interface ToolCallResult {
   text?: string;
   number?: number;
   boolean?: boolean;
-  
+
   // Complex data types
   data?: Record<string, unknown>;
   array?: unknown[];
-  
+
   // Structured results for common use cases
   success?: boolean;
   message?: string;
-  
+
   // Metadata about the result
   metadata?: {
     timestamp?: string;
@@ -32,10 +31,19 @@ export interface ToolCallResult {
 
 export interface MessageDisplay {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  timestamp: string;         // Relative time for display
-  status: 'sending' | 'delivered' | 'error' | 'typing';
+  timestamp: string | Date;
+  status?: 'sending' | 'delivered' | 'error' | 'typing';
+  provider?: string;
+  thinking_content?: string;
+  showThinking?: boolean;
+  tool_calls?: ToolCallDisplay[];
+  tokens_used?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
   agentInfo?: {
     type: string;
     avatar: string;
@@ -55,8 +63,12 @@ export interface MessageDisplay {
 
 export interface ToolCallDisplay {
   id: string;
-  name: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+  status?: 'pending' | 'running' | 'completed' | 'error';
   result?: ToolCallResult;
   error?: string;
   duration?: number;

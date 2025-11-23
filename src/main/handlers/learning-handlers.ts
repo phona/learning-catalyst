@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * Enhanced Learning & Sessions IPC Handlers
  *
@@ -8,19 +7,17 @@
 
 import { ipcMain } from 'electron';
 import type { APIResponse } from '@/shared/types/electron-api';
+import type { LearningService } from '../services/domain/learning/learning-service';
+import type { LoggerService } from '../services/core/logger/logger-service';
+
+type SearchSessionsPayload = {
+  query?: string;
+  filters?: Parameters<LearningService['searchSessions']>[1];
+};
 
 type LearningHandlersDeps = {
-  learningService: {
-    getLearningPath: (id: string) => Promise<any>;
-    startLearningSession: (params: any) => Promise<any>;
-    getSessionProgress: (id: string) => Promise<any>;
-    pauseSession: (id: string) => Promise<any>;
-    resumeSession: (id: string) => Promise<any>;
-    completeSession: (id: string) => Promise<any>;
-    getRecentSessions: (options?: any) => Promise<any[]>;
-    searchSessions: (query: string, filters?: any) => Promise<any>;
-  };
-  loggerService: { child: (meta: Record<string, unknown>) => { info: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void } };
+  learningService: LearningService;
+  loggerService: LoggerService;
 };
 
 /**
@@ -28,13 +25,13 @@ type LearningHandlersDeps = {
  */
 export const setupLearningHandlers = (
   ipcMainInstance: typeof ipcMain,
-  services: LearningHandlersDeps
-) => {
+  services: LearningHandlersDeps,
+): void => {
   const handlerLogger = services.loggerService.child({ handler: 'learning' });
   const ok = <T>(data: T): APIResponse<T> => ({ success: true, data });
   const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
     success: false,
-    error: { code, message, details }
+    error: { code, message, details },
   });
 
   ipcMainInstance.handle('learning:get-path', async (_event, pathId: string) => {
@@ -56,30 +53,26 @@ export const setupLearningHandlers = (
     }
   });
 
-  ipcMainInstance.handle('learning:start-session', async (_event, params) => {
-    handlerLogger.info('Handling start learning session request', {
-      topic: params.topic,
-      goals: params.goals,
-      agentType: params.agentType
-    });
-
-    try {
-      const session = await services.learningService.startLearningSession({
+  ipcMainInstance.handle(
+    'learning:start-session',
+    async (_event, params: Parameters<LearningService['startLearningSession']>[0]) => {
+      handlerLogger.info('Handling start learning session request', {
         topic: params.topic,
         goals: params.goals,
-        difficulty: params.difficulty,
         agentType: params.agentType,
-        learningStyle: params.learningStyle,
-        userId: params.userId
       });
 
-      handlerLogger.info('Learning session started successfully', { sessionId: session.id });
-      return ok(session);
-    } catch (error) {
-      handlerLogger.error('Failed to start learning session', error);
-      return fail('learning.start_failed', 'Unable to start learning session', error);
-    }
-  });
+      try {
+        const session = await services.learningService.startLearningSession(params);
+
+        handlerLogger.info('Learning session started successfully', { sessionId: session.id });
+        return ok(session);
+      } catch (error) {
+        handlerLogger.error('Failed to start learning session', error);
+        return fail('learning.start_failed', 'Unable to start learning session', error);
+      }
+    },
+  );
 
   ipcMainInstance.handle('learning:get-progress', async (_event, sessionId: string) => {
     handlerLogger.info('Handling get learning session progress request', { sessionId });
@@ -129,7 +122,9 @@ export const setupLearningHandlers = (
     try {
       const completion = await services.learningService.completeSession(sessionId);
 
-      handlerLogger.info('Learning session completed successfully', { achievements: completion?.achievements?.length ?? 0 });
+      handlerLogger.info('Learning session completed successfully', {
+        achievements: completion?.achievements?.length ?? 0,
+      });
       return ok(completion);
     } catch (error) {
       handlerLogger.error('Failed to complete learning session', error);
@@ -137,35 +132,46 @@ export const setupLearningHandlers = (
     }
   });
 
-  ipcMainInstance.handle('learning:get-recent-sessions', async (_event, options) => {
-    handlerLogger.info('Handling get recent learning sessions request', { options });
+  ipcMainInstance.handle(
+    'learning:get-recent-sessions',
+    async (_event, options?: Parameters<LearningService['getRecentSessions']>[0]) => {
+      handlerLogger.info('Handling get recent learning sessions request', { options });
 
-    try {
-      const sessions = await services.learningService.getRecentSessions(options);
+      try {
+        const sessions = await services.learningService.getRecentSessions(options);
 
-      handlerLogger.info('Recent learning sessions retrieved successfully', {
-        count: sessions.length
-      });
-      return ok(sessions);
-    } catch (error) {
-      handlerLogger.error('Failed to get recent learning sessions', error);
-      return fail('learning.recent_failed', 'Unable to fetch recent sessions', error);
-    }
-  });
+        handlerLogger.info('Recent learning sessions retrieved successfully', {
+          count: sessions.length,
+        });
+        return ok(sessions);
+      } catch (error) {
+        handlerLogger.error('Failed to get recent learning sessions', error);
+        return fail('learning.recent_failed', 'Unable to fetch recent sessions', error);
+      }
+    },
+  );
 
-  ipcMainInstance.handle('learning:search-sessions', async (_event, query, filters) => {
-    handlerLogger.info('Handling search learning sessions request', { query, filters });
+  ipcMainInstance.handle(
+    'learning:search-sessions',
+    async (_event, payload: SearchSessionsPayload) => {
+      handlerLogger.info('Handling search learning sessions request', payload);
 
-    try {
-      const results = await services.learningService.searchSessions(query, filters);
+      try {
+        const results = await services.learningService.searchSessions(
+          payload.query ?? '',
+          payload.filters,
+        );
 
-      handlerLogger.info('Learning session search completed', { resultCount: results?.sessions?.length });
-      return ok(results);
-    } catch (error) {
-      handlerLogger.error('Failed to search learning sessions', error);
-      return fail('learning.search_failed', 'Unable to search sessions', error);
-    }
-  });
+        handlerLogger.info('Learning session search completed', {
+          resultCount: results.sessions.length,
+        });
+        return ok(results);
+      } catch (error) {
+        handlerLogger.error('Failed to search learning sessions', error);
+        return fail('learning.search_failed', 'Unable to search sessions', error);
+      }
+    },
+  );
 
   handlerLogger.info('? Learning handlers registered successfully');
 };

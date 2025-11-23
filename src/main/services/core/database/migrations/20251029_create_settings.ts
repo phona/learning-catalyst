@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -9,15 +9,15 @@ export default {
       .addColumn('key', 'text', (col) => col.notNull().unique())
       .addColumn('value', 'text')
       .addColumn('data_type', 'text', (col) =>
-        col.defaultTo('string').check(sql`data_type IN ('string', 'number', 'boolean', 'json')`)
+        col.defaultTo('string').check(sql`data_type IN ('string', 'number', 'boolean', 'json')`),
       )
       .addColumn('description', 'text')
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
-    await db.schema.dropTable('settings').execute()
-  }
-}
+    await db.schema.dropTable('settings').execute();
+  },
+};

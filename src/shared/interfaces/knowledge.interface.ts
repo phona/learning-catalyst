@@ -199,13 +199,7 @@ export interface ExerciseDisplay {
   solution?: ExerciseSolution;
 }
 
-export type ExerciseType =
-  | 'quiz'
-  | 'coding'
-  | 'practical'
-  | 'essay'
-  | 'project'
-  | 'simulation';
+export type ExerciseType = 'quiz' | 'coding' | 'practical' | 'essay' | 'project' | 'simulation';
 
 export interface ExerciseQuestion {
   id: string;
@@ -330,7 +324,7 @@ export class KnowledgeError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any
+    public details?: any,
   ) {
     super(message);
     this.name = 'KnowledgeError';
@@ -345,26 +339,22 @@ export class ConceptNotFoundError extends KnowledgeError {
 
 export class RelationshipNotFoundError extends KnowledgeError {
   constructor(relationshipId: string) {
-    super(`Relationship not found: ${relationshipId}`, 'RELATIONSHIP_NOT_FOUND', { relationshipId });
+    super(`Relationship not found: ${relationshipId}`, 'RELATIONSHIP_NOT_FOUND', {
+      relationshipId,
+    });
   }
 }
 
 export class CircularDependencyError extends KnowledgeError {
   constructor(conceptIds: string[]) {
-    super(
-      `Circular dependency detected: ${conceptIds.join(' -> ')}`,
-      'CIRCULAR_DEPENDENCY',
-      { conceptIds }
-    );
+    super(`Circular dependency detected: ${conceptIds.join(' -> ')}`, 'CIRCULAR_DEPENDENCY', {
+      conceptIds,
+    });
   }
 }
 
 export class ValidationFailedError extends KnowledgeError {
   constructor(issues: ValidationIssue[]) {
-    super(
-      `Validation failed with ${issues.length} issues`,
-      'VALIDATION_FAILED',
-      { issues }
-    );
+    super(`Validation failed with ${issues.length} issues`, 'VALIDATION_FAILED', { issues });
   }
 }

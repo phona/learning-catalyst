@@ -1,6 +1,7 @@
 # Contributing to Learning Catalyst
 
-Thank you for your interest in contributing to Learning Catalyst! This guide will help you get started and ensure your contributions align with our standards.
+Thank you for your interest in contributing to Learning Catalyst! This guide will help you get
+started and ensure your contributions align with our standards.
 
 ## Table of Contents
 
@@ -16,6 +17,7 @@ Thank you for your interest in contributing to Learning Catalyst! This guide wil
 ## Getting Started
 
 Learning Catalyst is an AI-powered desktop application built with:
+
 - **Electron** - Desktop framework
 - **TypeScript** - Type-safe development
 - **React** - UI components
@@ -118,6 +120,7 @@ main
 ```
 
 **Branch naming:**
+
 - `feature/` - New features
 - `bugfix/` - Non-critical bug fixes
 - `hotfix/` - Critical production fixes
@@ -137,6 +140,7 @@ footer (optional)
 ```
 
 **Types:**
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation changes
@@ -163,6 +167,7 @@ Closes #456
 ### Development Process
 
 1. **Create feature branch**
+
    ```bash
    git checkout -b feature/my-awesome-feature
    ```
@@ -173,6 +178,7 @@ Closes #456
    - Update documentation
 
 3. **Test changes**
+
    ```bash
    npm test              # Run all tests
    npm run test:main     # Main process tests only
@@ -180,12 +186,14 @@ Closes #456
    ```
 
 4. **Check code quality**
+
    ```bash
    npm run lint          # Check linting
    npm run type-check    # TypeScript validation
    ```
 
 5. **Commit changes**
+
    ```bash
    git add .
    git commit -m "feat(chat): add awesome feature"
@@ -201,6 +209,7 @@ Closes #456
 ### TypeScript Guidelines
 
 **1. Strict Mode**
+
 ```typescript
 // ✅ Always use strict TypeScript
 const { value } = getData();
@@ -211,15 +220,14 @@ const value: any = getData();
 ```
 
 **2. Explicit Types**
+
 ```typescript
 // ✅ Explicit return types for public functions
-export function createChatService(
-  dependencies: Dependencies
-): ChatService {
+export function createChatService(dependencies: Dependencies): ChatService {
   return {
     async sendMessage(message: string): Promise<ChatResponse> {
       // Implementation
-    }
+    },
   };
 }
 
@@ -230,6 +238,7 @@ function processData(data: DataType): ReturnType {
 ```
 
 **3. No Null/Undefined Confusion**
+
 ```typescript
 // ✅ Use proper null checking
 if (user?.name != null) {
@@ -246,6 +255,7 @@ console.log(user!.name);
 ### File Organization
 
 **1. File Naming**
+
 ```
 Components:    PascalCase (e.g., ChatInterface.tsx)
 Services:      camelCase (e.g., chatService.ts)
@@ -254,6 +264,7 @@ Directories:   kebab-case (e.g., chat-service/)
 ```
 
 **2. Directory Structure**
+
 ```
 src/
 ├── main/                    # Electron main process
@@ -275,6 +286,7 @@ src/
 ### Code Style
 
 **1. Imports ( organized and grouped )**
+
 ```typescript
 // ✅ External libraries
 import React, { useState, useEffect } from 'react';
@@ -291,6 +303,7 @@ import { MessageList } from './MessageList';
 ```
 
 **2. Function Organization**
+
 ```typescript
 // ✅ Helper functions first (private)
 function helperFunction(input: string): string {
@@ -322,6 +335,7 @@ export function MyComponent() {
 ```
 
 **3. Naming Conventions**
+
 ```typescript
 // ✅ Variables and functions: camelCase
 const userName = 'John';
@@ -342,6 +356,7 @@ const isLoading = true;
 const hasError = false;
 const canProceed = true;
 ```
+
 ### Functional Pattern (All Modules)
 
 **Use React-style functional patterns for ALL code:**
@@ -410,6 +425,7 @@ src/
 ### Main Process Testing
 
 **Unit Tests with Vitest:**
+
 ```typescript
 // src/main/services/domain/chat/__tests__/chat-service.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -427,7 +443,7 @@ describe('ChatService', () => {
 
     chatService = createChatService({
       db: mockDb,
-      loggerService: mockLogger
+      loggerService: mockLogger,
     });
   });
 
@@ -447,6 +463,7 @@ describe('ChatService', () => {
 ### Renderer Testing
 
 **Component Tests with React Testing Library:**
+
 ```typescript
 // src/renderer/components/Chat/__tests__/ChatInterface.test.tsx
 import { describe, it, expect } from 'vitest';
@@ -474,6 +491,7 @@ describe('ChatInterface', () => {
 ### Integration Testing
 
 **IPC Communication Tests:**
+
 ```typescript
 // src/integration/chat-flow.test.ts
 import { describe, it, expect } from 'vitest';
@@ -481,10 +499,7 @@ import { describe, it, expect } from 'vitest';
 describe('Chat Flow', () => {
   it('should send message and receive response', async () => {
     // Test full IPC flow
-    const response = await window.electronAPI.chat.sendMessage(
-      'Hello',
-      'test-session'
-    );
+    const response = await window.electronAPI.chat.sendMessage('Hello', 'test-session');
 
     expect(response.success).toBe(true);
     expect(response.data).toBeDefined();
@@ -526,6 +541,7 @@ Run `npm run test:coverage` to generate coverage reports.
 ### When to Update Documentation
 
 Always update documentation when:
+
 - Adding new features
 - Changing APIs
 - Modifying architecture
@@ -535,7 +551,8 @@ Always update documentation when:
 ### Documentation Standards
 
 **1. Code Comments**
-```typescript
+
+````typescript
 // ✅ Document public APIs
 /**
  * Creates a chat service with the specified dependencies.
@@ -552,9 +569,7 @@ Always update documentation when:
  * });
  * ```
  */
-export function createChatService(
-  dependencies: Dependencies
-): ChatService {
+export function createChatService(dependencies: Dependencies): ChatService {
   // Implementation
 }
 
@@ -569,15 +584,17 @@ export function createChatService(
 function calculateProgress(): number {
   // Implementation
 }
-```
+````
 
 **2. README Updates**
+
 - Feature additions → Update relevant README section
 - New commands → Update command reference
 - Configuration changes → Update configuration guide
 
 **3. API Documentation**
-```typescript
+
+````typescript
 // Document Electron API changes
 /**
  * Chat API - Handle messaging and conversation
@@ -592,13 +609,13 @@ function calculateProgress(): number {
  * await window.electronAPI.chat.sendMessage('Hello!');
  * ```
  */
-```
+````
 
 ### Docstrings Format
 
 We use **JSDoc** format:
 
-```typescript
+````typescript
 /**
  * Brief description of the function/class
  *
@@ -616,18 +633,20 @@ We use **JSDoc** format:
  *
  * @throws {Error} When the input is invalid
  */
-```
+````
 
 ## Pull Request Process
 
 ### Before Submitting
 
 1. **Ensure all tests pass**
+
    ```bash
    npm test
    ```
 
 2. **Verify code quality**
+
    ```bash
    npm run lint
    npm run type-check
@@ -736,6 +755,7 @@ We are committed to providing a welcoming and inclusive environment. We:
 ### Recognition
 
 Contributors are recognized through:
+
 - **Contributors.md** file
 - **Release notes** attribution
 - **GitHub contributors** page
@@ -745,6 +765,7 @@ Contributors are recognized through:
 ### 1. Start Small
 
 **Good first issues:**
+
 - Fix typos in documentation
 - Add tests for existing code
 - Refactor small functions
@@ -753,6 +774,7 @@ Contributors are recognized through:
 ### 2. Ask Questions
 
 Don't hesitate to ask:
+
 - Questions on GitHub Discussions
 - Clarification in issue comments
 - Help in code review process
@@ -760,6 +782,7 @@ Don't hesitate to ask:
 ### 3. Be Patient
 
 Code review takes time:
+
 - One review cycle minimum
 - Maintainers are volunteers
 - Thorough review ensures quality
@@ -767,6 +790,7 @@ Code review takes time:
 ### 4. Stay Updated
 
 Keep informed:
+
 - Watch the repository
 - Read release notes
 - Follow discussions
@@ -807,6 +831,7 @@ npm run test:coverage
 ## Resources
 
 ### Documentation
+
 - [Electron Docs](https://www.electronjs.org/docs)
 - [React Docs](https://react.dev)
 - [TypeScript Docs](https://www.typescriptlang.org/docs)
@@ -814,6 +839,7 @@ npm run test:coverage
 - [Vite Docs](https://vitejs.dev)
 
 ### Tools
+
 - [VSCode](https://code.visualstudio.com)
 - [React DevTools](https://react.dev/learn/react-developer-tools)
 - [Electron DevTools](https://www.electronjs.org/docs/latest/tutorial/devtools-extension)
@@ -829,9 +855,9 @@ If you have questions about contributing:
 
 ## Thank You!
 
-Thank you for contributing to Learning Catalyst! Your efforts help make this project better for everyone. Every contribution, no matter how small, is valued and appreciated.
+Thank you for contributing to Learning Catalyst! Your efforts help make this project better for
+everyone. Every contribution, no matter how small, is valued and appreciated.
 
 ---
 
 **Happy coding! 🚀**
-

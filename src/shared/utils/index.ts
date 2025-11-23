@@ -17,7 +17,7 @@ export {
   Throttled,
   memoizeAsync,
   EventBatcher,
-  OptimizedScrollHandler
+  OptimizedScrollHandler,
 } from './performance-utils';
 
 // Performance Monitoring
@@ -26,7 +26,7 @@ export {
   appPerformanceMonitor,
   type PerformanceTrend,
   type PerformanceBottleneck,
-  type MemoryStats
+  type MemoryStats,
 } from './performance-monitor';
 
 // Optimization Patterns
@@ -37,7 +37,7 @@ export {
   RequestDeduplicator,
   CircuitBreaker,
   MemoryEfficientQueue,
-  createRetryPolicy
+  createRetryPolicy,
 } from './optimization-patterns';
 
 // Type Utilities
@@ -71,7 +71,7 @@ export {
   type TypedEventEmitter,
   type CacheEntry,
   type TypeSafeCache,
-  type PerformanceMetrics
+  type PerformanceMetrics,
 } from './type-utils';
 
 // IPC Types
@@ -97,7 +97,7 @@ export type {
   ServiceHealthCheck,
   ValidationOptions,
   IPCHandlerOptions,
-  StreamOptions
+  StreamOptions,
 } from '../types/ipc/base-types';
 
 // IPC Utility Functions
@@ -106,7 +106,7 @@ export {
   isErrorResponse,
   createSuccessResponse,
   createErrorResponse,
-  createServiceError
+  createServiceError,
 } from '../types/ipc/base-types';
 
 // Knowledge graph modules (legacy)
@@ -118,5 +118,5 @@ export type {
   Relationship,
   ConceptNode,
   KnowledgeGraphStats,
-  ConceptPath
+  ConceptPath,
 } from './knowledge-graph';

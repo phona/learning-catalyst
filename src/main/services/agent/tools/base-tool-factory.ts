@@ -19,41 +19,41 @@ export interface ToolConfig {
  */
 export const createTool = (config: ToolConfig) => (services: { loggerService?: LoggerService }) => {
   const logger = services.loggerService?.child({ tool: config.name }) || console;
-  
+
   return async (params: any): Promise<any> => {
     logger.info(`${config.name} operation requested`);
-    
+
     try {
       // Basic validation
-      const missing = config.requiredParams.filter(field => !params[field]);
+      const missing = config.requiredParams.filter((field) => !params[field]);
       if (missing.length > 0) {
         throw new Error(`Missing required parameters: ${missing.join(', ')}`);
       }
-      
+
       // Get model configuration (simplified)
-      let modelConfig = config.configKey ? 
-        { model: 'gpt-4o', apiKey: 'mock-key' } : 
-        { model: 'gpt-4o', apiKey: 'mock-key' };
+      let modelConfig = config.configKey
+        ? { model: 'gpt-4o', apiKey: 'mock-key' }
+        : { model: 'gpt-4o', apiKey: 'mock-key' };
 
       // Execute tool-specific operation
       const result = await config.operation({ ...params, modelConfig }, services);
 
       logger.info(`${config.name} completed successfully`);
-      
+
       return {
         success: true,
         data: {
           ...result,
           timestamp: new Date().toISOString(),
-          toolVersion: '2.0.0'
-        }
+          toolVersion: '2.0.0',
+        },
       };
     } catch (error) {
       logger.error(`${config.name} failed`, error);
-      
+
       return {
         success: false,
-        error: `${config.name} failed: ${error instanceof Error ? error.message : String(error)}`
+        error: `${config.name} failed: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   };
@@ -72,9 +72,9 @@ export const toolConfigs = {
         analysisType: params.analysisType,
         content: params.content,
         analysis: `Mock ${params.analysisType} analysis of content`,
-        model: params.modelConfig?.model
+        model: params.modelConfig?.model,
       };
-    }
+    },
   },
 
   learningPath: {
@@ -87,11 +87,11 @@ export const toolConfigs = {
           pathId: `path_${Date.now()}`,
           title: params.title,
           description: params.description,
-          modules: params.modules?.length || 0
+          modules: params.modules?.length || 0,
         };
       }
       return { action: params.action, result: 'Mock result' };
-    }
+    },
   },
 
   assessment: {
@@ -103,9 +103,9 @@ export const toolConfigs = {
         action: params.action,
         type: params.type,
         feedback: `Mock ${params.action} feedback for ${params.type}`,
-        model: params.modelConfig?.model
+        model: params.modelConfig?.model,
       };
-    }
+    },
   },
 
   knowledgeExtraction: {
@@ -116,14 +116,14 @@ export const toolConfigs = {
       return {
         concepts: [
           { name: 'Mock Concept 1', confidence: 0.8 },
-          { name: 'Mock Concept 2', confidence: 0.7 }
+          { name: 'Mock Concept 2', confidence: 0.7 },
         ],
         relationships: [],
         metadata: {
-          extractedAt: new Date().toISOString()
-        }
+          extractedAt: new Date().toISOString(),
+        },
       };
-    }
+    },
   },
 
   conceptMapping: {
@@ -135,12 +135,12 @@ export const toolConfigs = {
         nodes: params.concepts.map((concept: string) => ({
           id: concept,
           title: concept,
-          status: 'unmapped'
+          status: 'unmapped',
         })),
-        relationshipSuggestions: []
+        relationshipSuggestions: [],
       };
-    }
-  }
+    },
+  },
 };
 
 /**

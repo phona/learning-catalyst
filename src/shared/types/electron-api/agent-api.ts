@@ -36,7 +36,11 @@ export interface AgentsAPI {
    */
   setAgentPersonality: (params: {
     agentId: string;
-    personality: 'friendly encouraging' | 'formal professional' | 'casual friendly' | 'technical expert';
+    personality:
+      | 'friendly encouraging'
+      | 'formal professional'
+      | 'casual friendly'
+      | 'technical expert';
   }) => Promise<APIResponse<AgentSettings>>;
 
   /**
@@ -125,7 +129,11 @@ export interface AgentContext {
  */
 export interface AgentSettings {
   agentId: string;
-  personality: 'friendly encouraging' | 'formal professional' | 'casual friendly' | 'technical expert';
+  personality:
+    | 'friendly encouraging'
+    | 'formal professional'
+    | 'casual friendly'
+    | 'technical expert';
   responseStyle: {
     detailLevel: 'brief' | 'balanced' | 'comprehensive';
     includeExamples: boolean;

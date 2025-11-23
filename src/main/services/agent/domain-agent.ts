@@ -9,14 +9,14 @@ const createChatModel = (settings: ProviderSettings) => {
     model: settings.model,
     temperature: settings.temperature,
     maxTokens: settings.maxTokens,
-    apiKey: settings.apiKey
+    apiKey: settings.apiKey,
   });
 };
 
 export const createDomainAgent = async (deps: { configService: ConfigService }) => {
   const providerSettings = await resolveProviderSettings(deps.configService);
   const chatModel = createChatModel(providerSettings);
-  
+
   const agent = createAgent({
     model: chatModel,
   });

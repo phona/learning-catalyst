@@ -5,7 +5,11 @@ import { Layout } from '@/renderer/components/Layout';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
 import { SessionManager } from '@/renderer/components/Session/SessionManager';
 import { DiscoveryPage } from '@/renderer/DiscoveryPage';
-import { useAgentService, useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-provider';
+import {
+  useAgentService,
+  useConfigurationService,
+  useElectronAPIClient,
+} from '@/renderer/services/services-provider';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
@@ -32,7 +36,10 @@ const formatIPCError = (payload: IPCErrorPayload): string => {
   return `${payload.message}${guidance}`;
 };
 
-const AppContent: React.FC<{ status: AppState; message: string | null }> = ({ status, message }) => {
+const AppContent: React.FC<{ status: AppState; message: string | null }> = ({
+  status,
+  message,
+}) => {
   if (status === 'setup') {
     return <SetupScreen message={message ?? undefined} />;
   }
@@ -55,9 +62,12 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     setAgentService(agentService);
-    useAgentStore.getState().loadAgents().catch((error) => {
-      console.error('Failed to load agents:', error);
-    });
+    useAgentStore
+      .getState()
+      .loadAgents()
+      .catch((error) => {
+        console.error('Failed to load agents:', error);
+      });
   }, [agentService, setAgentService]);
 
   useEffect(() => {
@@ -81,7 +91,9 @@ export default function App(): JSX.Element {
         setStatus('ready');
         setStatusMessage(null);
       } catch (error) {
-        showError(error instanceof Error ? error.message : 'Failed to load workspace configuration.');
+        showError(
+          error instanceof Error ? error.message : 'Failed to load workspace configuration.',
+        );
         setStatus('setup');
         setStatusMessage('Unable to load workspace configuration.');
       }

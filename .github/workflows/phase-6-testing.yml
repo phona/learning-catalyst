@@ -2,9 +2,9 @@ name: Phase 6 Testing and Quality Assurance
 
 on:
   push:
-    branches: [ main, phase-6-implementation ]
+    branches: [main, phase-6-implementation]
   pull_request:
-    branches: [ main, phase-6-implementation ]
+    branches: [main, phase-6-implementation]
 
 jobs:
   unit-tests:
@@ -12,75 +12,75 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run unit tests
-      run: npm run test:unit
+      - name: Run unit tests
+        run: npm run test:unit
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage/unit/lcov.info
-        flags: unit-tests
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/unit/lcov.info
+          flags: unit-tests
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run integration tests
-      run: npm run test:integration
+      - name: Run integration tests
+        run: npm run test:integration
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage/integration/lcov.info
-        flags: integration-tests
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/integration/lcov.info
+          flags: integration-tests
 
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run performance tests
-      run: npm run test:performance
+      - name: Run performance tests
+        run: npm run test:performance
 
-    - name: Upload performance reports
-      uses: actions/upload-artifact@v3
-      with:
-        name: performance-reports
-        path: test-results/performance/
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-reports
+          path: test-results/performance/
 
   test-coverage-validation:
     name: Test Coverage Validation
@@ -88,25 +88,25 @@ jobs:
     needs: [unit-tests, integration-tests, performance-tests]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run coverage validation
-      run: npx ts-node scripts/validate-test-coverage.ts
+      - name: Run coverage validation
+        run: npx ts-node scripts/validate-test-coverage.ts
 
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage/overall/lcov.info
-        flags: overall-coverage
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/overall/lcov.info
+          flags: overall-coverage
 
   quality-gates:
     name: Quality Gates
@@ -114,40 +114,40 @@ jobs:
     needs: [test-coverage-validation]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run linting
-      run: npm run lint
+      - name: Run linting
+        run: npm run lint
 
-    - name: Run type checking
-      run: npm run type-check
+      - name: Run type checking
+        run: npm run type-check
 
-    - name: Check test coverage thresholds
-      run: |
-        COVERAGE=$(cat coverage/overall/coverage-summary.json | jq '.total.lines.pct')
-        if (( $(echo "$COVERAGE < 90" | bc -l) )); then
-          echo "❌ Coverage $COVERAGE% is below 90% threshold"
-          exit 1
-        fi
-        echo "✅ Coverage $COVERAGE% meets 90% threshold"
+      - name: Check test coverage thresholds
+        run: |
+          COVERAGE=$(cat coverage/overall/coverage-summary.json | jq '.total.lines.pct')
+          if (( $(echo "$COVERAGE < 90" | bc -l) )); then
+            echo "❌ Coverage $COVERAGE% is below 90% threshold"
+            exit 1
+          fi
+          echo "✅ Coverage $COVERAGE% meets 90% threshold"
 
-    - name: Performance benchmarks
-      run: |
-        if [ -f test-results/performance/benchmarks.json ]; then
-          echo "📊 Performance benchmarks generated"
-          cat test-results/performance/benchmarks.json | jq .
-        else
-          echo "⚠️ No performance benchmarks found"
-        fi
+      - name: Performance benchmarks
+        run: |
+          if [ -f test-results/performance/benchmarks.json ]; then
+            echo "📊 Performance benchmarks generated"
+            cat test-results/performance/benchmarks.json | jq .
+          else
+            echo "⚠️ No performance benchmarks found"
+          fi
 
   build-validation:
     name: Build Validation
@@ -157,28 +157,28 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build application
-      run: npm run build
+      - name: Build application
+        run: npm run build
 
-    - name: Validate build artifacts
-      run: |
-        if [ -f "dist/main.js" ] && [ -f "dist/renderer.js" ]; then
-          echo "✅ Build successful on ${{ matrix.os }}"
-        else
-          echo "❌ Build failed on ${{ matrix.os }}"
-          exit 1
-        fi
+      - name: Validate build artifacts
+        run: |
+          if [ -f "dist/main.js" ] && [ -f "dist/renderer.js" ]; then
+            echo "✅ Build successful on ${{ matrix.os }}"
+          else
+            echo "❌ Build failed on ${{ matrix.os }}"
+            exit 1
+          fi
 
   phase-6-summary:
     name: Phase 6 Completion Summary
@@ -187,39 +187,39 @@ jobs:
     if: success()
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Generate Phase 6 summary
-      run: |
-        echo "🎉 PHASE 6 TESTING AND QUALITY ASSURANCE COMPLETED SUCCESSFULLY!"
-        echo ""
-        echo "✅ Completed Components:"
-        echo "   • End-to-End Workflow Testing"
-        echo "   • Multi-Agent Orchestration Integration"
-        echo "   • Cross-Process Communication Validation"
-        echo "   • Error Scenario and Recovery Testing"
-        echo "   • Performance and Load Testing Framework"
-        echo "   • Concurrent Session Handling (100+ sessions)"
-        echo "   • Streaming Performance Under Load"
-        echo "   • Memory Management and Cleanup Validation"
-        echo "   • Resource Leak Detection and Prevention"
-        echo "   • Test Coverage Validation (95%+ business logic)"
-        echo "   • CI/CD Pipeline with Automated Testing"
-        echo ""
-        echo "📊 Quality Metrics:"
-        echo "   • Unit Tests: ✅ Passing"
-        echo "   • Integration Tests: ✅ Passing"
-        echo "   • Performance Tests: ✅ Passing"
-        echo "   • Coverage: ✅ ≥90% overall"
-        echo "   • Build: ✅ All platforms"
-        echo ""
-        echo "🚀 Phase 6 Implementation is Production Ready!"
+      - name: Generate Phase 6 summary
+        run: |
+          echo "🎉 PHASE 6 TESTING AND QUALITY ASSURANCE COMPLETED SUCCESSFULLY!"
+          echo ""
+          echo "✅ Completed Components:"
+          echo "   • End-to-End Workflow Testing"
+          echo "   • Multi-Agent Orchestration Integration"
+          echo "   • Cross-Process Communication Validation"
+          echo "   • Error Scenario and Recovery Testing"
+          echo "   • Performance and Load Testing Framework"
+          echo "   • Concurrent Session Handling (100+ sessions)"
+          echo "   • Streaming Performance Under Load"
+          echo "   • Memory Management and Cleanup Validation"
+          echo "   • Resource Leak Detection and Prevention"
+          echo "   • Test Coverage Validation (95%+ business logic)"
+          echo "   • CI/CD Pipeline with Automated Testing"
+          echo ""
+          echo "📊 Quality Metrics:"
+          echo "   • Unit Tests: ✅ Passing"
+          echo "   • Integration Tests: ✅ Passing"
+          echo "   • Performance Tests: ✅ Passing"
+          echo "   • Coverage: ✅ ≥90% overall"
+          echo "   • Build: ✅ All platforms"
+          echo ""
+          echo "🚀 Phase 6 Implementation is Production Ready!"

@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * Enhanced Settings & Configuration IPC Handlers
  *
@@ -15,7 +14,7 @@ export const setupEnhancedSettingsHandlers = (
   ipcMainInstance: typeof ipcMain,
   services: {
     loggerService: any;
-  }
+  },
 ) => {
   const handlerLogger = services.loggerService.child({ handler: 'settings-enhanced' });
 
@@ -32,7 +31,7 @@ export const setupEnhancedSettingsHandlers = (
           dailyMinutes: 45,
           weeklyGoal: 300,
           sessionTarget: 3,
-          streakTarget: 7
+          streakTarget: 7,
         },
         preferences: {
           defaultDifficulty: 'intermediate',
@@ -40,14 +39,14 @@ export const setupEnhancedSettingsHandlers = (
           sessionDuration: 45, // minutes
           enableSpacedRepetition: true,
           showDetailedFeedback: true,
-          autoSaveProgress: true
+          autoSaveProgress: true,
         },
         tracking: {
           trackTime: true,
           trackConcepts: true,
           trackAchievements: true,
           enableAnalytics: true,
-          shareProgress: false
+          shareProgress: false,
         },
         notifications: {
           enableReminders: true,
@@ -58,8 +57,8 @@ export const setupEnhancedSettingsHandlers = (
           quietHours: {
             enabled: true,
             start: '22:00',
-            end: '08:00'
-          }
+            end: '08:00',
+          },
         },
         ai: {
           preferredProvider: 'openai',
@@ -69,7 +68,7 @@ export const setupEnhancedSettingsHandlers = (
           enableThinking: true,
           conversationStyle: 'educational',
           responseLength: 'medium',
-          technicalLevel: 'intermediate'
+          technicalLevel: 'intermediate',
         },
         advanced: {
           enableDeveloperMode: false,
@@ -77,13 +76,13 @@ export const setupEnhancedSettingsHandlers = (
           enableExperimentalFeatures: false,
           customApiEndpoints: {},
           cacheSize: 100, // MB
-          maxConcurrentSessions: 3
+          maxConcurrentSessions: 3,
         },
         metadata: {
           lastUpdated: new Date().toISOString(),
           version: '1.0.0',
-          backupEnabled: true
-        }
+          backupEnabled: true,
+        },
       };
 
       handlerLogger.info('Learning settings retrieved successfully');
@@ -99,7 +98,7 @@ export const setupEnhancedSettingsHandlers = (
    */
   ipcMainInstance.handle('settings:update-learning-settings', async (_event, settings) => {
     handlerLogger.info('Handling update learning settings request', {
-      updatedCategories: Object.keys(settings)
+      updatedCategories: Object.keys(settings),
     });
 
     try {
@@ -109,8 +108,8 @@ export const setupEnhancedSettingsHandlers = (
         metadata: {
           lastUpdated: new Date().toISOString(),
           updatedBy: 'user',
-          version: '1.0.0'
-        }
+          version: '1.0.0',
+        },
       };
 
       // Determine impact of changes
@@ -134,7 +133,7 @@ export const setupEnhancedSettingsHandlers = (
       return {
         success: true,
         updatedSettings,
-        impact
+        impact,
       };
     } catch (error) {
       handlerLogger.error('Failed to update learning settings', error, settings);

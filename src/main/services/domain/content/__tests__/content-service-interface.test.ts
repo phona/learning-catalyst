@@ -10,34 +10,34 @@ vi.mock('../content-service', () => {
       wordCount: 1000,
       estimatedReadingTime: 5,
       concepts: ['react', 'hooks'],
-      difficulty: 'medium'
+      difficulty: 'medium',
     }),
     generateSummary: vi.fn().mockResolvedValue({
       summary: 'This is a test summary',
       keyPoints: ['Point 1', 'Point 2'],
-      recommendations: ['Recommendation 1']
+      recommendations: ['Recommendation 1'],
     }),
     extractContent: vi.fn().mockResolvedValue({
       content: 'Extracted content',
       metadata: {
         title: 'Test',
-        author: 'Test Author'
-      }
+        author: 'Test Author',
+      },
     }),
     validateContent: vi.fn().mockResolvedValue({
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     }),
     searchContent: vi.fn().mockResolvedValue({
       results: [],
       total: 0,
-      query: 'test query'
-    })
+      query: 'test query',
+    }),
   };
 
   return {
-    createContentService: vi.fn(() => mockContentService)
+    createContentService: vi.fn(() => mockContentService),
   };
 });
 
@@ -50,37 +50,28 @@ describe('Content Service - Interface Tests', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
-    // Mock database
-    mockDb = {
-      selectFrom: vi.fn().mockReturnThis(),
-      insertInto: vi.fn().mockReturnThis(),
-      updateTable: vi.fn().mockReturnThis(),
-      deleteFrom: vi.fn().mockReturnThis()
-    };
-
     // Mock logger service
     mockLoggerService = {
       child: vi.fn(() => ({
         info: vi.fn(),
         debug: vi.fn(),
         warn: vi.fn(),
-        error: vi.fn()
-      }))
+        error: vi.fn(),
+      })),
     };
 
     // Mock AI service
     mockAiService = {
       chatCompletion: vi.fn(),
-      getModelPreset: vi.fn()
+      getModelPreset: vi.fn(),
     };
 
     // Import content service
     const contentModule = await import('../content-service');
     const { createContentService } = contentModule;
     contentService = createContentService({
-      db: mockDb,
       loggerService: mockLoggerService,
-      aiService: mockAiService
+      aiService: mockAiService,
     });
   });
 
@@ -103,7 +94,7 @@ describe('Content Service - Interface Tests', () => {
       const documentRequest = {
         title: 'React Hooks Tutorial',
         content: '# React Hooks\n\nThis is content about hooks...',
-        type: 'markdown'
+        type: 'markdown',
       };
 
       const result = await contentService.analyzeDocument(documentRequest);
@@ -115,7 +106,7 @@ describe('Content Service - Interface Tests', () => {
         wordCount: expect.any(Number),
         estimatedReadingTime: expect.any(Number),
         concepts: expect.any(Array),
-        difficulty: expect.any(String)
+        difficulty: expect.any(String),
       });
     });
   });
@@ -124,7 +115,7 @@ describe('Content Service - Interface Tests', () => {
     it('should generate summaries', async () => {
       const summaryRequest = {
         content: 'This is long content that needs to be summarized...',
-        maxLength: 100
+        maxLength: 100,
       };
 
       const result = await contentService.generateSummary(summaryRequest);
@@ -132,7 +123,7 @@ describe('Content Service - Interface Tests', () => {
       expect(result).toMatchObject({
         summary: expect.any(String),
         keyPoints: expect.any(Array),
-        recommendations: expect.any(Array)
+        recommendations: expect.any(Array),
       });
     });
   });
@@ -142,14 +133,14 @@ describe('Content Service - Interface Tests', () => {
       const extractionRequest = {
         source: 'document.pdf',
         extractImages: true,
-        extractTables: true
+        extractTables: true,
       };
 
       const result = await contentService.extractContent(extractionRequest);
 
       expect(result).toMatchObject({
         content: expect.any(String),
-        metadata: expect.any(Object)
+        metadata: expect.any(Object),
       });
     });
   });
@@ -158,7 +149,7 @@ describe('Content Service - Interface Tests', () => {
     it('should validate content quality', async () => {
       const validationRequest = {
         content: 'Test content for validation',
-        rules: ['min-length', 'no-spelling-errors']
+        rules: ['min-length', 'no-spelling-errors'],
       };
 
       const result = await contentService.validateContent(validationRequest);
@@ -166,7 +157,7 @@ describe('Content Service - Interface Tests', () => {
       expect(result).toMatchObject({
         isValid: expect.any(Boolean),
         errors: expect.any(Array),
-        warnings: expect.any(Array)
+        warnings: expect.any(Array),
       });
     });
   });
@@ -177,9 +168,9 @@ describe('Content Service - Interface Tests', () => {
         query: 'react hooks',
         filters: {
           type: 'tutorial',
-          difficulty: 'beginner'
+          difficulty: 'beginner',
         },
-        limit: 10
+        limit: 10,
       };
 
       const result = await contentService.searchContent(searchRequest);
@@ -187,17 +178,12 @@ describe('Content Service - Interface Tests', () => {
       expect(result).toMatchObject({
         results: expect.any(Array),
         total: expect.any(Number),
-        query: 'test query'
+        query: 'test query',
       });
     });
   });
 
   describe('Service Dependencies', () => {
-    it('should accept database dependency', () => {
-      expect(mockDb).toBeDefined();
-      expect(typeof mockDb.selectFrom).toBe('function');
-    });
-
     it('should accept logger service dependency', () => {
       expect(mockLoggerService).toBeDefined();
       expect(typeof mockLoggerService.child).toBe('function');
@@ -218,8 +204,8 @@ describe('Content Service - Interface Tests', () => {
         content: '# Test Content\n\nSome text here.',
         metadata: {
           author: 'Test Author',
-          createdAt: new Date().toISOString()
-        }
+          createdAt: new Date().toISOString(),
+        },
       };
 
       expect(document).toHaveProperty('id');
@@ -236,7 +222,7 @@ describe('Content Service - Interface Tests', () => {
         concepts: ['react', 'hooks', 'state'],
         difficulty: 'medium',
         complexity: 'intermediate',
-        tags: ['frontend', 'javascript']
+        tags: ['frontend', 'javascript'],
       };
 
       expect(analysis).toHaveProperty('wordCount');

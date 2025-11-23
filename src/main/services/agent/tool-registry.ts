@@ -10,7 +10,7 @@ import {
   knowledgeExtractionTool,
   learningPathTool,
   contentAnalysisTool,
-  conceptMappingTool
+  conceptMappingTool,
 } from './tools';
 
 const parseJsonInput = <T extends Record<string, unknown>>(raw: string, fallback: T): T => {
@@ -82,13 +82,13 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
       const payload = parseJsonInput<KnowledgeInput>(rawInput, {
         content: rawInput,
         userId: undefined,
-        context: {}
+        context: {},
       });
 
       const result = await extractor({
         content: payload.content ?? '',
         userId: payload.userId,
-        context: payload.context
+        context: payload.context,
       });
 
       if (!result.success) {
@@ -96,19 +96,20 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
       }
 
       const data = result.data;
-      const nodes = data?.concepts?.slice(0, 5).map((concept: any) => concept.name ?? 'unknown') ?? [];
+      const nodes =
+        data?.concepts?.slice(0, 5).map((concept: any) => concept.name ?? 'unknown') ?? [];
       return JSON.stringify({
         summary: nodes.length ? `Key concepts: ${nodes.join(', ')}` : 'No concepts detected',
         nodes,
         relationships: data?.relationships?.length ?? 0,
-        extractionMetadata: data?.metadata
+        extractionMetadata: data?.metadata,
       });
     },
     {
       name: 'knowledge_extraction',
       description:
-        'Summarize key concepts and relationships from user text, returning top concepts, their relationships, and metadata so other agents can quickly reuse these highlights.'
-    }
+        'Summarize key concepts and relationships from user text, returning top concepts, their relationships, and metadata so other agents can quickly reuse these highlights.',
+    },
   );
 
   const contentAnalysis = tool(
@@ -116,13 +117,13 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
       const payload = parseJsonInput<ContentAnalysisInput>(rawInput, {
         content: rawInput,
         analysisType: 'summary',
-        userId: undefined
+        userId: undefined,
       });
 
       const result = await analyzer({
         content: payload.content ?? '',
         analysisType: payload.analysisType ?? 'summary',
-        userId: payload.userId
+        userId: payload.userId,
       });
 
       if (!result.success) {
@@ -134,13 +135,13 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
     {
       name: 'content_analysis',
       description:
-        'Analyze the provided text via heuristics and the content analysis service, reporting summary, key points, structural breakdown, or complexity so downstream agents can adjust tutoring or practice suggestions.'
-    }
+        'Analyze the provided text via heuristics and the content analysis service, reporting summary, key points, structural breakdown, or complexity so downstream agents can adjust tutoring or practice suggestions.',
+    },
   );
 
   return {
     knowledgeExtraction,
-    contentAnalysis
+    contentAnalysis,
   };
 };
 
@@ -154,7 +155,7 @@ export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
         action: 'recommend',
         userId: 'anonymous',
         context: {},
-        topic: undefined
+        topic: undefined,
       });
 
       const result = await pathBuilder({
@@ -163,7 +164,7 @@ export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
         context: payload.context,
         title: payload.topic,
         description: payload.topic,
-        modules: []
+        modules: [],
       });
 
       if (!result.success) {
@@ -181,18 +182,18 @@ export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
     {
       name: 'learning_path',
       description:
-        'Recommend, create, fetch, or update learning paths by adjusting modules, pacing, and sequencing to align with a learner’s goals, including contextual topic signals.'
-    }
+        'Recommend, create, fetch, or update learning paths by adjusting modules, pacing, and sequencing to align with a learner’s goals, including contextual topic signals.',
+    },
   );
 
   return {
     ...baseTools,
-    learningPath
+    learningPath,
   };
 };
 
 export const buildTutoringTools = (deps: AgentToolDeps): ToolRegistry => ({
-  ...buildLearningTools(deps)
+  ...buildLearningTools(deps),
 });
 
 export const buildAssessmentTools = (deps: AgentToolDeps): ToolRegistry => {
@@ -204,13 +205,13 @@ export const buildAssessmentTools = (deps: AgentToolDeps): ToolRegistry => {
       const payload = parseJsonInput<AssessmentInput>(rawInput, {
         action: 'feedback',
         type: 'open_response',
-        content: rawInput
+        content: rawInput,
       });
       const result = await assessor({
         action: payload.action ?? 'feedback',
         type: payload.type ?? 'open_response',
         content: payload.content ?? '',
-        answer: payload.answer
+        answer: payload.answer,
       });
 
       if (!result.success) {
@@ -221,19 +222,19 @@ export const buildAssessmentTools = (deps: AgentToolDeps): ToolRegistry => {
         action: result.data?.action,
         type: result.data?.type,
         feedback: result.data?.feedback,
-        summary: result.data?.content
+        summary: result.data?.content,
       });
     },
     {
       name: 'assessment_helper',
       description:
-        'Support creation, evaluation, and feedback of assessments (quizzes, coding tasks, open responses) by leveraging the assessment tool’s scoring logic and returning structured observations.'
-    }
+        'Support creation, evaluation, and feedback of assessments (quizzes, coding tasks, open responses) by leveraging the assessment tool’s scoring logic and returning structured observations.',
+    },
   );
 
   return {
     ...baseTools,
-    assessment
+    assessment,
   };
 };
 
@@ -243,6 +244,6 @@ export const buildPracticeTools = (deps: AgentToolDeps): ToolRegistry => {
 
   return {
     ...learningTools,
-    ...assessmentTools
+    ...assessmentTools,
   };
 };

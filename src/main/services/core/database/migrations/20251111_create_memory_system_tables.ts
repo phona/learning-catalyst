@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -7,16 +7,21 @@ export default {
       .createTable('memory_entries')
       .addColumn('id', 'text', (col) => col.primaryKey())
       .addColumn('type', 'text', (col) =>
-        col.notNull().check(sql`type IN ('working', 'episodic', 'semantic', 'procedural', 'long_term')`)
+        col
+          .notNull()
+          .check(sql`type IN ('working', 'episodic', 'semantic', 'procedural', 'long_term')`),
       )
       .addColumn('importance', 'text', (col) =>
-        col.notNull().check(sql`importance IN ('critical', 'high', 'medium', 'low')`)
+        col.notNull().check(sql`importance IN ('critical', 'high', 'medium', 'low')`),
       )
       .addColumn('content', 'text', (col) => col.notNull())
       .addColumn('metadata', 'text', (col) => col.notNull()) // JSON object stored as string
       .addColumn('retrieval_strength', 'real', (col) => col.notNull().defaultTo(0))
       .addColumn('consolidation_state', 'text', (col) =>
-        col.notNull().defaultTo('pending').check(sql`consolidation_state IN ('pending', 'in_progress', 'completed', 'failed')`)
+        col
+          .notNull()
+          .defaultTo('pending')
+          .check(sql`consolidation_state IN ('pending', 'in_progress', 'completed', 'failed')`),
       )
       .addColumn('consolidation_data', 'text', (col) => col.notNull()) // JSON object stored as string
       .addColumn('associations', 'text', (col) => col.notNull()) // JSON array stored as string
@@ -26,7 +31,7 @@ export default {
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('last_accessed', 'text')
-      .execute()
+      .execute();
 
     // Episodic memories table
     await db.schema
@@ -42,7 +47,7 @@ export default {
       .addColumn('temporal_markers', 'text', (col) => col.notNull()) // JSON object stored as string
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
 
     // Semantic memories table
     await db.schema
@@ -63,7 +68,7 @@ export default {
       .addColumn('last_verified', 'text')
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
 
     // Procedural memories table
     await db.schema
@@ -82,7 +87,7 @@ export default {
       .addColumn('automaticity_level', 'real', (col) => col.notNull().defaultTo(0))
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
 
     // Memory associations table
     await db.schema
@@ -91,7 +96,9 @@ export default {
       .addColumn('source_id', 'text', (col) => col.notNull())
       .addColumn('target_id', 'text', (col) => col.notNull())
       .addColumn('type', 'text', (col) =>
-        col.notNull().check(sql`type IN ('hierarchical', 'associative', 'temporal', 'causal', 'semantic')`)
+        col
+          .notNull()
+          .check(sql`type IN ('hierarchical', 'associative', 'temporal', 'causal', 'semantic')`),
       )
       .addColumn('strength', 'real', (col) => col.notNull().defaultTo(0))
       .addColumn('context', 'text', (col) => col.notNull()) // JSON object stored as string
@@ -103,97 +110,97 @@ export default {
         ['source_id'],
         'memory_entries',
         ['id'],
-        (fk) => fk.onDelete('cascade')
+        (fk) => fk.onDelete('cascade'),
       )
       .addForeignKeyConstraint(
         'fk_memory_associations_target_id',
         ['target_id'],
         'memory_entries',
         ['id'],
-        (fk) => fk.onDelete('cascade')
+        (fk) => fk.onDelete('cascade'),
       )
-      .execute()
+      .execute();
 
     // Create indexes for performance
     await db.schema
       .createIndex('idx_memory_entries_type')
       .on('memory_entries')
       .column('type')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_memory_entries_user_id')
       .on('memory_entries')
       .column('user_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_memory_entries_session_id')
       .on('memory_entries')
       .column('session_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_episodic_memories_session_id')
       .on('episodic_memories')
       .column('session_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_episodic_memories_user_id')
       .on('episodic_memories')
       .column('user_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_semantic_memories_concept')
       .on('semantic_memories')
       .column('concept')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_semantic_memories_category')
       .on('semantic_memories')
       .column('category')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_procedural_memories_skill_name')
       .on('procedural_memories')
       .column('skill_name')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_memory_associations_source_id')
       .on('memory_associations')
       .column('source_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_memory_associations_target_id')
       .on('memory_associations')
       .column('target_id')
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
     // Drop indexes first
-    await db.schema.dropIndex('idx_memory_associations_target_id').execute()
-    await db.schema.dropIndex('idx_memory_associations_source_id').execute()
-    await db.schema.dropIndex('idx_procedural_memories_skill_name').execute()
-    await db.schema.dropIndex('idx_semantic_memories_category').execute()
-    await db.schema.dropIndex('idx_semantic_memories_concept').execute()
-    await db.schema.dropIndex('idx_episodic_memories_user_id').execute()
-    await db.schema.dropIndex('idx_episodic_memories_session_id').execute()
-    await db.schema.dropIndex('idx_memory_entries_session_id').execute()
-    await db.schema.dropIndex('idx_memory_entries_user_id').execute()
-    await db.schema.dropIndex('idx_memory_entries_type').execute()
+    await db.schema.dropIndex('idx_memory_associations_target_id').execute();
+    await db.schema.dropIndex('idx_memory_associations_source_id').execute();
+    await db.schema.dropIndex('idx_procedural_memories_skill_name').execute();
+    await db.schema.dropIndex('idx_semantic_memories_category').execute();
+    await db.schema.dropIndex('idx_semantic_memories_concept').execute();
+    await db.schema.dropIndex('idx_episodic_memories_user_id').execute();
+    await db.schema.dropIndex('idx_episodic_memories_session_id').execute();
+    await db.schema.dropIndex('idx_memory_entries_session_id').execute();
+    await db.schema.dropIndex('idx_memory_entries_user_id').execute();
+    await db.schema.dropIndex('idx_memory_entries_type').execute();
 
     // Drop tables
-    await db.schema.dropTable('memory_associations').execute()
-    await db.schema.dropTable('procedural_memories').execute()
-    await db.schema.dropTable('semantic_memories').execute()
-    await db.schema.dropTable('episodic_memories').execute()
-    await db.schema.dropTable('memory_entries').execute()
-  }
-}
+    await db.schema.dropTable('memory_associations').execute();
+    await db.schema.dropTable('procedural_memories').execute();
+    await db.schema.dropTable('semantic_memories').execute();
+    await db.schema.dropTable('episodic_memories').execute();
+    await db.schema.dropTable('memory_entries').execute();
+  },
+};

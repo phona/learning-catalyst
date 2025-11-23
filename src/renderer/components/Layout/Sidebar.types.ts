@@ -1,4 +1,3 @@
-
 /**
  * Sidebar Component Types
  *
@@ -205,7 +204,7 @@ export type NavigationItemIdBranded = string & { readonly __brand: 'NavigationIt
 /** Type guard for session events */
 export function isSessionEvent<T extends SessionEventType>(
   event: Event,
-  type: T
+  type: T,
 ): event is SessionEventMap[T] {
   return event.type === type && 'detail' in event;
 }

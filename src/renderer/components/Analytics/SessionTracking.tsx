@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import type { LearningSession } from '@/shared/utils/simple-analytics';
 
@@ -18,6 +15,9 @@ interface RendererAnalyticsService {
     streakDays: number;
     lastStudyDate?: Date;
   }>;
+  getRecentSessions?: (limit?: number) => Promise<LearningSession[]>;
+  getLearningTrends?: (period?: number) => Promise<unknown>;
+  getAchievements?: () => Promise<unknown>;
   // Add other methods as needed
 }
 
@@ -40,7 +40,7 @@ const defaultSessionLoader: SessionLoader = async (): Promise<LearningSession[]>
     aiModel: 'gpt-4',
     conceptsCovered: ['react-hooks', 'state-management', 'components'],
     sessionType: 'study',
-    status: 'completed'
+    status: 'completed',
   },
   {
     id: 'session_2',
@@ -52,7 +52,7 @@ const defaultSessionLoader: SessionLoader = async (): Promise<LearningSession[]>
     aiModel: 'glm-4',
     conceptsCovered: ['promises', 'async-await', 'callbacks'],
     sessionType: 'study',
-    status: 'completed'
+    status: 'completed',
   },
   {
     id: 'session_3',
@@ -64,14 +64,14 @@ const defaultSessionLoader: SessionLoader = async (): Promise<LearningSession[]>
     aiModel: 'deepseek-chat',
     conceptsCovered: ['types', 'interfaces', 'generics'],
     sessionType: 'review',
-    status: 'completed'
-  }
+    status: 'completed',
+  },
 ];
 
 export const SessionTracking: React.FC<SessionTrackingProps> = ({
   analytics: _analytics,
   className = '',
-  loadSessions: _loadSessions = defaultSessionLoader
+  loadSessions: _loadSessions = defaultSessionLoader,
 }) => {
   const [sessions, setSessions] = React.useState<LearningSession[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -101,7 +101,7 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
       study: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
       assessment: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
       review: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
-      exploration: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200'
+      exploration: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
     };
     return colors[type] || colors.study;
   };
@@ -112,7 +112,7 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
       study: 'Study',
       assessment: 'Assessment',
       review: 'Review',
-      exploration: 'Exploration'
+      exploration: 'Exploration',
     };
     return labels[type] || type;
   };
@@ -142,7 +142,9 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
 
   if (loading) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div
+        className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+      >
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
         </div>
@@ -152,10 +154,22 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
 
   if (error != null && error !== '') {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div
+        className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+      >
         <div className="text-center text-red-600 dark:text-red-400">
-          <svg className="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-6 h-6 mx-auto mb-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <p className="text-sm">Error loading sessions: {error}</p>
         </div>
@@ -164,7 +178,9 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
   }
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+    >
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Recent Sessions</h3>
         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -197,8 +213,18 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
       {/* Sessions List */}
       {sessions.length === 0 ? (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          <svg
+            className="w-8 h-8 mx-auto mb-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+            />
           </svg>
           <p>No sessions yet</p>
           <p className="text-sm">Start your first learning session</p>
@@ -212,7 +238,9 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
             >
               <div className="flex justify-between items-start mb-2">
                 <h4 className="font-medium text-gray-900 dark:text-gray-100">{session.title}</h4>
-                <span className={`px-2 py-1 text-xs rounded-full ${getSessionTypeColor(session.sessionType)}`}>
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${getSessionTypeColor(session.sessionType)}`}
+                >
                   {getSessionTypeLabel(session.sessionType)}
                 </span>
               </div>
@@ -220,19 +248,36 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
               <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-2">
                 <span className="flex items-center gap-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
-                  {session.durationMinutes != null ? formatDuration(session.durationMinutes) : 'In progress'}
+                  {session.durationMinutes != null
+                    ? formatDuration(session.durationMinutes)
+                    : 'In progress'}
                 </span>
                 <span className="flex items-center gap-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   {getRelativeTime(session.startTime)}
                 </span>
                 <span className="flex items-center gap-1">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
                   </svg>
                   {session.aiProvider}
                 </span>

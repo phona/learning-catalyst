@@ -1,8 +1,14 @@
-
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { LoggerFactory } from '@/main/services/logger';
-import { VibeDetectionRequest, VibeDetectionResult, VibeType, VIBE_PATTERNS, VibeIndicator, VibePattern } from '@/shared/types/practice';
+import {
+  VibeDetectionRequest,
+  VibeDetectionResult,
+  VibeType,
+  VIBE_PATTERNS,
+  VibeIndicator,
+  VibePattern,
+} from '@/shared/types/practice';
 import { Message } from '@/shared/types/ai';
 import { ServiceLogger } from '@/main/services/types';
 
@@ -45,10 +51,10 @@ export class VibeDetector {
         confused: 0.2,
         breakthrough: 0.25,
         practicing: 0.15,
-        misunderstanding: 0.1
+        misunderstanding: 0.1,
       },
       contextWindow: 10, // Default to 10 as per tests expecting 10
-      maxPracticeOpportunities: 3
+      maxPracticeOpportunities: 3,
     };
   }
 
@@ -56,7 +62,7 @@ export class VibeDetector {
    * Update configuration
    */
   updateConfig(newConfig: any) {
-    // This is a simplified implementation - in a real implementation, 
+    // This is a simplified implementation - in a real implementation,
     // you would update the actual configuration values
     this.logger.info('VibeDetector configuration updated', newConfig);
   }
@@ -65,7 +71,7 @@ export class VibeDetector {
     const startTime = Date.now();
     this.logger.info('Detecting vibe from conversation...', {
       conversationLength: request.conversationHistory.length,
-      currentTopic: request.userContext.currentTopic
+      currentTopic: request.userContext.currentTopic,
     });
 
     // Validate input and ensure config exists with defaults
@@ -74,7 +80,7 @@ export class VibeDetector {
       confidenceThreshold: request.config?.confidenceThreshold ?? 0.7,
       maxConversationAge: request.config?.maxConversationAge ?? 30 * 60 * 1000, // 30 minutes
       contextWindow: request.config?.contextWindow ?? 10,
-      practiceCooldown: request.config?.practiceCooldown ?? 30 * 60 * 1000 // 30 minutes
+      // practiceCooldown: request.config?.practiceCooldown ?? 30 * 60 * 1000 // 30 minutes - not in type definition
     };
 
     if (request.conversationHistory.length < config.minMessages) {
@@ -82,73 +88,116 @@ export class VibeDetector {
     }
 
     // Check conversation age
-    const lastMessageTime = request.conversationHistory[request.conversationHistory.length - 1].timestamp;
+    const lastMessageTime =
+      request.conversationHistory[request.conversationHistory.length - 1].timestamp;
     if (Date.now() - lastMessageTime > config.maxConversationAge) {
       return this.createInsufficientDataResponse(request, startTime);
     }
 
     // Extract recent messages based on context window
     const recentMessages = request.conversationHistory.slice(-config.contextWindow);
-    const conversationText = recentMessages.map(m => `${m.role}: ${m.content}`).join('\n');
+    const conversationText = recentMessages.map((m) => `${m.role}: ${m.content}`).join('\n');
     const normalizedConversationText = conversationText.toLowerCase();
 
     try {
       // Use AI model to detect vibe
       const result = await this.detectVibeWithAI(normalizedConversationText, request);
-      
+
       // Apply rule-based validation
       const validatedResult = await this.validateVibeDetection(result, request);
-      
+
       const processingTime = Date.now() - startTime;
-      
+
       return {
         ...validatedResult,
         timestamp: Date.now(),
         detectionMetadata: {
           totalIndicators: validatedResult.indicators.length,
           confidenceDistribution: {
-            understanding: this.calculateVibeConfidence(validatedResult.vibe, 'understanding', validatedResult.indicators),
-            confused: this.calculateVibeConfidence(validatedResult.vibe, 'confused', validatedResult.indicators),
-            breakthrough: this.calculateVibeConfidence(validatedResult.vibe, 'breakthrough', validatedResult.indicators),
-            practicing: this.calculateVibeConfidence(validatedResult.vibe, 'practicing', validatedResult.indicators),
-            misunderstanding: this.calculateVibeConfidence(validatedResult.vibe, 'misunderstanding', validatedResult.indicators)
+            understanding: this.calculateVibeConfidence(
+              validatedResult.vibe,
+              'understanding',
+              validatedResult.indicators,
+            ),
+            confused: this.calculateVibeConfidence(
+              validatedResult.vibe,
+              'confused',
+              validatedResult.indicators,
+            ),
+            breakthrough: this.calculateVibeConfidence(
+              validatedResult.vibe,
+              'breakthrough',
+              validatedResult.indicators,
+            ),
+            practicing: this.calculateVibeConfidence(
+              validatedResult.vibe,
+              'practicing',
+              validatedResult.indicators,
+            ),
+            misunderstanding: this.calculateVibeConfidence(
+              validatedResult.vibe,
+              'misunderstanding',
+              validatedResult.indicators,
+            ),
           },
           processingTime,
-          modelUsed: 'langchain-ai'
-        }
+          modelUsed: 'langchain-ai',
+        },
       };
     } catch (error) {
       this.logger.error('Vibe detection failed, falling back to pattern matching', error as Error);
-      
+
       // Fallback to pattern-based detection
       const fallbackResult = this.detectVibeWithPatternMatching(recentMessages, request);
       const processingTime = Date.now() - startTime;
-      
+
       return {
         ...fallbackResult,
         timestamp: Date.now(),
         indicators: fallbackResult.indicators,
-        keyIndicators: fallbackResult.keyIndicators,
         alternativeVibes: [],
         detectionMetadata: {
           totalIndicators: fallbackResult.indicators.length,
           confidenceDistribution: {
-            understanding: this.calculateVibeConfidence(fallbackResult.vibe, 'understanding', fallbackResult.indicators),
-            confused: this.calculateVibeConfidence(fallbackResult.vibe, 'confused', fallbackResult.indicators),
-            breakthrough: this.calculateVibeConfidence(fallbackResult.vibe, 'breakthrough', fallbackResult.indicators),
-            practicing: this.calculateVibeConfidence(fallbackResult.vibe, 'practicing', fallbackResult.indicators),
-            misunderstanding: this.calculateVibeConfidence(fallbackResult.vibe, 'misunderstanding', fallbackResult.indicators)
+            understanding: this.calculateVibeConfidence(
+              fallbackResult.vibe,
+              'understanding',
+              fallbackResult.indicators,
+            ),
+            confused: this.calculateVibeConfidence(
+              fallbackResult.vibe,
+              'confused',
+              fallbackResult.indicators,
+            ),
+            breakthrough: this.calculateVibeConfidence(
+              fallbackResult.vibe,
+              'breakthrough',
+              fallbackResult.indicators,
+            ),
+            practicing: this.calculateVibeConfidence(
+              fallbackResult.vibe,
+              'practicing',
+              fallbackResult.indicators,
+            ),
+            misunderstanding: this.calculateVibeConfidence(
+              fallbackResult.vibe,
+              'misunderstanding',
+              fallbackResult.indicators,
+            ),
           },
           processingTime,
-          modelUsed: 'pattern-matching'
-        }
+          modelUsed: 'pattern-matching',
+        },
       };
     }
   }
 
-  private async detectVibeWithAI(conversationText: string, request: VibeDetectionRequest): Promise<VibeDetectionResult> {
+  private async detectVibeWithAI(
+    conversationText: string,
+    request: VibeDetectionRequest,
+  ): Promise<VibeDetectionResult> {
     const userContext = request.userContext;
-    
+
     const vibeDetectionPrompt = `You are an expert learning vibe detector. Analyze the conversation to detect the user's current learning state.
 
 Conversation History:
@@ -159,7 +208,7 @@ User Context:
 - Confidence Level: ${userContext.confidenceLevel}
 - Learning Velocity: ${userContext.learningVelocity}
 - Stuck Points: ${userContext.stuckPoints.join(', ') || 'None'}
-- Recent Concepts: ${userContext.recentConcepts.map(c => c.concept).join(', ') || 'None'}
+- Recent Concepts: ${userContext.recentConcepts.map((c) => (typeof c === 'string' ? c : (c as any).concept || c)).join(', ') || 'None'}
 
 Analyze the conversation and determine the user's learning vibe. Consider:
 1. Language patterns and emotional indicators
@@ -195,8 +244,10 @@ Provide your analysis in JSON format:
 }`;
 
     const messages = [
-      new SystemMessage("You are an expert at detecting learning states and readiness for practice. Analyze conversation patterns to determine the user's current learning vibe (emotional/learning state)."),
-      new HumanMessage(vibeDetectionPrompt)
+      new SystemMessage(
+        "You are an expert at detecting learning states and readiness for practice. Analyze conversation patterns to determine the user's current learning vibe (emotional/learning state).",
+      ),
+      new HumanMessage(vibeDetectionPrompt),
     ];
 
     try {
@@ -221,18 +272,24 @@ Provide your analysis in JSON format:
       const vibe = this.validateVibeType(parsed.vibe);
       const confidence = Math.max(0, Math.min(1, parsed.confidence || 0.6));
       const practiceReadiness = Math.max(0, Math.min(1, parsed.practiceReadiness || 0.5));
-      const suggestedTopics = Array.isArray(parsed.suggestedTopics) ? parsed.suggestedTopics : [request.userContext.currentTopic || 'general'];
-      const detectedFrom = Array.isArray(parsed.detectedFrom) ? parsed.detectedFrom : [conversationText.substring(0, 100)];
+      const suggestedTopics = Array.isArray(parsed.suggestedTopics)
+        ? parsed.suggestedTopics
+        : [request.userContext.currentTopic || 'general'];
+      const detectedFrom = Array.isArray(parsed.detectedFrom)
+        ? parsed.detectedFrom
+        : [conversationText.substring(0, 100)];
       const indicators = Array.isArray(parsed.indicators) ? parsed.indicators : [];
       const keyIndicators = Array.isArray(parsed.keyIndicators)
         ? parsed.keyIndicators
-        : indicators.map((indicator) =>
-          typeof indicator === 'string'
-            ? indicator
-            : indicator?.value !== undefined
-              ? String(indicator.value)
-              : indicator?.type ?? ''
-        ).filter(Boolean);
+        : indicators
+            .map((indicator: any) =>
+              typeof indicator === 'string'
+                ? indicator
+                : indicator?.value !== undefined
+                  ? String(indicator.value)
+                  : (indicator?.type ?? ''),
+            )
+            .filter(Boolean);
 
       return {
         vibe,
@@ -242,28 +299,45 @@ Provide your analysis in JSON format:
         suggestedTopics,
         detectedFrom,
         indicators,
-        keyIndicators,
         alternativeVibes: [], // Will be filled by validation method
-        timestamp: Date.now()
+        detectionMetadata: {
+          totalIndicators: indicators.length,
+          confidenceDistribution: {
+            understanding: this.calculateVibeConfidence(vibe, 'understanding', indicators),
+            confused: this.calculateVibeConfidence(vibe, 'confused', indicators),
+            breakthrough: this.calculateVibeConfidence(vibe, 'breakthrough', indicators),
+            practicing: this.calculateVibeConfidence(vibe, 'practicing', indicators),
+            misunderstanding: this.calculateVibeConfidence(vibe, 'misunderstanding', indicators),
+          },
+          processingTime: 0,
+          modelUsed: 'ai-detection',
+        },
+        timestamp: Date.now(),
       };
-
     } catch (error) {
       this.logger.warn('AI vibe detection failed, using fallback', error);
       return this.createFallbackVibeResult(conversationText, request);
     }
   }
 
-  private createFallbackVibeResult(conversationText: string, request: VibeDetectionRequest): VibeDetectionResult {
+  private createFallbackVibeResult(
+    conversationText: string,
+    request: VibeDetectionRequest,
+  ): VibeDetectionResult {
     // Fallback logic based on simple keyword detection when AI fails
     const conversationLower = conversationText.toLowerCase();
-    
+
     // Determine vibe based on keyword patterns
     let vibe: VibeType = 'understanding'; // Default
     let confidence = 0.5;
     const indicators: VibeIndicator[] = [];
 
     // Check for understanding indicators
-    if (conversationLower.includes('understand') || conversationLower.includes('get it') || conversationLower.includes('makes sense')) {
+    if (
+      conversationLower.includes('understand') ||
+      conversationLower.includes('get it') ||
+      conversationLower.includes('makes sense')
+    ) {
       vibe = 'understanding';
       confidence = 0.8;
       indicators.push({
@@ -271,11 +345,15 @@ Provide your analysis in JSON format:
         value: 'understanding indicators',
         weight: 0.8,
         detectedIn: conversationText,
-        confidence: 0.8
+        confidence: 0.8,
       });
     }
     // Check for confusion indicators
-    else if (conversationLower.includes('confused') || conversationLower.includes("don't understand") || conversationLower.includes('unclear')) {
+    else if (
+      conversationLower.includes('confused') ||
+      conversationLower.includes("don't understand") ||
+      conversationLower.includes('unclear')
+    ) {
       vibe = 'confused';
       confidence = 0.7;
       indicators.push({
@@ -283,11 +361,15 @@ Provide your analysis in JSON format:
         value: 'confusion indicators',
         weight: 0.8,
         detectedIn: conversationText,
-        confidence: 0.7
+        confidence: 0.7,
       });
     }
     // Check for breakthrough indicators
-    else if (conversationLower.includes('aha') || conversationLower.includes('now i get it') || conversationLower.includes('clicks')) {
+    else if (
+      conversationLower.includes('aha') ||
+      conversationLower.includes('now i get it') ||
+      conversationLower.includes('clicks')
+    ) {
       vibe = 'breakthrough';
       confidence = 0.9;
       indicators.push({
@@ -295,11 +377,15 @@ Provide your analysis in JSON format:
         value: 'breakthrough indicators',
         weight: 0.9,
         detectedIn: conversationText,
-        confidence: 0.9
+        confidence: 0.9,
       });
     }
     // Check for practicing indicators
-    else if (conversationLower.includes('try') || conversationLower.includes('working on') || conversationLower.includes('implement')) {
+    else if (
+      conversationLower.includes('try') ||
+      conversationLower.includes('working on') ||
+      conversationLower.includes('implement')
+    ) {
       vibe = 'practicing';
       confidence = 0.75;
       indicators.push({
@@ -307,11 +393,15 @@ Provide your analysis in JSON format:
         value: 'practicing indicators',
         weight: 0.75,
         detectedIn: conversationText,
-        confidence: 0.75
+        confidence: 0.75,
       });
     }
     // Check for misunderstanding indicators
-    else if (conversationLower.includes('wrong') || conversationLower.includes('thought') || conversationLower.includes('should be')) {
+    else if (
+      conversationLower.includes('wrong') ||
+      conversationLower.includes('thought') ||
+      conversationLower.includes('should be')
+    ) {
       vibe = 'misunderstanding';
       confidence = 0.65;
       indicators.push({
@@ -319,13 +409,9 @@ Provide your analysis in JSON format:
         value: 'misunderstanding indicators',
         weight: 0.65,
         detectedIn: conversationText,
-        confidence: 0.65
+        confidence: 0.65,
       });
     }
-
-    const keyIndicators = indicators.map((indicator) =>
-      typeof indicator.value === 'string' ? indicator.value : indicator.type
-    );
 
     return {
       vibe,
@@ -335,33 +421,47 @@ Provide your analysis in JSON format:
       suggestedTopics: [request.userContext.currentTopic || 'general'],
       detectedFrom: [conversationText.substring(0, 100)],
       indicators,
-      keyIndicators,
       alternativeVibes: [],
-      timestamp: Date.now()
+      detectionMetadata: {
+        totalIndicators: indicators.length,
+        confidenceDistribution: {
+          understanding: this.calculateVibeConfidence(vibe, 'understanding', indicators),
+          confused: this.calculateVibeConfidence(vibe, 'confused', indicators),
+          breakthrough: this.calculateVibeConfidence(vibe, 'breakthrough', indicators),
+          practicing: this.calculateVibeConfidence(vibe, 'practicing', indicators),
+          misunderstanding: this.calculateVibeConfidence(vibe, 'misunderstanding', indicators),
+        },
+        processingTime: 0,
+        modelUsed: 'fallback',
+      },
+      timestamp: Date.now(),
     };
   }
 
-  private validateVibeDetection(result: VibeDetectionResult, request: VibeDetectionRequest): VibeDetectionResult {
+  private validateVibeDetection(
+    result: VibeDetectionResult,
+    request: VibeDetectionRequest,
+  ): VibeDetectionResult {
     // Apply pattern matching as validation
     const contextWindow = request.config?.contextWindow ?? 10;
     const recentMessages = request.conversationHistory.slice(-contextWindow);
     const patternBased = this.detectVibeWithPatternMatching(recentMessages, request);
-    
+
     // Combine results based on confidence
     let finalVibe = result.vibe;
     let finalConfidence = result.confidence;
     let finalPracticeReadiness = result.practiceReadiness;
-    
+
     // If pattern confidence is higher, use that vibe but blend confidence
     if (patternBased.confidence > result.confidence) {
       finalVibe = patternBased.vibe;
       finalConfidence = (result.confidence + patternBased.confidence) / 2;
       finalPracticeReadiness = patternBased.practiceReadiness;
     }
-    
+
     // Calculate alternative vibes based on pattern matching
     const alternativeVibes = this.calculateAlternativeVibes(recentMessages, request);
-    
+
     return {
       vibe: finalVibe,
       confidence: finalConfidence,
@@ -370,20 +470,42 @@ Provide your analysis in JSON format:
       suggestedTopics: result.suggestedTopics,
       detectedFrom: result.detectedFrom,
       indicators: result.indicators,
-      keyIndicators: result.keyIndicators ?? [],
       alternativeVibes,
-      timestamp: Date.now()
+      detectionMetadata: {
+        totalIndicators: result.indicators.length,
+        confidenceDistribution: {
+          understanding: this.calculateVibeConfidence(
+            finalVibe,
+            'understanding',
+            result.indicators,
+          ),
+          confused: this.calculateVibeConfidence(finalVibe, 'confused', result.indicators),
+          breakthrough: this.calculateVibeConfidence(finalVibe, 'breakthrough', result.indicators),
+          practicing: this.calculateVibeConfidence(finalVibe, 'practicing', result.indicators),
+          misunderstanding: this.calculateVibeConfidence(
+            finalVibe,
+            'misunderstanding',
+            result.indicators,
+          ),
+        },
+        processingTime: 0,
+        modelUsed: 'validation',
+      },
+      timestamp: Date.now(),
     };
   }
 
-  private detectVibeWithPatternMatching(messages: Array<{ role: string; content: string; timestamp: number }>, request: VibeDetectionRequest): VibeDetectionResult {
+  private detectVibeWithPatternMatching(
+    messages: Array<{ role: string; content: string; timestamp: number }>,
+    request: VibeDetectionRequest,
+  ): VibeDetectionResult {
     const allIndicators: VibeIndicator[] = [];
     let vibeScores: Record<VibeType, number> = {
       understanding: 0,
       confused: 0,
       breakthrough: 0,
       practicing: 0,
-      misunderstanding: 0
+      misunderstanding: 0,
     };
 
     // Analyze each message for patterns
@@ -392,19 +514,19 @@ Provide your analysis in JSON format:
         for (const pattern of patterns) {
           for (const p of pattern.patterns) {
             let matched = false;
-            
+
             if (p.type === 'regex' && typeof p.pattern === 'string') {
               const regex = new RegExp(p.pattern, 'gi');
               const matches = message.content.match(regex);
               if (matches) {
                 matched = true;
-                matches.forEach(match => {
+                matches.forEach((match) => {
                   allIndicators.push({
-                    type: p.type,
+                    type: p.type === 'regex' ? 'keyword' : p.type,
                     value: match,
                     weight: p.weight,
                     detectedIn: message.content,
-                    confidence: 0.8
+                    confidence: 0.8,
                   });
                   vibeScores[vibe] += p.weight;
                 });
@@ -418,7 +540,7 @@ Provide your analysis in JSON format:
                   value: p.pattern,
                   weight: p.weight,
                   detectedIn: message.content,
-                  confidence: 0.7
+                  confidence: 0.7,
                 });
                 vibeScores[vibe] += p.weight;
               }
@@ -426,13 +548,13 @@ Provide your analysis in JSON format:
               const matches = message.content.match(p.pattern);
               if (matches) {
                 matched = true;
-                matches.forEach(match => {
+                matches.forEach((match) => {
                   allIndicators.push({
-                    type: p.type,
+                    type: p.type === 'regex' ? 'keyword' : p.type,
                     value: match,
                     weight: p.weight,
                     detectedIn: message.content,
-                    confidence: 0.9
+                    confidence: 0.9,
                   });
                   vibeScores[vibe] += p.weight;
                 });
@@ -446,22 +568,17 @@ Provide your analysis in JSON format:
     // Determine the vibe with the highest score
     let detectedVibe: VibeType = 'understanding'; // Default
     let highestScore = 0;
-    
+
     for (const [vibe, score] of Object.entries(vibeScores)) {
       if (score > highestScore) {
         detectedVibe = vibe as VibeType;
         highestScore = score;
       }
     }
-    
+
     // Calculate confidence based on total indicators and score
     const totalIndicators = allIndicators.length;
     const confidence = Math.min(0.4, Math.max(0, highestScore / 5)); // Normalize based on expected max but keep lower than AI results
-    const keyIndicators = Array.from(
-      new Set(allIndicators.map((indicator) => 
-        typeof indicator.value === 'string' ? indicator.value : indicator.type
-      ).filter(Boolean))
-    );
 
     return {
       vibe: detectedVibe,
@@ -469,22 +586,40 @@ Provide your analysis in JSON format:
       reasoning: `Pattern analysis detected ${totalIndicators} indicators with highest score for ${detectedVibe}`,
       practiceReadiness: this.estimatePracticeReadiness(detectedVibe, confidence),
       suggestedTopics: [request.userContext.currentTopic || 'general'],
-      detectedFrom: allIndicators.map(ind => ind.detectedIn),
+      detectedFrom: allIndicators.map((ind) => ind.detectedIn),
       indicators: allIndicators,
-      keyIndicators,
       alternativeVibes: this.calculateAlternativeVibes(messages, request),
-      timestamp: Date.now()
+      detectionMetadata: {
+        totalIndicators: allIndicators.length,
+        confidenceDistribution: {
+          understanding: this.calculateVibeConfidence(detectedVibe, 'understanding', allIndicators),
+          confused: this.calculateVibeConfidence(detectedVibe, 'confused', allIndicators),
+          breakthrough: this.calculateVibeConfidence(detectedVibe, 'breakthrough', allIndicators),
+          practicing: this.calculateVibeConfidence(detectedVibe, 'practicing', allIndicators),
+          misunderstanding: this.calculateVibeConfidence(
+            detectedVibe,
+            'misunderstanding',
+            allIndicators,
+          ),
+        },
+        processingTime: 0,
+        modelUsed: 'pattern-matching',
+      },
+      timestamp: Date.now(),
     };
   }
 
-  private calculateAlternativeVibes(messages: Array<{ role: string; content: string; timestamp: number }>, request: VibeDetectionRequest): VibeDetectionResult['alternativeVibes'] {
+  private calculateAlternativeVibes(
+    messages: Array<{ role: string; content: string; timestamp: number }>,
+    request: VibeDetectionRequest,
+  ): VibeDetectionResult['alternativeVibes'] {
     // Calculate scores for all vibe types to provide alternatives
     const vibeScores: Record<VibeType, number> = {
       understanding: 0,
       confused: 0,
       breakthrough: 0,
       practicing: 0,
-      misunderstanding: 0
+      misunderstanding: 0,
     };
 
     for (const message of messages) {
@@ -524,7 +659,7 @@ Provide your analysis in JSON format:
           alternatives.push({
             vibe,
             confidence: relativeConfidence,
-            reasoning: `${vibe} vibe detected with relative score of ${score}`
+            reasoning: `${vibe} vibe detected with relative score of ${score}`,
           });
         }
       }
@@ -542,29 +677,43 @@ Provide your analysis in JSON format:
       confused: 0.3,
       breakthrough: 0.9,
       practicing: 0.6,
-      misunderstanding: 0.2
+      misunderstanding: 0.2,
     };
 
     return Math.min(1, Math.max(0, baseReadiness[vibe] * confidence));
   }
 
-  private calculateVibeConfidence(detectedVibe: VibeType, targetVibe: VibeType, indicators: VibeIndicator[]): number {
+  private calculateVibeConfidence(
+    detectedVibe: VibeType,
+    targetVibe: VibeType,
+    indicators: VibeIndicator[],
+  ): number {
     if (detectedVibe === targetVibe) {
-      return 0.8 + (0.2 * Math.random()); // 0.8-1.0
+      return 0.8 + 0.2 * Math.random(); // 0.8-1.0
     }
     return 0.2 * Math.random(); // 0.0-0.2
   }
 
   private validateVibeType(vibe: any): VibeType {
-    const validVibes: VibeType[] = ['understanding', 'confused', 'breakthrough', 'practicing', 'misunderstanding'];
+    const validVibes: VibeType[] = [
+      'understanding',
+      'confused',
+      'breakthrough',
+      'practicing',
+      'misunderstanding',
+    ];
     return validVibes.includes(vibe) ? vibe : 'understanding';
   }
 
-  private createInsufficientDataResponse(request: VibeDetectionRequest, startTime: number): VibeDetectionResult {
+  private createInsufficientDataResponse(
+    request: VibeDetectionRequest,
+    startTime: number,
+  ): VibeDetectionResult {
     return {
       vibe: 'understanding' as VibeType,
       confidence: 0.3,
-      reasoning: 'Insufficient conversation history for accurate vibe detection (pattern analysis fallback)',
+      reasoning:
+        'Insufficient conversation history for accurate vibe detection (pattern analysis fallback)',
       practiceReadiness: 0.5,
       suggestedTopics: [request.userContext.currentTopic || 'general'],
       detectedFrom: ['insufficient_data'],
@@ -578,11 +727,11 @@ Provide your analysis in JSON format:
           confused: 0.2,
           breakthrough: 0.2,
           practicing: 0.2,
-          misunderstanding: 0.2
+          misunderstanding: 0.2,
         },
         processingTime: Date.now() - startTime,
-        modelUsed: 'insufficient-data'
-      }
+        modelUsed: 'insufficient-data',
+      },
     };
   }
 }

@@ -1,8 +1,5 @@
-
-
-
 import React from 'react';
-import type { AppConfig } from '@/shared/types/config';
+import type { AppConfig, ModelCapabilities } from '@/shared/types/config';
 
 interface ResponseSettingsProps {
   config: AppConfig | null;
@@ -11,7 +8,13 @@ interface ResponseSettingsProps {
 
 export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onConfigChange }) => {
   const chatConfig = config?.ai?.model_types?.chat;
-  const capabilities = chatConfig?.capabilities ?? { streaming: false, thinking: false };
+  const defaultCapabilities: ModelCapabilities = {
+    streaming: false,
+    thinking: false,
+    function_calling: false,
+    vision: false,
+  };
+  const capabilities = chatConfig?.capabilities ?? defaultCapabilities;
   const controlsDisabled = !config || !chatConfig;
 
   const toggleCapability = (key: 'streaming' | 'thinking') => {
@@ -28,11 +31,11 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
             ...chatConfig,
             capabilities: {
               ...capabilities,
-              [key]: !capabilities[key]
-            }
-          }
-        }
-      }
+              [key]: !capabilities[key],
+            },
+          },
+        },
+      },
     });
   };
 
@@ -92,10 +95,12 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
 
         {controlsDisabled && (
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            Chat model configuration is unavailable. Configure a chat provider to enable these controls.
+            Chat model configuration is unavailable. Configure a chat provider to enable these
+            controls.
           </p>
         )}
       </div>
     </div>
   );
 };
+export default ResponseSettings;

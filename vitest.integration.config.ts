@@ -18,27 +18,22 @@ export default defineConfig({
       include: '**/*.{jsx,tsx}',
       exclude: ['node_modules', '**/node_modules/**'],
       // Test environment doesn't need Fast Refresh
-      fastRefresh: false
-    })
+      fastRefresh: false,
+    }),
   ],
   test: {
     name: 'integration',
     environment: 'jsdom',
-    include: [
-      'src/test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'
-    ],
+    include: ['src/test/integration/**/*.{test,spec}.{js,ts,jsx,tsx}'],
     exclude: [
       'node_modules',
       'dist',
       'src/main/**/__tests__/**',
       'src/renderer/**/__tests__/**',
-      'src/test/performance/**'
+      'src/test/performance/**',
     ],
     globals: true,
-    setupFiles: [
-      './src/test/setup/integration/setup.ts',
-      './src/test/setup/main-process/setup.ts'
-    ],
+    setupFiles: ['./src/test/setup/integration/setup.ts', './src/test/setup/main-process/setup.ts'],
     testTimeout: 60000, // 60 seconds for integration tests
     hookTimeout: 15000,
     isolate: true,
@@ -47,13 +42,13 @@ export default defineConfig({
       threads: {
         singleThread: false,
         minThreads: 1,
-        maxThreads: 2 // Reduced for integration tests to avoid resource conflicts
-      }
+        maxThreads: 2, // Reduced for integration tests to avoid resource conflicts
+      },
     },
     reporters: ['verbose', 'json'],
     outputFile: {
-      'junit': 'test-results/integration/junit.xml',
-      'json': 'test-results/integration/results.json'
+      junit: 'test-results/integration/junit.xml',
+      json: 'test-results/integration/results.json',
     },
     coverage: {
       provider: 'v8',
@@ -65,7 +60,7 @@ export default defineConfig({
         'src/renderer/components/**/*.{js,ts,jsx,tsx}',
         'src/renderer/services/**/*.{js,ts}',
         'src/renderer/stores/**/*.{js,ts}',
-        'src/shared/**/*.{js,ts}'
+        'src/shared/**/*.{js,ts}',
       ],
       exclude: [
         '**/*.test.{js,ts,jsx,tsx}',
@@ -73,21 +68,21 @@ export default defineConfig({
         '**/node_modules/**',
         '**/dist/**',
         'test/**',
-        'coverage/**'
+        'coverage/**',
       ],
       thresholds: {
         global: {
           branches: 60,
           functions: 65,
           lines: 70,
-          statements: 70
-        }
-      }
+          statements: 70,
+        },
+      },
     },
     // Sequential test execution for integration tests to avoid conflicts
     sequence: {
-      concurrent: false
-    }
+      concurrent: false,
+    },
   },
   resolve: {
     alias: {
@@ -98,20 +93,20 @@ export default defineConfig({
       '@test': path.resolve(__dirname, './test'),
       '@integration': path.resolve(__dirname, './test'),
       '@fixtures': path.resolve(__dirname, './test/fixtures'),
-      '@mocks': path.resolve(__dirname, './test/utils/mocks')
-    }
+      '@mocks': path.resolve(__dirname, './test/utils/mocks'),
+    },
   },
   define: {
     'process.env.NODE_ENV': '"test"',
-    'process.env.INTEGRATION_TEST': '"true"'
+    'process.env.INTEGRATION_TEST': '"true"',
   },
   esbuild: {
-    target: 'node18'
+    target: 'node18',
   },
   // Additional dependencies for integration testing
   testEnvironmentOptions: {
     url: 'http://localhost:3000',
     resources: 'usable',
-    runScripts: 'dangerously'
-  }
+    runScripts: 'dangerously',
+  },
 });

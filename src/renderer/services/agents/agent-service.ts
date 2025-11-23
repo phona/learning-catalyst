@@ -18,12 +18,35 @@ export interface AgentService {
 }
 
 export function createAgentService(apiClient: ElectronAPI): AgentService {
+  const normalizeCategory = (category?: string): AgentDisplay['category'] => {
+    const allowed: AgentDisplay['category'][] = ['learning', 'analysis', 'creative'];
+    return allowed.includes(category as AgentDisplay['category'])
+      ? (category as AgentDisplay['category'])
+      : 'learning';
+  };
+
+  const mapAgent = (
+    agent: import('@/shared/types/electron-api/agent-api').AgentDisplay,
+  ): AgentDisplay => {
+    const statsSource = (agent as { stats?: Partial<AgentDisplay['stats']> }).stats;
+    return {
+      ...agent,
+      category: normalizeCategory(agent.category),
+      stats: {
+        sessionsCount: statsSource?.sessionsCount ?? 0,
+        avgRating: statsSource?.avgRating ?? 0,
+        totalInteractions: statsSource?.totalInteractions ?? 0,
+        successRate: statsSource?.successRate ?? 0,
+      },
+    };
+  };
+
   const getAvailableAgents = async () => {
     const response = await apiClient.agents.getAvailableAgents();
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to load agents');
     }
-    return response.data;
+    return response.data.map(mapAgent);
   };
 
   const selectAgentForSession = async (params: {
@@ -34,7 +57,8 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to select agent');
     }
-    return (response.data as any).agent ?? (response.data as any);
+    const agent = (response.data as any).agent ?? (response.data as any);
+    return mapAgent(agent);
   };
 
   const getAgentStatus = async (agentId: string) => {

@@ -1,4 +1,3 @@
-
 /**
  * Agent representation optimized for UI display
  * Transforms complex agent data into frontend-friendly format
@@ -7,13 +6,13 @@
 export interface AgentDisplay {
   id: string;
   type: 'learning' | 'tutoring' | 'assessment' | 'practice' | 'research';
-  name: string;              // "Learning Assistant"
-  description: string;       // One-line description
-  avatar: string;            // Emoji or icon path
-  color: string;             // Primary color for UI theming
-  capabilities: string[];    // Short capability list for display
+  name: string; // "Learning Assistant"
+  description: string; // One-line description
+  avatar: string; // Emoji or icon path
+  color: string; // Primary color for UI theming
+  capabilities: string[]; // Short capability list for display
   isAvailable: boolean;
-  isPremium?: boolean;       // For future monetization
+  isPremium?: boolean; // For future monetization
   category: 'learning' | 'creative' | 'analysis';
   stats?: {
     sessionsCount: number;
@@ -80,7 +79,7 @@ export const DEFAULT_AGENT_CATEGORIES: AgentCategory[] = [
     description: 'Agents focused on teaching and knowledge acquisition',
     icon: '📚',
     color: '#3B82F6',
-    agentTypes: ['learning', 'tutoring']
+    agentTypes: ['learning', 'tutoring'],
   },
   {
     id: 'creative',
@@ -88,7 +87,7 @@ export const DEFAULT_AGENT_CATEGORIES: AgentCategory[] = [
     description: 'Agents for creative problem-solving and brainstorming',
     icon: '🎨',
     color: '#8B5CF6',
-    agentTypes: ['practice']
+    agentTypes: ['practice'],
   },
   {
     id: 'analysis',
@@ -96,8 +95,8 @@ export const DEFAULT_AGENT_CATEGORIES: AgentCategory[] = [
     description: 'Agents for research, analysis, and assessment',
     icon: '🔍',
     color: '#F59E0B',
-    agentTypes: ['assessment', 'research']
-  }
+    agentTypes: ['assessment', 'research'],
+  },
 ];
 
 export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
@@ -106,5 +105,5 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   language: 'en',
   enableFollowUpQuestions: true,
   enableExamples: true,
-  enableAnalogies: true
+  enableAnalogies: true,
 };

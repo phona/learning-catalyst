@@ -33,12 +33,16 @@ export const createMockFileService = (): FileServiceStub => ({
   }),
   writeFile: vi.fn().mockResolvedValue({ success: true }),
   existsFile: vi.fn().mockResolvedValue({ success: true, data: true }),
-  showSaveDialog: vi.fn().mockResolvedValue({ success: true, data: { canceled: true, filePath: '' } }),
+  showSaveDialog: vi
+    .fn()
+    .mockResolvedValue({ success: true, data: { canceled: true, filePath: '' } }),
   readDirectory: vi.fn().mockResolvedValue({ success: true, data: [] }),
   getWorkspacePath: vi.fn().mockResolvedValue({ success: true, data: '/mock/workspace' }),
 });
 
-export const createMockConfigurationService = (config: AppConfig | null = null): ConfigurationServiceStub => ({
+export const createMockConfigurationService = (
+  config: AppConfig | null = null,
+): ConfigurationServiceStub => ({
   getConfig: vi.fn().mockResolvedValue(config),
 });
 

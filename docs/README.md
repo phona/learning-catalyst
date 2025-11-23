@@ -4,7 +4,9 @@
 
 ## Overview
 
-Learning Catalyst is an **AI-powered desktop application** built with Electron, TypeScript, React, and LangChain. It helps you master any subject through conversational learning, visual knowledge maps, and personalized practice.
+Learning Catalyst is an **AI-powered desktop application** built with Electron, TypeScript, React,
+and LangChain. It helps you master any subject through conversational learning, visual knowledge
+maps, and personalized practice.
 
 **Current branch**: `feature-main-process` - Modern service-oriented architecture
 
@@ -39,30 +41,35 @@ Technical documentation for contributors and developers:
 ## Key Features
 
 ### 🧠 AI-Powered Learning
+
 - **Natural Conversations**: Chat with AI tutors about any topic
 - **Multi-Provider Support**: OpenAI, ChatGLM, DeepSeek, local models
 - **Real-time Streaming**: Watch responses appear with live metrics
 - **Thinking Visualization**: See AI reasoning (ChatGLM models)
 
 ### 🗺️ Visual Knowledge Discovery
+
 - **Knowledge Maps**: Explore concept relationships visually
 - **Progress Tracking**: See what you've mastered and what's next
 - **Learning Paths**: Personalized sequences based on your goals
 - **Achievement System**: Earn badges for milestones
 
 ### 💾 Session Management
+
 - **Save & Resume**: Pick up where you left off anytime
 - **Checkpoints**: Create snapshots of important learning moments
 - **Full History**: Complete conversation transcripts
 - **Export Data**: Take your learning elsewhere
 
 ### 📊 Analytics & Insights
+
 - **Learning Analytics**: Track progress across sessions
 - **Token Usage**: Monitor API costs in real-time
 - **Performance Metrics**: Understand your learning patterns
 - **Achievement Dashboard**: Celebrate your progress
 
 ### ⚙️ Configurable & Private
+
 - **AI Provider Switching**: Change models without losing context
 - **Local-First Storage**: Your data stays on your machine
 - **Offline Mode**: Continue learning without internet
@@ -95,16 +102,16 @@ Learning Catalyst Application
 
 ### Core Technologies
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Desktop Framework** | Electron | Cross-platform desktop app |
-| **Frontend** | React + TypeScript | Modern UI components |
-| **State Management** | Zustand | Lightweight state store |
-| **Backend** | Node.js Main Process | AI services & data layer |
-| **Database** | SQLite + Kysely | Type-safe relational storage |
-| **Vector DB** | Qdrant | Semantic search & discovery |
-| **AI Integration** | LangChain | Multi-provider AI orchestration |
-| **Build Tool** | Vite | Fast dev & optimized builds |
+| Layer                 | Technology           | Purpose                         |
+| --------------------- | -------------------- | ------------------------------- |
+| **Desktop Framework** | Electron             | Cross-platform desktop app      |
+| **Frontend**          | React + TypeScript   | Modern UI components            |
+| **State Management**  | Zustand              | Lightweight state store         |
+| **Backend**           | Node.js Main Process | AI services & data layer        |
+| **Database**          | SQLite + Kysely      | Type-safe relational storage    |
+| **Vector DB**         | Qdrant               | Semantic search & discovery     |
+| **AI Integration**    | LangChain            | Multi-provider AI orchestration |
+| **Build Tool**        | Vite                 | Fast dev & optimized builds     |
 
 ## Documentation Structure
 
@@ -178,7 +185,8 @@ docs/
 ### ✅ Implemented & Working
 
 - **Database Layer**: Kysely with SQLite, 15+ migrations
-- **Electron API**: 8 domains (chat, learning, knowledge, analytics, sessions, agents, content, settings)
+- **Electron API**: 8 domains (chat, learning, knowledge, analytics, sessions, agents, content,
+  settings)
 - **Main Process Services**: Functional pattern with dependency injection
 - **Memory System**: Multi-layer memory (episodic, semantic, procedural)
 - **Agent Lifecycle**: Agent creation, activation, state management
@@ -238,6 +246,7 @@ npm run build
 ### Common Issues
 
 **Build fails**
+
 ```bash
 # Clear cache and reinstall
 rm -rf node_modules package-lock.json
@@ -246,6 +255,7 @@ npm run dev
 ```
 
 **Database errors**
+
 ```bash
 # Reset database
 rm -rf .catalyst
@@ -253,6 +263,7 @@ npm run dev
 ```
 
 **High memory usage**
+
 - Check: DEVELOPER-GUIDE/performance.md
 - Run: Multi-process memory monitor
 
@@ -295,21 +306,25 @@ npm run lint
 ## Technology Highlights
 
 ### Type-Safe Database
+
 - **Kysely Query Builder**: Type-safe SQL queries
 - **Generated Types**: Full TypeScript coverage
 - **Migration System**: Versioned schema changes
 
 ### Secure IPC
+
 - **8 API Domains**: Organized by functionality
 - **Preload Script**: Secure boundary
 - **Type Contracts**: Compile-time API safety
 
 ### Modern Architecture
+
 - **Functional Pattern**: Services with injected dependencies
 - **No Classes**: Pure functions and factories
 - **Testable**: Easy to mock and test
 
 ### Performance First
+
 - **Memory Monitoring**: Multi-process memory tracking
 - **Vite Optimization**: Fast dev builds
 - **Lazy Loading**: Components load on demand
@@ -335,5 +350,4 @@ MIT License - see LICENSE file for details
 
 ---
 
-*Last Updated: November 2025*
-*Version: 1.0*
+_Last Updated: November 2025_ _Version: 1.0_

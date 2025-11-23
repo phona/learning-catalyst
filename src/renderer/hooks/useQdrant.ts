@@ -1,6 +1,3 @@
-
-
-
 /**
  * Qdrant Hook
  *
@@ -78,7 +75,11 @@ interface UseQdrantReturn {
   deleteCollection: (name: string) => Promise<boolean>;
 
   // Knowledge operations
-  addKnowledgeItem: (item: KnowledgeItem, embedding?: number[], provider?: AIProvider) => Promise<boolean>;
+  addKnowledgeItem: (
+    item: KnowledgeItem,
+    embedding?: number[],
+    provider?: AIProvider,
+  ) => Promise<boolean>;
   searchKnowledge: (
     query: string,
     provider: AIProvider,
@@ -88,13 +89,13 @@ interface UseQdrantReturn {
       topic?: string;
       sessionId?: string;
       tags?: string[];
-    }
+    },
   ) => Promise<KnowledgeSearchResult[]>;
   getKnowledgeItem: (id: string) => Promise<KnowledgeItem | null>;
   updateKnowledgeItem: (
     id: string,
     updates: Partial<KnowledgeItem>,
-    provider: AIProvider
+    provider: AIProvider,
   ) => Promise<boolean>;
   deleteKnowledgeItem: (id: string) => Promise<boolean>;
 
@@ -102,13 +103,13 @@ interface UseQdrantReturn {
   storeConversationContext: (
     sessionId: string,
     messages: Array<{ role: string; content: string }>,
-    provider: AIProvider
+    provider: AIProvider,
   ) => Promise<boolean>;
   getRelevantContext: (
     sessionId: string,
     query: string,
     provider: AIProvider,
-    limit?: number
+    limit?: number,
   ) => Promise<string[]>;
 
   // Analytics
@@ -123,30 +124,39 @@ export function useQdrant(): UseQdrantReturn {
   const [stats, setStats] = useState<KnowledgeStats | null>(null);
 
   // Helper function to handle IPC calls
-  const handleIpcCall = useCallback(async <T,>(
-    callName: string,
-    ...args: any[]
-  ): Promise<T | null> => {
-    setIsLoading(true);
-    setError(null);
+  const handleIpcCall = useCallback(
+    async <T>(callName: string, ...args: any[]): Promise<T | null> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const result = await (window as any).electronAPI[callName](...args);
+      try {
+        const result = await (window as any).electronAPI[callName](...args);
 
-      if (result.success) {
-        return result.data || result.result || result.stats || result.collections || result.context || result.item || result.results || result.status;
-      } else {
-        setError(result.error || `Failed to execute ${callName}`);
+        if (result.success) {
+          return (
+            result.data ||
+            result.result ||
+            result.stats ||
+            result.collections ||
+            result.context ||
+            result.item ||
+            result.results ||
+            result.status
+          );
+        } else {
+          setError(result.error || `Failed to execute ${callName}`);
+          return null;
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : `Unknown error in ${callName}`;
+        setError(errorMessage);
         return null;
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Unknown error in ${callName}`;
-      setError(errorMessage);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Qdrant operations
   const startQdrant = useCallback(async (): Promise<boolean> => {
@@ -171,83 +181,98 @@ export function useQdrant(): UseQdrantReturn {
     return (await handleIpcCall('qdrantCollections')) || [];
   }, [handleIpcCall]);
 
-  const createCollection = useCallback(async (
-    name: string,
-    vectorSize: number,
-    distance?: string
-  ): Promise<boolean> => {
-    const result = await handleIpcCall('qdrantCreateCollection', name, vectorSize, distance);
-    return result !== null;
-  }, [handleIpcCall]);
+  const createCollection = useCallback(
+    async (name: string, vectorSize: number, distance?: string): Promise<boolean> => {
+      const result = await handleIpcCall('qdrantCreateCollection', name, vectorSize, distance);
+      return result !== null;
+    },
+    [handleIpcCall],
+  );
 
-  const deleteCollection = useCallback(async (name: string): Promise<boolean> => {
-    const result = await handleIpcCall('qdrantDeleteCollection', name);
-    return result !== null;
-  }, [handleIpcCall]);
+  const deleteCollection = useCallback(
+    async (name: string): Promise<boolean> => {
+      const result = await handleIpcCall('qdrantDeleteCollection', name);
+      return result !== null;
+    },
+    [handleIpcCall],
+  );
 
   // Knowledge operations
-  const addKnowledgeItem = useCallback(async (
-    item: KnowledgeItem,
-    embedding?: number[],
-    provider?: AIProvider
-  ): Promise<boolean> => {
-    const result = await handleIpcCall('knowledgeAdd', item, embedding, provider);
-    return result !== null;
-  }, [handleIpcCall]);
+  const addKnowledgeItem = useCallback(
+    async (item: KnowledgeItem, embedding?: number[], provider?: AIProvider): Promise<boolean> => {
+      const result = await handleIpcCall('knowledgeAdd', item, embedding, provider);
+      return result !== null;
+    },
+    [handleIpcCall],
+  );
 
-  const searchKnowledge = useCallback(async (
-    query: string,
-    provider: AIProvider,
-    limit = 10,
-    filters?: {
-      type?: string;
-      topic?: string;
-      sessionId?: string;
-      tags?: string[];
-    }
-  ): Promise<KnowledgeSearchResult[]> => {
-    const result = await handleIpcCall('knowledgeSearch', query, provider, limit, filters);
-    return (result as KnowledgeSearchResult[]) || [];
-  }, [handleIpcCall]);
+  const searchKnowledge = useCallback(
+    async (
+      query: string,
+      provider: AIProvider,
+      limit = 10,
+      filters?: {
+        type?: string;
+        topic?: string;
+        sessionId?: string;
+        tags?: string[];
+      },
+    ): Promise<KnowledgeSearchResult[]> => {
+      const result = await handleIpcCall('knowledgeSearch', query, provider, limit, filters);
+      return (result as KnowledgeSearchResult[]) || [];
+    },
+    [handleIpcCall],
+  );
 
-  const getKnowledgeItem = useCallback(async (id: string): Promise<KnowledgeItem | null> => {
-    const result = await handleIpcCall('knowledgeGet', id);
-    return result as KnowledgeItem | null;
-  }, [handleIpcCall]);
+  const getKnowledgeItem = useCallback(
+    async (id: string): Promise<KnowledgeItem | null> => {
+      const result = await handleIpcCall('knowledgeGet', id);
+      return result as KnowledgeItem | null;
+    },
+    [handleIpcCall],
+  );
 
-  const updateKnowledgeItem = useCallback(async (
-    id: string,
-    updates: Partial<KnowledgeItem>,
-    provider: AIProvider
-  ): Promise<boolean> => {
-    const result = await handleIpcCall('knowledgeUpdate', id, updates, provider);
-    return result !== null;
-  }, [handleIpcCall]);
+  const updateKnowledgeItem = useCallback(
+    async (id: string, updates: Partial<KnowledgeItem>, provider: AIProvider): Promise<boolean> => {
+      const result = await handleIpcCall('knowledgeUpdate', id, updates, provider);
+      return result !== null;
+    },
+    [handleIpcCall],
+  );
 
-  const deleteKnowledgeItem = useCallback(async (id: string): Promise<boolean> => {
-    const result = await handleIpcCall('knowledgeDelete', id);
-    return result !== null;
-  }, [handleIpcCall]);
+  const deleteKnowledgeItem = useCallback(
+    async (id: string): Promise<boolean> => {
+      const result = await handleIpcCall('knowledgeDelete', id);
+      return result !== null;
+    },
+    [handleIpcCall],
+  );
 
   // Context operations
-  const storeConversationContext = useCallback(async (
-    sessionId: string,
-    messages: Array<{ role: string; content: string }>,
-    provider: AIProvider
-  ): Promise<boolean> => {
-    const result = await handleIpcCall('knowledgeStoreContext', sessionId, messages, provider);
-    return result !== null;
-  }, [handleIpcCall]);
+  const storeConversationContext = useCallback(
+    async (
+      sessionId: string,
+      messages: Array<{ role: string; content: string }>,
+      provider: AIProvider,
+    ): Promise<boolean> => {
+      const result = await handleIpcCall('knowledgeStoreContext', sessionId, messages, provider);
+      return result !== null;
+    },
+    [handleIpcCall],
+  );
 
-  const getRelevantContext = useCallback(async (
-    sessionId: string,
-    query: string,
-    provider: AIProvider,
-    limit = 5
-  ): Promise<string[]> => {
-    const result = await handleIpcCall('knowledgeGetContext', sessionId, query, provider, limit);
-    return (result as string[]) || [];
-  }, [handleIpcCall]);
+  const getRelevantContext = useCallback(
+    async (
+      sessionId: string,
+      query: string,
+      provider: AIProvider,
+      limit = 5,
+    ): Promise<string[]> => {
+      const result = await handleIpcCall('knowledgeGetContext', sessionId, query, provider, limit);
+      return (result as string[]) || [];
+    },
+    [handleIpcCall],
+  );
 
   // Analytics
   const getKnowledgeStats = useCallback(async (): Promise<KnowledgeStats | null> => {
@@ -284,7 +309,10 @@ export function useQdrant(): UseQdrantReturn {
         }
       } catch (error) {
         consecutiveErrors++;
-        console.error(`Status check failed (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`, error);
+        console.error(
+          `Status check failed (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`,
+          error,
+        );
 
         // If too many consecutive errors, increase interval
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
@@ -292,7 +320,7 @@ export function useQdrant(): UseQdrantReturn {
           clearInterval(intervalId);
           currentInterval = 300000; // 5 minutes
           intervalId = window.setInterval(statusCheck, currentInterval);
-          console.log(`Status check interval increased to ${currentInterval/1000} seconds`);
+          console.log(`Status check interval increased to ${currentInterval / 1000} seconds`);
         }
       }
     };

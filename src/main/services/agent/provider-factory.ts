@@ -3,10 +3,13 @@
 type BaseLanguageModel = any;
 type Embeddings = any;
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
-import type { ConfigService } from '@/main/services/core/config/config-service';
+import type { ConfigService, ConfigPath } from '@/main/services/core/config/config-service';
 import type { ProviderType } from '@/shared/types/config';
 import { createIPCError } from '@/shared/types/ipc-error';
-import { resolveProviderSettings, type ProviderSettings as ResolvedProviderSettings } from './provider-utils';
+import {
+  resolveProviderSettings,
+  type ProviderSettings as ResolvedProviderSettings,
+} from './provider-utils';
 
 export type ProviderSettings = ResolvedProviderSettings;
 
@@ -20,42 +23,43 @@ const makeChatModel = (settings: ProviderSettings) =>
     modelName: settings.model,
     temperature: settings.temperature,
     maxTokens: settings.maxTokens,
-    openAIApiKey: settings.apiKey
+    openAIApiKey: settings.apiKey,
   });
 
 const makeOpenAIEmbeddings = (settings: ProviderSettings) =>
   new OpenAIEmbeddings({
-    openAIApiKey: settings.apiKey
+    openAIApiKey: settings.apiKey,
   });
 
 const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
   openai: {
     createModel: makeChatModel,
-    createEmbeddings: makeOpenAIEmbeddings
+    createEmbeddings: makeOpenAIEmbeddings,
   },
   chatglm: {
     createModel: makeChatModel,
-    createEmbeddings: makeOpenAIEmbeddings
+    createEmbeddings: makeOpenAIEmbeddings,
   },
   deepseek: {
     createModel: makeChatModel,
-    createEmbeddings: makeOpenAIEmbeddings
+    createEmbeddings: makeOpenAIEmbeddings,
   },
   local: {
     createModel: makeChatModel,
-    createEmbeddings: makeOpenAIEmbeddings
+    createEmbeddings: makeOpenAIEmbeddings,
   },
   ollama: {
     createModel: makeChatModel,
-    createEmbeddings: makeOpenAIEmbeddings
-  }
+    createEmbeddings: makeOpenAIEmbeddings,
+  },
 };
 
 const normalizeSettings = (raw: Record<string, unknown>): ProviderSettings => {
   const providerType = (raw.provider_type ?? raw.provider ?? 'openai') as ProviderType;
   const model = (raw.model ?? raw.name ?? 'gpt-4o') as string;
-  const apiKey =
-    (raw.api_key ?? raw.apiKey ?? raw.openaiApiKey ?? raw.apiKey) as string | undefined;
+  const apiKey = (raw.api_key ?? raw.apiKey ?? raw.openaiApiKey ?? raw.apiKey) as
+    | string
+    | undefined;
   const temperature = (raw.temperature ?? raw.temp ?? 0.7) as number;
   const maxTokens = (raw.max_tokens ?? raw.maxTokens ?? 2048) as number;
   const providerName = (raw.providerName ?? raw.provider ?? providerType) as string;
@@ -67,7 +71,7 @@ const normalizeSettings = (raw: Record<string, unknown>): ProviderSettings => {
       message: `API key is required for provider ${providerName}`,
       needsSetup: true,
       action: 'openProviderSetup',
-      details: { provider: providerName }
+      details: { provider: providerName },
     });
   }
 
@@ -78,7 +82,7 @@ const normalizeSettings = (raw: Record<string, unknown>): ProviderSettings => {
     apiKey,
     baseUrl: (raw.base_url ?? raw.baseUrl ?? undefined) as string | undefined,
     temperature,
-    maxTokens
+    maxTokens,
   };
 };
 
@@ -91,7 +95,9 @@ export const createProviderFactory = (configService: ConfigService) => {
       return resolveProviderSettings(configService);
     }
 
-    const raw = await configService.get(configKey);
+    // Use the provider name to construct the proper config path
+    const providerConfigPath = configKey ? (`ai.providers.${configKey}` as ConfigPath) : undefined;
+    const raw = providerConfigPath ? await configService.get(providerConfigPath) : undefined;
     if (!raw || typeof raw !== 'object') {
       return resolveProviderSettings(configService);
     }
@@ -115,7 +121,7 @@ export const createProviderFactory = (configService: ConfigService) => {
         message: `Unsupported provider: ${settings.providerType}`,
         needsSetup: true,
         action: 'openProviderSetup',
-        details: { providerType: settings.providerType }
+        details: { providerType: settings.providerType },
       });
     }
     const model = impl.createModel(settings);
@@ -138,7 +144,7 @@ export const createProviderFactory = (configService: ConfigService) => {
         message: `Unsupported provider for embeddings: ${settings.providerType}`,
         needsSetup: true,
         action: 'openProviderSetup',
-        details: { providerType: settings.providerType }
+        details: { providerType: settings.providerType },
       });
     }
     const embeddings = impl.createEmbeddings(settings);
@@ -148,7 +154,7 @@ export const createProviderFactory = (configService: ConfigService) => {
 
   return {
     getModel,
-    getEmbeddings
+    getEmbeddings,
   };
 };
 

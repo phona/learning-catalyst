@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    "./src/**/*.{js,ts,jsx,tsx}",
-    "./src/index.html"
-  ],
+  content: ['./src/**/*.{js,ts,jsx,tsx}', './src/index.html'],
   theme: {
     extend: {
       colors: {
@@ -125,12 +122,12 @@ module.exports = {
       },
       // Enhanced spacing scale
       spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '128': '32rem',
-        '144': '36rem',
-        '160': '40rem',
-        '176': '44rem',
+        18: '4.5rem',
+        88: '22rem',
+        128: '32rem',
+        144: '36rem',
+        160: '40rem',
+        176: '44rem',
       },
       // Essential animations only - removed excessive effects
       animation: {
@@ -174,11 +171,11 @@ module.exports = {
       },
       // Enhanced typography with better readability
       fontSize: {
-        'xs': ['0.75rem', { lineHeight: '1rem' }],
-        'sm': ['0.875rem', { lineHeight: '1.25rem' }],
-        'base': ['1rem', { lineHeight: '1.5rem' }],
-        'lg': ['1.125rem', { lineHeight: '1.75rem' }],
-        'xl': ['1.25rem', { lineHeight: '1.75rem' }],
+        xs: ['0.75rem', { lineHeight: '1rem' }],
+        sm: ['0.875rem', { lineHeight: '1.25rem' }],
+        base: ['1rem', { lineHeight: '1.5rem' }],
+        lg: ['1.125rem', { lineHeight: '1.75rem' }],
+        xl: ['1.25rem', { lineHeight: '1.75rem' }],
         '2xl': ['1.5rem', { lineHeight: '2rem' }],
         '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
         '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
@@ -187,20 +184,20 @@ module.exports = {
       },
       // Enhanced border radius for modern design
       borderRadius: {
-        'lg': '0.5rem',
-        'xl': '0.75rem',
+        lg: '0.5rem',
+        xl: '0.75rem',
         '2xl': '1rem',
         '3xl': '1.5rem',
         '4xl': '2rem',
       },
       // Simplified shadow system - removed excessive glow effects
       boxShadow: {
-        'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        'md': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        'lg': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-        'xl': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04)',
+        sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+        md: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        lg: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+        xl: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04)',
         '2xl': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
-        'inner': 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
+        inner: 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
       },
       // Simplified gradient backgrounds - removed excessive gradients
       backgroundImage: {
@@ -209,23 +206,23 @@ module.exports = {
       },
       // Backdrop filters for glassmorphism
       backdropBlur: {
-        'xs': '2px',
-        'sm': '4px',
-        'md': '8px',
-        'lg': '16px',
-        'xl': '24px',
+        xs: '2px',
+        sm: '4px',
+        md: '8px',
+        lg: '16px',
+        xl: '24px',
         '2xl': '40px',
         '3xl': '64px',
       },
       // Transform utilities
       scale: {
-        '98': '0.98',
-        '102': '1.02',
-        '105': '1.05',
-        '110': '1.1',
+        98: '0.98',
+        102: '1.02',
+        105: '1.05',
+        110: '1.1',
       },
     },
   },
   plugins: [],
   darkMode: 'class',
-}
+};

@@ -1,6 +1,3 @@
-
-
-
 /**
  * Enhanced Async State Hook
  *
@@ -97,7 +94,7 @@ export interface SearchAsyncStateOptions {
  * Hook for managing async operations with comprehensive state handling
  */
 export function useAsyncState<TData, TError = Error>(
-  options: UseAsyncStateOptions<TData, TError> = {}
+  options: UseAsyncStateOptions<TData, TError> = {},
 ): UseAsyncStateReturn<TData, TError> {
   const {
     initialData,
@@ -106,90 +103,93 @@ export function useAsyncState<TData, TError = Error>(
     onError,
     onSuccess,
     retry,
-    timeout
+    timeout,
   } = options;
 
   const [state, setState] = useState<AsyncState<TData, TError>>({
     data: initialData ?? null,
     loading: false,
     error: null,
-    success: false
+    success: false,
   });
 
   const [attempt, setAttempt] = useState(0);
   const lastAsyncFnRef = useRef<(() => Promise<TData>) | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const execute = useCallback(async (asyncFn: () => Promise<TData>): Promise<TData> => {
-    // Store the function for retry functionality
-    lastAsyncFnRef.current = asyncFn;
+  const execute = useCallback(
+    async (asyncFn: () => Promise<TData>): Promise<TData> => {
+      // Store the function for retry functionality
+      lastAsyncFnRef.current = asyncFn;
 
-    // Reset state if configured
-    if (resetErrorOnCall) {
-      setState(prev => ({ ...prev, error: null, success: false }));
-    }
-
-    setState(prev => ({ ...prev, loading: true }));
-    setAttempt(prev => prev + 1);
-
-    // Create new abort controller
-    abortControllerRef.current = new AbortController();
-
-    try {
-      // Apply timeout if configured
-      let resultPromise = asyncFn();
-      if (timeout != null) {
-        resultPromise = Promise.race([
-          resultPromise,
-          new Promise<never>((_, reject) => {
-            setTimeout(() => {
-              const error = new Error(`Operation timed out after ${timeout}ms`);
-              reject(error);
-            }, timeout);
-          })
-        ]);
+      // Reset state if configured
+      if (resetErrorOnCall) {
+        setState((prev) => ({ ...prev, error: null, success: false }));
       }
 
-      const result = await resultPromise;
+      setState((prev) => ({ ...prev, loading: true }));
+      setAttempt((prev) => prev + 1);
 
-      // Check if operation was aborted
-      if (abortControllerRef.current?.signal.aborted) {
-        throw new Error('Operation was aborted');
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+
+      try {
+        // Apply timeout if configured
+        let resultPromise = asyncFn();
+        if (timeout != null) {
+          resultPromise = Promise.race([
+            resultPromise,
+            new Promise<never>((_, reject) => {
+              setTimeout(() => {
+                const error = new Error(`Operation timed out after ${timeout}ms`);
+                reject(error);
+              }, timeout);
+            }),
+          ]);
+        }
+
+        const result = await resultPromise;
+
+        // Check if operation was aborted
+        if (abortControllerRef.current?.signal.aborted) {
+          throw new Error('Operation was aborted');
+        }
+
+        setState({
+          data: result,
+          loading: false,
+          error: null,
+          success: true,
+        });
+
+        onSuccess?.(result);
+        return result;
+      } catch (error) {
+        const errorObj = error as TError;
+
+        if (resetLoadingOnError) {
+          setState((prev) => ({ ...prev, loading: false }));
+        }
+
+        setState((prev) => ({
+          ...prev,
+          error: errorObj,
+          success: false,
+        }));
+
+        onError?.(errorObj);
+        throw errorObj;
       }
-
-      setState({
-        data: result,
-        loading: false,
-        error: null,
-        success: true
-      });
-
-      onSuccess?.(result);
-      return result;
-    } catch (error) {
-      const errorObj = error as TError;
-
-      if (resetLoadingOnError) {
-        setState(prev => ({ ...prev, loading: false }));
-      }
-
-      setState(prev => ({
-        ...prev,
-        error: errorObj,
-        success: false
-      }));
-
-      onError?.(errorObj);
-      throw errorObj;
-    }
-  }, [resetErrorOnCall, resetLoadingOnError, onError, onSuccess, timeout]);
+    },
+    [resetErrorOnCall, resetLoadingOnError, onError, onSuccess, timeout],
+  );
 
   const reset = useCallback(() => {
     setState({
       data: initialData ?? null,
       loading: false,
       error: null,
-      success: false
+      success: false,
     });
     setAttempt(0);
     lastAsyncFnRef.current = null;
@@ -197,27 +197,27 @@ export function useAsyncState<TData, TError = Error>(
   }, [initialData]);
 
   const setData = useCallback((data: TData | ((prev: TData | null) => TData)) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       data: typeof data === 'function' ? (data as (prev: TData | null) => TData)(prev.data) : data,
       success: true,
-      error: null
+      error: null,
     }));
   }, []);
 
   const setError = useCallback((error: TError | null) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       error,
       success: false,
-      loading: false
+      loading: false,
     }));
   }, []);
 
   const setLoading = useCallback((loading: boolean) => {
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
-      loading
+      loading,
     }));
   }, []);
 
@@ -231,12 +231,13 @@ export function useAsyncState<TData, TError = Error>(
     }
 
     // Calculate delay with backoff
-    const delay = retry.backoff === 'exponential'
-      ? retry.delay * Math.pow(2, attempt)
-      : retry.delay * (attempt + 1);
+    const delay =
+      retry.backoff === 'exponential'
+        ? retry.delay * Math.pow(2, attempt)
+        : retry.delay * (attempt + 1);
 
     // Wait before retry
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
     try {
       return await execute(lastAsyncFnRef.current);
@@ -248,11 +249,11 @@ export function useAsyncState<TData, TError = Error>(
 
   const abort = useCallback(() => {
     abortControllerRef.current?.abort();
-    setState(prev => ({
+    setState((prev) => ({
       ...prev,
       loading: false,
       error: new Error('Operation aborted') as unknown as TError,
-      success: false
+      success: false,
     }));
   }, []);
 
@@ -265,7 +266,7 @@ export function useAsyncState<TData, TError = Error>(
     setLoading,
     retry: retryOperation,
     abort,
-    attempt
+    attempt,
   };
 }
 
@@ -278,33 +279,31 @@ export function useAsyncStateWithRetry<TData, TError = Error>(
     retryCount?: number;
     retryDelay?: number;
     autoExecute?: boolean;
-  } = {}
-): UseAsyncStateReturn<TData, TError> & { execute: () => Promise<void> } {
+  } = {},
+): UseAsyncStateReturn<TData, TError> & { execute: () => Promise<TData> } {
   const { retryCount = 3, retryDelay = 1000, autoExecute = true, ...asyncOptions } = options;
 
-  const {
-    execute,
-    ...state
-  } = useAsyncState<TData, TError>({
+  const { execute, ...state } = useAsyncState<TData, TError>({
     ...asyncOptions,
     retry: {
       count: retryCount,
       delay: retryDelay,
-      backoff: 'exponential'
-    }
+      backoff: 'exponential',
+    },
   });
+
+  const run = useCallback(() => execute(asyncFn), [execute, asyncFn]);
 
   // Auto-execute on mount if configured
   useEffect(() => {
     if (autoExecute) {
-      execute(asyncFn);
+      run();
     }
-  }, [autoExecute, execute, asyncFn]);
+  }, [autoExecute, run]);
 
   return {
-    execute,
-    reset: state.reset,
-    ...state
+    ...state,
+    execute: run,
   };
 }
 
@@ -312,21 +311,27 @@ export function useAsyncStateWithRetry<TData, TError = Error>(
  * Hook for managing paginated async operations
  */
 export function usePaginatedAsyncState<TData, TError = Error>(
-  asyncFn: (page: number, pageSize: number) => Promise<{
+  asyncFn: (
+    page: number,
+    pageSize: number,
+  ) => Promise<{
     data: TData[];
     totalCount: number;
     currentPage: number;
     pageSize: number;
   }>,
-  options: UseAsyncStateOptions<{
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  }, TError> & {
+  options: UseAsyncStateOptions<
+    {
+      data: TData[];
+      totalCount: number;
+      currentPage: number;
+      pageSize: number;
+      totalPages: number;
+    },
+    TError
+  > & {
     initialPageSize?: number;
-  } = {}
+  } = {},
 ): {
   data: TData[];
   page: number;
@@ -340,7 +345,10 @@ export function usePaginatedAsyncState<TData, TError = Error>(
   goToPage: (page: number) => void;
   setPageSize: (size: number) => void;
   refresh: () => void;
-  loadPage: (page?: number, size?: number) => Promise<{
+  loadPage: (
+    page?: number,
+    size?: number,
+  ) => Promise<{
     data: TData[];
     totalCount: number;
     currentPage: number;
@@ -350,13 +358,15 @@ export function usePaginatedAsyncState<TData, TError = Error>(
   loading: boolean;
   error: TError | null;
   success: boolean;
-  execute: (asyncFn: () => Promise<{
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  }>) => Promise<{
+  execute: (
+    asyncFn: () => Promise<{
+      data: TData[];
+      totalCount: number;
+      currentPage: number;
+      pageSize: number;
+      totalPages: number;
+    }>,
+  ) => Promise<{
     data: TData[];
     totalCount: number;
     currentPage: number;
@@ -364,34 +374,43 @@ export function usePaginatedAsyncState<TData, TError = Error>(
     totalPages: number;
   }>;
   reset: () => void;
-  setData: (data: {
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  } | ((prev: {
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  } | null) => {
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  })) => void;
+  setData: (
+    data:
+      | {
+          data: TData[];
+          totalCount: number;
+          currentPage: number;
+          pageSize: number;
+          totalPages: number;
+        }
+      | ((
+          prev: {
+            data: TData[];
+            totalCount: number;
+            currentPage: number;
+            pageSize: number;
+            totalPages: number;
+          } | null,
+        ) => {
+          data: TData[];
+          totalCount: number;
+          currentPage: number;
+          pageSize: number;
+          totalPages: number;
+        }),
+  ) => void;
   setError: (error: TError | null) => void;
   setLoading: (loading: boolean) => void;
-  retry: () => Promise<{
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  } | undefined>;
+  retry: () => Promise<
+    | {
+        data: TData[];
+        totalCount: number;
+        currentPage: number;
+        pageSize: number;
+        totalPages: number;
+      }
+    | undefined
+  >;
   abort: () => void;
   attempt: number;
 } {
@@ -400,25 +419,32 @@ export function usePaginatedAsyncState<TData, TError = Error>(
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const {
-    execute,
-    data,
-    ...asyncState
-  } = useAsyncState<{
-    data: TData[];
-    totalCount: number;
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-  }, TError>(asyncOptions);
+  const { execute, data, ...asyncState } = useAsyncState<
+    {
+      data: TData[];
+      totalCount: number;
+      currentPage: number;
+      pageSize: number;
+      totalPages: number;
+    },
+    TError
+  >(asyncOptions);
 
-  const loadPage = useCallback(async (page: number = currentPage, size: number = pageSize) => {
-    const result = await execute(() => asyncFn(page, size));
-    const enhancedResult = { ...result, totalPages: Math.ceil(result.totalCount / result.pageSize) };
-    setCurrentPage(page);
-    setPageSize(size);
-    return enhancedResult;
-  }, [execute, asyncFn, currentPage, pageSize]);
+  const loadPage = useCallback(
+    async (page: number = currentPage, size: number = pageSize) => {
+      const result = await execute(async () => {
+        const raw = await asyncFn(page, size);
+        return {
+          ...raw,
+          totalPages: Math.ceil(raw.totalCount / raw.pageSize),
+        };
+      });
+      setCurrentPage(result.currentPage);
+      setPageSize(result.pageSize);
+      return result;
+    },
+    [execute, asyncFn, currentPage, pageSize],
+  );
 
   const nextPage = useCallback(() => {
     if (data?.currentPage != null && data.currentPage < data.totalPages) {
@@ -432,11 +458,14 @@ export function usePaginatedAsyncState<TData, TError = Error>(
     }
   }, [data, loadPage, pageSize]);
 
-  const goToPage = useCallback((page: number) => {
-    if (data && page >= 1 && page <= data.totalPages) {
-      loadPage(page, pageSize);
-    }
-  }, [data, loadPage, pageSize]);
+  const goToPage = useCallback(
+    (page: number) => {
+      if (data && page >= 1 && page <= data.totalPages) {
+        loadPage(page, pageSize);
+      }
+    },
+    [data, loadPage, pageSize],
+  );
 
   const refresh = useCallback(() => {
     if (data) {
@@ -459,7 +488,8 @@ export function usePaginatedAsyncState<TData, TError = Error>(
     setPageSize,
     refresh,
     loadPage,
-    reset: asyncState.reset
+    execute,
+    reset: asyncState.reset,
   };
 }
 
@@ -473,7 +503,7 @@ export function useSearchAsyncState<TData, TError = Error>(
     minQueryLength?: number;
     initialQuery?: string;
     searchOptions?: SearchAsyncStateOptions;
-  } = {}
+  } = {},
 ): {
   query: string;
   setQuery: (query: string) => void;
@@ -493,7 +523,13 @@ export function useSearchAsyncState<TData, TError = Error>(
   abort: () => void;
   attempt: number;
 } {
-  const { debounceMs = 300, minQueryLength = 2, initialQuery = '', searchOptions, ...asyncOptions } = options;
+  const {
+    debounceMs = 300,
+    minQueryLength = 2,
+    initialQuery = '',
+    searchOptions,
+    ...asyncOptions
+  } = options;
 
   const [query, setQuery] = useState(initialQuery);
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
@@ -509,7 +545,7 @@ export function useSearchAsyncState<TData, TError = Error>(
   } = useAsyncState<TData[], TError>(asyncOptions);
 
   // Debounce query changes
-  useEffect((): void => {
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query);
     }, debounceMs);
@@ -534,8 +570,11 @@ export function useSearchAsyncState<TData, TError = Error>(
     setQuery,
     searchTerm,
     setSearchTerm,
+    loading: isLoading,
+    error: _error,
+    execute,
     searchResults: data ?? [],
     isSearching: isLoading,
-    reset
+    reset,
   };
 }

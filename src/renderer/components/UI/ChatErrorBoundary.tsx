@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { ErrorBoundary } from './ErrorBoundary';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
@@ -44,10 +41,7 @@ interface ChatErrorBoundaryProps {
  * </ChatErrorBoundary>
  * ```
  */
-export const ChatErrorBoundary: React.FC<ChatErrorBoundaryProps> = ({
-  children,
-  onRetry
-}) => {
+export const ChatErrorBoundary: React.FC<ChatErrorBoundaryProps> = ({ children, onRetry }) => {
   const handleRetry = () => {
     // Clear any chat-related state if needed
     onRetry?.();
@@ -58,9 +52,7 @@ export const ChatErrorBoundary: React.FC<ChatErrorBoundaryProps> = ({
       <div className="flex items-start space-x-3">
         <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
-            Chat Error
-          </h3>
+          <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Chat Error</h3>
           <p className="text-sm text-red-700 dark:text-red-300 mt-1">
             The chat interface encountered an error. Your conversation may not have been saved.
           </p>

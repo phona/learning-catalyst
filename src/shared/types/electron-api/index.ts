@@ -15,19 +15,24 @@
  */
 
 // Import individual API interfaces from the 8-domain structure
-import type { OpenDialogOptions, OpenDialogReturnValue, SaveDialogOptions, SaveDialogReturnValue } from 'electron'
-import type { ChatAPI } from './chat-api'
-import type { LearningAPI } from './learning-api'
-import type { KnowledgeAPI } from './knowledge-api'
-import type { AnalyticsAPI } from './analytics-api'
-import type { AgentsAPI } from './agent-api'
-import type { ContentAPI } from './content-api'
-import type { SettingsAPI } from './settings-api'
-import type { CatalystAPI } from './catalyst-api'
-import type { SessionsAPI } from './sessions-api'
-import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
-import type { IPCErrorPayload } from '../ipc-error'
-import type { AppConfig } from '../config'// Re-export individual API interfaces
+import type {
+  OpenDialogOptions,
+  OpenDialogReturnValue,
+  SaveDialogOptions,
+  SaveDialogReturnValue,
+} from 'electron';
+import type { ChatAPI } from './chat-api';
+import type { LearningAPI } from './learning-api';
+import type { KnowledgeAPI } from './knowledge-api';
+import type { AnalyticsAPI } from './analytics-api';
+import type { AgentsAPI } from './agent-api';
+import type { ContentAPI } from './content-api';
+import type { SettingsAPI } from './settings-api';
+import type { CatalystAPI } from './catalyst-api';
+import type { SessionsAPI } from './sessions-api';
+import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
+import type { IPCErrorPayload } from '../ipc-error';
+import type { AppConfig } from '../config'; // Re-export individual API interfaces
 export type {
   ChatAPI,
   LearningAPI,
@@ -37,8 +42,8 @@ export type {
   ContentAPI,
   SettingsAPI,
   SessionsAPI,
-  CatalystAPI
-}
+  CatalystAPI,
+};
 
 // Re-export service response types
 export type {
@@ -47,8 +52,8 @@ export type {
   SessionResponse,
   ExecutionCancelResponse,
   ActiveExecution,
-  StreamChunk
-} from './catalyst-api'
+  StreamChunk,
+} from './catalyst-api';
 
 // Export key display-optimized types for convenience
 export type {
@@ -56,54 +61,54 @@ export type {
   MessageDisplay,
   AgentDisplay as ChatAgentDisplay,
   TypingIndicator,
-  ConversationSummary
-} from './chat-api'
+  ConversationSummary,
+} from './chat-api';
 
 export type {
   LearningSessionDisplay,
   SessionDisplay,
   LearningProgressDisplay,
   AchievementDisplay,
-  LearningPathDisplay
-} from './learning-api'
+  LearningPathDisplay,
+} from './learning-api';
 
 export type {
   ConceptExplorationDisplay,
   KnowledgeMapDisplay,
   RelatedConceptsDisplay,
   ExplanationDisplay,
-  ExerciseDisplay
-} from './knowledge-api'
+  ExerciseDisplay,
+} from './knowledge-api';
 
 export type {
   DashboardDisplay,
   ProgressChartDisplay,
   AchievementDisplay as AnalyticsAchievementDisplay,
   UsageStatsDisplay,
-  TokenUsageDisplay
-} from './analytics-api'
+  TokenUsageDisplay,
+} from './analytics-api';
 
 export type {
   AgentDisplay as ManagementAgentDisplay,
   AgentCapabilitiesDisplay,
   AgentSettings,
-  FeatureDemoDisplay
-} from './agent-api'
+  FeatureDemoDisplay,
+} from './agent-api';
 
 export type {
   ContentRecommendationDisplay,
   ResourceSearchResultDisplay,
   DocumentAnalysisDisplay,
   ProjectDisplay,
-  ImportResultDisplay
-} from './content-api'
+  ImportResultDisplay,
+} from './content-api';
 
 export type {
   UserPreferencesDisplay,
   ProviderDisplay,
   LearningSettingsDisplay,
-  ProviderConfig
-} from './settings-api'
+  ProviderConfig,
+} from './settings-api';
 
 /**
  * Main ElectronAPI interface - 8 Complete Domains
@@ -140,7 +145,7 @@ export interface ElectronAPI {
     path: string,
     recursive?: boolean,
     maxDepth?: number,
-    filterConfig?: DirectoryFilterConfig
+    filterConfig?: DirectoryFilterConfig,
   ) => Promise<DirectoryScanResult[]>;
   readFile: (filePath: string, encoding?: BufferEncoding) => Promise<string>;
   writeFile: (filePath: string, content: string, encoding?: BufferEncoding) => Promise<void>;
@@ -162,7 +167,11 @@ export interface ElectronAPI {
    * @param context - Context where the error occurred
    * @param severity - 'info' | 'warning' | 'error' | 'critical'
    */
-  handleError: (error: Error | string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void;
+  handleError: (
+    error: Error | string,
+    context: string,
+    severity?: 'info' | 'warning' | 'error' | 'critical',
+  ) => void;
 
   /**
    * Checks API health and connectivity
@@ -193,24 +202,30 @@ export interface ElectronAPI {
 /**
  * Create a partial ElectronAPI for testing or mocking
  */
-export type PartialElectronAPI<T extends keyof ElectronAPI> = Pick<ElectronAPI, T>
+export type PartialElectronAPI<T extends keyof ElectronAPI> = Pick<ElectronAPI, T>;
 
 /**
  * Helper type for creating API mocks
  */
-export type ElectronAPIMock = Partial<ElectronAPI>
+export type ElectronAPIMock = Partial<ElectronAPI>;
 
 /**
  * Utility type for extracting specific API functionality
  */
-export type ExtractAPI<T> = T extends keyof ElectronAPI
-  ? Pick<ElectronAPI, T>
-  : never
+export type ExtractAPI<T> = T extends keyof ElectronAPI ? Pick<ElectronAPI, T> : never;
 
 /**
  * Type-safe API domain selector
  */
-export type APIDomain = 'chat' | 'learning' | 'knowledge' | 'analytics' | 'sessions' | 'agents' | 'content' | 'settings'
+export type APIDomain =
+  | 'chat'
+  | 'learning'
+  | 'knowledge'
+  | 'analytics'
+  | 'sessions'
+  | 'agents'
+  | 'content'
+  | 'settings';
 
 /**
  * API response wrapper for consistent error handling

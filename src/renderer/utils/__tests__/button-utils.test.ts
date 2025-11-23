@@ -1,4 +1,3 @@
-
 /**
  * Button Utility Functions Tests
  * Testing utility functions that support button behavior

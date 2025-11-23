@@ -87,12 +87,15 @@ export interface LearningAPI {
    * @param filters - Filter options (difficulty, agentType, dateRange, tags)
    * @returns Promise<SessionSearchResultDisplay> - Search results with pagination
    */
-  searchSessions: (query: string, filters?: {
-    difficulty?: 'beginner' | 'intermediate' | 'advanced';
-    agentType?: string;
-    dateRange?: { start: Date; end: Date };
-    tags?: string[];
-  }) => Promise<APIResponse<SessionSearchResultDisplay>>;
+  searchSessions: (
+    query: string,
+    filters?: {
+      difficulty?: 'beginner' | 'intermediate' | 'advanced';
+      agentType?: string;
+      dateRange?: { start: Date; end: Date };
+      tags?: string[];
+    },
+  ) => Promise<APIResponse<SessionSearchResultDisplay>>;
 }
 
 // ============================================================================

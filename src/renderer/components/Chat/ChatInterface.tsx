@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { ChatArea } from './ChatArea';
 import { ChatInput } from './ChatInput';
@@ -72,3 +69,5 @@ const ChatInterfaceComponent: React.FC = () => {
 };
 
 export const ChatInterface = React.memo(ChatInterfaceComponent);
+
+export default ChatInterface;

@@ -27,7 +27,7 @@ import { PracticeService } from '../services/domain/practice/practice-service';
  * Setup all IPC handlers with provided services
  */
 export async function setupAllIpcHandlers(
-  mainWindow: BrowserWindow | null, 
+  mainWindow: BrowserWindow | null,
   workspacePath: string,
   services: {
     chatService: ChatService;
@@ -40,26 +40,26 @@ export async function setupAllIpcHandlers(
     practiceService: PracticeService;
     loggerService: LoggerService;
     configService: ConfigService;
-  }
+  },
 ): Promise<void> {
   applyStructuredErrorHandling();
   // Setup domain handlers with services
   setupChatHandlers(ipcMain, {
     chatService: services.chatService,
     practiceService: services.practiceService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
-  
+
   setupLearningHandlers(ipcMain, {
     learningService: services.learningService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
-  
+
   setupKnowledgeHandlers(ipcMain, {
     knowledgeService: services.knowledgeService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
-  
+
   // Settings handlers (documented surface)
   setupSettingsHandlers(workspacePath);
 
@@ -68,43 +68,42 @@ export async function setupAllIpcHandlers(
     aiService: services.aiService,
     learningService: services.learningService,
     knowledgeService: services.knowledgeService,
-    analyticsService: services.analyticsService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Setup enhanced content handlers
   setupContentHandlers(ipcMain, {
     contentService: services.contentService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Setup concept parsing handlers
   setupConceptParsingHandlers(ipcMain, {
     conceptParsingService: services.conceptParsingService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Setup complete analytics handlers
   setupCompleteAnalyticsHandlers(ipcMain, {
     analyticsService: services.analyticsService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Filesystem + workspace helpers
   setupFilesystemHandlers(ipcMain, {
     workspacePath,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Sessions domain
   setupSessionsHandlers(ipcMain, {
     learningService: services.learningService,
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Catalyst bridge
   setupCatalystHandlers(ipcMain, {
-    loggerService: services.loggerService
+    loggerService: services.loggerService,
   });
 
   // Setup system handlers last to ensure all dependencies are registered

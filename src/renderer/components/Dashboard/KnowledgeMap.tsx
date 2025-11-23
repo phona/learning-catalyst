@@ -1,6 +1,10 @@
-
 import React, { useState } from 'react';
-import { KnowledgeGraphVisualization, ConceptManager, RelationshipManager, KnowledgeSearch } from '../Knowledge';
+import {
+  KnowledgeGraphVisualization,
+  ConceptManager,
+  RelationshipManager,
+  KnowledgeSearch,
+} from '../Knowledge';
 import type { Concept } from '../../../shared/types/knowledge';
 
 export const KnowledgeMap: React.FC = () => {
@@ -10,9 +14,9 @@ export const KnowledgeMap: React.FC = () => {
   const [showManager, setShowManager] = useState(false);
   const [activeTab, setActiveTab] = useState<'concepts' | 'relationships'>('concepts');
 
-  const handleConceptSelect = (conceptId: string): void => {
+  const handleConceptSelect = (concept: Concept): void => {
     // TODO: Get concept from IPC when implementing full functionality
-    console.log('Selected concept ID:', conceptId);
+    console.log('Selected concept:', concept.id);
   };
 
   const handleConceptCreated = (concept: Concept): void => {
@@ -32,9 +36,7 @@ export const KnowledgeMap: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Knowledge Map
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Knowledge Map</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Explore connections between concepts and track your learning progress
           </p>
@@ -61,18 +63,16 @@ export const KnowledgeMap: React.FC = () => {
         {/* Search Sidebar */}
         <div className="w-80 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
           <div className="p-4">
-            <KnowledgeSearch
-              onConceptSelect={handleConceptSelect}
-            />
+            <KnowledgeSearch onConceptSelect={handleConceptSelect} />
           </div>
         </div>
 
         {/* Knowledge Graph Visualization */}
-        <div className={`flex-1 ${showManager ? 'border-r border-gray-200 dark:border-gray-700' : ''}`}>
+        <div
+          className={`flex-1 ${showManager ? 'border-r border-gray-200 dark:border-gray-700' : ''}`}
+        >
           <div className="h-full p-6">
-            <KnowledgeGraphVisualization
-              onConceptSelect={handleConceptSelect}
-            />
+            <KnowledgeGraphVisualization onConceptSelect={handleConceptSelect} />
           </div>
         </div>
 
@@ -165,3 +165,4 @@ export const KnowledgeMap: React.FC = () => {
     </div>
   );
 };
+export default KnowledgeMap;

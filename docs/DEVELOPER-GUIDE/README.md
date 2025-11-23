@@ -1,10 +1,12 @@
 # Developer Guide
 
-Welcome to the Learning Catalyst developer documentation! This guide will help you understand the codebase, architecture, and development workflows.
+Welcome to the Learning Catalyst developer documentation! This guide will help you understand the
+codebase, architecture, and development workflows.
 
 ## Overview
 
-Learning Catalyst is an **Electron desktop application** with a modern, service-oriented architecture:
+Learning Catalyst is an **Electron desktop application** with a modern, service-oriented
+architecture:
 
 - **Multi-process**: Main process (Node.js) + Renderer (React)
 - **Type-safe**: Full TypeScript coverage with Kysely
@@ -112,6 +114,7 @@ npm run lint
 ### Debugging
 
 **Main Process (Node.js):**
+
 ```bash
 # Debug mode
 npm run dev:debug
@@ -120,6 +123,7 @@ npm run dev:debug
 ```
 
 **Renderer Process:**
+
 - Open DevTools: Ctrl+Shift+I
 - React DevTools available
 - Source maps enabled
@@ -205,7 +209,7 @@ export function createChatService({ db, loggerService }: Dependencies) {
         .values({ content, session_id: sessionId })
         .execute();
       return result;
-    }
+    },
   };
 }
 
@@ -228,14 +232,14 @@ export class ChatService {
 const chatService = createChatService({
   db,
   loggerService,
-  aiService
+  aiService,
 });
 
 // ✅ Good: Testable with mocks
 const mockDb = createMock<Database>();
 const chatService = createChatService({
   db: mockDb,
-  loggerService: mockLogger
+  loggerService: mockLogger,
 });
 ```
 
@@ -269,9 +273,7 @@ const sessions = await db
   .execute();
 
 // ❌ Avoid: Raw SQL
-const sessions = await db.query(
-  'SELECT * FROM learning_sessions WHERE end_time IS NULL'
-);
+const sessions = await db.query('SELECT * FROM learning_sessions WHERE end_time IS NULL');
 ```
 
 ## Common Development Tasks
@@ -279,6 +281,7 @@ const sessions = await db.query(
 ### Adding a New IPC Method
 
 1. **Define the interface**:
+
 ```typescript
 // src/shared/types/electron-api/my-api.ts
 export interface MyAPI {
@@ -287,6 +290,7 @@ export interface MyAPI {
 ```
 
 2. **Update main interface**:
+
 ```typescript
 // src/shared/types/electron-api/index.ts
 export interface ElectronAPI {
@@ -296,6 +300,7 @@ export interface ElectronAPI {
 ```
 
 3. **Implement handler**:
+
 ```typescript
 // src/main/handlers/my-handlers.ts
 export function setupMyHandlers() {
@@ -307,19 +312,21 @@ export function setupMyHandlers() {
 ```
 
 4. **Update preload**:
+
 ```typescript
 // src/main/preload/index.ts
 contextBridge.exposeInMainWorld('electronAPI', {
   // ...
   myApi: {
-    myMethod: (param: string) => ipcRenderer.invoke('myApi:myMethod', param)
-  }
+    myMethod: (param: string) => ipcRenderer.invoke('myApi:myMethod', param),
+  },
 });
 ```
 
 ### Adding a New Service
 
 1. **Create service file**:
+
 ```typescript
 // src/main/services/domain/my-service/my-service.ts
 export function createMyService({ db, logger }: Dependencies) {
@@ -327,12 +334,13 @@ export function createMyService({ db, logger }: Dependencies) {
     async myMethod(param: string) {
       // Implementation
       return result;
-    }
+    },
   };
 }
 ```
 
 2. **Register in main**:
+
 ```typescript
 // src/main/index.ts
 import { createMyService } from './services/domain/my-service/my-service';
@@ -341,6 +349,7 @@ const myService = createMyService({ db, logger });
 ```
 
 3. **Use in handlers**:
+
 ```typescript
 // src/main/handlers/my-handlers.ts
 export function setupMyHandlers() {
@@ -353,6 +362,7 @@ export function setupMyHandlers() {
 ### Adding a Database Table
 
 1. **Create migration**:
+
 ```typescript
 // src/main/services/core/database/migrations/YYYYMMDD_create_my_table.ts
 export async function up(db: Kysely<Database>): Promise<void> {
@@ -365,6 +375,7 @@ export async function up(db: Kysely<Database>): Promise<void> {
 ```
 
 2. **Add to schema**:
+
 ```typescript
 // src/main/services/core/database/kysely-schema.ts
 export interface Database {
@@ -374,12 +385,9 @@ export interface Database {
 ```
 
 3. **Create index**:
+
 ```typescript
-await db.schema
-  .createIndex('idx_my_table_name')
-  .on('my_table')
-  .column('name')
-  .execute();
+await db.schema.createIndex('idx_my_table_name').on('my_table').column('name').execute();
 ```
 
 ## Testing
@@ -419,7 +427,7 @@ describe('MyService', () => {
 
     const service = createMyService({
       db: mockDb,
-      logger: mockLogger
+      logger: mockLogger,
     });
 
     const result = await service.myMethod('test');
@@ -473,21 +481,24 @@ See: [performance.md](./performance.md)
 ### Optimization Strategies
 
 1. **Lazy load components**:
+
 ```typescript
 // ✅ Good: Lazy loading
 const KnowledgeMap = lazy(() => import('../components/KnowledgeMap'));
 ```
 
 2. **Optimize queries**:
+
 ```typescript
 // ✅ Good: Selective columns
 const sessions = await db
   .selectFrom('learning_sessions')
-  .select(['id', 'title', 'updated_at'])  // Only needed columns
+  .select(['id', 'title', 'updated_at']) // Only needed columns
   .execute();
 ```
 
 3. **Use indexes**:
+
 ```typescript
 // Always index foreign keys
 await db.schema
@@ -524,6 +535,7 @@ await db.schema
 ### "Cannot find module '@/shared/..."
 
 **Solution**: Check TypeScript paths configuration
+
 ```typescript
 // tsconfig.json
 {
@@ -538,6 +550,7 @@ await db.schema
 ### "ElectronAPI is not defined"
 
 **Solution**: Ensure preload script exposes API
+
 ```typescript
 // src/main/preload/index.ts
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -548,35 +561,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
 ### Type errors with Kysely
 
 **Solution**: Use proper type parameters
+
 ```typescript
 // ✅ Good
-const session = await db
-  .selectFrom('learning_sessions')
-  .selectAll()
-  .executeTakeFirst();
+const session = await db.selectFrom('learning_sessions').selectAll().executeTakeFirst();
 
 // ❌ Bad
-const session = await db
-  .query('SELECT * FROM learning_sessions');
+const session = await db.query('SELECT * FROM learning_sessions');
 ```
 
 ### High memory usage in dev
 
 **Solution**: Check vite.config.ts for exclusions
+
 ```typescript
 // Exclude large directories
 watch: {
-  ignored: [
-    '**/node_modules/**',
-    '**/dist/**',
-    '**/.git/**'
-  ]
+  ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'];
 }
 ```
 
 ## Useful Resources
 
 ### Documentation
+
 - [Architecture](architecture.md) - System design
 - [Electron API](electron-api.md) - IPC contracts
 - [Database](database.md) - Schema and queries
@@ -585,6 +593,7 @@ watch: {
 - [Performance](performance.md) - Optimization
 
 ### External Docs
+
 - [Electron](https://www.electronjs.org/docs)
 - [React](https://react.dev)
 - [TypeScript](https://www.typescriptlang.org/docs)
@@ -592,6 +601,7 @@ watch: {
 - [Vite](https://vitejs.dev)
 
 ### Tools
+
 - **VSCode**: Recommended IDE
 - **React DevTools**: Browser extension
 - **Vue DevTools**: Alternative browser extension

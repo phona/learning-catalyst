@@ -10,24 +10,24 @@ vi.mock('../chat-service', () => {
       topic: 'React',
       status: 'active',
       messages: [],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     }),
     sendMessage: vi.fn().mockResolvedValue({
       userMessage: {
         id: 'msg-user-123',
         role: 'user',
-        content: 'Hello'
+        content: 'Hello',
       },
       assistantMessage: {
         id: 'msg-assistant-123',
         role: 'assistant',
-        content: 'Hi there!'
-      }
+        content: 'Hi there!',
+      },
     }),
     getConversation: vi.fn().mockResolvedValue({
       id: 'conv-123',
       title: 'Test Conversation',
-      messages: []
+      messages: [],
     }),
     listConversations: vi.fn().mockResolvedValue([]),
     deleteConversation: vi.fn().mockResolvedValue(true),
@@ -35,11 +35,11 @@ vi.mock('../chat-service', () => {
     getTypingIndicator: vi.fn().mockResolvedValue(false),
     pauseConversation: vi.fn().mockResolvedValue(true),
     resumeConversation: vi.fn().mockResolvedValue(true),
-    endConversation: vi.fn().mockResolvedValue(true)
+    endConversation: vi.fn().mockResolvedValue(true),
   };
 
   return {
-    createChatService: vi.fn(() => mockChatService)
+    createChatService: vi.fn(() => mockChatService),
   };
 });
 
@@ -59,7 +59,7 @@ describe('Chat Service - Interface Tests', () => {
       selectFrom: vi.fn().mockReturnThis(),
       insertInto: vi.fn().mockReturnThis(),
       updateTable: vi.fn().mockReturnThis(),
-      deleteFrom: vi.fn().mockReturnThis()
+      deleteFrom: vi.fn().mockReturnThis(),
     };
 
     // Mock logger service
@@ -68,24 +68,24 @@ describe('Chat Service - Interface Tests', () => {
         info: vi.fn(),
         debug: vi.fn(),
         warn: vi.fn(),
-        error: vi.fn()
-      }))
+        error: vi.fn(),
+      })),
     };
 
     // Mock AI service
     mockAiService = {
       chatCompletion: vi.fn(),
-      getModelPreset: vi.fn()
+      getModelPreset: vi.fn(),
     };
 
     // Mock domain agent
     mockDomainAgent = {
-      stream: vi.fn()
+      stream: vi.fn(),
     };
 
     // Mock agent manager
     mockAgentManager = {
-      runAgent: vi.fn()
+      runAgent: vi.fn(),
     };
 
     // Import chat service
@@ -96,7 +96,7 @@ describe('Chat Service - Interface Tests', () => {
       loggerService: mockLoggerService,
       aiService: mockAiService,
       domainAgent: mockDomainAgent,
-      agentManager: mockAgentManager
+      agentManager: mockAgentManager,
     });
   });
 
@@ -124,7 +124,7 @@ describe('Chat Service - Interface Tests', () => {
       const conversationRequest = {
         title: 'React Learning',
         agentType: 'learning' as const,
-        topic: 'React Hooks'
+        topic: 'React Hooks',
       };
 
       const result = await chatService.createConversation(conversationRequest);
@@ -136,7 +136,7 @@ describe('Chat Service - Interface Tests', () => {
         topic: 'React',
         status: 'active',
         messages: expect.any(Array),
-        createdAt: expect.any(String)
+        createdAt: expect.any(String),
       });
     });
 
@@ -146,7 +146,7 @@ describe('Chat Service - Interface Tests', () => {
       expect(result).toMatchObject({
         id: 'conv-123',
         title: 'Test Conversation',
-        messages: expect.any(Array)
+        messages: expect.any(Array),
       });
     });
 
@@ -166,7 +166,7 @@ describe('Chat Service - Interface Tests', () => {
       const messageRequest = {
         conversationId: 'conv-123',
         role: 'user' as const,
-        content: 'Hello, teach me React'
+        content: 'Hello, teach me React',
       };
 
       const result = await chatService.sendMessage(messageRequest);
@@ -175,13 +175,13 @@ describe('Chat Service - Interface Tests', () => {
         userMessage: {
           id: 'msg-user-123',
           role: 'user',
-          content: 'Hello'
+          content: 'Hello',
         },
         assistantMessage: {
           id: 'msg-assistant-123',
           role: 'assistant',
-          content: 'Hi there!'
-        }
+          content: 'Hi there!',
+        },
       });
     });
   });
@@ -241,7 +241,7 @@ describe('Chat Service - Interface Tests', () => {
         topic: 'React',
         status: 'active',
         messages: [],
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
 
       expect(conversation).toHaveProperty('id');
@@ -259,7 +259,7 @@ describe('Chat Service - Interface Tests', () => {
         conversationId: 'conv-123',
         role: 'user',
         content: 'Hello',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       expect(message).toHaveProperty('id');

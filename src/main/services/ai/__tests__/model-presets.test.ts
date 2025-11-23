@@ -8,7 +8,7 @@ describe('AI Model Presets - Interface Tests', () => {
         model: 'gpt-4o',
         temperature: 0.7,
         maxTokens: 4096,
-        apiKey: 'test-key'
+        apiKey: 'test-key',
       };
 
       expect(chatReplyPreset).toMatchObject({
@@ -16,7 +16,7 @@ describe('AI Model Presets - Interface Tests', () => {
         model: expect.any(String),
         temperature: expect.any(Number),
         maxTokens: expect.any(Number),
-        apiKey: expect.any(String)
+        apiKey: expect.any(String),
       });
 
       expect(chatReplyPreset.temperature).toBeGreaterThanOrEqual(0);
@@ -29,14 +29,14 @@ describe('AI Model Presets - Interface Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.2,
-        maxTokens: 2048
+        maxTokens: 2048,
       };
 
       expect(contentAnalysisPreset).toMatchObject({
         provider: expect.any(String),
         model: expect.any(String),
         temperature: expect.any(Number),
-        maxTokens: expect.any(Number)
+        maxTokens: expect.any(Number),
       });
 
       expect(contentAnalysisPreset.temperature).toBeLessThan(0.5);
@@ -47,7 +47,7 @@ describe('AI Model Presets - Interface Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.15,
-        maxTokens: 2048
+        maxTokens: 2048,
       };
 
       expect(knowledgeExtractionPreset.temperature).toBeLessThan(0.3);
@@ -59,7 +59,7 @@ describe('AI Model Presets - Interface Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.35,
-        maxTokens: 3072
+        maxTokens: 3072,
       };
 
       expect(learningPlanPreset.temperature).toBeGreaterThan(0.3);
@@ -75,7 +75,7 @@ describe('AI Model Presets - Interface Tests', () => {
         api_key: 'sk-test-key',
         model: 'gpt-4o',
         temperature: 0.7,
-        max_tokens: 4096
+        max_tokens: 4096,
       };
 
       expect(openaiConfig).toHaveProperty('provider_type', 'openai');
@@ -91,7 +91,7 @@ describe('AI Model Presets - Interface Tests', () => {
         api_key: 'chatglm-key',
         model: 'chatglm-pro',
         temperature: 0.8,
-        max_tokens: 8192
+        max_tokens: 8192,
       };
 
       expect(chatglmConfig).toHaveProperty('provider_type', 'chatglm');
@@ -104,7 +104,7 @@ describe('AI Model Presets - Interface Tests', () => {
         api_key: 'deepseek-key',
         model: 'deepseek-coder',
         temperature: 0.1,
-        max_tokens: 4096
+        max_tokens: 4096,
       };
 
       expect(deepseekConfig).toHaveProperty('provider_type', 'deepseek');
@@ -118,31 +118,31 @@ describe('AI Model Presets - Interface Tests', () => {
       const modelSelector = {
         selectModelForTask: vi.fn().mockImplementation((task) => {
           switch (task) {
-          case 'coding':
-            return { provider: 'deepseek', model: 'deepseek-coder' };
-          case 'analysis':
-            return { provider: 'local', model: 'llama-3.1-70b' };
-          case 'chat':
-            return { provider: 'openai', model: 'gpt-4o' };
-          default:
-            return { provider: 'openai', model: 'gpt-3.5-turbo' };
+            case 'coding':
+              return { provider: 'deepseek', model: 'deepseek-coder' };
+            case 'analysis':
+              return { provider: 'local', model: 'llama-3.1-70b' };
+            case 'chat':
+              return { provider: 'openai', model: 'gpt-4o' };
+            default:
+              return { provider: 'openai', model: 'gpt-3.5-turbo' };
           }
-        })
+        }),
       };
 
       expect(modelSelector.selectModelForTask('coding')).toEqual({
         provider: 'deepseek',
-        model: 'deepseek-coder'
+        model: 'deepseek-coder',
       });
 
       expect(modelSelector.selectModelForTask('analysis')).toEqual({
         provider: 'local',
-        model: 'llama-3.1-70b'
+        model: 'llama-3.1-70b',
       });
 
       expect(modelSelector.selectModelForTask('chat')).toEqual({
         provider: 'openai',
-        model: 'gpt-4o'
+        model: 'gpt-4o',
       });
     });
 
@@ -150,8 +150,8 @@ describe('AI Model Presets - Interface Tests', () => {
       const fallbackSelector = {
         selectFallbackModel: vi.fn().mockReturnValue({
           provider: 'openai',
-          model: 'gpt-3.5-turbo'
-        })
+          model: 'gpt-3.5-turbo',
+        }),
       };
 
       const result = fallbackSelector.selectFallbackModel();
@@ -166,7 +166,7 @@ describe('AI Model Presets - Interface Tests', () => {
         provider: 'openai',
         model: 'gpt-4o',
         temperature: 0.8,
-        maxTokens: 4096
+        maxTokens: 4096,
       };
 
       expect(creativePreset.temperature).toBeGreaterThan(0.7);
@@ -178,7 +178,7 @@ describe('AI Model Presets - Interface Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.1,
-        maxTokens: 2048
+        maxTokens: 2048,
       };
 
       expect(analyticalPreset.temperature).toBeLessThan(0.3);
@@ -189,7 +189,7 @@ describe('AI Model Presets - Interface Tests', () => {
         provider: 'openai',
         model: 'gpt-4o',
         temperature: 0.5,
-        maxTokens: 3072
+        maxTokens: 3072,
       };
 
       expect(balancedPreset.temperature).toBeGreaterThanOrEqual(0.4);
@@ -203,7 +203,7 @@ describe('AI Model Presets - Interface Tests', () => {
         'quick-task': 512,
         'standard-task': 2048,
         'complex-task': 4096,
-        'long-generation': 8192
+        'long-generation': 8192,
       };
 
       Object.entries(tokenLimits).forEach(([task, limit]) => {
@@ -216,7 +216,7 @@ describe('AI Model Presets - Interface Tests', () => {
       const tokenCalculator = {
         calculateResponseTokens: vi.fn().mockImplementation((totalTokens) => {
           return Math.floor(totalTokens * 0.75);
-        })
+        }),
       };
 
       expect(tokenCalculator.calculateResponseTokens(1000)).toBe(750);
@@ -229,20 +229,20 @@ describe('AI Model Presets - Interface Tests', () => {
       const presetValidator = {
         validatePreset: vi.fn().mockImplementation((preset) => {
           const required = ['provider', 'model', 'temperature', 'maxTokens'];
-          return required.every(field => preset.hasOwnProperty(field));
-        })
+          return required.every((field) => preset.hasOwnProperty(field));
+        }),
       };
 
       const validPreset = {
         provider: 'openai',
         model: 'gpt-4o',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       };
 
       const invalidPreset = {
         provider: 'openai',
-        model: 'gpt-4o'
+        model: 'gpt-4o',
         // missing temperature and maxTokens
       };
 
@@ -254,7 +254,7 @@ describe('AI Model Presets - Interface Tests', () => {
       const tempValidator = {
         validateTemperature: vi.fn().mockImplementation((temp) => {
           return temp >= 0 && temp <= 2;
-        })
+        }),
       };
 
       expect(tempValidator.validateTemperature(0.7)).toBe(true);

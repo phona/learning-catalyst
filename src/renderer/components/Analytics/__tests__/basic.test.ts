@@ -1,4 +1,3 @@
-
 // Simple test to verify renderer test infrastructure works
 import { describe, it, expect, vi } from 'vitest';
 

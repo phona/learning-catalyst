@@ -21,7 +21,7 @@ export type {
   ModelNotFoundError,
   ProviderError,
   RateLimitError,
-  TimeoutError
+  TimeoutError,
 } from './ai';
 export type {
   AppConfig,
@@ -41,7 +41,7 @@ export type {
   ConfigSchema,
   ThemeConfig,
   ConfigPreset,
-  ConfigChangeEvent
+  ConfigChangeEvent,
 } from './config';
 export type {
   Session,
@@ -60,21 +60,18 @@ export type {
   SessionExportOptions,
   SessionImportResult,
   SessionEvent,
-  MessageEvent
+  MessageEvent,
 } from './session';
 export type {
   LearningObjective,
   LearningMaterial,
   AssessmentCriteria,
   LearningPath,
-  LearningProgress as ObjectiveLearningProgress
+  LearningProgress as ObjectiveLearningProgress,
 } from './learning';
 export * from './ui';
 export * from './api';
-export type {
-  Database,
-  SessionDatabase
-} from './database';
+export type { Database, SessionDatabase } from './database';
 
 // Export practice types for context-aware practice system
 export * from './practice';

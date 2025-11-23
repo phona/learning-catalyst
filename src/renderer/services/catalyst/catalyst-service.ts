@@ -1,14 +1,12 @@
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type {
-  ChatOptions
-} from '@/shared/types/ai';
+import type { ChatOptions } from '@/shared/types/ai';
 import type {
   ActiveExecution,
   StreamChunk,
   ChatResponse,
   AgentsResponse,
   SessionResponse,
-  ExecutionCancelResponse
+  ExecutionCancelResponse,
 } from '@/shared/types/electron-api';
 
 // Define ChatStreamOptions locally since it's not found
@@ -23,12 +21,16 @@ export interface CatalystService {
   sendChatStream(
     message: string,
     onChunk: (chunk: StreamChunk) => void,
-    options?: ChatStreamOptions
+    options?: ChatStreamOptions,
   ): Promise<ChatResponse>;
   getAvailableAgents(): Promise<AgentsResponse>;
   getSession(sessionId: string): Promise<SessionResponse>;
   cancelExecution(executionId: string): Promise<ExecutionCancelResponse>;
-  getActiveExecutions(): Promise<{success: boolean; executions?: ActiveExecution[]; error?: string}>;
+  getActiveExecutions(): Promise<{
+    success: boolean;
+    executions?: ActiveExecution[];
+    error?: string;
+  }>;
 }
 
 /**
@@ -40,7 +42,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
       if (!message || message.trim().length === 0) {
         return {
           success: false,
-          error: 'Message cannot be empty'
+          error: 'Message cannot be empty',
         };
       }
 
@@ -53,7 +55,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           message: message.trim(),
           agentId: options?.agentId || 'default',
           sessionId: options?.sessionId || 'default',
-          stream: false
+          stream: false,
         });
 
         if (!response.success || !response.data) {
@@ -63,12 +65,12 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         return {
           success: true,
           messageId: (response.data as any).messageId,
-          response: (response.data as any).response
+          response: (response.data as any).response,
         };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Chat request failed'
+          error: error instanceof Error ? error.message : 'Chat request failed',
         };
       }
     },
@@ -76,19 +78,19 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
     async sendChatStream(
       message: string,
       onChunk: (chunk: StreamChunk) => void,
-      options?: ChatStreamOptions
+      options?: ChatStreamOptions,
     ): Promise<ChatResponse> {
       if (!message || message.trim().length === 0) {
         return {
           success: false,
-          error: 'Message cannot be empty'
+          error: 'Message cannot be empty',
         };
       }
 
       if (typeof onChunk !== 'function') {
         return {
           success: false,
-          error: 'onChunk callback is required for streaming'
+          error: 'onChunk callback is required for streaming',
         };
       }
 
@@ -101,7 +103,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           message: message.trim(),
           agentId: options?.agentId || 'default',
           sessionId: options?.sessionId || 'default',
-          onChunk
+          onChunk,
         });
 
         if (!response.success || !response.data) {
@@ -111,12 +113,12 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         return {
           success: true,
           messageId: (response.data as any).messageId,
-          response: (response.data as any).response
+          response: (response.data as any).response,
         };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Chat stream failed'
+          error: error instanceof Error ? error.message : 'Chat stream failed',
         };
       }
     },
@@ -134,12 +136,12 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         return {
           success: true,
-          agents: agents.data as any
+          agents: agents.data as any,
         };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to get agents'
+          error: error instanceof Error ? error.message : 'Failed to get agents',
         };
       }
     },
@@ -148,7 +150,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
       if (!sessionId || sessionId.trim().length === 0) {
         return {
           success: false,
-          error: 'Session ID is required'
+          error: 'Session ID is required',
         };
       }
 
@@ -164,12 +166,12 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         return {
           success: true,
-          session: session.data as any
+          session: session.data as any,
         };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to get session'
+          error: error instanceof Error ? error.message : 'Failed to get session',
         };
       }
     },
@@ -178,7 +180,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
       if (!executionId || executionId.trim().length === 0) {
         return {
           success: false,
-          error: 'Execution ID is required'
+          error: 'Execution ID is required',
         };
       }
 
@@ -193,17 +195,21 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         }
 
         return {
-          success: true
+          success: true,
         };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to cancel execution'
+          error: error instanceof Error ? error.message : 'Failed to cancel execution',
         };
       }
     },
 
-    async getActiveExecutions(): Promise<{success: boolean; executions?: ActiveExecution[]; error?: string}> {
+    async getActiveExecutions(): Promise<{
+      success: boolean;
+      executions?: ActiveExecution[];
+      error?: string;
+    }> {
       try {
         if (!electronAPI?.catalyst?.getActiveExecutions) {
           throw new Error('Catalyst getActiveExecutions API not available');
@@ -216,14 +222,14 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         return {
           success: true,
-          executions: executions.data as any
+          executions: executions.data as any,
         };
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Failed to get active executions'
+          error: error instanceof Error ? error.message : 'Failed to get active executions',
         };
       }
-    }
+    },
   };
 };

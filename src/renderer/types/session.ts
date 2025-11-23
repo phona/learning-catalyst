@@ -1,4 +1,3 @@
-
 /**
  * Session representation optimized for UI display
  * Transforms complex session data into frontend-friendly format
@@ -7,20 +6,27 @@
 export interface SessionDisplay {
   id: string;
   title: string;
-  preview: string;           // First 100 characters for card display
+  preview: string; // First 100 characters for card display
   messageCount: number;
-  lastActivity: string;       // "2 min ago", "1 hour ago"
-  duration: string;          // "15 min", "2 hours"
-  difficulty: 'easy' | 'medium' | 'hard';
+  lastActivity: string; // "2 min ago", "1 hour ago"
+  duration: string; // "15 min", "2 hours"
+  difficulty: 'easy' | 'medium' | 'hard' | 'beginner' | 'intermediate' | 'advanced';
   tags: string[];
   isActive: boolean;
   hasUnreadMessages: boolean;
   agentType?: string;
-  color?: string;            // For UI theming
+  color?: string; // For UI theming
   learningProgress?: number; // 0-100 for progress indication
-  masteryLevel?: number;     // 0-5 for skill level
+  masteryLevel?: number; // 0-5 for skill level
   isBookmarked?: boolean;
   isArchived?: boolean;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  messages?: unknown[];
+  metadata?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  checkpoints?: unknown[];
+  statistics?: Record<string, unknown>;
 }
 
 export interface SessionListDisplay {

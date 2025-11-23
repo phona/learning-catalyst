@@ -12,7 +12,7 @@ import type {
   KnowledgeSearchResultDisplay,
   RelatedConcept,
   RelatedConceptsDisplay,
-  SearchResult
+  SearchResult,
 } from '@/shared/types/electron-api/knowledge-api';
 
 type KnowledgeServiceDeps = {
@@ -43,17 +43,13 @@ type SearchParams = {
   limit?: number;
 };
 
-const difficultyLabelFromLevel = (
-  level: number
-): 'basic' | 'intermediate' | 'advanced' => {
+const difficultyLabelFromLevel = (level: number): 'basic' | 'intermediate' | 'advanced' => {
   if (level <= 1) return 'basic';
   if (level >= 4) return 'advanced';
   return 'intermediate';
 };
 
-const normalizeConceptType = (
-  conceptType?: string
-): ConceptRow['concept_type'] => {
+const normalizeConceptType = (conceptType?: string): ConceptRow['concept_type'] => {
   const normalized = (conceptType ?? 'topic').toLowerCase();
   if (['topic', 'skill', 'fact', 'procedure', 'principle'].includes(normalized)) {
     return normalized as ConceptRow['concept_type'];
@@ -66,18 +62,13 @@ const normalizeConceptType = (
 };
 
 const normalizeRelationshipType = (
-  relationshipType?: string
+  relationshipType?: string,
 ): RelationshipRow['relationship_type'] => {
   const normalized = (relationshipType ?? 'related').toLowerCase();
   if (
-    [
-      'prerequisite',
-      'related',
-      'contains',
-      'example',
-      'application',
-      'contrasts'
-    ].includes(normalized)
+    ['prerequisite', 'related', 'contains', 'example', 'application', 'contrasts'].includes(
+      normalized,
+    )
   ) {
     return normalized as RelationshipRow['relationship_type'];
   }
@@ -114,12 +105,10 @@ const mapConceptRowToDisplay = (row: ConceptRow): KnowledgeNodeDisplay => ({
   tags: safeParse<string[]>(row.tags, []),
   metadata: safeParse<Record<string, unknown>>(row.metadata, {}),
   updatedAt: row.updated_at,
-  createdAt: row.created_at
+  createdAt: row.created_at,
 });
 
-const mapRelationshipRowToDisplay = (
-  row: RelationshipRow
-): KnowledgeRelationshipDisplay => ({
+const mapRelationshipRowToDisplay = (row: RelationshipRow): KnowledgeRelationshipDisplay => ({
   id: row.id,
   sourceId: row.source_concept_id,
   targetId: row.target_concept_id,
@@ -128,19 +117,20 @@ const mapRelationshipRowToDisplay = (
   description: row.description,
   metadata: safeParse<Record<string, unknown>>(row.metadata, {}),
   createdAt: row.created_at,
-  updatedAt: row.updated_at
+  updatedAt: row.updated_at,
 });
 
 const mapNodeToSearchResult = (node: KnowledgeNodeDisplay): SearchResult => {
   const categoryValue = node.metadata?.category;
   const category =
-    typeof categoryValue === 'string' && categoryValue.trim()
-      ? categoryValue.trim()
-      : 'concept';
+    typeof categoryValue === 'string' && categoryValue.trim() ? categoryValue.trim() : 'concept';
 
   const difficulty = difficultyLabelFromLevel(node.difficultyLevel);
   const timeEstimate = `${Math.max(5, node.difficultyLevel * 5 + 5)} minutes`;
-  const relevance = Math.min(1, Math.max(0, 0.5 + node.masteryLevel * 0.05 - node.difficultyLevel * 0.02));
+  const relevance = Math.min(
+    1,
+    Math.max(0, 0.5 + node.masteryLevel * 0.05 - node.difficultyLevel * 0.02),
+  );
 
   return {
     id: node.id,
@@ -151,19 +141,19 @@ const mapNodeToSearchResult = (node: KnowledgeNodeDisplay): SearchResult => {
     preview: node.description ?? '',
     difficulty,
     estimatedTime: timeEstimate,
-    tags: node.tags
+    tags: node.tags,
   };
 };
 
 const buildFilters = (results: SearchResult[]) => ({
   categories: Array.from(new Set(results.map((result) => result.category))),
   difficulties: Array.from(new Set(results.map((result) => result.difficulty ?? 'intermediate'))),
-  types: Array.from(new Set(results.map((result) => result.type)))
+  types: Array.from(new Set(results.map((result) => result.type))),
 });
 
 const selectConceptByName = async (
-  db: Kysely<Database>,
-  conceptName: string
+  db: Kysely<CoreDatabase>,
+  conceptName: string,
 ): Promise<ConceptRow | null> => {
   const exact = await db
     .selectFrom('concepts')
@@ -182,18 +172,18 @@ const selectConceptByName = async (
 };
 
 const selectConceptById = async (
-  db: Kysely<Database>,
-  conceptId: string
+  db: Kysely<CoreDatabase>,
+  conceptId: string,
 ): Promise<ConceptRow | null> => {
-  const result = await db.selectFrom('concepts').selectAll().where('id', '=', conceptId).executeTakeFirst();
+  const result = await db
+    .selectFrom('concepts')
+    .selectAll()
+    .where('id', '=', conceptId)
+    .executeTakeFirst();
   return result ?? null;
 };
 
-const getKnowledgeGraph = async (
-  db: Kysely<Database>,
-  startId: string,
-  depth = 1
-) => {
+const getKnowledgeGraph = async (db: Kysely<CoreDatabase>, startId: string, depth = 1) => {
   const visited = new Set<string>();
   const collectedNodes = new Map<string, KnowledgeNodeDisplay>();
   const collectedRelationships: KnowledgeRelationshipDisplay[] = [];
@@ -201,11 +191,7 @@ const getKnowledgeGraph = async (
   let currentDepth = 0;
 
   while (frontier.length && currentDepth <= depth) {
-    const nodes = await db
-      .selectFrom('concepts')
-      .selectAll()
-      .where('id', 'in', frontier)
-      .execute();
+    const nodes = await db.selectFrom('concepts').selectAll().where('id', 'in', frontier).execute();
 
     nodes.forEach((row) => {
       if (!visited.has(row.id)) {
@@ -218,10 +204,7 @@ const getKnowledgeGraph = async (
       .selectFrom('relationships')
       .selectAll()
       .where((eb) =>
-        eb.or([
-          eb('source_concept_id', 'in', frontier),
-          eb('target_concept_id', 'in', frontier)
-        ])
+        eb.or([eb('source_concept_id', 'in', frontier), eb('target_concept_id', 'in', frontier)]),
       )
       .execute();
 
@@ -238,7 +221,7 @@ const getKnowledgeGraph = async (
 
   return {
     nodes: Array.from(collectedNodes.values()),
-    relationships: collectedRelationships
+    relationships: collectedRelationships,
   };
 };
 
@@ -254,17 +237,13 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
 
   const ingestConceptParsingResult = async (
     result: ConceptParsingResult,
-    options: KnowledgeIngestionOptions = {}
+    options: KnowledgeIngestionOptions = {},
   ): Promise<KnowledgeIngestionResult> => {
     const now = new Date().toISOString();
     const names = result.concepts.map((concept) => concept.name.trim()).filter(Boolean);
     const existingRows =
       names.length > 0
-        ? await db
-          .selectFrom('concepts')
-          .selectAll()
-          .where('name', 'in', names)
-          .execute()
+        ? await db.selectFrom('concepts').selectAll().where('name', 'in', names).execute()
         : [];
     const existingByName = new Map(existingRows.map((row) => [row.name, row]));
 
@@ -284,11 +263,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         .split(/\s+/)
         .map((token) => token.replace(/[^\w]/g, '').toLowerCase())
         .filter(Boolean);
-      const normalizedTags = normalizeTags([
-        ...incomingTags,
-        node.type,
-        ...extraTags
-      ]);
+      const normalizedTags = normalizeTags([...incomingTags, node.type, ...extraTags]);
       const metadataPayload = JSON.stringify({
         ...(node.metadata ?? {}),
         segmentId: node.metadata?.segmentId,
@@ -297,7 +272,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         source: node.metadata?.source ?? options.source ?? 'concept-parsing',
         userId: options.userId,
         parsedAt: now,
-        tags: normalizedTags
+        tags: normalizedTags,
       });
 
       const difficultyLevel = Math.min(5, Math.max(1, Math.round(node.difficulty)));
@@ -308,25 +283,24 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         difficulty_level: difficultyLevel,
         tags: JSON.stringify(normalizedTags),
         metadata: metadataPayload,
-        updated_at: now
+        updated_at: now,
       };
 
       if (existing) {
-        await db
-          .updateTable('concepts')
-          .set(payload)
-          .where('id', '=', existing.id)
-          .execute();
+        await db.updateTable('concepts').set(payload).where('id', '=', existing.id).execute();
         updatedConcepts += 1;
       } else {
-        await db.insertInto('concepts').values({
-          id: conceptId,
-          ...payload,
-          mastery_level: 0,
-          review_count: 0,
-          parent_concept_id: undefined,
-          created_at: now
-        }).execute();
+        await db
+          .insertInto('concepts')
+          .values({
+            id: conceptId,
+            ...payload,
+            mastery_level: 0,
+            review_count: 0,
+            parent_concept_id: undefined,
+            created_at: now,
+          })
+          .execute();
         insertedConcepts += 1;
       }
 
@@ -344,9 +318,9 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
           parent_concept_id: undefined,
           last_reviewed: undefined,
           created_at: now,
-          updated_at: now
+          updated_at: now,
         }),
-        ...payload
+        ...payload,
       });
 
       nodeIdMapping.set(node.id, conceptId);
@@ -368,7 +342,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         userId: options.userId,
         parsedAt: now,
         sourceName: nameById.get(relationship.sourceId) ?? nameById.get(sourceConceptId),
-        targetName: nameById.get(relationship.targetId) ?? nameById.get(targetConceptId)
+        targetName: nameById.get(relationship.targetId) ?? nameById.get(targetConceptId),
       });
 
       const existingRelation = await db
@@ -386,23 +360,26 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
             description: relationship.description ?? existingRelation.description,
             strength: clampStrength(relationship.strength),
             metadata: metadataPayload,
-            updated_at: now
+            updated_at: now,
           })
           .where('id', '=', existingRelation.id)
           .execute();
       } else {
-        await db.insertInto('relationships').values({
-          id: randomUUID(),
-          source_concept_id: sourceConceptId,
-          target_concept_id: targetConceptId,
-          relationship_type: relType,
-          strength: clampStrength(relationship.strength),
-          description: relationship.description,
-          metadata: metadataPayload,
-          created_at: now,
-          updated_at: now,
-          created_by_session: options.sessionId
-        }).execute();
+        await db
+          .insertInto('relationships')
+          .values({
+            id: randomUUID(),
+            source_concept_id: sourceConceptId,
+            target_concept_id: targetConceptId,
+            relationship_type: relType,
+            strength: clampStrength(relationship.strength),
+            description: relationship.description,
+            metadata: metadataPayload,
+            created_at: now,
+            updated_at: now,
+            created_by_session: options.sessionId,
+          })
+          .execute();
         insertedRelationships += 1;
       }
     }
@@ -410,7 +387,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
     serviceLogger.info('Ingested concept parsing result', {
       conceptsInserted: insertedConcepts,
       conceptsUpdated: updatedConcepts,
-      relationshipsInserted: insertedRelationships
+      relationshipsInserted: insertedRelationships,
     });
 
     return {
@@ -419,15 +396,15 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       relationshipsInserted: insertedRelationships,
       metadata: {
         processedAt: now,
-        source: options.source
-      }
+        source: options.source,
+      },
     };
   };
 
   const searchKnowledge = async ({
     query = '',
     tags = [],
-    limit = 20
+    limit = 20,
   }: SearchParams): Promise<KnowledgeSearchResultDisplay> => {
     const trimmed = String(query ?? '').trim();
     const startTime = Date.now();
@@ -439,8 +416,8 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         eb.or([
           eb('name', 'like', term),
           eb('description', 'like', term),
-          eb('metadata', 'like', term)
-        ])
+          eb('metadata', 'like', term),
+        ]),
       );
     }
 
@@ -463,13 +440,13 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       totalResults: results.length,
       searchTime,
       suggestions,
-      filters
+      filters,
     };
   };
 
   const exploreConcept = async ({
     conceptName,
-    depth = 'intermediate'
+    depth = 'intermediate',
   }: {
     conceptName: string;
     depth?: 'basic' | 'intermediate' | 'advanced';
@@ -487,14 +464,18 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
     const levelMap: Record<'basic' | 'intermediate' | 'advanced', number> = {
       basic: 0,
       intermediate: 1,
-      advanced: 2
+      advanced: 2,
     };
     const graph = await getKnowledgeGraph(db, conceptRow.id, levelMap[depth ?? 'intermediate']);
     const node = mapConceptRowToDisplay(conceptRow);
     const relatedConcepts = graph.relationships
       .map((relationship) => {
-        const otherId = relationship.sourceId === node.id ? relationship.targetId : relationship.sourceId;
-        const otherName = relationship.sourceId === node.id ? relationship.metadata?.targetName : relationship.metadata?.sourceName;
+        const otherId =
+          relationship.sourceId === node.id ? relationship.targetId : relationship.sourceId;
+        const otherName =
+          relationship.sourceId === node.id
+            ? relationship.metadata?.targetName
+            : relationship.metadata?.sourceName;
         const relation: RelatedConcept['relationship'] =
           relationship.relationshipType === 'prerequisite'
             ? 'foundation'
@@ -513,8 +494,8 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
           strength: relationship.strength,
           description: relationship.description ?? '',
           difficulty: difficultyLabelFromLevel(
-            graph.nodes.find((n) => n.id === otherId)?.difficultyLevel ?? 3
-          )
+            graph.nodes.find((n) => n.id === otherId)?.difficultyLevel ?? 3,
+          ),
         };
       })
       .filter(Boolean) as RelatedConcept[];
@@ -532,7 +513,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       concept: {
         id: node.id,
         name: node.name,
-        category: String(node.metadata.category ?? 'concept')
+        category: String(node.metadata.category ?? 'concept'),
       },
       definition: node.description ?? `Overview of ${node.name}`,
       keyPoints: node.tags.slice(0, 4),
@@ -549,7 +530,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       learningOutcomes:
         Array.isArray(node.metadata?.learningOutcomes) && node.metadata.learningOutcomes.length
           ? node.metadata.learningOutcomes.map(String)
-          : [`Learn why ${node.name} matters in context`]
+          : [`Learn why ${node.name} matters in context`],
     };
 
     return exploration;
@@ -565,10 +546,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       .selectFrom('relationships')
       .selectAll()
       .where((eb) =>
-        eb.or([
-          eb('source_concept_id', '=', conceptId),
-          eb('target_concept_id', '=', conceptId)
-        ])
+        eb.or([eb('source_concept_id', '=', conceptId), eb('target_concept_id', '=', conceptId)]),
       )
       .execute();
 
@@ -579,22 +557,20 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         totalConnections: 0,
         strongestConnection: '',
         categories: [],
-        learningPaths: []
+        learningPaths: [],
       };
     }
 
     const neighborIds = Array.from(
-      new Set(
-        relationships.flatMap((rel) => [rel.source_concept_id, rel.target_concept_id])
-      )
+      new Set(relationships.flatMap((rel) => [rel.source_concept_id, rel.target_concept_id])),
     ).filter((id) => id !== conceptId);
 
     const neighborRows = neighborIds.length
       ? await db
-        .selectFrom('concepts')
-        .select(['id', 'name', 'metadata'])
-        .where('id', 'in', neighborIds)
-        .execute()
+          .selectFrom('concepts')
+          .select(['id', 'name', 'metadata'])
+          .where('id', 'in', neighborIds)
+          .execute()
       : [];
     const neighborMap = new Map(neighborRows.map((row) => [row.id, row.name]));
 
@@ -604,11 +580,13 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       return {
         id: otherId,
         name: neighborMap.get(otherId) ?? otherId,
-        relationship: ['foundation', 'related', 'type', 'application'].includes(rel.relationship_type)
+        relationship: ['foundation', 'related', 'type', 'application'].includes(
+          rel.relationship_type,
+        )
           ? (rel.relationship_type as RelatedConcept['relationship'])
           : 'related',
         strength: rel.strength,
-        description: rel.description ?? ''
+        description: rel.description ?? '',
       };
     });
 
@@ -624,13 +602,13 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       categories,
       learningPaths: relatedConcepts.length
         ? [
-          {
-            path: relatedConcepts.slice(0, 3).map((concept) => concept.name),
-            difficulty: 'intermediate',
-            estimatedTime: '15 minutes'
-          }
-        ]
-        : []
+            {
+              path: relatedConcepts.slice(0, 3).map((concept) => concept.name),
+              difficulty: 'intermediate',
+              estimatedTime: '15 minutes',
+            },
+          ]
+        : [],
     };
   };
 
@@ -652,8 +630,8 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
           totalNodes: 0,
           totalEdges: 0,
           centerConcepts: [],
-          learningPaths: []
-        }
+          learningPaths: [],
+        },
       };
     }
 
@@ -667,10 +645,10 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         x: Math.cos(angle) * radius,
         y: Math.sin(angle) * radius,
         size: Math.max(16, node.difficultyLevel * 6),
-        color: `#${Math.floor(100000 + (index * 99999) % 899999).toString(16)}`,
+        color: `#${Math.floor(100000 + ((index * 99999) % 899999)).toString(16)}`,
         category: String(node.metadata.category ?? node.type),
         difficulty: difficultyLabelFromLevel(node.difficultyLevel),
-        mastery: node.masteryLevel
+        mastery: node.masteryLevel,
       };
     });
 
@@ -688,14 +666,18 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
       to: edge.target_concept_id,
       label: edge.relationship_type,
       strength: edge.strength,
-      type: relationshipTypeToEdgeType(edge.relationship_type) as 'foundation' | 'related' | 'prerequisite' | 'application'
+      type: relationshipTypeToEdgeType(edge.relationship_type) as
+        | 'foundation'
+        | 'related'
+        | 'prerequisite'
+        | 'application',
     }));
 
     const clusters = Array.from(new Set(positions.map((node) => node.category)));
     const learningPaths = clusters.map((cluster) => ({
       name: `${cluster} Trail`,
       nodes: nodeIds.slice(0, 3),
-      difficulty: 'intermediate'
+      difficulty: 'intermediate',
     }));
 
     return {
@@ -707,8 +689,8 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         totalNodes: positions.length,
         totalEdges: mappedEdges.length,
         centerConcepts: positions.slice(0, 3).map((node) => node.id),
-        learningPaths
-      }
+        learningPaths,
+      },
     };
   };
 
@@ -717,7 +699,7 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
     searchKnowledge,
     exploreConcept,
     getRelatedConcepts,
-    getKnowledgeMap
+    getKnowledgeMap,
   };
 };
 

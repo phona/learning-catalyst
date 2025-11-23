@@ -16,7 +16,7 @@ export type {
   ConceptProgressDisplay,
   LearningTrendDisplay,
   StudyStreakDisplay,
-  TimeStatsDisplay
+  TimeStatsDisplay,
 } from './analytics.interface';
 
 export type {
@@ -24,7 +24,7 @@ export type {
   ExplanationDisplay,
   ExerciseDisplay,
   LearningPath,
-  ConceptSearchResult
+  ConceptSearchResult,
 } from './knowledge.interface';
 
 export type {
@@ -32,7 +32,7 @@ export type {
   ToolCallDisplay,
   ConversationSummary,
   ConversationSearchResult,
-  MessageSuggestion
+  MessageSuggestion,
 } from './chat.interface';
 
 // Error types
@@ -40,7 +40,7 @@ export type {
   AnalyticsError,
   SessionNotFoundError,
   ConceptNotFoundError as AnalyticsConceptNotFoundError,
-  DataValidationError
+  DataValidationError,
 } from './analytics.interface';
 
 export type {
@@ -48,7 +48,7 @@ export type {
   ConceptNotFoundError as KnowledgeConceptNotFoundError,
   RelationshipNotFoundError,
   CircularDependencyError,
-  ValidationFailedError
+  ValidationFailedError,
 } from './knowledge.interface';
 
 export type {
@@ -57,5 +57,5 @@ export type {
   MessageNotFoundError,
   MessageTooLongError,
   AgentNotAvailableError,
-  StreamingError
+  StreamingError,
 } from './chat.interface';

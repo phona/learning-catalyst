@@ -23,14 +23,14 @@ console.log(`Starting Learning Catalyst with workspace: ${workspacePath}`);
 // Start the development server first
 const viteProcess = spawn('yarn', ['dev'], {
   stdio: 'inherit',
-  shell: true
+  shell: true,
 });
 
 // Wait a bit for the dev server to start, then start Electron
 setTimeout(() => {
   const electronProcess = spawn('yarn', ['run', 'dev:workspace', workspacePath], {
     stdio: 'inherit',
-    shell: true
+    shell: true,
   });
 
   electronProcess.on('close', (code) => {

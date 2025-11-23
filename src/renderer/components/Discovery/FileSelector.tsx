@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import {
   DocumentIcon,
@@ -9,7 +6,7 @@ import {
   XMarkIcon,
   FolderOpenIcon,
   SparklesIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import type { FileSystemItem, DirectoryFilterConfig } from '@/shared/types/filesystem';
 
@@ -30,12 +27,7 @@ interface SelectionItemProps {
   onSelect: (selected: boolean) => void;
 }
 
-const SelectionItem: React.FC<SelectionItemProps> = ({
-  item,
-  isSelected,
-  isPartial,
-  onSelect
-}) => {
+const SelectionItem: React.FC<SelectionItemProps> = ({ item, isSelected, isPartial, onSelect }) => {
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -73,9 +65,7 @@ const SelectionItem: React.FC<SelectionItemProps> = ({
       );
     }
 
-    return (
-      <div className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600"></div>
-    );
+    return <div className="w-5 h-5 rounded border-2 border-gray-300 dark:border-gray-600"></div>;
   };
 
   return (
@@ -87,13 +77,9 @@ const SelectionItem: React.FC<SelectionItemProps> = ({
       }`}
       onClick={() => onSelect(!isSelected)}
     >
-      <div className="mr-3">
-        {getStatusIcon()}
-      </div>
+      <div className="mr-3">{getStatusIcon()}</div>
 
-      <div className="mr-3">
-        {getIcon()}
-      </div>
+      <div className="mr-3">{getIcon()}</div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
@@ -101,9 +87,7 @@ const SelectionItem: React.FC<SelectionItemProps> = ({
             {item.name}
           </h4>
           <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-            {!item.isDirectory && (
-              <span>{formatFileSize(item.size)}</span>
-            )}
+            {!item.isDirectory && <span>{formatFileSize(item.size)}</span>}
             {item.isMarkdown && (
               <span className="px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded">
                 MD
@@ -111,9 +95,7 @@ const SelectionItem: React.FC<SelectionItemProps> = ({
             )}
           </div>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-          {item.path}
-        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">{item.path}</p>
       </div>
     </div>
   );
@@ -126,58 +108,58 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
   onFileSelect,
   onDirectorySelect,
   onClearSelection,
-  className = ''
+  className = '',
 }) => {
   const [filter, setFilter] = useState<'all' | 'markdown' | 'directories'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'size' | 'modified'>('name');
   const [searchQuery, setSearchQuery] = useState('');
 
-  
   // Filter available items based on current filter
-  const filteredItems = availableFiles.filter(item => {
+  const filteredItems = availableFiles
+    .filter((item) => {
+      // Search filter
+      if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
 
-    // Search filter
-    if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-
-    // Type filter
-    switch (filter) {
-    case 'markdown':
-      return item.isMarkdown;
-    case 'directories':
-      return item.isDirectory;
-    default:
-      return true;
-    }
-  }).sort((a, b) => {
-    // Sort logic
-    switch (sortBy) {
-    case 'name':
-      return a.name.localeCompare(b.name);
-    case 'size':
-      return b.size - a.size;
-    case 'modified':
-      return b.modifiedTime.getTime() - a.modifiedTime.getTime();
-    default:
-      return 0;
-    }
-  });
+      // Type filter
+      switch (filter) {
+        case 'markdown':
+          return item.isMarkdown;
+        case 'directories':
+          return item.isDirectory;
+        default:
+          return true;
+      }
+    })
+    .sort((a, b) => {
+      // Sort logic
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'size':
+          return b.size - a.size;
+        case 'modified':
+          return b.modifiedTime.getTime() - a.modifiedTime.getTime();
+        default:
+          return 0;
+      }
+    });
 
   // Group selected items by type
-  const selectedDirectoriesList = availableFiles.filter(item =>
-    selectedDirectories.includes(item.path) && item.isDirectory
+  const selectedDirectoriesList = availableFiles.filter(
+    (item) => selectedDirectories.includes(item.path) && item.isDirectory,
   );
 
-  const selectedFilesList = availableFiles.filter(item =>
-    selectedFiles.includes(item.path) && item.isFile
+  const selectedFilesList = availableFiles.filter(
+    (item) => selectedFiles.includes(item.path) && item.isFile,
   );
 
-  const selectedMarkdownFiles = selectedFilesList.filter(item => item.isMarkdown);
+  const selectedMarkdownFiles = selectedFilesList.filter((item) => item.isMarkdown);
 
   // Calculate statistics
   const totalSelectedSize = selectedFilesList.reduce((sum, file) => sum + file.size, 0);
-  const totalMarkdownFiles = availableFiles.filter(item => item.isMarkdown).length;
+  const totalMarkdownFiles = availableFiles.filter((item) => item.isMarkdown).length;
 
   // Utility function
   const formatFileSize = (bytes: number): string => {
@@ -199,7 +181,9 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
   };
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+    >
       {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-between mb-4">
@@ -322,7 +306,8 @@ export const FileSelector: React.FC<FileSelectorProps> = ({
       {(selectedFiles.length > 0 || selectedDirectories.length > 0) && (
         <div className="border-t border-gray-200 dark:border-gray-700 p-4">
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            Ready to parse {selectedFiles.length} files from {selectedDirectories.length} directories
+            Ready to parse {selectedFiles.length} files from {selectedDirectories.length}{' '}
+            directories
             {selectedMarkdownFiles.length > 0 && (
               <span className="text-green-600 dark:text-green-400 ml-1">
                 ({selectedMarkdownFiles.length} markdown files)

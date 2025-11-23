@@ -80,9 +80,9 @@ export const createConfigStorage = (workspace: string) => {
 
   return {
     async loadConfig(): Promise<AppConfig | null> {
-      if (!await fs.stat(configFilePath).catch(() => false)) {
+      if (!(await fs.stat(configFilePath).catch(() => false))) {
         return DEFAULT_APP_CONFIG;
-      } 
+      }
 
       const configData = await fs.readFile(configFilePath, 'utf-8');
       const config = JSON.parse(configData) as AppConfig;

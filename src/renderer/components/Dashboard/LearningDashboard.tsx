@@ -1,11 +1,15 @@
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { ProgressChart, StudyStreak, LearningTrends, Achievements, SessionTracking } from '../Analytics';
+import {
+  ProgressChart,
+  StudyStreak,
+  LearningTrends,
+  Achievements,
+  SessionTracking,
+} from '../Analytics';
 import type { StudyMetrics, LearningSession } from '@/shared/utils/simple-analytics';
 import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
-import type { AgentDisplay as ManagementAgentDisplay, ActiveExecution } from '@/shared/types/electron-api/catalyst-api';
+import type { ActiveExecution } from '@/shared/types/electron-api/catalyst-api';
+import type { AgentDisplay as ManagementAgentDisplay } from '@/shared/types/electron-api/agent-api';
 
 // Manual refresh instead of automatic interval for better user control
 
@@ -47,8 +51,59 @@ export const LearningDashboard: React.FC = () => {
 
   const loadDashboardSessions = useCallback(async (): Promise<LearningSession[]> => {
     const sessions = await analyticsService.getRecentSessions(10);
-    return sessions as unknown as LearningSession[];
+    return sessions.map((session, index) => ({
+      id: session.id ?? `session-${index}`,
+      title: session.title ?? 'Session',
+      startTime: new Date((session as any).createdAt ?? Date.now()),
+      endTime: new Date((session as any).updatedAt ?? Date.now()),
+      durationMinutes: (session as any).statistics?.sessionDuration ?? 0,
+      aiProvider: (session as any).agent?.provider ?? 'Unknown',
+      aiModel: (session as any).agent?.model ?? 'Unknown',
+      conceptsCovered: (session as any).metadata?.topicsCovered ?? [],
+      sessionType: 'study',
+      status: 'completed',
+    }));
   }, [analyticsService]);
+
+  const mapStudyMetrics = (metrics: import('@/renderer/services/analytics/analytics-service').StudyMetrics) => ({
+    totalStudyTime: metrics.totalStudyTime,
+    sessionsCompleted: metrics.sessionsCompleted,
+    conceptsMastered: metrics.conceptsStudied ?? 0,
+    averageSessionDuration: metrics.averageSessionLength,
+    studyStreak: metrics.streakDays,
+    weeklyProgress: [],
+    monthlyProgress: [],
+    categoryBreakdown: [],
+  });
+
+  const mapLearningTrends = (
+    trends: import('@/renderer/services/analytics/analytics-service').LearningTrends,
+  ) => ({
+    performanceOverTime: [],
+    engagementPatterns: [],
+    progressVelocity: [],
+    retentionRate: [],
+    skillDistribution: [],
+    sessionTypes: trends.sessionTypes,
+    dailyStudyTime: trends.dailyStudyTime,
+    masteryProgress: trends.masteryProgress,
+  });
+
+  const mapAchievements = (
+    achievements: import('@/renderer/services/analytics/analytics-service').Achievement[],
+  ) =>
+    achievements.map((a) => ({
+      ...a,
+      requirement:
+        typeof a.requirement === 'object'
+          ? {
+              target: (a.requirement as any).target,
+              current: (a.requirement as any).current,
+              unit: (a.requirement as any).unit,
+              metadata: (a.requirement as any).metadata,
+            }
+          : { target: undefined },
+    }));
 
   // Setup dashboard and load initial data
   const setupDashboard = useCallback(async () => {
@@ -139,7 +194,12 @@ export const LearningDashboard: React.FC = () => {
               title="Refresh agent status and execution data"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
               <span>Refresh</span>
             </button>
@@ -150,9 +210,21 @@ export const LearningDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Study Time</span>
-              <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Study Time
+              </span>
+              <svg
+                className="w-5 h-5 text-blue-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -162,9 +234,21 @@ export const LearningDashboard: React.FC = () => {
 
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Sessions Completed</span>
-              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Sessions Completed
+              </span>
+              <svg
+                className="w-5 h-5 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -174,9 +258,21 @@ export const LearningDashboard: React.FC = () => {
 
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Concepts Studied</span>
-              <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Concepts Studied
+              </span>
+              <svg
+                className="w-5 h-5 text-purple-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
               </svg>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -186,9 +282,21 @@ export const LearningDashboard: React.FC = () => {
 
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Accuracy Rate</span>
-              <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Accuracy Rate
+              </span>
+              <svg
+                className="w-5 h-5 text-orange-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
               </svg>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -198,13 +306,25 @@ export const LearningDashboard: React.FC = () => {
 
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Agents</span>
-              <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Active Agents
+              </span>
+              <svg
+                className="w-5 h-5 text-indigo-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                />
               </svg>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {availableAgents.filter(a => a.enabled).length}/{availableAgents.length}
+              {availableAgents.filter((a) => a.isAvailable).length}/{availableAgents.length}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {activeExecutions.length} active
@@ -217,8 +337,18 @@ export const LearningDashboard: React.FC = () => {
           {/* Available Agents */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-              <svg className="w-5 h-5 text-indigo-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+              <svg
+                className="w-5 h-5 text-indigo-500 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                />
               </svg>
               Available AI Agents
             </h3>
@@ -229,9 +359,14 @@ export const LearningDashboard: React.FC = () => {
                 </div>
               ) : (
                 availableAgents.map((agent) => (
-                  <div key={agent.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div
+                    key={agent.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700"
+                  >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-2 h-2 rounded-full ${agent.enabled ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      <div
+                        className={`w-2 h-2 rounded-full ${agent.isAvailable ? 'bg-green-500' : 'bg-gray-400'}`}
+                      ></div>
                       <div>
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {agent.name}
@@ -243,7 +378,10 @@ export const LearningDashboard: React.FC = () => {
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {agent.capabilities?.slice(0, 2).map((capability) => (
-                        <span key={capability} className="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full">
+                        <span
+                          key={capability}
+                          className="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full"
+                        >
                           {capability}
                         </span>
                       ))}
@@ -262,8 +400,18 @@ export const LearningDashboard: React.FC = () => {
           {/* Active Executions */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-              <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                className="w-5 h-5 text-green-500 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
               Active Executions
             </h3>
@@ -274,7 +422,10 @@ export const LearningDashboard: React.FC = () => {
                 </div>
               ) : (
                 activeExecutions.map((execution) => (
-                  <div key={execution.id} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                  <div
+                    key={execution.id}
+                    className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
+                  >
                     <div className="flex items-center space-x-3">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                       <div>
@@ -282,7 +433,8 @@ export const LearningDashboard: React.FC = () => {
                           {execution.agentId || 'Unknown Agent'}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {execution.status} • Started {new Date(execution.startTime).toLocaleTimeString()}
+                          {execution.status} • Started{' '}
+                          {new Date(execution.startTime).toLocaleTimeString()}
                         </div>
                       </div>
                     </div>
@@ -299,7 +451,9 @@ export const LearningDashboard: React.FC = () => {
         {/* Progress Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Learning Progress</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">
+              Learning Progress
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
               <ProgressChart
                 title="Study Goal"
@@ -325,10 +479,7 @@ export const LearningDashboard: React.FC = () => {
             </div>
           </div>
 
-          <StudyStreak
-            streakDays={metrics.streakDays}
-            lastStudyDate={metrics.lastStudyDate}
-          />
+          <StudyStreak streakDays={metrics.streakDays} lastStudyDate={metrics.lastStudyDate} />
         </div>
 
         {/* Enhanced Analytics Section */}
@@ -336,18 +487,19 @@ export const LearningDashboard: React.FC = () => {
           {/* Learning Trends */}
           <LearningTrends
             analytics={{
-              getAchievements: () => analyticsService.getAchievements(),
-              getStudyMetrics: () => analyticsService.getStudyMetrics(),
-              getLearningTrends: (period?: number) => analyticsService.getLearningTrends(period)
+              getAchievements: async () => mapAchievements(await analyticsService.getAchievements()),
+              getStudyMetrics: async () => mapStudyMetrics(await analyticsService.getStudyMetrics()),
+              getLearningTrends: async (period?: number) =>
+                mapLearningTrends(await analyticsService.getLearningTrends(period)),
             }}
           />
 
           {/* Achievements */}
           <Achievements
             analytics={{
-              getAchievements: () => analyticsService.getAchievements(),
-              getStudyMetrics: () => analyticsService.getStudyMetrics(),
-              getLearningTrends: () => analyticsService.getLearningTrends()
+              getStudyMetrics: async () => mapStudyMetrics(await analyticsService.getStudyMetrics()),
+              getLearningTrends: async () => mapLearningTrends(await analyticsService.getLearningTrends()),
+              getAchievements: async () => mapAchievements(await analyticsService.getAchievements()),
             }}
           />
         </div>
@@ -356,10 +508,23 @@ export const LearningDashboard: React.FC = () => {
         <div className="mb-8">
           <SessionTracking
             analytics={{
-              getAchievements: () => analyticsService.getAchievements(),
               getStudyMetrics: () => analyticsService.getStudyMetrics(),
               getLearningTrends: () => analyticsService.getLearningTrends(),
-              getRecentSessions: (limit?: number) => analyticsService.getRecentSessions(limit)
+              getRecentSessions: (limit?: number) =>
+                analyticsService.getRecentSessions(limit).then((sessions) =>
+                  sessions.map((session, index) => ({
+                    id: session.id ?? `session-${index}`,
+                    title: session.title ?? 'Session',
+                    startTime: new Date((session as any).createdAt ?? Date.now()),
+                    endTime: new Date((session as any).updatedAt ?? Date.now()),
+                    durationMinutes: (session as any).statistics?.sessionDuration ?? 0,
+                    aiProvider: (session as any).agent?.provider ?? 'Unknown',
+                    aiModel: (session as any).agent?.model ?? 'Unknown',
+                    conceptsCovered: (session as any).metadata?.topicsCovered ?? [],
+                    sessionType: 'study',
+                    status: 'completed',
+                  })),
+                ),
             }}
             loadSessions={loadDashboardSessions}
           />
@@ -367,7 +532,9 @@ export const LearningDashboard: React.FC = () => {
 
         {/* Learning Insights */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Learning Insights</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Learning Insights
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="text-sm text-gray-700 dark:text-gray-300">
               <div className="font-medium mb-1">Average Session Length</div>
@@ -393,3 +560,4 @@ export const LearningDashboard: React.FC = () => {
     </div>
   );
 };
+export default LearningDashboard;

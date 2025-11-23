@@ -17,7 +17,7 @@ import {
   SessionNotFoundError,
   ConceptNotFoundError,
   UsageStatsDisplay,
-  TokenUsageDisplay
+  TokenUsageDisplay,
 } from '@/shared/interfaces/analytics.interface';
 import { LoggerService } from '../../core/logger/logger-service';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,20 +36,21 @@ const parseJson = <T>(value: string | null | undefined, fallback: T): T => {
 const ensureArray = <T>(value: T | T[] | undefined): T[] =>
   Array.isArray(value) ? value : value ? [value] : [];
 
-const metricTitle = (metric: string) => `${metric.charAt(0).toUpperCase() + metric.slice(1)} Progress`;
+const metricTitle = (metric: string) =>
+  `${metric.charAt(0).toUpperCase() + metric.slice(1)} Progress`;
 
 const metricUnit = (metric: string) => {
   switch (metric) {
-  case 'mastery':
-    return '%';
-  case 'sessions':
-    return 'sessions';
-  case 'time':
-    return 'minutes';
-  case 'concepts':
-    return 'concepts';
-  default:
-    return '';
+    case 'mastery':
+      return '%';
+    case 'sessions':
+      return 'sessions';
+    case 'time':
+      return 'minutes';
+    case 'concepts':
+      return 'concepts';
+    default:
+      return '';
   }
 };
 
@@ -57,38 +58,45 @@ const periodToDays: Record<ProgressChartParams['period'], number> = {
   week: 7,
   month: 30,
   quarter: 90,
-  year: 365
+  year: 365,
 };
 
 const buildLearningTrend = (
   data: Array<{ date: Date; value: number }>,
-  period: 'daily' | 'weekly' | 'monthly'
+  period: 'daily' | 'weekly' | 'monthly',
 ): LearningTrendDisplay => {
   const values = data.map((point) => point.value);
   const average = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
   const peak = values.length ? Math.max(...values) : 0;
-  const improvement = values.length > 1 ? ((values[values.length - 1] - values[0]) / Math.max(values[0], 1)) * 100 : 0;
+  const improvement =
+    values.length > 1
+      ? ((values[values.length - 1] - values[0]) / Math.max(values[0], 1)) * 100
+      : 0;
   return {
     period,
     dataPoints: data.map((point) => ({ date: point.date, value: point.value })),
     average,
     peak,
-    improvement
+    improvement,
   };
 };
 
-const usageSummary = (events: Array<{ event_type: string; event_data: string | null }>): UsageStatsDisplay => {
+const usageSummary = (
+  events: Array<{ event_type: string; event_data: string | null }>,
+): UsageStatsDisplay => {
   const overall = {
     totalLearningTime: events.length * 30,
     totalSessions: events.filter((event) => event.event_type === 'session_start').length,
     conceptsLearned: events.filter((event) => event.event_type === 'concept_studied').length,
     skillsAcquired: events.filter((event) => event.event_type === 'mastery_improved').length,
-    practiceExercisesCompleted: events.filter((event) => event.event_type === 'assessment_generated').length,
-    accuracyRate: 0.9
+    practiceExercisesCompleted: events.filter(
+      (event) => event.event_type === 'assessment_generated',
+    ).length,
+    accuracyRate: 0.9,
   };
   const metadata = {
     generatedAt: new Date().toISOString(),
-    period: 'custom'
+    period: 'custom',
   } as const;
 
   return {
@@ -96,23 +104,31 @@ const usageSummary = (events: Array<{ event_type: string; event_data: string | n
     overall,
     patterns: {
       dailyAverage: overall.totalSessions / 7,
-      weeklyPattern: { monday: 2, tuesday: 3, wednesday: 2, thursday: 2, friday: 1, saturday: 1, sunday: 1 },
+      weeklyPattern: {
+        monday: 2,
+        tuesday: 3,
+        wednesday: 2,
+        thursday: 2,
+        friday: 1,
+        saturday: 1,
+        sunday: 1,
+      },
       peakHours: ['10:00-12:00', '15:00-17:00'],
-      consistency: 0.78
+      consistency: 0.78,
     },
     engagement: {
       sessionsPerDay: 1.5,
       averageSessionLength: 45,
       completionRate: 0.85,
-      returnRate: 0.72
+      returnRate: 0.72,
     },
-    metadata
+    metadata,
   };
 };
 
 const buildTokenSummary = (
   events: Array<{ event_data: string | null }>,
-  timeRange: string
+  timeRange: string,
 ): TokenUsageDisplay => {
   let inputTokens = 0;
   let outputTokens = 0;
@@ -131,27 +147,37 @@ const buildTokenSummary = (
       inputTokens,
       outputTokens,
       estimatedCost: totalTokens * 0.00001,
-      usageTrend: 'stable'
+      usageTrend: 'stable',
     },
     providers: [
-      { provider: 'openai', tokens: totalTokens * 0.6, cost: totalTokens * 0.00001 * 0.6, percentage: 60 },
-      { provider: 'local', tokens: totalTokens * 0.4, cost: totalTokens * 0.00001 * 0.4, percentage: 40 }
+      {
+        provider: 'openai',
+        tokens: totalTokens * 0.6,
+        cost: totalTokens * 0.00001 * 0.6,
+        percentage: 60,
+      },
+      {
+        provider: 'local',
+        tokens: totalTokens * 0.4,
+        cost: totalTokens * 0.00001 * 0.4,
+        percentage: 40,
+      },
     ],
     features: [
       { feature: 'chat', tokens: totalTokens * 0.5, percentage: 50 },
       { feature: 'knowledge', tokens: totalTokens * 0.3, percentage: 30 },
-      { feature: 'content', tokens: totalTokens * 0.2, percentage: 20 }
+      { feature: 'content', tokens: totalTokens * 0.2, percentage: 20 },
     ],
     projections: {
       nextPeriodEstimate: totalTokens * 1.1,
       costEstimate: totalTokens * 0.00001 * 1.1,
       growthRate: 0.1,
-      recommendations: ['Review usage during peak hours', 'Cache frequent requests']
+      recommendations: ['Review usage during peak hours', 'Cache frequent requests'],
     },
     metadata: {
       generatedAt: new Date().toISOString(),
-      period: timeRange
-    }
+      period: timeRange,
+    },
   };
 };
 
@@ -185,7 +211,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
         masteryLevel: Math.round(((row.difficulty_level ?? 1) / 5) * 100),
         tags: ensureArray<string>(metadata.tags as string[] | undefined),
         summary: row.description ?? String(metadata.summary ?? ''),
-        status: metadata.sessionStatus as string | undefined
+        status: metadata.sessionStatus as string | undefined,
       };
     });
   };
@@ -208,11 +234,13 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       trend: 'stable',
       relatedConcepts: [],
       prerequisites: [],
-      nextSteps: []
+      nextSteps: [],
     }));
   };
 
-  const aggregateSessions = async (periodDays: number): Promise<Array<{ date: Date; value: number }>> => {
+  const aggregateSessions = async (
+    periodDays: number,
+  ): Promise<Array<{ date: Date; value: number }>> => {
     serviceLogger.debug('Aggregating sessions', { periodDays });
     const since = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
     const rows = await db
@@ -230,7 +258,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
 
     return Object.entries(buckets).map(([day, count]) => ({
       date: new Date(day),
-      value: count
+      value: count,
     }));
   };
 
@@ -254,7 +282,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       trend: 'stable',
       relatedConcepts: [],
       prerequisites: [],
-      nextSteps: []
+      nextSteps: [],
     };
   };
 
@@ -267,7 +295,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
         getAchievements(),
         getLearningTrends('weekly'),
         getStudyStreak(),
-        getTimeStats()
+        getTimeStats(),
       ]);
 
     return {
@@ -276,7 +304,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       achievements,
       learningTrends: [learningTrend],
       studyStreak,
-      timeStats
+      timeStats,
     };
   };
 
@@ -291,7 +319,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       data: dataPoints.map((point) => ({ date: point.date, value: point.value })),
       goal: params.conceptIds?.length ? 100 : undefined,
       unit: metricUnit(params.metric),
-      period: params.period
+      period: params.period,
     };
   };
 
@@ -304,8 +332,14 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     return progress;
   };
 
-  const updateConceptProgress = async (conceptId: string, update: ConceptProgressUpdate): Promise<void> => {
-    serviceLogger.info('Updating concept progress', { conceptId, masteryLevel: update.masteryLevel });
+  const updateConceptProgress = async (
+    conceptId: string,
+    update: ConceptProgressUpdate,
+  ): Promise<void> => {
+    serviceLogger.info('Updating concept progress', {
+      conceptId,
+      masteryLevel: update.masteryLevel,
+    });
     const now = new Date().toISOString();
     await db
       .insertInto('concept_progress')
@@ -322,7 +356,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
         confidence_level: 3,
         last_studied: now,
         created_at: now,
-        updated_at: now
+        updated_at: now,
       })
       .onConflict((oc) =>
         oc.column('concept_id').doUpdateSet({
@@ -331,8 +365,8 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
           sessions_studied: 1,
           average_performance: update.masteryLevel,
           updated_at: now,
-          last_studied: now
-        })
+          last_studied: now,
+        }),
       )
       .execute();
   };
@@ -355,7 +389,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
         session_type: 'general',
         metadata: JSON.stringify({ tags: session.tags ?? [], goals: session.concepts }),
         created_at: now,
-        updated_at: now
+        updated_at: now,
       })
       .execute();
 
@@ -370,7 +404,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
             mastery_before: 0,
             mastery_after: 0,
             interaction_count: 0,
-            created_at: now
+            created_at: now,
           })
           .onConflict((oc) => oc.column('session_id').column('concept_id').doNothing())
           .execute();
@@ -380,7 +414,10 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     return sessionId;
   };
 
-  const updateSession = async (sessionId: string, updates: Partial<LearningSession>): Promise<void> => {
+  const updateSession = async (
+    sessionId: string,
+    updates: Partial<LearningSession>,
+  ): Promise<void> => {
     serviceLogger.info('Updating session', { sessionId });
     const existing = await db
       .selectFrom('learning_sessions')
@@ -393,13 +430,13 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     }
 
     const updatePayload: Partial<LearningSession> = {
-      ...updates
+      ...updates,
     };
 
     // Add updated_at to the database update but not to the LearningSession interface
     const dbUpdatePayload = {
       ...updates,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     await db
@@ -430,7 +467,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
         conceptsExplored: ensureArray<string>(metadata.concepts as string[] | undefined),
         masteryLevel: Math.round(((row.difficulty_level ?? 1) / 5) * 100),
         tags: ensureArray<string>(metadata.tags as string[] | undefined),
-        summary: row.description ?? String(metadata.summary ?? '')
+        summary: row.description ?? String(metadata.summary ?? ''),
       };
     });
   };
@@ -450,7 +487,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       category: (row.category as AchievementDisplay['category']) ?? 'learning',
       rarity: 'common',
       unlockedAt: row.unlocked_at ? new Date(row.unlocked_at) : new Date(0),
-      progress: row.unlocked_at ? 100 : 0
+      progress: row.unlocked_at ? 100 : 0,
     }));
   };
 
@@ -459,7 +496,9 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     return getAchievements();
   };
 
-  const getLearningTrends = async (period: 'daily' | 'weekly' | 'monthly'): Promise<LearningTrendDisplay> => {
+  const getLearningTrends = async (
+    period: 'daily' | 'weekly' | 'monthly',
+  ): Promise<LearningTrendDisplay> => {
     serviceLogger.debug('Calculating learning trends', { period });
     const days = period === 'daily' ? 7 : period === 'weekly' ? 30 : 90;
     const data = await aggregateSessions(days);
@@ -474,7 +513,9 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       .orderBy('created_at', 'desc')
       .execute();
 
-    const dates = Array.from(new Set(sessions.map((row) => formatDateKey(new Date(row.created_at)))));
+    const dates = Array.from(
+      new Set(sessions.map((row) => formatDateKey(new Date(row.created_at)))),
+    );
     let currentStreak = 0;
     let longestStreak = 0;
     let lastDate = '';
@@ -495,14 +536,17 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       currentStreak,
       longestStreak,
       lastStudyDate: lastDate ? new Date(lastDate) : new Date(),
-      streakHistory: dates.map((val) => new Date(val))
+      streakHistory: dates.map((val) => new Date(val)),
     };
   };
 
   const getTimeStats = async (): Promise<TimeStatsDisplay> => {
     serviceLogger.debug('Collecting time statistics');
     const rows = await db.selectFrom('learning_sessions').selectAll().execute();
-    const totalStudyTime = rows.reduce((sum, row) => sum + Math.max(0, (row.duration_seconds ?? 0) / 60), 0);
+    const totalStudyTime = rows.reduce(
+      (sum, row) => sum + Math.max(0, (row.duration_seconds ?? 0) / 60),
+      0,
+    );
     const averageSessionTime = rows.length ? totalStudyTime / rows.length : 0;
     const hours = rows.map((row) => new Date(row.start_time).getHours());
     const hourCounts = hours.reduce<Record<number, number>>((acc, hour) => {
@@ -510,13 +554,13 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       return acc;
     }, {});
     const mostProductiveHour = Number(
-      Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 12
+      Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 12,
     );
     const studyDays = new Set(rows.map((row) => formatDateKey(new Date(row.created_at))));
     const now = new Date();
     const thisMonth = studyDays.size;
     const thisWeek = rows.filter(
-      (row) => new Date(row.created_at) > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      (row) => new Date(row.created_at) > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
     ).length;
 
     return {
@@ -525,7 +569,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
       totalSessions: rows.length,
       mostProductiveHour,
       studyDaysThisMonth: thisMonth,
-      studyDaysThisWeek: thisWeek
+      studyDaysThisWeek: thisWeek,
     };
   };
 
@@ -537,7 +581,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     const payload = {
       sessions,
       achievements,
-      progress
+      progress,
     };
 
     if (format === 'json') {
@@ -557,7 +601,10 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     properties?: Record<string, unknown>;
     context?: Record<string, unknown>;
   }): Promise<void> => {
-    serviceLogger.debug('Tracking analytics event', { type: event.eventType, userId: event.userId });
+    serviceLogger.debug('Tracking analytics event', {
+      type: event.eventType,
+      userId: event.userId,
+    });
     const now = new Date().toISOString();
     await db
       .insertInto('analytics')
@@ -568,12 +615,14 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
         concept_id: event.context?.conceptId as string | undefined,
         event_data: JSON.stringify({ ...event.properties, context: event.context }),
         timestamp: now,
-        created_at: now
+        created_at: now,
       })
       .execute();
   };
 
-  const unlockAchievement = async (achievementId: string): Promise<{ success: boolean; message: string }> => {
+  const unlockAchievement = async (
+    achievementId: string,
+  ): Promise<{ success: boolean; message: string }> => {
     serviceLogger.info('Unlocking achievement', { achievementId });
     const now = new Date().toISOString();
     const result = await db
@@ -590,7 +639,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
   const getUsageStats = async (
     timeRange: '7days' | '30days' | '90days' | '1year',
     includePatterns = true,
-    includeEngagement = true
+    includeEngagement = true,
   ): Promise<UsageStatsDisplay> => {
     serviceLogger.debug('Fetching usage stats', { timeRange });
     const events = await db.selectFrom('analytics').selectAll().execute();
@@ -610,7 +659,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     timeRange: '7days' | '30days' | '90days' | '1year',
     includeByProvider = true,
     includeByFeature = true,
-    includeProjections = true
+    includeProjections = true,
   ): Promise<TokenUsageDisplay> => {
     serviceLogger.debug('Fetching token usage', { timeRange });
     const events = await db.selectFrom('analytics').select(['event_data']).execute();
@@ -645,7 +694,7 @@ export const createAnalyticsService = ({ db, loggerService }: AnalyticsServiceDe
     trackEvent,
     unlockAchievement,
     getUsageStats,
-    getTokenUsage
+    getTokenUsage,
   };
 };
 

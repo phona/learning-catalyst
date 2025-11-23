@@ -1,79 +1,85 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import type { Driver, CompiledQuery, DatabaseConnection } from 'kysely'
-import { Kysely, SqliteAdapter as KyselySqliteAdapter, SqliteIntrospector, SqliteQueryCompiler, QueryResult } from 'kysely'
-import { setdbPath, executeQuery as sqliteExecuteQuery, fetchAll } from 'sqlite-electron'
-import { Database } from './kysely-schema'
-import { MigrationManager, loadAllMigrations } from './migrations'
+import fs from 'node:fs';
+import path from 'node:path';
+import type { Driver, CompiledQuery, DatabaseConnection } from 'kysely';
+import {
+  Kysely,
+  SqliteAdapter as KyselySqliteAdapter,
+  SqliteIntrospector,
+  SqliteQueryCompiler,
+  QueryResult,
+} from 'kysely';
+import { setdbPath, executeQuery as sqliteExecuteQuery, fetchAll } from 'sqlite-electron';
+import { Database } from './kysely-schema';
+import { MigrationManager, loadAllMigrations } from './migrations';
 
-const DATABASE_DIR = '.catalyst'
-const DATABASE_FILE = 'learning_catalyst.db'
+const DATABASE_DIR = '.catalyst';
+const DATABASE_FILE = 'learning_catalyst.db';
 
 function getCatalystDir(): string {
-  return path.join(process.cwd(), DATABASE_DIR)
+  return path.join(process.cwd(), DATABASE_DIR);
 }
 
 export function getDefaultDatabasePath(): string {
-  const catalystDir = getCatalystDir()
+  const catalystDir = getCatalystDir();
   if (!fs.existsSync(catalystDir)) {
     try {
-      fs.mkdirSync(catalystDir, { recursive: true })
+      fs.mkdirSync(catalystDir, { recursive: true });
     } catch (error) {
-      console.warn('Failed to create .catalyst directory:', error)
+      console.warn('Failed to create .catalyst directory:', error);
     }
   }
-  return path.join(catalystDir, DATABASE_FILE)
+  return path.join(catalystDir, DATABASE_FILE);
 }
 
 async function ensureDatabasePath(dbPath: string): Promise<void> {
-  const dir = path.dirname(dbPath)
+  const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
+    fs.mkdirSync(dir, { recursive: true });
   }
-  await setdbPath(dbPath)
+  await setdbPath(dbPath);
 }
 
 export async function createSqliteDriverFactory(dbPath: string): Promise<() => Driver> {
-  await ensureDatabasePath(dbPath)
+  await ensureDatabasePath(dbPath);
 
   const driver: Driver = {
     init: async () => {},
     acquireConnection: async (): Promise<DatabaseConnection> => ({
       async executeQuery<R>(compiledQuery: CompiledQuery<any>): Promise<QueryResult<R>> {
-        const sql = compiledQuery.sql
-        const params = (compiledQuery.parameters ?? []) as (string | number | Buffer | null)[]
-        const normalized = sql.trim().toLowerCase()
-        const isSelectLike = normalized.startsWith('select') || normalized.startsWith('with')
+        const sql = compiledQuery.sql;
+        const params = (compiledQuery.parameters ?? []) as (string | number | Buffer | null)[];
+        const normalized = sql.trim().toLowerCase();
+        const isSelectLike = normalized.startsWith('select') || normalized.startsWith('with');
 
         if (isSelectLike) {
-          const rows = await fetchAll(sql, params) as R[]
-          return { rows }
+          const rows = (await fetchAll(sql, params)) as R[];
+          return { rows };
         }
 
-        await sqliteExecuteQuery(sql, params)
-        return { rows: [] as R[] }
+        await sqliteExecuteQuery(sql, params);
+        return { rows: [] as R[] };
       },
       async *streamQuery<R>(): AsyncGenerator<QueryResult<R>, never, unknown> {
-        throw new Error('Streaming queries are not supported in this adapter')
-      }
+        throw new Error('Streaming queries are not supported in this adapter');
+      },
     }),
     beginTransaction: async () => {
-      await sqliteExecuteQuery('BEGIN TRANSACTION', [])
+      await sqliteExecuteQuery('BEGIN TRANSACTION', []);
     },
     commitTransaction: async () => {
-      await sqliteExecuteQuery('COMMIT', [])
+      await sqliteExecuteQuery('COMMIT', []);
     },
     rollbackTransaction: async () => {
-      await sqliteExecuteQuery('ROLLBACK', [])
+      await sqliteExecuteQuery('ROLLBACK', []);
     },
     releaseConnection: async () => {},
     destroy: async () => {
       // Close any active connections and flush any pending writes
-      await sqliteExecuteQuery('PRAGMA optimize', [])
-    }
-  }
+      await sqliteExecuteQuery('PRAGMA optimize', []);
+    },
+  };
 
-  return () => driver
+  return () => driver;
 }
 
 export function createDatabase(driverFactory: () => Driver): Kysely<Database> {
@@ -81,27 +87,27 @@ export function createDatabase(driverFactory: () => Driver): Kysely<Database> {
     createDriver: driverFactory,
     createQueryCompiler: () => new SqliteQueryCompiler(),
     createAdapter: () => new KyselySqliteAdapter(),
-    createIntrospector: (db: Kysely<Database>) => new SqliteIntrospector(db)
-  }
+    createIntrospector: (db: Kysely<Database>) => new SqliteIntrospector(db),
+  };
 
-  return new Kysely<Database>({ dialect })
+  return new Kysely<Database>({ dialect });
 }
 
 export async function createDatabaseAtPath(dbPath: string): Promise<Kysely<Database>> {
-  const driverFactory = await createSqliteDriverFactory(dbPath)
-  return createDatabase(driverFactory)
+  const driverFactory = await createSqliteDriverFactory(dbPath);
+  return createDatabase(driverFactory);
 }
 
 export async function runMigrations(driverFactory: () => Driver): Promise<void> {
-  const db = createDatabase(driverFactory)
-  const migrations = await loadAllMigrations()
-  const migrator = new MigrationManager(db, migrations)
-  await migrator.migrateToLatest()
+  const db = createDatabase(driverFactory);
+  const migrations = await loadAllMigrations();
+  const migrator = new MigrationManager(db, migrations);
+  await migrator.migrateToLatest();
 }
 
 export async function runMigrationsAtPath(dbPath: string): Promise<void> {
-  const driverFactory = await createSqliteDriverFactory(dbPath)
-  await runMigrations(driverFactory)
+  const driverFactory = await createSqliteDriverFactory(dbPath);
+  await runMigrations(driverFactory);
 }
 
-export type { Database }
+export type { Database };

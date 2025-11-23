@@ -16,7 +16,7 @@ export type AiServiceManager = AiService & {
 
 export const createAiServiceManager = ({
   loggerService,
-  configService
+  configService,
 }: AiServiceManagerDeps): AiServiceManager => {
   let aiService: AiService | null = null;
   let ready: Promise<void> = Promise.resolve();
@@ -24,6 +24,9 @@ export const createAiServiceManager = ({
 
   const rebuild = async (config?: AppConfig): Promise<void> => {
     const resolvedConfig = config ?? (await configService.getConfig());
+    if (!resolvedConfig) {
+      throw new Error('AI service configuration is required but not available');
+    }
     aiService = createAIService({ loggerService, config: resolvedConfig });
     listeners.forEach((listener) => {
       try {
@@ -78,14 +81,16 @@ export const createAiServiceManager = ({
       }
       return aiService.getProviders();
     },
-    getAvailableModels: async () => {
-      const service = await ensureService();
-      return service.getAvailableModels();
+    getAvailableModels: () => {
+      if (!aiService) {
+        throw new Error('AI service not initialized');
+      }
+      return aiService.getAvailableModels();
     },
     waitForReady: () => ready,
     onConfigReloaded: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
-    }
+    },
   };
 };

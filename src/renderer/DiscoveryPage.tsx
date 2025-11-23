@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ContentDiscovery } from './components/Discovery/ContentDiscovery';
 

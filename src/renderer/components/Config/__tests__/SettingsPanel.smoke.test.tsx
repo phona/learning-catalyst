@@ -1,11 +1,12 @@
-
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithSettings } from '@/test/utils/renderWithServices';
 import { makeEmptyConfig } from '@/test/utils/fixtures/config';
 
 vi.mock('@/renderer/hooks/useAppServices', async () => {
-  const actual = await vi.importActual<typeof import('@/renderer/hooks/useAppServices')>('@/renderer/hooks/useAppServices');
+  const actual = await vi.importActual<typeof import('@/renderer/hooks/useAppServices')>(
+    '@/renderer/hooks/useAppServices',
+  );
   return {
     ...actual,
     useService: () => ({
@@ -38,7 +39,7 @@ describe('SettingsPanel smoke coverage', () => {
         providers: {
           'openai-config': {
             provider_type: 'openai',
-            api_key: 'test-key'
+            api_key: 'test-key',
           },
         },
         model_types: {
@@ -49,7 +50,7 @@ describe('SettingsPanel smoke coverage', () => {
             max_tokens: 2048,
             top_p: 1,
             enable_thinking: false,
-            stream: true
+            stream: true,
           },
         },
       },
@@ -60,3 +61,4 @@ describe('SettingsPanel smoke coverage', () => {
     expect(await screen.findByText('Preferences')).toBeInTheDocument();
   });
 });
+

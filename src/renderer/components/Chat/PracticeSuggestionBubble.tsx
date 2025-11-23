@@ -1,11 +1,15 @@
-
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/explicit-function-return-type, react/no-unescaped-entities */
 import React, { useState } from 'react';
-import { Message } from '@/shared/types/ai';
-import { CheckCircleIcon, XCircleIcon, ArrowPathIcon, LightBulbIcon } from '@heroicons/react/24/outline';
+import { MessageDisplay } from '@/renderer/types/message';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  ArrowPathIcon,
+  LightBulbIcon,
+} from '@heroicons/react/24/outline';
 
 interface PracticeSuggestionBubbleProps {
-  message: Message;
+  message: MessageDisplay;
   onAccept?: () => void;
   onDecline?: () => void;
   onPostpone?: () => void;
@@ -35,21 +39,24 @@ export const PracticeSuggestionBubble: React.FC<PracticeSuggestionBubbleProps> =
   onAccept,
   onDecline,
   onPostpone,
-  isStreaming = false
+  isStreaming = false,
 }) => {
   const [suggestion] = useState<PracticeSuggestion>({
     id: message.id || `suggestion-${Date.now()}`,
     type: 'practice',
     content: message.content,
-    topic: message.content.includes('React') ? 'React' : 
-      message.content.includes('TypeScript') ? 'TypeScript' : 
-        message.content.includes('JavaScript') ? 'JavaScript' : 
-          'General',
+    topic: message.content.includes('React')
+      ? 'React'
+      : message.content.includes('TypeScript')
+        ? 'TypeScript'
+        : message.content.includes('JavaScript')
+          ? 'JavaScript'
+          : 'General',
     confidence: 0.85,
     timing: {
       when: 'right now',
-      urgency: 'medium'
-    }
+      urgency: 'medium',
+    },
   });
 
   const handleAccept = () => {
@@ -78,9 +85,7 @@ export const PracticeSuggestionBubble: React.FC<PracticeSuggestionBubbleProps> =
           </span>
           <div className="flex items-center space-x-1">
             <div className="w-2 h-2 bg-violet-500 rounded-full"></div>
-            <span className="text-xs text-violet-500 dark:text-violet-400">
-              {suggestion.topic}
-            </span>
+            <span className="text-xs text-violet-500 dark:text-violet-400">{suggestion.topic}</span>
           </div>
         </header>
 
@@ -105,7 +110,7 @@ export const PracticeSuggestionBubble: React.FC<PracticeSuggestionBubbleProps> =
             <CheckCircleIcon className="w-4 h-4" />
             <span>Yes, let's practice!</span>
           </button>
-          
+
           <button
             onClick={handleDecline}
             className="flex items-center space-x-1 px-3 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors duration-200"
@@ -114,7 +119,7 @@ export const PracticeSuggestionBubble: React.FC<PracticeSuggestionBubbleProps> =
             <XCircleIcon className="w-4 h-4" />
             <span>No, thanks</span>
           </button>
-          
+
           <button
             onClick={handlePostpone}
             className="flex items-center space-x-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition-colors duration-200"
@@ -138,3 +143,4 @@ export const PracticeSuggestionBubble: React.FC<PracticeSuggestionBubbleProps> =
     </div>
   );
 };
+export default PracticeSuggestionBubble;

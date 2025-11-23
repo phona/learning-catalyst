@@ -14,19 +14,19 @@ const createTestQueryClient = (): QueryClient =>
 
 /* eslint-disable react-refresh/only-export-components */
 // Components moved to separate file to avoid Fast Refresh warning
-export const QueryLayer: React.FC<{ children: React.ReactNode; routerProps?: MemoryRouterProps }> = ({
-  children,
-  routerProps,
-}) => (
+export const QueryLayer: React.FC<{
+  children: React.ReactNode;
+  routerProps?: MemoryRouterProps;
+}> = ({ children, routerProps }) => (
   <QueryClientProvider client={createTestQueryClient()}>
     <MemoryRouter {...routerProps}>{children}</MemoryRouter>
   </QueryClientProvider>
 );
 
-export const Providers: React.FC<{ children: React.ReactNode; routerProps?: MemoryRouterProps }> = ({
-  children,
-  routerProps,
-}) => (
+export const Providers: React.FC<{
+  children: React.ReactNode;
+  routerProps?: MemoryRouterProps;
+}> = ({ children, routerProps }) => (
   <ServicesProvider>
     <QueryLayer routerProps={routerProps}>{children}</QueryLayer>
   </ServicesProvider>

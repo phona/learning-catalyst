@@ -1,15 +1,14 @@
 /**
  * Service Enhancement Utilities - Phase 2 Architecture Refactoring
- * 
+ *
  * Provides enhanced service container functionality without breaking existing patterns:
  * - Service lifecycle management
- * - Health monitoring 
+ * - Health monitoring
  * - Dependency validation
  * - Service composition
  */
 
 import { ServiceContainer } from './service-container';
-import type { ElectronAPIClient } from '../../renderer/services/api/electron-api-client';
 
 export interface ServiceLifecycle {
   initialize?(): Promise<void>;
@@ -54,10 +53,10 @@ export class ServiceEnhancer {
     name: K,
     factory: ((container: ServiceContainer) => any) | (() => any),
     singleton: boolean = true,
-    metadata?: Omit<ServiceMetadata, 'name' | 'singleton'>
+    metadata?: Omit<ServiceMetadata, 'name' | 'singleton'>,
   ): void {
     const serviceName = String(name);
-    
+
     // Validate dependencies before registration
     if (metadata?.dependsOn) {
       this.validateDependencies(serviceName, metadata.dependsOn);
@@ -65,12 +64,12 @@ export class ServiceEnhancer {
 
     // Register in underlying container
     this.container.register(name, factory, singleton);
-    
+
     // Store enhanced metadata
     this.metadata.set(serviceName, {
       name: serviceName,
       singleton,
-      ...metadata
+      ...metadata,
     });
   }
 
@@ -79,17 +78,17 @@ export class ServiceEnhancer {
    */
   async initializeServices(): Promise<void> {
     const services = this.getServicesByPriority();
-    
+
     for (const serviceName of services) {
       if (this.initialized.has(serviceName)) continue;
-      
+
       const metadata = this.metadata.get(serviceName);
       if (!metadata) continue;
 
       try {
         // Get service instance
         const service = this.container.get(serviceName as any);
-        
+
         // Initialize if lifecycle method exists
         if (metadata.lifecycle?.initialize) {
           await metadata.lifecycle.initialize.call(service);
@@ -97,14 +96,20 @@ export class ServiceEnhancer {
 
         // Mark as initialized
         this.initialized.add(serviceName);
-        
+
         // Update health status
         this.updateHealthStatus(serviceName, 'healthy');
-        
+
         console.debug(`Service '${serviceName}' initialized successfully`);
       } catch (error) {
-        this.updateHealthStatus(serviceName, 'unhealthy', error instanceof Error ? error.message : String(error));
-        throw new Error(`Failed to initialize service '${serviceName}': ${error instanceof Error ? error.message : String(error)}`);
+        this.updateHealthStatus(
+          serviceName,
+          'unhealthy',
+          error instanceof Error ? error.message : String(error),
+        );
+        throw new Error(
+          `Failed to initialize service '${serviceName}': ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   }
@@ -114,13 +119,13 @@ export class ServiceEnhancer {
    */
   async checkServiceHealth(): Promise<ServiceHealth[]> {
     const healthResults: ServiceHealth[] = [];
-    
+
     for (const serviceName of this.container.getServiceNames()) {
       const metadata = this.metadata.get(serviceName);
       const health = await this.performHealthCheck(serviceName, metadata);
       healthResults.push(health);
     }
-    
+
     return healthResults;
   }
 
@@ -130,16 +135,16 @@ export class ServiceEnhancer {
   getStats() {
     const baseStats = this.container.getStats();
     const healthStatuses = Array.from(this.healthStatus.values());
-    
-    const healthyCount = healthStatuses.filter(h => h.status === 'healthy').length;
-    const unhealthyCount = healthStatuses.filter(h => h.status === 'unhealthy').length;
-    
+
+    const healthyCount = healthStatuses.filter((h) => h.status === 'healthy').length;
+    const unhealthyCount = healthStatuses.filter((h) => h.status === 'unhealthy').length;
+
     return {
       ...baseStats,
       healthyServices: healthyCount,
       unhealthyServices: unhealthyCount,
       initializedServices: this.initialized.size,
-      servicesByPriority: this.getServicesByPriority()
+      servicesByPriority: this.getServicesByPriority(),
     };
   }
 
@@ -150,14 +155,14 @@ export class ServiceEnhancer {
     try {
       // Stop health monitoring
       this.stopHealthMonitoring();
-      
+
       // Dispose services in reverse order
       const services = this.getServicesByPriority().reverse();
-      
+
       for (const serviceName of services) {
         await this.disposeService(serviceName);
       }
-      
+
       // Clear all state
       this.metadata.clear();
       this.initialized.clear();
@@ -199,7 +204,7 @@ export class ServiceEnhancer {
 
   private getServicesByPriority(): string[] {
     const services = this.container.getServiceNames();
-    
+
     // Sort by priority
     return services.sort((a, b) => {
       const aPriority = this.metadata.get(a)?.priority ?? 0;
@@ -208,7 +213,10 @@ export class ServiceEnhancer {
     });
   }
 
-  private async performHealthCheck(serviceName: string, metadata?: ServiceMetadata): Promise<ServiceHealth> {
+  private async performHealthCheck(
+    serviceName: string,
+    metadata?: ServiceMetadata,
+  ): Promise<ServiceHealth> {
     try {
       const service = this.container.tryGet(serviceName as any);
       if (!service) {
@@ -216,7 +224,7 @@ export class ServiceEnhancer {
           name: serviceName,
           status: 'unhealthy',
           lastCheck: new Date(),
-          error: 'Service not available'
+          error: 'Service not available',
         };
       }
 
@@ -225,46 +233,50 @@ export class ServiceEnhancer {
         return {
           name: serviceName,
           status: isHealthy ? 'healthy' : 'degraded',
-          lastCheck: new Date()
+          lastCheck: new Date(),
         };
       }
 
       return {
         name: serviceName,
         status: 'healthy',
-        lastCheck: new Date()
+        lastCheck: new Date(),
       };
     } catch (error) {
       return {
         name: serviceName,
         status: 'unhealthy',
         lastCheck: new Date(),
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
-  private updateHealthStatus(serviceName: string, status: 'healthy' | 'degraded' | 'unhealthy', error?: string): void {
+  private updateHealthStatus(
+    serviceName: string,
+    status: 'healthy' | 'degraded' | 'unhealthy',
+    error?: string,
+  ): void {
     this.healthStatus.set(serviceName, {
       name: serviceName,
       status,
       lastCheck: new Date(),
-      error
+      error,
     });
   }
 
   private async disposeService(serviceName: string): Promise<void> {
     const metadata = this.metadata.get(serviceName);
-    
+
     try {
       const service = this.container.tryGet(serviceName as any);
       if (service && metadata?.lifecycle?.dispose) {
         await metadata.lifecycle.dispose.call(service);
       }
-      
+
       this.initialized.delete(serviceName);
       this.healthStatus.delete(serviceName);
-      
+
       console.debug(`Service '${serviceName}' disposed successfully`);
     } catch (error) {
       console.error(`Error disposing service '${serviceName}':`, error);
@@ -300,31 +312,48 @@ export function createEnhancedServiceContainer(): ServiceEnhancer {
 /**
  * Helper function to create enhanced renderer services
  */
-export function createEnhancedRendererServices(enhancedContainer: ServiceEnhancer, apiClient: ElectronAPIClient): void {
+export function createEnhancedRendererServices(
+  enhancedContainer: ServiceEnhancer,
+  apiClient: any,
+): void {
   // Register services with enhanced metadata
   enhancedContainer.register('electronAPIClient', () => apiClient, true, {
     priority: 1, // High priority
     dependsOn: [],
     lifecycle: {
-      healthCheck: async () => !!apiClient
-    }
-  });
-  
-  enhancedContainer.register('sessionService', (container) => {
-    const apiClient = container.get('electronAPIClient');
-    return { /* session service implementation */ };
-  }, true, {
-    priority: 2,
-    dependsOn: ['electronAPIClient']
+      healthCheck: async () => !!apiClient,
+    },
   });
 
-  enhancedContainer.register('analyticsService', (container) => {
-    const apiClient = container.get('electronAPIClient');
-    return { /* analytics service implementation */ };
-  }, true, {
-    priority: 2,
-    dependsOn: ['electronAPIClient']
-  });
+  enhancedContainer.register(
+    'sessionService',
+    (container) => {
+      const apiClient = container.get('electronAPIClient');
+      return {
+        /* session service implementation */
+      };
+    },
+    true,
+    {
+      priority: 2,
+      dependsOn: ['electronAPIClient'],
+    },
+  );
+
+  enhancedContainer.register(
+    'analyticsService',
+    (container) => {
+      const apiClient = container.get('electronAPIClient');
+      return {
+        /* analytics service implementation */
+      };
+    },
+    true,
+    {
+      priority: 2,
+      dependsOn: ['electronAPIClient'],
+    },
+  );
 }
 
 export default ServiceEnhancer;

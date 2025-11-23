@@ -7,52 +7,52 @@ const createMockAgent = (agentType: string, response: string) => ({
   invoke: vi.fn().mockResolvedValue({
     messages: [
       { role: 'user', content: 'test' },
-      { role: 'assistant', content: response }
+      { role: 'assistant', content: response },
     ],
     reasoning: [`${agentType} reasoning`],
-    suggestions: [`${agentType} suggestion`]
-  })
+    suggestions: [`${agentType} suggestion`],
+  }),
 });
 
 vi.mock('../learning-agent', () => ({
-  createLearningAgent: vi.fn(() => createMockAgent('learning', 'response'))
+  createLearningAgent: vi.fn(() => createMockAgent('learning', 'response')),
 }));
 
 vi.mock('../tutoring-agent', () => ({
-  createTutoringAgent: vi.fn(() => createMockAgent('tutoring', 'tutoring response'))
+  createTutoringAgent: vi.fn(() => createMockAgent('tutoring', 'tutoring response')),
 }));
 
 vi.mock('../assessment-agent', () => ({
-  createAssessmentAgent: vi.fn(() => createMockAgent('assessment', 'assessment response'))
+  createAssessmentAgent: vi.fn(() => createMockAgent('assessment', 'assessment response')),
 }));
 
 vi.mock('../practice-agent', () => ({
-  createPracticeAgent: vi.fn(() => createMockAgent('practice', 'practice response'))
+  createPracticeAgent: vi.fn(() => createMockAgent('practice', 'practice response')),
 }));
 
 vi.mock('../supervisor-agent', () => ({
   createSupervisorAgent: vi.fn(() => ({
     providerSettings: { providerName: 'openai', model: 'gpt-4o' },
     stream: vi.fn(),
-    invoke: vi.fn()
-  }))
+    invoke: vi.fn(),
+  })),
 }));
 
 // Mock utility functions
 vi.mock('../specialized-agent', () => ({
   formatMessages: vi.fn((messages) => messages),
-  pickAssistantMessage: vi.fn((messages) => messages[messages.length - 1])
+  pickAssistantMessage: vi.fn((messages) => messages[messages.length - 1]),
 }));
 
 vi.mock('../provider-factory', () => ({
   createProviderFactory: vi.fn(() => ({
     getProvider: vi.fn(),
-    validateSettings: vi.fn(() => true)
-  }))
+    validateSettings: vi.fn(() => true),
+  })),
 }));
 
 vi.mock('../provider-utils', () => ({
-  needsAgentRebuild: vi.fn(() => false)
+  needsAgentRebuild: vi.fn(() => false),
 }));
 
 describe('Agent Manager - Basic Tests', () => {
@@ -76,10 +76,10 @@ describe('Agent Manager - Basic Tests', () => {
         model: 'gpt-4o',
         apiKey: 'test-key',
         temperature: 0.7,
-        maxTokens: 4096
+        maxTokens: 4096,
       })),
       getProviders: vi.fn(),
-      getAvailableModels: vi.fn()
+      getAvailableModels: vi.fn(),
     };
 
     // Mock analytics service
@@ -101,7 +101,7 @@ describe('Agent Manager - Basic Tests', () => {
       importData: vi.fn(),
       unlockAchievement: vi.fn(),
       getUsageStats: vi.fn(),
-      getTokenUsage: vi.fn()
+      getTokenUsage: vi.fn(),
     };
 
     // Mock concept parsing service
@@ -110,7 +110,7 @@ describe('Agent Manager - Basic Tests', () => {
       getConcepts: vi.fn(),
       getConcept: vi.fn(),
       updateConcept: vi.fn(),
-      deleteConcept: vi.fn()
+      deleteConcept: vi.fn(),
     };
 
     // Mock learning service
@@ -124,7 +124,7 @@ describe('Agent Manager - Basic Tests', () => {
       deleteSession: vi.fn(),
       updateSession: vi.fn(),
       getSessionProgress: vi.fn(),
-      addMessage: vi.fn()
+      addMessage: vi.fn(),
     };
 
     // Mock config service
@@ -134,18 +134,18 @@ describe('Agent Manager - Basic Tests', () => {
           openai: {
             provider_type: 'openai',
             api_key: 'test-key',
-            model: 'gpt-4o'
-          }
+            model: 'gpt-4o',
+          },
         },
         model_types: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.7,
-            max_tokens: 4096
-          }
-        }
-      }
+            max_tokens: 4096,
+          },
+        },
+      },
     };
 
     mockConfigService = {
@@ -153,7 +153,7 @@ describe('Agent Manager - Basic Tests', () => {
       setConfig: vi.fn(),
       getProviderConfig: vi.fn(),
       setProviderConfig: vi.fn(),
-      onConfigChanged: vi.fn().mockResolvedValue(() => {})
+      onConfigChanged: vi.fn().mockResolvedValue(() => {}),
     };
 
     // Mock logger service
@@ -162,8 +162,8 @@ describe('Agent Manager - Basic Tests', () => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
-        debug: vi.fn()
-      }))
+        debug: vi.fn(),
+      })),
     };
 
     // Import and create agent manager
@@ -175,7 +175,7 @@ describe('Agent Manager - Basic Tests', () => {
       conceptParsingService: mockConceptParsingService,
       learningService: mockLearningService,
       loggerService: mockLoggerService,
-      configService: mockConfigService
+      configService: mockConfigService,
     });
   });
 
@@ -219,11 +219,9 @@ describe('Agent Manager - Basic Tests', () => {
     const mockRequest = {
       agentType: 'learning' as const,
       conversationId: 'conv-123',
-      messages: [
-        { role: 'user' as const, content: 'Teach me React hooks' }
-      ],
+      messages: [{ role: 'user' as const, content: 'Teach me React hooks' }],
       topic: 'React Hooks',
-      userId: 'user-123'
+      userId: 'user-123',
     };
 
     it('should run learning agent successfully', async () => {
@@ -233,7 +231,7 @@ describe('Agent Manager - Basic Tests', () => {
         content: 'response',
         model: 'gpt-4o',
         provider: 'openai',
-        agentType: 'learning'
+        agentType: 'learning',
       });
     });
 
@@ -246,12 +244,12 @@ describe('Agent Manager - Basic Tests', () => {
         properties: {
           agentType: 'learning',
           provider: 'openai',
-          model: 'gpt-4o'
+          model: 'gpt-4o',
         },
         context: {
           conversationId: 'conv-123',
-          topic: 'React Hooks'
-        }
+          topic: 'React Hooks',
+        },
       });
     });
 
@@ -259,7 +257,7 @@ describe('Agent Manager - Basic Tests', () => {
       const requestWithoutTopic = {
         agentType: 'tutoring' as const,
         conversationId: 'conv-123',
-        messages: [{ role: 'user' as const, content: 'Help me' }]
+        messages: [{ role: 'user' as const, content: 'Help me' }],
       };
 
       await agentManager.runAgent(requestWithoutTopic);
@@ -271,15 +269,18 @@ describe('Agent Manager - Basic Tests', () => {
 
   describe('Different Agent Types', () => {
     const agentTypes: Array<'learning' | 'tutoring' | 'assessment' | 'practice'> = [
-      'learning', 'tutoring', 'assessment', 'practice'
+      'learning',
+      'tutoring',
+      'assessment',
+      'practice',
     ];
 
-    agentTypes.forEach(agentType => {
+    agentTypes.forEach((agentType) => {
       it(`should run ${agentType} agent`, async () => {
         const request = {
           agentType,
           conversationId: 'conv-123',
-          messages: [{ role: 'user' as const, content: 'Test message' }]
+          messages: [{ role: 'user' as const, content: 'Test message' }],
         };
 
         const result = await agentManager.runAgent(request);
@@ -288,7 +289,7 @@ describe('Agent Manager - Basic Tests', () => {
           content: expect.any(String),
           model: 'gpt-4o',
           provider: 'openai',
-          agentType
+          agentType,
         });
       });
     });
@@ -302,9 +303,9 @@ describe('Agent Manager - Basic Tests', () => {
         messages: [
           { role: 'user' as const, content: 'First message' },
           { role: 'assistant' as const, content: 'First response' },
-          { role: 'user' as const, content: 'Follow-up question' }
+          { role: 'user' as const, content: 'Follow-up question' },
         ],
-        topic: 'Advanced Topic'
+        topic: 'Advanced Topic',
       };
 
       await agentManager.runAgent(requestWithHistory);
@@ -313,12 +314,12 @@ describe('Agent Manager - Basic Tests', () => {
       expect(mockAnalyticsService.trackEvent).toHaveBeenCalledWith({
         eventType: 'agent_response',
         properties: expect.objectContaining({
-          agentType: 'learning'
+          agentType: 'learning',
         }),
         context: expect.objectContaining({
           conversationId: 'conv-456',
-          topic: 'Advanced Topic'
-        })
+          topic: 'Advanced Topic',
+        }),
       });
     });
   });
@@ -344,7 +345,7 @@ describe('Agent Manager - Basic Tests', () => {
         agentManager.runAgent({
           agentType: 'learning' as const,
           conversationId: 'conv-123',
-          messages: [{ role: 'user' as const, content: 'test' }]
+          messages: [{ role: 'user' as const, content: 'test' }],
         });
       }).not.toThrow();
     });
@@ -354,14 +355,16 @@ describe('Agent Manager - Basic Tests', () => {
 
       const { createAgentManager } = await import('../agent-manager');
 
-      await expect(createAgentManager({
-        aiService: mockAiService,
-        analyticsService: mockAnalyticsService,
-        conceptParsingService: mockConceptParsingService,
-        learningService: mockLearningService,
-        loggerService: mockLoggerService,
-        configService: mockConfigService
-      })).rejects.toThrow('Config load failed');
+      await expect(
+        createAgentManager({
+          aiService: mockAiService,
+          analyticsService: mockAnalyticsService,
+          conceptParsingService: mockConceptParsingService,
+          learningService: mockLearningService,
+          loggerService: mockLoggerService,
+          configService: mockConfigService,
+        }),
+      ).rejects.toThrow('Config load failed');
     });
   });
 
@@ -385,7 +388,7 @@ describe('Agent Manager - Basic Tests', () => {
       const request = {
         agentType: 'learning' as const,
         conversationId: 'conv-123',
-        messages: [{ role: 'user' as const, content: 'test' }]
+        messages: [{ role: 'user' as const, content: 'test' }],
       };
 
       // Verify the operation completes successfully

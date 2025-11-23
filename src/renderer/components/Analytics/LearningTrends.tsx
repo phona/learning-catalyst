@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { JSX } from 'react';
 import { SimpleAnalyticsModule } from './Achievements';
@@ -18,7 +15,6 @@ interface LearningTrendsProps {
   };
   className?: string;
 }
-
 
 const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, className = '' }) => {
   const [trends, setTrends] = useState<LearningTrendsType | null>(null);
@@ -69,33 +65,68 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
 
   const getTrendIcon = (direction: 'up' | 'down' | 'stable'): JSX.Element => {
     switch (direction) {
-    case 'up':
-      return (
-        <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Trending up">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-        </svg>
-      );
-    case 'down':
-      return (
-        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Trending down">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-        </svg>
-      );
-    default:
-      return (
-        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="Stable trend">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
-        </svg>
-      );
+      case 'up':
+        return (
+          <svg
+            className="w-4 h-4 text-green-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="Trending up"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+            />
+          </svg>
+        );
+      case 'down':
+        return (
+          <svg
+            className="w-4 h-4 text-red-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="Trending down"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"
+            />
+          </svg>
+        );
+      default:
+        return (
+          <svg
+            className="w-4 h-4 text-gray-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            role="img"
+            aria-label="Stable trend"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" />
+          </svg>
+        );
     }
   };
 
   if (loading) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div
+        className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+      >
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
-          <span className="text-gray-600 dark:text-gray-400" aria-live="polite">Loading trends...</span>
+          <span className="text-gray-600 dark:text-gray-400" aria-live="polite">
+            Loading trends...
+          </span>
         </div>
       </div>
     );
@@ -103,10 +134,22 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
 
   if (error != null && error !== '') {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div
+        className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+      >
         <div className="text-center text-red-600 dark:text-red-400">
-          <svg className="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="w-6 h-6 mx-auto mb-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <p className="text-sm">Error loading trends: {error}</p>
         </div>
@@ -116,7 +159,9 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
 
   if (!trends) {
     return (
-      <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div
+        className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+      >
         <div className="text-center text-gray-500 dark:text-gray-400">
           <p>No trend data available</p>
         </div>
@@ -124,11 +169,13 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
     );
   }
 
-  const studyTimeTrend = getTrendDirection(trends.dailyStudyTime.map(d => d.minutes));
-  const masteryTrend = getTrendDirection(trends.masteryProgress.map(d => d.avgMastery));
+  const studyTimeTrend = getTrendDirection(trends.dailyStudyTime.map((d) => d.minutes));
+  const masteryTrend = getTrendDirection(trends.masteryProgress.map((d) => d.avgMastery));
 
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 ${className}`}
+    >
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Learning Trends</h3>
         <div className="flex gap-2">
@@ -154,7 +201,10 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-blue-600 dark:text-blue-400 mb-1">Avg Daily Study</div>
-              <div className="text-xl font-bold text-blue-900 dark:text-blue-100" data-testid="avg-study-time">
+              <div
+                className="text-xl font-bold text-blue-900 dark:text-blue-100"
+                data-testid="avg-study-time"
+              >
                 {formatTime(getAverageStudyTime)}
               </div>
             </div>
@@ -166,9 +216,14 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-green-600 dark:text-green-400 mb-1">Mastery Trend</div>
-              <div className="text-xl font-bold text-green-900 dark:text-green-100" data-testid="mastery-trend">
+              <div
+                className="text-xl font-bold text-green-900 dark:text-green-100"
+                data-testid="mastery-trend"
+              >
                 {trends.masteryProgress.length > 0
-                  ? Math.round(trends.masteryProgress[trends.masteryProgress.length - 1].avgMastery * 100) / 100
+                  ? Math.round(
+                      trends.masteryProgress[trends.masteryProgress.length - 1].avgMastery * 100,
+                    ) / 100
                   : 0}
               </div>
             </div>
@@ -179,13 +234,28 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm text-purple-600 dark:text-purple-400 mb-1">Total Sessions</div>
-              <div className="text-xl font-bold text-purple-900 dark:text-purple-100" data-testid="total-sessions">
+              <div className="text-sm text-purple-600 dark:text-purple-400 mb-1">
+                Total Sessions
+              </div>
+              <div
+                className="text-xl font-bold text-purple-900 dark:text-purple-100"
+                data-testid="total-sessions"
+              >
                 {Object.values(trends.sessionTypes).reduce((sum, count) => sum + count, 0)}
               </div>
             </div>
-            <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <svg
+              className="w-6 h-6 text-purple-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
             </svg>
           </div>
         </div>
@@ -194,7 +264,9 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
       {/* Session Types Breakdown */}
       {Object.keys(trends.sessionTypes).length > 0 && (
         <div className="mb-6">
-          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Session Types</h4>
+          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
+            Session Types
+          </h4>
           <div className="space-y-2">
             {Object.entries(trends.sessionTypes).map(([sessionType, count]) => (
               <div key={sessionType} className="flex items-center justify-between">
@@ -216,36 +288,53 @@ const LearningTrendsComponent: React.FC<LearningTrendsProps> = ({ analytics, cla
       {/* Recent Activity */}
       {trends.dailyStudyTime.length > 0 && (
         <div>
-          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">Recent Activity</h4>
+          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
+            Recent Activity
+          </h4>
           <div className="space-y-2 max-h-40 overflow-y-auto">
-            {trends.dailyStudyTime.slice(-7).reverse().map((day) => {
-              const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              });
+            {trends.dailyStudyTime
+              .slice(-7)
+              .reverse()
+              .map((day) => {
+                const formattedDate = new Date(day.date).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                });
 
-              return (
-                <div key={day.date} className="flex items-center justify-between text-sm" data-testid="recent-activity-entry">
-                  <span className="text-gray-600 dark:text-gray-400" data-testid="recent-activity-date">
-                    {formattedDate}
-                  </span>
-                  <span className="text-gray-900 dark:text-gray-100 font-medium" data-testid="recent-activity-duration">
-                    {formatTime(day.minutes)}
-                  </span>
-                </div>
-              );
-            })}
+                return (
+                  <div
+                    key={day.date}
+                    className="flex items-center justify-between text-sm"
+                    data-testid="recent-activity-entry"
+                  >
+                    <span
+                      className="text-gray-600 dark:text-gray-400"
+                      data-testid="recent-activity-date"
+                    >
+                      {formattedDate}
+                    </span>
+                    <span
+                      className="text-gray-900 dark:text-gray-100 font-medium"
+                      data-testid="recent-activity-duration"
+                    >
+                      {formatTime(day.minutes)}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}
 
       {/* Show no data message when all sections are empty */}
-      {!trends.dailyStudyTime.length && !trends.masteryProgress.length && !Object.keys(trends.sessionTypes).length && (
-        <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
-          <p>No trend data available</p>
-        </div>
-      )}
+      {!trends.dailyStudyTime.length &&
+        !trends.masteryProgress.length &&
+        !Object.keys(trends.sessionTypes).length && (
+          <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
+            <p>No trend data available</p>
+          </div>
+        )}
     </div>
   );
 };

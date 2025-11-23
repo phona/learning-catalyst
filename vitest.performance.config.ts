@@ -13,18 +13,10 @@ export default defineConfig({
   test: {
     name: 'performance',
     environment: 'node',
-    include: [
-      'src/test/performance/**/*.{test,spec}.{js,ts}'
-    ],
-    exclude: [
-      'node_modules',
-      'dist',
-      'src/test/integration'
-    ],
+    include: ['src/test/performance/**/*.{test,spec}.{js,ts}'],
+    exclude: ['node_modules', 'dist', 'src/test/integration'],
     globals: true,
-    setupFiles: [
-      './src/test/setup/performance/setup.ts'
-    ],
+    setupFiles: ['./src/test/setup/performance/setup.ts'],
     testTimeout: 300000, // 5 minutes for performance tests
     hookTimeout: 30000,
     isolate: true,
@@ -33,13 +25,13 @@ export default defineConfig({
       threads: {
         singleThread: false,
         minThreads: 1,
-        maxThreads: 8 // Maximum threads for concurrent testing
-      }
+        maxThreads: 8, // Maximum threads for concurrent testing
+      },
     },
     reporters: ['verbose', 'json'],
     outputFile: {
-      'junit': 'test-results/performance/junit.xml',
-      'json': 'test-results/performance/results.json'
+      junit: 'test-results/performance/junit.xml',
+      json: 'test-results/performance/results.json',
     },
     coverage: {
       provider: 'v8',
@@ -49,7 +41,7 @@ export default defineConfig({
         'electron/main/services/**/*.{js,ts}',
         'electron/main/handlers/**/*.{js,ts}',
         'src/main/services/**/*.{js,ts}',
-        'src/shared/modules/**/*.{js,ts}'
+        'src/shared/modules/**/*.{js,ts}',
       ],
       exclude: [
         '**/*.test.{js,ts}',
@@ -57,33 +49,28 @@ export default defineConfig({
         '**/node_modules/**',
         '**/dist/**',
         'test/**',
-        'coverage/**'
+        'coverage/**',
       ],
       thresholds: {
         global: {
           branches: 50,
           functions: 55,
           lines: 60,
-          statements: 60
-        }
-      }
+          statements: 60,
+        },
+      },
     },
     // Performance-specific configuration
     benchmark: {
-      include: [
-        'test/performance/**/*.{bench,benchmark}.{js,ts}'
-      ],
-      exclude: [
-        'node_modules',
-        'dist'
-      ],
-      outputFile: 'test-results/performance/benchmarks.json'
+      include: ['test/performance/**/*.{bench,benchmark}.{js,ts}'],
+      exclude: ['node_modules', 'dist'],
+      outputFile: 'test-results/performance/benchmarks.json',
     },
     // Allow concurrent test execution for performance testing
     sequence: {
       concurrent: true,
-      shuffle: false // Keep order for predictable performance metrics
-    }
+      shuffle: false, // Keep order for predictable performance metrics
+    },
   },
   resolve: {
     alias: {
@@ -92,14 +79,14 @@ export default defineConfig({
       '@test': path.resolve(__dirname, './src/test'),
       '@performance': path.resolve(__dirname, './test/performance'),
       '@fixtures': path.resolve(__dirname, './test/fixtures'),
-      '@mocks': path.resolve(__dirname, './test/utils/mocks')
-    }
+      '@mocks': path.resolve(__dirname, './test/utils/mocks'),
+    },
   },
   define: {
     'process.env.NODE_ENV': '"test"',
-    'process.env.PERFORMANCE_TEST': '"true"'
+    'process.env.PERFORMANCE_TEST': '"true"',
   },
   esbuild: {
-    target: 'node18'
-  }
+    target: 'node18',
+  },
 });

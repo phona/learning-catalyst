@@ -479,7 +479,7 @@ export class ConceptParsingError extends Error {
     message: string,
     public type: 'parsing' | 'extraction' | 'validation' | 'generation',
     public context?: string,
-    public cause?: Error
+    public cause?: Error,
   ) {
     super(message);
     this.name = 'ConceptParsingError';
@@ -492,7 +492,7 @@ export class AIExtractionError extends ConceptParsingError {
     public model: string,
     public provider: string,
     context?: string,
-    cause?: Error
+    cause?: Error,
   ) {
     super(message, 'extraction', context, cause);
     this.name = 'AIExtractionError';
@@ -504,7 +504,7 @@ export class ValidationError extends ConceptParsingError {
     message: string,
     public field: string,
     public value: any,
-    context?: string
+    context?: string,
   ) {
     super(message, 'validation', context);
     this.name = 'ValidationError';
@@ -516,7 +516,13 @@ export class ValidationError extends ConceptParsingError {
 export type ConceptStatus = 'extracted' | 'validated' | 'approved' | 'rejected' | 'pending';
 export type LearningStatus = 'not_started' | 'in_progress' | 'completed' | 'mastered';
 export type AssessmentType = 'diagnostic' | 'formative' | 'summative' | 'practice';
-export type QuestionType = 'recall' | 'comprehension' | 'application' | 'analysis' | 'synthesis' | 'evaluation';
+export type QuestionType =
+  | 'recall'
+  | 'comprehension'
+  | 'application'
+  | 'analysis'
+  | 'synthesis'
+  | 'evaluation';
 
 export interface PaginationOptions {
   page: number;

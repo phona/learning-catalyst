@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveProviderSettings } from '../provider-utils';
 import type { ConfigService } from '@/main/services/core/config/config-service';
-import { IPCErrorException } from '@/shared/types/ipc-error';
+import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 
 const createConfigService = (config: unknown): ConfigService => ({
   getConfig: vi.fn().mockResolvedValue(config),
@@ -9,20 +9,19 @@ const createConfigService = (config: unknown): ConfigService => ({
   getProviderConfig: vi.fn(),
   setProviderConfig: vi.fn(),
   onConfigChanged: vi.fn().mockReturnValue(() => undefined),
-  get: vi.fn() as any // Added missing property
+  get: vi.fn() as any, // Added missing property
+  isSetupComplete: vi.fn().mockResolvedValue(true), // Added missing property
 });
 
 describe('resolveProviderSettings', () => {
   it('throws a structured error when chat config is missing', async () => {
     const service = createConfigService({ ai: {} });
 
-    await expect(resolveProviderSettings(service)).rejects.toThrowError(IPCErrorException);
-    await expect(resolveProviderSettings(service)).rejects.toMatchObject({
-      payload: {
-        type: 'CONFIG_ERROR',
-        code: 'provider.config.chat_missing',
-        needsSetup: true
-      }
+    const errorPromise = resolveProviderSettings(service);
+    await expect(errorPromise).rejects.toMatchObject({
+      type: 'CONFIG_ERROR',
+      code: 'provider.config.chat_missing',
+      needsSetup: true,
     });
   });
 
@@ -33,17 +32,17 @@ describe('resolveProviderSettings', () => {
         model_types: {
           chat: {
             provider: 'openai',
-            model: 'gpt-4o'
-          }
-        }
-      }
+            model: 'gpt-4o',
+          },
+        },
+      },
     });
 
-    await expect(resolveProviderSettings(service)).rejects.toThrowError(IPCErrorException);
-    await expect(resolveProviderSettings(service)).rejects.toMatchObject({
-      payload: {
-        code: 'provider.config.missing'
-      }
+    const errorPromise = resolveProviderSettings(service);
+    await expect(errorPromise).rejects.toMatchObject({
+      type: 'CONFIG_ERROR',
+      code: 'provider.config.missing',
+      needsSetup: true,
     });
   });
 
@@ -54,18 +53,18 @@ describe('resolveProviderSettings', () => {
           openai: {
             provider_type: 'openai',
             api_key: 'test-key',
-            base_url: 'https://api.openai.com/v1'
-          }
+            base_url: 'https://api.openai.com/v1',
+          },
         },
         model_types: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.5,
-            max_tokens: 2048
-          }
-        }
-      }
+            max_tokens: 2048,
+          },
+        },
+      },
     });
 
     const settings = await resolveProviderSettings(service);

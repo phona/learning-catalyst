@@ -2,7 +2,7 @@ import type { AgentToolDeps } from './tool-registry';
 import {
   createSpecializedAgent,
   SpecializedAgentRequest,
-  SpecializedAgentResult
+  SpecializedAgentResult,
 } from './specialized-agent';
 import type { AgentType } from './types';
 import type { SpecializedAgent } from './specialized-agent';
@@ -13,12 +13,12 @@ const SYSTEM_PROMPT =
 
 export const createSupervisorAgent = (
   deps: AgentToolDeps,
-  agents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent>
+  agents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent>,
 ) =>
   createSpecializedAgent(deps, {
     agentType: 'supervisor',
     systemPrompt: SYSTEM_PROMPT,
-    toolBuilder: () => buildSupervisorTools(deps, agents)
+    toolBuilder: () => buildSupervisorTools(deps, agents),
   });
 
 export type SupervisorAgent = Awaited<ReturnType<typeof createSupervisorAgent>>;

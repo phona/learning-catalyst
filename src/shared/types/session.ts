@@ -31,6 +31,8 @@ export interface ConversationMessage {
   agentId?: string; // Agent that generated this message
   agentType?: string; // Type of agent that generated this message
   agentStateId?: string; // Agent execution state identifier
+  status?: 'sending' | 'delivered' | 'error' | 'typing';
+  showThinking?: boolean;
 }
 
 export interface MessageMetadata {

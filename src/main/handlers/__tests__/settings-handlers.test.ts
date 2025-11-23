@@ -12,23 +12,23 @@ const electronMocks = vi.hoisted(() => ({
   handlerMap: new Map<string, (...args: any[]) => any>(),
   app: {
     getVersion: vi.fn().mockReturnValue('9.9.9'),
-    quit: vi.fn()
-  }
+    quit: vi.fn(),
+  },
 }));
 
 const fsMocks = vi.hoisted(() => ({
   readFile: vi.fn(),
   writeFile: vi.fn(),
   access: vi.fn(),
-  mkdir: vi.fn()
+  mkdir: vi.fn(),
 }));
 
 vi.mock('electron', () => ({
   ipcMain: {
     handle: (channel: string, handler: (...args: any[]) => any) =>
-      electronMocks.handlerMap.set(channel, handler)
+      electronMocks.handlerMap.set(channel, handler),
   },
-  app: electronMocks.app
+  app: electronMocks.app,
 }));
 
 vi.mock('fs/promises', () => fsMocks);
@@ -63,10 +63,7 @@ describe('settings handlers (documented surface)', () => {
     const result = await getHandler('settings:getWorkspaceConfig')(null);
 
     expect(result).toEqual({ success: true, data: sampleConfig });
-    expect(fsMocks.readFile).toHaveBeenCalledWith(
-      expect.stringContaining('.catalyst'),
-      'utf-8'
-    );
+    expect(fsMocks.readFile).toHaveBeenCalledWith(expect.stringContaining('.catalyst'), 'utf-8');
   });
 
   it('persists workspace configuration when requested', async () => {
@@ -76,14 +73,13 @@ describe('settings handlers (documented surface)', () => {
     const result = await getHandler('settings:setWorkspaceConfig')(null, config);
     expect(result.success).toBe(true);
 
-    expect(fsMocks.mkdir).toHaveBeenCalledWith(
-      expect.stringContaining('.catalyst'),
-      { recursive: true }
-    );
+    expect(fsMocks.mkdir).toHaveBeenCalledWith(expect.stringContaining('.catalyst'), {
+      recursive: true,
+    });
     expect(fsMocks.writeFile).toHaveBeenCalledWith(
       expect.stringMatching(/\.catalyst[\\/\\]config\.json$/),
       JSON.stringify(config, null, 2),
-      'utf-8'
+      'utf-8',
     );
   });
 

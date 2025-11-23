@@ -1,4 +1,3 @@
-
 /**
  * Session Store - Frontend state management for sessions
  * Clean architecture with display-optimized state
@@ -97,25 +96,27 @@ export const useSessionStore = create<SessionState>()(
 
     // State setters
     setSessions: (sessions) => set({ sessions }),
-    addSession: (session) => set((state) => ({
-      sessions: [session, ...state.sessions],
-      totalSessions: state.totalSessions + 1
-    })),
-    updateSession: (sessionId, updates) => set((state) => ({
-      sessions: state.sessions.map(session =>
-        session.id === sessionId ? { ...session, ...updates } : session
-      ),
-      currentSession: state.currentSession?.id === sessionId
-        ? { ...state.currentSession, ...updates }
-        : state.currentSession
-    })),
-    removeSession: (sessionId) => set((state) => ({
-      sessions: state.sessions.filter(session => session.id !== sessionId),
-      totalSessions: state.totalSessions - 1,
-      currentSession: state.currentSession?.id === sessionId
-        ? null
-        : state.currentSession
-    })),
+    addSession: (session) =>
+      set((state) => ({
+        sessions: [session, ...state.sessions],
+        totalSessions: state.totalSessions + 1,
+      })),
+    updateSession: (sessionId, updates) =>
+      set((state) => ({
+        sessions: state.sessions.map((session) =>
+          session.id === sessionId ? { ...session, ...updates } : session,
+        ),
+        currentSession:
+          state.currentSession?.id === sessionId
+            ? { ...state.currentSession, ...updates }
+            : state.currentSession,
+      })),
+    removeSession: (sessionId) =>
+      set((state) => ({
+        sessions: state.sessions.filter((session) => session.id !== sessionId),
+        totalSessions: state.totalSessions - 1,
+        currentSession: state.currentSession?.id === sessionId ? null : state.currentSession,
+      })),
     setCurrentSession: (session) => set({ currentSession: session }),
 
     setLoading: (loading) => set({ loading }),
@@ -130,17 +131,20 @@ export const useSessionStore = create<SessionState>()(
     clearFilters: () => set({ filters: {}, searchQuery: '' }),
 
     // Selection actions
-    selectSession: (sessionId) => set((state) => ({
-      selectedSessions: new Set([...state.selectedSessions, sessionId])
-    })),
-    deselectSession: (sessionId) => set((state) => {
-      const newSelected = new Set(state.selectedSessions);
-      newSelected.delete(sessionId);
-      return { selectedSessions: newSelected };
-    }),
-    selectAllSessions: () => set((state) => ({
-      selectedSessions: new Set(state.sessions.map(s => s.id))
-    })),
+    selectSession: (sessionId) =>
+      set((state) => ({
+        selectedSessions: new Set([...state.selectedSessions, sessionId]),
+      })),
+    deselectSession: (sessionId) =>
+      set((state) => {
+        const newSelected = new Set(state.selectedSessions);
+        newSelected.delete(sessionId);
+        return { selectedSessions: newSelected };
+      }),
+    selectAllSessions: () =>
+      set((state) => ({
+        selectedSessions: new Set(state.sessions.map((s) => s.id)),
+      })),
     clearSelection: () => set({ selectedSessions: new Set<string>() }),
 
     // Pagination actions
@@ -159,7 +163,9 @@ export const useSessionStore = create<SessionState>()(
       // Note: This should be called from a component with proper error handling
       // The actual API call should happen in a service or component
       set({ creating: true, error: null });
-      throw new Error('Session creation should be done through service hooks, not directly in store');
+      throw new Error(
+        'Session creation should be done through service hooks, not directly in store',
+      );
     },
 
     updateSessionData: async (sessionId, updates) => {
@@ -187,7 +193,7 @@ export const useSessionStore = create<SessionState>()(
         agentType: 'learning',
         difficulty: 'medium',
         tags: [],
-        ...request
+        ...request,
       };
 
       return await get().createSession(defaultRequest);
@@ -199,8 +205,8 @@ export const useSessionStore = create<SessionState>()(
       await get().loadSessions(filters);
     },
 
-    resetSessionState: () => set(initialState)
-  }))
+    resetSessionState: () => set(initialState),
+  })),
 );
 
 // Selectors for derived state
@@ -208,58 +214,61 @@ export const useSessions = () => useSessionStore((state) => state.sessions);
 export const useCurrentSession = () => useSessionStore((state) => state.currentSession);
 export const useSessionsLoading = () => useSessionStore((state) => state.loading);
 export const useSessionError = () => useSessionStore((state) => state.error);
-export const useFilteredSessions = () => useSessionStore((state) => {
-  const { sessions, searchQuery, filters } = state;
+export const useFilteredSessions = () =>
+  useSessionStore((state) => {
+    const { sessions, searchQuery, filters } = state;
 
-  let filtered = sessions;
+    let filtered = sessions;
 
-  // Apply search query
-  if (searchQuery) {
-    filtered = filtered.filter(session =>
-      session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      session.preview.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      session.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }
+    // Apply search query
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (session) =>
+          session.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          session.preview.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          session.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())),
+      );
+    }
 
-  // Apply filters
-  if (filters.agentType) {
-    filtered = filtered.filter(session => session.agentType === filters.agentType);
-  }
+    // Apply filters
+    if (filters.agentType) {
+      filtered = filtered.filter((session) => session.agentType === filters.agentType);
+    }
 
-  if (filters.difficulty) {
-    filtered = filtered.filter(session => session.difficulty === filters.difficulty);
-  }
+    if (filters.difficulty) {
+      filtered = filtered.filter((session) => session.difficulty === filters.difficulty);
+    }
 
-  if (filters.tags && filters.tags.length > 0) {
-    filtered = filtered.filter(session =>
-      filters.tags!.some(tag => session.tags.includes(tag))
-    );
-  }
+    if (filters.tags && filters.tags.length > 0) {
+      filtered = filtered.filter((session) =>
+        filters.tags!.some((tag) => session.tags.includes(tag)),
+      );
+    }
 
-  return filtered;
-});
+    return filtered;
+  });
 
 // Actions hook
-export const useSessionActions = () => useSessionStore((state) => ({
-  setSessions: state.setSessions,
-  addSession: state.addSession,
-  updateSession: state.updateSession,
-  removeSession: state.removeSession,
-  setCurrentSession: state.setCurrentSession,
-  loadSessions: state.loadSessions,
-  createSession: state.createSession,
-  updateSessionData: state.updateSessionData,
-  deleteSession: state.deleteSession,
-  getCurrentSession: state.getCurrentSession,
-  createNewSession: state.createNewSession,
-  refreshSessions: state.refreshSessions,
-  setSearchQuery: state.setSearchQuery,
-  setFilters: state.setFilters,
-  clearFilters: state.clearFilters,
-  selectSession: state.selectSession,
-  deselectSession: state.deselectSession,
-  selectAllSessions: state.selectAllSessions,
-  clearSelection: state.clearSelection,
-  resetSessionState: state.resetSessionState
-}));
+export const useSessionActions = () =>
+  useSessionStore((state) => ({
+    setSessions: state.setSessions,
+    addSession: state.addSession,
+    updateSession: state.updateSession,
+    removeSession: state.removeSession,
+    setCurrentSession: state.setCurrentSession,
+    loadSessions: state.loadSessions,
+    createSession: state.createSession,
+    updateSessionData: state.updateSessionData,
+    deleteSession: state.deleteSession,
+    getCurrentSession: state.getCurrentSession,
+    createNewSession: state.createNewSession,
+    refreshSessions: state.refreshSessions,
+    setSearchQuery: state.setSearchQuery,
+    setFilters: state.setFilters,
+    clearFilters: state.clearFilters,
+    selectSession: state.selectSession,
+    deselectSession: state.deselectSession,
+    selectAllSessions: state.selectAllSessions,
+    clearSelection: state.clearSelection,
+    resetSessionState: state.resetSessionState,
+  }));

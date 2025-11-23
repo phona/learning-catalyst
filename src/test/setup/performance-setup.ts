@@ -32,12 +32,12 @@ beforeAll(async () => {
   // Mock performance-critical APIs
   vi.mock('electron', () => ({
     app: {
-      getPath: vi.fn().mockReturnValue('./test-data/performance')
+      getPath: vi.fn().mockReturnValue('./test-data/performance'),
     },
     ipcMain: {
       handle: vi.fn(),
-      on: vi.fn()
-    }
+      on: vi.fn(),
+    },
   }));
 
   console.log('🚀 Performance test environment initialized');
@@ -109,7 +109,7 @@ export const PerformanceTestUtils = {
    */
   async measureExecutionTime<T>(
     fn: () => Promise<T> | T,
-    iterations = 1
+    iterations = 1,
   ): Promise<{
     totalTime: number;
     averageTime: number;
@@ -129,7 +129,7 @@ export const PerformanceTestUtils = {
       times.push(end - start);
 
       // Small delay between iterations
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
     const totalTime = times.reduce((sum, time) => sum + time, 0);
@@ -142,7 +142,7 @@ export const PerformanceTestUtils = {
       averageTime,
       minTime,
       maxTime,
-      results
+      results,
     };
   },
 
@@ -159,8 +159,8 @@ export const PerformanceTestUtils = {
       metadata: {
         category: `category-${i % 10}`,
         priority: i % 3,
-        tags: [`tag-${i % 5}`, `tag-${i % 7}`]
-      }
+        tags: [`tag-${i % 5}`, `tag-${i % 7}`],
+      },
     }));
   },
 
@@ -179,7 +179,7 @@ export const PerformanceTestUtils = {
       }
 
       // Small sleep to prevent complete CPU hogging
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   },
 
@@ -208,7 +208,7 @@ export const PerformanceTestUtils = {
     heapTotal: number;
     external: number;
     arrayBuffers: number;
-    } {
+  } {
     if (typeof process !== 'undefined' && process.memoryUsage) {
       return process.memoryUsage();
     }
@@ -219,7 +219,7 @@ export const PerformanceTestUtils = {
       heapUsed: 30 * 1024 * 1024 + Math.random() * 5 * 1024 * 1024,
       heapTotal: 40 * 1024 * 1024 + Math.random() * 5 * 1024 * 1024,
       external: 5 * 1024 * 1024 + Math.random() * 2 * 1024 * 1024,
-      arrayBuffers: 2 * 1024 * 1024 + Math.random() * 1 * 1024 * 1024
+      arrayBuffers: 2 * 1024 * 1024 + Math.random() * 1 * 1024 * 1024,
     };
   },
 
@@ -233,29 +233,30 @@ export const PerformanceTestUtils = {
       maxMemoryUsage?: number;
       minThroughput?: number;
       maxErrorRate?: number;
-    }
+    },
   ): void {
-    const {
-      maxExecutionTime,
-      maxMemoryUsage,
-      minThroughput,
-      maxErrorRate
-    } = constraints;
+    const { maxExecutionTime, maxMemoryUsage, minThroughput, maxErrorRate } = constraints;
 
     if (maxExecutionTime && metrics.averageResponseTime > maxExecutionTime) {
-      throw new Error(`Average response time ${metrics.averageResponseTime}ms exceeds maximum ${maxExecutionTime}ms`);
+      throw new Error(
+        `Average response time ${metrics.averageResponseTime}ms exceeds maximum ${maxExecutionTime}ms`,
+      );
     }
 
     if (maxMemoryUsage && metrics.memoryUsage.peak > maxMemoryUsage) {
-      throw new Error(`Peak memory usage ${metrics.memoryUsage.peak} bytes exceeds maximum ${maxMemoryUsage} bytes`);
+      throw new Error(
+        `Peak memory usage ${metrics.memoryUsage.peak} bytes exceeds maximum ${maxMemoryUsage} bytes`,
+      );
     }
 
     if (minThroughput && metrics.throughput < minThroughput) {
-      throw new Error(`Throughput ${metrics.throughput} ops/sec below minimum ${minThroughput} ops/sec`);
+      throw new Error(
+        `Throughput ${metrics.throughput} ops/sec below minimum ${minThroughput} ops/sec`,
+      );
     }
 
     if (maxErrorRate && metrics.errorRate > maxErrorRate) {
       throw new Error(`Error rate ${metrics.errorRate}% exceeds maximum ${maxErrorRate}%`);
     }
-  }
+  },
 };

@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -14,7 +14,7 @@ export default {
       .addColumn('metadata', 'text') // JSON string
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
       .addColumn('updated_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
 
     // Checkpoint writes table - tracks checkpoint writes/versions
     await db.schema
@@ -26,7 +26,7 @@ export default {
       .addColumn('type', 'text', (col) => col.notNull()) // 'channel' or 'mapper'
       .addColumn('value', 'text') // JSON string
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
 
     // Checkpoint blobs table - stores large binary/text data
     await db.schema
@@ -38,59 +38,59 @@ export default {
       .addColumn('blob_type', 'text', (col) => col.notNull()) // 'input' or 'output'
       .addColumn('data', 'text') // JSON string
       .addColumn('created_at', 'text', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`).notNull())
-      .execute()
+      .execute();
 
     // Create indexes for performance
     await db.schema
       .createIndex('idx_checkpoints_thread_id')
       .on('checkpoints')
       .column('thread_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_checkpoints_thread_checkpoint_ns')
       .on('checkpoints')
       .column('thread_id')
       .column('checkpoint_ns')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_checkpoints_checkpoint_id')
       .on('checkpoints')
       .column('checkpoint_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_checkpoint_writes_checkpoint_id')
       .on('checkpoint_writes')
       .column('checkpoint_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_checkpoint_blobs_checkpoint_id')
       .on('checkpoint_blobs')
       .column('checkpoint_id')
-      .execute()
+      .execute();
 
     await db.schema
       .createIndex('idx_checkpoint_blobs_task_id')
       .on('checkpoint_blobs')
       .column('task_id')
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
     // Drop indexes first
-    await db.schema.dropIndex('idx_checkpoint_blobs_task_id').execute()
-    await db.schema.dropIndex('idx_checkpoint_blobs_checkpoint_id').execute()
-    await db.schema.dropIndex('idx_checkpoint_writes_checkpoint_id').execute()
-    await db.schema.dropIndex('idx_checkpoints_checkpoint_id').execute()
-    await db.schema.dropIndex('idx_checkpoints_thread_checkpoint_ns').execute()
-    await db.schema.dropIndex('idx_checkpoints_thread_id').execute()
+    await db.schema.dropIndex('idx_checkpoint_blobs_task_id').execute();
+    await db.schema.dropIndex('idx_checkpoint_blobs_checkpoint_id').execute();
+    await db.schema.dropIndex('idx_checkpoint_writes_checkpoint_id').execute();
+    await db.schema.dropIndex('idx_checkpoints_checkpoint_id').execute();
+    await db.schema.dropIndex('idx_checkpoints_thread_checkpoint_ns').execute();
+    await db.schema.dropIndex('idx_checkpoints_thread_id').execute();
 
     // Drop tables
-    await db.schema.dropTable('checkpoint_blobs').execute()
-    await db.schema.dropTable('checkpoint_writes').execute()
-    await db.schema.dropTable('checkpoints').execute()
-  }
-}
+    await db.schema.dropTable('checkpoint_blobs').execute();
+    await db.schema.dropTable('checkpoint_writes').execute();
+    await db.schema.dropTable('checkpoints').execute();
+  },
+};

@@ -33,8 +33,8 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     default_models: {
       chat: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
       embedding: ['text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'],
-      rerank: ['text-davinci-003']
-    }
+      rerank: ['text-davinci-003'],
+    },
   },
   chatglm: {
     id: 'chatglm',
@@ -45,8 +45,8 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     supported_features: ['chat'],
     documentation_url: 'https://open.bigmodel.cn/dev/api',
     default_models: {
-      chat: ['glm-4', 'glm-4-plus', 'glm-3-turbo']
-    }
+      chat: ['glm-4', 'glm-4-plus', 'glm-3-turbo'],
+    },
   },
   deepseek: {
     id: 'deepseek',
@@ -57,8 +57,8 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     supported_features: ['chat'],
     documentation_url: 'https://platform.deepseek.com/api-docs',
     default_models: {
-      chat: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner']
-    }
+      chat: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
+    },
   },
   siliconflow: {
     id: 'siliconflow',
@@ -69,10 +69,14 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     supported_features: ['chat', 'embedding'],
     documentation_url: 'https://docs.siliconflow.cn/docs',
     default_models: {
-      chat: ['Qwen/Qwen2.5-7B-Instruct', 'meta-llama/Meta-Llama-3.1-8B-Instruct', 'THUDM/glm-4-9b-chat'],
-      embedding: ['BAAI/bge-large-en-v1.5', 'BAAI/bge-base-zh-v1.5']
-    }
-  }
+      chat: [
+        'Qwen/Qwen2.5-7B-Instruct',
+        'meta-llama/Meta-Llama-3.1-8B-Instruct',
+        'THUDM/glm-4-9b-chat',
+      ],
+      embedding: ['BAAI/bge-large-en-v1.5', 'BAAI/bge-base-zh-v1.5'],
+    },
+  },
 };
 
 /**

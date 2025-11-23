@@ -1,6 +1,3 @@
-
-
-
 import React, { Component, ReactNode } from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -17,7 +14,7 @@ interface State {
 
 /**
  * 📝 Message Error Boundary
- * 
+ *
  * Specific error boundary for individual chat messages to prevent
  * one broken message from crashing the entire chat interface.
  */

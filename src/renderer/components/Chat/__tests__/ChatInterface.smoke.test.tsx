@@ -1,9 +1,13 @@
-
 import { describe, it, beforeEach, vi, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
+import {
+  createMockConfigurationService,
+  createMockFileService,
+} from '@/test/utils/services-provider-stubs';
+import { createMockConfig } from '@/test/utils/helpers/test-utils';
 import { ChatInterface } from '../ChatInterface';
 import { useSessionInit } from '@/renderer/hooks/useSessionInit';
+import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
 
 // Mock useSessionInit hook
 vi.mock('@/renderer/hooks/useSessionInit', () => ({
@@ -15,7 +19,7 @@ vi.mock('@/renderer/hooks/useSessionInit', () => ({
   })),
 }));
 
-const configServiceMock = createMockConfigurationService();
+const configServiceMock = createMockConfigurationService(createMockConfig());
 const fileServiceMock = createMockFileService();
 
 // Mock services provider
@@ -27,6 +31,8 @@ vi.mock('@/renderer/services/services-provider', () => ({
   }),
   useSessionService: () => ({
     createNewSession: vi.fn().mockResolvedValue('test-session-id'),
+    createSession: vi.fn(),
+    getSession: vi.fn(),
   }),
   useAnalyticsService: () => ({
     trackEvent: vi.fn(),
@@ -54,14 +60,21 @@ describe('ChatInterface smoke coverage', () => {
     vi.clearAllMocks();
   });
 
+  const renderChatInterface = () =>
+    render(
+      <ChatStoreProvider>
+        <ChatInterface />
+      </ChatStoreProvider>,
+    );
+
   it('shows skeletons when session is loading', () => {
     vi.mocked(useSessionInit).mockReturnValue({
       loading: true,
       session: null,
-      sessionId: undefined
+      sessionId: undefined,
     });
 
-    render(<ChatInterface />);
+    renderChatInterface();
 
     // Should render loading state with skeletons
     expect(screen.getByTestId('chat-skeleton-list')).toBeInTheDocument();
@@ -71,10 +84,10 @@ describe('ChatInterface smoke coverage', () => {
     vi.mocked(useSessionInit).mockReturnValue({
       loading: false,
       session: null,
-      sessionId: undefined
+      sessionId: undefined,
     });
 
-    render(<ChatInterface />);
+    renderChatInterface();
 
     // Should render chat interface (not loading)
     expect(screen.getByTestId('chat-area')).toBeInTheDocument();
@@ -86,12 +99,22 @@ describe('ChatInterface smoke coverage', () => {
       session: {
         id: 'test-session',
         title: 'Test Session',
-        created_at: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        messages: [],
+        preview: '',
+        messageCount: 0,
+        lastActivity: new Date().toISOString(),
+        duration: '0 min',
+        difficulty: 'medium',
+        tags: [],
+        isActive: true,
+        hasUnreadMessages: false,
       },
-      sessionId: 'test-session'
+      sessionId: 'test-session',
     });
 
-    render(<ChatInterface />);
+    renderChatInterface();
 
     // Should render chat interface
     expect(screen.getByTestId('chat-area')).toBeInTheDocument();

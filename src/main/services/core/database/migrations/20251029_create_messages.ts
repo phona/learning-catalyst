@@ -1,4 +1,4 @@
-import { Kysely, sql } from 'kysely'
+import { Kysely, sql } from 'kysely';
 
 export default {
   async up(db: Kysely<any>): Promise<void> {
@@ -8,7 +8,7 @@ export default {
       .addColumn('id', 'text', (col) => col.primaryKey())
       .addColumn('session_id', 'text', (col) => col.notNull())
       .addColumn('role', 'text', (col) =>
-        col.notNull().check(sql`role IN ('user', 'assistant', 'system', 'tool')`)
+        col.notNull().check(sql`role IN ('user', 'assistant', 'system', 'tool')`),
       )
       .addColumn('content', 'text', (col) => col.notNull())
       .addColumn('thinking_content', 'text')
@@ -23,12 +23,12 @@ export default {
         ['session_id'],
         'learning_sessions',
         ['id'],
-        (fk) => fk.onDelete('cascade')
+        (fk) => fk.onDelete('cascade'),
       )
-      .execute()
+      .execute();
   },
 
   async down(db: Kysely<any>): Promise<void> {
-    await db.schema.dropTable('messages').execute()
-  }
-}
+    await db.schema.dropTable('messages').execute();
+  },
+};

@@ -1,4 +1,3 @@
-
 /**
  * useSessionEvents Hook
  *
@@ -38,7 +37,7 @@ export interface UseSessionEventsReturn {
   /** Function to trigger a manual session event */
   readonly triggerSessionEvent: <T extends SessionEventType>(
     eventType: T,
-    detail: SessionEventDetail
+    detail: SessionEventDetail,
   ) => void;
 }
 
@@ -92,54 +91,72 @@ export const useSessionEvents = (options: UseSessionEventsOptions = {}): UseSess
   }, []);
 
   // Function to trigger a manual session event
-  const triggerSessionEvent = useCallback(<T extends SessionEventType>(
-    eventType: T,
-    detail: SessionEventDetail
-  ) => {
-    if (eventTarget) {
-      const event = new CustomEvent<SessionEventDetail>(eventType, { detail });
-      eventTarget.dispatchEvent(event);
-    }
-  }, [eventTarget]);
+  const triggerSessionEvent = useCallback(
+    <T extends SessionEventType>(eventType: T, detail: SessionEventDetail) => {
+      if (eventTarget) {
+        const event = new CustomEvent<SessionEventDetail>(eventType, { detail });
+        eventTarget.dispatchEvent(event);
+      }
+    },
+    [eventTarget],
+  );
 
   // Type-safe session event handler factory
-  const createTypedSessionEventHandler = useCallback(<T extends SessionEventType>(
-    eventType: T,
-    handler?: (event: CustomEvent<SessionEventDetail>) => void
-  ) => {
-    return (event: Event) => {
-      if (event.type === eventType && 'detail' in event) {
-        const customEvent = event as CustomEvent<SessionEventDetail>;
+  const createTypedSessionEventHandler = useCallback(
+    <T extends SessionEventType>(
+      eventType: T,
+      handler?: (event: CustomEvent<SessionEventDetail>) => void,
+    ) => {
+      return (event: Event) => {
+        if (event.type === eventType && 'detail' in event) {
+          const customEvent = event as CustomEvent<SessionEventDetail>;
 
-        // Default handling for new sessions
-        if (eventType === 'sessionCreated') {
-          if (customEvent.detail?.isNew && customEvent.detail?.sessionId) {
-            markSessionAsNew(customEvent.detail.sessionId);
+          // Default handling for new sessions
+          if (eventType === 'sessionCreated') {
+            if (customEvent.detail?.isNew && customEvent.detail?.sessionId) {
+              markSessionAsNew(customEvent.detail.sessionId);
+            }
+          }
+
+          // Call custom handler if provided
+          if (handler) {
+            handler(customEvent);
+          }
+
+          // Call global event handler if provided
+          const globalHandler =
+            eventHandlers[
+              `on${eventType.charAt(0).toUpperCase()}${eventType.slice(1)}` as keyof SessionEventHandlers
+            ];
+          if (globalHandler) {
+            globalHandler(customEvent);
           }
         }
-
-        // Call custom handler if provided
-        if (handler) {
-          handler(customEvent);
-        }
-
-        // Call global event handler if provided
-        const globalHandler = eventHandlers[`on${eventType.charAt(0).toUpperCase()}${eventType.slice(1)}` as keyof SessionEventHandlers];
-        if (globalHandler) {
-          globalHandler(customEvent);
-        }
-      }
-    };
-  }, [eventHandlers, markSessionAsNew]);
+      };
+    },
+    [eventHandlers, markSessionAsNew],
+  );
 
   // Set up event listeners for session events
   useEffect(() => {
     if (!eventTarget) return;
 
-    const handleSessionCreated = createTypedSessionEventHandler('sessionCreated', eventHandlers.onSessionCreated);
-    const handleSessionSaved = createTypedSessionEventHandler('sessionSaved', eventHandlers.onSessionSaved);
-    const handleSessionUpdated = createTypedSessionEventHandler('sessionUpdated', eventHandlers.onSessionUpdated);
-    const handleSessionTitleUpdated = createTypedSessionEventHandler('sessionTitleUpdated', eventHandlers.onSessionTitleUpdated);
+    const handleSessionCreated = createTypedSessionEventHandler(
+      'sessionCreated',
+      eventHandlers.onSessionCreated,
+    );
+    const handleSessionSaved = createTypedSessionEventHandler(
+      'sessionSaved',
+      eventHandlers.onSessionSaved,
+    );
+    const handleSessionUpdated = createTypedSessionEventHandler(
+      'sessionUpdated',
+      eventHandlers.onSessionUpdated,
+    );
+    const handleSessionTitleUpdated = createTypedSessionEventHandler(
+      'sessionTitleUpdated',
+      eventHandlers.onSessionTitleUpdated,
+    );
 
     // Add event listeners
     eventTarget.addEventListener('sessionCreated', handleSessionCreated);

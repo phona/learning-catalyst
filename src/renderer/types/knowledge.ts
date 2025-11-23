@@ -1,4 +1,3 @@
-
 /**
  * Knowledge representation optimized for UI display
  * Transforms complex knowledge graph data into frontend-friendly format
@@ -8,10 +7,10 @@ export interface KnowledgeNodeDisplay {
   id: string;
   title: string;
   description: string;
-  level: number;              // For visual hierarchy
-  mastery: number;            // 0-100 for progress indication
-  connections: number;        // Number of related concepts
-  color: string;              // For visualization
+  level: number; // For visual hierarchy
+  mastery: number; // 0-100 for progress indication
+  connections: number; // Number of related concepts
+  color: string; // For visualization
   position?: { x: number; y: number }; // Pre-calculated layout
   category?: string;
   tags?: string[];
@@ -25,7 +24,7 @@ export interface KnowledgeEdgeDisplay {
   sourceId: string;
   targetId: string;
   type: 'prerequisite' | 'related' | 'application' | 'similarity';
-  strength: number;           // 0-1 for edge thickness/opacity
+  strength: number; // 0-1 for edge thickness/opacity
   label?: string;
 }
 
@@ -62,7 +61,7 @@ export interface KnowledgePathDisplay {
   nodes: KnowledgeNodeDisplay[];
   totalDuration: string;
   difficulty: 'easy' | 'medium' | 'hard';
-  progress: number;           // 0-100
+  progress: number; // 0-100
   estimatedTime: string;
   prerequisites: string[];
   outcomes: string[];
@@ -71,12 +70,12 @@ export interface KnowledgePathDisplay {
 export interface ConceptMasteryDisplay {
   conceptId: string;
   conceptTitle: string;
-  masteryLevel: number;       // 0-100
-  confidence: number;         // 0-100
+  masteryLevel: number; // 0-100
+  confidence: number; // 0-100
   lastAccessed: string;
   accessCount: number;
   averageScore: number;
-  improvement: number;        // Percentage change
+  improvement: number; // Percentage change
 }
 
 export interface KnowledgeFilters {
@@ -106,12 +105,12 @@ export const KNOWLEDGE_NODE_COLORS = {
   mastered: '#10B981',
   struggling: '#F59E0B',
   prerequisite: '#6B7280',
-  current: '#8B5CF6'
+  current: '#8B5CF6',
 };
 
 export const KNOWLEDGE_EDGE_TYPES = {
   prerequisite: { color: '#EF4444', style: 'solid' },
   related: { color: '#6B7280', style: 'dashed' },
   application: { color: '#10B981', style: 'solid' },
-  similarity: { color: '#3B82F6', style: 'dotted' }
+  similarity: { color: '#3B82F6', style: 'dotted' },
 };

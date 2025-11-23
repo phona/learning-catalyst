@@ -1,4 +1,3 @@
-
 /**
  * StudyStreak Component Tests
  *
@@ -64,7 +63,7 @@ describe('StudyStreak Component', () => {
       expect(screen.getByText('3 day streak - Building momentum!')).toBeInTheDocument();
 
       rerender(<StudyStreak streakDays={10} />);
-      expect(screen.getByText('10 day streak - You\'re on fire!')).toBeInTheDocument();
+      expect(screen.getByText("10 day streak - You're on fire!")).toBeInTheDocument();
 
       rerender(<StudyStreak streakDays={20} />);
       expect(screen.getByText('20 day streak - Incredible dedication!')).toBeInTheDocument();
@@ -81,7 +80,7 @@ describe('StudyStreak Component', () => {
 
       expect(screen.getByText(/Last studied:/)).toBeInTheDocument();
       expect(screen.getByTestId('last-study-date')).toHaveTextContent(
-        lastStudyDate.toLocaleDateString('en-US')
+        lastStudyDate.toLocaleDateString('en-US'),
       );
     });
 
@@ -165,7 +164,7 @@ describe('StudyStreak Component', () => {
       expect(dayElements.length).toBeGreaterThan(0);
 
       // Check that styling classes are applied
-      dayElements.forEach(day => {
+      dayElements.forEach((day) => {
         expect(day).toHaveClass('text-center', 'text-xs', 'py-1', 'rounded');
       });
     });
@@ -173,17 +172,13 @@ describe('StudyStreak Component', () => {
 
   describe('Custom Styling', () => {
     test('applies custom className when provided', () => {
-      const { container } = render(
-        <StudyStreak streakDays={5} className="custom-test-class" />
-      );
+      const { container } = render(<StudyStreak streakDays={5} className="custom-test-class" />);
 
       expect(container.firstChild).toHaveClass('custom-test-class');
     });
 
     test('maintains default styling with custom className', () => {
-      const { container } = render(
-        <StudyStreak streakDays={5} className="custom-test-class" />
-      );
+      const { container } = render(<StudyStreak streakDays={5} className="custom-test-class" />);
 
       const component = container.firstChild as HTMLElement;
       expect(component).toHaveClass(
@@ -194,7 +189,7 @@ describe('StudyStreak Component', () => {
         'border-gray-200',
         'dark:border-gray-700',
         'p-6',
-        'custom-test-class'
+        'custom-test-class',
       );
     });
   });
@@ -255,7 +250,7 @@ describe('StudyStreak Component', () => {
       expect(dayElements.length).toBeGreaterThan(0);
 
       // Each day should have a title attribute with the date
-      dayElements.forEach(day => {
+      dayElements.forEach((day) => {
         expect(day.getAttribute('title')).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/);
       });
     });
