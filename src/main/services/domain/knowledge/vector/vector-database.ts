@@ -4,7 +4,7 @@
  * Provides vector storage and semantic search capabilities using Qdrant.
  */
 
-import { getQdrantManager } from '@/main/qdrant-manager';
+import type { QdrantManager } from '@/main/qdrant-manager';
 
 export interface VectorDocument {
   id: string;
@@ -26,52 +26,86 @@ export interface VectorSearchOptions {
   threshold?: number;
 }
 
-export class VectorDatabaseModule {
-  private qdrantManager = getQdrantManager();
-
-  async addDocument(
+export interface VectorDatabaseApi {
+  addDocument: (
     document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
-  ): Promise<void> {
+  ) => Promise<void>;
+  search: (query: string, options?: VectorSearchOptions) => Promise<SearchResult[]>;
+  deleteDocument: (documentId: string) => Promise<void>;
+  getStats: () => Promise<{ totalDocuments: number }>;
+  start: () => Promise<void>;
+}
+
+const isSearchItem = (value: unknown): value is { item: unknown; similarity: number } => {
+  if (typeof value !== 'object' || value === null) return false;
+  const rec = value as Record<string, unknown>;
+  return typeof rec['similarity'] === 'number' && 'item' in rec;
+};
+
+const isCollection = (value: unknown): value is { name: unknown; points_count?: unknown } => {
+  if (typeof value !== 'object' || value === null) return false;
+  const rec = value as Record<string, unknown>;
+  return 'name' in rec;
+};
+
+export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDatabaseApi => {
+
+  const addDocument = async (
+    document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
+  ): Promise<void> => {
     const vectorDoc: VectorDocument = {
       ...document,
-      embedding: [0.1, 0.2, 0.3], // TODO: Generate real embeddings using AI service
+      embedding: [0.1, 0.2, 0.3],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    await this.qdrantManager.addKnowledgeItem(vectorDoc, null);
-  }
+    await qdrantManager.addKnowledgeItem(vectorDoc, null);
+  };
 
-  async search(query: string, options: VectorSearchOptions = {}): Promise<SearchResult[]> {
+  const search = async (
+    query: string,
+    options: VectorSearchOptions = {},
+  ): Promise<SearchResult[]> => {
     const limit = options.limit ?? 10;
     const threshold = options.threshold ?? 0.6;
 
-    const results = await this.qdrantManager.searchKnowledge(query, null, limit);
-
-    return results
-      .filter((result: any) => result.similarity >= threshold)
+    const rawResults: unknown = await qdrantManager.searchKnowledge(query, null, limit);
+    const filtered = Array.isArray(rawResults)
+      ? rawResults.filter(isSearchItem)
+      : [];
+    return filtered
+      .filter((r) => r.similarity >= threshold)
       .slice(0, limit)
-      .map((result: any) => ({
-        document: result.item,
-        score: result.similarity,
-        metadata: result.item.metadata,
-      }));
-  }
+      .map((r) => {
+        const item = r.item as VectorDocument;
+        return {
+          document: item,
+          score: r.similarity,
+          metadata: item?.metadata,
+        };
+      });
+  };
 
-  async deleteDocument(documentId: string): Promise<void> {
-    await this.qdrantManager.deleteKnowledgeItem(documentId);
-  }
+  const deleteDocument = async (documentId: string): Promise<void> => {
+    await qdrantManager.deleteKnowledgeItem(documentId);
+  };
 
-  async getStats(): Promise<{ totalDocuments: number }> {
-    const collections = await this.qdrantManager.listCollections();
-    const knowledgeCollection = collections.find((col: any) => col.name === 'knowledge_items');
+  const getStats = async (): Promise<{ totalDocuments: number }> => {
+    const collectionsUnknown: unknown = await qdrantManager.listCollections();
+    const collections = Array.isArray(collectionsUnknown)
+      ? collectionsUnknown.filter(isCollection)
+      : [];
+    const kc = collections.find((c) => c.name === 'knowledge_items');
+    const points = kc && typeof kc.points_count === 'number' ? kc.points_count : 0;
+    return { totalDocuments: points ?? 0 };
+  };
 
-    return {
-      totalDocuments: knowledgeCollection?.points_count || 0,
-    };
-  }
+  const start = async (): Promise<void> => {
+    await qdrantManager.initialize();
+  };
 
-  async start(): Promise<void> {
-    await this.qdrantManager.initialize();
-  }
-}
+  return { addDocument, search, deleteDocument, getStats, start };
+};
+
+export type VectorDatabase = VectorDatabaseApi;

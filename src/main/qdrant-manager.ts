@@ -734,74 +734,70 @@ class MainProcessKnowledgeService {
   }
 }
 
-export class QdrantManager {
-  private readonly qdrantService: MainProcessQdrantService;
-  private readonly knowledgeService: MainProcessKnowledgeService;
-  private isInitialized = false;
-  private static ipcHandlersRegistered = false; // 静态标志确保IPC处理函数只注册一次
+export const createQdrantManager = () => {
+  const qdrantService = new MainProcessQdrantService();
+  const knowledgeService = new MainProcessKnowledgeService(qdrantService);
+  let isInitialized = false;
+  let ipcHandlersRegistered = false;
 
-  constructor() {
-    this.qdrantService = new MainProcessQdrantService();
-    this.knowledgeService = new MainProcessKnowledgeService(this.qdrantService);
-
-    // 只在第一次创建时注册IPC处理函数
-    if (!QdrantManager.ipcHandlersRegistered) {
-      this.setupIpcHandlers();
-      QdrantManager.ipcHandlersRegistered = true;
-    }
-    // 移除自动初始化，由主应用控制初始化时机
-  }
-
-  /**
-   * Initialize Qdrant service
-   */
-  async initialize(): Promise<void> {
-    if (this.isInitialized) {
+  const initialize = async (): Promise<void> => {
+    if (isInitialized) {
       return;
     }
-
     try {
-      await this.qdrantService.start();
-
-      // Wait a moment for the service to be fully ready
+      await qdrantService.start();
       await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Initialize collections through knowledge service
-      await this.knowledgeService['initializeCollections']?.();
-
-      this.isInitialized = true;
+      await (knowledgeService as any)['initializeCollections']?.();
+      isInitialized = true;
     } catch (error) {
       console.error('Failed to initialize Qdrant service:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Shutdown Qdrant service
-   */
-  async shutdown(): Promise<void> {
-    if (!this.isInitialized) {
+  const shutdown = async (): Promise<void> => {
+    if (!isInitialized) {
       return;
     }
-
     try {
-      console.log('Shutting down Qdrant service...');
-      await this.qdrantService.stop();
-      this.isInitialized = false;
-      console.log('Qdrant service shut down successfully');
+      await qdrantService.stop();
+      isInitialized = false;
     } catch (error) {
       console.error('Failed to shutdown Qdrant service:', error);
     }
-  }
+  };
 
-  /**
-   * Cleanup all resources and remove IPC handlers
-   */
-  static cleanup(): void {
+  const isReady = (): boolean => {
+    return isInitialized && qdrantService.isServiceReady();
+  };
+
+  const addKnowledgeItem = async (item: any, provider: any, embedding?: number[]): Promise<void> => {
+    return await knowledgeService.addKnowledgeItem(item, provider, embedding);
+  };
+
+  const searchKnowledge = async (
+    query: string,
+    provider: any,
+    limit = 10,
+    filters?: any,
+  ): Promise<any[]> => {
+    return await knowledgeService.searchKnowledge(query, provider, limit, filters);
+  };
+
+  const deleteKnowledgeItem = async (id: string): Promise<void> => {
+    return await knowledgeService.deleteKnowledgeItem(id);
+  };
+
+  const getKnowledgeStats = async (): Promise<any> => {
+    return await knowledgeService.getKnowledgeStats();
+  };
+
+  const listCollections = async (): Promise<any[]> => {
+    return await qdrantService.listCollections();
+  };
+
+  const cleanup = (): void => {
     try {
-      console.log('🧹 Cleaning up Qdrant manager resources...');
-
-      // 移除所有IPC处理函数
       const ipcHandlers = [
         'qdrant:start',
         'qdrant:stop',
@@ -819,7 +815,6 @@ export class QdrantManager {
         'qdrant:createCollection',
         'qdrant:deleteCollection',
       ];
-
       ipcHandlers.forEach((handler) => {
         try {
           ipcMain.removeAllListeners(handler);
@@ -827,57 +822,17 @@ export class QdrantManager {
           console.warn(`Failed to remove IPC handler ${handler}:`, _error);
         }
       });
-
-      // 重置静态标志
-      QdrantManager.ipcHandlersRegistered = false;
-
-      console.log('✅ Qdrant manager cleanup completed');
+      ipcHandlersRegistered = false;
     } catch (error) {
-      console.error('❌ Error during Qdrant manager cleanup:', error);
+      console.error('Error during Qdrant manager cleanup:', error);
     }
-  }
+  };
 
-  /**
-   * Check if Qdrant is ready
-   */
-  isReady(): boolean {
-    return this.isInitialized && this.qdrantService.isServiceReady();
-  }
-
-  /**
-   * Public knowledge service methods
-   */
-  async addKnowledgeItem(item: any, provider: any, embedding?: number[]): Promise<void> {
-    return await this.knowledgeService.addKnowledgeItem(item, provider, embedding);
-  }
-
-  async searchKnowledge(query: string, provider: any, limit = 10, filters?: any): Promise<any[]> {
-    return await this.knowledgeService.searchKnowledge(query, provider, limit, filters);
-  }
-
-  async deleteKnowledgeItem(id: string): Promise<void> {
-    return await this.knowledgeService.deleteKnowledgeItem(id);
-  }
-
-  async getKnowledgeStats(): Promise<any> {
-    return await this.knowledgeService.getKnowledgeStats();
-  }
-
-  /**
-   * Public qdrant service methods
-   */
-  async listCollections(): Promise<any[]> {
-    return await this.qdrantService.listCollections();
-  }
-
-  /**
-   * Setup IPC handlers for Qdrant operations
-   */
-  private setupIpcHandlers(): void {
-    // Qdrant service control
+  const setupIpcHandlers = (): void => {
+    if (ipcHandlersRegistered) return;
     ipcMain.handle('qdrant:start', async () => {
       try {
-        await this.initialize();
+        await initialize();
         return { success: true };
       } catch (error) {
         console.error('Failed to start Qdrant:', error);
@@ -892,10 +847,9 @@ export class QdrantManager {
         };
       }
     });
-
     ipcMain.handle('qdrant:stop', async () => {
       try {
-        await this.shutdown();
+        await shutdown();
         return { success: true };
       } catch (error) {
         console.error('Failed to stop Qdrant:', error);
@@ -910,17 +864,15 @@ export class QdrantManager {
         };
       }
     });
-
     ipcMain.handle('qdrant:status', async () => {
       try {
-        const health = await this.qdrantService.getHealth();
-        const metrics = await this.qdrantService.getMetrics();
-        const collections = await this.qdrantService.listCollections();
-
+        const health = await qdrantService.getHealth();
+        const metrics = await qdrantService.getMetrics();
+        const collections = await qdrantService.listCollections();
         return {
           success: true,
           status: {
-            ready: this.isReady(),
+            ready: isReady(),
             health,
             metrics,
             collections: collections.map((col) => ({
@@ -943,149 +895,130 @@ export class QdrantManager {
         };
       }
     });
-
-    // Knowledge service operations
     ipcMain.handle('knowledge:add', async (_, { item, embedding, provider }) => {
       try {
-        await this.knowledgeService.addKnowledgeItem(item, provider, embedding);
+        await knowledgeService.addKnowledgeItem(item, provider, embedding);
         return { success: true };
       } catch (error) {
         console.error('Failed to add knowledge item:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:search', async (_, { query, provider, limit, filters }) => {
       try {
-        const results = await this.knowledgeService.searchKnowledge(
-          query,
-          provider,
-          limit,
-          filters,
-        );
+        const results = await knowledgeService.searchKnowledge(query, provider, limit, filters);
         return { success: true, results };
       } catch (error) {
         console.error('Failed to search knowledge:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:get', async (_, { id }) => {
       try {
-        const item = await this.knowledgeService.getKnowledgeItem(id);
+        const item = await knowledgeService.getKnowledgeItem(id);
         return { success: true, item };
       } catch (error) {
         console.error('Failed to get knowledge item:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:update', async (_, { id, updates, provider }) => {
       try {
-        await this.knowledgeService.updateKnowledgeItem(id, updates, provider);
+        await knowledgeService.updateKnowledgeItem(id, updates, provider);
         return { success: true };
       } catch (error) {
         console.error('Failed to update knowledge item:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:delete', async (_, { id }) => {
       try {
-        await this.knowledgeService.deleteKnowledgeItem(id);
+        await knowledgeService.deleteKnowledgeItem(id);
         return { success: true };
       } catch (error) {
         console.error('Failed to delete knowledge item:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:storeContext', async (_, { sessionId, messages, provider }) => {
       try {
-        await this.knowledgeService.storeConversationContext(sessionId, messages, provider);
+        await knowledgeService.storeConversationContext(sessionId, messages, provider);
         return { success: true };
       } catch (error) {
         console.error('Failed to store conversation context:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:getContext', async (_, { sessionId, query, provider, limit }) => {
       try {
-        const context = await this.knowledgeService.getRelevantContext(
-          sessionId,
-          query,
-          provider,
-          limit,
-        );
+        const context = await knowledgeService.getRelevantContext(sessionId, query, provider, limit);
         return { success: true, context };
       } catch (error) {
         console.error('Failed to get relevant context:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:stats', async () => {
       try {
-        const stats = await this.knowledgeService.getKnowledgeStats();
+        const stats = await knowledgeService.getKnowledgeStats();
         return { success: true, stats };
       } catch (error) {
         console.error('Failed to get knowledge stats:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('knowledge:clear', async () => {
       try {
-        await this.knowledgeService.clearAllKnowledge();
+        await knowledgeService.clearAllKnowledge();
         return { success: true };
       } catch (error) {
         console.error('Failed to clear knowledge:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
-    // Collection management
     ipcMain.handle('qdrant:collections', async () => {
       try {
-        const collections = await this.qdrantService.listCollections();
+        const collections = await qdrantService.listCollections();
         return { success: true, collections };
       } catch (error) {
         console.error('Failed to list collections:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('qdrant:createCollection', async (_, { name, vectorSize, distance }) => {
       try {
-        await this.qdrantService.createCollection(name, vectorSize, distance);
+        await qdrantService.createCollection(name, vectorSize, distance);
         return { success: true };
       } catch (error) {
         console.error('Failed to create collection:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-
     ipcMain.handle('qdrant:deleteCollection', async (_, { name }) => {
       try {
-        await this.qdrantService.deleteCollection(name);
+        await qdrantService.deleteCollection(name);
         return { success: true };
       } catch (error) {
         console.error('Failed to delete collection:', error);
         return { success: false, error: error instanceof Error ? error.message : String(error) };
       }
     });
-  }
-}
+    ipcHandlersRegistered = true;
+  };
 
-// Singleton instance
-let qdrantManager: QdrantManager | null = null;
+  setupIpcHandlers();
 
-export function getQdrantManager(): QdrantManager {
-  if (!qdrantManager) {
-    qdrantManager = new QdrantManager();
-  }
-  return qdrantManager;
-}
+  return {
+    initialize,
+    shutdown,
+    isReady,
+    addKnowledgeItem,
+    searchKnowledge,
+    deleteKnowledgeItem,
+    getKnowledgeStats,
+    listCollections,
+    cleanup,
+  };
+};
 
-export default QdrantManager;
+export type QdrantManager = ReturnType<typeof createQdrantManager>;

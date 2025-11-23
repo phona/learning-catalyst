@@ -16,7 +16,7 @@ import { setupAllIpcHandlers } from './handlers';
 import { setupSettingsHandlers } from './handlers/settings-handlers';
 import { serializeIPCError } from './handlers/ipc-error-handler';
 import { createAppMenu } from './menu';
-import { LoggerFactory } from './services/logger';
+import { MainThreadLogger } from './services/logger';
 
 // Import the new service factories
 import { createConfigService } from '@/main/services/core/config/config-service';
@@ -32,7 +32,8 @@ import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manag
 import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager';
 import { createDomainAgent } from '@/main/services/agent/domain-agent';
 import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
-import { VectorDatabaseModule } from './services/domain/knowledge/vector/vector-database';
+import { createVectorDatabase } from './services/domain/knowledge/vector/vector-database';
+import { createQdrantManager } from '@/main/qdrant-manager';
 
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 
@@ -77,7 +78,7 @@ let isShuttingDown = false;
 const pendingIpcErrors: IPCErrorPayload[] = [];
 
 const enqueueIpcError = (payload: IPCErrorPayload) => {
-  if (win && win.webContents && !win.webContents.isDestroyed()) {
+  if (win?.webContents && !win.webContents.isDestroyed()) {
     win.webContents.send(IPC_ERROR_CHANNEL, payload);
     return;
   }
@@ -86,7 +87,7 @@ const enqueueIpcError = (payload: IPCErrorPayload) => {
 };
 
 const flushPendingIpcErrors = () => {
-  if (!win || !win.webContents || win.webContents.isDestroyed()) {
+  if (!win?.webContents || win.webContents.isDestroyed()) {
     return;
   }
 
@@ -125,7 +126,7 @@ async function createWindow(): Promise<void> {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    icon: path.join(process.env.VITE_PUBLIC || '', 'favicon.ico'),
+    icon: path.join(process.env.VITE_PUBLIC ?? '', 'favicon.ico'),
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
@@ -171,9 +172,7 @@ async function createWindow(): Promise<void> {
   // Enhanced native memory cleanup when window is closing
   win.webContents.on('will-navigate', () => {
     // Clear resources before navigation
-    if (win && win.webContents.session?.clearCache) {
-      win.webContents.session.clearCache();
-    }
+    win?.webContents.session?.clearCache?.();
   });
 
   if (VITE_DEV_SERVER_URL) {
@@ -210,9 +209,8 @@ async function createWindow(): Promise<void> {
   console.log(`Using workspace: ${workspacePath}`);
 
   // Initialize all services using the new functional architecture
-  const loggerFactory = LoggerFactory.getInstance();
-  const logger = loggerFactory.createContextAwareLogger();
-  const loggerService = createLoggerService({ logger });
+  const baseLogger = new MainThreadLogger('info', true, 1000);
+  const loggerService = createLoggerService({ logger: baseLogger });
   setupSettingsHandlers(workspacePath);
 
   // Create the actual database instance using the new driver factory pattern
@@ -228,7 +226,7 @@ async function createWindow(): Promise<void> {
 
   const configService = createConfigService({
     storage: configStorage,
-    logger,
+    logger: loggerService,
   });
 
   try {
@@ -252,7 +250,8 @@ async function createWindow(): Promise<void> {
       aiService,
       domainAgent,
     });
-    const vectorDatabase = new VectorDatabaseModule();
+    qdrantManagerInstance = createQdrantManager();
+    const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
     await vectorDatabase.start();
     const knowledgeService = createKnowledgeService({
       db: database,
@@ -324,6 +323,13 @@ async function cleanup() {
   cleanupMemoryDebug();
 
   // Clean up any additional resources as needed
+  if (qdrantManagerInstance) {
+    try {
+      await qdrantManagerInstance.shutdown();
+    } finally {
+      qdrantManagerInstance.cleanup();
+    }
+  }
   console.log('✅ Cleanup completed');
 }
 
@@ -367,3 +373,4 @@ app.on('before-quit', async () => {
 app.on('will-quit', async () => {
   await cleanup();
 });
+let qdrantManagerInstance: ReturnType<typeof createQdrantManager> | null = null;
