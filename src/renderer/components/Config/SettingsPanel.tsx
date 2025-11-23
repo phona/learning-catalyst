@@ -248,10 +248,7 @@ export const SettingsPanel: React.FC = () => {
     // Auto-save to global config store with debouncing
     debouncedSaveConfig(updatedConfig);
 
-    // Trigger model reload for chat type changes
-    if (modelType === ModelType.CHAT) {
-      configService!.updateModelTypeConfig(ModelType.CHAT, mergedConfig).catch(console.error);
-    }
+    
   };
 
   const providerConfigs = useMemo(() => localConfig?.ai?.providers ?? {}, [localConfig]);

@@ -6,7 +6,7 @@
  */
 
 import type { APIResponse } from './index';
-import type { ProviderConfig } from '@/shared/types';
+import type { AppConfig, ProviderConfig } from '@/shared/types';
 export type { ProviderConfig } from '@/shared/types';
 
 export interface SettingsAPI {
@@ -77,6 +77,13 @@ export interface SettingsAPI {
       impact: string[];
     }>
   >;
+}
+
+export interface SettingsUtility {
+  getAppVersion: () => Promise<APIResponse<string>>;
+  quit: () => Promise<APIResponse<void>>;
+  getConfig: () => Promise<APIResponse<AppConfig>>;
+  setConfig: (config: Partial<AppConfig>) => Promise<APIResponse<void>>;
 }
 
 export interface UserPreferencesDisplay {

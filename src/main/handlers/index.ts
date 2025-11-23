@@ -3,7 +3,6 @@ import { setupChatHandlers } from './chat-handlers';
 import { setupLearningHandlers } from './learning-handlers';
 import { setupKnowledgeHandlers } from './knowledge-handlers';
 import { setupSystemHandlers } from './system-handlers';
-import { setupSettingsHandlers } from './settings-handlers';
 import { setupEnhancedAgentHandlers } from './agent-enhanced-handlers';
 import { setupContentHandlers } from './content-handlers';
 import { setupCompleteAnalyticsHandlers } from './analytics-complete-handlers';
@@ -59,9 +58,6 @@ export async function setupAllIpcHandlers(
     knowledgeService: services.knowledgeService,
     loggerService: services.loggerService,
   });
-
-  // Settings handlers (documented surface)
-  setupSettingsHandlers(workspacePath);
 
   // Setup enhanced agent handlers
   setupEnhancedAgentHandlers(ipcMain, {

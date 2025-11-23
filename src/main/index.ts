@@ -1,4 +1,5 @@
 import { app, BrowserWindow, shell } from 'electron';
+import { mkdir } from 'fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setupAllIpcHandlers } from './handlers';
@@ -36,7 +37,7 @@ import {
 import { createConfigStorage } from './services/core/config/storage';
 
 // Memory debugging utility for development
-import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug';
+// import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug';
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -61,6 +62,13 @@ export const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, 'public')
   : RENDERER_DIST;
+
+const remoteDebugPort = +(process.env.REMOTE_DEBUGGING_PORT || '9222');
+try {
+  app.commandLine.appendSwitch('remote-debugging-port', String(remoteDebugPort));
+} catch (e) {
+  void e;
+}
 
 let win: BrowserWindow | null = null;
 let isShuttingDown = false;
@@ -186,12 +194,14 @@ async function createWindow(): Promise<void> {
     : workspaceArg
       ? path.resolve(workspaceArg)
       : process.cwd();
+  const learningCatalystPath = path.join(workspacePath, '.catalyst');
+  await mkdir(learningCatalystPath, { recursive: true });
+
   console.log(`Using workspace: ${workspacePath}`);
 
   // Initialize all services using the new functional architecture
   const baseLogger = new MainThreadLogger('info', true, 1000);
   const loggerService = createLoggerService({ logger: baseLogger });
-  setupSettingsHandlers(workspacePath);
 
   // Create the actual database instance using the new driver factory pattern
   const dbPath = getDefaultDatabasePath();
@@ -202,12 +212,14 @@ async function createWindow(): Promise<void> {
   await runMigrations(driverFactory);
 
   // Create real config storage
-  const configStorage = createConfigStorage(workspacePath);
+  const configStorage = createConfigStorage(learningCatalystPath);
 
   const configService = createConfigService({
     storage: configStorage,
     logger: loggerService,
   });
+
+  setupSettingsHandlers({ configService });
 
   try {
     const domainAgent = await createDomainAgent({
@@ -300,7 +312,7 @@ async function cleanup() {
   console.log('🧹 Cleaning up resources...');
 
   // Clean up memory debugging
-  cleanupMemoryDebug();
+  // cleanupMemoryDebug();
 
   // Clean up any additional resources as needed
   if (qdrantManagerInstance) {
@@ -320,7 +332,7 @@ app.whenReady().then(async () => {
   console.log('🚀 Learning Catalyst starting with new architecture...');
 
   // Initialize memory debugging for development
-  startMemoryDebug();
+  // startMemoryDebug();
 
   // Create the main window
   await createWindow();

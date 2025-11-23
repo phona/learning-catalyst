@@ -294,23 +294,34 @@ describe('ConfigService Tests', () => {
       expect(result).toEqual(expectedConfig);
     });
 
-    it('should handle null configuration gracefully', async () => {
+    it('should return default configuration when storage returns null', async () => {
       mockStorage.loadConfig.mockResolvedValue(null);
 
       const result = await configService.getConfig();
 
-      expect(result).toBeNull();
+      expect(result).toMatchObject({
+        ai: expect.any(Object),
+        ui: expect.any(Object),
+        learning: expect.any(Object),
+        privacy: expect.any(Object),
+        performance: expect.any(Object),
+      });
     });
   });
 
   describe('setConfig Method - Recursive Merging', () => {
-    it('should handle null current config and save new config directly', async () => {
+    it('should merge defaults when current config is null and save', async () => {
       const newConfig = createMockConfig(createPartialUIUpdate({ theme: 'dark' }));
       mockStorage.loadConfig.mockResolvedValue(null);
 
       await configService.setConfig(newConfig);
 
-      expect(mockStorage.saveConfig).toHaveBeenCalledWith(newConfig);
+      expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
+      const saved = mockStorage.saveConfig.mock.calls[0][0];
+      expect(saved.ui.theme).toBe('dark');
+      expect(saved.ai.modelTypes.chat).toMatchObject(newConfig.ai!.modelTypes!.chat as any);
+      expect(saved.ai.modelTypes.embedding).toBeDefined();
+      expect(saved.ai.modelTypes.rerank).toBeDefined();
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
     });
 
@@ -485,16 +496,16 @@ describe('ConfigService Tests', () => {
   });
 
   describe('setProviderConfig Method', () => {
-    it('should handle null current config gracefully', async () => {
+    it('should set provider config when storage returns null by using defaults', async () => {
       const providerConfig = createMockProviderConfig({ apiKey: 'new-key' });
       mockStorage.loadConfig.mockResolvedValue(null);
 
       await configService.setProviderConfig('openai', providerConfig);
 
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        'Current config is null, cannot set provider config',
-      );
-      expect(mockStorage.saveConfig).not.toHaveBeenCalled();
+      expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
+      const saved = mockStorage.saveConfig.mock.calls[0][0];
+      expect(saved.ai.providers.openai).toBeDefined();
+      expect(saved.ai.providers.openai.apiKey).toBe('new-key');
     });
 
     it('should create AI config structure when missing', async () => {

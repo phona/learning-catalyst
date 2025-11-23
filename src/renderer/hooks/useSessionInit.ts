@@ -97,44 +97,6 @@ export const useSessionInit = () => {
     } else {
       console.warn('[useSessionInit] setSelectedModel is unavailable on the chat store');
     }
-
-    // Create a default session if none exists
-    if (!currentSession) {
-      setCurrentSession({
-        id: Date.now().toString(),
-        title: 'New Chat',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        messages: [],
-        metadata: {
-          title: 'New Chat',
-          tags: [],
-          topicsCovered: [],
-          archived: false,
-          pinned: false,
-        },
-        context: {
-          // Only session-specific context, no config
-          system_prompt: undefined,
-          notes: undefined,
-          learningObjectives: undefined,
-        },
-        checkpoints: [],
-        statistics: {
-          totalMessages: 0,
-          userMessages: 0,
-          assistantMessages: 0,
-          totalTokensUsed: 0,
-          totalThinkingTokens: 0,
-          sessionDuration: 0,
-          averageResponseTime: 0,
-          conceptsLearned: 0,
-          checkpointsCreated: 0,
-          productivityScore: 0,
-          engagementScore: 0,
-        },
-      });
-    }
   }, [
     config,
     currentSession,

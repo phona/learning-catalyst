@@ -1,4 +1,4 @@
-import type { ElectronAPI } from '@/shared/types';
+import type { ElectronAPI, AppConfig } from '@/shared/types';
 import type {
   AgentDisplay,
   AgentContext,
@@ -874,10 +874,10 @@ export function createMockElectronAPIClient(): ElectronAPI {
         }),
       updateLearningSettings: () =>
         Promise.resolve({ success: true, data: { updatedSettings: {}, impact: [] } }),
-      getAppVersion: () => Promise.resolve('1.0.0'),
-      quit: () => Promise.resolve(),
-      getConfig: () => Promise.resolve(null),
-      setConfig: () => Promise.resolve(),
+      getAppVersion: () => Promise.resolve({ success: true, data: '1.0.0' }),
+      quit: () => Promise.resolve({ success: true }),
+      getConfig: () => Promise.resolve({ success: true, data: mockDefaultConfig }),
+      setConfig: () => Promise.resolve({ success: true }),
     },
     getWorkspacePath: () => Promise.resolve('/mock/workspace'),
     readDirectory: () => Promise.resolve([]),
@@ -951,3 +951,53 @@ export function createMockElectronAPIClient(): ElectronAPI {
 export function createElectronAPIClientWith(implementation: Partial<ElectronAPI>): ElectronAPI {
   return implementation as ElectronAPI;
 }
+const mockDefaultConfig: AppConfig = {
+  ai: {
+    providers: {},
+    modelTypes: {},
+  },
+  ui: {
+    theme: 'light',
+    showTokenUsage: false,
+    displayFormat: 'detailed',
+    sessionDuration: 25,
+    fontSize: 'medium',
+    sidebarWidth: 300,
+    autoSave: true,
+    autoScroll: true,
+    showLineNumbers: false,
+    enableMarkdown: true,
+    enableSyntaxHighlighting: true,
+    compactMode: false,
+  },
+  learning: {
+    autoSave: true,
+    sessionTimeoutMinutes: 60,
+    difficulty: 'intermediate',
+    learningStyle: 'visual',
+    personalizationEnabled: true,
+    checkpointInterval: 15,
+    maxSessionHistory: 100,
+    enableAnalytics: false,
+    preferredExplanationLength: 'detailed',
+  },
+  privacy: {
+    storeConversations: true,
+    retentionDays: 90,
+    anonymousAnalytics: false,
+    crashReporting: true,
+    encryptLocalStorage: false,
+    autoCleanup: true,
+    exportFormat: 'json',
+  },
+  performance: {
+    cacheSizeMb: 100,
+    enableCaching: true,
+    maxConcurrentRequests: 5,
+    requestTimeout: 30,
+    memoryLimitMb: 512,
+    gpuAcceleration: false,
+    backgroundProcessing: true,
+    preloadModels: false,
+  },
+};

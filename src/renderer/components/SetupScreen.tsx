@@ -2,11 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/renderer/utils/toast';
 import { useConfigurationService } from '@/renderer/services/services-provider';
-import {
-  useSetupWorkflow,
-  type SaveWorkflowStepId,
-  type SaveWorkflowStepStatus,
-} from '@/renderer/hooks/useSetupWorkflow';
+import { useSetupWorkflow } from '@/renderer/hooks/useSetupWorkflow';
 import type {
   AppConfig,
   LearningConfig,
@@ -34,12 +30,6 @@ interface SetupScreenProps {
   message?: string;
 }
 
-type SaveWorkflowStep = {
-  id: SaveWorkflowStepId;
-  label: string;
-  description: string;
-};
-
 interface ConfiguredProvider {
   id: string;
   name: string;
@@ -57,63 +47,7 @@ interface ModelAssignment {
   };
 }
 
-const WORKFLOW_STEP_CONFIG: SaveWorkflowStep[] = [
-  {
-    id: 'saveUi',
-    label: 'Save in UI layer',
-    description: 'Capture provider and model choices before talking to the main process.',
-  },
-  {
-    id: 'showLoader',
-    label: 'Show loading indicator',
-    description: 'Block interaction while the application applies the new configuration.',
-  },
-  {
-    id: 'invokeConfig',
-    label: 'Invoke configuration API',
-    description:
-      'Call the renderer configuration API so the main process can pick up the settings.',
-  },
-  {
-    id: 'persistConfig',
-    label: 'Main process: Save to config file',
-    description: 'Write the workspace configuration JSON so future launches pick up the setup.',
-  },
-  {
-    id: 'rebuildObjects',
-    label: 'Main process: Update/rebuild objects',
-    description: 'Refresh providers, models, and services so everything runs with the new values.',
-  },
-  {
-    id: 'blockUntilSuccess',
-    label: 'Main process: Block until successful',
-    description: 'Wait for the IPC round-trip to finish before unblocking the UI.',
-  },
-  {
-    id: 'removeBlock',
-    label: 'UI layer: Remove loading block',
-    description: 'Hide the spinner and re-enable navigation after the save completes.',
-  },
-  {
-    id: 'jumpToIndex',
-    label: 'Jump into index page',
-    description: 'Enter the main chat interface now that configuration is done.',
-  },
-];
-
-const WORKFLOW_STATUS_ICONS: Record<SaveWorkflowStepStatus, string> = {
-  idle: '○',
-  pending: '⟳',
-  success: '✓',
-  error: '✖',
-};
-
-const WORKFLOW_STATUS_CLASSES: Record<SaveWorkflowStepStatus, string> = {
-  idle: 'text-gray-400 dark:text-gray-600',
-  pending: 'text-blue-500 dark:text-blue-300',
-  success: 'text-green-500 dark:text-green-300',
-  error: 'text-red-500 dark:text-red-400',
-};
+ 
 
 const DEFAULT_UI_CONFIG: UIConfig = {
   theme: 'light',
@@ -169,8 +103,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
   const navigate = useNavigate();
-  const { isSaving, workflowStatus, workflowError, executeWorkflow } =
-    useSetupWorkflow(configService);
+  const { isSaving, executeWorkflow } = useSetupWorkflow(configService);
 
   // Page 1: Provider configuration
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
@@ -204,17 +137,48 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     lmstudio: 'LM Studio',
   };
 
+  useEffect(() => {
+    const preloadPersistedProviders = async () => {
+      try {
+        const persisted = await configService.getConfig();
+        const providers = (persisted?.ai?.providers ?? {}) as Record<string, Partial<ProviderConfig>>;
+        const restored: ConfiguredProvider[] = Object.entries(providers).map(([id, cfg]) => ({
+          id,
+          name: id,
+          apiKey: '',
+          baseUrl: String(cfg.baseUrl ?? ''),
+          models: Array.isArray(cfg.models) ? (cfg.models as string[]) : [],
+        }));
+        if (restored.length > 0) {
+          setConfiguredProviders((prev) => {
+            const merged = [...prev];
+            const existingIds = new Set(prev.map((p) => p.id));
+            for (const r of restored) {
+              if (!existingIds.has(r.id)) merged.push(r);
+            }
+            return merged;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to preload persisted providers:', error);
+        showError('Failed to preload persisted providers');
+      }
+    };
+    preloadPersistedProviders();
+  }, [configService]);
+
   const getProviderLabel = (providerId: string): string => {
     const mapped = PROVIDER_LABELS[providerId];
-    if (mapped) return mapped;
+    if (mapped !== undefined) return mapped;
     const provider = providerOptions.find((p) => p.id === providerId);
-    return provider?.name || providerId;
+    return provider?.name ?? providerId;
   };
 
   const getProviderName = (providerId: string): string => {
     const provider = providerOptions.find((p) => p.id === providerId);
-    const name = provider?.name || providerId;
-    return name && name.trim() ? name : 'Unknown Provider';
+    const providerName = provider?.name ?? providerId;
+    const trimmed = (providerName ?? '').trim();
+    return trimmed.length > 0 ? providerName : 'Unknown Provider';
   };
 
   const categorizeModels = (models: string[]) => {
@@ -251,10 +215,12 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
       rerank?: SelectedModel;
     } = {};
     const chatSettings = chatAssignment?.settings;
-
+    if (!chatAssignment) {
+      throw new Error('Chat model is required');
+    }
     modelTypes.chat = {
-      provider: chatAssignment!.providerId,
-      model: chatAssignment!.model,
+      provider: chatAssignment.providerId,
+      model: chatAssignment.model,
       temperature: chatSettings?.temperature ?? 0.7,
       maxTokens: chatSettings?.maxTokens ?? 2048,
       topP: 1,
@@ -280,9 +246,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
       ai: {
         providers: providerConfigs,
         modelTypes,
-        metadata: {
-          modelTests: [],
-        },
       },
       ui: DEFAULT_UI_CONFIG,
       learning: DEFAULT_LEARNING_CONFIG,
@@ -296,23 +259,14 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     const loadProviders = async () => {
       try {
         const response = await configService.getAvailableProviders();
-
-        // Handle different response structures
-        let providers: ProviderConfig[] = [];
-        if (Array.isArray(response)) {
-          providers = response;
-        } else if (response && Array.isArray(response.providers)) {
-          providers = response.providers;
-        } else {
-          console.error('Unexpected response format:', response);
-          showError('Failed to load providers: Invalid response format');
-          return;
-        }
+        const providers: ProviderConfig[] = Array.isArray(response.providers)
+          ? response.providers
+          : [];
 
         const providerOptions = providers
           .map((p) => {
             const id: string = (p.providerType ?? '').toString();
-            const name: string = id || 'unknown';
+            const name: string = id ?? 'unknown';
             const models: string[] = Array.isArray(p.models) ? p.models : [];
             const baseUrl = (p.baseUrl ?? '').toString();
 
@@ -322,12 +276,12 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
               description: '',
               models,
               metadata: {
-                defaultModel: models[0] || 'default',
+                defaultModel: models[0] ?? 'default',
                 baseUrl,
               },
             } as ProviderOption;
           })
-          .filter((opt: ProviderOption) => !!opt.id);
+          .filter((opt: ProviderOption) => opt.id !== undefined && opt.id !== '');
 
         setProviderOptions(providerOptions);
       } catch (error) {
@@ -356,7 +310,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
   }, [shouldNavigate, navigate]);
 
   // Add a new provider
-  const handleAddProvider = () => {
+  const handleAddProvider = async () => {
     if (!newProviderId || !newProviderApiKey.trim()) {
       showError('Provider and API key are required');
       return;
@@ -383,6 +337,42 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     };
 
     setConfiguredProviders([...configuredProviders, newProvider]);
+    // Persist provider immediately to config file (incremental save)
+    await configService
+      .configureProvider({
+        provider: newProvider.id,
+        config: {
+          providerType: newProvider.id as ProviderType,
+          apiKey: newProvider.apiKey,
+          baseUrl: newProvider.baseUrl,
+          models: newProvider.models,
+        },
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to persist provider config:', error);
+        showError(
+          error instanceof Error ? error.message : 'Failed to persist provider configuration',
+        );
+      });
+    try {
+      const providerConfigs = [...configuredProviders, newProvider].reduce<Record<string, ProviderConfig>>(
+        (acc, p) => {
+          acc[p.id] = {
+            providerType: p.id as ProviderType,
+            apiKey: p.apiKey,
+            baseUrl: p.baseUrl || undefined,
+            models: p.models,
+          };
+          return acc;
+        },
+        {},
+      );
+      await configService.setConfig({
+        ai: { providers: providerConfigs },
+      });
+    } catch {
+      showError('Failed to persist setup draft');
+    }
     setNewProviderId('');
     setNewProviderApiKey('');
     setNewProviderBaseUrl('');
@@ -390,7 +380,21 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
 
   // Remove a provider
   const handleRemoveProvider = (providerId: string) => {
-    setConfiguredProviders(configuredProviders.filter((p) => p.id !== providerId));
+    const updated = configuredProviders.filter((p) => p.id !== providerId);
+    setConfiguredProviders(updated);
+
+    const providerConfigs = updated.reduce<Record<string, ProviderConfig>>((acc, p) => {
+      acc[p.id] = {
+        providerType: p.id as ProviderType,
+        apiKey: p.apiKey,
+        baseUrl: p.baseUrl || undefined,
+        models: p.models,
+      };
+      return acc;
+    }, {});
+    configService
+      .saveConfig({ ai: { providers: providerConfigs } } as any)
+      .catch(() => showError('Failed to persist setup draft'));
 
     // Clean up assignments that use this provider
     if (chatAssignment?.providerId === providerId) {
@@ -441,7 +445,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         rerankAssignment,
         buildAppConfig: buildAppConfigFromSelections,
       });
-
       showSuccess('Configuration saved successfully. Redirecting to the chat interface...');
       setShouldNavigate(true);
     } catch (error) {
@@ -562,15 +565,19 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+            <label
+              htmlFor="new-provider-select"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
+            >
               Provider <span className="text-red-500">*</span>
             </label>
             <select
+              id="new-provider-select"
               value={newProviderId}
               onChange={(e) => {
                 setNewProviderId(e.target.value);
                 const provider = providerOptions.find((p) => p.id === e.target.value);
-                setNewProviderBaseUrl(provider?.metadata.baseUrl || '');
+                setNewProviderBaseUrl(provider?.metadata.baseUrl ?? '');
               }}
               className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
               disabled={providerOptions.length === 0}
@@ -590,10 +597,14 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+            <label
+              htmlFor="new-provider-api-key"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
+            >
               API Key <span className="text-red-500">*</span>
             </label>
             <input
+              id="new-provider-api-key"
               type="password"
               value={newProviderApiKey}
               onChange={(e) => setNewProviderApiKey(e.target.value)}
@@ -648,11 +659,15 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+            <label
+              htmlFor="chat-provider-select"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
+            >
               Provider
             </label>
             <select
-              value={chatAssignment?.providerId || ''}
+              id="chat-provider-select"
+              value={chatAssignment?.providerId ?? ''}
               onChange={(e) => {
                 if (!e.target.value) {
                   setChatAssignment(null);
@@ -661,11 +676,26 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                 const provider = configuredProviders.find((p) => p.id === e.target.value);
                 if (provider) {
                   const { chatModels } = categorizeModels(provider.models);
-                  setChatAssignment({
+                  const next = {
                     providerId: e.target.value,
-                    model: chatModels[0] || '',
+                    model: chatModels[0] ?? '',
                     settings: { temperature: 0.4, maxTokens: 2048 },
-                  });
+                  };
+                  setChatAssignment(next);
+                  configService
+                    .saveConfig({
+                      ai: {
+                        modelTypes: {
+                          chat: {
+                            provider: next.providerId,
+                            model: next.model,
+                            temperature: next.settings?.temperature,
+                            maxTokens: next.settings?.maxTokens,
+                          },
+                        },
+                      },
+                    } as any)
+                    .catch(() => showError('Failed to persist setup draft'));
                 }
               }}
               className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
@@ -724,7 +754,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                     step="0.1"
                     min="0"
                     max="2"
-                    value={chatAssignment.settings?.temperature || 0.4}
+                    value={chatAssignment.settings?.temperature ?? 0.4}
                     onChange={(e) =>
                       setChatAssignment({
                         ...chatAssignment,
@@ -743,7 +773,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                   </label>
                   <input
                     type="number"
-                    value={chatAssignment.settings?.maxTokens || 2048}
+                    value={chatAssignment.settings?.maxTokens ?? 2048}
                     onChange={(e) =>
                       setChatAssignment({
                         ...chatAssignment,
@@ -791,19 +821,36 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         {embeddingAssignment ? (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              <label
+                htmlFor="embedding-provider-select"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
+              >
                 Provider
               </label>
               <select
+                id="embedding-provider-select"
                 value={embeddingAssignment.providerId}
                 onChange={(e) => {
                   const provider = configuredProviders.find((p) => p.id === e.target.value);
                   if (provider) {
                     const { embeddingModels } = categorizeModels(provider.models);
-                    setEmbeddingAssignment({
+                    const next = {
                       providerId: e.target.value,
-                      model: embeddingModels[0] || '',
-                    });
+                      model: embeddingModels[0] ?? '',
+                    };
+                    setEmbeddingAssignment(next);
+                    configService
+                      .saveConfig({
+                        ai: {
+                          modelTypes: {
+                            embedding: {
+                              provider: next.providerId,
+                              model: next.model,
+                            },
+                          },
+                        },
+                      } as any)
+                      .catch(() => showError('Failed to persist setup draft'));
                   }
                 }}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
@@ -901,19 +948,36 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         {rerankAssignment ? (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              <label
+                htmlFor="rerank-provider-select"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2"
+              >
                 Provider
               </label>
               <select
+                id="rerank-provider-select"
                 value={rerankAssignment.providerId}
                 onChange={(e) => {
                   const provider = configuredProviders.find((p) => p.id === e.target.value);
                   if (provider) {
                     const { rerankModels } = categorizeModels(provider.models);
-                    setRerankAssignment({
+                    const next = {
                       providerId: e.target.value,
-                      model: rerankModels[0] || '',
-                    });
+                      model: rerankModels[0] ?? '',
+                    };
+                    setRerankAssignment(next);
+                    configService
+                      .saveConfig({
+                        ai: {
+                          modelTypes: {
+                            rerank: {
+                              provider: next.providerId,
+                              model: next.model,
+                            },
+                          },
+                        },
+                      } as any)
+                      .catch(() => showError('Failed to persist setup draft'));
                   }
                 }}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
@@ -981,51 +1045,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     </div>
   );
 
-  const renderWorkflowPanel = () => (
-    <div className="p-4 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 rounded-lg">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Save workflow</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Each stage follows the UI → main process handoff you described.
-          </p>
-        </div>
-        {workflowError && (
-          <p className="text-xs font-semibold text-red-600 dark:text-red-400">{workflowError}</p>
-        )}
-      </div>
-      <ol className="mt-4 space-y-3">
-        {WORKFLOW_STEP_CONFIG.map((step, index) => {
-          const status = workflowStatus[step.id];
-          return (
-            <li key={step.id} className="flex gap-3 items-start">
-              <span className={`text-lg font-semibold ${WORKFLOW_STATUS_CLASSES[status]}`}>
-                {WORKFLOW_STATUS_ICONS[status]}
-              </span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {index + 1}. {step.label}
-                  </p>
-                  <span className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    {status === 'pending'
-                      ? 'Working'
-                      : status === 'success'
-                        ? 'Complete'
-                        : status === 'error'
-                          ? 'Errored'
-                          : 'Idle'}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{step.description}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-
   // Page 3: Review
   const renderPage3 = () => (
     <div className="space-y-6">
@@ -1037,8 +1056,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
           Verify everything looks correct before saving.
         </p>
       </div>
-
-      {renderWorkflowPanel()}
 
       <div className="space-y-4">
         <div>
@@ -1070,7 +1087,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                         API Key: ✓ Configured
                       </p>
-                      {provider.baseUrl && (
+                      {(provider.baseUrl ?? '').trim() !== '' && (
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           Base URL: {provider.baseUrl}
                         </p>
@@ -1093,17 +1110,19 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
             Model Assignments
           </h3>
           <div className="space-y-3">
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">💬 Chat</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Provider: {getProviderName(chatAssignment!.providerId)}
-                <br />
-                Model: {chatAssignment!.model}
-                <br />
-                Settings: Temperature {chatAssignment!.settings?.temperature}, Max Tokens{' '}
-                {chatAssignment!.settings?.maxTokens}
-              </p>
-            </div>
+            {chatAssignment && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">💬 Chat</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Provider: {getProviderName(chatAssignment.providerId)}
+                  <br />
+                  Model: {chatAssignment.model}
+                  <br />
+                  Settings: Temperature {chatAssignment.settings?.temperature}, Max Tokens{' '}
+                  {chatAssignment.settings?.maxTokens}
+                </p>
+              </div>
+            )}
 
             {embeddingAssignment && (
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -1138,10 +1157,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     </div>
   );
 
-  const activeWorkflowStepLabel = WORKFLOW_STEP_CONFIG.find(
-    (step) => workflowStatus[step.id] === 'pending',
-  )?.label;
-
   return (
     <main
       role="main"
@@ -1157,9 +1172,6 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
           >
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-white border-t-transparent animate-spin" />
             <p className="text-lg font-semibold">Applying configuration…</p>
-            <p className="text-sm text-white/80">
-              {activeWorkflowStepLabel ? `Step: ${activeWorkflowStepLabel}` : 'Preparing...'}
-            </p>
           </div>
         )}
         <div className="mb-8">
@@ -1167,7 +1179,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
             Welcome to Learning Catalyst
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-2">
-            {message ||
+            {message ??
               'Configure your AI providers and models to enable all Learning Catalyst features.'}
           </p>
         </div>

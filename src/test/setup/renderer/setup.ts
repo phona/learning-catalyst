@@ -298,31 +298,8 @@ Object.defineProperty(window, 'innerHeight', {
 
 // ==================== STORAGE API MOCKS ====================
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  key: vi.fn(),
-  length: 0,
-};
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
-
-// Mock sessionStorage
-const sessionStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  key: vi.fn(),
-  length: 0,
-};
-Object.defineProperty(window, 'sessionStorage', {
-  value: sessionStorageMock,
-});
+const localStorageMock = window.localStorage as any;
+const sessionStorageMock = window.sessionStorage as any;
 
 // ==================== NAVIGATION API MOCKS ====================
 

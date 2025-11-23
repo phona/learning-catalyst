@@ -16,11 +16,14 @@ const readyElectronClient: ElectronAPI = (() => {
   if (typeof client.settings?.getConfig === 'function') {
     client.settings.getConfig = async () =>
       ({
-        ai: { modelTypes: { chat: { provider: 'mock-provider', model: 'mock-model' } } },
-        ui: {},
-        learning: {},
-        privacy: {},
-      }) as unknown as AppConfig;
+        success: true,
+        data: {
+          ai: { modelTypes: { chat: { provider: 'mock-provider', model: 'mock-model' } } },
+          ui: {},
+          learning: {},
+          privacy: {},
+        } as AppConfig,
+      });
   }
   return client;
 })();
@@ -28,7 +31,7 @@ const readyElectronClient: ElectronAPI = (() => {
 const missingConfigElectronClient: ElectronAPI = (() => {
   const client = createMockElectronAPIClient();
   if (typeof client.settings?.getConfig === 'function') {
-    client.settings.getConfig = async () => null as unknown as AppConfig;
+    client.settings.getConfig = async () => ({ success: true });
   }
   return client;
 })();
@@ -41,14 +44,16 @@ export const Providers = ({
   children,
   routerProps,
   electronAPI,
+  serviceOverrides,
 }: {
   children: React.ReactNode;
   routerProps?: React.ComponentProps<typeof MemoryRouter>;
   electronAPI?: ElectronAPI;
+  serviceOverrides?: React.ComponentProps<typeof ServicesProvider>['overrides'];
 }): React.ReactElement => (
   <QueryLayer>
     <MemoryRouter {...routerProps}>
-      <ServicesProvider apiClient={electronAPI ?? readyElectronClient}>
+      <ServicesProvider apiClient={electronAPI ?? readyElectronClient} overrides={serviceOverrides}>
         <ChatStoreProvider>{children}</ChatStoreProvider>
       </ServicesProvider>
     </MemoryRouter>
@@ -62,11 +67,13 @@ export const renderWithServices = (
     electronUnavailable = false,
     electronAPI,
     renderOptions,
+    serviceOverrides,
   }: {
     routerProps?: React.ComponentProps<typeof MemoryRouter>;
     electronUnavailable?: boolean;
     electronAPI?: ElectronAPI;
     renderOptions?: Parameters<typeof render>[1];
+    serviceOverrides?: React.ComponentProps<typeof ServicesProvider>['overrides'];
   } = {},
 ): ReturnType<typeof render> => {
   const noWindowElectron =
@@ -75,7 +82,7 @@ export const renderWithServices = (
   const useMissing = electronUnavailable || noWindowElectron;
   const client = electronAPI ?? (useMissing ? missingConfigElectronClient : readyElectronClient);
   return render(
-    <Providers routerProps={routerProps} electronAPI={client}>
+    <Providers routerProps={routerProps} electronAPI={client} serviceOverrides={serviceOverrides}>
       {ui}
     </Providers>,
     renderOptions,

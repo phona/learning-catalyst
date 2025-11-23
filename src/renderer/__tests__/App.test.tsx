@@ -97,7 +97,7 @@ const originalElectronAPI = (window as typeof window & { electronAPI?: unknown }
 
 const buildElectronAPI = () => {
   const client = createMockElectronAPIClient();
-  client.settings.getConfig = vi.fn().mockResolvedValue(workspaceConfig);
+  client.settings.getConfig = vi.fn().mockResolvedValue({ success: true, data: workspaceConfig });
   return client;
 };
 

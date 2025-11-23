@@ -1,5 +1,6 @@
 import type { AppConfig } from '@/shared/types/config';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
+import { assertOk, unwrap } from '@/renderer/utils/apiResponse';
 
 // Menu handlers interface
 interface MenuHandlers {
@@ -51,7 +52,9 @@ export async function getAppVersion(): Promise<string> {
   }
 
   try {
-    return await window.electronAPI.settings.getAppVersion();
+    const resp = await window.electronAPI.settings.getAppVersion();
+    const data = unwrap(resp);
+    return typeof data === 'string' ? data : 'Unknown';
   } catch (error) {
     console.error('Failed to get app version:', error);
     return 'Unknown';
@@ -67,7 +70,8 @@ export async function quitApp(): Promise<void> {
   }
 
   try {
-    await window.electronAPI.settings.quit();
+    const resp = await window.electronAPI.settings.quit();
+    assertOk(resp);
   } catch (error) {
     console.error('Failed to quit app:', error);
   }

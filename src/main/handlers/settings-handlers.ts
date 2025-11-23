@@ -6,15 +6,10 @@
  */
 
 import { ipcMain, app } from 'electron';
-import { access, mkdir, readFile, writeFile } from 'fs/promises';
-import { dirname, join } from 'path';
 import { AVAILABLE_PROVIDERS } from '@/shared/types/config';
 import type { AppConfig, ProviderConfig } from '@/shared/types';
 import type { APIResponse } from '@/shared/types';
-
-const CONFIG_REL_PATH = join('.catalyst', 'config.json');
-let workspaceRoot = process.cwd();
-let cachedConfig: AppConfig | null = null;
+import { ConfigService } from '../services/core/config/config-service';
 
 type UserPreferences = Record<string, any>;
 type LearningSettings = Record<string, any>;
@@ -44,34 +39,10 @@ const fail = (code: string, message: string, details?: unknown): APIResponse<nev
   error: { code, message, details },
 });
 
-const getConfigPath = (): string => join(workspaceRoot, CONFIG_REL_PATH);
-
-const ensureConfigDir = async (): Promise<void> => {
-  const dir = dirname(getConfigPath());
-  await mkdir(dir, { recursive: true });
-};
-
-const loadConfigFromDisk = async (): Promise<AppConfig | null> => {
-  try {
-    const path = getConfigPath();
-    await access(path);
-    const content = await readFile(path, 'utf-8');
-    const parsed = JSON.parse(content) as AppConfig;
-    cachedConfig = parsed;
-    return parsed;
-  } catch {
-    return null;
-  }
-};
-
-const saveConfigToDisk = async (config: AppConfig): Promise<void> => {
-  await ensureConfigDir();
-  await writeFile(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8');
-  cachedConfig = config;
-};
-
-export const setupSettingsHandlers = (workspacePath?: string): void => {
-  workspaceRoot = workspacePath || process.cwd();
+export const setupSettingsHandlers = (deps: {
+  configService: ConfigService;
+}): void => {
+  const configService = deps.configService;
 
   ipcMain.handle('settings:get-user-preferences', async () => ok(userPreferences));
 
@@ -114,13 +85,13 @@ export const setupSettingsHandlers = (workspacePath?: string): void => {
   );
 
   ipcMain.handle('settings:getWorkspaceConfig', async () => {
-    const cfg = cachedConfig ?? (await loadConfigFromDisk());
+    const cfg = await configService.getConfig();
     return ok(cfg);
   });
 
-  ipcMain.handle('settings:setWorkspaceConfig', async (_event, config: AppConfig) => {
+  ipcMain.handle('settings:setWorkspaceConfig', async (_event, config: Partial<AppConfig>) => {
     try {
-      await saveConfigToDisk(config);
+      await configService.setConfig(config);
       return ok(undefined);
     } catch (error) {
       return fail('settings.config_write_failed', 'Unable to save workspace config', error);

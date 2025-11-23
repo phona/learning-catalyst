@@ -3,6 +3,78 @@ import { ConfigStorage } from './storage';
 import { LoggerService } from '../logger/logger-service';
 import { merge } from 'lodash';
 
+const DEFAULT_APP_CONFIG: AppConfig = {
+  ai: {
+    providers: {},
+    modelTypes: {
+      chat: {
+        provider: 'openai',
+        model: 'gpt-3.5-turbo',
+        temperature: 0.7,
+        maxTokens: 2048,
+        topP: 1,
+        enableThinking: false,
+        stream: true,
+      },
+      embedding: {
+        provider: 'openai',
+        model: 'text-embedding-ada-002',
+      },
+      rerank: {
+        provider: 'openai',
+        model: 'text-embedding-ada-002',
+      },
+    },
+    metadata: {
+      modelTests: [],
+    },
+  },
+  ui: {
+    theme: 'light',
+    showTokenUsage: false,
+    displayFormat: 'detailed',
+    sessionDuration: 25,
+    fontSize: 'medium',
+    sidebarWidth: 300,
+    autoSave: true,
+    autoScroll: true,
+    showLineNumbers: false,
+    enableMarkdown: true,
+    enableSyntaxHighlighting: true,
+    compactMode: false,
+  },
+  learning: {
+    autoSave: true,
+    sessionTimeoutMinutes: 60,
+    difficulty: 'intermediate',
+    learningStyle: 'visual',
+    personalizationEnabled: true,
+    checkpointInterval: 15,
+    maxSessionHistory: 100,
+    enableAnalytics: false,
+    preferredExplanationLength: 'detailed',
+  },
+  privacy: {
+    storeConversations: true,
+    retentionDays: 90,
+    anonymousAnalytics: false,
+    crashReporting: true,
+    encryptLocalStorage: false,
+    autoCleanup: true,
+    exportFormat: 'json',
+  },
+  performance: {
+    cacheSizeMb: 100,
+    enableCaching: true,
+    maxConcurrentRequests: 5,
+    requestTimeout: 30,
+    memoryLimitMb: 512,
+    gpuAcceleration: false,
+    backgroundProcessing: true,
+    preloadModels: false,
+  },
+};
+
 type DeepPaths<T> = T extends object
   ? {
       [K in Extract<keyof T, string>]: NonNullable<T[K]> extends object
@@ -53,6 +125,10 @@ export const createConfigService = ({
       }
 
       cachedConfig = await storage.loadConfig();
+      if (!cachedConfig) {
+        return DEFAULT_APP_CONFIG;
+      }
+
       return cachedConfig;
     },
 
@@ -62,13 +138,13 @@ export const createConfigService = ({
     setConfig: async (config: Partial<AppConfig>): Promise<void> => {
       const currentConfig = await service.getConfig();
 
-      // If no current config exists, use the new config directly
       if (!currentConfig) {
         await storage.saveConfig(config as AppConfig);
+        cachedConfig = config as AppConfig;
+        emitConfigChanged(cachedConfig);
         return;
       }
 
-      // Recursively merge current config with new config (new config takes precedence)
       const newConfig = merge({}, currentConfig, config);
       await storage.saveConfig(newConfig);
       cachedConfig = newConfig;

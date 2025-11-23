@@ -668,7 +668,7 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
   getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
   quit: () => ipcRenderer.invoke('settings:quitApp'),
   getConfig: () => ipcRenderer.invoke('settings:getWorkspaceConfig'),
-  setConfig: (config: AppConfig) => ipcRenderer.invoke('settings:setWorkspaceConfig', config),
+  setConfig: (config: Partial<AppConfig>) => ipcRenderer.invoke('settings:setWorkspaceConfig', config),
 };
 
 // ============================================================================

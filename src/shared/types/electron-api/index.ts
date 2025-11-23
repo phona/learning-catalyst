@@ -27,7 +27,7 @@ import type { KnowledgeAPI } from './knowledge-api';
 import type { AnalyticsAPI } from './analytics-api';
 import type { AgentsAPI } from './agent-api';
 import type { ContentAPI } from './content-api';
-import type { SettingsAPI } from './settings-api';
+import type { SettingsAPI, SettingsUtility } from './settings-api';
 import type { CatalystAPI } from './catalyst-api';
 import type { SessionsAPI } from './sessions-api';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
@@ -44,6 +44,9 @@ export type {
   SessionsAPI,
   CatalystAPI,
 };
+
+// Export SettingsUtility interface for renderer consumption
+export type { SettingsUtility } from './settings-api';
 
 export type {
   ConversationHistory,
@@ -128,13 +131,6 @@ export type { ProviderConfig } from '../config';
  * - Progressive enhancement patterns
  * - Type-safe communication between processes
  */
-export interface SettingsUtility {
-  getAppVersion: () => Promise<string>;
-  quit: () => Promise<void>;
-  getConfig: () => Promise<AppConfig | null>;
-  setConfig: (config: AppConfig) => Promise<void>;
-}
-
 export interface ElectronAPI {
   // 7 Complete API Domains
   chat: ChatAPI;
@@ -233,19 +229,33 @@ export type APIDomain =
   | 'settings';
 
 /**
- * API response wrapper for consistent error handling
+ * API response types for consistent error handling
+ * Error must be provided when success is false
  */
-export interface APIResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: unknown;
-  };
-  metadata?: {
-    timestamp: string;
-    requestId: string;
-    processingTime: number;
-  };
-}
+export type APIResponseError = {
+  code: string;
+  message: string;
+  details?: unknown;
+};
+
+export type APIResponse<T = unknown> =
+  | {
+      success: true;
+      data?: T;
+      error?: never;
+      metadata?: {
+        timestamp: string;
+        requestId: string;
+        processingTime: number;
+      };
+    }
+  | {
+      success: false;
+      error: APIResponseError;
+      data?: never;
+      metadata?: {
+        timestamp: string;
+        requestId: string;
+        processingTime: number;
+      };
+    };

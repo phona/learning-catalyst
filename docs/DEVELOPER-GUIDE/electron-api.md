@@ -149,14 +149,15 @@ helper methods listed below.
 ## Settings Utility & Helpers
 
 `SettingsUtility` extends the settings domain with the workspace helpers that wrap the
-`settings:getWorkspaceConfig`/`settings:setWorkspaceConfig` IPC channels:
+`settings:getWorkspaceConfig`/`settings:setWorkspaceConfig` IPC channels. All helpers return
+`APIResponse<...>` and must include an `error` when `success` is `false`:
 
-| Helper                       | Signature                              | Purpose                                        |
-| ---------------------------- | -------------------------------------- | ---------------------------------------------- | ---------------------------------------- |
-| `settings.getAppVersion()`   | `() => Promise<string>`                | Mirrors `app.getVersion()` for diagnostics.    |
-| `settings.quit()`            | `() => Promise<void>`                  | Requests the app to quit (`settings:quitApp`). |
-| `settings.getConfig()`       | `() => Promise<AppConfig               | null>`                                         | Reads persisted workspace configuration. |
-| `settings.setConfig(config)` | `(config: AppConfig) => Promise<void>` | Replaces the workspace configuration.          |
+| Helper                       | Signature                                           | Purpose                                        |
+| ---------------------------- | --------------------------------------------------- | ---------------------------------------------- |
+| `settings.getAppVersion()`   | `() => Promise<APIResponse<string>>`                | Mirrors `app.getVersion()` for diagnostics.    |
+| `settings.quit()`            | `() => Promise<APIResponse<void>>`                  | Requests the app to quit (`settings:quitApp`). |
+| `settings.getConfig()`       | `() => Promise<APIResponse<AppConfig>>`             | Reads persisted workspace configuration.       |
+| `settings.setConfig(config)` | `(config: Partial<AppConfig>) => Promise<APIResponse<void>>` | Replaces the workspace configuration.    |
 
 Other helpers available directly on `window.electronAPI`:
 
@@ -204,19 +205,20 @@ Every payload follows:
 
 ## Common Response Format
 
-Every domain returns `APIResponse<T>`:
+Every domain returns `APIResponse<T>` (discriminated union):
 
 ```ts
-interface APIResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: { code: string; message: string; details?: any };
-  metadata?: { timestamp: string; requestId: string; processingTime: number };
-}
+type APIResponseError = { code: string; message: string; details?: any };
+
+type APIResponse<T = any> =
+  | { success: true; data?: T; error?: never; metadata?: { timestamp: string; requestId: string; processingTime: number } }
+  | { success: false; error: APIResponseError; data?: never; metadata?: { timestamp: string; requestId: string; processingTime: number } };
 ```
 
-Handle `success` before using `.data`. Streaming helpers (e.g., `chat.sendMessageStream`) pass
-chunks as they arrive.
+Always check `success` before using `.data`. If `success` is `false`, the `error` object is required
+and should be surfaced or thrown. The `error.code` must be provided and non-empty for failures.
+Streaming helpers (e.g., `chat.sendMessageStream`) pass chunks as
+they arrive.
 
 ## Type Safety
 
@@ -227,4 +229,5 @@ tests. Always check `APIResponse.success` before touching `data`.
 ## Testing Tips
 
 Mock the electron bridge with the same shape as `ElectronAPI`, including helpers and the `settings`
-domain. Keep real-life responses wrapped in `APIResponse`.
+domain. Keep real-life responses wrapped in `APIResponse`. When mocking failure cases, always
+provide a non-empty `error` object with a valid `code`.

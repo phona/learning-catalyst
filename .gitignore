@@ -86,3 +86,4 @@ nul
 .tmp
 test-results
 coverage
+playwright-report

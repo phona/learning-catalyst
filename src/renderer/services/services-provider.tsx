@@ -38,6 +38,17 @@ const ServiceContext = createContext<ServiceContextType | null>(null);
 export interface ServicesProviderProps {
   apiClient: ElectronAPI;
   children: React.ReactNode;
+  overrides?: Partial<{
+    sessionService: SessionService;
+    chatService: ChatService;
+    analyticsService: AnalyticsService;
+    discoveryService: DiscoveryService;
+    catalystService: CatalystService;
+    configService: ConfigurationService;
+    fileService: FileService;
+    conceptParsing: ConceptParsingService;
+    agentService: AgentService;
+  }>;
 }
 
 /**
@@ -47,18 +58,18 @@ export interface ServicesProviderProps {
  * Automatically creates services from an apiClient, with fallback to mock
  * client when electronAPI is not available (browser environment).
  */
-export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, children }) => {
+export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, children, overrides }) => {
   const client = apiClient;
 
-  const sessionService = createSessionService(client);
-  const chatService = createChatService(client);
-  const analyticsService = createAnalyticsService(client);
-  const discoveryService = createDiscoveryService(client);
-  const catalystService = createCatalystService(client);
-  const configService = createConfigurationService(client);
-  const fileService = createFileService(client);
-  const conceptParsing = createConceptParsingService(client);
-  const agentService = createAgentService(client);
+  const sessionService = overrides?.sessionService ?? createSessionService(client);
+  const chatService = overrides?.chatService ?? createChatService(client);
+  const analyticsService = overrides?.analyticsService ?? createAnalyticsService(client);
+  const discoveryService = overrides?.discoveryService ?? createDiscoveryService(client);
+  const catalystService = overrides?.catalystService ?? createCatalystService(client);
+  const configService = overrides?.configService ?? createConfigurationService(client);
+  const fileService = overrides?.fileService ?? createFileService(client);
+  const conceptParsing = overrides?.conceptParsing ?? createConceptParsingService(client);
+  const agentService = overrides?.agentService ?? createAgentService(client);
 
   return (
     <ServiceContext.Provider

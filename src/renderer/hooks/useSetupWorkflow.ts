@@ -118,26 +118,7 @@ export const useSetupWorkflow = (configService: ConfigurationService) => {
           });
         }
 
-        const applyModelType = async (
-          model: 'chat' | 'embedding' | 'rerank',
-          assignment?: ModelAssignment | null,
-        ) => {
-          if (!assignment) return;
-          const targetModel =
-            model === 'chat'
-              ? ModelType.CHAT
-              : model === 'embedding'
-                ? ModelType.EMBEDDING
-                : ModelType.RERANK;
-          await configService.updateModelTypeConfig(targetModel, {
-            provider: assignment.providerId,
-            model: assignment.model,
-          });
-        };
-
-        await applyModelType('chat', payload.chatAssignment);
-        await applyModelType('embedding', payload.embeddingAssignment);
-        await applyModelType('rerank', payload.rerankAssignment);
+        // Model assignments are applied as part of the final persisted config below
 
         updateWorkflowStep('invokeConfig', 'success');
 
