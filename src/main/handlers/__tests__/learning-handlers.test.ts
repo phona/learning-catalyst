@@ -29,13 +29,19 @@ const logger = {
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
-};
-
-const loggerService = {
+  debug: vi.fn(),
   child: vi.fn(() => logger),
 };
 
-const learningService = {
+const loggerService = {
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  child: vi.fn(() => logger),
+};
+
+const learningService: any = {
   getLearningPath: vi.fn(async (pathId: string) => ({
     id: pathId,
     title: 'Saved Path',
@@ -47,6 +53,24 @@ const learningService = {
   completeSession: vi.fn(async (sessionId: string) => ({ sessionId, summary: {} })),
   getRecentSessions: vi.fn(async () => [{ id: 'session-1', topic: 'React' }]),
   searchSessions: vi.fn(async () => ({ sessions: [], totalResults: 0 })),
+  createLearningPath: vi.fn(async () => ({
+    id: 'path-1',
+    title: 'Path',
+    description: 'Desc',
+    userId: 'user',
+    status: 'active',
+    progress: 0,
+    modules: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  })),
+  getUserProgress: vi.fn(async () => ({
+    userId: 'user',
+    completedPaths: [],
+    currentSession: undefined,
+    stats: { sessionsCompleted: 0, averageRetention: 0 },
+  })),
+  getRecommendedPaths: vi.fn(async () => []),
 };
 
 const getHandler = (channel: string) => {

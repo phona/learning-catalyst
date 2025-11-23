@@ -2,7 +2,7 @@
 
 declare global {
   namespace vi {
-    interface Mock<T = any, Y extends any[] = any[]> {
+    interface Mock<T = unknown, Y extends unknown[] = unknown[]> {
       (...args: Y): T;
       mock: {
         calls: Y[][];
@@ -11,12 +11,12 @@ declare global {
       mockImplementation(fn: (...args: Y) => T): Mock<T, Y>;
       mockReturnValue(value: T): Mock<T, Y>;
       mockResolvedValue(value: T): Mock<T, Y>;
-      mockRejectedValue(value: any): Mock<T, Y>;
+      mockRejectedValue(value: unknown): Mock<T, Y>;
       withImplementation(fn: (...args: Y) => T, callback: () => void): void;
       withImplementation(fn: (...args: Y) => T, callback: () => Promise<void>): Promise<void>;
     }
 
-    function fn<T = any, Y extends any[] = any[]>(implementation?: (...args: Y) => T): Mock<T, Y>;
+    function fn<T = unknown, Y extends unknown[] = unknown[]>(implementation?: (...args: Y) => T): Mock<T, Y>;
   }
 }
 

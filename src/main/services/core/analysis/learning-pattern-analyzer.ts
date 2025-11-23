@@ -12,7 +12,7 @@ import {
   PracticeRecommendation,
   LearningVelocityMetrics,
 } from '@/shared/types/practice';
-import { LoggerFactory } from '@/main/services/logger';
+import type { ServiceLogger } from '@/main/services/types';
 
 export interface LearningPatternRequest {
   userContext: UserContext;
@@ -47,7 +47,11 @@ export interface LearningPatternResult {
  * and optimal practice opportunities.
  */
 export class LearningPatternAnalyzer {
-  private readonly logger = LoggerFactory.getInstance().createContextAwareLogger();
+  private readonly logger: ServiceLogger;
+
+  constructor(logger: ServiceLogger) {
+    this.logger = logger;
+  }
 
   /**
    * Analyze learning patterns from user context and conversation history

@@ -31,72 +31,101 @@ interface PerformanceEvents {
 // Application Performance Monitor
 // ============================================================================
 
-export class AppPerformanceMonitor {
-  private monitor = new PerformanceMonitor();
-  private events = createTypedEventEmitter<PerformanceEvents>();
-  private cache = new LRUCache<string, PerformanceMetrics>(1000);
-  private alertThresholds = new Map<string, number>();
-  private batchProcessor: EventBatcher<PerformanceMetrics> = new EventBatcher<PerformanceMetrics>(
-    100,
-    5000,
-    this.handleBatch.bind(this),
-  );
-  private memoryMonitor: MemoryMonitor = new MemoryMonitor(this.monitor);
+export const createAppPerformanceMonitor = () => {
+  const monitor = new PerformanceMonitor();
+  const events = createTypedEventEmitter<PerformanceEvents>();
+  const cache = new LRUCache<string, PerformanceMetrics>(1000);
+  const alertThresholds = new Map<string, number>();
+  let batchProcessor = new EventBatcher<PerformanceMetrics>(() => {}, {
+    batchSize: 50,
+    flushInterval: 5000,
+  });
+  let memoryMonitor: MemoryMonitor;
 
-  constructor() {
-    this.setupDefaultThresholds();
-    this.setupBatchProcessor();
-    this.setupMemoryMonitoring();
-    this.monitor.startMonitoring();
-  }
+  const setupDefaultThresholds = (): void => {
+    alertThresholds.set('database_query', 1000);
+    alertThresholds.set('ai_response', 5000);
+    alertThresholds.set('ui_render', 100);
+    alertThresholds.set('ipc_call', 50);
+    alertThresholds.set('cache_operation', 10);
+  };
 
-  // ============================================================================
-  // Configuration
-  // ============================================================================
-
-  private setupDefaultThresholds(): void {
-    this.alertThresholds.set('database_query', 1000); // 1 second
-    this.alertThresholds.set('ai_response', 5000); // 5 seconds
-    this.alertThresholds.set('ui_render', 100); // 100ms
-    this.alertThresholds.set('ipc_call', 50); // 50ms
-    this.alertThresholds.set('cache_operation', 10); // 10ms
-  }
-
-  private setupBatchProcessor(): void {
-    this.batchProcessor = new EventBatcher(
-      (metrics: PerformanceMetrics[]) => {
-        this.processBatchedMetrics(metrics);
-      },
-      {
-        batchSize: 50,
-        flushInterval: 5000, // 5 seconds
-      },
-    );
-  }
-
-  private setupMemoryMonitoring(): void {
-    this.memoryMonitor = new MemoryMonitor({
-      warningThreshold: 80, // 80% of available memory
-      criticalThreshold: 90, // 90% of available memory
-      checkInterval: 30000, // 30 seconds
+  const processBatchedMetrics = (metrics: PerformanceMetrics[]): void => {
+    metrics.forEach((metric) => {
+      events.emit('metric:recorded', metric);
     });
+  };
 
-    this.memoryMonitor.on('warning', (usage) => {
-      this.events.emit('memory:warning', usage);
+  const setupBatchProcessor = (): void => {
+    batchProcessor = new EventBatcher(processBatchedMetrics, {
+      batchSize: 50,
+      flushInterval: 5000,
     });
-  }
+  };
 
-  // ============================================================================
-  // Metric Recording
-  // ============================================================================
+  const setupMemoryMonitoring = (): void => {
+    memoryMonitor = new MemoryMonitor({
+      warningThreshold: 80,
+      criticalThreshold: 90,
+      checkInterval: 30000,
+    });
+    memoryMonitor.on('warning', (usage) => {
+      events.emit('memory:warning', usage);
+    });
+  };
 
-  /**
-   * Record a custom performance metric
-   */
-  recordMetric(name: string, duration: number, metadata?: any): void {
-    this.monitor.recordMetric(name, duration, metadata);
+  const checkPerformanceAlerts = (metric: PerformanceMetrics): void => {
+    const threshold = alertThresholds.get((metric as any).operation);
+    if (threshold && (metric as any).duration > threshold) {
+      events.emit('operation:slow', {
+        operation: (metric as any).operation,
+        duration: (metric as any).duration,
+        threshold,
+      });
+    }
+  };
 
-    const metric: PerformanceMetrics = {
+  const getMetricsInTimeRange = (
+    operation: string,
+    start: number,
+    end: number,
+  ): PerformanceMetrics[] => {
+    const metrics: PerformanceMetrics[] = [];
+    const allMetrics = (cache.getStats() as any).entries || {};
+    for (const [key, value] of Object.entries(allMetrics)) {
+      const parts = key.split('_');
+      const ts = parseInt(parts[1]);
+      if (key.startsWith(operation) && ts >= start && ts <= end) {
+        metrics.push(value as PerformanceMetrics);
+      }
+    }
+    return metrics;
+  };
+
+  const calculateSeverity = (duration: number, threshold: number): number => {
+    const ratio = duration / threshold;
+    if (ratio > 5) return 10;
+    if (ratio > 3) return 7;
+    if (ratio > 2) return 5;
+    if (ratio > 1.5) return 3;
+    return 1;
+  };
+
+  const getRecommendation = (operation: string, stats: any): string => {
+    const recommendations: Record<string, string> = {
+      database_query: 'Consider adding indexes or optimizing query structure',
+      ai_response: 'Check model performance or consider caching responses',
+      ui_render: 'Optimize component rendering, use React.memo or useMemo',
+      ipc_call: 'Reduce payload size or optimize handler logic',
+      cache_operation: 'Review cache key generation or consider different cache strategy',
+    };
+    return recommendations[operation] ||
+      'Investigate operation implementation and consider optimization strategies';
+  };
+
+  const recordMetric = (name: string, duration: number, metadata?: any): void => {
+    monitor.recordMetric(name, duration, metadata);
+    const metric: any = {
       operation: name,
       startTime: Date.now() - duration,
       endTime: Date.now(),
@@ -104,56 +133,40 @@ export class AppPerformanceMonitor {
       success: true,
       metadata,
     };
+    checkPerformanceAlerts(metric);
+    batchProcessor.add(metric);
+    cache.set(`${name}_${Date.now()}`, metric as PerformanceMetrics);
+  };
 
-    // Check for performance alerts
-    this.checkPerformanceAlerts(metric);
+  const measureOperation = async <T>(
+    operation: string,
+    fn: () => Promise<T>,
+    _metadata?: any,
+  ): Promise<T> => {
+    return monitor.measureAsync(operation, fn);
+  };
 
-    // Batch for processing
-    this.batchProcessor.add(metric);
+  const getOperationStats = (operation: string) => {
+    return monitor.getStats(operation);
+  };
 
-    // Cache recent metrics
-    this.cache.set(`${name}_${Date.now()}`, metric);
-  }
-
-  /**
-   * Measure an async operation's performance
-   */
-  async measureOperation<T>(operation: string, fn: () => Promise<T>, metadata?: any): Promise<T> {
-    return this.monitor.measureAsync(operation, fn);
-  }
-
-  // ============================================================================
-  // Performance Analysis
-  // ============================================================================
-
-  /**
-   * Get performance statistics for a specific operation
-   */
-  getOperationStats(operation: string) {
-    return this.monitor.getStats(operation);
-  }
-
-  /**
-   * Get performance trends over time
-   */
-  getPerformanceTrends(operation: string, timeWindow = 3600000): PerformanceTrend[] {
+  const getPerformanceTrends = (
+    operation: string,
+    timeWindow = 3600000,
+  ): PerformanceTrend[] => {
     const now = Date.now();
     const cutoff = now - timeWindow;
-
     const trends: PerformanceTrend[] = [];
-    const bucketSize = Math.floor(timeWindow / 20); // 20 buckets
-
+    const bucketSize = Math.floor(timeWindow / 20);
     for (let i = 0; i < 20; i++) {
       const bucketStart = cutoff + i * bucketSize;
       const bucketEnd = bucketStart + bucketSize;
-
-      const bucketMetrics = this.getMetricsInTimeRange(operation, bucketStart, bucketEnd);
-
+      const bucketMetrics = getMetricsInTimeRange(operation, bucketStart, bucketEnd);
       if (bucketMetrics.length > 0) {
         const avgDuration =
-          bucketMetrics.reduce((sum, m) => sum + m.duration, 0) / bucketMetrics.length;
-        const errorRate = bucketMetrics.filter((m) => !m.success).length / bucketMetrics.length;
-
+          bucketMetrics.reduce((sum, m: any) => sum + m.duration, 0) / bucketMetrics.length;
+        const errorRate = bucketMetrics.filter((m: any) => !m.success).length /
+          bucketMetrics.length;
         trends.push({
           timestamp: bucketStart,
           averageDuration: avgDuration,
@@ -162,159 +175,82 @@ export class AppPerformanceMonitor {
         });
       }
     }
-
     return trends;
-  }
+  };
 
-  /**
-   * Identify performance bottlenecks
-   */
-  identifyBottlenecks(): PerformanceBottleneck[] {
+  const identifyBottlenecks = (): PerformanceBottleneck[] => {
     const bottlenecks: PerformanceBottleneck[] = [];
-    const operations = this.monitor.getAvailableMetrics();
-
+    const operations = monitor.getAvailableMetrics();
     for (const operation of operations) {
-      const stats = this.monitor.getStats(operation);
+      const stats = monitor.getStats(operation);
       if (!stats) continue;
-
-      const threshold = this.alertThresholds.get(operation) || 1000;
-
-      if (stats.averageDuration > threshold) {
+      const threshold = alertThresholds.get(operation) || 1000;
+      if ((stats as any).averageDuration > threshold) {
         bottlenecks.push({
           operation,
-          severity: this.calculateSeverity(stats.averageDuration, threshold),
-          averageDuration: stats.averageDuration,
-          maxDuration: stats.maxDuration,
-          errorRate: stats.errorRate,
+          severity: calculateSeverity((stats as any).averageDuration, threshold),
+          averageDuration: (stats as any).averageDuration,
+          maxDuration: (stats as any).maxDuration,
+          errorRate: (stats as any).errorRate,
           threshold,
-          recommendation: this.getRecommendation(operation, stats),
+          recommendation: getRecommendation(operation, stats),
         });
       }
     }
-
     return bottlenecks.sort((a, b) => b.severity - a.severity);
-  }
+  };
 
-  // ============================================================================
-  // Memory Management
-  // ============================================================================
+  const getMemoryStats = (): MemoryStats => {
+    return memoryMonitor.getCurrentStats();
+  };
 
-  /**
-   * Get current memory usage statistics
-   */
-  getMemoryStats(): MemoryStats {
-    return this.memoryMonitor.getCurrentStats();
-  }
-
-  /**
-   * Trigger garbage collection (if available)
-   */
-  triggerGarbageCollection(): boolean {
-    if (global.gc) {
-      global.gc();
+  const triggerGarbageCollection = (): boolean => {
+    if ((global as any).gc) {
+      (global as any).gc();
       return true;
     }
     return false;
-  }
+  };
 
-  // ============================================================================
-  // Event Handling
-  // ============================================================================
-
-  on<TKey extends keyof PerformanceEvents>(
+  const on = <TKey extends keyof PerformanceEvents>(
     event: TKey,
     listener: (data: PerformanceEvents[TKey]) => void,
-  ): void {
-    this.events.on(event, listener);
-  }
+  ): void => {
+    events.on(event, listener);
+  };
 
-  off<TKey extends keyof PerformanceEvents>(
+  const off = <TKey extends keyof PerformanceEvents>(
     event: TKey,
     listener: (data: PerformanceEvents[TKey]) => void,
-  ): void {
-    this.events.off(event, listener);
-  }
+  ): void => {
+    events.off(event, listener);
+  };
 
-  // ============================================================================
-  // Private Helper Methods
-  // ============================================================================
+  const dispose = (): void => {
+    monitor.stopMonitoring();
+    batchProcessor.cancel();
+    memoryMonitor.dispose();
+    cache.dispose();
+  };
 
-  private checkPerformanceAlerts(metric: PerformanceMetrics): void {
-    const threshold = this.alertThresholds.get(metric.operation);
-    if (threshold && metric.duration > threshold) {
-      this.events.emit('operation:slow', {
-        operation: metric.operation,
-        duration: metric.duration,
-        threshold,
-      });
-    }
-  }
+  setupDefaultThresholds();
+  setupBatchProcessor();
+  setupMemoryMonitoring();
+  monitor.startMonitoring();
 
-  private processBatchedMetrics(metrics: PerformanceMetrics[]): void {
-    // Process metrics in bulk for analytics
-    metrics.forEach((metric) => {
-      this.events.emit('metric:recorded', metric);
-    });
-  }
-
-  private getMetricsInTimeRange(
-    operation: string,
-    start: number,
-    end: number,
-  ): PerformanceMetrics[] {
-    const metrics: PerformanceMetrics[] = [];
-    const allMetrics = this.cache.getStats();
-
-    // Since LRUCache doesn't expose keys, we'll use a different approach
-    // In a real implementation, you might want to track keys separately
-    for (const [key, value] of Object.entries(allMetrics.entries || {})) {
-      if (
-        key.startsWith(operation) &&
-        parseInt(key.split('_')[1]) >= start &&
-        parseInt(key.split('_')[1]) <= end
-      ) {
-        metrics.push(value);
-      }
-    }
-
-    return metrics;
-  }
-
-  private calculateSeverity(duration: number, threshold: number): number {
-    const ratio = duration / threshold;
-    if (ratio > 5) return 10; // Critical
-    if (ratio > 3) return 7; // High
-    if (ratio > 2) return 5; // Medium
-    if (ratio > 1.5) return 3; // Low
-    return 1; // Minimal
-  }
-
-  private getRecommendation(operation: string, stats: any): string {
-    const recommendations: Record<string, string> = {
-      database_query: 'Consider adding indexes or optimizing query structure',
-      ai_response: 'Check model performance or consider caching responses',
-      ui_render: 'Optimize component rendering, use React.memo or useMemo',
-      ipc_call: 'Reduce payload size or optimize handler logic',
-      cache_operation: 'Review cache key generation or consider different cache strategy',
-    };
-
-    return (
-      recommendations[operation] ||
-      'Investigate operation implementation and consider optimization strategies'
-    );
-  }
-
-  // ============================================================================
-  // Cleanup
-  // ============================================================================
-
-  dispose(): void {
-    this.monitor.stopMonitoring();
-    this.batchProcessor.cancel();
-    this.memoryMonitor.dispose();
-    this.cache.dispose();
-  }
-}
+  return {
+    recordMetric,
+    measureOperation,
+    getOperationStats,
+    getPerformanceTrends,
+    identifyBottlenecks,
+    getMemoryStats,
+    triggerGarbageCollection,
+    on,
+    off,
+    dispose,
+  };
+};
 
 // ============================================================================
 // Supporting Types and Classes
@@ -420,4 +356,4 @@ class MemoryMonitor {
 // Singleton Export
 // ============================================================================
 
-export const appPerformanceMonitor = new AppPerformanceMonitor();
+export const appPerformanceMonitor = createAppPerformanceMonitor();

@@ -4,7 +4,7 @@ import type { ILogger } from '../../types';
 import type { AiService } from '@/main/services/ai/ai-service';
 import { createPreparsedMaterial, previewToPromptPayload } from '../content/content-preview';
 import { createStructuredJsonRunner } from '../shared/structured-json-runner';
-import type { VectorDatabaseModule } from '../knowledge/vector/vector-database';
+import type { VectorDatabase } from '../knowledge/vector/vector-database';
 import type { DomainAgent } from '@/main/services/agent/domain-agent';
 import type {
   ConceptParsingResult,
@@ -45,7 +45,7 @@ type ConceptSegment = {
 type ConceptParsingDeps = {
   aiService: AiService;
   domainAgent: DomainAgent;
-  vectorDatabase?: VectorDatabaseModule;
+  vectorDatabase?: VectorDatabase;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
 };
 
@@ -221,7 +221,7 @@ const chunkSegment = (
 const addSegmentToVector = async (
   segment: ConceptSegment,
   material: ConceptParsingMaterial,
-  vectorDatabase?: VectorDatabaseModule,
+  vectorDatabase?: VectorDatabase,
   logger?: ILogger,
 ) => {
   if (!vectorDatabase) return;

@@ -8,7 +8,7 @@ import { createAnalyticsService, type AnalyticsService } from './analytics/analy
 import { createDiscoveryService } from './discovery/discovery-service';
 import { createCatalystService, type CatalystService } from './catalyst/catalyst-service';
 import { createConfigurationService, type ConfigurationService } from './configuration/configuration-service';
-import { createElectronAPIClient, createMockElectronAPIClient } from './api/electron-api-client';
+ 
 import {
   createConceptParsingService,
   type ConceptParsingService,
@@ -33,7 +33,7 @@ interface ServiceContextType {
 const ServiceContext = createContext<ServiceContextType | null>(null);
 
 export interface ServicesProviderProps {
-  apiClient?: ElectronAPI;
+  apiClient: ElectronAPI;
   children: React.ReactNode;
 }
 
@@ -45,12 +45,7 @@ export interface ServicesProviderProps {
  * client when electronAPI is not available (browser environment).
  */
 export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, children }) => {
-  // Create the actual service instances
-  const client =
-    apiClient ||
-    (typeof window !== 'undefined' && window.electronAPI
-      ? createElectronAPIClient()
-      : createMockElectronAPIClient());
+  const client = apiClient;
 
   const sessionService = createSessionService(client);
   const chatService = createChatService(client);

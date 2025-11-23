@@ -10,7 +10,6 @@
 
 import { ipcMain, dialog } from 'electron';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
-import type { BufferEncoding } from 'node:buffer';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { LoggerService } from '../services/core/logger/logger-service';
@@ -130,7 +129,7 @@ export const setupFilesystemHandlers = (
     'dialog:show-open-dialog',
     async (_event, options?: OpenDialogOptions) => {
       logger.info('Opening file dialog');
-      return dialog.showOpenDialog(options);
+      return dialog.showOpenDialog(options ?? ({} as OpenDialogOptions));
     },
   );
 
@@ -138,7 +137,7 @@ export const setupFilesystemHandlers = (
     'dialog:show-save-dialog',
     async (_event, options?: SaveDialogOptions) => {
       logger.info('Opening save dialog');
-      return dialog.showSaveDialog(options);
+      return dialog.showSaveDialog(options ?? ({} as SaveDialogOptions));
     },
   );
 

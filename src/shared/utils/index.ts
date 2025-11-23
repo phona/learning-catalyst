@@ -22,7 +22,7 @@ export {
 
 // Performance Monitoring
 export {
-  AppPerformanceMonitor,
+  createAppPerformanceMonitor,
   appPerformanceMonitor,
   type PerformanceTrend,
   type PerformanceBottleneck,
@@ -109,8 +109,7 @@ export {
   createServiceError,
 } from '../types/ipc/base-types';
 
-// Knowledge graph modules (legacy)
-export { KnowledgeGraphModule } from './knowledge-graph';
+export { createKnowledgeGraphModule, type KnowledgeGraphModule } from './knowledge-graph';
 
 // Module type definitions for convenience (legacy)
 export type {

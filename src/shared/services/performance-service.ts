@@ -7,7 +7,7 @@
  */
 
 import {
-  AppPerformanceMonitor,
+  createAppPerformanceMonitor,
   PerformanceBottleneck,
   PerformanceTrend,
   MemoryStats,
@@ -38,7 +38,7 @@ interface PerformanceEvents {
  * Integrates with Electron main process for system-level monitoring.
  */
 export class ProductionPerformanceService {
-  private readonly monitor = new AppPerformanceMonitor();
+  private readonly monitor = createAppPerformanceMonitor();
   private readonly events = createTypedEventEmitter<PerformanceEvents>();
 
   // Production caches

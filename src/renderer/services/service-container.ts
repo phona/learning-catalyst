@@ -106,14 +106,12 @@ export interface ServiceContainer {
  * Creates a service container with the given electronAPI client
  */
 export function createServiceContainer(electronAPI: ElectronAPI): ServiceContainer {
-  // Create the API client as the base dependency
-  const apiClient = createElectronAPIClient();
+  const apiClient = electronAPI;
 
-  // Create services with explicit dependencies
   const session = createSessionService(apiClient);
   const chat = createChatService(apiClient);
   const analytics = createAnalyticsService(apiClient);
-  const file = createFileService(electronAPI);
+  const file = createFileService(apiClient);
 
   return {
     session,

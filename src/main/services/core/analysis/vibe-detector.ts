@@ -1,6 +1,6 @@
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import { LoggerFactory } from '@/main/services/logger';
+import type { ServiceLogger } from '@/main/services/types';
 import {
   VibeDetectionRequest,
   VibeDetectionResult,
@@ -10,30 +10,14 @@ import {
   VibePattern,
 } from '@/shared/types/practice';
 import { Message } from '@/shared/types/ai';
-import { ServiceLogger } from '@/main/services/types';
 
 export class VibeDetector {
   private readonly logger: ServiceLogger;
   private readonly model: BaseLanguageModel;
 
-  constructor(logger: ServiceLogger, model: BaseLanguageModel);
-  constructor(model: BaseLanguageModel);
-  constructor(loggerOrModel: ServiceLogger | BaseLanguageModel, model?: BaseLanguageModel) {
-    if (model) {
-      // Called as (logger, model)
-      this.logger = loggerOrModel as ServiceLogger;
-      this.model = model;
-    } else {
-      // Called as (model) - backward compatibility for tests
-      // In this case, we'll provide a minimal logger that doesn't throw errors
-      this.logger = {
-        info: (msg: string, ...args: any[]) => console.log(msg, ...args),
-        warn: (msg: string, ...args: any[]) => console.warn(msg, ...args),
-        error: (msg: string, ...args: any[]) => console.error(msg, ...args),
-        debug: (msg: string, ...args: any[]) => console.debug(msg, ...args),
-      } as ServiceLogger;
-      this.model = loggerOrModel as BaseLanguageModel;
-    }
+  constructor(logger: ServiceLogger, model: BaseLanguageModel) {
+    this.logger = logger;
+    this.model = model;
   }
 
   /**

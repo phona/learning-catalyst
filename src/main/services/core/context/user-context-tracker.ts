@@ -137,7 +137,7 @@ export const createUserContextTracker = (
     motivationLevel: 0.8,
   };
 
-  const learningPatternAnalyzer = new LearningPatternAnalyzer();
+  const learningPatternAnalyzer = new LearningPatternAnalyzer(dependencies.logger);
   let lastUpdateTime = 0;
 
   dependencies.logger.info('UserContextTracker initialized', {

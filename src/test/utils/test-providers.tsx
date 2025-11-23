@@ -33,7 +33,7 @@ const missingConfigElectronClient: ElectronAPI = (() => {
   return client;
 })();
 
-export const QueryLayer = ({ children }: { children: React.ReactNode }): JSX.Element => (
+export const QueryLayer = ({ children }: { children: React.ReactNode }): React.ReactElement => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
 );
 
@@ -45,7 +45,7 @@ export const Providers = ({
   children: React.ReactNode;
   routerProps?: React.ComponentProps<typeof MemoryRouter>;
   electronAPI?: ElectronAPI;
-}): JSX.Element => (
+}): React.ReactElement => (
   <QueryLayer>
     <MemoryRouter {...routerProps}>
       <ServicesProvider apiClient={electronAPI ?? readyElectronClient}>

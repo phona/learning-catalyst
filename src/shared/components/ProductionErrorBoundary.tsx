@@ -443,20 +443,12 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
  * Global health monitoring service for the entire application
  */
 export class GlobalHealthMonitor {
-  private static instance: GlobalHealthMonitor;
   private readonly healthData = new Map<string, HealthStatus>();
   private static readonly globalEventKeys = ['global:health:changed', 'global:health:critical'] as const;
   private readonly events = createTypedEventEmitter<{
     'global:health:changed': { component: string; status: HealthStatus };
     'global:health:critical': { component: string; status: HealthStatus };
   }>();
-
-  static getInstance(): GlobalHealthMonitor {
-    if (!GlobalHealthMonitor.instance) {
-      GlobalHealthMonitor.instance = new GlobalHealthMonitor();
-    }
-    return GlobalHealthMonitor.instance;
-  }
 
   registerComponent(componentName: string): void {
     this.healthData.set(componentName, {
@@ -544,5 +536,4 @@ export class GlobalHealthMonitor {
   }
 }
 
-// Export singleton instance
-export const globalHealthMonitor = GlobalHealthMonitor.getInstance();
+export const createGlobalHealthMonitor = (): GlobalHealthMonitor => new GlobalHealthMonitor();

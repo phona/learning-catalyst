@@ -230,13 +230,13 @@ export type APIDomain =
 /**
  * API response wrapper for consistent error handling
  */
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   metadata?: {
     timestamp: string;

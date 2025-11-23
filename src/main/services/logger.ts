@@ -170,21 +170,10 @@ export class ContextAwareLogger implements ServiceLogger {
  * Logger factory for creating loggers with proper configuration
  */
 export class LoggerFactory {
-  private static instance: LoggerFactory;
   private readonly als: AsyncLocalStorage<ServiceExecutionContext>;
 
-  private constructor() {
+  constructor() {
     this.als = new AsyncLocalStorage<ServiceExecutionContext>();
-  }
-
-  /**
-   * Get singleton instance
-   */
-  static getInstance(): LoggerFactory {
-    if (!LoggerFactory.instance) {
-      LoggerFactory.instance = new LoggerFactory();
-    }
-    return LoggerFactory.instance;
   }
 
   /**

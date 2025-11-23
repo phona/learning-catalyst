@@ -8,7 +8,7 @@
 import type { Database } from '../../main/services/core/database/kysely-schema';
 import { JSONFieldHelpers } from '../../main/services/core/database/kysely-schema';
 import { Kysely } from 'kysely';
-import { VectorDatabaseModule } from '@/main/services/domain/knowledge/vector/vector-database';
+import type { VectorDatabase } from '@/main/services/domain/knowledge/vector/vector-database';
 
 interface SearchResult {
   id: string;
@@ -91,61 +91,98 @@ export interface ConceptPath {
   difficulty: number;
 }
 
-export class KnowledgeGraphModule {
-  public readonly name = 'KnowledgeGraphModule';
-  public readonly version = '1.0.0';
-  private readonly db: Kysely<Database>;
-  private readonly vectorDatabaseModule: VectorDatabaseModule;
+export const createKnowledgeGraphModule = (
+  db: Kysely<Database>,
+  vectorDatabaseModule: VectorDatabase,
+) => {
+  const name = 'KnowledgeGraphModule';
+  const version = '1.0.0';
+  const conceptCache = new Map<string, Concept>();
+  const relationshipCache = new Map<string, Relationship>();
+  const searchIndex = new Map<string, Set<string>>();
+  let _isInitialized = false;
 
-  // Cache for performance
-  private readonly conceptCache: Map<string, Concept> = new Map();
-  private readonly relationshipCache: Map<string, Relationship> = new Map();
-  private readonly searchIndex: Map<string, Set<string>> = new Map(); // word -> concept IDs
-  private readonly cacheTimeout = 5 * 60 * 1000; // 5 minutes
-  private readonly lastCacheUpdate = 0;
-  private _isInitialized = false;
+  const convertDbConceptToConcept = (dbConcept: any): Concept => ({
+    id: dbConcept.id,
+    name: dbConcept.name,
+    description: dbConcept.description,
+    content: dbConcept.content,
+    conceptType: dbConcept.concept_type,
+    difficultyLevel: dbConcept.difficulty_level,
+    masteryLevel: dbConcept.mastery_level,
+    tags: JSONFieldHelpers.parseArray(dbConcept.tags),
+    metadata: JSONFieldHelpers.parseObject(dbConcept.metadata),
+    createdAt: new Date(dbConcept.created_at),
+    updatedAt: new Date(dbConcept.updated_at),
+    lastReviewed: dbConcept.last_reviewed ? new Date(dbConcept.last_reviewed) : undefined,
+    reviewCount: dbConcept.review_count,
+    parentConceptId: dbConcept.parent_concept_id,
+  });
 
-  constructor(db: Kysely<Database>, vectorDatabaseModule: VectorDatabaseModule) {
-    this.db = db;
-    this.vectorDatabaseModule = vectorDatabaseModule;
+  const updateSearchIndexForConcept = (concept: Concept): void => {
+    const words = [
+      concept.name.toLowerCase(),
+      ...(concept.description?.toLowerCase().split(' ') || []),
+      ...(concept.content?.toLowerCase().split(' ') || []),
+      ...concept.tags.map((tag) => tag.toLowerCase()),
+    ];
 
-    // Initialize empty caches
-    this.conceptCache.clear();
-    this.relationshipCache.clear();
-    this.searchIndex.clear();
-  }
+    words.forEach((word) => {
+      if (word.length > 2) {
+        if (!searchIndex.has(word)) {
+          searchIndex.set(word, new Set());
+        }
+        searchIndex.get(word)!.add(concept.id);
+      }
+    });
+  };
 
-  get initialized(): boolean {
-    return this._isInitialized;
-  }
+  const warmupCaches = async (): Promise<void> => {
+    try {
+      const concepts = await db.selectFrom('concepts').selectAll().execute();
+      concepts.forEach((dbConcept) => {
+        const concept = convertDbConceptToConcept(dbConcept);
+        conceptCache.set(concept.id, concept);
+        updateSearchIndexForConcept(concept);
+      });
 
-  /**
-   * Initialize the knowledge graph module
-   */
-  async initialize(): Promise<void> {
+      const relationships = await db.selectFrom('relationships').selectAll().execute();
+      relationships.forEach((dbRel) => {
+        const relationship: Relationship = {
+          id: dbRel.id,
+          sourceConceptId: dbRel.source_concept_id,
+          targetConceptId: dbRel.target_concept_id,
+          relationshipType: dbRel.relationship_type,
+          strength: dbRel.strength,
+          description: dbRel.description,
+          metadata: JSONFieldHelpers.parseObject(dbRel.metadata),
+          createdAt: new Date(dbRel.created_at),
+          updatedAt: new Date(dbRel.updated_at),
+          createdBySession: dbRel.created_by_session,
+        };
+        relationshipCache.set(relationship.id, relationship);
+      });
+    } catch (error) {
+      console.warn('Failed to warm up caches:', error);
+    }
+  };
+
+  const initialize = async (): Promise<void> => {
     try {
       console.log('Initializing Knowledge Graph Module...');
-
-      // Warm up caches with existing data
-      await this.warmupCaches();
-
-      this._isInitialized = true;
+      await warmupCaches();
+      _isInitialized = true;
       console.log('Knowledge Graph Module initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Knowledge Graph Module:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Create a new concept
-   */
-  async createConcept(
+  const createConcept = async (
     conceptData: Omit<Concept, 'id' | 'createdAt' | 'updatedAt' | 'reviewCount'>,
-  ): Promise<Concept> {
+  ): Promise<Concept> => {
     const id = `concept_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Convert to database format
     const now = new Date().toISOString();
     const dbConcept = {
       id,
@@ -163,9 +200,7 @@ export class KnowledgeGraphModule {
       created_at: now,
       updated_at: now,
     };
-
-    await this.db.insertInto('concepts').values(dbConcept).execute();
-
+    await db.insertInto('concepts').values(dbConcept).execute();
     const concept: Concept = {
       ...conceptData,
       id,
@@ -173,54 +208,38 @@ export class KnowledgeGraphModule {
       updatedAt: new Date(),
       reviewCount: 0,
     };
-
-    // Update cache
-    this.conceptCache.set(id, concept);
-    this.updateSearchIndexForConcept(concept);
-
-    // Update vector database if available
-    if (this.vectorDatabaseModule) {
-      await this.updateVectorDatabase(concept.id);
+    conceptCache.set(id, concept);
+    updateSearchIndexForConcept(concept);
+    if (vectorDatabaseModule) {
+      await updateVectorDatabase(id);
     }
-
     return concept;
-  }
+  };
 
-  /**
-   * Get a concept by ID
-   */
-  async getConcept(conceptId: string): Promise<Concept | null> {
-    // Check cache first
-    if (this.conceptCache.has(conceptId)) {
-      return this.conceptCache.get(conceptId)!;
+  const getConcept = async (conceptId: string): Promise<Concept | null> => {
+    if (conceptCache.has(conceptId)) {
+      return conceptCache.get(conceptId)!;
     }
-
-    const result = await this.db
+    const result = await db
       .selectFrom('concepts')
       .selectAll()
       .where('id', '=', conceptId)
       .executeTakeFirst();
-
     if (!result) return null;
-
-    const concept = this.convertDbConceptToConcept(result);
-    this.conceptCache.set(conceptId, concept);
+    const concept = convertDbConceptToConcept(result);
+    conceptCache.set(conceptId, concept);
     return concept;
-  }
+  };
 
-  /**
-   * Create a relationship between two concepts
-   */
-  async createRelationship(
+  const createRelationship = async (
     sourceConceptId: string,
     targetConceptId: string,
     relationshipType: Relationship['relationshipType'],
     strength = 0.5,
     description?: string,
     createdBySession?: string,
-  ): Promise<Relationship> {
+  ): Promise<Relationship> => {
     const id = `rel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
     const relationship: Relationship = {
       id,
       sourceConceptId,
@@ -233,7 +252,6 @@ export class KnowledgeGraphModule {
       updatedAt: new Date(),
       createdBySession,
     };
-
     const now = new Date().toISOString();
     const dbRelationship = {
       id,
@@ -247,22 +265,14 @@ export class KnowledgeGraphModule {
       created_at: now,
       updated_at: now,
     };
-
-    await this.db.insertInto('relationships').values(dbRelationship).execute();
-
-    // Update cache
-    this.relationshipCache.set(id, relationship);
-
+    await db.insertInto('relationships').values(dbRelationship).execute();
+    relationshipCache.set(id, relationship);
     return relationship;
-  }
+  };
 
-  /**
-   * Search for concepts by text query
-   */
-  async searchConcepts(query: string, limit = 20): Promise<Concept[]> {
+  const searchConcepts = async (query: string, limit = 20): Promise<Concept[]> => {
     if (query.trim() === '') return [];
-
-    const results = await this.db
+    const results = await db
       .selectFrom('concepts')
       .selectAll()
       .where((eb) =>
@@ -274,44 +284,33 @@ export class KnowledgeGraphModule {
       )
       .limit(limit)
       .execute();
+    return results.map((result) => convertDbConceptToConcept(result));
+  };
 
-    return results.map((result) => this.convertDbConceptToConcept(result));
-  }
-
-  /**
-   * Get related concepts for a given concept
-   */
-  async getRelatedConcepts(conceptId: string, maxDepth = 2): Promise<ConceptNode[]> {
-    const concept = await this.getConcept(conceptId);
+  const getRelatedConcepts = async (
+    conceptId: string,
+    maxDepth = 2,
+  ): Promise<ConceptNode[]> => {
+    const concept = await getConcept(conceptId);
     if (!concept) return [];
-
-    // Get direct relationships
-    const relationships = await this.db
+    const relationships = await db
       .selectFrom('relationships')
       .selectAll()
       .where((eb) =>
         eb.or([eb('source_concept_id', '=', conceptId), eb('target_concept_id', '=', conceptId)]),
       )
       .execute();
-
     const relatedConceptIds = new Set<string>();
     relationships.forEach((rel) => {
       if (rel.source_concept_id !== conceptId) relatedConceptIds.add(rel.source_concept_id);
       if (rel.target_concept_id !== conceptId) relatedConceptIds.add(rel.target_concept_id);
     });
-
-    const relatedConcepts = await Promise.all(
-      Array.from(relatedConceptIds).map((id) => this.getConcept(id)),
-    );
-
+    const relatedConcepts = await Promise.all(Array.from(relatedConceptIds).map((id) => getConcept(id)));
     const validConcepts = relatedConcepts.filter((c): c is Concept => c !== null);
-
-    return validConcepts.map((concept) => ({
-      concept,
+    return validConcepts.map((c) => ({
+      concept: c,
       relationships: relationships
-        .filter(
-          (rel) => rel.source_concept_id === concept.id || rel.target_concept_id === concept.id,
-        )
+        .filter((rel) => rel.source_concept_id === c.id || rel.target_concept_id === c.id)
         .map((rel) => ({
           id: rel.id,
           sourceConceptId: rel.source_concept_id,
@@ -328,18 +327,15 @@ export class KnowledgeGraphModule {
       children: [],
       parents: [],
     }));
-  }
+  };
 
-  /**
-   * Update vector database with concept content
-   */
-  async updateVectorDatabase(conceptId: string): Promise<void> {
-    if (this.vectorDatabaseModule) {
+  const updateVectorDatabase = async (conceptId: string): Promise<void> => {
+    if (vectorDatabaseModule) {
       try {
-        const concept = await this.getConcept(conceptId);
+        const concept = await getConcept(conceptId);
         if (concept) {
           const content = `${concept.name} ${concept.description || ''} ${concept.content || ''} ${concept.tags.join(' ')}`;
-          await this.vectorDatabaseModule.addDocument({
+          await vectorDatabaseModule.addDocument({
             id: conceptId,
             content,
             metadata: {
@@ -353,23 +349,16 @@ export class KnowledgeGraphModule {
         console.warn('Failed to update vector database:', error);
       }
     }
-  }
+  };
 
-  /**
-   * Get knowledge graph statistics
-   */
-  async getStats(): Promise<KnowledgeGraphStats> {
+  const getStats = async (): Promise<KnowledgeGraphStats> => {
     const [conceptCount, relationshipCount] = await Promise.all([
-      this.db
-        .selectFrom('concepts')
-        .select((eb) => eb.fn.count('id').as('count'))
-        .executeTakeFirst(),
-      this.db
+      db.selectFrom('concepts').select((eb) => eb.fn.count('id').as('count')).executeTakeFirst(),
+      db
         .selectFrom('relationships')
         .select((eb) => eb.fn.count('id').as('count'))
         .executeTakeFirst(),
     ]);
-
     return {
       totalConcepts: Number(conceptCount?.count || 0),
       totalRelationships: Number(relationshipCount?.count || 0),
@@ -377,12 +366,9 @@ export class KnowledgeGraphModule {
       averageMasteryLevel: 0,
       mostConnectedConcepts: [],
     };
-  }
+  };
 
-  /**
-   * Update an existing concept
-   */
-  async updateConcept(
+  const updateConcept = async (
     conceptId: string,
     updates: Partial<
       Pick<
@@ -397,73 +383,52 @@ export class KnowledgeGraphModule {
         | 'metadata'
       >
     >,
-  ): Promise<Concept | null> {
+  ): Promise<Concept | null> => {
     try {
-      const existingConcept = await this.getConcept(conceptId);
+      const existingConcept = await getConcept(conceptId);
       if (!existingConcept) {
         return null;
       }
-
-      // Build update object
       const updateData: any = {
         updated_at: new Date().toISOString(),
       };
-
       if (updates.name !== undefined) updateData.name = updates.name;
       if (updates.description !== undefined) updateData.description = updates.description;
       if (updates.content !== undefined) updateData.content = updates.content;
       if (updates.conceptType !== undefined) updateData.concept_type = updates.conceptType;
-      if (updates.difficultyLevel !== undefined)
-        updateData.difficulty_level = updates.difficultyLevel;
+      if (updates.difficultyLevel !== undefined) updateData.difficulty_level = updates.difficultyLevel;
       if (updates.masteryLevel !== undefined) updateData.mastery_level = updates.masteryLevel;
-      if (updates.tags !== undefined)
-        updateData.tags = JSONFieldHelpers.stringifyArray(updates.tags);
-      if (updates.metadata !== undefined)
-        updateData.metadata = JSONFieldHelpers.stringifyObject(updates.metadata);
-
-      // Update in database
-      await this.db.updateTable('concepts').set(updateData).where('id', '=', conceptId).execute();
-
-      // Update cache
+      if (updates.tags !== undefined) updateData.tags = JSONFieldHelpers.stringifyArray(updates.tags);
+      if (updates.metadata !== undefined) updateData.metadata = JSONFieldHelpers.stringifyObject(updates.metadata);
+      await db.updateTable('concepts').set(updateData).where('id', '=', conceptId).execute();
       const updatedConcept = { ...existingConcept, ...updates, updatedAt: new Date() };
-      this.conceptCache.set(conceptId, updatedConcept);
-      this.updateSearchIndexForConcept(updatedConcept);
-
-      // Update vector database if content changed
+      conceptCache.set(conceptId, updatedConcept);
+      updateSearchIndexForConcept(updatedConcept);
       if (updates.content || updates.description) {
-        await this.updateVectorDatabase(conceptId);
+        await updateVectorDatabase(conceptId);
       }
-
       return updatedConcept;
     } catch (error) {
       console.error('Failed to update concept:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Get relationships for a concept
-   */
-  async getRelationships(conceptId: string): Promise<Relationship[]> {
+  const getRelationships = async (conceptId: string): Promise<Relationship[]> => {
     try {
-      // Check cache first
-      const cachedRelationships = Array.from(this.relationshipCache.values()).filter(
+      const cachedRelationships = Array.from(relationshipCache.values()).filter(
         (rel) => rel.sourceConceptId === conceptId || rel.targetConceptId === conceptId,
       );
-
       if (cachedRelationships.length > 0) {
         return cachedRelationships;
       }
-
-      // Query from database
-      const dbRelationships = await this.db
+      const dbRelationships = await db
         .selectFrom('relationships')
         .selectAll()
         .where((eb) =>
           eb.or([eb('source_concept_id', '=', conceptId), eb('target_concept_id', '=', conceptId)]),
         )
         .execute();
-
       const relationships: Relationship[] = dbRelationships.map((dbRel: any) => ({
         id: dbRel.id,
         sourceConceptId: dbRel.source_concept_id,
@@ -476,41 +441,26 @@ export class KnowledgeGraphModule {
         updatedAt: new Date(dbRel.updated_at),
         createdBySession: dbRel.created_by_session,
       }));
-
-      // Update cache
-      relationships.forEach((rel) => this.relationshipCache.set(rel.id, rel));
-
+      relationships.forEach((rel) => relationshipCache.set(rel.id, rel));
       return relationships;
     } catch (error) {
       console.error('Failed to get relationships:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Find a learning path between two concepts
-   */
-  async findPath(fromConceptId: string, toConceptId: string): Promise<ConceptPath> {
+  const findPath = async (fromConceptId: string, toConceptId: string): Promise<ConceptPath> => {
     try {
       const visited = new Set<string>();
       const queue: { conceptId: string; path: Concept[] }[] = [];
-      const startConcept = await this.getConcept(fromConceptId);
-
+      const startConcept = await getConcept(fromConceptId);
       if (!startConcept) {
-        return {
-          concepts: [],
-          relationships: [],
-          totalStrength: 0,
-          difficulty: 0,
-        };
+        return { concepts: [], relationships: [], totalStrength: 0, difficulty: 0 };
       }
-
       queue.push({ conceptId: fromConceptId, path: [startConcept] });
       visited.add(fromConceptId);
-
       while (queue.length > 0) {
         const { conceptId, path } = queue.shift()!;
-
         if (conceptId === toConceptId) {
           return {
             concepts: path,
@@ -519,40 +469,27 @@ export class KnowledgeGraphModule {
             difficulty: path.reduce((sum, c) => sum + c.difficultyLevel, 0) / path.length,
           };
         }
-
-        // Get related concepts
-        const relatedConcepts = await this.getRelatedConcepts(conceptId, 1);
-
+        const relatedConcepts = await getRelatedConcepts(conceptId, 1);
         for (const node of relatedConcepts) {
           if (!visited.has(node.concept.id)) {
             visited.add(node.concept.id);
-            queue.push({
-              conceptId: node.concept.id,
-              path: [...path, node.concept],
-            });
+            queue.push({ conceptId: node.concept.id, path: [...path, node.concept] });
           }
         }
       }
-
-      return {
-        concepts: [],
-        relationships: [],
-        totalStrength: 0,
-        difficulty: 0,
-      }; // No path found
+      return { concepts: [], relationships: [], totalStrength: 0, difficulty: 0 };
     } catch (error) {
       console.error('Failed to find path:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Get next learning concepts based on current knowledge
-   */
-  async getNextLearningConcepts(conceptId: string, limit = 5): Promise<Concept[]> {
+  const getNextLearningConcepts = async (
+    conceptId: string,
+    limit = 5,
+  ): Promise<Concept[]> => {
     try {
-      // Get concepts that depend on the current concept
-      const dependentConcepts = await this.db
+      const dependentConcepts = await db
         .selectFrom('relationships as r')
         .innerJoin('concepts as c', 'r.target_concept_id', 'c.id')
         .selectAll()
@@ -562,118 +499,54 @@ export class KnowledgeGraphModule {
         .orderBy('c.difficulty_level', 'asc')
         .limit(limit)
         .execute();
-
-      const concepts: Concept[] = dependentConcepts.map((row) =>
-        this.convertDbConceptToConcept(row),
-      );
-
-      // If no direct prerequisites found, suggest related concepts
+      const concepts: Concept[] = dependentConcepts.map((row) => convertDbConceptToConcept(row));
       if (concepts.length === 0) {
-        const relatedConcepts = await this.getRelatedConcepts(conceptId, 2);
+        const relatedConcepts = await getRelatedConcepts(conceptId, 2);
         const unmasteredRelated = relatedConcepts
           .filter((node) => node.concept.masteryLevel < 3)
           .map((node) => node.concept)
           .slice(0, limit);
-
         return unmasteredRelated;
       }
-
       return concepts;
     } catch (error) {
       console.error('Failed to get next learning concepts:', error);
       throw error;
     }
-  }
+  };
 
-  /**
-   * Start the knowledge graph module (alias for initialize)
-   */
-  async start(config?: any): Promise<void> {
-    await this.initialize();
-  }
+  const start = async (config?: any): Promise<void> => {
+    await initialize();
+  };
 
-  /**
-   * Cleanup method
-   */
-  async cleanup(): Promise<void> {
-    this.conceptCache.clear();
-    this.relationshipCache.clear();
-    this.searchIndex.clear();
-    this._isInitialized = false;
-  }
+  const cleanup = async (): Promise<void> => {
+    conceptCache.clear();
+    relationshipCache.clear();
+    searchIndex.clear();
+    _isInitialized = false;
+  };
 
-  // Private helper methods
+  return {
+    name,
+    version,
+    get initialized() {
+      return _isInitialized;
+    },
+    initialize,
+    start,
+    cleanup,
+    createConcept,
+    getConcept,
+    createRelationship,
+    searchConcepts,
+    getRelatedConcepts,
+    updateVectorDatabase,
+    getStats,
+    updateConcept,
+    getRelationships,
+    findPath,
+    getNextLearningConcepts,
+  };
+};
 
-  private convertDbConceptToConcept(dbConcept: any): Concept {
-    return {
-      id: dbConcept.id,
-      name: dbConcept.name,
-      description: dbConcept.description,
-      content: dbConcept.content,
-      conceptType: dbConcept.concept_type,
-      difficultyLevel: dbConcept.difficulty_level,
-      masteryLevel: dbConcept.mastery_level,
-      tags: JSONFieldHelpers.parseArray(dbConcept.tags),
-      metadata: JSONFieldHelpers.parseObject(dbConcept.metadata),
-      createdAt: new Date(dbConcept.created_at),
-      updatedAt: new Date(dbConcept.updated_at),
-      lastReviewed: dbConcept.last_reviewed ? new Date(dbConcept.last_reviewed) : undefined,
-      reviewCount: dbConcept.review_count,
-      parentConceptId: dbConcept.parent_concept_id,
-    };
-  }
-
-  private updateSearchIndexForConcept(concept: Concept): void {
-    const words = [
-      concept.name.toLowerCase(),
-      ...(concept.description?.toLowerCase().split(' ') || []),
-      ...(concept.content?.toLowerCase().split(' ') || []),
-      ...concept.tags.map((tag) => tag.toLowerCase()),
-    ];
-
-    words.forEach((word) => {
-      if (word.length > 2) {
-        // Skip very short words
-        if (!this.searchIndex.has(word)) {
-          this.searchIndex.set(word, new Set());
-        }
-        this.searchIndex.get(word)!.add(concept.id);
-      }
-    });
-  }
-
-  private async warmupCaches(): Promise<void> {
-    try {
-      // Load all concepts into cache
-      const concepts = await this.db.selectFrom('concepts').selectAll().execute();
-      concepts.forEach((dbConcept) => {
-        const concept = this.convertDbConceptToConcept(dbConcept);
-        this.conceptCache.set(concept.id, concept);
-        this.updateSearchIndexForConcept(concept);
-      });
-
-      // Load all relationships into cache
-      const relationships = await this.db.selectFrom('relationships').selectAll().execute();
-      relationships.forEach((dbRel) => {
-        const relationship: Relationship = {
-          id: dbRel.id,
-          sourceConceptId: dbRel.source_concept_id,
-          targetConceptId: dbRel.target_concept_id,
-          relationshipType: dbRel.relationship_type,
-          strength: dbRel.strength,
-          description: dbRel.description,
-          metadata: JSONFieldHelpers.parseObject(dbRel.metadata),
-          createdAt: new Date(dbRel.created_at),
-          updatedAt: new Date(dbRel.updated_at),
-          createdBySession: dbRel.created_by_session,
-        };
-        this.relationshipCache.set(relationship.id, relationship);
-      });
-    } catch (error) {
-      console.warn('Failed to warm up caches:', error);
-    }
-  }
-}
-
-// Note: Singleton pattern removed for proper dependency injection
-// Use factory to create instances with dependencies
+export type KnowledgeGraphModule = ReturnType<typeof createKnowledgeGraphModule>;

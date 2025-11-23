@@ -12,10 +12,17 @@ import { UserContext, LearningPattern } from '@/shared/types/practice';
 
 describe('LearningPatternAnalyzer', () => {
   let analyzer: LearningPatternAnalyzer;
+  const logger = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(() => logger),
+  } as any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    analyzer = new LearningPatternAnalyzer();
+    analyzer = new LearningPatternAnalyzer(logger);
   });
 
   describe('Question Pattern Analysis', () => {

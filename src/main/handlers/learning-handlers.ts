@@ -123,7 +123,7 @@ export const setupLearningHandlers = (
       const completion = await services.learningService.completeSession(sessionId);
 
       handlerLogger.info('Learning session completed successfully', {
-        achievements: completion?.achievements?.length ?? 0,
+        keyTakeawayCount: completion?.summary?.keyTakeaways?.length ?? 0,
       });
       return ok(completion);
     } catch (error) {
