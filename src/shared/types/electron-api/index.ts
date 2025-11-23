@@ -45,6 +45,15 @@ export type {
   CatalystAPI,
 };
 
+export type {
+  ConversationHistory,
+  ConversationContext,
+  PracticeOpportunityResult,
+  NaturalPracticeSuggestion,
+  UserLearningContext,
+} from './chat-api';
+export type { AgentDisplay, AgentContext } from './agent-api';
+
 // Re-export service response types
 export type {
   ChatResponse,
@@ -103,12 +112,8 @@ export type {
   ImportResultDisplay,
 } from './content-api';
 
-export type {
-  UserPreferencesDisplay,
-  ProviderDisplay,
-  LearningSettingsDisplay,
-  ProviderConfig,
-} from './settings-api';
+export type { UserPreferencesDisplay, LearningSettingsDisplay } from './settings-api';
+export type { ProviderConfig } from '../config';
 
 /**
  * Main ElectronAPI interface - 8 Complete Domains

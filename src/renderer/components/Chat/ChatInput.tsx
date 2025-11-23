@@ -35,9 +35,9 @@ const ChatInputComponent: React.FC = () => {
   const fileService = useFileService();
 
   // Use config values for provider/model since new service architecture doesn't expose these directly
-  const chatModelConfig = config?.ai?.model_types?.chat;
-  const selectedProvider = chatModelConfig?.default_provider ?? 'openai';
-  const selectedModel = chatModelConfig?.default_model ?? 'gpt-3.5-turbo';
+  const chatModelConfig = config?.ai?.modelTypes?.chat;
+  const selectedProvider = chatModelConfig?.defaultProvider ?? 'openai';
+  const selectedModel = chatModelConfig?.defaultModel ?? 'gpt-3.5-turbo';
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -118,7 +118,7 @@ const ChatInputComponent: React.FC = () => {
   const toggleDeepThinking = async (): Promise<void> => {
     if (!config) return;
 
-    const chatModel = config.ai.model_types?.chat;
+    const chatModel = config.ai.modelTypes?.chat;
     if (!chatModel?.capabilities) {
       return;
     }
@@ -129,8 +129,8 @@ const ChatInputComponent: React.FC = () => {
       await updateConfig({
         ai: {
           ...config.ai,
-          model_types: {
-            ...(config.ai.model_types ?? {}),
+          modelTypes: {
+            ...(config.ai.modelTypes ?? {}),
             chat: chatModel
               ? {
                   ...chatModel,
@@ -183,9 +183,7 @@ const ChatInputComponent: React.FC = () => {
 
         const fileData = fileResult.data;
         setInputText(
-          (prev) =>
-            prev +
-            `\n\n📎 Attached file: ${fileData.fileName}\n\n${fileData.content}`,
+          (prev) => prev + `\n\n📎 Attached file: ${fileData.fileName}\n\n${fileData.content}`,
         );
       }
     } catch (error) {
@@ -388,26 +386,26 @@ const ChatInputComponent: React.FC = () => {
               <button
                 onClick={toggleDeepThinking}
                 className={`flex items-center space-x-3 px-5 py-2.5 rounded-lg transition-colors duration-200 ${
-                  config?.ai?.model_types?.chat?.capabilities?.thinking
+                  config?.ai?.modelTypes?.chat?.capabilities?.thinking
                     ? 'bg-primary-500 text-white'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400'
                 }`}
                 title={
-                  config?.ai?.model_types?.chat?.capabilities?.thinking
+                  config?.ai?.modelTypes?.chat?.capabilities?.thinking
                     ? 'Disable deep thinking mode (Ctrl+T)'
                     : 'Enable deep thinking mode (Ctrl+T)'
                 }
-                aria-pressed={config?.ai?.model_types?.chat?.capabilities?.thinking}
+                aria-pressed={config?.ai?.modelTypes?.chat?.capabilities?.thinking}
                 aria-describedby="deep-thinking-status"
               >
                 <SparklesIcon
-                  className={`w-4 h-4 ${config?.ai?.model_types?.chat?.capabilities?.thinking ? 'text-white' : ''}`}
+                  className={`w-4 h-4 ${config?.ai?.modelTypes?.chat?.capabilities?.thinking ? 'text-white' : ''}`}
                 />
                 <span className="text-sm font-semibold">Deep Thinking</span>
                 <div
                   id="deep-thinking-status"
                   className={`w-2.5 h-2.5 rounded-full ${
-                    config?.ai?.model_types?.chat?.capabilities?.thinking
+                    config?.ai?.modelTypes?.chat?.capabilities?.thinking
                       ? 'bg-white'
                       : 'bg-gray-400'
                   }`}

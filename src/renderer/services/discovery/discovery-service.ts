@@ -162,9 +162,10 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
       const searchResponse = searchResp.data;
 
       // Calculate understanding level based on search relevance
-      const relevantResults = searchResponse.results?.filter(
-        (result) => result.type === 'concept' && result.relevanceScore > 0.5,
-      ) ?? [];
+      const relevantResults =
+        searchResponse.results?.filter(
+          (result) => result.type === 'concept' && result.relevanceScore > 0.5,
+        ) ?? [];
 
       const understandingLevel = Math.min(relevantResults.length / 5, 1); // Normalize to 0-1
 

@@ -287,10 +287,7 @@ export const createKnowledgeGraphModule = (
     return results.map((result) => convertDbConceptToConcept(result));
   };
 
-  const getRelatedConcepts = async (
-    conceptId: string,
-    maxDepth = 2,
-  ): Promise<ConceptNode[]> => {
+  const getRelatedConcepts = async (conceptId: string, maxDepth = 2): Promise<ConceptNode[]> => {
     const concept = await getConcept(conceptId);
     if (!concept) return [];
     const relationships = await db
@@ -305,7 +302,9 @@ export const createKnowledgeGraphModule = (
       if (rel.source_concept_id !== conceptId) relatedConceptIds.add(rel.source_concept_id);
       if (rel.target_concept_id !== conceptId) relatedConceptIds.add(rel.target_concept_id);
     });
-    const relatedConcepts = await Promise.all(Array.from(relatedConceptIds).map((id) => getConcept(id)));
+    const relatedConcepts = await Promise.all(
+      Array.from(relatedConceptIds).map((id) => getConcept(id)),
+    );
     const validConcepts = relatedConcepts.filter((c): c is Concept => c !== null);
     return validConcepts.map((c) => ({
       concept: c,
@@ -353,7 +352,10 @@ export const createKnowledgeGraphModule = (
 
   const getStats = async (): Promise<KnowledgeGraphStats> => {
     const [conceptCount, relationshipCount] = await Promise.all([
-      db.selectFrom('concepts').select((eb) => eb.fn.count('id').as('count')).executeTakeFirst(),
+      db
+        .selectFrom('concepts')
+        .select((eb) => eb.fn.count('id').as('count'))
+        .executeTakeFirst(),
       db
         .selectFrom('relationships')
         .select((eb) => eb.fn.count('id').as('count'))
@@ -396,10 +398,13 @@ export const createKnowledgeGraphModule = (
       if (updates.description !== undefined) updateData.description = updates.description;
       if (updates.content !== undefined) updateData.content = updates.content;
       if (updates.conceptType !== undefined) updateData.concept_type = updates.conceptType;
-      if (updates.difficultyLevel !== undefined) updateData.difficulty_level = updates.difficultyLevel;
+      if (updates.difficultyLevel !== undefined)
+        updateData.difficulty_level = updates.difficultyLevel;
       if (updates.masteryLevel !== undefined) updateData.mastery_level = updates.masteryLevel;
-      if (updates.tags !== undefined) updateData.tags = JSONFieldHelpers.stringifyArray(updates.tags);
-      if (updates.metadata !== undefined) updateData.metadata = JSONFieldHelpers.stringifyObject(updates.metadata);
+      if (updates.tags !== undefined)
+        updateData.tags = JSONFieldHelpers.stringifyArray(updates.tags);
+      if (updates.metadata !== undefined)
+        updateData.metadata = JSONFieldHelpers.stringifyObject(updates.metadata);
       await db.updateTable('concepts').set(updateData).where('id', '=', conceptId).execute();
       const updatedConcept = { ...existingConcept, ...updates, updatedAt: new Date() };
       conceptCache.set(conceptId, updatedConcept);
@@ -484,10 +489,7 @@ export const createKnowledgeGraphModule = (
     }
   };
 
-  const getNextLearningConcepts = async (
-    conceptId: string,
-    limit = 5,
-  ): Promise<Concept[]> => {
+  const getNextLearningConcepts = async (conceptId: string, limit = 5): Promise<Concept[]> => {
     try {
       const dependentConcepts = await db
         .selectFrom('relationships as r')

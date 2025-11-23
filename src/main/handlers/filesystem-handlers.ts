@@ -125,21 +125,15 @@ export const setupFilesystemHandlers = (
     }
   });
 
-  ipcMainInstance.handle(
-    'dialog:show-open-dialog',
-    async (_event, options?: OpenDialogOptions) => {
-      logger.info('Opening file dialog');
-      return dialog.showOpenDialog(options ?? ({} as OpenDialogOptions));
-    },
-  );
+  ipcMainInstance.handle('dialog:show-open-dialog', async (_event, options?: OpenDialogOptions) => {
+    logger.info('Opening file dialog');
+    return dialog.showOpenDialog(options ?? ({} as OpenDialogOptions));
+  });
 
-  ipcMainInstance.handle(
-    'dialog:show-save-dialog',
-    async (_event, options?: SaveDialogOptions) => {
-      logger.info('Opening save dialog');
-      return dialog.showSaveDialog(options ?? ({} as SaveDialogOptions));
-    },
-  );
+  ipcMainInstance.handle('dialog:show-save-dialog', async (_event, options?: SaveDialogOptions) => {
+    logger.info('Opening save dialog');
+    return dialog.showSaveDialog(options ?? ({} as SaveDialogOptions));
+  });
 
   logger.info('Filesystem handlers registered');
 };

@@ -16,7 +16,7 @@ const readyElectronClient: ElectronAPI = (() => {
   if (typeof client.settings?.getConfig === 'function') {
     client.settings.getConfig = async () =>
       ({
-        ai: { model_types: { chat: { provider: 'mock-provider', model: 'mock-model' } } },
+        ai: { modelTypes: { chat: { provider: 'mock-provider', model: 'mock-model' } } },
         ui: {},
         learning: {},
         privacy: {},

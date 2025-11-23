@@ -95,12 +95,10 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
           totalMessages: 0,
         },
       }),
-      getTypingIndicator: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: { isTyping: false, agentInfo: { name: 'Mock', avatar: '', color: '' } },
-        } as any),
+      getTypingIndicator: vi.fn().mockResolvedValue({
+        success: true,
+        data: { isTyping: false, agentInfo: { name: 'Mock', avatar: '', color: '' } },
+      } as any),
       pauseConversation: vi
         .fn()
         .mockResolvedValue({ success: true, data: { message: 'paused' } } as any),
@@ -132,7 +130,7 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
           },
         };
       }),
-    get: vi.fn().mockImplementation(async (sessionId: string) => ({
+      get: vi.fn().mockImplementation(async (sessionId: string) => ({
         success: true,
         data: {
           id: sessionId,
@@ -142,12 +140,10 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
           messages: [],
         },
       })),
-      list: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: { sessions: [], total: 0, hasMore: false },
-        } as any),
+      list: vi.fn().mockResolvedValue({
+        success: true,
+        data: { sessions: [], total: 0, hasMore: false },
+      } as any),
       getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] } as any),
       saveSessionWithMessages: vi
         .fn()
@@ -155,26 +151,22 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
       update: vi.fn().mockResolvedValue({ success: true, data: undefined } as any),
       saveMessage: vi.fn().mockResolvedValue({ success: true } as any),
       updateTitle: vi.fn().mockResolvedValue({ success: true } as any),
-      search: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: { sessions: [], total: 0, query: '', hasMore: false },
-        } as any),
+      search: vi.fn().mockResolvedValue({
+        success: true,
+        data: { sessions: [], total: 0, query: '', hasMore: false },
+      } as any),
       delete: vi.fn().mockResolvedValue({ success: true, data: { deleted: true } } as any),
-      getStatistics: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: {
-            totalSessions: 0,
-            totalMessages: 0,
-            totalUserMessages: 0,
-            totalAssistantMessages: 0,
-            totalTokensUsed: 0,
-            averageMessagesPerSession: 0,
-          },
-        } as any),
+      getStatistics: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
+        },
+      } as any),
     },
   };
 }

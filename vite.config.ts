@@ -156,6 +156,7 @@ export default defineConfig(({ command }) => {
       environment: 'jsdom',
     },
     server: (() => {
+      const devPort = +(process.env.VITE_DEV_PORT || process.env.PORT || '3010');
       const baseConfig = {
         // Memory optimization settings for development server
         fs: {
@@ -176,25 +177,24 @@ export default defineConfig(({ command }) => {
             '**/external/**',
           ],
         },
-        hmr: {
-          // Limit HMR connections to prevent memory leaks
-          port: 5174,
-        },
+        hmr: {},
       };
 
       if (process.env.VSCODE_DEBUG) {
-        const url = new URL(pkg.debug?.env?.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173/');
+        const url = new URL(process.env.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173/');
         return {
           ...baseConfig,
           host: url.hostname,
           port: +url.port,
+          strictPort: false,
         };
       }
 
       return {
         ...baseConfig,
         host: '127.0.0.1',
-        port: 5173,
+        port: devPort,
+        strictPort: false,
       };
     })(),
     clearScreen: false,

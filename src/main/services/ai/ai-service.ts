@@ -35,14 +35,14 @@ const resolveProviderApiKey = (
   }
 
   const entry = Object.values(providers ?? {}).find(
-    (provider) => provider.provider_type === providerType,
+    (provider) => provider.providerType === providerType,
   );
 
-  return (entry?.api_key ?? (entry as any)?.apiKey) || 'local-dev';
+  return entry?.apiKey || 'local-dev';
 };
 
 const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
-  const chatDefaults = config.ai.model_types?.chat;
+  const chatDefaults = config.ai.modelTypes?.chat;
   const chatProvider = chatDefaults?.provider as ProviderType | undefined;
 
   const basePreset: ModelConfig = {
@@ -50,7 +50,7 @@ const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
     model: chatDefaults?.model ?? 'llama-3.1-70b',
     apiKey: resolveProviderApiKey(chatProvider ?? 'openai', config.ai.providers),
     temperature: chatDefaults?.temperature ?? 0.3,
-    maxTokens: chatDefaults?.max_tokens ?? 1024,
+    maxTokens: chatDefaults?.maxTokens ?? 1024,
   };
 
   return {

@@ -33,7 +33,13 @@ export interface ModelAssignment {
 }
 
 export interface SetupWorkflowPayload {
-  configuredProviders: ConfiguredProvider[];
+  configuredProviders: Array<{
+    id: string;
+    name: string;
+    apiKey: string;
+    baseUrl: string;
+    models: string[];
+  }>;
   chatAssignment: ModelAssignment;
   embeddingAssignment?: ModelAssignment | null;
   rerankAssignment?: ModelAssignment | null;
@@ -106,9 +112,8 @@ export const useSetupWorkflow = (configService: ConfigurationService) => {
           await configService.configureProvider({
             provider: provider.id,
             config: {
-              name: provider.name,
-              api_key: provider.apiKey,
-              base_url: provider.baseUrl || undefined,
+              apiKey: provider.apiKey,
+              baseUrl: provider.baseUrl || undefined,
             },
           });
         }

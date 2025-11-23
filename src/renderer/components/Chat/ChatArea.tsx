@@ -241,10 +241,10 @@ const ChatAreaComponent: React.FC = () => {
           <div className="py-6">
             <div className="max-w-4xl mx-auto space-y-6">
               {chatMessages.map((message: MessageDisplayWithThinking) => (
-                  <MessageErrorBoundary key={message.id} messageId={message.id}>
-                    <MessageBubble message={message} onToggleThinking={handleToggleThinking} />
-                  </MessageErrorBoundary>
-                ))}
+                <MessageErrorBoundary key={message.id} messageId={message.id}>
+                  <MessageBubble message={message} onToggleThinking={handleToggleThinking} />
+                </MessageErrorBoundary>
+              ))}
 
               {/* Streaming message */}
               {streamingMessage && (

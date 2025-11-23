@@ -66,7 +66,7 @@ export const toolConfigs = {
   contentAnalysis: {
     name: 'content-analysis',
     requiredParams: ['content', 'analysisType'],
-    configKey: 'ai.model_types.chat',
+    configKey: 'ai.modelTypes.chat',
     operation: async (params: any, services: any) => {
       return {
         analysisType: params.analysisType,
@@ -80,7 +80,7 @@ export const toolConfigs = {
   learningPath: {
     name: 'learning-path',
     requiredParams: ['action'],
-    configKey: 'ai.model_types.chat',
+    configKey: 'ai.modelTypes.chat',
     operation: async (params: any, services: any) => {
       if (params.action === 'create') {
         return {
@@ -97,7 +97,7 @@ export const toolConfigs = {
   assessment: {
     name: 'assessment',
     requiredParams: ['action', 'type'],
-    configKey: 'ai.model_types.chat',
+    configKey: 'ai.modelTypes.chat',
     operation: async (params: any, services: any) => {
       return {
         action: params.action,
@@ -111,7 +111,7 @@ export const toolConfigs = {
   knowledgeExtraction: {
     name: 'knowledge-extraction',
     requiredParams: ['content'],
-    configKey: 'ai.model_types.chat',
+    configKey: 'ai.modelTypes.chat',
     operation: async (params: any, services: any) => {
       return {
         concepts: [
@@ -129,7 +129,7 @@ export const toolConfigs = {
   conceptMapping: {
     name: 'concept-mapping',
     requiredParams: ['concepts'],
-    configKey: 'ai.model_types.chat',
+    configKey: 'ai.modelTypes.chat',
     operation: async (params: any, services: any) => {
       return {
         nodes: params.concepts.map((concept: string) => ({

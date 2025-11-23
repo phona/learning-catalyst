@@ -56,17 +56,17 @@ describe('AI Service - Interface Tests', () => {
       ai: {
         providers: {
           openai: {
-            provider_type: 'openai',
-            api_key: 'test-openai-key',
+            providerType: 'openai',
+            apiKey: 'test-openai-key',
             model: 'gpt-4o',
           },
         },
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.7,
-            max_tokens: 4096,
+            maxTokens: 4096,
           },
         },
       },

@@ -24,7 +24,7 @@ vi.mock('../../../stores/useConfigStore', () => ({
       ai: {
         default_provider: 'openai',
         default_model: 'gpt-3.5-turbo',
-        model_types: {
+        modelTypes: {
           chat: {
             default_provider: 'openai',
             default_model: 'gpt-3.5-turbo',
@@ -88,7 +88,7 @@ vi.mock('../../../stores/useConfigStore', () => ({
       ai: {
         default_provider: 'openai',
         default_model: 'gpt-3.5-turbo',
-        model_types: {
+        modelTypes: {
           chat: {
             default_provider: 'openai',
             default_model: 'gpt-3.5-turbo',
@@ -425,7 +425,7 @@ describe('SettingsPanel - Real User Configuration Workflows', () => {
         expect(mockSaveConfig).toHaveBeenCalledWith(
           expect.objectContaining({
             ai: expect.objectContaining({
-              model_types: expect.objectContaining({
+              modelTypes: expect.objectContaining({
                 chat: expect.objectContaining({
                   api_keys: expect.objectContaining({
                     openai: 'new-api-key-123'
@@ -600,7 +600,7 @@ describe('SettingsPanel - Real User Configuration Workflows', () => {
         ai: {
           default_provider: 'openai',
           default_model: 'gpt-3.5-turbo',
-          model_types: {
+          modelTypes: {
             chat: {
               default_provider: 'openai',
               default_model: 'gpt-3.5-turbo',
@@ -734,7 +734,7 @@ describe('SettingsPanel - Real User Configuration Workflows', () => {
         expect(mockSaveConfig).toHaveBeenCalledWith(
           expect.objectContaining({
             ai: expect.objectContaining({
-              model_types: expect.objectContaining({
+              modelTypes: expect.objectContaining({
                 chat: expect.objectContaining({
                   api_keys: expect.objectContaining({
                     openai: 'dev-test-key-123'

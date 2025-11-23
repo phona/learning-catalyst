@@ -49,7 +49,6 @@ const isCollection = (value: unknown): value is { name: unknown; points_count?: 
 };
 
 export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDatabaseApi => {
-
   const addDocument = async (
     document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
   ): Promise<void> => {
@@ -71,9 +70,7 @@ export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDataba
     const threshold = options.threshold ?? 0.6;
 
     const rawResults: unknown = await qdrantManager.searchKnowledge(query, null, limit);
-    const filtered = Array.isArray(rawResults)
-      ? rawResults.filter(isSearchItem)
-      : [];
+    const filtered = Array.isArray(rawResults) ? rawResults.filter(isSearchItem) : [];
     return filtered
       .filter((r) => r.similarity >= threshold)
       .slice(0, limit)

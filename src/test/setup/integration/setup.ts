@@ -256,7 +256,7 @@ export const createMockSession = (id = 'test-session') => ({
 
 export const createMockConfig = () => ({
   ai: {
-    model_types: {
+    modelTypes: {
       chat: {
         default_provider: 'openai',
         default_model: 'gpt-3.5-turbo',

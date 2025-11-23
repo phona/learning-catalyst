@@ -65,7 +65,9 @@ export const LearningDashboard: React.FC = () => {
     }));
   }, [analyticsService]);
 
-  const mapStudyMetrics = (metrics: import('@/renderer/services/analytics/analytics-service').StudyMetrics) => ({
+  const mapStudyMetrics = (
+    metrics: import('@/renderer/services/analytics/analytics-service').StudyMetrics,
+  ) => ({
     totalStudyTime: metrics.totalStudyTime,
     sessionsCompleted: metrics.sessionsCompleted,
     conceptsMastered: metrics.conceptsStudied ?? 0,
@@ -487,8 +489,10 @@ export const LearningDashboard: React.FC = () => {
           {/* Learning Trends */}
           <LearningTrends
             analytics={{
-              getAchievements: async () => mapAchievements(await analyticsService.getAchievements()),
-              getStudyMetrics: async () => mapStudyMetrics(await analyticsService.getStudyMetrics()),
+              getAchievements: async () =>
+                mapAchievements(await analyticsService.getAchievements()),
+              getStudyMetrics: async () =>
+                mapStudyMetrics(await analyticsService.getStudyMetrics()),
               getLearningTrends: async (period?: number) =>
                 mapLearningTrends(await analyticsService.getLearningTrends(period)),
             }}
@@ -497,9 +501,12 @@ export const LearningDashboard: React.FC = () => {
           {/* Achievements */}
           <Achievements
             analytics={{
-              getStudyMetrics: async () => mapStudyMetrics(await analyticsService.getStudyMetrics()),
-              getLearningTrends: async () => mapLearningTrends(await analyticsService.getLearningTrends()),
-              getAchievements: async () => mapAchievements(await analyticsService.getAchievements()),
+              getStudyMetrics: async () =>
+                mapStudyMetrics(await analyticsService.getStudyMetrics()),
+              getLearningTrends: async () =>
+                mapLearningTrends(await analyticsService.getLearningTrends()),
+              getAchievements: async () =>
+                mapAchievements(await analyticsService.getAchievements()),
             }}
           />
         </div>

@@ -236,10 +236,9 @@ describe('Simplified Chat Store', () => {
       store.getState().addMessage(originalMessage);
 
       // Update the message
-      store.getState().updateMessage(
-        messageId,
-        { content: 'Updated content', status: 'edited' } as any,
-      );
+      store
+        .getState()
+        .updateMessage(messageId, { content: 'Updated content', status: 'edited' } as any);
 
       const state = store.getState();
       const updatedMessage = state.messages.find((msg) => msg.id === messageId);

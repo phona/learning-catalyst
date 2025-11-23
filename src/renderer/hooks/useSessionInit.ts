@@ -76,9 +76,9 @@ export const useSessionInit = () => {
       return;
     }
 
-    const defaultAutoScroll = config.ui?.auto_scroll ?? true;
-    const defaultProvider = config.ai?.model_types?.chat?.default_provider ?? 'openai';
-    const defaultModel = config.ai?.model_types?.chat?.default_model ?? 'gpt-3.5-turbo';
+    const defaultAutoScroll = config.ui?.autoScroll ?? true;
+    const defaultProvider = config.ai?.modelTypes?.chat?.defaultProvider ?? 'openai';
+    const defaultModel = config.ai?.modelTypes?.chat?.defaultModel ?? 'gpt-3.5-turbo';
 
     if (typeof setAutoScroll === 'function') {
       setAutoScroll(defaultAutoScroll);
@@ -148,16 +148,18 @@ export const useSessionInit = () => {
     async (sessionIdToLoad: string) => {
       console.log(`[useSessionInit] Loading session from URL: ${sessionIdToLoad}`);
       try {
-        const sessionData = (await sessionService.getSession(
-          sessionIdToLoad,
-        )) as RendererSessionDisplay | ElectronSessionDisplay | null;
+        const sessionData = (await sessionService.getSession(sessionIdToLoad)) as
+          | RendererSessionDisplay
+          | ElectronSessionDisplay
+          | null;
         if (!sessionData) {
           console.warn(`[useSessionInit] Session not found: ${sessionIdToLoad}`);
           return;
         }
 
         console.log(`[useSessionInit] Found session: ${sessionData.title}`);
-        const src = sessionData as Partial<RendererSessionDisplay> & Partial<ElectronSessionDisplay>;
+        const src = sessionData as Partial<RendererSessionDisplay> &
+          Partial<ElectronSessionDisplay>;
         const stats = (sessionData as any)?.statistics;
         const sessionRecord: SessionState = {
           id: sessionData.id,
@@ -165,8 +167,12 @@ export const useSessionInit = () => {
           createdAt: new Date((src.createdAt as Date | string | undefined) ?? Date.now()),
           updatedAt: new Date((src.updatedAt as Date | string | undefined) ?? Date.now()),
           messages: Array.isArray(src.messages) ? (src.messages as any[]) : [],
-          lastActivity: new Date((src.updatedAt as Date | string | undefined) ?? Date.now()).toISOString(),
-          duration: stats?.sessionDuration ? `${Math.round(stats.sessionDuration / 60)} min` : '0 min',
+          lastActivity: new Date(
+            (src.updatedAt as Date | string | undefined) ?? Date.now(),
+          ).toISOString(),
+          duration: stats?.sessionDuration
+            ? `${Math.round(stats.sessionDuration / 60)} min`
+            : '0 min',
           difficulty:
             (src as any)?.difficulty && typeof (src as any).difficulty === 'string'
               ? (src as any).difficulty

@@ -7,8 +7,11 @@ import { createChatService } from './chat/chat-service';
 import { createAnalyticsService, type AnalyticsService } from './analytics/analytics-service';
 import { createDiscoveryService } from './discovery/discovery-service';
 import { createCatalystService, type CatalystService } from './catalyst/catalyst-service';
-import { createConfigurationService, type ConfigurationService } from './configuration/configuration-service';
- 
+import {
+  createConfigurationService,
+  type ConfigurationService,
+} from './configuration/configuration-service';
+
 import {
   createConceptParsingService,
   type ConceptParsingService,

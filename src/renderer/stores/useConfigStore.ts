@@ -1,56 +1,56 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { AppConfig, ProviderConfig } from '@/shared/types/config';
+import type { AppConfig, ProviderConfig } from '@/shared/types';
 import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
 const DEFAULT_APP_CONFIG: AppConfig = {
   ai: {
     providers: {},
-    model_types: {},
+    modelTypes: {},
   },
   ui: {
     theme: 'light',
-    show_token_usage: false,
-    display_format: 'detailed',
-    session_duration: 25,
-    font_size: 'medium',
-    sidebar_width: 300,
-    auto_save: true,
-    auto_scroll: true,
-    show_line_numbers: false,
-    enable_markdown: true,
-    enable_syntax_highlighting: true,
-    compact_mode: false,
+    showTokenUsage: false,
+    displayFormat: 'detailed',
+    sessionDuration: 25,
+    fontSize: 'medium',
+    sidebarWidth: 300,
+    autoSave: true,
+    autoScroll: true,
+    showLineNumbers: false,
+    enableMarkdown: true,
+    enableSyntaxHighlighting: true,
+    compactMode: false,
   },
   learning: {
-    auto_save: true,
-    session_timeout_minutes: 60,
+    autoSave: true,
+    sessionTimeoutMinutes: 60,
     difficulty: 'intermediate',
-    learning_style: 'visual',
-    personalization_enabled: true,
-    checkpoint_interval: 15,
-    max_session_history: 100,
-    enable_analytics: false,
-    preferred_explanation_length: 'detailed',
+    learningStyle: 'visual',
+    personalizationEnabled: true,
+    checkpointInterval: 15,
+    maxSessionHistory: 100,
+    enableAnalytics: false,
+    preferredExplanationLength: 'detailed',
   },
   privacy: {
-    store_conversations: true,
-    retention_days: 90,
-    anonymous_analytics: false,
-    crash_reporting: true,
-    encrypt_local_storage: false,
-    auto_cleanup: true,
-    export_format: 'json',
+    storeConversations: true,
+    retentionDays: 90,
+    anonymousAnalytics: false,
+    crashReporting: true,
+    encryptLocalStorage: false,
+    autoCleanup: true,
+    exportFormat: 'json',
   },
   performance: {
-    cache_size_mb: 100,
-    enable_caching: true,
-    max_concurrent_requests: 5,
-    request_timeout: 30,
-    memory_limit_mb: 512,
-    gpu_acceleration: false,
-    background_processing: true,
-    preload_models: false,
+    cacheSizeMb: 100,
+    enableCaching: true,
+    maxConcurrentRequests: 5,
+    requestTimeout: 30,
+    memoryLimitMb: 512,
+    gpuAcceleration: false,
+    backgroundProcessing: true,
+    preloadModels: false,
   },
 };
 
@@ -195,19 +195,18 @@ export const useConfigStore = create<ConfigStore>()(
         const { config } = get();
         if (!config) throw new Error('No config loaded');
 
-        // Update the model_types to set default chat model
         await get().updateConfig({
           ai: {
             ...config.ai,
-            model_types: {
-              ...config.ai.model_types,
+            modelTypes: {
+              ...config.ai.modelTypes,
               chat: {
                 provider: providerName,
                 model: modelName,
                 temperature: 0.7,
-                max_tokens: 2048,
-                top_p: 1,
-                enable_thinking: false,
+                maxTokens: 2048,
+                topP: 1,
+                enableThinking: false,
                 stream: true,
               },
             },

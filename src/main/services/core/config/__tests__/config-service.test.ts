@@ -49,96 +49,96 @@ describe('ConfigService Tests', () => {
   const defaultChatCapabilities: ModelCapabilities = {
     streaming: true,
     thinking: true,
-    function_calling: false,
+    functionCalling: false,
     vision: false,
-    max_input_tokens: 4096,
-    max_output_tokens: 2048,
+    maxInputTokens: 4096,
+    maxOutputTokens: 2048,
   };
 
   const defaultChatModel: SelectedChatModel = {
     provider: 'openai',
     model: 'gpt-4',
     temperature: 0.7,
-    max_tokens: 2048,
-    top_p: 1,
-    enable_thinking: true,
+    maxTokens: 2048,
+    topP: 1,
+    enableThinking: true,
     stream: true,
-    default_provider: 'openai',
-    default_model: 'gpt-4',
+    defaultProvider: 'openai',
+    defaultModel: 'gpt-4',
     capabilities: defaultChatCapabilities,
   };
 
   const baseAIConfig: AppConfig['ai'] = {
     providers: {
-    openai: {
-      provider_type: 'openai',
-      api_key: 'test-key',
-      base_url: 'https://api.openai.com/v1',
-      models: ['gpt-4', 'gpt-3.5-turbo'],
-      streaming: true,
+      openai: {
+        providerType: 'openai',
+        apiKey: 'test-key',
+        baseUrl: 'https://api.openai.com/v1',
+        models: ['gpt-4', 'gpt-3.5-turbo'],
+        streaming: true,
+      },
     },
-    },
-    model_types: {
+    modelTypes: {
       chat: defaultChatModel,
     },
     metadata: {
-      model_tests: [],
+      modelTests: [],
     },
-    default_provider: 'openai',
-    default_model: 'gpt-4',
+    defaultProvider: 'openai',
+    defaultModel: 'gpt-4',
     temperature: 0.7,
-    max_tokens: 2048,
+    maxTokens: 2048,
     streaming: true,
-    enable_thinking: true,
-    context_window_size: 4096,
+    enableThinking: true,
+    contextWindowSize: 4096,
   };
 
   const baseUIConfig: AppConfig['ui'] = {
     theme: 'light',
-    show_token_usage: false,
-    display_format: 'detailed',
-    session_duration: 25,
-    font_size: 'medium',
-    sidebar_width: 300,
-    auto_save: true,
-    auto_scroll: true,
-    show_line_numbers: false,
-    enable_markdown: true,
-    enable_syntax_highlighting: true,
-    compact_mode: false,
+    showTokenUsage: false,
+    displayFormat: 'detailed',
+    sessionDuration: 25,
+    fontSize: 'medium',
+    sidebarWidth: 300,
+    autoSave: true,
+    autoScroll: true,
+    showLineNumbers: false,
+    enableMarkdown: true,
+    enableSyntaxHighlighting: true,
+    compactMode: false,
   };
 
   const baseLearningConfig: AppConfig['learning'] = {
-    auto_save: true,
-    session_timeout_minutes: 60,
+    autoSave: true,
+    sessionTimeoutMinutes: 60,
     difficulty: 'intermediate',
-    learning_style: 'visual',
-    personalization_enabled: true,
-    checkpoint_interval: 15,
-    max_session_history: 100,
-    enable_analytics: false,
-    preferred_explanation_length: 'detailed',
+    learningStyle: 'visual',
+    personalizationEnabled: true,
+    checkpointInterval: 15,
+    maxSessionHistory: 100,
+    enableAnalytics: false,
+    preferredExplanationLength: 'detailed',
   };
 
   const basePrivacyConfig: AppConfig['privacy'] = {
-    store_conversations: true,
-    retention_days: 90,
-    anonymous_analytics: false,
-    crash_reporting: true,
-    encrypt_local_storage: false,
-    auto_cleanup: true,
-    export_format: 'json',
+    storeConversations: true,
+    retentionDays: 90,
+    anonymousAnalytics: false,
+    crashReporting: true,
+    encryptLocalStorage: false,
+    autoCleanup: true,
+    exportFormat: 'json',
   };
 
   const basePerformanceConfig: AppConfig['performance'] = {
-    cache_size_mb: 100,
-    enable_caching: true,
-    max_concurrent_requests: 5,
-    request_timeout: 30,
-    memory_limit_mb: 512,
-    gpu_acceleration: false,
-    background_processing: true,
-    preload_models: false,
+    cacheSizeMb: 100,
+    enableCaching: true,
+    maxConcurrentRequests: 5,
+    requestTimeout: 30,
+    memoryLimitMb: 512,
+    gpuAcceleration: false,
+    backgroundProcessing: true,
+    preloadModels: false,
   };
 
   const mergeProviders = (
@@ -150,8 +150,8 @@ describe('ConfigService Tests', () => {
   });
 
   const mergeModelTypes = (
-    original: AppConfig['ai']['model_types'] = {},
-    overrides?: AppConfig['ai']['model_types'],
+    original: AppConfig['ai']['modelTypes'] = {},
+    overrides?: AppConfig['ai']['modelTypes'],
   ) => ({
     ...(original ?? {}),
     ...(overrides ?? {}),
@@ -187,7 +187,7 @@ describe('ConfigService Tests', () => {
         ...baseAIConfig,
         ...(aiOverrides ?? {}),
         providers: mergeProviders(baseAIConfig.providers, aiOverrides?.providers),
-        model_types: mergeModelTypes(baseAIConfig.model_types, aiOverrides?.model_types),
+        modelTypes: mergeModelTypes(baseAIConfig.modelTypes, aiOverrides?.modelTypes),
       };
 
       if (
@@ -203,9 +203,9 @@ describe('ConfigService Tests', () => {
   };
 
   const createMockProviderConfig = (overrides: Partial<ProviderConfig> = {}): ProviderConfig => ({
-    provider_type: 'openai',
-    base_url: 'https://api.openai.com/v1',
-    api_key: 'test-key',
+    providerType: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: 'test-key',
     models: ['gpt-4', 'gpt-3.5-turbo'],
     ...overrides,
   });
@@ -214,17 +214,17 @@ describe('ConfigService Tests', () => {
   const createPartialUIUpdate = (updates: Partial<UIConfig>): Partial<AppConfig> => ({
     ui: {
       theme: 'light',
-      show_token_usage: false,
-      display_format: 'detailed',
-      session_duration: 25,
-      font_size: 'medium',
-      sidebar_width: 300,
-      auto_save: true,
-      auto_scroll: true,
-      show_line_numbers: false,
-      enable_markdown: true,
-      enable_syntax_highlighting: true,
-      compact_mode: false,
+      showTokenUsage: false,
+      displayFormat: 'detailed',
+      sessionDuration: 25,
+      fontSize: 'medium',
+      sidebarWidth: 300,
+      autoSave: true,
+      autoScroll: true,
+      showLineNumbers: false,
+      enableMarkdown: true,
+      enableSyntaxHighlighting: true,
+      compactMode: false,
       ...updates,
     },
   });
@@ -234,14 +234,14 @@ describe('ConfigService Tests', () => {
     updates: Partial<PerformanceConfig>,
   ): Partial<AppConfig> => ({
     performance: {
-      cache_size_mb: 100,
-      enable_caching: true,
-      max_concurrent_requests: 5,
-      request_timeout: 30,
-      memory_limit_mb: 512,
-      gpu_acceleration: false,
-      background_processing: true,
-      preload_models: false,
+      cacheSizeMb: 100,
+      enableCaching: true,
+      maxConcurrentRequests: 5,
+      requestTimeout: 30,
+      memoryLimitMb: 512,
+      gpuAcceleration: false,
+      backgroundProcessing: true,
+      preloadModels: false,
       ...updates,
     },
   });
@@ -319,13 +319,13 @@ describe('ConfigService Tests', () => {
         ai: {
           providers: {
             openai: {
-              provider_type: 'openai',
-              api_key: 'old-key',
-              base_url: 'https://api.openai.com/v1',
+              providerType: 'openai',
+              apiKey: 'old-key',
+              baseUrl: 'https://api.openai.com/v1',
               models: ['gpt-3.5-turbo'],
             },
           },
-          model_types: {
+          modelTypes: {
             chat: {
               provider: 'openai',
               model: 'gpt-3.5-turbo',
@@ -335,17 +335,17 @@ describe('ConfigService Tests', () => {
         },
         ui: {
           theme: 'light',
-          show_token_usage: false,
-          display_format: 'detailed',
-          session_duration: 25,
-          font_size: 'medium',
-          sidebar_width: 300,
-          auto_save: true,
-          auto_scroll: true,
-          show_line_numbers: false,
-          enable_markdown: true,
-          enable_syntax_highlighting: true,
-          compact_mode: false,
+          showTokenUsage: false,
+          displayFormat: 'detailed',
+          sessionDuration: 25,
+          fontSize: 'medium',
+          sidebarWidth: 300,
+          autoSave: true,
+          autoScroll: true,
+          showLineNumbers: false,
+          enableMarkdown: true,
+          enableSyntaxHighlighting: true,
+          compactMode: false,
         },
       });
 
@@ -353,17 +353,17 @@ describe('ConfigService Tests', () => {
         ai: {
           providers: {
             openai: {
-              provider_type: 'openai',
-              api_key: 'new-key', // Should update existing provider
-              models: ['gpt-4'], // Should replace models array
+              providerType: 'openai',
+              apiKey: 'new-key',
+              models: ['gpt-4'],
             },
             chatglm: {
-              provider_type: 'chatglm',
-              api_key: 'chatglm-key',
-              base_url: 'https://open.bigmodel.cn/api/paas/v4',
-            }, // Should add new provider
+              providerType: 'chatglm',
+              apiKey: 'chatglm-key',
+              baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+            },
           },
-          model_types: {
+          modelTypes: {
             chat: {
               provider: 'openai',
               model: 'gpt-3.5-turbo',
@@ -383,26 +383,26 @@ describe('ConfigService Tests', () => {
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
 
       // Verify existing provider was updated
-      expect(savedConfig.ai.providers.openai.api_key).toBe('new-key');
-      expect(savedConfig.ai.providers.openai.provider_type).toBe('openai'); // Should preserve
-      expect(savedConfig.ai.providers.openai.base_url).toBe('https://api.openai.com/v1'); // Should preserve
+      expect(savedConfig.ai.providers.openai.apiKey).toBe('new-key');
+      expect(savedConfig.ai.providers.openai.providerType).toBe('openai');
+      expect(savedConfig.ai.providers.openai.baseUrl).toBe('https://api.openai.com/v1');
 
       // Verify new provider was added
       expect(savedConfig.ai.providers.chatglm).toBeDefined();
-      expect(savedConfig.ai.providers.chatglm.provider_type).toBe('chatglm');
-      expect(savedConfig.ai.providers.chatglm.api_key).toBe('chatglm-key');
+      expect(savedConfig.ai.providers.chatglm.providerType).toBe('chatglm');
+      expect(savedConfig.ai.providers.chatglm.apiKey).toBe('chatglm-key');
 
       // Verify nested objects are preserved
       expect(savedConfig.ui.theme).toBe('dark');
-      expect(savedConfig.ui.show_token_usage).toBe(false); // Should preserve existing properties
-      expect(savedConfig.learning).toBeDefined(); // Should preserve untouched sections
+      expect(savedConfig.ui.showTokenUsage).toBe(false);
+      expect(savedConfig.learning).toBeDefined();
     });
 
     it('should handle partial configuration updates correctly', async () => {
       const currentConfig = createMockConfig();
       const partialUpdate = createPartialPerformanceUpdate({
-        cache_size_mb: 256,
-        memory_limit_mb: 1024,
+        cacheSizeMb: 256,
+        memoryLimitMb: 1024,
       });
 
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
@@ -412,8 +412,8 @@ describe('ConfigService Tests', () => {
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
 
       // Verify performance settings were updated
-      expect(savedConfig.performance.cache_size_mb).toBe(256);
-      expect(savedConfig.performance.memory_limit_mb).toBe(1024);
+      expect(savedConfig.performance.cacheSizeMb).toBe(256);
+      expect(savedConfig.performance.memoryLimitMb).toBe(1024);
 
       // Verify other sections were preserved
       expect(savedConfig.ai).toBeDefined();
@@ -422,8 +422,8 @@ describe('ConfigService Tests', () => {
       expect(savedConfig.privacy).toBeDefined();
 
       // Verify existing performance properties were preserved
-      expect(savedConfig.performance.enable_caching).toBe(true);
-      expect(savedConfig.performance.max_concurrent_requests).toBe(5);
+      expect(savedConfig.performance.enableCaching).toBe(true);
+      expect(savedConfig.performance.maxConcurrentRequests).toBe(5);
     });
   });
 
@@ -435,9 +435,9 @@ describe('ConfigService Tests', () => {
       const result = await configService.getProviderConfig('openai');
 
       expect(result).toEqual({
-        provider_type: 'openai',
-        api_key: 'test-key',
-        base_url: 'https://api.openai.com/v1',
+        providerType: 'openai',
+        apiKey: 'test-key',
+        baseUrl: 'https://api.openai.com/v1',
         models: ['gpt-4', 'gpt-3.5-turbo'],
         streaming: true,
       });
@@ -473,7 +473,7 @@ describe('ConfigService Tests', () => {
       const configWithoutProviders = createMockConfig({
         ai: {
           providers: undefined as any,
-          model_types: {},
+          modelTypes: {},
         },
       });
       mockStorage.loadConfig.mockResolvedValue(configWithoutProviders);
@@ -486,7 +486,7 @@ describe('ConfigService Tests', () => {
 
   describe('setProviderConfig Method', () => {
     it('should handle null current config gracefully', async () => {
-      const providerConfig = createMockProviderConfig({ api_key: 'new-key' });
+      const providerConfig = createMockProviderConfig({ apiKey: 'new-key' });
       mockStorage.loadConfig.mockResolvedValue(null);
 
       await configService.setProviderConfig('openai', providerConfig);
@@ -499,7 +499,7 @@ describe('ConfigService Tests', () => {
 
     it('should create AI config structure when missing', async () => {
       const configWithoutAI = createMockConfig({ ai: undefined as any });
-      const providerConfig = createMockProviderConfig({ api_key: 'new-key' });
+      const providerConfig = createMockProviderConfig({ apiKey: 'new-key' });
 
       mockStorage.loadConfig.mockResolvedValue(configWithoutAI);
 
@@ -511,12 +511,12 @@ describe('ConfigService Tests', () => {
       expect(savedConfig.ai).toBeDefined();
       expect(savedConfig.ai.providers).toBeDefined();
       expect(savedConfig.ai.providers.openai).toBeDefined();
-      expect(savedConfig.ai.providers.openai.api_key).toBe('new-key');
+      expect(savedConfig.ai.providers.openai.apiKey).toBe('new-key');
     });
 
     it('should merge provider config with existing provider', async () => {
       const currentConfig = createMockConfig();
-      const update = { api_key: 'updated-key', temperature: 0.8 };
+      const update = { apiKey: 'updated-key', temperature: 0.8 };
 
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
 
@@ -525,18 +525,18 @@ describe('ConfigService Tests', () => {
       expect(mockStorage.saveConfig).toHaveBeenCalledTimes(1);
 
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
-      expect(savedConfig.ai.providers.openai.api_key).toBe('updated-key');
+      expect(savedConfig.ai.providers.openai.apiKey).toBe('updated-key');
       expect(savedConfig.ai.providers.openai.temperature).toBe(0.8);
-      expect(savedConfig.ai.providers.openai.provider_type).toBe('openai'); // Preserved
-      expect(savedConfig.ai.providers.openai.base_url).toBe('https://api.openai.com/v1'); // Preserved
+      expect(savedConfig.ai.providers.openai.providerType).toBe('openai');
+      expect(savedConfig.ai.providers.openai.baseUrl).toBe('https://api.openai.com/v1');
     });
 
     it('should add new provider when provider does not exist', async () => {
       const currentConfig = createMockConfig();
       const newProvider = createMockProviderConfig({
-        provider_type: 'chatglm',
-        api_key: 'chatglm-key',
-        base_url: 'https://open.bigmodel.cn/api/paas/v4',
+        providerType: 'chatglm',
+        apiKey: 'chatglm-key',
+        baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
       });
 
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
@@ -547,8 +547,8 @@ describe('ConfigService Tests', () => {
 
       const savedConfig = mockStorage.saveConfig.mock.calls[0][0];
       expect(savedConfig.ai.providers.chatglm).toBeDefined();
-      expect(savedConfig.ai.providers.chatglm.provider_type).toBe('chatglm');
-      expect(savedConfig.ai.providers.chatglm.api_key).toBe('chatglm-key');
+      expect(savedConfig.ai.providers.chatglm.providerType).toBe('chatglm');
+      expect(savedConfig.ai.providers.chatglm.apiKey).toBe('chatglm-key');
       expect(savedConfig.ai.providers.openai).toBeDefined(); // Original provider preserved
     });
 
@@ -556,7 +556,7 @@ describe('ConfigService Tests', () => {
       const configWithoutProviders = createMockConfig({
         ai: {
           providers: undefined as any,
-          model_types: {},
+          modelTypes: {},
         },
       });
       const providerConfig = createMockProviderConfig();
@@ -574,7 +574,7 @@ describe('ConfigService Tests', () => {
 
     it('should log configuration changes', async () => {
       const currentConfig = createMockConfig();
-      const providerConfig = createMockProviderConfig({ api_key: 'new-key' });
+      const providerConfig = createMockProviderConfig({ apiKey: 'new-key' });
 
       mockStorage.loadConfig.mockResolvedValue(currentConfig);
 
@@ -640,8 +640,8 @@ describe('ConfigService Tests', () => {
       largeConfig.ai.providers = {};
       for (let i = 0; i < 100; i++) {
         largeConfig.ai.providers[`provider${i}`] = createMockProviderConfig({
-          provider_type: `provider${i}` as any,
-          api_key: `key${i}`,
+          providerType: `provider${i}` as any,
+          apiKey: `key${i}`,
         });
       }
 
@@ -654,7 +654,7 @@ describe('ConfigService Tests', () => {
 
     it('should handle concurrent configuration updates', async () => {
       const config1 = createPartialUIUpdate({ theme: 'dark' });
-      const config2 = createPartialPerformanceUpdate({ cache_size_mb: 512 });
+      const config2 = createPartialPerformanceUpdate({ cacheSizeMb: 512 });
 
       mockStorage.loadConfig.mockResolvedValue(createMockConfig());
 

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createFileService } from '../file-service';
-import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { ElectronAPI } from '@/shared/types';
 
 // Mock electronAPI
 const mockElectronAPI: Partial<ElectronAPI> = {

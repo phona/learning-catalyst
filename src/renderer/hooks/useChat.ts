@@ -117,13 +117,10 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         setMessages((prev) => [...prev, userMessage]);
 
         // Send message using chat service
-        const response = await chatService.sendMessage(
-          content,
-          {
-            sessionId: currentSession?.id ?? options.sessionId,
-            agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
-          },
-        );
+        const response = await chatService.sendMessage(content, {
+          sessionId: currentSession?.id ?? options.sessionId,
+          agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
+        });
 
         // Add assistant message to local state
         setMessages((prev) => [...prev, response]);

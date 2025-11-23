@@ -24,7 +24,10 @@ type ServiceMap = { loggerService?: LoggerService } & Record<string, unknown>;
 export const createHandler = (
   config: HandlerConfig,
   services: ServiceMap,
-): ((event: IpcMainInvokeEvent, ...args: unknown[]) => Promise<{ success: boolean; data: unknown }>) => {
+): ((
+  event: IpcMainInvokeEvent,
+  ...args: unknown[]
+) => Promise<{ success: boolean; data: unknown }>) => {
   const logger = services.loggerService?.child({ handler: config.service }) ?? console;
 
   return async (_event: IpcMainInvokeEvent, ...args: unknown[]) => {

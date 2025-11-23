@@ -4,8 +4,6 @@ import { showError, showSuccess } from '@/renderer/utils/toast';
 import { useConfigurationService } from '@/renderer/services/services-provider';
 import {
   useSetupWorkflow,
-  type ConfiguredProvider,
-  type ModelAssignment,
   type SaveWorkflowStepId,
   type SaveWorkflowStepStatus,
 } from '@/renderer/hooks/useSetupWorkflow';
@@ -17,7 +15,9 @@ import type {
   ProviderConfig,
   ProviderType,
   UIConfig,
-} from '@/shared/types/config';
+  SelectedModel,
+  SelectedChatModel,
+} from '@/shared/types';
 
 interface ProviderOption {
   id: string;
@@ -39,6 +39,23 @@ type SaveWorkflowStep = {
   label: string;
   description: string;
 };
+
+interface ConfiguredProvider {
+  id: string;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  models: string[];
+}
+
+interface ModelAssignment {
+  providerId: string;
+  model: string;
+  settings?: {
+    temperature?: number;
+    maxTokens?: number;
+  };
+}
 
 const WORKFLOW_STEP_CONFIG: SaveWorkflowStep[] = [
   {
@@ -100,50 +117,50 @@ const WORKFLOW_STATUS_CLASSES: Record<SaveWorkflowStepStatus, string> = {
 
 const DEFAULT_UI_CONFIG: UIConfig = {
   theme: 'light',
-  show_token_usage: false,
-  display_format: 'detailed',
-  session_duration: 25,
-  font_size: 'medium',
-  sidebar_width: 300,
-  auto_save: true,
-  auto_scroll: true,
-  show_line_numbers: false,
-  enable_markdown: true,
-  enable_syntax_highlighting: true,
-  compact_mode: false,
+  showTokenUsage: false,
+  displayFormat: 'detailed',
+  sessionDuration: 25,
+  fontSize: 'medium',
+  sidebarWidth: 300,
+  autoSave: true,
+  autoScroll: true,
+  showLineNumbers: false,
+  enableMarkdown: true,
+  enableSyntaxHighlighting: true,
+  compactMode: false,
 };
 
 const DEFAULT_LEARNING_CONFIG: LearningConfig = {
-  auto_save: true,
-  session_timeout_minutes: 60,
+  autoSave: true,
+  sessionTimeoutMinutes: 60,
   difficulty: 'intermediate',
-  learning_style: 'visual',
-  personalization_enabled: true,
-  checkpoint_interval: 15,
-  max_session_history: 100,
-  enable_analytics: false,
-  preferred_explanation_length: 'detailed',
+  learningStyle: 'visual',
+  personalizationEnabled: true,
+  checkpointInterval: 15,
+  maxSessionHistory: 100,
+  enableAnalytics: false,
+  preferredExplanationLength: 'detailed',
 };
 
 const DEFAULT_PRIVACY_CONFIG: PrivacyConfig = {
-  store_conversations: true,
-  retention_days: 90,
-  anonymous_analytics: false,
-  crash_reporting: true,
-  encrypt_local_storage: false,
-  auto_cleanup: true,
-  export_format: 'json',
+  storeConversations: true,
+  retentionDays: 90,
+  anonymousAnalytics: false,
+  crashReporting: true,
+  encryptLocalStorage: false,
+  autoCleanup: true,
+  exportFormat: 'json',
 };
 
 const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
-  cache_size_mb: 100,
-  enable_caching: true,
-  max_concurrent_requests: 5,
-  request_timeout: 30,
-  memory_limit_mb: 512,
-  gpu_acceleration: false,
-  background_processing: true,
-  preload_models: false,
+  cacheSizeMb: 100,
+  enableCaching: true,
+  maxConcurrentRequests: 5,
+  requestTimeout: 30,
+  memoryLimitMb: 512,
+  gpuAcceleration: false,
+  backgroundProcessing: true,
+  preloadModels: false,
 };
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
@@ -177,9 +194,27 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     return localProviders.includes(providerId) ? 'local' : 'cloud';
   };
 
-  const getProviderName = (providerId: string): string => {
+  const PROVIDER_LABELS: Record<string, string> = {
+    openai: 'OpenAI',
+    chatglm: 'ChatGLM',
+    deepseek: 'DeepSeek',
+    siliconflow: 'SiliconFlow',
+    'openai-compatible': 'OpenAI-Compatible',
+    ollama: 'Ollama',
+    lmstudio: 'LM Studio',
+  };
+
+  const getProviderLabel = (providerId: string): string => {
+    const mapped = PROVIDER_LABELS[providerId];
+    if (mapped) return mapped;
     const provider = providerOptions.find((p) => p.id === providerId);
     return provider?.name || providerId;
+  };
+
+  const getProviderName = (providerId: string): string => {
+    const provider = providerOptions.find((p) => p.id === providerId);
+    const name = provider?.name || providerId;
+    return name && name.trim() ? name : 'Unknown Provider';
   };
 
   const categorizeModels = (models: string[]) => {
@@ -200,9 +235,9 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     const providerConfigs = configuredProviders.reduce<Record<string, ProviderConfig>>(
       (acc, provider) => {
         acc[provider.id] = {
-          provider_type: provider.id as ProviderType,
-          api_key: provider.apiKey,
-          base_url: provider.baseUrl || undefined,
+          providerType: provider.id as ProviderType,
+          apiKey: provider.apiKey,
+          baseUrl: provider.baseUrl || undefined,
           models: [...provider.models],
         };
         return acc;
@@ -210,16 +245,20 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
       {},
     );
 
-    const modelTypes: AppConfig['ai']['model_types'] = {};
+    const modelTypes: {
+      chat?: SelectedChatModel;
+      embedding?: SelectedModel;
+      rerank?: SelectedModel;
+    } = {};
     const chatSettings = chatAssignment?.settings;
 
     modelTypes.chat = {
       provider: chatAssignment!.providerId,
       model: chatAssignment!.model,
       temperature: chatSettings?.temperature ?? 0.7,
-      max_tokens: chatSettings?.maxTokens ?? 2048,
-      top_p: 1,
-      enable_thinking: false,
+      maxTokens: chatSettings?.maxTokens ?? 2048,
+      topP: 1,
+      enableThinking: false,
       stream: true,
     };
 
@@ -240,9 +279,9 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     return {
       ai: {
         providers: providerConfigs,
-        model_types: modelTypes,
+        modelTypes,
         metadata: {
-          model_tests: [],
+          modelTests: [],
         },
       },
       ui: DEFAULT_UI_CONFIG,
@@ -259,7 +298,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         const response = await configService.getAvailableProviders();
 
         // Handle different response structures
-        let providers: any[] = [];
+        let providers: ProviderConfig[] = [];
         if (Array.isArray(response)) {
           providers = response;
         } else if (response && Array.isArray(response.providers)) {
@@ -270,20 +309,25 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
           return;
         }
 
-        console.log('Loaded providers:', providers);
+        const providerOptions = providers
+          .map((p) => {
+            const id: string = (p.providerType ?? '').toString();
+            const name: string = id || 'unknown';
+            const models: string[] = Array.isArray(p.models) ? p.models : [];
+            const baseUrl = (p.baseUrl ?? '').toString();
 
-        const providerOptions = providers.map((p: any) => ({
-          id: p.id,
-          name: p.displayName || p.name || p.id,
-          description: p.description || '',
-          models: Array.isArray(p.models)
-            ? p.models.map((m: any) => (typeof m === 'string' ? m : m.id)).filter(Boolean)
-            : [],
-          metadata: {
-            defaultModel: 'default',
-            baseUrl: '',
-          },
-        }));
+            return {
+              id,
+              name,
+              description: '',
+              models,
+              metadata: {
+                defaultModel: models[0] || 'default',
+                baseUrl,
+              },
+            } as ProviderOption;
+          })
+          .filter((opt: ProviderOption) => !!opt.id);
 
         setProviderOptions(providerOptions);
       } catch (error) {
@@ -481,10 +525,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                      {provider.name}
+                      {getProviderName(provider.id)}
                     </h4>
                     <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                      {getProviderType(provider.id)}
+                      {getProviderLabel(provider.id)}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -531,12 +575,14 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
               className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
               disabled={providerOptions.length === 0}
             >
-              <option value="">Select a provider...</option>
+              <option key="select-provider-placeholder" value="">
+                Select a provider...
+              </option>
               {providerOptions.map((option) => {
-                const providerType = getProviderType(option.id);
+                const providerLabel = getProviderLabel(option.id);
                 return (
                   <option key={option.id} value={option.id}>
-                    {option.name} ({providerType}) • {option.models.length} models
+                    {option.name} ({providerLabel}) • {option.models.length} models
                   </option>
                 );
               })}
@@ -624,12 +670,14 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
               }}
               className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
             >
-              <option value="">Select provider...</option>
+              <option key="chat-provider-placeholder" value="">
+                Select provider...
+              </option>
               {configuredProviders.map((provider) => {
                 const { chatModels } = categorizeModels(provider.models);
                 return (
                   <option key={provider.id} value={provider.id} disabled={chatModels.length === 0}>
-                    {provider.name}{' '}
+                    {getProviderName(provider.id)}{' '}
                     {chatModels.length === 0 ? '(no chat models)' : `(${chatModels.length} models)`}
                   </option>
                 );
@@ -654,8 +702,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                 <datalist id="chat-models-list">
                   {configuredProviders
                     .find((p) => p.id === chatAssignment.providerId)
-                    ?.models.filter((m) => !m.includes('embedding') && !m.includes('rerank'))
-                    .map((model) => (
+                    ?.models.filter(
+                      (m: string) => !m.includes('embedding') && !m.includes('rerank'),
+                    )
+                    .map((model: string) => (
                       <option key={model} value={model} />
                     ))}
                 </datalist>
@@ -766,7 +816,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                       value={provider.id}
                       disabled={embeddingModels.length === 0}
                     >
-                      {provider.name}{' '}
+                      {getProviderName(provider.id)}{' '}
                       {embeddingModels.length === 0
                         ? '(no embedding models)'
                         : `(${embeddingModels.length} models)`}
@@ -794,9 +844,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                 {configuredProviders
                   .find((p) => p.id === embeddingAssignment.providerId)
                   ?.models.filter(
-                    (m) => m.includes('embedding') || (m.includes('bge') && !m.includes('rerank')),
+                    (m: string) =>
+                      m.includes('embedding') || (m.includes('bge') && !m.includes('rerank')),
                   )
-                  .map((model) => (
+                  .map((model: string) => (
                     <option key={model} value={model} />
                   ))}
               </datalist>
@@ -875,7 +926,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                       value={provider.id}
                       disabled={rerankModels.length === 0}
                     >
-                      {provider.name}{' '}
+                      {getProviderName(provider.id)}{' '}
                       {rerankModels.length === 0
                         ? '(no rerank models)'
                         : `(${rerankModels.length} models)`}
@@ -902,8 +953,8 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
               <datalist id="rerank-models-list">
                 {configuredProviders
                   .find((p) => p.id === rerankAssignment.providerId)
-                  ?.models.filter((m) => m.includes('rerank'))
-                  .map((model) => (
+                  ?.models.filter((m: string) => m.includes('rerank'))
+                  .map((model: string) => (
                     <option key={model} value={model} />
                   ))}
               </datalist>
@@ -1010,10 +1061,10 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                     <div>
                       <div className="flex items-center gap-2">
                         <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                          {provider.name}
+                          {getProviderName(provider.id)}
                         </h4>
                         <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                          {getProviderType(provider.id)}
+                          {getProviderLabel(provider.id)}
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">

@@ -6,16 +6,10 @@ export type {
   TokenUsage,
   ChatResponse as AIChatResponse,
   AIModel,
-  ModelType,
-  ProviderConfig as AIProviderConfig,
   AIProvider,
   ChatOptions,
   ModelList,
   ProviderFactory,
-  OpenAIConfig,
-  ChatGLMConfig,
-  DeepSeekConfig,
-  SiliconFlowConfig,
   AIError,
   AuthenticationError,
   ModelNotFoundError,
@@ -23,6 +17,7 @@ export type {
   RateLimitError,
   TimeoutError,
 } from './ai';
+export { ModelType } from './ai';
 export type {
   AppConfig,
   AIConfig,
@@ -30,11 +25,15 @@ export type {
   LearningConfig,
   PrivacyConfig,
   PerformanceConfig,
-  ProviderConfig as ConfigProviderConfig,
+  ProviderType,
+  ProviderConfig,
+  SelectedModel,
+  SelectedChatModel,
   ModelTypeConfig,
   ModelCapabilities,
   ModelTestResult,
   ModelValidationResult,
+  ProviderValidationResult,
   ValidationError,
   ValidationResult,
   ConfigMigration,
@@ -72,6 +71,33 @@ export type {
 export * from './ui';
 export * from './api';
 export type { Database, SessionDatabase } from './database';
+
+export type {
+  ElectronAPI,
+  APIResponse,
+  ChatAPI,
+  KnowledgeAPI,
+  LearningAPI,
+  AnalyticsAPI,
+  AgentsAPI,
+  ContentAPI,
+  SettingsAPI,
+  SessionsAPI,
+  CatalystAPI,
+  ConversationDisplay,
+  MessageDisplay,
+  TypingIndicator,
+  ConversationSummary,
+  ConversationHistory,
+  ConversationContext,
+  PracticeOpportunityResult,
+  NaturalPracticeSuggestion,
+  UserLearningContext,
+  AgentDisplay,
+  AgentContext,
+  AgentCapabilitiesDisplay,
+  FeatureDemoDisplay,
+} from './electron-api';
 
 // Export practice types for context-aware practice system
 export * from './practice';

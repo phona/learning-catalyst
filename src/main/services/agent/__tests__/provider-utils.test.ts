@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { resolveProviderSettings } from '../provider-utils';
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import { AppConfig } from '@/shared/types';
 
-const createConfigService = (config: unknown): ConfigService => ({
+const createConfigService = (config: Partial<AppConfig>): ConfigService => ({
   getConfig: vi.fn().mockResolvedValue(config),
   setConfig: vi.fn(),
   getProviderConfig: vi.fn(),
@@ -15,7 +16,7 @@ const createConfigService = (config: unknown): ConfigService => ({
 
 describe('resolveProviderSettings', () => {
   it('throws a structured error when chat config is missing', async () => {
-    const service = createConfigService({ ai: {} });
+    const service = createConfigService({ ai: { providers: { openai: { providerType: 'openai' } } } });
 
     const errorPromise = resolveProviderSettings(service);
     await expect(errorPromise).rejects.toMatchObject({
@@ -29,7 +30,7 @@ describe('resolveProviderSettings', () => {
     const service = createConfigService({
       ai: {
         providers: {},
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
@@ -51,17 +52,17 @@ describe('resolveProviderSettings', () => {
       ai: {
         providers: {
           openai: {
-            provider_type: 'openai',
-            api_key: 'test-key',
-            base_url: 'https://api.openai.com/v1',
+            providerType: 'openai',
+            apiKey: 'test-key',
+            baseUrl: 'https://api.openai.com/v1',
           },
         },
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.5,
-            max_tokens: 2048,
+            maxTokens: 2048,
           },
         },
       },

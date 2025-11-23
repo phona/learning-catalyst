@@ -131,12 +131,8 @@ const normalizeConversationMessages = (messages: ConversationMessage[] = []): UI
     };
   });
 
-const chatDisplayToConversationMessage = (
-  display: ChatAPIMessageDisplay,
-): ConversationMessage => {
-  const mapStatus = (
-    status: ChatAPIMessageDisplay['status'],
-  ): ConversationMessage['status'] => {
+const chatDisplayToConversationMessage = (display: ChatAPIMessageDisplay): ConversationMessage => {
+  const mapStatus = (status: ChatAPIMessageDisplay['status']): ConversationMessage['status'] => {
     switch (status) {
       case 'sending':
         return 'sending';
@@ -167,7 +163,9 @@ const convertToConversationMessage = (display: UIMessageDisplay): ConversationMe
   role: display.role,
   content: display.content,
   timestamp:
-    display.timestamp instanceof Date ? display.timestamp : new Date(display.timestamp ?? Date.now()),
+    display.timestamp instanceof Date
+      ? display.timestamp
+      : new Date(display.timestamp ?? Date.now()),
   thinkingContent: display.thinking_content,
   provider: display.provider,
   status: display.status,
@@ -261,12 +259,8 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
       ...sessionData,
       messages: historyMessages,
       metadata: sessionData.metadata,
-      createdAt: sessionData.createdAt
-        ? new Date(sessionData.createdAt)
-        : new Date(),
-      updatedAt: sessionData.updatedAt
-        ? new Date(sessionData.updatedAt)
-        : new Date(),
+      createdAt: sessionData.createdAt ? new Date(sessionData.createdAt) : new Date(),
+      updatedAt: sessionData.updatedAt ? new Date(sessionData.updatedAt) : new Date(),
     });
   };
 
@@ -275,7 +269,9 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
       const setSessionMessages = (session: Session, preserveMessages = false) => ({
         currentSessionId: session.id,
         currentSession: session,
-        messages: preserveMessages ? get().messages : normalizeConversationMessages(session.messages),
+        messages: preserveMessages
+          ? get().messages
+          : normalizeConversationMessages(session.messages),
         error: null,
       });
 
@@ -360,11 +356,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             messages: [...state.messages, normalized],
           }));
 
-          if (
-            message.role === 'assistant' &&
-            !hasAssistantBefore &&
-            lastUserMessage?.content
-          ) {
+          if (message.role === 'assistant' && !hasAssistantBefore && lastUserMessage?.content) {
             const provider = get().selectedProvider ?? DEFAULT_PROVIDER_NAME;
             const model = get().selectedModel ?? DEFAULT_MODEL_NAME;
 
@@ -394,9 +386,9 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         setLoading: (isLoading) => set({ isLoading }),
         setError: (error) => set({ error }),
 
-  setCurrentAgent: (agent) => set({ currentAgent: agent }),
+        setCurrentAgent: (agent) => set({ currentAgent: agent }),
 
-  setAutoScroll: (autoScroll) => set({ autoScroll }),
+        setAutoScroll: (autoScroll) => set({ autoScroll }),
         setFontSize: (fontSize) => set({ fontSize }),
         setShowThinking: (showThinking) => set({ showThinking }),
         setThinkingContent: (thinkingContent) => set({ thinkingContent }),
@@ -449,15 +441,15 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             }
 
             throw new Error(response.error?.message || 'Failed to create session');
-        } catch (error) {
-          const timestamp = Date.now();
-          const randomStr = Math.random().toString(36).substr(2, 9);
-          const sessionId = `session_${timestamp}_${randomStr}`;
-          await setCurrentSessionAction({
-            id: sessionId,
-            title: 'Untitled Session',
-          });
-          return sessionId;
+          } catch (error) {
+            const timestamp = Date.now();
+            const randomStr = Math.random().toString(36).substr(2, 9);
+            const sessionId = `session_${timestamp}_${randomStr}`;
+            await setCurrentSessionAction({
+              id: sessionId,
+              title: 'Untitled Session',
+            });
+            return sessionId;
           }
         },
 

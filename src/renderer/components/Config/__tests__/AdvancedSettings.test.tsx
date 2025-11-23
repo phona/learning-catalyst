@@ -7,15 +7,15 @@ import { createMockConfig } from '@/test/utils/helpers/test-utils';
 
 const baseConfig = createMockConfig({
   performance: {
-    cache_size_mb: 256,
-    max_concurrent_requests: 3,
+    cacheSizeMb: 256,
+    maxConcurrentRequests: 3,
   },
   privacy: {
-    store_conversations: true,
-    anonymous_analytics: true,
-    crash_reporting: true,
-    encrypt_local_storage: false,
-    auto_cleanup: false,
+    storeConversations: true,
+    anonymousAnalytics: true,
+    crashReporting: true,
+    encryptLocalStorage: false,
+    autoCleanup: false,
   },
 });
 
@@ -41,12 +41,12 @@ describe('AdvancedSettings', () => {
     const [cacheInput, maxRequests] = screen.getAllByRole('spinbutton');
     fireEvent.change(cacheInput, { target: { value: '512' } });
     expect(onConfigChange.mock.calls.at(-1)?.[0]).toMatchObject({
-      performance: expect.objectContaining({ cache_size_mb: 512 }),
+      performance: expect.objectContaining({ cacheSizeMb: 512 }),
     });
 
     fireEvent.change(maxRequests, { target: { value: '5' } });
     expect(onConfigChange.mock.calls.at(-1)?.[0]).toMatchObject({
-      performance: expect.objectContaining({ max_concurrent_requests: 5 }),
+      performance: expect.objectContaining({ maxConcurrentRequests: 5 }),
     });
   });
 
@@ -67,7 +67,7 @@ describe('AdvancedSettings', () => {
 
     expect(onConfigChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        privacy: expect.objectContaining({ store_conversations: false }),
+        privacy: expect.objectContaining({ storeConversations: false }),
       }),
     );
   });

@@ -771,7 +771,11 @@ export const createQdrantManager = () => {
     return isInitialized && qdrantService.isServiceReady();
   };
 
-  const addKnowledgeItem = async (item: any, provider: any, embedding?: number[]): Promise<void> => {
+  const addKnowledgeItem = async (
+    item: any,
+    provider: any,
+    embedding?: number[],
+  ): Promise<void> => {
     return await knowledgeService.addKnowledgeItem(item, provider, embedding);
   };
 
@@ -951,7 +955,12 @@ export const createQdrantManager = () => {
     });
     ipcMain.handle('knowledge:getContext', async (_, { sessionId, query, provider, limit }) => {
       try {
-        const context = await knowledgeService.getRelevantContext(sessionId, query, provider, limit);
+        const context = await knowledgeService.getRelevantContext(
+          sessionId,
+          query,
+          provider,
+          limit,
+        );
         return { success: true, context };
       } catch (error) {
         console.error('Failed to get relevant context:', error);

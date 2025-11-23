@@ -149,7 +149,8 @@ export const useAppStore = create<AppState>()(
     ...initialState,
 
     // Basic UI actions
-    setCurrentView: (currentView: AppState['currentView']) => set({ currentView, current_view: currentView }),
+    setCurrentView: (currentView: AppState['currentView']) =>
+      set({ currentView, current_view: currentView }),
     setSidebarOpen: (sidebar_open: boolean) => set({ sidebar_open }),
     setSettingsPanelOpen: (settings_panel_open: boolean) => set({ settings_panel_open }),
     setTheme: (theme: AppState['preferences']['theme']) =>

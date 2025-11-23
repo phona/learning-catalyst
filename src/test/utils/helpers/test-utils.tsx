@@ -247,7 +247,7 @@ const baseAIConfig: AppConfig['ai'] = {
       streaming: true,
     } as ProviderConfig,
   },
-  model_types: {
+  modelTypes: {
     chat: defaultChatModel,
   },
   metadata: {
@@ -330,15 +330,15 @@ const mergeProviders = (
 };
 
 const mergeModelTypes = (
-  original: AppConfig['ai']['model_types'] = {},
-  overrides?: DeepPartial<AppConfig['ai']['model_types']>,
-): AppConfig['ai']['model_types'] => {
+  original: AppConfig['ai']['modelTypes'] = {},
+  overrides?: DeepPartial<AppConfig['ai']['modelTypes']>,
+): AppConfig['ai']['modelTypes'] => {
   if (!overrides) {
     return { ...(original ?? {}) };
   }
 
-  const merged: AppConfig['ai']['model_types'] = { ...(original ?? {}) };
-  const overrideKeys = Object.keys(overrides) as (keyof AppConfig['ai']['model_types'])[];
+  const merged: AppConfig['ai']['modelTypes'] = { ...(original ?? {}) };
+  const overrideKeys = Object.keys(overrides) as (keyof AppConfig['ai']['modelTypes'])[];
   for (const key of overrideKeys) {
     const override = overrides[key];
     if (!override) continue;
@@ -361,15 +361,21 @@ export const createMockConfig = (overrides: DeepPartial<AppConfig> = {}): AppCon
           ...baseAIConfig,
           ...(aiOverrides ?? {}),
           providers: mergeProviders(baseAIConfig.providers, aiOverrides?.providers),
-          model_types: mergeModelTypes(baseAIConfig.model_types, aiOverrides?.model_types),
+          modelTypes: mergeModelTypes(baseAIConfig.modelTypes, aiOverrides?.modelTypes),
         };
 
   if (aiSection && aiOverrides) {
-    if (Object.prototype.hasOwnProperty.call(aiOverrides, 'providers') && aiOverrides.providers === undefined) {
+    if (
+      Object.prototype.hasOwnProperty.call(aiOverrides, 'providers') &&
+      aiOverrides.providers === undefined
+    ) {
       (aiSection as any).providers = undefined;
     }
-    if (Object.prototype.hasOwnProperty.call(aiOverrides, 'model_types') && aiOverrides.model_types === undefined) {
-      (aiSection as any).model_types = undefined;
+    if (
+      Object.prototype.hasOwnProperty.call(aiOverrides, 'modelTypes') &&
+      aiOverrides.modelTypes === undefined
+    ) {
+      (aiSection as any).modelTypes = undefined;
     }
   }
 

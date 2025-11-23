@@ -78,7 +78,9 @@ export const SessionList = memo<SessionListProps>(
         session,
         messageCount: session.messages?.length || 0,
         lastUpdated: session.updatedAt || session.createdAt || new Date(),
-        timeAgo: sharedFormatRelativeTime(new Date(session.updatedAt || session.createdAt || new Date())),
+        timeAgo: sharedFormatRelativeTime(
+          new Date(session.updatedAt || session.createdAt || new Date()),
+        ),
         isActive: activeSessionId === session.id,
         isNew: newSessionIds.has(session.id),
       }));

@@ -16,7 +16,9 @@ declare global {
       withImplementation(fn: (...args: Y) => T, callback: () => Promise<void>): Promise<void>;
     }
 
-    function fn<T = unknown, Y extends unknown[] = unknown[]>(implementation?: (...args: Y) => T): Mock<T, Y>;
+    function fn<T = unknown, Y extends unknown[] = unknown[]>(
+      implementation?: (...args: Y) => T,
+    ): Mock<T, Y>;
   }
 }
 

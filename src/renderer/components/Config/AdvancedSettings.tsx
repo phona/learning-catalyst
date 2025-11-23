@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AppConfig } from '@/shared/types/config';
+import type { AppConfig } from '@/shared/types';
 
 interface AdvancedSettingsProps {
   config: AppConfig;
@@ -27,12 +27,12 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
                   type="number"
                   min="1"
                   max="1000"
-                  value={config.performance.cache_size_mb}
+                  value={config.performance.cacheSizeMb}
                   onChange={(e) =>
                     onConfigChange({
                       performance: {
                         ...config.performance,
-                        cache_size_mb: parseInt(e.target.value),
+                        cacheSizeMb: parseInt(e.target.value),
                       },
                     })
                   }
@@ -47,12 +47,12 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
                   type="number"
                   min="1"
                   max="10"
-                  value={config.performance.max_concurrent_requests}
+                  value={config.performance.maxConcurrentRequests}
                   onChange={(e) =>
                     onConfigChange({
                       performance: {
                         ...config.performance,
-                        max_concurrent_requests: parseInt(e.target.value),
+                        maxConcurrentRequests: parseInt(e.target.value),
                       },
                     })
                   }
@@ -68,27 +68,27 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ config, onCo
             <div className="space-y-4">
               {[
                 {
-                  key: 'store_conversations',
+                  key: 'storeConversations',
                   label: 'Store Conversations',
                   description: 'Save conversation history locally',
                 },
                 {
-                  key: 'anonymous_analytics',
+                  key: 'anonymousAnalytics',
                   label: 'Anonymous Analytics',
                   description: 'Share anonymous usage data',
                 },
                 {
-                  key: 'crash_reporting',
+                  key: 'crashReporting',
                   label: 'Crash Reporting',
                   description: 'Send crash reports automatically',
                 },
                 {
-                  key: 'encrypt_local_storage',
+                  key: 'encryptLocalStorage',
                   label: 'Encrypt Local Storage',
                   description: 'Encrypt stored data',
                 },
                 {
-                  key: 'auto_cleanup',
+                  key: 'autoCleanup',
                   label: 'Auto Cleanup',
                   description: 'Automatically clean old data',
                 },

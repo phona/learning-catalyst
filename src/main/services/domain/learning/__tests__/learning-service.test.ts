@@ -55,14 +55,22 @@ const createDomainAgent = () => {
     reset() {
       responses.clear();
     },
-    invoke: vi.fn(async ({ systemPrompt, messages }: { systemPrompt?: string; messages?: { role: string; content: string }[] }) => {
-      const promptSource = systemPrompt ?? messages?.[0]?.content ?? '';
-      const key = detectKey(promptSource);
-      if (!responses.has(key)) {
-        throw new Error(`No mock response for ${key}`);
-      }
-      return responses.get(key)!;
-    }),
+    invoke: vi.fn(
+      async ({
+        systemPrompt,
+        messages,
+      }: {
+        systemPrompt?: string;
+        messages?: { role: string; content: string }[];
+      }) => {
+        const promptSource = systemPrompt ?? messages?.[0]?.content ?? '';
+        const key = detectKey(promptSource);
+        if (!responses.has(key)) {
+          throw new Error(`No mock response for ${key}`);
+        }
+        return responses.get(key)!;
+      },
+    ),
     stream: vi.fn().mockImplementation(async function* ({
       systemPrompt,
       messages,

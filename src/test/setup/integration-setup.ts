@@ -22,16 +22,18 @@ beforeAll(async () => {
   process.env.INTEGRATION_TEST = 'true';
 
   // Mock Electron APIs
-  (globalThis as Record<string, unknown>).require = vi.fn().mockImplementation((moduleName: string) => {
-    switch (moduleName) {
-      case 'electron':
-        return ElectronMainMocks;
-      case 'langchain':
-        return LangChainMocks;
-      default:
-        return {};
-    }
-  });
+  (globalThis as Record<string, unknown>).require = vi
+    .fn()
+    .mockImplementation((moduleName: string) => {
+      switch (moduleName) {
+        case 'electron':
+          return ElectronMainMocks;
+        case 'langchain':
+          return LangChainMocks;
+        default:
+          return {};
+      }
+    });
 
   // Mock Node.js modules
   vi.mock('fs/promises', () => ({
@@ -101,28 +103,30 @@ export async function setupIPCIntegrationTest() {
   const ipcHandlers = new Map<string, Function>();
 
   // Set up mock invoke method for renderer
-  (mockRendererProcess as any).invoke = vi.fn().mockImplementation(async (channel: string, data: any) => {
-    const handler = ipcHandlers.get(channel);
-    if (handler) {
-      try {
-        const result = await handler({ sender: mockRendererProcess }, data);
-        return result;
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          errorCode: 'IPC_ERROR',
-          timestamp: Date.now(),
-        };
+  (mockRendererProcess as any).invoke = vi
+    .fn()
+    .mockImplementation(async (channel: string, data: any) => {
+      const handler = ipcHandlers.get(channel);
+      if (handler) {
+        try {
+          const result = await handler({ sender: mockRendererProcess }, data);
+          return result;
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+            errorCode: 'IPC_ERROR',
+            timestamp: Date.now(),
+          };
+        }
       }
-    }
-    return {
-      success: false,
-      error: `No handler for channel: ${channel}`,
-      errorCode: 'NO_HANDLER',
-      timestamp: Date.now(),
-    };
-  });
+      return {
+        success: false,
+        error: `No handler for channel: ${channel}`,
+        errorCode: 'NO_HANDLER',
+        timestamp: Date.now(),
+      };
+    });
 
   (mockRendererProcess as any).invokeWithTimeout = vi
     .fn()

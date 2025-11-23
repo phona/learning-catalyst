@@ -6,62 +6,17 @@
  */
 
 import { LoggerService } from '../../core/logger/logger-service';
+import type {
+  ChatMessage,
+  ChatCompletionParams,
+  ChatCompletionResult,
+  EmbeddingParams,
+  EmbeddingResult,
+  ModelProvider,
+  ModelConfig,
+} from '@/main/services/ai/ai-types';
 
-// Define types inline since ai-types doesn't exist yet
-export interface ModelConfig {
-  model: string;
-  apiKey?: string;
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  stream?: boolean;
-}
-
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
-
-export interface ChatCompletionParams {
-  messages: ChatMessage[];
-  modelConfig: ModelConfig;
-  stream?: boolean;
-}
-
-export interface ChatCompletionResult {
-  content: string;
-  model: string;
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  finishReason: string;
-}
-
-export interface EmbeddingParams {
-  input: string | string[];
-  modelConfig: ModelConfig;
-}
-
-export interface EmbeddingResult {
-  embeddings: number[] | number[][];
-  model: string;
-  usage: {
-    promptTokens: number;
-    totalTokens: number;
-  };
-}
-
-export interface ModelProvider {
-  chatCompletion: (params: ChatCompletionParams) => Promise<ChatCompletionResult>;
-  embedding: (params: EmbeddingParams) => Promise<EmbeddingResult>;
-  validateConfig: (config: ModelConfig) => boolean;
-}
-
-export interface ProviderConfig {
+export interface ProviderDefinition {
   name: string;
   apiUrl?: string; // Optional for local models that don't need external APIs
   embeddingDimensions: number;
@@ -78,7 +33,7 @@ export interface ProviderConfig {
  * Base provider factory that eliminates 90% of duplication
  */
 export const createProviderService =
-  (config: ProviderConfig) =>
+  (config: ProviderDefinition) =>
   ({ loggerService }: { loggerService: LoggerService }): ModelProvider => {
     const logger = loggerService.child({ service: `ai-${config.name}` });
 

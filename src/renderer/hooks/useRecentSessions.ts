@@ -73,7 +73,10 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
     createdAt: new Date((display as any).createdAt ?? Date.now()),
     updatedAt: new Date((display as any).updatedAt ?? Date.now()),
     messages: [],
-    metadata: (display as any).metadata ?? { title: display.title ?? '', tags: (display as any).tags ?? [] },
+    metadata: (display as any).metadata ?? {
+      title: display.title ?? '',
+      tags: (display as any).tags ?? [],
+    },
     context: (display as any).context ?? {},
     checkpoints: [],
     statistics: {

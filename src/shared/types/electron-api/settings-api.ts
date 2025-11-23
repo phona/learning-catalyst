@@ -6,6 +6,8 @@
  */
 
 import type { APIResponse } from './index';
+import type { ProviderConfig } from '@/shared/types';
+export type { ProviderConfig } from '@/shared/types';
 
 export interface SettingsAPI {
   /**
@@ -35,7 +37,7 @@ export interface SettingsAPI {
    */
   getAvailableProviders: () => Promise<
     APIResponse<{
-      providers: ProviderDisplay[];
+      providers: ProviderConfig[];
       summary: {
         total: number;
         connected: number;
@@ -77,13 +79,6 @@ export interface SettingsAPI {
   >;
 }
 
-// ============================================================================
-// Display-Optimized Types
-// ============================================================================
-
-/**
- * Complete user preferences for display
- */
 export interface UserPreferencesDisplay {
   profile: UserProfile;
   learning: LearningPreferences;
@@ -234,76 +229,7 @@ export interface UserPreferencesUpdate {
   advanced?: Partial<AdvancedPreferences>;
 }
 
-/**
- * AI provider display information
- */
-export interface ProviderDisplay {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  models: ProviderModel[];
-  status: 'configured' | 'not_configured' | 'error' | 'testing';
-  isDefault: boolean;
-  capabilities: ProviderCapability[];
-  pricing: 'free' | 'pay-per-use' | 'subscription' | 'freemium';
-  configuredAt?: string;
-  lastTested?: string;
-  icon?: string;
-  website?: string;
-  documentation?: string;
-  features: string[];
-  limitations: string[];
-}
-
-/**
- * Individual provider model
- */
-export interface ProviderModel {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  contextWindow: number;
-  maxTokens: number;
-  pricing: {
-    input: number; // per 1K tokens
-    output: number; // per 1K tokens
-    currency: string;
-  };
-  capabilities: string[];
-  speed: 'fast' | 'medium' | 'slow';
-  quality: 'basic' | 'standard' | 'premium';
-  useCases: string[];
-  status: 'available' | 'deprecated' | 'beta';
-}
-
-/**
- * Provider capability
- */
-export type ProviderCapability =
-  | 'chat'
-  | 'completion'
-  | 'embedding'
-  | 'image'
-  | 'audio'
-  | 'function-calling'
-  | 'streaming'
-  | 'long-context';
-
-/**
- * Provider configuration object
- * Re-exported from config types for consistency
- */
-export type ProviderConfig = import('../ai').ProviderConfig & {
-  systemPrompt?: string;
-  isDefault?: boolean;
-  customSettings?: Record<string, any>;
-  rateLimit?: {
-    requestsPerMinute: number;
-    tokensPerMinute: number;
-  };
-};
+// Display-Optimized Types
 
 /**
  * Learning settings display

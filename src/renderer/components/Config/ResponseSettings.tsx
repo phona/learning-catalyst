@@ -7,11 +7,11 @@ interface ResponseSettingsProps {
 }
 
 export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onConfigChange }) => {
-  const chatConfig = config?.ai?.model_types?.chat;
+  const chatConfig = config?.ai?.modelTypes?.chat;
   const defaultCapabilities: ModelCapabilities = {
     streaming: false,
     thinking: false,
-    function_calling: false,
+    functionCalling: false,
     vision: false,
   };
   const capabilities = chatConfig?.capabilities ?? defaultCapabilities;
@@ -25,8 +25,8 @@ export const ResponseSettings: React.FC<ResponseSettingsProps> = ({ config, onCo
     onConfigChange({
       ai: {
         ...config.ai,
-        model_types: {
-          ...config.ai.model_types,
+        modelTypes: {
+          ...config.ai.modelTypes,
           chat: {
             ...chatConfig,
             capabilities: {

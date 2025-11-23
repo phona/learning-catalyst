@@ -160,25 +160,21 @@ Object.defineProperty(window, 'electronAPI', {
         .mockResolvedValue({ success: true, data: { sessionId: 'test-new-session' } }),
       updateTitle: vi.fn().mockResolvedValue({ success: true }),
       getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] }),
-      search: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: { sessions: [], total: 0, query: '', hasMore: false },
-        }),
-      getStatistics: vi
-        .fn()
-        .mockResolvedValue({
-          success: true,
-          data: {
-            totalSessions: 0,
-            totalMessages: 0,
-            totalUserMessages: 0,
-            totalAssistantMessages: 0,
-            totalTokensUsed: 0,
-            averageMessagesPerSession: 0,
-          },
-        }),
+      search: vi.fn().mockResolvedValue({
+        success: true,
+        data: { sessions: [], total: 0, query: '', hasMore: false },
+      }),
+      getStatistics: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
+        },
+      }),
       associateAgent: vi.fn().mockResolvedValue({
         success: true,
       }),
@@ -607,7 +603,7 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
     config: {
       ai: {
         providers: {},
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-3.5-turbo',

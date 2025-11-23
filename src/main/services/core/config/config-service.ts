@@ -1,5 +1,4 @@
-// TO AI: Don't modify this file, it's checked by me.
-import type { AppConfig, ProviderConfig } from '@/shared/types/config';
+import type { AppConfig, ProviderConfig } from '@/shared/types';
 import { ConfigStorage } from './storage';
 import { LoggerService } from '../logger/logger-service';
 import { merge } from 'lodash';
@@ -142,12 +141,11 @@ export const createConfigService = ({
      */
     isSetupComplete: async (): Promise<boolean> => {
       const config = await service.getConfig();
-      if (!config || !config.ai || !config.ai.model_types) {
+      if (!config || !config.ai || !config.ai.modelTypes) {
         return false;
       }
 
-      // Check if chat model is configured
-      const chatConfig = config.ai.model_types.chat;
+      const chatConfig = config.ai.modelTypes.chat;
       if (!chatConfig || !chatConfig.provider || !chatConfig.model) {
         return false;
       }

@@ -38,10 +38,10 @@ vi.mock('@/stores/useConfigStore', () => ({
   useConfigStore: vi.fn(() => ({
     config: {
       ai: {
-        model_types: {
+        modelTypes: {
           chat: {
-            default_provider: 'openai',
-            default_model: 'gpt-3.5-turbo',
+            defaultProvider: 'openai',
+            defaultModel: 'gpt-3.5-turbo',
           },
         },
       },
@@ -52,10 +52,10 @@ vi.mock('@/stores/useConfigStore', () => ({
     setConfig: vi.fn(),
     loadConfig: vi.fn().mockResolvedValue({
       ai: {
-        model_types: {
+        modelTypes: {
           chat: {
-            default_provider: 'openai',
-            default_model: 'gpt-3.5-turbo',
+            defaultProvider: 'openai',
+            defaultModel: 'gpt-3.5-turbo',
           },
         },
       },
@@ -78,7 +78,7 @@ vi.mock('@/renderer/hooks/useChatStore', () => ({
 
 const workspaceConfig = {
   ai: {
-    model_types: {
+    modelTypes: {
       chat: {
         provider: 'openai',
         model: 'gpt-4o',
@@ -86,8 +86,8 @@ const workspaceConfig = {
     },
     providers: {
       openai: {
-        provider_type: 'openai',
-        api_key: 'test-key',
+        providerType: 'openai',
+        apiKey: 'test-key',
       },
     },
   },

@@ -186,9 +186,14 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
       create: async ({ title }: { title?: string }) =>
         successResponse<{ sessionId: string; session?: SessionDisplay }>({
           sessionId: 'test-session-id',
-          session: { ...baseSession(), title: title ?? 'Test Session', topic: title ?? 'Test Topic' },
+          session: {
+            ...baseSession(),
+            title: title ?? 'Test Session',
+            topic: title ?? 'Test Topic',
+          },
         }),
-      get: async (sessionId: string) => successResponse<SessionDisplay | undefined>({ ...baseSession(), id: sessionId }),
+      get: async (sessionId: string) =>
+        successResponse<SessionDisplay | undefined>({ ...baseSession(), id: sessionId }),
       update: async () => successResponse<SessionDisplay | undefined>(undefined),
       delete: async () => successResponse({ deleted: true }),
       saveMessage: async () => successResponse<void>(undefined),
@@ -270,9 +275,10 @@ export const testScenarios = {
         sessions: {
           ...createMockElectronAPI().sessions,
           get: async () =>
-            successResponse<SessionDisplay>(
-              { ...makeSessionDisplay(), messages } as SessionDisplay,
-            ),
+            successResponse<SessionDisplay>({
+              ...makeSessionDisplay(),
+              messages,
+            } as SessionDisplay),
         },
       },
     }),

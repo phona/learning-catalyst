@@ -444,7 +444,10 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
  */
 export class GlobalHealthMonitor {
   private readonly healthData = new Map<string, HealthStatus>();
-  private static readonly globalEventKeys = ['global:health:changed', 'global:health:critical'] as const;
+  private static readonly globalEventKeys = [
+    'global:health:changed',
+    'global:health:critical',
+  ] as const;
   private readonly events = createTypedEventEmitter<{
     'global:health:changed': { component: string; status: HealthStatus };
     'global:health:critical': { component: string; status: HealthStatus };

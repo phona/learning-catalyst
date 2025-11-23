@@ -45,7 +45,7 @@ vi.mock('@/renderer/hooks/useChatStore', () => ({
 
 const workspaceConfig = {
   ai: {
-    model_types: {
+    modelTypes: {
       chat: {
         provider: 'openai',
         model: 'gpt-4o',
@@ -53,8 +53,8 @@ const workspaceConfig = {
     },
     providers: {
       openai: {
-        provider_type: 'openai',
-        api_key: 'test-key',
+        providerType: 'openai',
+        apiKey: 'test-key',
       },
     },
   },

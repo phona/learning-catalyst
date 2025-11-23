@@ -10,11 +10,11 @@ export interface PredefinedProvider {
   id: string;
   name: string;
   type: string;
-  base_url: string;
+  baseUrl: string;
   description: string;
-  supported_features: string[];
-  documentation_url: string;
-  default_models: {
+  supportedFeatures: string[];
+  documentationUrl: string;
+  defaultModels: {
     chat?: string[];
     embedding?: string[];
     rerank?: string[];
@@ -26,11 +26,11 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     id: 'openai',
     name: 'OpenAI',
     type: 'openai',
-    base_url: 'https://api.openai.com/v1',
+    baseUrl: 'https://api.openai.com/v1',
     description: 'Official OpenAI API with GPT models',
-    supported_features: ['chat', 'embedding', 'rerank'],
-    documentation_url: 'https://platform.openai.com/docs',
-    default_models: {
+    supportedFeatures: ['chat', 'embedding', 'rerank'],
+    documentationUrl: 'https://platform.openai.com/docs',
+    defaultModels: {
       chat: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
       embedding: ['text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'],
       rerank: ['text-davinci-003'],
@@ -40,11 +40,11 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     id: 'chatglm',
     name: 'ChatGLM (Zhipu AI)',
     type: 'chatglm',
-    base_url: 'https://open.bigmodel.cn/api/paas/v4',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     description: 'ChatGLM API with thinking process support',
-    supported_features: ['chat'],
-    documentation_url: 'https://open.bigmodel.cn/dev/api',
-    default_models: {
+    supportedFeatures: ['chat'],
+    documentationUrl: 'https://open.bigmodel.cn/dev/api',
+    defaultModels: {
       chat: ['glm-4', 'glm-4-plus', 'glm-3-turbo'],
     },
   },
@@ -52,11 +52,11 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     id: 'deepseek',
     name: 'DeepSeek',
     type: 'deepseek',
-    base_url: 'https://api.deepseek.com/v1',
+    baseUrl: 'https://api.deepseek.com/v1',
     description: 'DeepSeek API for code and reasoning',
-    supported_features: ['chat'],
-    documentation_url: 'https://platform.deepseek.com/api-docs',
-    default_models: {
+    supportedFeatures: ['chat'],
+    documentationUrl: 'https://platform.deepseek.com/api-docs',
+    defaultModels: {
       chat: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
     },
   },
@@ -64,11 +64,11 @@ export const PREDEFINED_PROVIDERS: Record<string, PredefinedProvider> = {
     id: 'siliconflow',
     name: 'SiliconFlow',
     type: 'siliconflow',
-    base_url: 'https://api.siliconflow.cn/v1',
+    baseUrl: 'https://api.siliconflow.cn/v1',
     description: 'SiliconFlow API platform with various models',
-    supported_features: ['chat', 'embedding'],
-    documentation_url: 'https://docs.siliconflow.cn/docs',
-    default_models: {
+    supportedFeatures: ['chat', 'embedding'],
+    documentationUrl: 'https://docs.siliconflow.cn/docs',
+    defaultModels: {
       chat: [
         'Qwen/Qwen2.5-7B-Instruct',
         'meta-llama/Meta-Llama-3.1-8B-Instruct',
@@ -105,19 +105,19 @@ export function getPredefinedModels(providerType: string): string[] {
 
   const models: string[] = [];
 
-  if (provider.default_models.chat) {
-    models.push(...provider.default_models.chat);
+  if (provider.defaultModels.chat) {
+    models.push(...provider.defaultModels.chat);
   }
 
-  if (provider.default_models.embedding) {
-    models.push(...provider.default_models.embedding);
+  if (provider.defaultModels.embedding) {
+    models.push(...provider.defaultModels.embedding);
   }
 
-  if (provider.default_models.rerank) {
-    models.push(...provider.default_models.rerank);
+  if (provider.defaultModels.rerank) {
+    models.push(...provider.defaultModels.rerank);
   }
 
-  return [...new Set(models)]; // Remove duplicates
+  return [...new Set(models)];
 }
 
 /**
@@ -125,9 +125,9 @@ export function getPredefinedModels(providerType: string): string[] {
  */
 export function getPredefinedModelsForFeature(providerType: string, feature: string): string[] {
   const provider = PREDEFINED_PROVIDERS[providerType];
-  if (!provider?.default_models[feature as keyof typeof provider.default_models]) {
+  if (!provider?.defaultModels[feature as keyof typeof provider.defaultModels]) {
     return [];
   }
 
-  return provider.default_models[feature as keyof typeof provider.default_models] || [];
+  return provider.defaultModels[feature as keyof typeof provider.defaultModels] || [];
 }

@@ -1,14 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-
 import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -156,13 +145,16 @@ async function createWindow(): Promise<void> {
     backgroundColor: '#ffffff',
   });
 
-  // Suppress DevTools warnings
-  win.webContents.on('console-message', (event, _level, message, _line, _sourceId) => {
-    // Ignore autofill-related DevTools errors that are common in Electron
-    if (message.includes('Autofill.enable') || message.includes('Autofill.setAddresses')) {
-      event.preventDefault();
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(VITE_DEV_SERVER_URL);
+    if (process.env.NODE_ENV !== 'production') {
+      win.webContents.openDevTools();
     }
-  });
+    win.show();
+  } else {
+    win.loadFile(indexHtml);
+    win.show();
+  }
 
   // Add proper cleanup on window close
   win.on('closed', () => {
@@ -174,18 +166,6 @@ async function createWindow(): Promise<void> {
     // Clear resources before navigation
     win?.webContents.session?.clearCache?.();
   });
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-    // Only open DevTools in development and not in production
-    if (process.env.NODE_ENV !== 'production') {
-      win.webContents.openDevTools();
-    }
-    win.show(); // Show window after loading
-  } else {
-    win.loadFile(indexHtml);
-    win.show(); // Show window after loading
-  }
 
   win.webContents.once('did-finish-load', () => {
     flushPendingIpcErrors();

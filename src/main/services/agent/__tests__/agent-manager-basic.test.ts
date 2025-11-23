@@ -137,7 +137,7 @@ describe('Agent Manager - Basic Tests', () => {
             model: 'gpt-4o',
           },
         },
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',

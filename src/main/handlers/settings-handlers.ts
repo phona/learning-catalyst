@@ -9,8 +9,8 @@ import { ipcMain, app } from 'electron';
 import { access, mkdir, readFile, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
 import { AVAILABLE_PROVIDERS } from '@/shared/types/config';
-import type { AppConfig, ProviderConfig } from '@/shared/types/config';
-import type { APIResponse } from '@/shared/types/electron-api';
+import type { AppConfig, ProviderConfig } from '@/shared/types';
+import type { APIResponse } from '@/shared/types';
 
 const CONFIG_REL_PATH = join('.catalyst', 'config.json');
 let workspaceRoot = process.cwd();
@@ -85,7 +85,7 @@ export const setupSettingsHandlers = (workspacePath?: string): void => {
   );
 
   ipcMain.handle('settings:getAvailableProviders', async () => {
-    const providers = (AVAILABLE_PROVIDERS as unknown as string[]) ?? [];
+    const providers = AVAILABLE_PROVIDERS;
     const summary = {
       total: providers.length,
       connected: providers.length, // placeholder until provider health is wired

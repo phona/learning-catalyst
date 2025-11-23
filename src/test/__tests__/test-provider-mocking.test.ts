@@ -41,13 +41,13 @@ describe('Enhanced Provider Mocking', () => {
       expect(openaiMock.config.modelName).toBe('gpt-3.5-turbo');
     });
 
-  it('should create ChatGLM provider mock', () => {
-    const glmMock = LangChainProviderMockFactory.createChatGLMMock();
+    it('should create ChatGLM provider mock', () => {
+      const glmMock = LangChainProviderMockFactory.createChatGLMMock();
 
-    expect(glmMock.invoke).toBeDefined();
-    expect(glmMock.stream).toBeDefined();
-    expect(glmMock.config.modelName).toBe('glm-4');
-  });
+      expect(glmMock.invoke).toBeDefined();
+      expect(glmMock.stream).toBeDefined();
+      expect(glmMock.config.modelName).toBe('glm-4');
+    });
 
     it('should create ChatGLM provider mock', () => {
       const chatglmMock = LangChainProviderMockFactory.createChatGLMMock();

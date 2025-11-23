@@ -152,21 +152,18 @@ export const setupSessionsHandlers = (
     return ok(sessions);
   });
 
-  ipcMainInstance.handle(
-    'sessions:search',
-    async (_event, payload: SessionsSearchPayload) => {
-      const result = await services.learningService.searchSessions(
-        payload.query ?? '',
-        payload.filters,
-      );
-      return ok({
-        sessions: result.sessions,
-        total: result.totalResults,
-        query: result.query,
-        hasMore: false,
-      });
-    },
-  );
+  ipcMainInstance.handle('sessions:search', async (_event, payload: SessionsSearchPayload) => {
+    const result = await services.learningService.searchSessions(
+      payload.query ?? '',
+      payload.filters,
+    );
+    return ok({
+      sessions: result.sessions,
+      total: result.totalResults,
+      query: result.query,
+      hasMore: false,
+    });
+  });
 
   ipcMainInstance.handle('sessions:get-statistics', async () => {
     const stats = defaultStats();

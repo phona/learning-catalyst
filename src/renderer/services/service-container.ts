@@ -12,7 +12,7 @@ import type {
   KnowledgeAPI,
   LearningAPI,
   AnalyticsAPI,
-} from '@/shared/types/electron-api';
+} from '@/shared/types';
 
 import type {
   ConversationDisplay,
@@ -24,7 +24,7 @@ import type {
   PracticeOpportunityResult,
   NaturalPracticeSuggestion,
   UserLearningContext,
-} from '@/shared/types/electron-api/chat-api';
+} from '@/shared/types';
 
 import type {
   SessionSearchQuery,

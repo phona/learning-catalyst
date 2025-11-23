@@ -308,8 +308,12 @@ export const mockCatalystService = () => {
     }),
     startStreamingSession: vi.fn().mockImplementation(async (data) => {
       const streamSession = new EventEmitter();
-      (streamSession as any).streamId = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      (streamSession as any).estimatedChunks = Math.max(5, Math.ceil((data.message?.length || 1000) / 50));
+      (streamSession as any).streamId =
+        `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      (streamSession as any).estimatedChunks = Math.max(
+        5,
+        Math.ceil((data.message?.length || 1000) / 50),
+      );
 
       // Mock streaming chunks
       setTimeout(() => {

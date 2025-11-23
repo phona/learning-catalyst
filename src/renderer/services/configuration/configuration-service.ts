@@ -3,6 +3,7 @@ import type {
   ProviderValidationResult,
   SelectedModel,
   ModelTypeConfig,
+  ProviderConfig,
 } from '@/shared/types/config';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import { ModelType } from '@/shared/types/ai';
@@ -82,7 +83,7 @@ export function createConfigurationService(apiClient: ElectronAPI) {
       const configValue: ConfigurationValue = {
         key,
         value,
-        dataType: (dataType as any) || typeof value,
+        dataType: (dataType as ConfigurationValue['dataType']) || inferDataType(value),
         lastModified: new Date(),
       };
 
@@ -116,20 +117,20 @@ export function createConfigurationService(apiClient: ElectronAPI) {
         const preferences = {
           interface: {
             theme: config.ui?.theme,
-            fontSize: config.ui?.font_size,
-            compactMode: config.ui?.compact_mode,
-            showProgressIndicators: config.ui?.show_token_usage,
+            fontSize: config.ui?.fontSize,
+            compactMode: config.ui?.compactMode,
+            showProgressIndicators: config.ui?.showTokenUsage,
           },
           learning: {
             preferredDifficulty:
               config.learning?.difficulty === 'adaptive'
                 ? 'intermediate'
                 : config.learning?.difficulty,
-            learningStyle: config.learning?.learning_style,
+            learningStyle: config.learning?.learningStyle,
           },
           privacy: {
-            saveConversationHistory: config.privacy?.store_conversations,
-            shareAnalytics: config.privacy?.anonymous_analytics,
+            saveConversationHistory: config.privacy?.storeConversations,
+            shareAnalytics: config.privacy?.anonymousAnalytics,
           },
         };
         await apiClient.settings.updatePreferences(preferences);
@@ -169,14 +170,17 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     modelType: ModelType,
     modelConfig: SelectedModel | ModelTypeConfig,
   ): Promise<void> => {
-    // Normalize input to SelectedModel
-    const normalized: SelectedModel =
-      (modelConfig as any).provider && (modelConfig as any).model
-        ? { provider: (modelConfig as any).provider, model: (modelConfig as any).model }
-        : {
-            provider: (modelConfig as any).default_provider ?? '',
-            model: (modelConfig as any).default_model ?? '',
-          };
+    const isModelTypeConfig = (mc: SelectedModel | ModelTypeConfig): mc is ModelTypeConfig => {
+      return (
+        (mc as ModelTypeConfig).availableProviders !== undefined ||
+        (mc as ModelTypeConfig).defaultProvider !== undefined ||
+        (mc as ModelTypeConfig).settings !== undefined
+      );
+    };
+
+    const normalized: SelectedModel = isModelTypeConfig(modelConfig)
+      ? { provider: modelConfig.defaultProvider ?? '', model: modelConfig.defaultModel ?? '' }
+      : { provider: modelConfig.provider ?? '', model: modelConfig.model ?? '' };
 
     if (!normalized.provider || !normalized.model) {
       throw new Error('Provider and model are required to update model type configuration');
@@ -188,8 +192,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
         ...currentConfig,
         ai: {
           ...currentConfig.ai,
-          model_types: {
-            ...currentConfig.ai.model_types,
+          modelTypes: {
+            ...(currentConfig.ai.modelTypes ?? {}),
             [modelType]: normalized,
           },
         },
@@ -197,7 +201,7 @@ export function createConfigurationService(apiClient: ElectronAPI) {
       currentConfig = next;
 
       // Persist the updated config
-      await setConfiguration('ai.model_types', currentConfig.ai.model_types);
+      await setConfiguration('ai.modelTypes', currentConfig.ai.modelTypes);
     }
   };
 
@@ -334,19 +338,12 @@ export function createConfigurationService(apiClient: ElectronAPI) {
         return { success: false, error: 'Provider list unavailable' };
       }
       const providers = response.data.providers || [];
-      const provider = providers.find((p) => p.id === providerType);
+      const provider = providers.find(
+        (p: { providerType?: string }) => p.providerType === providerType,
+      );
 
       if (!provider) {
         return { success: false, error: `Unknown provider: ${providerType}` };
-      }
-
-      // Check if provider is configured
-      if (provider.status === 'not_configured') {
-        return { success: false, error: 'Provider is not configured' };
-      }
-
-      if (provider.status === 'error') {
-        return { success: false, error: 'Provider configuration has errors' };
       }
 
       return { success: true };
@@ -372,15 +369,17 @@ export function createConfigurationService(apiClient: ElectronAPI) {
       if (!response.success || !response.data) {
         throw new Error('Failed to fetch providers');
       }
-      const providers = response.data.providers || [];
-      const provider = providers.find((p) => p.id === providerType);
+      const providers = (response.data.providers || []) as {
+        providerType?: string;
+        models?: string[];
+      }[];
+      const provider = providers.find((p) => p.providerType === providerType);
 
       if (!provider) {
         throw new Error(`Unknown provider: ${providerType}`);
       }
 
-      // Extract model IDs from provider models
-      return provider.models.map((model) => model.id);
+      return Array.isArray(provider.models) ? provider.models! : [];
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to fetch models');
     }
@@ -414,11 +413,27 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   /**
    * Configure an AI provider (alias for addProvider to maintain compatibility)
    */
-  const configureProvider = async (params: { provider: string; config: any }) => {
+  const configureProvider = async (params: {
+    provider: string;
+    config: Partial<ProviderConfig>;
+  }) => {
     try {
+      const fullConfig: ProviderConfig = {
+        providerType: params.provider as any,
+        apiKey: params.config.apiKey,
+        baseUrl: params.config.baseUrl,
+        models: params.config.models,
+        type: params.config.type,
+        model: params.config.model,
+        temperature: params.config.temperature,
+        maxTokens: params.config.maxTokens,
+        streaming: params.config.streaming,
+        customHeaders: params.config.customHeaders,
+      };
+
       const response = await apiClient.settings.configureProvider({
         provider: params.provider,
-        config: params.config,
+        config: fullConfig,
       });
       if (!response.success) {
         throw new Error('Failed to configure provider');
@@ -452,3 +467,10 @@ export function createConfigurationService(apiClient: ElectronAPI) {
 }
 
 export type ConfigurationService = ReturnType<typeof createConfigurationService>;
+const inferDataType = (value: unknown): ConfigurationValue['dataType'] => {
+  const t = typeof value;
+  if (t === 'string') return 'string';
+  if (t === 'number') return 'number';
+  if (t === 'boolean') return 'boolean';
+  return 'json';
+};

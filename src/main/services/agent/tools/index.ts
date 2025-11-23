@@ -53,7 +53,7 @@ export const contentAnalysisTool = (services: ToolServices) => {
       const systemPrompt = analysisPrompts[params.analysisType];
 
       // Get model configuration
-      const configResult = await services.configService.get('ai.model_types.chat');
+      const configResult = await services.configService.get('ai.modelTypes.chat');
       const modelConfig =
         typeof configResult === 'object' && configResult !== null
           ? (configResult as any)
@@ -305,7 +305,7 @@ export const assessmentTool = (services: ToolServices) => {
       }
 
       // Get model configuration
-      const configResult = await services.configService.get('ai.model_types.chat');
+      const configResult = await services.configService.get('ai.modelTypes.chat');
       const modelConfig =
         typeof configResult === 'object' && configResult !== null
           ? (configResult as any)

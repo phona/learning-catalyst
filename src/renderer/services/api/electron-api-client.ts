@@ -1,12 +1,11 @@
-import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { DashboardDisplay } from '@/shared/interfaces/analytics.interface';
+import type { ElectronAPI } from '@/shared/types';
 import type {
   AgentDisplay,
   AgentContext,
   AgentCapabilitiesDisplay,
   FeatureDemoDisplay,
-} from '@/shared/types/electron-api/agent-api';
-import type { ProviderDisplay, ProviderModel } from '@/shared/types/electron-api/settings-api';
+} from '@/shared/types';
+import type { ProviderConfig } from '@/shared/types';
 
 type ElectronWindow = Window & { electronAPI?: ElectronAPI };
 
@@ -773,50 +772,21 @@ export function createMockElectronAPIClient(): ElectronAPI {
             },
           },
         }),
-      updatePreferences: () => Promise.resolve({ success: true, data: { updatedSettings: {}, changes: [] } }),
+      updatePreferences: () =>
+        Promise.resolve({ success: true, data: { updatedSettings: {}, changes: [] } }),
       getAvailableProviders: () => {
-        // Dynamic mock data based on common providers
-        const createModel = (modelId: string): ProviderModel => ({
-          id: modelId,
-          name: modelId,
-          displayName: modelId,
-          description: `${modelId} model`,
-          contextWindow: 8192,
-          maxTokens: 4096,
-          pricing: { input: 0, output: 0, currency: 'USD' },
-          capabilities: ['chat', 'completion'],
-          speed: 'medium',
-          quality: 'standard',
-          useCases: ['General purpose'],
-          status: 'available',
-        });
-
-        const mockProviders: ProviderDisplay[] = [
+        const mockProviders: ProviderConfig[] = [
           {
-            id: 'openai',
-            name: 'openai',
-            displayName: 'OpenAI',
-            description: 'OpenAI GPT models',
-            models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'].map(createModel),
-            status: 'not_configured' as const,
-            isDefault: false,
-            capabilities: ['chat', 'completion', 'streaming'] as const,
-            pricing: 'pay-per-use' as const,
-            features: ['Streaming', 'Function Calling'],
-            limitations: [],
+            providerType: 'openai',
+            baseUrl: 'https://api.openai.com/v1',
+            models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+            apiKey: '',
           },
           {
-            id: 'chatglm',
-            name: 'chatglm',
-            displayName: 'ChatGLM',
-            description: 'ChatGLM AI models',
-            models: ['glm-4', 'glm-3-turbo'].map(createModel),
-            status: 'not_configured' as const,
-            isDefault: false,
-            capabilities: ['chat', 'completion'] as const,
-            pricing: 'pay-per-use' as const,
-            features: [],
-            limitations: [],
+            providerType: 'chatglm',
+            baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+            models: ['glm-4', 'glm-3-turbo'],
+            apiKey: '',
           },
         ];
 
@@ -957,11 +927,11 @@ export function createMockElectronAPIClient(): ElectronAPI {
       listAgents: () => Promise.resolve({ success: true, data: [mockAgent] }),
       getActiveExecutions: () => Promise.resolve({ success: true, data: [] }),
       registerAgent: () => Promise.resolve({ success: true, data: { agentId: 'mock-agent' } }),
-      unregisterAgent: () => Promise.resolve({ success: true, data: { unregistered: 'mock-agent' } }),
+      unregisterAgent: () =>
+        Promise.resolve({ success: true, data: { unregistered: 'mock-agent' } }),
       sendChat: () =>
         Promise.resolve({ success: true, data: { success: true, response: 'Mock response' } }),
-      sendChatStream: () =>
-        Promise.resolve({ success: true, data: { success: true } }),
+      sendChatStream: () => Promise.resolve({ success: true, data: { success: true } }),
       getSession: () =>
         Promise.resolve({
           success: true,

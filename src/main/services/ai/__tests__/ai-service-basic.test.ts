@@ -56,17 +56,17 @@ describe('AI Service - Basic Tests', () => {
       ai: {
         providers: {
           openai: {
-            provider_type: 'openai',
-            api_key: 'test-openai-key',
+            providerType: 'openai',
+            apiKey: 'test-openai-key',
             model: 'gpt-4o',
           },
         },
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-4o',
             temperature: 0.7,
-            max_tokens: 4096,
+            maxTokens: 4096,
           },
         },
       },
@@ -214,16 +214,16 @@ describe('AI Service - Basic Tests', () => {
   });
 
   describe('Provider API Key Resolution', () => {
-    it('should resolve API key for provider_type configuration', () => {
+    it('should resolve API key for providerType configuration', () => {
       const configWithProviderType = {
         ai: {
           providers: {
             openai: {
-              provider_type: 'openai',
-              api_key: 'resolved-key',
+              providerType: 'openai',
+              apiKey: 'resolved-key',
             },
           },
-          model_types: {},
+          modelTypes: {},
         },
       } as unknown as AppConfig;
 
@@ -241,10 +241,10 @@ describe('AI Service - Basic Tests', () => {
         ai: {
           providers: {
             unknown: {
-              provider_type: 'unknown',
+              providerType: 'unknown',
             },
           },
-          model_types: {
+          modelTypes: {
             chat: {
               provider: 'unknown',
               model: 'unknown-model',
@@ -265,7 +265,7 @@ describe('AI Service - Basic Tests', () => {
 
   describe('Model Configuration Defaults', () => {
     it('should use sensible defaults when config is missing', () => {
-      const minimalConfig = { ai: { providers: {}, model_types: {} } } as unknown as AppConfig;
+      const minimalConfig = { ai: { providers: {}, modelTypes: {} } } as unknown as AppConfig;
 
       const service = createAIService({
         loggerService: mockLoggerService,

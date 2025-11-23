@@ -62,13 +62,15 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     setAgentService(agentService);
-    useAgentStore
-      .getState()
-      .loadAgents()
-      .catch((error) => {
-        console.error('Failed to load agents:', error);
-      });
-  }, [agentService, setAgentService]);
+    if (status === 'ready') {
+      useAgentStore
+        .getState()
+        .loadAgents()
+        .catch((error) => {
+          console.error('Failed to load agents:', error);
+        });
+    }
+  }, [agentService, setAgentService, status]);
 
   useEffect(() => {
     const checkConfig = async () => {
@@ -80,7 +82,7 @@ export default function App(): JSX.Element {
           return;
         }
 
-        const chatConfig = config?.ai?.model_types?.chat;
+        const chatConfig = config?.ai?.modelTypes?.chat;
 
         if (!chatConfig?.provider || !chatConfig?.model) {
           setStatus('setup');

@@ -12,20 +12,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { utilityToasts } from '@/renderer/utils/toast';
 import { useService } from '@/renderer/services/services-provider';
-import type {
-  ProviderConfig,
-  ProviderValidationResult,
-  ProviderType,
-} from '@/shared/types/config';
+import type { ProviderConfig, ProviderValidationResult, ProviderType } from '@/shared/types';
 import { ModelType } from '@/shared/types/ai';
 import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';
 
 interface AIProviderSettingsProps {
   // New props for provider-based configuration
   providerConfigs?: Record<string, ProviderConfig>;
-  modelAssignments?: Partial<
-    Record<ModelType, { provider_config_id: string; model_id: string }>
-  >;
+  modelAssignments?: Partial<Record<ModelType, { provider_config_id: string; model_id: string }>>;
   onProviderConfigChange?: (providerId: string, config: ProviderConfig) => void;
   onModelAssignmentChange?: (modelType: ModelType, providerId: string, modelId: string) => void;
 }
@@ -79,7 +73,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     setSelectedProvider(providerType);
     const provider = providerType ? PREDEFINED_PROVIDERS[providerType] : null;
     if (provider) {
-      setBaseUrlInput(provider.base_url);
+      setBaseUrlInput(provider.baseUrl);
       const typedProvider = providerType as ProviderType;
       // Reset validation status when switching providers
       setValidationStatus((prev) => {
@@ -127,7 +121,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   // Model discovery handlers
   const fetchModelsForProvider = async (providerId: string) => {
     const providerConfig = configuredProviders[providerId];
-    if (!providerConfig?.api_key) {
+    if (!providerConfig?.apiKey) {
       utilityToasts.error('Please configure and validate the provider first');
       return;
     }
@@ -135,9 +129,9 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     setIsFetchingModels(true);
     try {
       const models = await configService.getProviderModels(
-        providerConfig.provider_type,
-        providerConfig.api_key,
-        providerConfig.base_url,
+        providerConfig.providerType,
+        providerConfig.apiKey || '',
+        providerConfig.baseUrl,
       );
 
       setDiscoveredModels((prev) => ({ ...prev, [providerId]: models }));
@@ -150,7 +144,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
         onProviderConfigChange(providerId, updatedConfig);
       }
 
-      utilityToasts.success(`Found ${models.length} models for ${providerConfig.provider_type}`);
+      utilityToasts.success(`Found ${models.length} models for ${providerConfig.providerType}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       utilityToasts.error(`Failed to fetch models: ${errorMessage}`);
@@ -169,9 +163,9 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
     const providerType = selectedProvider as ProviderType;
     const providerId = `${providerType}-${Date.now()}`;
     const providerConfig: ProviderConfig = {
-      provider_type: providerType,
-      api_key: apiKeyInput.trim(),
-      base_url: baseUrlInput,
+      providerType,
+      apiKey: apiKeyInput.trim(),
+      baseUrl: baseUrlInput,
       models: discoveredModels[providerId] || [],
     };
 
@@ -195,7 +189,11 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
   };
 
   // Model type assignment handlers
-  const handleModelAssignmentChange = (modelType: ModelType, providerId: string, modelId: string) => {
+  const handleModelAssignmentChange = (
+    modelType: ModelType,
+    providerId: string,
+    modelId: string,
+  ) => {
     if (onModelAssignmentChange) {
       onModelAssignmentChange(modelType, providerId, modelId);
     }
@@ -332,7 +330,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
             >
               <div>
                 <div className="font-medium text-gray-900 dark:text-gray-100">
-                  {PREDEFINED_PROVIDERS[config.provider_type]?.name || config.provider_type}
+                  {PREDEFINED_PROVIDERS[config.providerType]?.name || config.providerType}
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {config.models?.length || 0} models available
@@ -399,10 +397,10 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
             >
               <option value="">Select provider...</option>
               {Object.entries(configuredProviders)
-                .filter(([_, config]) => config.api_key)
+                .filter(([_, config]) => config.apiKey)
                 .map(([providerId]) => (
                   <option key={providerId} value={providerId}>
-                    {PREDEFINED_PROVIDERS[configuredProviders[providerId].provider_type]?.name ||
+                    {PREDEFINED_PROVIDERS[configuredProviders[providerId].providerType]?.name ||
                       providerId}
                   </option>
                 ))}
@@ -436,7 +434,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
               disabled={
                 !modelAssignments[modelType]?.provider_config_id ||
                 !configuredProviders[modelAssignments[modelType]?.provider_config_id || '']
-                  ?.api_key ||
+                  ?.apiKey ||
                 isFetchingModels
               }
               className="px-3 py-1 bg-green-500 text-white rounded-md text-sm disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center"

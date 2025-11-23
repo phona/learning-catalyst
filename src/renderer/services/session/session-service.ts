@@ -3,7 +3,10 @@ import {
   generateSessionId as createSessionId,
 } from '@/shared/utils/session-utils';
 import type { ConversationMessage, MemorySession } from '@/shared/types/session';
-import type { SessionStatistics, SessionListResponse } from '@/shared/types/electron-api/sessions-api';
+import type {
+  SessionStatistics,
+  SessionListResponse,
+} from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
 import type { SessionCreateRequest } from '@/renderer/types/session';
@@ -172,11 +175,13 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     if (!response.success) {
       throw new Error(response.error?.message || 'Session search failed');
     }
-    const data = response.data as Partial<{
-      sessions: SessionDisplay[];
-      total: number;
-      hasMore: boolean;
-    }> | undefined;
+    const data = response.data as
+      | Partial<{
+          sessions: SessionDisplay[];
+          total: number;
+          hasMore: boolean;
+        }>
+      | undefined;
 
     return {
       sessions: data?.sessions ?? [],

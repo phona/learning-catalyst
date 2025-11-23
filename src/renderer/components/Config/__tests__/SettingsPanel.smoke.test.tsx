@@ -38,18 +38,18 @@ describe('SettingsPanel smoke coverage', () => {
       ai: {
         providers: {
           'openai-config': {
-            provider_type: 'openai',
-            api_key: 'test-key',
+            providerType: 'openai',
+            apiKey: 'test-key',
           },
         },
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-3.5-turbo',
             temperature: 0.7,
-            max_tokens: 2048,
-            top_p: 1,
-            enable_thinking: false,
+            maxTokens: 2048,
+            topP: 1,
+            enableThinking: false,
             stream: true,
           },
         },
@@ -61,4 +61,3 @@ describe('SettingsPanel smoke coverage', () => {
     expect(await screen.findByText('Preferences')).toBeInTheDocument();
   });
 });
-

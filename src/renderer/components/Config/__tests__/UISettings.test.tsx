@@ -9,13 +9,13 @@ describe('UISettings', () => {
   const mockConfig = createMockConfig({
     ui: {
       theme: 'dark',
-      font_size: 'medium',
-      show_token_usage: true,
-      auto_save: true,
-      auto_scroll: true,
-      enable_markdown: true,
-      enable_syntax_highlighting: true,
-      compact_mode: false,
+      fontSize: 'medium',
+      showTokenUsage: true,
+      autoSave: true,
+      autoScroll: true,
+      enableMarkdown: true,
+      enableSyntaxHighlighting: true,
+      compactMode: false,
     },
   });
 
@@ -77,7 +77,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        font_size: 'large',
+        fontSize: 'large',
       },
     });
   });
@@ -104,7 +104,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        show_token_usage: false,
+        showTokenUsage: false,
       },
     });
   });
@@ -120,7 +120,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        auto_save: false,
+        autoSave: false,
       },
     });
   });
@@ -136,7 +136,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        auto_scroll: false,
+        autoScroll: false,
       },
     });
   });
@@ -152,7 +152,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        enable_markdown: false,
+        enableMarkdown: false,
       },
     });
   });
@@ -168,7 +168,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        enable_syntax_highlighting: false,
+        enableSyntaxHighlighting: false,
       },
     });
   });
@@ -184,7 +184,7 @@ describe('UISettings', () => {
     expect(mockOnChange).toHaveBeenCalledWith({
       ui: {
         ...mockConfig.ui,
-        compact_mode: true,
+        compactMode: true,
       },
     });
   });
@@ -211,12 +211,12 @@ describe('UISettings', () => {
     const disabledConfig = createMockConfig({
       ui: {
         ...mockConfig.ui,
-        show_token_usage: false,
-        auto_save: false,
-        auto_scroll: false,
-        enable_markdown: false,
-        enable_syntax_highlighting: false,
-        compact_mode: true,
+        showTokenUsage: false,
+        autoSave: false,
+        autoScroll: false,
+        enableMarkdown: false,
+        enableSyntaxHighlighting: false,
+        compactMode: true,
       },
     });
 
@@ -276,13 +276,13 @@ describe('UISettings', () => {
     // Change font size
     await user.selectOptions(screen.getByLabelText('Font Size'), 'small');
     expect(mockOnChange).toHaveBeenLastCalledWith({
-      ui: expect.objectContaining({ font_size: 'small' }),
+      ui: expect.objectContaining({ fontSize: 'small' }),
     });
 
     // Toggle auto save
     await user.click(screen.getByRole('switch', { name: 'Auto Save' }));
     expect(mockOnChange).toHaveBeenLastCalledWith({
-      ui: expect.objectContaining({ auto_save: false }),
+      ui: expect.objectContaining({ autoSave: false }),
     });
   });
 
@@ -296,7 +296,7 @@ describe('UISettings', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Auto Save' }));
 
     // Original config should not be mutated
-    expect(originalConfig.ui.auto_save).toBe(true);
-    expect(mockConfig.ui.auto_save).toBe(true);
+    expect(originalConfig.ui.autoSave).toBe(true);
+    expect(mockConfig.ui.autoSave).toBe(true);
   });
 });

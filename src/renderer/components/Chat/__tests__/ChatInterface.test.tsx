@@ -2,7 +2,10 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMockConfigurationService, createMockFileService } from '@/test/utils/services-provider-stubs';
+import {
+  createMockConfigurationService,
+  createMockFileService,
+} from '@/test/utils/services-provider-stubs';
 import { createMockConfig } from '@/test/utils/helpers/test-utils';
 import { ChatInterface } from '../ChatInterface';
 import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
@@ -11,7 +14,7 @@ import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
 const configServiceMock = createMockConfigurationService(
   createMockConfig({
     ai: {
-      model_types: {
+      modelTypes: {
         chat: {
           provider: 'openai',
           model: 'gpt-4',

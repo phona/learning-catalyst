@@ -4,7 +4,7 @@ type BaseLanguageModel = any;
 type Embeddings = any;
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import type { ConfigService, ConfigPath } from '@/main/services/core/config/config-service';
-import type { ProviderType } from '@/shared/types/config';
+import type { ProviderType, ProviderConfig } from '@/shared/types/config';
 import { createIPCError } from '@/shared/types/ipc-error';
 import {
   resolveProviderSettings,
@@ -54,15 +54,13 @@ const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
   },
 };
 
-const normalizeSettings = (raw: Record<string, unknown>): ProviderSettings => {
-  const providerType = (raw.provider_type ?? raw.provider ?? 'openai') as ProviderType;
-  const model = (raw.model ?? raw.name ?? 'gpt-4o') as string;
-  const apiKey = (raw.api_key ?? raw.apiKey ?? raw.openaiApiKey ?? raw.apiKey) as
-    | string
-    | undefined;
-  const temperature = (raw.temperature ?? raw.temp ?? 0.7) as number;
-  const maxTokens = (raw.max_tokens ?? raw.maxTokens ?? 2048) as number;
-  const providerName = (raw.providerName ?? raw.provider ?? providerType) as string;
+const normalizeSettings = (raw: ProviderConfig): ProviderSettings => {
+  const providerType = raw.providerType as ProviderType;
+  const model = raw.model ?? 'gpt-4o';
+  const apiKey = raw.apiKey;
+  const temperature = raw.temperature ?? 0.7;
+  const maxTokens = raw.maxTokens ?? 2048;
+  const providerName = (raw as any).providerName ?? raw.providerType;
 
   if (!apiKey) {
     throw createIPCError({
@@ -80,7 +78,7 @@ const normalizeSettings = (raw: Record<string, unknown>): ProviderSettings => {
     providerType,
     model,
     apiKey,
-    baseUrl: (raw.base_url ?? raw.baseUrl ?? undefined) as string | undefined,
+    baseUrl: raw.baseUrl as string | undefined,
     temperature,
     maxTokens,
   };
@@ -97,12 +95,14 @@ export const createProviderFactory = (configService: ConfigService) => {
 
     // Use the provider name to construct the proper config path
     const providerConfigPath = configKey ? (`ai.providers.${configKey}` as ConfigPath) : undefined;
-    const raw = providerConfigPath ? await configService.get(providerConfigPath) : undefined;
-    if (!raw || typeof raw !== 'object') {
+    const raw = (providerConfigPath ? await configService.get(providerConfigPath) : undefined) as
+      | ProviderConfig
+      | undefined;
+    if (!raw) {
       return resolveProviderSettings(configService);
     }
 
-    return normalizeSettings(raw as Record<string, unknown>);
+    return normalizeSettings(raw);
   };
 
   const getCacheKey = (settings: ProviderSettings) => `${settings.providerType}:${settings.model}`;

@@ -6,7 +6,7 @@ import { ResponseSettings } from '@/renderer/components/Config/ResponseSettings'
 
 const baseConfig = {
   ai: {
-    model_types: {
+    modelTypes: {
       chat: {
         capabilities: {
           streaming: true,
@@ -41,7 +41,7 @@ describe('ResponseSettings', () => {
 
     expect(onConfigChange).toHaveBeenCalledWith({
       ai: expect.objectContaining({
-        model_types: expect.objectContaining({
+        modelTypes: expect.objectContaining({
           chat: expect.objectContaining({
             capabilities: expect.objectContaining({
               streaming: false,
@@ -64,7 +64,7 @@ describe('ResponseSettings', () => {
 
     expect(onConfigChange).toHaveBeenCalledWith({
       ai: expect.objectContaining({
-        model_types: expect.objectContaining({
+        modelTypes: expect.objectContaining({
           chat: expect.objectContaining({
             capabilities: expect.objectContaining({
               thinking: true,

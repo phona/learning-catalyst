@@ -3,12 +3,12 @@ import type { AppConfig, UIConfig } from '@/shared/types/config';
 
 type ToggleSettingKey = Extract<
   keyof UIConfig,
-  | 'show_token_usage'
-  | 'auto_save'
-  | 'auto_scroll'
-  | 'enable_markdown'
-  | 'enable_syntax_highlighting'
-  | 'compact_mode'
+  | 'showTokenUsage'
+  | 'autoSave'
+  | 'autoScroll'
+  | 'enableMarkdown'
+  | 'enableSyntaxHighlighting'
+  | 'compactMode'
 >;
 
 const TOGGLE_SETTINGS: ReadonlyArray<{
@@ -17,32 +17,32 @@ const TOGGLE_SETTINGS: ReadonlyArray<{
   description: string;
 }> = [
   {
-    key: 'show_token_usage',
+    key: 'showTokenUsage',
     label: 'Show Token Usage',
     description: 'Display token usage statistics',
   },
   {
-    key: 'auto_save',
+    key: 'autoSave',
     label: 'Auto Save',
     description: 'Automatically save conversations',
   },
   {
-    key: 'auto_scroll',
+    key: 'autoScroll',
     label: 'Auto Scroll',
     description: 'Automatically scroll to new messages',
   },
   {
-    key: 'enable_markdown',
+    key: 'enableMarkdown',
     label: 'Enable Markdown',
     description: 'Render markdown formatting',
   },
   {
-    key: 'enable_syntax_highlighting',
+    key: 'enableSyntaxHighlighting',
     label: 'Syntax Highlighting',
     description: 'Highlight code syntax',
   },
   {
-    key: 'compact_mode',
+    key: 'compactMode',
     label: 'Compact Mode',
     description: 'Use compact interface layout',
   },
@@ -78,9 +78,7 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
             <select
               id="theme-selector"
               value={config.ui.theme}
-              onChange={(event) =>
-                updateUIConfig('theme', event.target.value as UIConfig['theme'])
-              }
+              onChange={(event) => updateUIConfig('theme', event.target.value as UIConfig['theme'])}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               aria-label="Theme"
             >
@@ -96,9 +94,9 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
             </label>
             <select
               id="font-size-selector"
-              value={config.ui.font_size}
+              value={config.ui.fontSize}
               onChange={(event) =>
-                updateUIConfig('font_size', event.target.value as UIConfig['font_size'])
+                updateUIConfig('fontSize', event.target.value as UIConfig['fontSize'])
               }
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               aria-label="Font Size"

@@ -19,7 +19,7 @@ import { AIProviderSettings } from './AIProviderSettings';
 import { UISettings } from './UISettings';
 import { ResponseSettings } from './ResponseSettings';
 import { AdvancedSettings } from './AdvancedSettings';
-import { ModelType } from '@/shared/types/ai';
+import { ModelType } from '@/shared/types';
 import type {
   AppConfig,
   ModelCapabilities,
@@ -28,10 +28,10 @@ import type {
   ProviderType,
   SelectedChatModel,
   SelectedModel,
-} from '@/shared/types/config';
+} from '@/shared/types';
 import { useService } from '@/renderer/services/services-provider';
 
-const MODEL_TYPES: ModelType[] = [ModelType.CHAT, ModelType.EMBEDDING, ModelType.RERANK];
+const modelTypes: ModelType[] = [ModelType.CHAT, ModelType.EMBEDDING, ModelType.RERANK];
 
 const DEFAULT_PROVIDER_TYPES: ProviderType[] = [
   'openai',
@@ -41,12 +41,10 @@ const DEFAULT_PROVIDER_TYPES: ProviderType[] = [
   'openai-compatible',
 ];
 
-const resolveProviderTypes = (
-  providers?: Record<string, ProviderConfig>,
-): ProviderType[] => {
+const resolveProviderTypes = (providers?: Record<string, ProviderConfig>): ProviderType[] => {
   const providerSet = new Set<ProviderType>(DEFAULT_PROVIDER_TYPES);
   Object.values(providers ?? {}).forEach((provider) => {
-    providerSet.add(provider.provider_type);
+    providerSet.add(provider.providerType);
     if (provider.type) {
       providerSet.add(provider.type);
     }
@@ -59,11 +57,12 @@ const buildModelTypeConfig = (
   selectedModel?: SelectedModel,
   providers?: Record<string, ProviderConfig>,
 ): ModelTypeConfig => {
-  const chatModel = modelType === ModelType.CHAT ? (selectedModel as SelectedChatModel | undefined) : undefined;
+  const chatModel =
+    modelType === ModelType.CHAT ? (selectedModel as SelectedChatModel | undefined) : undefined;
   const baseCapabilities: ModelCapabilities = {
     streaming: modelType === ModelType.CHAT ? !!chatModel?.stream : false,
-    thinking: modelType === ModelType.CHAT ? !!chatModel?.enable_thinking : false,
-    function_calling: chatModel?.capabilities?.function_calling ?? false,
+    thinking: modelType === ModelType.CHAT ? !!chatModel?.enableThinking : false,
+    functionCalling: chatModel?.capabilities?.functionCalling ?? false,
     vision: chatModel?.capabilities?.vision ?? false,
   };
 
@@ -72,15 +71,15 @@ const buildModelTypeConfig = (
     : baseCapabilities;
 
   return {
-    default_provider: chatModel?.default_provider ?? selectedModel?.provider ?? '',
-    default_model: chatModel?.default_model ?? selectedModel?.model ?? '',
-    available_providers: resolveProviderTypes(providers),
+    defaultProvider: chatModel?.defaultProvider ?? selectedModel?.provider ?? '',
+    defaultModel: chatModel?.defaultModel ?? selectedModel?.model ?? '',
+    availableProviders: resolveProviderTypes(providers),
     settings: {
       temperature: chatModel?.temperature,
-      max_tokens: chatModel?.max_tokens,
-      top_p: chatModel?.top_p,
-      frequency_penalty: chatModel?.frequency_penalty,
-      presence_penalty: chatModel?.presence_penalty,
+      maxTokens: chatModel?.maxTokens,
+      topP: chatModel?.topP,
+      frequencyPenalty: chatModel?.frequencyPenalty,
+      presencePenalty: chatModel?.presencePenalty,
     },
     capabilities,
   };
@@ -91,26 +90,26 @@ const mapModelTypeConfigToSelectedModel = (
   modelConfig: ModelTypeConfig,
 ): SelectedModel | SelectedChatModel => {
   const base: SelectedModel = {
-    provider: modelConfig.default_provider,
-    model: modelConfig.default_model,
+    provider: modelConfig.defaultProvider,
+    model: modelConfig.defaultModel,
   };
 
   if (modelType === ModelType.CHAT) {
     const chatConfig: SelectedChatModel = {
       ...base,
-      default_provider: modelConfig.default_provider,
-      default_model: modelConfig.default_model,
+      defaultProvider: modelConfig.defaultProvider,
+      defaultModel: modelConfig.defaultModel,
       capabilities: modelConfig.capabilities,
-      enable_thinking: modelConfig.capabilities?.thinking,
+      enableThinking: modelConfig.capabilities?.thinking,
       stream: modelConfig.capabilities?.streaming,
     };
 
     if (modelConfig.settings) {
       chatConfig.temperature = modelConfig.settings.temperature;
-      chatConfig.max_tokens = modelConfig.settings.max_tokens;
-      chatConfig.top_p = modelConfig.settings.top_p;
-      chatConfig.frequency_penalty = modelConfig.settings.frequency_penalty;
-      chatConfig.presence_penalty = modelConfig.settings.presence_penalty;
+      chatConfig.maxTokens = modelConfig.settings.maxTokens;
+      chatConfig.topP = modelConfig.settings.topP;
+      chatConfig.frequencyPenalty = modelConfig.settings.frequencyPenalty;
+      chatConfig.presencePenalty = modelConfig.settings.presencePenalty;
     }
 
     return chatConfig;
@@ -127,10 +126,13 @@ export const SettingsPanel: React.FC = () => {
   // Local state for configuration
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(null);
   const [modelTypeConfigs, setModelTypeConfigs] = useState<Record<ModelType, ModelTypeConfig>>(() =>
-    MODEL_TYPES.reduce<Record<ModelType, ModelTypeConfig>>((acc, type) => {
-      acc[type] = buildModelTypeConfig(type);
-      return acc;
-    }, {} as Record<ModelType, ModelTypeConfig>),
+    modelTypes.reduce<Record<ModelType, ModelTypeConfig>>(
+      (acc, type) => {
+        acc[type] = buildModelTypeConfig(type);
+        return acc;
+      },
+      {} as Record<ModelType, ModelTypeConfig>,
+    ),
   );
   const configService = useService('configService');
 
@@ -158,11 +160,11 @@ export const SettingsPanel: React.FC = () => {
     if (!config) return;
 
     const providerPool = config.ai.providers ?? {};
-    const normalizedModelTypes = MODEL_TYPES.reduce<Record<ModelType, ModelTypeConfig>>(
+    const normalizedModelTypes = modelTypes.reduce<Record<ModelType, ModelTypeConfig>>(
       (acc, modelType) => {
         acc[modelType] = buildModelTypeConfig(
           modelType,
-          config.ai.model_types?.[modelType],
+          config.ai.modelTypes?.[modelType],
           providerPool,
         );
         return acc;
@@ -218,7 +220,7 @@ export const SettingsPanel: React.FC = () => {
 
     if (!localConfig) return;
 
-    const existingModelTypes = localConfig.ai.model_types ?? {};
+    const existingModelTypes = localConfig.ai.modelTypes ?? {};
     const selectedModel = mapModelTypeConfigToSelectedModel(modelType, mergedConfig);
     const updatedModelTypes = {
       ...existingModelTypes,
@@ -229,8 +231,8 @@ export const SettingsPanel: React.FC = () => {
     if (modelType === ModelType.CHAT) {
       aiConfigUpdates = {
         ...aiConfigUpdates,
-        default_provider: mergedConfig.default_provider || aiConfigUpdates.default_provider,
-        default_model: mergedConfig.default_model || aiConfigUpdates.default_model,
+        defaultProvider: mergedConfig.defaultProvider || aiConfigUpdates.defaultProvider,
+        defaultModel: mergedConfig.defaultModel || aiConfigUpdates.defaultModel,
       };
     }
 
@@ -238,7 +240,7 @@ export const SettingsPanel: React.FC = () => {
       ...localConfig,
       ai: {
         ...aiConfigUpdates,
-        model_types: updatedModelTypes,
+        modelTypes: updatedModelTypes,
       },
     };
     setLocalConfig(updatedConfig);
@@ -265,16 +267,16 @@ export const SettingsPanel: React.FC = () => {
   >(
     () => ({
       [ModelType.CHAT]: {
-        provider_config_id: localConfig?.ai?.model_types?.chat?.provider || '',
-        model_id: localConfig?.ai?.model_types?.chat?.model || '',
+        provider_config_id: localConfig?.ai?.modelTypes?.chat?.provider || '',
+        model_id: localConfig?.ai?.modelTypes?.chat?.model || '',
       },
       [ModelType.EMBEDDING]: {
-        provider_config_id: localConfig?.ai?.model_types?.embedding?.provider || '',
-        model_id: localConfig?.ai?.model_types?.embedding?.model || '',
+        provider_config_id: localConfig?.ai?.modelTypes?.embedding?.provider || '',
+        model_id: localConfig?.ai?.modelTypes?.embedding?.model || '',
       },
       [ModelType.RERANK]: {
-        provider_config_id: localConfig?.ai?.model_types?.rerank?.provider || '',
-        model_id: localConfig?.ai?.model_types?.rerank?.model || '',
+        provider_config_id: localConfig?.ai?.modelTypes?.rerank?.provider || '',
+        model_id: localConfig?.ai?.modelTypes?.rerank?.model || '',
       },
     }),
     [localConfig],
@@ -296,10 +298,14 @@ export const SettingsPanel: React.FC = () => {
     debouncedSaveConfig(updatedConfig);
   };
 
-  const handleModelAssignmentChange = (modelType: ModelType, providerId: string, modelId: string) => {
+  const handleModelAssignmentChange = (
+    modelType: ModelType,
+    providerId: string,
+    modelId: string,
+  ) => {
     if (!localConfig) return;
 
-    const existingModelTypes = localConfig.ai.model_types ?? {};
+    const existingModelTypes = localConfig.ai.modelTypes ?? {};
     const previousModelConfig =
       existingModelTypes[modelType as keyof typeof existingModelTypes] ?? {};
 
@@ -316,7 +322,7 @@ export const SettingsPanel: React.FC = () => {
       ...localConfig,
       ai: {
         ...localConfig.ai,
-        model_types: updatedModelTypes,
+        modelTypes: updatedModelTypes,
       },
     };
 
@@ -327,8 +333,8 @@ export const SettingsPanel: React.FC = () => {
       ...prev,
       [modelType]: {
         ...prev[modelType],
-        default_provider: providerId,
-        default_model: modelId,
+        defaultProvider: providerId,
+        defaultModel: modelId,
       },
     }));
   };

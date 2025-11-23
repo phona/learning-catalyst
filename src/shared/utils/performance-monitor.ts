@@ -119,8 +119,10 @@ export const createAppPerformanceMonitor = () => {
       ipc_call: 'Reduce payload size or optimize handler logic',
       cache_operation: 'Review cache key generation or consider different cache strategy',
     };
-    return recommendations[operation] ||
-      'Investigate operation implementation and consider optimization strategies';
+    return (
+      recommendations[operation] ||
+      'Investigate operation implementation and consider optimization strategies'
+    );
   };
 
   const recordMetric = (name: string, duration: number, metadata?: any): void => {
@@ -150,10 +152,7 @@ export const createAppPerformanceMonitor = () => {
     return monitor.getStats(operation);
   };
 
-  const getPerformanceTrends = (
-    operation: string,
-    timeWindow = 3600000,
-  ): PerformanceTrend[] => {
+  const getPerformanceTrends = (operation: string, timeWindow = 3600000): PerformanceTrend[] => {
     const now = Date.now();
     const cutoff = now - timeWindow;
     const trends: PerformanceTrend[] = [];
@@ -165,8 +164,8 @@ export const createAppPerformanceMonitor = () => {
       if (bucketMetrics.length > 0) {
         const avgDuration =
           bucketMetrics.reduce((sum, m: any) => sum + m.duration, 0) / bucketMetrics.length;
-        const errorRate = bucketMetrics.filter((m: any) => !m.success).length /
-          bucketMetrics.length;
+        const errorRate =
+          bucketMetrics.filter((m: any) => !m.success).length / bucketMetrics.length;
         trends.push({
           timestamp: bucketStart,
           averageDuration: avgDuration,

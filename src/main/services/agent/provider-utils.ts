@@ -1,5 +1,5 @@
 import type { ConfigService } from '@/main/services/core/config/config-service';
-import type { AppConfig, ProviderType } from '@/shared/types/config';
+import type { AppConfig, ProviderType } from '@/shared/types';
 import type { IPCErrorPayload, IPCError } from '@/shared/types/ipc-error';
 import { createIPCError, IPCErrorException } from '@/shared/types/ipc-error';
 
@@ -33,7 +33,7 @@ const requireChatConfig = (): IPCErrorPayload => {
       'Chat model configuration is missing. Please configure a provider before starting an agent.',
     needsSetup: true,
     action: 'openProviderSetup',
-    details: { section: 'ai.model_types.chat' },
+    details: { section: 'ai.modelTypes.chat' },
   });
 };
 
@@ -63,11 +63,11 @@ export const resolveProviderSettings = async (
   configService: ConfigService,
 ): Promise<ProviderSettings> => {
   const config = await configService.getConfig();
-  if (!config?.ai?.model_types?.chat?.provider || !config?.ai?.model_types?.chat?.model) {
+  if (!config?.ai?.modelTypes?.chat?.provider || !config?.ai?.modelTypes?.chat?.model) {
     throw requireChatConfig();
   }
 
-  const chatConfig = config.ai.model_types.chat;
+  const chatConfig = config.ai.modelTypes.chat;
   if (!chatConfig?.provider) {
     throw requireChatConfig();
   }
@@ -79,19 +79,19 @@ export const resolveProviderSettings = async (
     throw missingProviderConfigError(providerName);
   }
 
-  const resolvedApiKey = providerConfig.api_key ?? (providerConfig as any)?.apiKey;
+  const resolvedApiKey = providerConfig.apiKey ?? (providerConfig as any)?.api_key;
 
   if (!resolvedApiKey) {
     throw missingApiKeyError(providerName);
   }
 
-  const providerType = (providerConfig.provider_type ??
+  const providerType = (providerConfig.providerType ??
     providerConfig.type ??
     'openai') as ProviderType;
   const model = chatConfig.model || providerConfig.model || DEFAULT_PROVIDER_SETTINGS.model;
-  const baseUrl = providerConfig.base_url ?? DEFAULT_PROVIDER_SETTINGS.baseUrl;
+  const baseUrl = providerConfig.baseUrl ?? DEFAULT_PROVIDER_SETTINGS.baseUrl;
   const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
-  const maxTokens = chatConfig.max_tokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
+  const maxTokens = chatConfig.maxTokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
 
   return {
     providerName,
@@ -115,11 +115,11 @@ export const buildLearnerPrompt = async (
 
   const learningPrefs = config.learning;
   const details = [
-    learningPrefs.learning_style && `Learning style: ${learningPrefs.learning_style}`,
+    learningPrefs.learningStyle && `Learning style: ${learningPrefs.learningStyle}`,
     learningPrefs.difficulty && `Difficulty preference: ${learningPrefs.difficulty}`,
-    learningPrefs.personalization_enabled && 'Personalize responses based on learner preferences',
-    learningPrefs.preferred_explanation_length &&
-      `Preferred explanation length: ${learningPrefs.preferred_explanation_length}`,
+    learningPrefs.personalizationEnabled && 'Personalize responses based on learner preferences',
+    learningPrefs.preferredExplanationLength &&
+      `Preferred explanation length: ${learningPrefs.preferredExplanationLength}`,
   ]
     .filter(Boolean)
     .join('. ');
@@ -128,15 +128,15 @@ export const buildLearnerPrompt = async (
 };
 
 export const needsAgentRebuild = (oldConfig: AppConfig, newConfig: AppConfig): boolean => {
-  const oldChat = oldConfig.ai.model_types?.chat;
-  const newChat = newConfig.ai.model_types?.chat;
+  const oldChat = oldConfig.ai.modelTypes?.chat;
+  const newChat = newConfig.ai.modelTypes?.chat;
 
   return (
     oldChat?.provider !== newChat?.provider ||
     oldChat?.model !== newChat?.model ||
-    oldConfig.ai.providers[oldChat?.provider || '']?.api_key !==
-      newConfig.ai.providers[newChat?.provider || '']?.api_key ||
-    oldConfig.ai.providers[oldChat?.provider || '']?.base_url !==
-      newConfig.ai.providers[newChat?.provider || '']?.base_url
+    oldConfig.ai.providers[oldChat?.provider || '']?.apiKey !==
+      newConfig.ai.providers[newChat?.provider || '']?.apiKey ||
+    oldConfig.ai.providers[oldChat?.provider || '']?.baseUrl !==
+      newConfig.ai.providers[newChat?.provider || '']?.baseUrl
   );
 };
