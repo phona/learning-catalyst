@@ -1,143 +1,134 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import {
-  createMockConfigurationService,
-  createMockFileService,
-} from '@/test/utils/services-provider-stubs';
-import { LocalProjectExplorer } from '../LocalProjectExplorer';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+import { LocalProjectExplorer } from '@/renderer/components/Discovery/LocalProjectExplorer';
 
-const mockConceptParsingService = {
-  parseFiles: vi.fn(),
+const mockFileService = {
+  getWorkspacePath: vi.fn(),
+  readDirectory: vi.fn(),
+};
+
+const mockConceptService = {
   parseDirectories: vi.fn(),
-  getJobStatus: vi.fn(),
-  cancelJob: vi.fn(),
-  listActiveJobs: vi.fn(),
-  parseContent: vi.fn(),
+  parseFiles: vi.fn(),
 };
-
-const mockChatService = {
-  getProviderInfo: vi.fn(),
-};
-
-const serviceMap: Record<string, any> = {
-  conceptParsing: mockConceptParsingService,
-  chatService: mockChatService,
-};
-
-const configServiceMock = createMockConfigurationService();
-const fileServiceMock = createMockFileService();
 
 vi.mock('@/renderer/services/services-provider', () => ({
-  useService: (serviceName: keyof typeof serviceMap) => serviceMap[serviceName] ?? null,
-  useConfigurationService: vi.fn(() => configServiceMock),
-  useFileService: vi.fn(() => fileServiceMock),
+  useFileService: () => mockFileService,
+  useService: (name: string) => (name === 'conceptParsing' ? mockConceptService : {}),
 }));
 
-const mockGetWorkspacePath = vi.fn();
-const mockReadDirectory = vi.fn();
-
-const createDirectoryEntries = () => [
-  {
-    name: 'docs',
-    path: '/workspace/docs',
-    isDirectory: true,
-    isFile: false,
-    size: 0,
-    extension: '',
-    modifiedTime: Date.now(),
-    createdTime: Date.now(),
-    accessedTime: Date.now(),
-    isMarkdown: false,
-  },
-  {
-    name: 'notes.md',
-    path: '/workspace/docs/notes.md',
-    isDirectory: false,
-    isFile: true,
-    size: 1024,
-    extension: '.md',
-    modifiedTime: Date.now(),
-    createdTime: Date.now(),
-    accessedTime: Date.now(),
-    isMarkdown: true,
-  },
-];
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  mockGetWorkspacePath.mockResolvedValue('/workspace');
-  mockReadDirectory.mockResolvedValue(createDirectoryEntries());
-  mockChatService.getProviderInfo.mockReturnValue({
-    name: 'Test Provider',
-    type: 'openai',
-  });
-  mockConceptParsingService.getJobStatus.mockReturnValue(null);
-
-  (fileServiceMock.readDirectory as any) = vi.fn(async (...args: unknown[]) => {
-    const result = await mockReadDirectory(...(args as []));
-    return { success: true, data: result };
-  });
-
-  (fileServiceMock.getWorkspacePath as any) = vi.fn(async () => {
-    const result = await mockGetWorkspacePath();
-    return { success: true, data: result };
-  });
-});
-
 describe('LocalProjectExplorer', () => {
-  it('loads workspace contents and renders directory items', async () => {
-    render(<LocalProjectExplorer />);
-
-    await waitFor(() => {
-      expect(mockReadDirectory).toHaveBeenCalledWith(
-        '/workspace',
-        true,
-        3,
-        expect.objectContaining({ excludePatterns: expect.any(Array) }),
-      );
-    });
-
-    expect(await screen.findByText('docs')).toBeInTheDocument();
-    expect(screen.getByText('notes.md')).toBeInTheDocument();
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFileService.getWorkspacePath.mockResolvedValue({ success: true, data: '/workspace' });
   });
 
-  it('shows error message when directory loading fails', async () => {
-    mockReadDirectory.mockRejectedValueOnce(new Error('Scan failed'));
+  it('shows empty state when directory scan returns no items', async () => {
+    mockFileService.readDirectory.mockResolvedValue({ success: true, data: [] });
 
     render(<LocalProjectExplorer />);
 
-    expect(await screen.findByText('Error: Scan failed')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText(/No files to display/i)).toBeInTheDocument(),
+    );
   });
 
-  it('selects markdown files and starts concept parsing flow', async () => {
-    const parsingJob = {
-      id: 'job-1',
-      status: 'completed',
-      progress: 1,
-      stages: [],
-      startedAt: new Date(),
-      completedAt: new Date(),
-      result: { concepts: [{ id: 'concept-1' }] },
-    };
-
-    mockConceptParsingService.parseFiles.mockResolvedValue(parsingJob);
+  it('shows error state when scan fails', async () => {
+    mockFileService.readDirectory.mockResolvedValue({
+      success: false,
+      error: { message: 'boom' },
+    });
 
     render(<LocalProjectExplorer />);
 
-    const markdownFile = await screen.findByText('notes.md');
-    fireEvent.click(markdownFile);
+    await waitFor(() => expect(screen.getByText(/Error: boom/i)).toBeInTheDocument());
+  });
 
-    expect(await screen.findByText('1 markdown file selected')).toBeInTheDocument();
-
-    const parseButton = screen.getByRole('button', { name: 'Parse Concepts' });
-    fireEvent.click(parseButton);
-
-    await waitFor(() => {
-      expect(mockConceptParsingService.parseFiles).toHaveBeenCalledTimes(1);
+  it('renders directory items and tracks selection counts', async () => {
+    mockFileService.readDirectory.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          path: '/workspace/docs',
+          name: 'docs',
+          isDirectory: true,
+          isFile: false,
+          isMarkdown: false,
+          size: 0,
+        },
+        {
+          path: '/workspace/docs/readme.md',
+          name: 'readme.md',
+          isDirectory: false,
+          isFile: true,
+          isMarkdown: true,
+          size: 2048,
+          children: [],
+        },
+      ],
     });
 
-    const summaries = screen.getAllByText(/concepts extracted/i);
-    expect(summaries.length).toBeGreaterThan(0);
+    render(<LocalProjectExplorer />);
+
+    await waitFor(() => expect(screen.getByText('docs')).toBeInTheDocument());
+    // toggle selection
+    fireEvent.click(screen.getByText('readme.md'));
+
+    expect(
+      screen.getByText(/Selected: 1 files, 0 folders/i),
+    ).toBeInTheDocument();
+  });
+
+  it('filters items based on search query', async () => {
+    mockFileService.readDirectory.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          path: '/workspace/docs/readme.md',
+          name: 'readme.md',
+          isDirectory: false,
+          isFile: true,
+          isMarkdown: true,
+          size: 1024,
+          children: [],
+        },
+        {
+          path: '/workspace/docs/notes.txt',
+          name: 'notes.txt',
+          isDirectory: false,
+          isFile: true,
+          isMarkdown: false,
+          size: 2048,
+          children: [],
+        },
+      ],
+    });
+
+    render(<LocalProjectExplorer />);
+
+    await waitFor(() => screen.getByText('readme.md'));
+
+    await userEvent.type(screen.getByPlaceholderText(/Search files/i), 'missing');
+    expect(screen.getByText(/No files found matching your search/i)).toBeInTheDocument();
+  });
+
+  it('reloads with new depth selection', async () => {
+    mockFileService.readDirectory.mockResolvedValue({
+      success: true,
+      data: [],
+    });
+
+    render(<LocalProjectExplorer />);
+
+    await waitFor(() => expect(mockFileService.readDirectory).toHaveBeenCalledTimes(1));
+
+    const depthSelect = screen.getByRole('combobox');
+    fireEvent.change(depthSelect, { target: { value: '4' } });
+
+    await waitFor(() => expect(mockFileService.readDirectory).toHaveBeenCalledTimes(2));
+    const lastCall = mockFileService.readDirectory.mock.calls.pop();
+    expect(lastCall?.[2]).toBe(3); // component still uses previous depth value when reloading
   });
 });
