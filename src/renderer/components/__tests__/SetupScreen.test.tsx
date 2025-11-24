@@ -54,9 +54,12 @@ describe('SetupScreen', () => {
   it('preloads persisted providers on mount', async () => {
     const electronAPI = createMockElectronAPIClient();
     vi.spyOn(electronAPI.settings, 'getConfig').mockResolvedValue({
-      ai: {
-        providers: {
-          openai: { baseUrl: 'https://api.openai.com/v1', models: ['gpt-4'] },
+      success: true,
+      data: {
+        ai: {
+          providers: {
+            openai: { baseUrl: 'https://api.openai.com/v1', models: ['gpt-4'] },
+          },
         },
       },
     } as any);
@@ -111,7 +114,7 @@ describe('SetupScreen', () => {
         return { success: true, providerId: resp.data.providerId, status: resp.data.status };
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
-      setConfig: vi.fn(),
+      setConfig: vi.fn().mockRejectedValue(new Error('persist failed')),
       saveConfig: async (config: any) => {
         await electronAPI.settings.setConfig(config);
       },

@@ -42,6 +42,20 @@ npm run test:complete    # All test suites
 npm run test:coverage    # Coverage reports
 ```
 
+Deep dives:
+
+- Test Strategy → [docs/DEVELOPER-GUIDE/testing.md#test-strategy](./docs/DEVELOPER-GUIDE/testing.md#test-strategy)
+- Test Cases Template → [docs/DEVELOPER-GUIDE/testing.md#test-cases](./docs/DEVELOPER-GUIDE/testing.md#test-cases)
+- Test Execution Process → [docs/DEVELOPER-GUIDE/testing.md#test-execution](./docs/DEVELOPER-GUIDE/testing.md#test-execution)
+- Design for Testability → [docs/DEVELOPER-GUIDE/testing.md#design-for-testability](./docs/DEVELOPER-GUIDE/testing.md#design-for-testability)
+- AI-Assisted Testing → [docs/DEVELOPER-GUIDE/testing.md#ai-assisted-testing](./docs/DEVELOPER-GUIDE/testing.md#ai-assisted-testing)
+
+Targeted iteration scripts:
+
+- `npm run test:main:file -- <file>`
+- `npm run test:renderer:file -- <file>`
+- `npm run test:main:ui` / `npm run test:renderer:ui`
+
 ## Architecture
 
 **Multi-Process Electron App:**

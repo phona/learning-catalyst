@@ -11,7 +11,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { useChatStore } from '@/renderer/hooks/useChatStore';
+import { useChat } from '@/renderer/hooks/useChat';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import { useFileService } from '@/renderer/services/services-provider';
 import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toast';
@@ -20,14 +20,15 @@ const ChatInputComponent: React.FC = () => {
   const [inputText, setInputText] = useState<string>('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
 
-  const chatState = useChatStore();
   const {
     isLoading,
     isStreaming,
-    sendMessage: sendChatMessage,
+    sendMessage,
+    sendMessageStream,
+    stopStreaming,
     error,
     setError,
-  } = chatState;
+  } = useChat();
 
   const { config, updateConfig } = useConfigStore();
   const fileService = useFileService();
@@ -36,6 +37,7 @@ const ChatInputComponent: React.FC = () => {
   const chatModelConfig = config?.ai?.modelTypes?.chat;
   const selectedProvider = chatModelConfig?.defaultProvider ?? 'openai';
   const selectedModel = chatModelConfig?.defaultModel ?? 'gpt-3.5-turbo';
+  const streamingEnabled = chatModelConfig?.capabilities?.streaming ?? true;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -59,7 +61,11 @@ const ChatInputComponent: React.FC = () => {
     setError(null);
 
     try {
-      await sendChatMessage(message);
+      if (streamingEnabled) {
+        await sendMessageStream(message);
+      } else {
+        await sendMessage(message);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       // Restore input text on error
@@ -173,7 +179,7 @@ const ChatInputComponent: React.FC = () => {
   const currentProviderName = selectedProvider;
   const currentModelName = selectedModel;
 
-  const isActionButtonDisabled = isStreaming ? false : !inputText.trim() || isLoading;
+  const isActionButtonDisabled = !isStreaming && (!inputText.trim() || isLoading);
 
   return (
     <div
@@ -242,22 +248,32 @@ const ChatInputComponent: React.FC = () => {
               )}
             </div>
 
-            {/* Send button */}
-            <button
-              type={'submit'}
-              className={`px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                !isActionButtonDisabled
+            {/* Send / Stop button */}
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={() => void stopStreaming()}
+                className="px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
+                aria-label="Stop generating response"
+              >
+                <StopIcon className="w-5 h-5" />
+                <span>Stop</span>
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className={`px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                  !isActionButtonDisabled
                     ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-              }`}
-              disabled={isActionButtonDisabled}
-              aria-label={'Send message'}
-            >
-              <>
+                }`}
+                disabled={isActionButtonDisabled}
+                aria-label="Send message"
+              >
                 <PaperAirplaneIcon className="w-5 h-5" />
                 <span>Send</span>
-              </>
-            </button>
+              </button>
+            )}
           </fieldset>
 
           {/* Enhanced keyboard shortcuts */}

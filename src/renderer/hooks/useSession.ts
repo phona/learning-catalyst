@@ -114,6 +114,7 @@ export const useSession = () => {
 
         // Update store with new session
         useSessionStore.getState().addSession(session);
+        useSessionStore.getState().setCreating(false);
 
         return session;
       } catch (error) {

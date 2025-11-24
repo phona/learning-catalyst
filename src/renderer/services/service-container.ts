@@ -879,11 +879,25 @@ export function createTestServiceContainer(
     ...mockElectronAPI,
   };
 
-  return createServiceContainer(fullMockAPI);
+  return createServiceContainer(fullMockAPI as ElectronAPI);
+}
+
+/**
+ * Create a fully mocked service container for renderer tests that bypass Electron startup.
+ */
+export function createMockServiceContainer(
+  overrides?: Partial<ElectronAPI>,
+): ServiceContainer {
+  return createTestServiceContainer(overrides || {});
 }
 
 // Export the service factory functions for direct use
-export { createSessionService, createChatService, createAnalyticsService, createFileService };
+export {
+  createSessionService,
+  createChatService,
+  createAnalyticsService,
+  createFileService,
+};
 
 // Re-export types for convenience
 export type { SessionService } from './session/session-service';

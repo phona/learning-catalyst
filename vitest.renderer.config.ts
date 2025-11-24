@@ -45,15 +45,20 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
       reportsDirectory: 'coverage/renderer',
-      include: ['src/renderer/**/*.{js,ts,jsx,tsx}', 'src/shared/**/*.{js,ts}'],
+      // Cover all renderer code (UI, hooks, stores, services, utils)
+      include: ['src/renderer/**/*.{js,ts,jsx,tsx}'],
       exclude: [
         '**/*.test.{js,ts,jsx,tsx}',
         '**/*.spec.{js,ts,jsx,tsx}',
         '**/node_modules/**',
         '**/dist/**',
         '**/__tests__/**',
+        '**/index.ts',
+        '**/index.tsx',
+        'src/shared/**',
+        'src/renderer/types/**',
       ],
       thresholds: {
         global: {

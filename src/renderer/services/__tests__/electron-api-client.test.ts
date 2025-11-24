@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createElectronAPIClient, createMockElectronAPIClient } from '../api/electron-api-client';
+import {
+  createElectronAPIClient,
+  createMockElectronAPIClient,
+  createElectronAPIClientWith,
+} from '../api/electron-api-client';
 import { createSessionService } from '../session/session-service';
 import { createAnalyticsService } from '../analytics/analytics-service';
 import { createChatService } from '../chat/chat-service';
@@ -39,6 +43,21 @@ describe('Simplified electronAPI Abstraction', () => {
       expect(client.chat).toBeDefined();
       expect(client.agents).toBeDefined();
       expect(client.knowledge).toBeDefined();
+    });
+
+    it('falls back and warns when window.electronAPI missing', () => {
+      // @ts-ignore deliberate undefined
+      window.electronAPI = undefined;
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const client = createElectronAPIClient();
+      expect(warn).toHaveBeenCalled();
+      expect(client.analytics?.getDashboard).toBeDefined();
+    });
+
+    it('createElectronAPIClientWith returns provided implementation', () => {
+      const marker = { foo: 'bar' } as any;
+      const client = createElectronAPIClientWith(marker);
+      expect(client).toBe(marker);
     });
   });
 

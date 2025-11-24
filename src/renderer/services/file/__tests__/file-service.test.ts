@@ -103,6 +103,18 @@ describe('FileService', () => {
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('FILE_TOO_LARGE');
     });
+
+    it('returns error for non-string content and read failure', async () => {
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(123 as any);
+      let result = await fileService.readFile('/path/to/file.txt');
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CONTENT_TYPE');
+
+      vi.mocked(mockElectronAPI.readFile!).mockRejectedValue(new Error('boom'));
+      result = await fileService.readFile('/path/fail.txt');
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('READ_ERROR');
+    });
   });
 
   describe('writeFile', () => {
@@ -127,6 +139,13 @@ describe('FileService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('INVALID_CONTENT');
+    });
+
+    it('should surface write errors', async () => {
+      vi.mocked(mockElectronAPI.writeFile!).mockRejectedValue(new Error('write-fail'));
+      const result = await fileService.writeFile('/path/to/file.txt', 'text');
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('WRITE_ERROR');
     });
   });
 
@@ -178,6 +197,26 @@ describe('FileService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('SERVICE_UNAVAILABLE');
+    });
+  });
+
+  describe('readDirectory and workspace', () => {
+    it('handles service unavailable and invalid path', async () => {
+      const noService = createFileService({} as ElectronAPI);
+      const invalid = await noService.readDirectory('');
+      expect(invalid.success).toBe(false);
+      expect(invalid.error?.code).toBe('INVALID_PATH');
+
+      const unavailable = await noService.readDirectory('/some');
+      expect(unavailable.success).toBe(false);
+      expect(unavailable.error?.code).toBe('SERVICE_UNAVAILABLE');
+    });
+
+    it('handles getWorkspacePath unavailable', async () => {
+      const noService = createFileService({} as ElectronAPI);
+      const res = await noService.getWorkspacePath();
+      expect(res.success).toBe(false);
+      expect(res.error?.code).toBe('SERVICE_UNAVAILABLE');
     });
   });
 });
