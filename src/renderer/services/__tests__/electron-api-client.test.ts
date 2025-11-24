@@ -45,12 +45,10 @@ describe('Simplified electronAPI Abstraction', () => {
       expect(client.knowledge).toBeDefined();
     });
 
-    it('falls back and warns when window.electronAPI missing', () => {
+    it('falls back to mock client when window.electronAPI missing', () => {
       // @ts-ignore deliberate undefined
       window.electronAPI = undefined;
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const client = createElectronAPIClient();
-      expect(warn).toHaveBeenCalled();
       expect(client.analytics?.getDashboard).toBeDefined();
     });
 

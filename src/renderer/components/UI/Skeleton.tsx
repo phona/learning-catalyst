@@ -79,6 +79,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 
   return (
     <div
+      data-testid="skeleton"
       className={cn(
         'bg-gray-200 dark:bg-gray-700',
         variantClasses[variant],

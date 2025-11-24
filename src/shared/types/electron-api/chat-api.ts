@@ -48,11 +48,14 @@ export interface ChatAPI {
    * @param params.attachments - Optional file attachments
    * @returns Promise<AsyncIterable<string>> - Stream of response chunks
    */
-  sendMessageStream: (params: {
-    conversationId: string;
-    message: string;
-    attachments?: File[];
-  }) => Promise<APIResponse<AsyncIterable<string>>>;
+  sendMessageStream: (
+    params: {
+      conversationId: string;
+      message: string;
+      attachments?: File[];
+    },
+    onEvent: (evt: { type: 'chunk' | 'complete' | 'error'; chunk?: string; error?: string }) => void,
+  ) => Promise<APIResponse<{ started: boolean }>>;
 
   /**
    * Gets real-time typing indicator
@@ -107,6 +110,14 @@ export interface ChatAPI {
    * @returns Promise<ConversationSummary> - Summary and key takeaways
    */
   endConversation: (conversationId: string) => Promise<APIResponse<ConversationSummary>>;
+
+  /**
+   * Cancels an active streaming response
+   * Stops the current stream and cleans up resources
+   * @param conversationId - Active conversation ID
+   * @returns Promise<{ canceled: boolean }>
+   */
+  cancelStream?: (conversationId: string) => Promise<APIResponse<{ canceled: boolean }>>;
 
   /**
    * Checks for practice opportunities in conversation

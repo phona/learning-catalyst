@@ -68,19 +68,45 @@ export const renderWithServices = (
     electronAPI,
     renderOptions,
     serviceOverrides,
+    preloadedConfig,
   }: {
     routerProps?: React.ComponentProps<typeof MemoryRouter>;
     electronUnavailable?: boolean;
     electronAPI?: ElectronAPI;
     renderOptions?: Parameters<typeof render>[1];
     serviceOverrides?: React.ComponentProps<typeof ServicesProvider>['overrides'];
+    preloadedConfig?: AppConfig;
   } = {},
 ): ReturnType<typeof render> => {
   const noWindowElectron =
     typeof window !== 'undefined' &&
     !(window as typeof window & { electronAPI?: unknown }).electronAPI;
   const useMissing = electronUnavailable || noWindowElectron;
-  const client = electronAPI ?? (useMissing ? missingConfigElectronClient : readyElectronClient);
+
+  let client = electronAPI ?? (useMissing ? missingConfigElectronClient : readyElectronClient);
+
+  if (preloadedConfig) {
+    // Seed the config store and supply an API client that returns the fixture
+    useConfigStore.setState((state) => ({
+      ...state,
+      config: preloadedConfig,
+      loading: false,
+      error: null,
+      loadConfig: async () => {
+        useConfigStore.setState({ config: preloadedConfig, loading: false, error: null });
+        return preloadedConfig;
+      },
+    }));
+    const seededClient = createMockElectronAPIClient();
+    if (seededClient.settings?.getConfig) {
+      seededClient.settings.getConfig = async () => ({ success: true, data: preloadedConfig });
+    }
+    if (seededClient.settings?.saveConfig) {
+      seededClient.settings.saveConfig = async () => ({ success: true });
+    }
+    client = seededClient;
+  }
+
   return render(
     <Providers routerProps={routerProps} electronAPI={client} serviceOverrides={serviceOverrides}>
       {ui}

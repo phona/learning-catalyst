@@ -16,12 +16,9 @@ describe('electron-api-client', () => {
   it('falls back to mock client when missing', () => {
     // @ts-expect-error override global
     globalThis.window = {};
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-
     const client = createElectronAPIClient();
 
     expect(client.analytics?.getDashboard).toBeDefined();
-    expect(warn).toHaveBeenCalled();
   });
 
   it('mock client surfaces representative methods', async () => {

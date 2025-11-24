@@ -69,6 +69,7 @@ export const makeEmptyConfig = (overrides: Partial<AppConfig> = {}): AppConfig =
 
 export const makeProviderConfig = (overrides: Partial<ProviderConfig> = {}): ProviderConfig => ({
   providerType: 'openai',
+  displayName: 'OpenAI',
   baseUrl: 'https://api.openai.com/v1',
   apiKey: 'test-openai-key',
   models: ['gpt-4', 'gpt-4o', 'gpt-3.5-turbo'],

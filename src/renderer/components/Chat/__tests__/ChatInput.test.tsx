@@ -4,10 +4,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatInput } from '@/renderer/components/Chat/ChatInput';
 import { renderWithServices } from '@/test/utils/renderWithServices';
 
-vi.mock('@/renderer/hooks/useChat');
-vi.mock('@/renderer/stores/useConfigStore');
+vi.mock('@/renderer/hooks/useChat', () => ({
+  useChat: vi.fn(),
+}));
 
-import { useChat, UseChatResult } from '@/renderer/hooks/useChat';
+vi.mock('@/renderer/stores/useConfigStore', () => ({
+  useConfigStore: vi.fn(),
+}));
+
+import { useChat, type UseChatResult } from '@/renderer/hooks/useChat';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import type { AppConfig } from '@/shared/types/config';
 
@@ -209,7 +214,7 @@ describe('ChatInput', () => {
       ...chatMock,
       isStreaming: true,
     };
-    mockUseChat.mockReturnValue(streamingMock as any);
+    mockUseChat.mockReturnValue(streamingMock as UseChatResult);
 
     renderWithServices(<ChatInput />);
 

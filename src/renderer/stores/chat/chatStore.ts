@@ -195,6 +195,7 @@ export interface ChatState {
   thinkingContent: string;
   streamingMessageId: string | null;
   streamingContent: string;
+  streamingCancelled: boolean;
   setCurrentSession: (sessionOrId: Partial<Session> | string) => Promise<void>;
   addMessage: (message: UIMessageDisplay) => void;
   updateMessage: (messageId: string, updates: Partial<UIMessageDisplay>) => void;
@@ -211,10 +212,12 @@ export interface ChatState {
   startStreamingMessage: (messageId: string) => void;
   appendStreamingContent: (content: string) => void;
   finishStreamingMessage: (finalContent?: string) => void;
+  stopStreaming: () => void;
   resetChatState: () => void;
   createNewSession: () => Promise<string>;
   saveCurrentSession: () => Promise<{ success: boolean }>;
   sendMessage: (content: string) => Promise<void>;
+  sendMessageStream: (content: string) => Promise<void>;
   updateCurrentSessionTitle: (title: string) => Promise<void>;
   setSelectedProvider: (provider: string) => void;
   setSelectedModel: (model: string) => void;
@@ -237,6 +240,7 @@ const initialState = {
   thinkingContent: '',
   streamingMessageId: null,
   streamingContent: '',
+  streamingCancelled: false,
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
@@ -296,7 +300,8 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               session = loaded;
             }
           } else {
-            session = provisionalSession;
+            const loaded = await loadSessionById(provisionalSession.id);
+            session = loaded ?? provisionalSession;
           }
 
           if (!session) {
@@ -422,8 +427,21 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               streamingMessageId: null,
               streamingContent: '',
               isTyping: false,
+              isStreaming: false,
+              streamingCancelled: false,
             });
           }
+        },
+
+        stopStreaming: () => {
+          const { streamingMessageId } = get();
+          if (!streamingMessageId) {
+            return;
+          }
+          set({ streamingCancelled: true });
+          const finalContent = get().streamingContent;
+          set({ isStreaming: false });
+          get().finishStreamingMessage(finalContent);
         },
 
         resetChatState: () => set(initialState),
@@ -534,6 +552,81 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
             set({ error: errorMessage });
+            throw new Error(errorMessage);
+          } finally {
+            set({ isLoading: false });
+          }
+        },
+
+        sendMessageStream: async (content) => {
+          const { currentSessionId } = get();
+
+          try {
+            set({ isLoading: true, isStreaming: true, error: null, streamingCancelled: false });
+
+            const userMessage: UIMessageDisplay = {
+              id: `msg_${Date.now()}`,
+              role: 'user',
+              content,
+              timestamp: new Date().toISOString(),
+              status: 'delivered',
+              showThinking: false,
+            };
+
+            set((state) => ({
+              messages: [...state.messages, userMessage],
+            }));
+
+            let sessionId = currentSessionId;
+            if (!sessionId) {
+              const createResp = await electronAPI.sessions.create({ title: 'Untitled Session' });
+              if (createResp.success && createResp.data?.sessionId) {
+                sessionId = createResp.data.sessionId;
+                await setCurrentSessionAction(sessionId);
+              } else {
+                throw new Error(createResp.error?.message || 'Failed to create session');
+              }
+            }
+
+            const assistantId = `msg_${Date.now()}_assistant`;
+            const assistantPlaceholder: UIMessageDisplay = {
+              id: assistantId,
+              role: 'assistant',
+              content: '',
+              timestamp: new Date().toISOString(),
+              status: 'typing',
+              showThinking: true,
+            };
+
+            set((state) => ({ messages: [...state.messages, assistantPlaceholder] }));
+            get().startStreamingMessage(assistantId);
+
+            let aggregated = '';
+            const response = await electronAPI.chat.sendMessageStream(
+              {
+                conversationId: sessionId,
+                message: content,
+              },
+              (evt: { type: 'chunk' | 'complete' | 'error'; chunk?: string; error?: string }) => {
+                if (evt.type === 'chunk') {
+                  if (get().streamingCancelled) {
+                    return;
+                  }
+                  const text = typeof evt.chunk === 'string' ? evt.chunk : String(evt.chunk ?? '');
+                  aggregated += text;
+                  get().appendStreamingContent(text);
+                }
+              },
+            );
+
+            if (!response.success) {
+              throw new Error(response.error?.message || 'Failed to start streaming');
+            }
+
+            get().finishStreamingMessage(aggregated);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to stream message';
+            set({ error: errorMessage, isStreaming: false });
             throw new Error(errorMessage);
           } finally {
             set({ isLoading: false });

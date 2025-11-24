@@ -104,12 +104,15 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
           conversationId: 'test-conversation-id',
           relativeTime: 'just now',
         }),
-      sendMessageStream: async ({ message }) =>
-        successResponse<AsyncIterable<string>>(
-          (async function* stream() {
-            yield `Mock streaming response to: ${message}`;
-          })(),
-        ),
+      sendMessageStream: async ({ message }, onEvent) => {
+        try {
+          onEvent?.({ type: 'chunk', chunk: `Mock streaming response to: ${message}` });
+          onEvent?.({ type: 'complete' });
+        } catch (err) {
+          onEvent?.({ type: 'error', error: (err as Error)?.message || 'Mock stream error' });
+        }
+        return successResponse({ started: true });
+      },
       getConversationHistory: async () =>
         successResponse({
           messages: [],

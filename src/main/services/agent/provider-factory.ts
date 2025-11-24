@@ -24,6 +24,7 @@ const makeChatModel = (settings: ProviderSettings) =>
     temperature: settings.temperature,
     maxTokens: settings.maxTokens,
     openAIApiKey: settings.apiKey,
+    baseURL: settings.baseUrl,
   });
 
 const makeOpenAIEmbeddings = (settings: ProviderSettings) =>

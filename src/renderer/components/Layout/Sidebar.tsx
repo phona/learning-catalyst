@@ -101,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
       // Load the new session
       console.log(`[Sidebar] Calling setCurrentSession...`);
-      setCurrentSession(session);
+      setCurrentSession(session.id);
 
       console.log(`[Sidebar] Opened session: ${session.id}`);
       // Visual feedback is sufficient - no toast needed for session loading

@@ -1,8 +1,11 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { mkdir } from 'fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setupAllIpcHandlers } from './handlers';
+import { setupChatHandlers } from './handlers/chat-handlers';
+import { setupSessionsHandlers } from './handlers/sessions-handlers';
+import { setupEnhancedAgentHandlers } from './handlers/agent-enhanced-handlers';
 import { setupSettingsHandlers } from './handlers/settings-handlers';
 import { serializeIPCError, applyStructuredErrorHandling, getRegisteredIpcChannels } from './handlers/ipc-error-handler';
 import { createAppMenu } from './menu';
@@ -116,6 +119,9 @@ process.on('unhandledRejection', (reason) => {
 const preload = path.join(__dirname, '../preload/index.cjs');
 const indexHtml = path.join(RENDERER_DIST, 'index.html');
 
+// Disable GPU acceleration to avoid possible blank window issues on some drivers
+ 
+
 async function createWindow(): Promise<void> {
   win = new BrowserWindow({
     title: 'Learning Catalyst',
@@ -148,8 +154,8 @@ async function createWindow(): Promise<void> {
       // Control memory usage
       webSecurity: true,
     },
-    // Fix GPU cache permission issues and memory optimization
-    show: false,
+    // Show window immediately to avoid missing show on init errors
+    show: true,
     backgroundColor: '#ffffff',
   });
 
@@ -294,19 +300,91 @@ async function createWindow(): Promise<void> {
     console.log('IPC channels registered', { count: channels.length, channels });
 
     if (VITE_DEV_SERVER_URL) {
+      console.log('[Main] Loading renderer URL', VITE_DEV_SERVER_URL);
       win.loadURL(VITE_DEV_SERVER_URL);
       if (process.env.NODE_ENV !== 'production') {
         win.webContents.openDevTools();
       }
+      console.log('[Main] Showing window');
       win.show();
     } else {
+      console.log('[Main] Loading renderer file', indexHtml);
       win.loadFile(indexHtml);
+      console.log('[Main] Showing window');
       win.show();
     }
   } catch (error) {
     console.error('? Error initializing services:', error);
     reportMainError(error, 'services:init');
-    return;
+    // Fallback: still load and show window even if services initialization fails
+    try {
+      if (VITE_DEV_SERVER_URL) {
+        console.log('[Main] Fallback load URL', VITE_DEV_SERVER_URL);
+        win?.loadURL(VITE_DEV_SERVER_URL);
+      } else {
+        console.log('[Main] Fallback load file', indexHtml);
+        win?.loadFile(indexHtml);
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          win?.webContents.openDevTools({ mode: 'detach' });
+        } catch {}
+      }
+      console.log('[Main] Fallback show window');
+      win?.show();
+    } catch (e) {
+      void e;
+    }
+
+    try {
+      const baseLogger = new MainThreadLogger('info', true, 1000);
+      const loggerService = createLoggerService({ logger: baseLogger });
+      const fallbackLearningService: any = {
+        getRecentSessions: async () => [],
+        searchSessions: async () => ({ sessions: [], totalResults: 0, query: '' }),
+        startLearningSession: async () => ({ id: `session_${Date.now()}` }),
+      };
+      setupSessionsHandlers(ipcMain, { learningService: fallbackLearningService, loggerService });
+      setupEnhancedAgentHandlers(ipcMain, {
+        aiService: {} as any,
+        learningService: fallbackLearningService,
+        knowledgeService: {} as any,
+        loggerService,
+      });
+
+      const canceledFallbackStreams = new Set<string>();
+      const fallbackChatService: any = {
+        streamAssistantResponse: async (params: { conversationId: string; content: string }) => {
+          const userMessage = {
+            id: `user_${Date.now()}`,
+            conversationId: params.conversationId,
+            role: 'user',
+            content: params.content,
+            timestamp: new Date().toISOString(),
+          };
+          const stream = async function* () {
+            const text = params.content || 'Hello! (fallback stream)';
+            const chunks = text.match(/.{1,50}/g) ?? [text];
+            for (const chunk of chunks) {
+              if (canceledFallbackStreams.has(params.conversationId)) break;
+              yield chunk;
+            }
+          };
+          return { userMessage, stream: stream() };
+        },
+        cancelStream: (conversationId: string) => {
+          canceledFallbackStreams.add(conversationId);
+        },
+      };
+      setupChatHandlers(ipcMain, {
+        chatService: fallbackChatService,
+        practiceService: {
+          generatePracticePlan: async () => ({ id: `suggestion_${Date.now()}`, options: { accept: {}, decline: {} } }),
+        } as any,
+        loggerService,
+      });
+      console.log('Fallback IPC handlers registered');
+    } catch {}
   }
 }
 

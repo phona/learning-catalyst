@@ -58,39 +58,53 @@ const chatAPI: ChatAPI = {
 
   sendMessage: (params) => ipcRenderer.invoke('chat:send-message', params),
 
-  sendMessageStream: (params) => {
+  sendMessageStream: (params, onEvent) => {
+    console.log('[preload] sendMessageStream invoked', params);
     return new Promise((resolve) => {
       const streamReadyHandler = (event: any) => {
+        console.log('[preload] chat:stream-ready');
         const port = event.ports[0];
-        const stream = {
-          async *[Symbol.asyncIterator]() {
-            return new Promise((resolveStream, rejectStream) => {
-              const messageHandler = (event: MessageEvent) => {
-                const { type, chunk, error } = event.data;
-                switch (type) {
-                case 'chat:chunk':
-                  resolveStream(chunk);
-                  break;
-                case 'chat:complete':
-                  port.close();
-                  resolveStream(undefined);
-                  break;
-                case 'chat:error':
-                  rejectStream(new Error(error));
-                  break;
-                }
-              };
-              port.onmessage = messageHandler;
-              port.start();
-            });
-          },
+
+        const onMessage = (evt: MessageEvent) => {
+          const { type, chunk, error: err } = (evt.data ?? {}) as {
+            type?: string;
+            chunk?: string;
+            error?: string;
+          };
+          if (type === 'chat:chunk') {
+            console.debug('[preload] chat:chunk', { len: String((chunk ?? '').length) });
+            onEvent?.({ type: 'chunk', chunk: chunk ?? '' });
+          } else if (type === 'chat:complete') {
+            console.log('[preload] chat:complete');
+            onEvent?.({ type: 'complete' });
+            try {
+              port.close();
+            } catch {}
+          } else if (type === 'chat:error') {
+            console.error('[preload] chat:error', err);
+            onEvent?.({ type: 'error', error: err || 'Streaming error' });
+            try {
+              port.close();
+            } catch {}
+          }
         };
-        resolve({ success: true, data: stream });
+
+        port.onmessage = onMessage;
+        port.start();
+        console.log('[preload] stream port started');
+
+        resolve({ success: true, data: { started: true } });
         ipcRenderer.removeListener('chat:stream-ready', streamReadyHandler);
       };
+
       ipcRenderer.on('chat:stream-ready', streamReadyHandler);
       ipcRenderer.send('chat:start-stream', params);
     });
+  },
+
+  cancelStream: (conversationId: string) => {
+    console.log('[preload] cancelStream invoked', { conversationId });
+    return ipcRenderer.invoke('chat:cancel-stream', conversationId);
   },
 
   getTypingIndicator: (conversationId: string) =>

@@ -144,7 +144,7 @@ describe('SessionManager', () => {
     fireEvent.click(screen.getByText(/Physics 101/i));
 
     await waitFor(() => {
-      expect(mockSetCurrentSession).toHaveBeenCalledWith(session);
+      expect(mockSetCurrentSession).toHaveBeenCalledWith(session.id);
       expect(mockNavigate).toHaveBeenCalledWith('/sessions/session-1');
       expect(mockSetCurrentView).toHaveBeenCalledWith('chat');
     });

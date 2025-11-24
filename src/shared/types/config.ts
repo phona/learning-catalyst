@@ -15,6 +15,7 @@ export interface ProviderModelInfo {
 
 export interface ProviderConfig {
   providerType: ProviderType;
+  displayName?: string;
   apiKey?: string;
   baseUrl?: string;
   models?: string[]; // Available models for this provider

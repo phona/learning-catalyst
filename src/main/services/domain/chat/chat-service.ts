@@ -91,6 +91,7 @@ export const createChatService = ({
   const contextTrackers = new Map<string, UserContextTrackerService>();
   const trackerLogger = serviceLogger.child({ component: 'user-context-tracker' });
   const trackerDependencies = { logger: trackerLogger };
+  const canceledStreams = new Set<string>();
 
   const extractConceptsFromContent = (content: string): string[] => {
     if (!content) return [];
@@ -530,6 +531,7 @@ export const createChatService = ({
       conversation.metadata = { ...conversation.metadata, assistantTyping: true };
       await saveMessage(userMessage);
       await persistConversation(conversation);
+      serviceLogger.info('Streaming start', { conversationId: params.conversationId });
       await updateContextTracker({
         conversationId: params.conversationId,
         messageType: 'user_message',
@@ -553,9 +555,10 @@ Respond to the latest user message in a helpful, encouraging tone.`;
       const stream = async function* () {
         let aggregated = '';
         let fallbackUsed = false;
+        let canceled = false;
 
         try {
-          // Use the agent manager for response generation
+          serviceLogger.info('Agent run start', { conversationId: conversation.id });
           const agentResponse = await agentManager.runAgent({
             agentType: normalizeAgentType(conversation.agentType),
             conversationId: conversation.id,
@@ -563,14 +566,20 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             userId: params.metadata?.userId as string | undefined,
             messages: [{ role: 'user', content: input }],
           });
+          serviceLogger.info('Agent run complete', { conversationId: conversation.id, contentLen: agentResponse?.content?.length ?? 0 });
 
           // Convert the response to a stream
           const content = agentResponse.content;
           if (content) {
             const chunks = content.match(/.{1,60}/g) ?? [content];
             for (const chunk of chunks) {
+              if (canceledStreams.has(conversation.id)) {
+                canceled = true;
+                break;
+              }
               aggregated += chunk;
               yield chunk;
+              serviceLogger.debug('Stream chunk', { conversationId: conversation.id, len: chunk.length });
             }
           }
         } catch (error) {
@@ -581,8 +590,13 @@ Respond to the latest user message in a helpful, encouraging tone.`;
           });
           const chunks = fallbackText.match(/.{1,60}/g) ?? [fallbackText];
           for (const chunk of chunks) {
+            if (canceledStreams.has(conversation.id)) {
+              canceled = true;
+              break;
+            }
             aggregated += chunk;
             yield chunk;
+            serviceLogger.debug('Fallback stream chunk', { conversationId: conversation.id, len: chunk.length });
           }
         } finally {
           const assistantMessage = buildAssistantMessage(conversation, {
@@ -606,10 +620,21 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             content: assistantMessage.content,
             userId: params.metadata?.userId as string | undefined,
           });
+          if (canceled) {
+            canceledStreams.delete(conversation.id);
+            serviceLogger.info('Stream canceled', { conversationId: conversation.id, finalLen: aggregated.length });
+          } else {
+            serviceLogger.info('Stream finished', { conversationId: conversation.id, finalLen: aggregated.length });
+          }
         }
       };
 
       return { userMessage, stream: stream() };
+    },
+
+    cancelStream: (conversationId: string) => {
+      serviceLogger.info('Cancel requested for conversation stream', { conversationId });
+      canceledStreams.add(conversationId);
     },
   };
 };

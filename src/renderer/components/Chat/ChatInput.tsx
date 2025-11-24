@@ -61,6 +61,7 @@ const ChatInputComponent: React.FC = () => {
     setError(null);
 
     try {
+      console.log('[ChatInput] submit', { streamingEnabled, len: message.length });
       if (streamingEnabled) {
         await sendMessageStream(message);
       } else {
@@ -180,6 +181,7 @@ const ChatInputComponent: React.FC = () => {
   const currentModelName = selectedModel;
 
   const isActionButtonDisabled = !isStreaming && (!inputText.trim() || isLoading);
+  console.log('[ChatInput] state', { isLoading, isStreaming, inputLen: inputText.length, disabled: isActionButtonDisabled });
 
   return (
     <div
@@ -195,7 +197,7 @@ const ChatInputComponent: React.FC = () => {
           noValidate
           data-testid="chat-input-form"
         >
-          <fieldset className="flex items-end space-x-4" disabled={isStreaming || isLoading}>
+          <fieldset className="flex items-end space-x-4">
             <legend className="sr-only">Message input form</legend>
 
             {/* Text input */}
@@ -252,7 +254,10 @@ const ChatInputComponent: React.FC = () => {
             {isStreaming ? (
               <button
                 type="button"
-                onClick={() => void stopStreaming()}
+                onClick={() => {
+                  console.log('[ChatInput] stop clicked');
+                  void stopStreaming();
+                }}
                 className="px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
                 aria-label="Stop generating response"
               >

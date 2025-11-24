@@ -12,8 +12,13 @@ type ElectronWindow = Window & { electronAPI?: ElectronAPI };
 export function createElectronAPIClient(): ElectronAPI {
   const electronAPI = (window as ElectronWindow).electronAPI;
   if (electronAPI === undefined) {
-    console.warn('Electron API not available. Using mock client for browser environment.');
-    return createMockElectronAPIClient();
+    const mode = (import.meta as any)?.env?.MODE;
+    const enableMocks = ((import.meta as any)?.env?.VITE_ENABLE_BROWSER_MOCKS ?? 'false') === 'true';
+    const isTest = mode === 'test';
+    if (isTest || enableMocks) {
+      return createMockElectronAPIClient();
+    }
+    throw new Error('Electron API not available');
   }
   return electronAPI;
 }
@@ -108,6 +113,7 @@ const mockFeatureDemo: FeatureDemoDisplay = {
 };
 
 export function createMockElectronAPIClient(): ElectronAPI {
+  const mockStreamState = new Map<string, { aborted: boolean }>();
   const partial: Partial<ElectronAPI> = {
     analytics: {
       getDashboard: () =>
@@ -389,13 +395,37 @@ export function createMockElectronAPIClient(): ElectronAPI {
             relativeTime: 'just now',
           },
         }),
-      sendMessageStream: () =>
-        Promise.resolve({
-          success: true,
-          data: (async function* () {
-            yield 'Mock stream response';
-          })(),
-        }),
+      sendMessageStream: (
+        params: { conversationId: string; message: string; attachments?: File[] },
+        onEvent: (evt: { type: 'chunk' | 'complete' | 'error'; chunk?: string; error?: string }) => void,
+      ) => {
+        const text = params.message || 'Mock stream response';
+        const chunks = text.match(/.{1,60}/g) ?? [text];
+        mockStreamState.set(params.conversationId, { aborted: false });
+        const state = mockStreamState.get(params.conversationId)!;
+        let i = 0;
+        const emitNext = () => {
+          try {
+            if (!state || state.aborted) return;
+            if (i < chunks.length) {
+              onEvent({ type: 'chunk', chunk: chunks[i] });
+              i++;
+              setTimeout(emitNext, 100);
+            } else {
+              onEvent({ type: 'complete' });
+            }
+          } catch (err) {
+            onEvent({ type: 'error', error: (err as Error)?.message || 'Mock stream error' });
+          }
+        };
+        setTimeout(emitNext, 80);
+        return Promise.resolve({ success: true, data: { started: true } });
+      },
+      cancelStream: (conversationId: string) => {
+        const state = mockStreamState.get(conversationId);
+        if (state) state.aborted = true;
+        return Promise.resolve({ success: true, data: { canceled: true } });
+      },
       getTypingIndicator: () =>
         Promise.resolve({
           success: true,

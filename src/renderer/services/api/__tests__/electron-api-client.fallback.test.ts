@@ -11,15 +11,12 @@ describe('electron-api-client fallback', () => {
     expect(client).toBe(stubApi);
   });
 
-  it('falls back to mock client and warns when missing', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('falls back to mock client when missing', () => {
     (globalThis as any).window = {};
 
     const client = createElectronAPIClient();
 
-    expect(warnSpy).toHaveBeenCalled();
     expect(client.analytics).toBeDefined();
-    warnSpy.mockRestore();
   });
 
   it('mock client exposes basic analytics stub', async () => {

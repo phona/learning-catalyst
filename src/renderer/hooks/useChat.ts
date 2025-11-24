@@ -165,6 +165,7 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
       try {
         setIsLoading(true);
+        console.log('[useChat] isStreaming -> true');
         setIsStreaming(true);
         setError(null);
 
@@ -175,7 +176,8 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           content,
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, userMessage]);
+            console.log('[useChat] user message queued', { id: userMessage.id });
+            setMessages((prev) => [...prev, userMessage]);
 
         // Create a placeholder assistant message for streaming
         const assistantMessageId = `assistant_${Date.now()}`;
@@ -185,7 +187,8 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           content: '',
           timestamp: new Date(),
         };
-        setMessages((prev) => [...prev, assistantMessage]);
+            console.log('[useChat] assistant placeholder queued', { id: assistantMessageId });
+            setMessages((prev) => [...prev, assistantMessage]);
 
         let streamingContent = '';
 
@@ -199,21 +202,25 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           await loadSession(createdId);
           sessionId = createdId;
         }
+        console.log('[useChat] Streaming start', { sessionId, contentLen: content.length });
+        streamingExecutionRef.current = sessionId ?? null;
 
         // Send streaming message using chat service
         const response = await chatService.sendMessageStream(
           content,
           (chunk: ChatStreamChunk) => {
             if (chunk.type === 'content' && chunk.content) {
-              streamingContent += chunk.content;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId ? { ...msg, content: streamingContent } : msg,
-                ),
-              );
-            }
-            onChunk?.(chunk);
-          },
+              console.debug('[useChat] Chunk', { len: String(chunk.content.length) });
+                    streamingContent += chunk.content;
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === assistantMessageId ? { ...msg, content: streamingContent } : msg,
+                      ),
+                    );
+                    console.debug('[useChat] assistant content length', { len: streamingContent.length });
+                  }
+                  onChunk?.(chunk);
+                },
           {
             sessionId,
             agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
@@ -221,6 +228,7 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         );
 
         // Update the final assistant message
+        console.log('[useChat] final assistant content set', { len: response.content?.length ?? 0 });
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === assistantMessageId ? { ...msg, content: response.content } : msg,
@@ -229,12 +237,16 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
         options.onMessage?.(response);
       } catch (err) {
+        console.error('[useChat] Streaming failed', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMessage);
         options.onError?.(new Error(errorMessage));
       } finally {
+        console.log('[useChat] isStreaming -> false');
+        console.log('[useChat] Streaming end');
         setIsLoading(false);
         setIsStreaming(false);
+        
       }
     },
     [
@@ -249,16 +261,19 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
   // Stop streaming
   const stopStreaming = useCallback(async () => {
-    if (streamingExecutionRef.current && chatService?.cancelExecution) {
+    const sessionId = streamingExecutionRef.current ?? currentSession?.id ?? options.sessionId ?? null;
+    if (sessionId && chatService?.cancelStream) {
       try {
-        await chatService.cancelExecution(streamingExecutionRef.current);
+        console.log('[useChat] Stop requested', { sessionId });
+        await chatService.cancelStream(sessionId);
         streamingExecutionRef.current = null;
       } catch (err) {
         console.error('Failed to stop streaming:', err);
       }
     }
+    console.log('[useChat] isStreaming -> false (stop)');
     setIsStreaming(false);
-  }, [chatService]);
+  }, [chatService, currentSession, options.sessionId]);
 
   // Clear messages
   const clearMessages = useCallback(() => {

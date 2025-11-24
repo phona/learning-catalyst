@@ -189,6 +189,7 @@ export const setupChatHandlers = (
   services: ChatHandlersDeps,
 ): void => {
   const handlerLogger = services.loggerService.child({ handler: 'chat' });
+  const activeStreams = new Map<string, MessageChannelMain['port2']>();
   const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
     success: true,
     data,
@@ -235,28 +236,64 @@ export const setupChatHandlers = (
   });
 
   ipcMainInstance.on('chat:start-stream', async (event, params: SendMessageParams) => {
-    handlerLogger.info('Starting chat stream', { conversationId: params.conversationId });
+    handlerLogger.info('Starting chat stream', { conversationId: params.conversationId, messageLen: params.message?.length ?? 0 });
     const channel = new MessageChannelMain();
     event.sender.postMessage('chat:stream-ready', null, [channel.port1]);
     channel.port2.start();
+    activeStreams.set(params.conversationId, channel.port2);
     try {
       const { stream } = await services.chatService.streamAssistantResponse({
         conversationId: params.conversationId,
         content: params.message,
         attachments: params.attachments,
       });
+      let chunkCount = 0;
       for await (const chunk of stream) {
-        channel.port2.postMessage({ type: 'chat:chunk', chunk });
+        chunkCount++;
+        handlerLogger.debug('Streaming chunk', { conversationId: params.conversationId, length: String(chunk?.length ?? 0), chunkCount });
+        if (activeStreams.has(params.conversationId)) {
+          try {
+            channel.port2.postMessage({ type: 'chat:chunk', chunk });
+          } catch {}
+        }
       }
-      channel.port2.postMessage({ type: 'chat:complete' });
+      handlerLogger.info('Stream complete', { conversationId: params.conversationId, chunkCount });
+      if (activeStreams.has(params.conversationId)) {
+        try {
+          channel.port2.postMessage({ type: 'chat:complete' });
+        } catch {}
+      }
     } catch (error) {
       handlerLogger.error('Chat stream failed', error);
-      channel.port2.postMessage({
-        type: 'chat:error',
-        error: error instanceof Error ? error.message : 'Unknown streaming error',
-      });
+      if (activeStreams.has(params.conversationId)) {
+        try {
+          channel.port2.postMessage({
+            type: 'chat:error',
+            error: error instanceof Error ? error.message : 'Unknown streaming error',
+          });
+        } catch {}
+      }
     } finally {
+      activeStreams.delete(params.conversationId);
       channel.port2.close();
+    }
+  });
+
+  ipcMainInstance.handle('chat:cancel-stream', async (_event, conversationId: string) => {
+    handlerLogger.info('Cancel stream requested', { conversationId });
+    try {
+      const port = activeStreams.get(conversationId);
+      if (port) {
+        try {
+          port.close();
+        } catch {}
+        activeStreams.delete(conversationId);
+      }
+      services.chatService.cancelStream(conversationId);
+      return ok({ canceled: true });
+    } catch (error) {
+      handlerLogger.error('Failed to cancel stream', error);
+      return fail('chat.cancel_failed', 'Unable to cancel stream');
     }
   });
 

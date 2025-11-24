@@ -156,7 +156,7 @@ export const SessionManager: React.FC = () => {
                 onClick={() => {
                   try {
                     // Load the session into the chat store
-                    setCurrentSession(session);
+                    setCurrentSession(session.id);
 
                     // Navigate to chat view with session ID in URL
                     navigate(`/sessions/${session.id}`);

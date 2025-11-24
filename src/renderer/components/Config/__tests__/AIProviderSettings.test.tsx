@@ -169,7 +169,8 @@ describe('AIProviderSettings (current UI)', () => {
       />,
     );
 
-    const modelSelect = screen.getByDisplayValue('gpt-3.5-turbo');
+    // Two fields now show the current model id (select + custom input). Pick the select.
+    const modelSelect = screen.getAllByDisplayValue('gpt-3.5-turbo')[0];
     await user.selectOptions(modelSelect, 'gpt-4');
 
     expect(onModelAssignmentChange).toHaveBeenCalledWith('chat', 'openai-123', 'gpt-4');

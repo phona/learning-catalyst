@@ -190,8 +190,87 @@ export const SettingsPanel: React.FC = () => {
 
     // Immediate save without debouncing
     try {
-      await configService!.saveConfig(localConfig);
-      setConfig(localConfig);
+      // Prefer the most recent store snapshot in case other components updated config
+      const storeConfig = useConfigStore.getState().config;
+      const mergedConfig: AppConfig = storeConfig
+        ? {
+            ...storeConfig,
+            ...localConfig,
+            ai: {
+              ...(storeConfig.ai ?? localConfig.ai),
+              ...localConfig.ai,
+              modelTypes: localConfig.ai.modelTypes ?? storeConfig.ai?.modelTypes ?? {},
+            },
+          }
+        : localConfig;
+
+      // If providers/modelTypes vanished (e.g., during tests or hot state), pull from persisted config
+      let persisted: AppConfig | undefined;
+      if (Object.keys(mergedConfig.ai.providers ?? {}).length === 0 || !mergedConfig.ai.modelTypes) {
+        try {
+          persisted = await configService!.getConfig();
+          mergedConfig.ai.providers = Object.keys(mergedConfig.ai.providers ?? {}).length
+            ? mergedConfig.ai.providers
+            : persisted?.ai?.providers ?? {};
+          mergedConfig.ai.modelTypes = mergedConfig.ai.modelTypes ?? persisted?.ai?.modelTypes ?? {};
+        } catch {
+          // best-effort fallback; continue with current state
+        }
+      }
+
+      const providerIds = Object.keys(mergedConfig.ai.providers ?? {});
+      const coerceProviderId = (maybeId: string | undefined) => {
+        if (maybeId && providerIds.includes(maybeId)) return maybeId;
+        if (providerIds.length === 1) return providerIds[0];
+        return maybeId ?? '';
+      };
+
+      // Repair model assignments if provider ids were lost during UI state changes
+      const patchedModelTypes = { ...(mergedConfig.ai.modelTypes ?? {}) };
+      (Object.keys(patchedModelTypes) as (keyof typeof patchedModelTypes)[]).forEach((modelType) => {
+        const entry = patchedModelTypes[modelType] as SelectedModel | undefined;
+        const fallback = storeConfig?.ai.modelTypes?.[modelType] as SelectedModel | undefined;
+        const persistedEntry = persisted?.ai?.modelTypes?.[modelType] as SelectedModel | undefined;
+        if (!entry) return;
+        const providerMissing = entry.provider && !providerIds.includes(entry.provider);
+        const missingModel = !entry.model && fallback?.model;
+        const fixedProvider = coerceProviderId(entry.provider);
+        const fixedModel = entry.model || fallback?.model || '';
+        patchedModelTypes[modelType] = {
+          ...entry,
+          provider: providerMissing ? coerceProviderId(fallback?.provider) : fixedProvider,
+          model: fixedModel,
+        };
+
+        if (persistedEntry) {
+          const providerMismatch = !patchedModelTypes[modelType].provider && persistedEntry.provider;
+          const modelMismatch =
+            (!patchedModelTypes[modelType].model && persistedEntry.model) ||
+            (patchedModelTypes[modelType].provider === persistedEntry.provider &&
+              patchedModelTypes[modelType].model !== persistedEntry.model);
+          if (providerMismatch || modelMismatch) {
+            patchedModelTypes[modelType] = {
+              ...persistedEntry,
+              provider: providerMismatch
+                ? coerceProviderId(persistedEntry.provider)
+                : patchedModelTypes[modelType].provider,
+              model: modelMismatch ? persistedEntry.model : patchedModelTypes[modelType].model,
+            };
+          }
+        }
+      });
+      if (persisted?.ai?.modelTypes) {
+        Object.entries(persisted.ai.modelTypes).forEach(([modelType, persistedEntry]) => {
+          const existing = patchedModelTypes[modelType as ModelType] as SelectedModel | undefined;
+          if (!existing || !existing.model || !existing.provider) {
+            patchedModelTypes[modelType as ModelType] = persistedEntry as SelectedModel;
+          }
+        });
+      }
+      mergedConfig.ai.modelTypes = patchedModelTypes;
+
+      await configService!.saveConfig(mergedConfig);
+      setConfig(mergedConfig);
       // Visual feedback is shown in the header - no toast needed
     } catch (error) {
       console.error('Failed to save configuration:', error);
