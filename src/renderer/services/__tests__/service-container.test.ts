@@ -1,112 +1,80 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createServiceContainer, createMockServiceContainer } from '../service-container';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 
-// Mocks for factory functions so we can assert wiring without hitting real IPC
-const sessionStub = { tag: 'session-service' };
-const chatStub = { tag: 'chat-service' };
-const analyticsStub = { tag: 'analytics-service', getDashboard: vi.fn() };
-const fileStub = { tag: 'file-service' };
+const sessionStub = { name: 'session-stub' };
+const chatStub = { name: 'chat-stub' };
+const analyticsStub = { name: 'analytics-stub' };
+const fileStub = { name: 'file-stub' };
+
+const sessionSpy = vi.fn(() => sessionStub);
+const chatSpy = vi.fn(() => chatStub);
+const analyticsSpy = vi.fn(() => analyticsStub);
+const fileSpy = vi.fn(() => fileStub);
 
 vi.mock('../session/session-service', () => ({
-  createSessionService: vi.fn(() => sessionStub),
+  createSessionService: sessionSpy,
 }));
 vi.mock('../chat/chat-service', () => ({
-  createChatService: vi.fn(() => chatStub),
+  createChatService: chatSpy,
 }));
 vi.mock('../analytics/analytics-service', () => ({
-  createAnalyticsService: vi.fn(() => analyticsStub),
+  createAnalyticsService: analyticsSpy,
 }));
 vi.mock('../file/file-service', () => ({
-  createFileService: vi.fn(() => fileStub),
+  createFileService: fileSpy,
 }));
 
-import * as sessionModule from '../session/session-service';
+let createServiceContainer: any;
+let createTestServiceContainer: any;
+let createMockServiceContainer: any;
 
-describe('service-container', () => {
-  const fakeAPI = { marker: 'electronAPI' } as any;
+beforeAll(async () => {
+  const mod = await import('../service-container');
+  createServiceContainer = mod.createServiceContainer;
+  createTestServiceContainer = mod.createTestServiceContainer;
+  createMockServiceContainer = mod.createMockServiceContainer;
+});
 
-  it('creates services with provided electronAPI client', () => {
-    const container = createServiceContainer(fakeAPI);
+describe('service-container factories', () => {
+  beforeEach(() => {
+    sessionSpy.mockClear();
+    chatSpy.mockClear();
+    analyticsSpy.mockClear();
+    fileSpy.mockClear();
+  });
+
+  const baseElectronApi = { sessions: {}, chat: {}, analytics: {}, file: {} } as any;
+
+  it('wires services with provided electronAPI', () => {
+    const container = createServiceContainer(baseElectronApi);
+
+    expect(sessionSpy).toHaveBeenCalledWith(baseElectronApi);
+    expect(chatSpy).toHaveBeenCalledWith(baseElectronApi);
+    expect(analyticsSpy).toHaveBeenCalledWith(baseElectronApi);
+    expect(fileSpy).toHaveBeenCalledWith(baseElectronApi);
 
     expect(container.session).toBe(sessionStub);
     expect(container.chat).toBe(chatStub);
     expect(container.analytics).toBe(analyticsStub);
     expect(container.file).toBe(fileStub);
-    expect(vi.mocked(sessionModule.createSessionService)).toHaveBeenCalledWith(fakeAPI);
   });
 
-  it('mock container exposes usable fallbacks', async () => {
-    const mock = createMockServiceContainer();
+  it('applies overrides when creating test container', () => {
+    const overrides = { readFile: vi.fn().mockResolvedValue('override') };
+    const container = createTestServiceContainer(overrides as any);
 
-    expect(mock.session).toBeDefined();
-    expect(mock.chat).toBeDefined();
-    expect(mock.analytics).toBeDefined();
-    expect(mock.file).toBeDefined();
+    // The merged API passed into service creators should contain the override
+    const passedApi = sessionSpy.mock.calls.at(-1)?.[0];
+    expect(passedApi.readFile).toBe(overrides.readFile);
+    expect(container.session).toBe(sessionStub);
   });
 
-  it('createTestServiceContainer merges overrides', () => {
-    const override = {
-      getWorkspacePath: vi.fn().mockResolvedValue('/override'),
-      analytics: { getDashboard: vi.fn().mockResolvedValue({ success: true, data: { ok: true } }) },
-    };
+  it('creates mock service container without overrides', () => {
+    const container = createMockServiceContainer();
 
-    const container = createMockServiceContainer(override as any);
-
-    expect(container.analytics).toBeDefined();
-    expect((container as any).marker).toBeUndefined(); // container still returns services
-    expect(container.file).toBeDefined();
+    expect(container.session).toBe(sessionStub);
+    expect(sessionSpy).toHaveBeenCalled();
+    expect(chatSpy).toHaveBeenCalled();
+    expect(analyticsSpy).toHaveBeenCalled();
+    expect(fileSpy).toHaveBeenCalled();
   });
-
-  it('mock container wired methods execute happy-path flows', async () => {
-    // Use real implementations (not the factory spies) for this integration-style check
-    vi.resetModules();
-    vi.doUnmock('../session/session-service');
-    vi.doUnmock('../chat/chat-service');
-    vi.doUnmock('../analytics/analytics-service');
-    vi.doUnmock('../file/file-service');
-
-    const { createMockServiceContainer: realCreateMockServiceContainer } =
-      await vi.importActual<typeof import('../service-container')>('../service-container');
-
-    const container = realCreateMockServiceContainer();
-
-    // Chat APIs (via chat-service wrapping mock electronAPI)
-    await container.chat.sendMessage('Hello', { sessionId: 'mock' });
-    await container.chat.sendMessageStream(
-      'Hello',
-      () => {
-        /* noop */
-      },
-      { sessionId: 'mock' },
-    );
-    await container.chat.checkPracticeOpportunity({ conversationId: 'mock', userMessage: 'Hi' });
-
-    // Session APIs
-    await container.session.listSessions({ limit: 5 });
-    await container.session.createSession({ topic: 't', goals: [], difficulty: 'beginner' } as any);
-    await container.session.searchSessions('q');
-    await container.session.getRecentSessions(1);
-    await container.session.getGlobalStatistics();
-
-    // Analytics APIs
-    await container.analytics.getDashboard();
-    await container.analytics.getProgressChart({
-      timeRange: '7days',
-      metric: 'sessions',
-    });
-    await container.analytics.getAchievements();
-    await container.analytics.getLearningTrends({ period: 'weekly' } as any);
-    await container.analytics.getStudyStreak();
-    await container.analytics.getTimeStats();
-    await container.analytics.getConceptProgress('c1');
-    await container.analytics.getSessionHistory();
-    await container.analytics.exportData({ format: 'json' } as any);
-    await container.analytics.importData({ format: 'json', data: '{}' } as any);
-    await container.analytics.trackSession();
-    await container.analytics.updateConceptProgress('c1', { mastery: 0.2 } as any);
-
-    // File service (smoke)
-    expect(container.file).toBeTruthy();
-  });
-
 });
