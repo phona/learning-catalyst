@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { vi } from 'vitest';
 import { LoadingScreen } from '@/renderer/components/UI/LoadingScreen';
 
 describe('LoadingScreen', () => {
@@ -79,5 +80,27 @@ describe('LoadingScreen', () => {
 
     const errorTitle = screen.getByText('Initialization Failed');
     expect(errorTitle).toBeInTheDocument();
+  });
+
+  it('renders progress bar when requested', () => {
+    render(<LoadingScreen showProgress progress={42} message="Booting" />);
+    expect(screen.getByText('Booting')).toBeInTheDocument();
+    const progressLabel = screen.getByText('42% complete');
+    expect(progressLabel).toBeInTheDocument();
+  });
+
+  it('uses state-specific messaging and icons', () => {
+    const { rerender } = render(<LoadingScreen state="ai-provider" />);
+    expect(screen.getByText('Configuring AI provider...')).toBeInTheDocument();
+
+    rerender(<LoadingScreen state="ready" />);
+    expect(screen.getByText('Ready to go!')).toBeInTheDocument();
+  });
+
+  it('invokes onRetry when error and retry clicked', () => {
+    const onRetry = vi.fn();
+    render(<LoadingScreen error="boom" onRetry={onRetry} />);
+    fireEvent.click(screen.getByText('Retry'));
+    expect(onRetry).toHaveBeenCalled();
   });
 });

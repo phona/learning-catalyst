@@ -173,4 +173,28 @@ describe('ErrorBoundary', () => {
     const container = screen.getByText('Application Error').closest('div');
     expect(container?.parentElement?.parentElement).toHaveClass('bg-gray-50', 'dark:bg-gray-900');
   });
+
+  it('renders inline variant with retry and custom description', () => {
+    const onRetry = vi.fn();
+    render(
+      <ErrorBoundary variant="inline" title="Section failed" description="Retry it" onRetry={onRetry}>
+        <ThrowError />
+      </ErrorBoundary>,
+    );
+
+    expect(screen.getByText('Section failed')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  it('renders minimal variant without retry when disabled', () => {
+    render(
+      <ErrorBoundary variant="minimal" showRetry={false} title="Mini fail">
+        <ThrowError />
+      </ErrorBoundary>,
+    );
+
+    expect(screen.getByText('Mini fail')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+  });
 });

@@ -103,8 +103,10 @@ describe('service-container', () => {
     await container.analytics.exportData({ format: 'json' } as any);
     await container.analytics.importData({ format: 'json', data: '{}' } as any);
     await container.analytics.trackSession();
+    await container.analytics.updateConceptProgress('c1', { mastery: 0.2 } as any);
 
     // File service (smoke)
     expect(container.file).toBeTruthy();
   });
+
 });

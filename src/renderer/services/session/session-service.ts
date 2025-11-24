@@ -1,7 +1,4 @@
-import {
-  generateSimpleTitle,
-  generateSessionId as createSessionId,
-} from '@/shared/utils/session-utils';
+import { createSessionId as _createSessionId } from '@/shared/utils/helpers';
 import type { ConversationMessage, MemorySession } from '@/shared/types/session';
 import type {
   SessionStatistics,
@@ -40,6 +37,13 @@ type SessionListData = {
  * Functional implementation of session service using the unified electronAPI client
  */
 export const createSessionService = (apiClient: ElectronAPI): SessionService => {
+  const generateSimpleTitle = (text: string): string => {
+    const clean = (text || '').trim().replace(/\s+/g, ' ');
+    if (!clean) return 'New Session';
+    const words = clean.split(' ');
+    const title = words.slice(0, 8).join(' ');
+    return title.length > 0 ? title : 'New Session';
+  };
   /**
    * Persist all messages for a session via IPC
    */
@@ -53,7 +57,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
       throw new Error(response.error?.message || 'Session API request failed');
     }
 
-    return response.data?.sessionId || memorySession.id || createSessionId();
+    return response.data?.sessionId || memorySession.id || _createSessionId();
   };
 
   /**
@@ -205,7 +209,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
    * Provide session identifiers compatible with previous implementation
    */
   const generateSessionId = (): string => {
-    return createSessionId();
+    return _createSessionId();
   };
 
   return {

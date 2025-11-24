@@ -16,7 +16,7 @@ import type {
   TimeStatsDisplay,
   CreateLearningSessionRequest,
   ConceptProgressUpdate,
-} from '@/shared/interfaces/analytics.interface';
+} from '@/shared/types/analytics';
 
 export interface AnalyticsAPI {
   /**

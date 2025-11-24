@@ -10,7 +10,7 @@ import {
   LearningSession,
   SessionDisplay,
   ConceptNotFoundError,
-} from '@/shared/interfaces/analytics.interface';
+} from '@/shared/types/analytics';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AchievementDisplay as APIAchievementDisplay } from '@/shared/types/electron-api/analytics-api';
 

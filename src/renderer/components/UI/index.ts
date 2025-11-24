@@ -107,7 +107,6 @@ export { ErrorBoundary } from './ErrorBoundary';
 /**
  * 💬 Chat-specific error boundary with message recovery options
  */
-export { ChatErrorBoundary } from './ChatErrorBoundary';
 
 /**
  * 🧩 Generic component error boundary for non-critical components

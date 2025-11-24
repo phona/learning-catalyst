@@ -29,16 +29,6 @@ export {
   type MemoryStats,
 } from './performance-monitor';
 
-// Optimization Patterns
-export {
-  DataProcessor,
-  StreamProcessor,
-  MultiLevelCache,
-  RequestDeduplicator,
-  CircuitBreaker,
-  MemoryEfficientQueue,
-  createRetryPolicy,
-} from './optimization-patterns';
 
 // Type Utilities
 export {
@@ -109,13 +99,4 @@ export {
   createServiceError,
 } from '../types/ipc/base-types';
 
-export { createKnowledgeGraphModule, type KnowledgeGraphModule } from './knowledge-graph';
-
-// Module type definitions for convenience (legacy)
-export type {
-  Concept,
-  Relationship,
-  ConceptNode,
-  KnowledgeGraphStats,
-  ConceptPath,
-} from './knowledge-graph';
+// Deprecated knowledge-graph utilities removed

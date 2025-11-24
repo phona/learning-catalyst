@@ -18,7 +18,7 @@ import {
   ConceptNotFoundError,
   UsageStatsDisplay,
   TokenUsageDisplay,
-} from '@/shared/interfaces/analytics.interface';
+} from '@/shared/types/analytics';
 import { LoggerService } from '../../core/logger/logger-service';
 import { v4 as uuidv4 } from 'uuid';
 

@@ -75,11 +75,11 @@ import type {
   ConceptProgressDisplay,
   LearningTrendDisplay,
   ConceptProgressUpdate,
-} from '@/shared/interfaces/analytics.interface';
+} from '@/shared/types/analytics';
 
 // Import analytics display types from the correct source
 import type { AchievementDisplay } from '@/shared/types/electron-api/analytics-api';
-import type { AchievementDisplay as IAchievementDisplay } from '@/shared/interfaces/analytics.interface';
+import type { AchievementDisplay as IAchievementDisplay } from '@/shared/types/analytics';
 
 import { createElectronAPIClient } from './api/electron-api-client';
 import { createSessionService } from './session/session-service';
