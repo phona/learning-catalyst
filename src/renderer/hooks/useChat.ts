@@ -57,7 +57,13 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentSession, setCurrentSession] = useState<SessionDisplay | null>(null);
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(options.agentId ?? null);
+  const {
+    agentId: initialAgentId,
+    sessionId: initialSessionId,
+    onMessage,
+    onError,
+  } = options;
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(initialAgentId ?? null);
 
   const streamingExecutionRef = useRef<string | null>(null);
   const chatService = useChatService();
@@ -83,20 +89,20 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load session';
         setError(errorMessage);
-        options.onError?.(new Error(errorMessage));
+        onError?.(new Error(errorMessage));
       } finally {
         setIsLoading(false);
       }
     },
-    [chatService, options.onError],
+    [chatService, onError],
   );
 
   // Load initial session if provided
   useEffect(() => {
-    if (options.sessionId && chatService) {
-      loadSession(options.sessionId);
+    if (initialSessionId && chatService) {
+      loadSession(initialSessionId);
     }
-  }, [options.sessionId, chatService, loadSession]);
+  }, [initialSessionId, chatService, loadSession]);
 
   // Send a simple message
   const sendMessage = useCallback(
@@ -117,7 +123,7 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         setMessages((prev) => [...prev, userMessage]);
 
         // Ensure session exists
-        let sessionId: string | undefined = currentSession?.id ?? options.sessionId;
+        let sessionId: string | undefined = currentSession?.id ?? initialSessionId;
         if (!sessionId && chatService.createSession) {
           const createdId = await chatService.createSession('Untitled Session');
           if (!createdId) {
@@ -135,23 +141,16 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
         // Add assistant message to local state
         setMessages((prev) => [...prev, response]);
-        options.onMessage?.(response);
+        onMessage?.(response);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMessage);
-        options.onError?.(new Error(errorMessage));
+        onError?.(new Error(errorMessage));
       } finally {
         setIsLoading(false);
       }
     },
-    [
-      chatService,
-      currentSession,
-      options.sessionId,
-      selectedAgent,
-      options.onMessage,
-      options.onError,
-    ],
+    [chatService, currentSession, initialSessionId, selectedAgent, onMessage, onError, loadSession],
   );
 
   // Send a message with streaming response
@@ -193,7 +192,7 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         let streamingContent = '';
 
         // Ensure session exists
-        let sessionId: string | undefined = currentSession?.id ?? options.sessionId;
+        let sessionId: string | undefined = currentSession?.id ?? initialSessionId;
         if (!sessionId && chatService.createSession) {
           const createdId = await chatService.createSession('Untitled Session');
           if (!createdId) {
@@ -235,12 +234,12 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           ),
         );
 
-        options.onMessage?.(response);
+        onMessage?.(response);
       } catch (err) {
         console.error('[useChat] Streaming failed', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
         setError(errorMessage);
-        options.onError?.(new Error(errorMessage));
+        onError?.(new Error(errorMessage));
       } finally {
         console.log('[useChat] isStreaming -> false');
         console.log('[useChat] Streaming end');
@@ -249,19 +248,12 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         
       }
     },
-    [
-      chatService,
-      currentSession,
-      options.sessionId,
-      selectedAgent,
-      options.onMessage,
-      options.onError,
-    ],
+    [chatService, currentSession, initialSessionId, selectedAgent, onMessage, onError, loadSession],
   );
 
   // Stop streaming
   const stopStreaming = useCallback(async () => {
-    const sessionId = streamingExecutionRef.current ?? currentSession?.id ?? options.sessionId ?? null;
+    const sessionId = streamingExecutionRef.current ?? currentSession?.id ?? initialSessionId ?? null;
     if (sessionId && chatService?.cancelStream) {
       try {
         console.log('[useChat] Stop requested', { sessionId });
@@ -273,7 +265,7 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
     }
     console.log('[useChat] isStreaming -> false (stop)');
     setIsStreaming(false);
-  }, [chatService, currentSession, options.sessionId]);
+  }, [chatService, currentSession, initialSessionId]);
 
   // Clear messages
   const clearMessages = useCallback(() => {
@@ -298,11 +290,11 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to create session';
         setError(errorMessage);
-        options.onError?.(new Error(errorMessage));
+        onError?.(new Error(errorMessage));
         return null;
       }
     },
-    [loadSession, options.onError],
+    [chatService, loadSession, onError],
   );
 
   // Update session title
@@ -321,10 +313,10 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to update session';
         setError(errorMessage);
-        options.onError?.(new Error(errorMessage));
+        onError?.(new Error(errorMessage));
       }
     },
-    [currentSession, options.onError],
+    [chatService, currentSession, onError],
   );
 
   // Get available agents
@@ -334,10 +326,10 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get agents';
       setError(errorMessage);
-      options.onError?.(new Error(errorMessage));
+      onError?.(new Error(errorMessage));
       return [];
     }
-  }, [options.onError]);
+  }, [chatService, onError]);
 
   return {
     // State

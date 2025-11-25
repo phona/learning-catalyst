@@ -8,6 +8,7 @@
 
 import { PerformanceMonitor, LRUCache, EventBatcher } from './performance-utils';
 import { createTypedEventEmitter } from './type-utils';
+import { totalmem } from 'os';
 
 interface PerformanceMetrics {
   timestamp: number;
@@ -324,7 +325,7 @@ class MemoryMonitor {
     // Try to get system memory info (Node.js v14.10.0+)
     let totalMemory = 1024 * 1024 * 1024; // 1GB default
     try {
-      totalMemory = require('os').totalmem();
+      totalMemory = totalmem();
     } catch {
       // Fallback if os module not available
     }

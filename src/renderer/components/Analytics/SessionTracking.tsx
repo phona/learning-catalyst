@@ -89,7 +89,7 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [_loadSessions]);
 
   React.useEffect(() => {
     loadRecentSessions();

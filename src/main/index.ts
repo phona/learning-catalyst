@@ -7,7 +7,11 @@ import { setupChatHandlers } from './handlers/chat-handlers';
 import { setupSessionsHandlers } from './handlers/sessions-handlers';
 import { setupEnhancedAgentHandlers } from './handlers/agent-enhanced-handlers';
 import { setupSettingsHandlers } from './handlers/settings-handlers';
-import { serializeIPCError, applyStructuredErrorHandling, getRegisteredIpcChannels } from './handlers/ipc-error-handler';
+import {
+  serializeIPCError,
+  applyStructuredErrorHandling,
+  getRegisteredIpcChannels,
+} from './handlers/ipc-error-handler';
 import { createAppMenu } from './menu';
 import { MainThreadLogger } from './services/logger';
 
@@ -120,7 +124,6 @@ const preload = path.join(__dirname, '../preload/index.cjs');
 const indexHtml = path.join(RENDERER_DIST, 'index.html');
 
 // Disable GPU acceleration to avoid possible blank window issues on some drivers
- 
 
 async function createWindow(): Promise<void> {
   win = new BrowserWindow({
@@ -159,8 +162,6 @@ async function createWindow(): Promise<void> {
     backgroundColor: '#ffffff',
   });
 
-  
-
   // Add proper cleanup on window close
   win.on('closed', () => {
     win = null;
@@ -182,7 +183,6 @@ async function createWindow(): Promise<void> {
     return { action: 'deny' };
   });
 
-  
   // Get workspace from environment variable or command line arguments or use current directory as default
   const workspaceEnv = process.env.WORKSPACE_PATH;
   const workspaceArg = process.argv.find((arg) => !arg.includes('electron') && !arg.includes('--'));
@@ -215,177 +215,112 @@ async function createWindow(): Promise<void> {
     storage: configStorage,
     logger: loggerService,
   });
+  configService.onConfigChanged(() => {
+    console.log('[Main] Config changed');
+  });
 
   applyStructuredErrorHandling();
   setupSettingsHandlers({ configService });
 
-  try {
-    const domainAgent = await createDomainAgent({
-      configService,
-    });
+  const domainAgent = await createDomainAgent({
+    configService,
+  });
 
-    console.log('[Main] Creating AI service manager...');
-    const aiServiceManager = createAiServiceManager({
-      loggerService,
-      configService,
-    });
-    console.log('[Main] AI service manager created. Waiting for ready...');
-    await aiServiceManager.waitForReady();
-    console.log('[Main] AI service manager is ready');
-    const aiService = aiServiceManager;
+  console.log('[Main] Creating AI service manager...');
+  const aiServiceManager = createAiServiceManager({
+    loggerService,
+    configService,
+  });
+  console.log('[Main] AI service manager created. Waiting for ready...');
+  await aiServiceManager.waitForReady();
+  console.log('[Main] AI service manager is ready');
+  const aiService = aiServiceManager;
 
-    const learningService = createLearningService({
-      db: database,
-      loggerService,
-      aiService,
-      domainAgent,
-    });
-    qdrantManagerInstance = createQdrantManager();
-    const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
-    await vectorDatabase.start();
-    const knowledgeService = createKnowledgeService({
-      db: database,
-      loggerService,
-    });
-    const conceptParsingService = createConceptParsingService({
-      aiService,
-      domainAgent,
-      vectorDatabase,
-      loggerService,
-    });
-    const practiceService = createPracticeService({
-      aiService,
-      domainAgent,
-      loggerService,
-      knowledgeService,
-    });
-    const analyticsService = createAnalyticsService({ db: database, loggerService });
-    const contentService = createContentService({ loggerService, aiService });
-    const agentManager = await createAgentManager({
-      aiService,
-      analyticsService,
-      conceptParsingService,
-      learningService,
-      loggerService,
-      configService,
-    });
+  const learningService = createLearningService({
+    db: database,
+    loggerService,
+    aiService,
+    domainAgent,
+  });
+  qdrantManagerInstance = createQdrantManager();
+  const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
+  await vectorDatabase.start();
+  const knowledgeService = createKnowledgeService({
+    db: database,
+    loggerService,
+  });
+  const conceptParsingService = createConceptParsingService({
+    aiService,
+    domainAgent,
+    vectorDatabase,
+    loggerService,
+  });
+  const practiceService = createPracticeService({
+    aiService,
+    domainAgent,
+    loggerService,
+    knowledgeService,
+  });
+  const analyticsService = createAnalyticsService({ db: database, loggerService });
+  const contentService = createContentService({ loggerService, aiService });
+  const agentManager = await createAgentManager({
+    aiService,
+    analyticsService,
+    conceptParsingService,
+    learningService,
+    loggerService,
+    configService,
+  });
 
-    const chatService = createChatService({
-      db: database,
-      loggerService,
-      aiService,
-      domainAgent,
-      agentManager,
-    });
+  const chatService = createChatService({
+    db: database,
+    loggerService,
+    aiService,
+    domainAgent,
+    agentManager,
+  });
 
-    // Setup IPC handlers with all services
-    await setupAllIpcHandlers(win, workspacePath, {
-      chatService,
-      learningService,
-      knowledgeService,
-      conceptParsingService,
-      practiceService,
-      analyticsService,
-      contentService,
-      aiService,
-      loggerService,
-      configService,
-    });
+  // Setup IPC handlers with all services
+  await setupAllIpcHandlers(win, workspacePath, {
+    chatService,
+    learningService,
+    knowledgeService,
+    conceptParsingService,
+    practiceService,
+    analyticsService,
+    contentService,
+    aiService,
+    loggerService,
+    configService,
+  });
 
-    // Setup application menu
-    const menu = createAppMenu(win);
-    win.setMenu(menu);
+  // Setup application menu
+  const menu = createAppMenu(win);
+  win.setMenu(menu);
 
-    const channels = getRegisteredIpcChannels();
-    console.log('IPC channels registered', { count: channels.length, channels });
+  const channels = getRegisteredIpcChannels();
+  console.log('IPC channels registered', { count: channels.length, channels });
 
-    if (VITE_DEV_SERVER_URL) {
-      console.log('[Main] Loading renderer URL', VITE_DEV_SERVER_URL);
-      win.loadURL(VITE_DEV_SERVER_URL);
-      if (process.env.NODE_ENV !== 'production') {
-        win.webContents.openDevTools();
-      }
-      console.log('[Main] Showing window');
-      win.show();
-    } else {
-      console.log('[Main] Loading renderer file', indexHtml);
-      win.loadFile(indexHtml);
-      console.log('[Main] Showing window');
-      win.show();
+  if (VITE_DEV_SERVER_URL) {
+    console.log('[Main] Loading renderer URL', VITE_DEV_SERVER_URL);
+    win.loadURL(VITE_DEV_SERVER_URL);
+    if (process.env.NODE_ENV !== 'production') {
+      win.webContents.openDevTools();
     }
-  } catch (error) {
-    console.error('? Error initializing services:', error);
-    reportMainError(error, 'services:init');
-    // Fallback: still load and show window even if services initialization fails
-    try {
-      if (VITE_DEV_SERVER_URL) {
-        console.log('[Main] Fallback load URL', VITE_DEV_SERVER_URL);
-        win?.loadURL(VITE_DEV_SERVER_URL);
-      } else {
-        console.log('[Main] Fallback load file', indexHtml);
-        win?.loadFile(indexHtml);
-      }
-      if (process.env.NODE_ENV !== 'production') {
-        try {
-          win?.webContents.openDevTools({ mode: 'detach' });
-        } catch {}
-      }
-      console.log('[Main] Fallback show window');
-      win?.show();
-    } catch (e) {
-      void e;
-    }
-
-    try {
-      const baseLogger = new MainThreadLogger('info', true, 1000);
-      const loggerService = createLoggerService({ logger: baseLogger });
-      const fallbackLearningService: any = {
-        getRecentSessions: async () => [],
-        searchSessions: async () => ({ sessions: [], totalResults: 0, query: '' }),
-        startLearningSession: async () => ({ id: `session_${Date.now()}` }),
-      };
-      setupSessionsHandlers(ipcMain, { learningService: fallbackLearningService, loggerService });
-      setupEnhancedAgentHandlers(ipcMain, {
-        aiService: {} as any,
-        learningService: fallbackLearningService,
-        knowledgeService: {} as any,
-        loggerService,
-      });
-
-      const canceledFallbackStreams = new Set<string>();
-      const fallbackChatService: any = {
-        streamAssistantResponse: async (params: { conversationId: string; content: string }) => {
-          const userMessage = {
-            id: `user_${Date.now()}`,
-            conversationId: params.conversationId,
-            role: 'user',
-            content: params.content,
-            timestamp: new Date().toISOString(),
-          };
-          const stream = async function* () {
-            const text = params.content || 'Hello! (fallback stream)';
-            const chunks = text.match(/.{1,50}/g) ?? [text];
-            for (const chunk of chunks) {
-              if (canceledFallbackStreams.has(params.conversationId)) break;
-              yield chunk;
-            }
-          };
-          return { userMessage, stream: stream() };
-        },
-        cancelStream: (conversationId: string) => {
-          canceledFallbackStreams.add(conversationId);
-        },
-      };
-      setupChatHandlers(ipcMain, {
-        chatService: fallbackChatService,
-        practiceService: {
-          generatePracticePlan: async () => ({ id: `suggestion_${Date.now()}`, options: { accept: {}, decline: {} } }),
-        } as any,
-        loggerService,
-      });
-      console.log('Fallback IPC handlers registered');
-    } catch {}
+    console.log('[Main] Showing window');
+    win.show();
+  } else {
+    console.log('[Main] Loading renderer file', indexHtml);
+    win.loadFile(indexHtml);
+    console.log('[Main] Showing window');
+    win.show();
   }
+
+  setupChatHandlers(ipcMain, {
+    chatService,
+    practiceService,
+    loggerService,
+  });
 }
 
 // Cleanup function to prevent memory leaks

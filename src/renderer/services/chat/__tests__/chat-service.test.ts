@@ -105,4 +105,122 @@ describe('chat-service', () => {
     await service.cancelExecution?.('exec-1');
     expect(cancel).toHaveBeenCalledWith('exec-1');
   });
+
+  it('handles event-driven streaming with callbacks', async () => {
+    const api = baseApi();
+    const events: any[] = [];
+    (api.chat!.sendMessageStream as any).mockImplementation(async (params: any, onEvent: any) => {
+      setTimeout(() => {
+        events.push('chunk1');
+        onEvent({ type: 'chunk', chunk: 'A' });
+      }, 0);
+      setTimeout(() => {
+        events.push('chunk2');
+        onEvent({ type: 'chunk', chunk: 'B' });
+      }, 1);
+      setTimeout(() => {
+        events.push('complete');
+        onEvent({ type: 'complete' });
+      }, 2);
+      return { success: true, data: { started: true } };
+    });
+    const onChunk = vi.fn();
+    const service = createChatService(api as ElectronAPI);
+    const result = await service.sendMessageStream('go', onChunk, { sessionId: 'session-ev' });
+    expect(onChunk).toHaveBeenCalledTimes(2);
+    expect(result.content).toBe('AB');
+    expect(result.provider).toBe('session-ev');
+    expect(events).toEqual(['chunk1', 'chunk2', 'complete']);
+  });
+
+  it('throws when streaming start fails', async () => {
+    const api = baseApi();
+    (api.chat!.sendMessageStream as any).mockResolvedValue({ success: false, error: { message: 'start failed' } });
+    const service = createChatService(api as ElectronAPI);
+    await expect(service.sendMessageStream('go', vi.fn(), { sessionId: 's1' })).rejects.toThrow(/start failed|Failed to start streaming/);
+  });
+
+  it('rejects on streaming error event', async () => {
+    const api = baseApi();
+    (api.chat!.sendMessageStream as any).mockImplementation(async (_p: any, onEvent: any) => {
+      setTimeout(() => {
+        onEvent({ type: 'error', error: 'oops' });
+      }, 0);
+      return { success: true, data: { started: true } };
+    });
+    const service = createChatService(api as ElectronAPI);
+    await expect(service.sendMessageStream('go', vi.fn(), { sessionId: 's1' })).rejects.toThrow(/oops/);
+  });
+
+  it('cancelStream resolves with aggregated content and calls API', async () => {
+    const api = baseApi();
+    (api.chat as any).cancelStream = vi.fn().mockResolvedValue({ success: true });
+    (api.chat!.sendMessageStream as any).mockImplementation(async (_p: any, onEvent: any) => {
+      setTimeout(() => {
+        onEvent({ type: 'chunk', chunk: 'Hello' });
+      }, 0);
+      return { success: true, data: { started: true } };
+    });
+    const service = createChatService(api as ElectronAPI);
+    const onChunk = vi.fn();
+    const promise = service.sendMessageStream('go', onChunk, { sessionId: 'sess-cancel' });
+    setTimeout(async () => {
+      await service.cancelStream?.('sess-cancel');
+    }, 1);
+    const result = await promise;
+    expect(onChunk).toHaveBeenCalledTimes(1);
+    expect(result.content).toBe('Hello');
+    expect((api.chat as any).cancelStream).toHaveBeenCalledWith('sess-cancel');
+  });
+
+  it('sendMessage throws on invalid content', async () => {
+    const service = createChatService(baseApi() as ElectronAPI);
+    await expect(service.sendMessage('')).rejects.toThrow(/Invalid message content/);
+  });
+
+  it('sendMessage throws when API fails', async () => {
+    const api = baseApi();
+    (api.chat!.sendMessage as any).mockResolvedValue({ success: false, error: { message: 'fail' } });
+    const service = createChatService(api as ElectronAPI);
+    await expect(service.sendMessage('hi', { sessionId: 's1' })).rejects.toThrow(/fail/);
+  });
+
+  it('sendMessageStream throws on invalid content', async () => {
+    const service = createChatService(baseApi() as ElectronAPI);
+    await expect(service.sendMessageStream('', vi.fn(), { sessionId: 's1' })).rejects.toThrow(/Invalid message content/);
+  });
+
+  it('getAvailableAgents returns empty on failure', async () => {
+    const api = baseApi();
+    (api.agents!.getAvailableAgents as any).mockResolvedValue({ success: false });
+    const service = createChatService(api as ElectronAPI);
+    expect(await service.getAvailableAgents?.()).toEqual([]);
+  });
+
+  it('getProviderInfo returns defaults', () => {
+    const info = createChatService(baseApi() as ElectronAPI).getProviderInfo?.();
+    expect(info).toEqual({ name: 'default', provider: 'chat' });
+  });
+
+  it('getSession returns null on failure', async () => {
+    const api = baseApi();
+    (api.sessions!.get as any).mockResolvedValue({ success: false });
+    const service = createChatService(api as ElectronAPI);
+    expect(await service.getSession?.('s1')).toBeNull();
+  });
+
+  it('createSession returns null on failure', async () => {
+    const api = baseApi();
+    (api.sessions!.create as any).mockResolvedValue({ success: false });
+    const service = createChatService(api as ElectronAPI);
+    expect(await service.createSession?.('t')).toBeNull();
+  });
+
+  it('checkPracticeOpportunity returns data on success', async () => {
+    const api = baseApi();
+    (api.chat!.checkPracticeOpportunity as any).mockResolvedValue({ success: true, data: { hasOpportunity: true } });
+    const service = createChatService(api as ElectronAPI);
+    const res = await service.checkPracticeOpportunity({ conversationId: 'c', userMessage: 'q' });
+    expect(res).toEqual({ hasOpportunity: true });
+  });
 });

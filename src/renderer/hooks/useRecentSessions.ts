@@ -193,7 +193,7 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
       initialLoadTriggeredRef.current = true;
       fetchSessions(currentLimit, true);
     }
-  }, [sessionService]); // Only run once when sessionService becomes available
+  }, [sessionService, fetchSessions, currentLimit]); // Only run once when sessionService becomes available
 
   const refresh = useCallback(async () => {
     await fetchSessions(currentLimit, true);

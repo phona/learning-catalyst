@@ -512,6 +512,7 @@ export const createChatService = ({
       attachments?: MessageAttachment[];
       metadata?: Record<string, unknown>;
     }): Promise<{ userMessage: Message; stream: AsyncGenerator<string> }> => {
+      serviceLogger.info('streamAssistantResponse invoked', { conversationId: params.conversationId });
       const conversation = await ensureConversation(params.conversationId);
 
       const userMessage: Message = {
@@ -544,7 +545,7 @@ export const createChatService = ({
         .map((message) => `[${message.role.toUpperCase()}] ${message.content}`)
         .join('\n');
 
-      const fallbackText = `Thanks for the question. Here's a quick thought on ${conversation.topic || 'this topic'}...`;
+      serviceLogger.info('Streaming history', { history });
       const input = `Conversation Topic: ${conversation.topic}
 Agent Type: ${conversation.agentType}
 History:
@@ -554,7 +555,6 @@ Respond to the latest user message in a helpful, encouraging tone.`;
 
       const stream = async function* () {
         let aggregated = '';
-        let fallbackUsed = false;
         let canceled = false;
 
         try {
@@ -583,43 +583,36 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             }
           }
         } catch (error) {
-          fallbackUsed = true;
-          serviceLogger.warn('Streaming assistant reply failed, using fallback text', {
+          serviceLogger.error('Streaming assistant reply failed', {
             conversationId: conversation.id,
             error,
           });
-          const chunks = fallbackText.match(/.{1,60}/g) ?? [fallbackText];
-          for (const chunk of chunks) {
-            if (canceledStreams.has(conversation.id)) {
-              canceled = true;
-              break;
-            }
-            aggregated += chunk;
-            yield chunk;
-            serviceLogger.debug('Fallback stream chunk', { conversationId: conversation.id, len: chunk.length });
-          }
+          throw error;
         } finally {
           const assistantMessage = buildAssistantMessage(conversation, {
-            reply: aggregated || fallbackText,
+            reply: aggregated,
             reasoning: [],
             suggestions: [],
-            confidence: fallbackUsed ? 0.4 : 0.75,
+            confidence: 0.75,
           });
-
-          conversation.messages.push(assistantMessage);
-          conversation.updatedAt = assistantMessage.timestamp;
+          if (aggregated) {
+            conversation.messages.push(assistantMessage);
+            conversation.updatedAt = assistantMessage.timestamp;
+          }
           conversation.metadata = {
             ...conversation.metadata,
             assistantTyping: false,
           };
-          await saveMessage(assistantMessage);
+          if (aggregated) {
+            await saveMessage(assistantMessage);
+            await updateContextTracker({
+              conversationId: params.conversationId,
+              messageType: 'assistant_message',
+              content: assistantMessage.content,
+              userId: params.metadata?.userId as string | undefined,
+            });
+          }
           await persistConversation(conversation);
-          await updateContextTracker({
-            conversationId: params.conversationId,
-            messageType: 'assistant_message',
-            content: assistantMessage.content,
-            userId: params.metadata?.userId as string | undefined,
-          });
           if (canceled) {
             canceledStreams.delete(conversation.id);
             serviceLogger.info('Stream canceled', { conversationId: conversation.id, finalLen: aggregated.length });

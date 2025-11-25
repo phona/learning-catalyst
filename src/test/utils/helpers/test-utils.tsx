@@ -73,11 +73,13 @@ const customRender = (
   return render(ui, { wrapper: Wrapper, ...renderOptions });
 };
 
+let originalConsoleError = console.error;
+
 // Mock handlers for common interactions
 export const mockHandlers = {
   // Prevent console.error from failing tests
   suppressConsoleErrors: () => {
-    const originalError = console.error;
+    originalConsoleError = console.error;
     console.error = (...args: any[]) => {
       if (
         typeof args[0] === 'string' &&
@@ -85,13 +87,13 @@ export const mockHandlers = {
       ) {
         return;
       }
-      originalError.call(console, ...args);
+      originalConsoleError.call(console, ...args);
     };
   },
 
   // Restore console.error
   restoreConsole: () => {
-    console.error = console.error;
+    console.error = originalConsoleError;
   },
 
   // Mock ResizeObserver

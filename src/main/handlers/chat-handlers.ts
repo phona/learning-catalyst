@@ -220,6 +220,10 @@ export const setupChatHandlers = (
 
   ipcMainInstance.handle('chat:send-message', async (_event, params: SendMessageParams) => {
     handlerLogger.info('Sending chat message', { conversationId: params.conversationId });
+    if ((services.chatService as any).__fallback === true) {
+      handlerLogger.error('Chat service unavailable (fallback)');
+      return fail('chat.unavailable', 'Chat service unavailable');
+    }
     const result = await services.chatService.sendMessage({
       conversationId: params.conversationId,
       role: 'user',
@@ -237,20 +241,43 @@ export const setupChatHandlers = (
 
   ipcMainInstance.on('chat:start-stream', async (event, params: SendMessageParams) => {
     handlerLogger.info('Starting chat stream', { conversationId: params.conversationId, messageLen: params.message?.length ?? 0 });
+    handlerLogger.debug('Calling chatService.streamAssistantResponse', {
+      hasMethod: typeof services.chatService.streamAssistantResponse === 'function',
+      isFallback: (services.chatService as any).__fallback === true,
+    });
     const channel = new MessageChannelMain();
     event.sender.postMessage('chat:stream-ready', null, [channel.port1]);
     channel.port2.start();
     activeStreams.set(params.conversationId, channel.port2);
+
+    if ((services.chatService as any).__fallback === true) {
+      handlerLogger.error('Chat service unavailable (fallback)');
+      try {
+        channel.port2.postMessage({
+          type: 'chat:error',
+          error: 'Chat service unavailable',
+        });
+      } catch {}
+      activeStreams.delete(params.conversationId);
+      channel.port2.close();
+      return;
+    }
     try {
-      const { stream } = await services.chatService.streamAssistantResponse({
+      const result = await services.chatService.streamAssistantResponse({
         conversationId: params.conversationId,
         content: params.message,
         attachments: params.attachments,
       });
+      handlerLogger.debug('Received stream from chatService', {
+        hasStream: !!result?.stream,
+        hasUserMessage: !!result?.userMessage,
+        userMessageLen: result?.userMessage?.content?.length ?? 0,
+      });
+      const { stream } = result;
       let chunkCount = 0;
       for await (const chunk of stream) {
         chunkCount++;
-        handlerLogger.debug('Streaming chunk', { conversationId: params.conversationId, length: String(chunk?.length ?? 0), chunkCount });
+        handlerLogger.info('Streaming chunk', { chunk });
         if (activeStreams.has(params.conversationId)) {
           try {
             channel.port2.postMessage({ type: 'chat:chunk', chunk });

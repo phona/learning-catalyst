@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FolderIcon,
   DocumentIcon,
@@ -186,141 +186,79 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const [activeParsingJob, setActiveParsingJob] = useState<ParsingJob | null>(null);
   const [showParsingResults, setShowParsingResults] = useState(false);
 
-  // Load initial directory (workspace directory)
-  useEffect(() => {
-    loadDefaultDirectory();
-  }, []);
+  const loadDirectory = useCallback(
+    async (dirPath: string, depthOverride?: number) => {
+      const depthToUse = depthOverride ?? maxDepth;
+      setIsLoading(true);
+      setError(null);
 
-  const loadDefaultDirectory = async () => {
+      try {
+        // Create filter configuration
+        const filterConfig: DirectoryFilterConfig = {
+          showHiddenFiles: false,
+          excludePatterns: ['node_modules', '.git', '.vscode', '.idea', 'dist', 'build'],
+        };
+
+        const directoryResult = await fileService.readDirectory(
+          dirPath,
+          true,
+          depthToUse,
+          filterConfig,
+        );
+        if (!directoryResult.success || !directoryResult.data) {
+          throw new Error(directoryResult.error?.message || 'Failed to load directory');
+        }
+        const items = directoryResult.data;
+
+        // Build tree structure
+        const tree = buildTreeStructure(items, dirPath, 0);
+
+        // Calculate statistics
+        const allItems = flattenTree(tree);
+        const totalFiles = allItems.filter((item) => item.isFile).length;
+        const totalDirectories = allItems.filter((item) => item.isDirectory).length;
+        const markdownFiles = allItems.filter((item) => item.isMarkdown).length;
+
+        setProjectStructure({
+          rootPath: dirPath,
+          items: tree,
+          totalFiles,
+          totalDirectories,
+          markdownFiles,
+          scanDepth: depthToUse,
+        });
+
+        setCurrentPath(dirPath);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load directory');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fileService, maxDepth],
+  );
+
+  const loadDefaultDirectory = useCallback(async () => {
     try {
-      // Try to get workspace path first
       const workspacePathResult = await fileService.getWorkspacePath();
       const workspacePath = workspacePathResult.success ? workspacePathResult.data : null;
       if (workspacePath) {
-        loadDirectory(workspacePath);
-      } else {
-        // Fallback to user's home directory or current working directory
-        const homePath = process.env.HOME || process.env.USERPROFILE || '.';
-        loadDirectory(homePath);
+        await loadDirectory(workspacePath);
+        return;
       }
-    } catch (error) {
-      // Fallback to user's home directory or current working directory
+
       const homePath = process.env.HOME || process.env.USERPROFILE || '.';
-      loadDirectory(homePath);
+      await loadDirectory(homePath);
+    } catch {
+      const homePath = process.env.HOME || process.env.USERPROFILE || '.';
+      await loadDirectory(homePath);
     }
-  };
+  }, [fileService, loadDirectory]);
 
-  const loadDirectory = async (dirPath: string) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Create filter configuration
-      const filterConfig: DirectoryFilterConfig = {
-        showHiddenFiles: false,
-        excludePatterns: ['node_modules', '.git', '.vscode', '.idea', 'dist', 'build'],
-      };
-
-      const directoryResult = await fileService.readDirectory(
-        dirPath,
-        true,
-        maxDepth,
-        filterConfig,
-      );
-      if (!directoryResult.success || !directoryResult.data) {
-        throw new Error(directoryResult.error?.message || 'Failed to load directory');
-      }
-      const items = directoryResult.data;
-
-      // Build tree structure
-      const tree = buildTreeStructure(items, dirPath, 0);
-
-      // Calculate statistics
-      const allItems = flattenTree(tree);
-      const totalFiles = allItems.filter((item) => item.isFile).length;
-      const totalDirectories = allItems.filter((item) => item.isDirectory).length;
-      const markdownFiles = allItems.filter((item) => item.isMarkdown).length;
-
-      setProjectStructure({
-        rootPath: dirPath,
-        items: tree,
-        totalFiles,
-        totalDirectories,
-        markdownFiles,
-        scanDepth: maxDepth,
-      });
-
-      setCurrentPath(dirPath);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load directory');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const buildTreeStructure = (
-    items: any[],
-    rootPath: string,
-    currentDepth: number,
-  ): DirectoryScanResult[] => {
-    const itemMap = new Map();
-    const rootItems: DirectoryScanResult[] = [];
-
-    // Create map of all items
-    items.forEach((item) => {
-      const relativePath = item.path.replace(rootPath, '').replace(/^[\/\\]/, '');
-      const pathParts = relativePath.split(/[\/\\]/);
-
-      const treeItem: DirectoryScanResult = {
-        ...item,
-        depth: currentDepth + pathParts.length - 1,
-        children: [],
-      };
-
-      itemMap.set(item.path, treeItem);
-    });
-
-    // Build tree hierarchy
-    items.forEach((item) => {
-      const treeItem = itemMap.get(item.path);
-      const parentPath = item.path.substring(
-        0,
-        item.path.lastIndexOf(/[\/\\]/.exec(item.path)?.[0] || ''),
-      );
-
-      if (parentPath === rootPath || !itemMap.has(parentPath)) {
-        rootItems.push(treeItem);
-      } else {
-        const parent = itemMap.get(parentPath);
-        if (parent) {
-          parent.children = parent.children || [];
-          parent.children.push(treeItem);
-        }
-      }
-    });
-
-    return rootItems.sort((a, b) => {
-      // Directories first, then files
-      if (a.isDirectory !== b.isDirectory) {
-        return a.isDirectory ? -1 : 1;
-      }
-      // Then alphabetically
-      return a.name.localeCompare(b.name);
-    });
-  };
-
-  const flattenTree = (items: DirectoryScanResult[]): DirectoryScanResult[] => {
-    let result: DirectoryScanResult[] = [];
-
-    items.forEach((item) => {
-      result.push(item);
-      if (item.children) {
-        result = result.concat(flattenTree(item.children));
-      }
-    });
-
-    return result;
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadDefaultDirectory();
+  }, []);
 
   const handleFileToggle = (filePath: string) => {
     setSelectedFiles((prev) => {
@@ -349,7 +287,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const handleDepthChange = (newDepth: number) => {
     setMaxDepth(newDepth);
     if (currentPath) {
-      loadDirectory(currentPath);
+      loadDirectory(currentPath, maxDepth);
     }
   };
 
@@ -929,4 +867,69 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     </div>
   );
 };
+
+const buildTreeStructure = (
+  items: any[],
+  rootPath: string,
+  currentDepth: number,
+): DirectoryScanResult[] => {
+  const itemMap = new Map();
+  const rootItems: DirectoryScanResult[] = [];
+
+  // Create map of all items
+  items.forEach((item) => {
+    const relativePath = item.path.replace(rootPath, '').replace(/^[\/\\]/, '');
+    const pathParts = relativePath.split(/[\/\\]/);
+
+    const treeItem: DirectoryScanResult = {
+      ...item,
+      depth: currentDepth + pathParts.length - 1,
+      children: [],
+    };
+
+    itemMap.set(item.path, treeItem);
+  });
+
+  // Build tree hierarchy
+  items.forEach((item) => {
+    const treeItem = itemMap.get(item.path);
+    const parentPath = item.path.substring(
+      0,
+      item.path.lastIndexOf(/[\/\\]/.exec(item.path)?.[0] || ''),
+    );
+
+    if (parentPath === rootPath || !itemMap.has(parentPath)) {
+      rootItems.push(treeItem);
+    } else {
+      const parent = itemMap.get(parentPath);
+      if (parent) {
+        parent.children = parent.children || [];
+        parent.children.push(treeItem);
+      }
+    }
+  });
+
+  return rootItems.sort((a, b) => {
+    // Directories first, then files
+    if (a.isDirectory !== b.isDirectory) {
+      return a.isDirectory ? -1 : 1;
+    }
+    // Then alphabetically
+    return a.name.localeCompare(b.name);
+  });
+};
+
+const flattenTree = (items: DirectoryScanResult[]): DirectoryScanResult[] => {
+  let result: DirectoryScanResult[] = [];
+
+  items.forEach((item) => {
+    result.push(item);
+    if (item.children) {
+      result = result.concat(flattenTree(item.children));
+    }
+  });
+
+  return result;
+};
+
 export default LocalProjectExplorer;

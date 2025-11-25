@@ -15,6 +15,7 @@ import type {
   MemorySession,
 } from '@/shared/types/session';
 import type { SessionService } from '../../services/session/session-service';
+import type { ChatService } from '@/renderer/services/chat/chat-service';
 import type { ChatAPI, SessionsAPI } from '@/shared/types/electron-api';
 import type { MessageDisplay as ChatAPIMessageDisplay } from '@/shared/types/electron-api/chat-api';
 
@@ -37,6 +38,7 @@ type SessionDetailFromAPI = Partial<Session> & {
 // Factory dependencies interface
 export interface ChatStoreDependencies {
   sessionService: SessionService;
+  chatService: ChatService;
   electronAPI: {
     chat: ChatAPI;
     sessions: SessionsAPI;
@@ -601,29 +603,22 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             set((state) => ({ messages: [...state.messages, assistantPlaceholder] }));
             get().startStreamingMessage(assistantId);
 
+            const { chatService } = dependencies;
             let aggregated = '';
-            const response = await electronAPI.chat.sendMessageStream(
-              {
-                conversationId: sessionId,
-                message: content,
-              },
-              (evt: { type: 'chunk' | 'complete' | 'error'; chunk?: string; error?: string }) => {
-                if (evt.type === 'chunk') {
-                  if (get().streamingCancelled) {
-                    return;
-                  }
-                  const text = typeof evt.chunk === 'string' ? evt.chunk : String(evt.chunk ?? '');
-                  aggregated += text;
-                  get().appendStreamingContent(text);
+            const result = await chatService.sendMessageStream(
+              content,
+              (chunk) => {
+                if (get().streamingCancelled) {
+                  return;
                 }
+                const text = typeof chunk.content === 'string' ? chunk.content : String(chunk.content ?? '');
+                aggregated += text;
+                get().appendStreamingContent(text);
               },
+              { sessionId },
             );
 
-            if (!response.success) {
-              throw new Error(response.error?.message || 'Failed to start streaming');
-            }
-
-            get().finishStreamingMessage(aggregated);
+            get().finishStreamingMessage(result.content);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to stream message';
             set({ error: errorMessage, isStreaming: false });

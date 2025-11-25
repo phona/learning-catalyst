@@ -4,7 +4,7 @@ type IpcHandler = (event: { sender: IpcRendererFake }, ...args: unknown[]) => un
 type HandlerMap = Map<string, IpcHandler>;
 
 class IpcMainFake extends EventEmitter {
-  private handlers: HandlerMap = new Map();
+  private readonly handlers: HandlerMap = new Map();
   private defaultSender?: IpcRendererFake;
 
   handle(channel: string, handler: IpcHandler) {
@@ -29,7 +29,7 @@ class IpcMainFake extends EventEmitter {
 }
 
 class IpcRendererFake extends EventEmitter {
-  constructor(private main: IpcMainFake) {
+  constructor(private readonly main: IpcMainFake) {
     super();
   }
 

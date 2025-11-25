@@ -62,7 +62,7 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     setConfigurationService(configService);
-  }, [configService, setConfigurationService]);
+  }, [configService]);
 
   useEffect(() => {
     setAgentService(agentService);
@@ -74,7 +74,7 @@ export default function App(): JSX.Element {
           console.error('Failed to load agents:', error);
         });
     }
-  }, [agentService, setAgentService, status]);
+  }, [agentService, status]);
 
   useEffect(() => {
     const checkConfig = async () => {
