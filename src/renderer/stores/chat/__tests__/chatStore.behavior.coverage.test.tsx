@@ -11,6 +11,7 @@ import {
 import {
   createMockElectronAPI,
   createMockSessionService,
+  createMockChatService,
 } from '@/renderer/stores/chat/__tests__/test-utils';
 
 type UIMessageDisplay = ChatState['messages'][number];
@@ -24,6 +25,7 @@ describe('chatStore advanced coverage', () => {
     dependencies = {
       sessionService: createMockSessionService(),
       electronAPI: createMockElectronAPI(),
+      chatService: createMockChatService(createMockElectronAPI()),
     };
   });
 
@@ -163,7 +165,7 @@ describe('chatStore advanced coverage', () => {
       role: 'assistant',
       content: '',
       timestamp: new Date(),
-      status: 'processing',
+      status: 'typing',
       showThinking: true,
     } as UIMessageDisplay);
 

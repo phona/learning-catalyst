@@ -731,6 +731,10 @@ const electronAPI = {
     return () => ipcRenderer.removeListener(IPC_ERROR_CHANNEL, listener);
   },
 
+  // Global error buffer accessors
+  getErrorBuffer: () => ipcRenderer.invoke('system:get-error-buffer'),
+  clearErrorBuffer: () => ipcRenderer.invoke('system:clear-error-buffer'),
+
   // Utility methods for better error handling and debugging
 
   /**

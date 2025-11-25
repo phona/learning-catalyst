@@ -182,8 +182,6 @@ export const createAIService = ({ loggerService, config }: AiServiceDeps): AiSer
         code: 'ai.provider.not_found',
         message:
           'Requested AI provider is not available. Verify your provider settings or pick another model.',
-        needsSetup: true,
-        action: 'openProviderSetup',
         details: {
           requestedProvider: providerKey || params.modelConfig.model,
         },

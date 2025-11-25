@@ -15,6 +15,7 @@ import { createChatStore } from '@/renderer/stores/chat/chatStore';
 import {
   createMockSessionService,
   createMockElectronAPI,
+  createMockChatService,
 } from '@/renderer/stores/chat/__tests__/test-utils';
 
 describe('Simplified Chat Store', () => {
@@ -32,6 +33,7 @@ describe('Simplified Chat Store', () => {
     store = createChatStore({
       sessionService: mockSessionService,
       electronAPI: mockElectronAPI,
+      chatService: createMockChatService(mockElectronAPI),
     });
   });
 

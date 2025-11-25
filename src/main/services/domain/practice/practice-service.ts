@@ -138,6 +138,7 @@ export const createPracticeService = ({
   const serviceLogger = loggerService.child({ service: 'practice' });
   const presetId = 'practice.exercise';
   let modelConfig: ModelConfig;
+  let currentDomainAgent = domainAgent;
 
   try {
     modelConfig = aiService.getModelPreset(presetId);
@@ -146,12 +147,12 @@ export const createPracticeService = ({
     modelConfig = aiService.getModelPreset('chat.reply');
   }
 
-  const { runStructuredJson } = createStructuredJsonRunner({
+  let runStructuredJson = createStructuredJsonRunner({
     aiService,
-    domainAgent,
+    domainAgent: currentDomainAgent,
     logger: serviceLogger,
     modelConfig,
-  });
+  }).runStructuredJson;
 
   const generatePracticePlan = async (request: PracticeRequest): Promise<PracticePlan> => {
     const normalized: PracticeRequest = {
@@ -236,6 +237,22 @@ export const createPracticeService = ({
 
   return {
     generatePracticePlan,
+    rebuild: async (agent?: DomainAgent) => {
+      if (agent) {
+        currentDomainAgent = agent;
+      }
+      try {
+        modelConfig = aiService.getModelPreset(presetId);
+      } catch {
+        modelConfig = aiService.getModelPreset('chat.reply');
+      }
+      runStructuredJson = createStructuredJsonRunner({
+        aiService,
+        domainAgent: currentDomainAgent,
+        logger: serviceLogger,
+        modelConfig,
+      }).runStructuredJson;
+    },
   };
 };
 

@@ -22,7 +22,6 @@ describe('resolveProviderSettings', () => {
     await expect(errorPromise).rejects.toMatchObject({
       type: 'CONFIG_ERROR',
       code: 'provider.config.chat_missing',
-      needsSetup: true,
     });
   });
 
@@ -43,7 +42,6 @@ describe('resolveProviderSettings', () => {
     await expect(errorPromise).rejects.toMatchObject({
       type: 'CONFIG_ERROR',
       code: 'provider.config.missing',
-      needsSetup: true,
     });
   });
 

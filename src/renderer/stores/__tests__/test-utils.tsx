@@ -15,6 +15,8 @@ import type {
 } from '@/shared/types/electron-api/chat-api';
 import type { ChatStoreDependencies } from '../chat/chatStore';
 import { createChatStore } from '../chat/chatStore';
+import type { ChatService } from '@/renderer/services/chat/chat-service';
+import type { Message, StreamChunk } from '@/shared/types/ai';
 
 const makeSessionDisplay = (overrides: Partial<SessionDisplay> = {}): SessionDisplay => ({
   id: 'test-session-id',
@@ -229,6 +231,66 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
   };
 }
 
+export function createMockChatService(electron: { chat: ChatAPI; sessions: SessionsAPI }): ChatService {
+  return {
+    sendMessage: async (
+      content: string,
+      options?: { sessionId?: string; agentId?: string; provider?: string; model?: string },
+    ): Promise<Message> => {
+      const sessionId = options?.sessionId ?? 'test-session-id';
+      const response = await electron.chat.sendMessage({
+        conversationId: sessionId,
+        message: content,
+      });
+      const data = (response as any)?.data ?? {};
+      return {
+        id: data.id ?? `assistant_${Date.now()}`,
+        role: (data.role as Message['role']) ?? 'assistant',
+        content: data.content ?? '',
+        timestamp: new Date(data.timestamp ?? Date.now()),
+        provider: sessionId,
+      };
+    },
+    sendMessageStream: async (
+      content: string,
+      onChunk: (chunk: StreamChunk) => void,
+      options?: { sessionId?: string; agentId?: string; provider?: string; model?: string },
+    ): Promise<Message> => {
+      const sessionId = options?.sessionId ?? 'test-session-id';
+      const started = await electron.chat.sendMessageStream(
+        { conversationId: sessionId, message: content },
+        (evt: any) => {
+          if (evt?.type === 'chunk') {
+            const part = String(evt.chunk ?? '');
+            onChunk({ content: part });
+          }
+        },
+      );
+      let aggregated = '';
+      const data = (started as any)?.data;
+      const isAsyncIterable = data && typeof data[Symbol.asyncIterator] === 'function';
+      if (isAsyncIterable) {
+        for await (const chunk of data as AsyncIterable<string>) {
+          const part = String(chunk ?? '');
+          aggregated += part;
+          onChunk({ content: part });
+        }
+      }
+      if (!aggregated) {
+        aggregated = 'Mock streaming response';
+      }
+      return {
+        id: `assistant_${Date.now()}`,
+        role: 'assistant',
+        content: aggregated,
+        timestamp: new Date(),
+        provider: sessionId,
+      };
+    },
+    checkPracticeOpportunity: async () => ({ hasOpportunity: false, reason: '', suggestions: [] } as any),
+  };
+}
+
 // Test factory function
 export function createTestChatStore(
   overrides?: Partial<ChatStoreDependencies>,
@@ -236,6 +298,7 @@ export function createTestChatStore(
   const defaultDeps: ChatStoreDependencies = {
     sessionService: createMockSessionService(),
     electronAPI: createMockElectronAPI(),
+    chatService: createMockChatService(createMockElectronAPI()),
   };
 
   return createChatStore({ ...defaultDeps, ...overrides });

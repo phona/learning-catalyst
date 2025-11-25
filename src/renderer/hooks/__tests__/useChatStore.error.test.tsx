@@ -33,6 +33,7 @@ import { createChatStore, type ChatStoreDependencies } from '@/renderer/stores/c
 import {
   createMockSessionService,
   createMockElectronAPI,
+  createMockChatService,
   testScenarios,
 } from '@/renderer/stores/chat/__tests__/test-utils';
 
@@ -43,10 +44,12 @@ describe('useChatStore Error Scenarios', () => {
 
   describe('Clean Dependency Injection', () => {
     it('should work with valid dependencies', () => {
+      const api = createMockElectronAPI();
       const dependencies: ChatStoreDependencies = {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         sessionService: createMockSessionService(),
-        electronAPI: createMockElectronAPI(),
+        electronAPI: api,
+        chatService: createMockChatService(api),
       };
 
       const store = createChatStore(dependencies);
@@ -58,6 +61,7 @@ describe('useChatStore Error Scenarios', () => {
 
     it('should work with minimal session service implementation', () => {
       const baseSessionService: SessionService = createMockSessionService();
+      const api2 = createMockElectronAPI();
       const dependencies: ChatStoreDependencies = {
         sessionService: {
           ...baseSessionService,
@@ -66,7 +70,8 @@ describe('useChatStore Error Scenarios', () => {
           updateSessionTitle: vi.fn().mockResolvedValue(undefined),
           saveMessage: vi.fn().mockResolvedValue(undefined),
         },
-        electronAPI: createMockElectronAPI(),
+        electronAPI: api2,
+        chatService: createMockChatService(api2),
       };
 
       const store = createChatStore(dependencies);
@@ -78,6 +83,7 @@ describe('useChatStore Error Scenarios', () => {
 
     it('should handle session service errors gracefully', async () => {
       const baseSessionService: SessionService = createMockSessionService();
+      const api3 = createMockElectronAPI();
       const dependencies: ChatStoreDependencies = {
         sessionService: {
           ...baseSessionService,
@@ -86,7 +92,8 @@ describe('useChatStore Error Scenarios', () => {
           updateSessionTitle: vi.fn().mockResolvedValue(undefined),
           saveMessage: vi.fn().mockResolvedValue(undefined),
         },
-        electronAPI: createMockElectronAPI(),
+        electronAPI: api3,
+        chatService: createMockChatService(api3),
       };
 
       const store = createChatStore(dependencies);
@@ -124,10 +131,12 @@ describe('useChatStore Error Scenarios', () => {
 
   describe('Error Handling in Store Operations', () => {
     it('should handle addMessage errors gracefully', () => {
+      const api = createMockElectronAPI();
       const dependencies: ChatStoreDependencies = {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         sessionService: createMockSessionService(),
-        electronAPI: createMockElectronAPI(),
+        electronAPI: api,
+        chatService: createMockChatService(api),
       };
       const store = createChatStore(dependencies);
 
@@ -143,10 +152,12 @@ describe('useChatStore Error Scenarios', () => {
     });
 
     it('should handle setCurrentSession errors gracefully', () => {
+      const api = createMockElectronAPI();
       const dependencies: ChatStoreDependencies = {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         sessionService: createMockSessionService(),
-        electronAPI: createMockElectronAPI(),
+        electronAPI: api,
+        chatService: createMockChatService(api),
       };
       const store = createChatStore(dependencies);
 

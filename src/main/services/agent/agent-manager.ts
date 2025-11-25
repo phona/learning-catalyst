@@ -85,6 +85,12 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
         agentInstances = await createAllAgents();
         supervisorAgent = await createSupervisorAgent(toolDeps, agentInstances);
         currentConfig = newConfig;
+        if (typeof deps.conceptParsingService?.rebuild === 'function') {
+          await deps.conceptParsingService.rebuild();
+        }
+        if (typeof deps.learningService?.rebuild === 'function') {
+          await deps.learningService.rebuild();
+        }
         deps.loggerService.info('Agents rebuilt successfully');
       } catch (error) {
         deps.loggerService.error('Failed to rebuild agents', { error });

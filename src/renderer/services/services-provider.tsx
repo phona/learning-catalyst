@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { ChatService } from './chat/chat-service';
 import type { SessionService } from './session/session-service';
 import type { DiscoveryService } from './discovery/discovery-service';
@@ -19,6 +19,8 @@ import {
 import { createFileService, type FileService } from './file/file-service';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import { createAgentService, type AgentService } from './agents/agent-service';
+import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import { requiresSetup } from '@/shared/types/ipc-error';
 
 interface ServiceContextType {
   electronAPIClient: ElectronAPI;
@@ -31,6 +33,9 @@ interface ServiceContextType {
   fileService: FileService;
   conceptParsing: ConceptParsingService;
   agentService: AgentService;
+  ipcErrors: IPCErrorPayload[];
+  needsSetup: boolean;
+  setupMessage: string | null;
 }
 
 const ServiceContext = createContext<ServiceContextType | null>(null);
@@ -71,6 +76,56 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
   const conceptParsing = overrides?.conceptParsing ?? createConceptParsingService(client);
   const agentService = overrides?.agentService ?? createAgentService(client);
 
+  const [ipcErrors, setIpcErrors] = useState<IPCErrorPayload[]>([]);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [setupMessage, setSetupMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    const api: any = client as any;
+    let active = true;
+    (async () => {
+      try {
+        if (api?.getErrorBuffer) {
+          const errors: any[] = await api.getErrorBuffer();
+          if (Array.isArray(errors) && errors.length > 0) {
+            setIpcErrors((prev) => [...prev, ...errors as IPCErrorPayload[]]);
+            for (const payload of errors as IPCErrorPayload[]) {
+              if (requiresSetup(payload)) {
+                setNeedsSetup(true);
+                setSetupMessage(String((payload as any)?.message ?? ''));
+                break;
+              }
+            }
+          }
+          try {
+            if (api?.clearErrorBuffer) {
+              await api.clearErrorBuffer();
+            }
+          } catch {}
+        }
+      } catch {}
+      try {
+        if (active && api?.onIPCError) {
+          unsubscribe = api.onIPCError((payload: any) => {
+            const typed = payload as IPCErrorPayload;
+            setIpcErrors((prev) => [...prev, typed]);
+            if (requiresSetup(typed)) {
+              setNeedsSetup(true);
+              setSetupMessage(String((typed as any)?.message ?? ''));
+            }
+          });
+        }
+      } catch {}
+    })();
+    return () => {
+      active = false;
+      try {
+        unsubscribe?.();
+      } catch {}
+    };
+  }, [client]);
+
   return (
     <ServiceContext.Provider
       value={{
@@ -84,6 +139,9 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
         fileService,
         conceptParsing,
         agentService,
+        ipcErrors,
+        needsSetup,
+        setupMessage,
       }}
     >
       {children}

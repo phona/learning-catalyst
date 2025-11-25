@@ -28,11 +28,11 @@ export const serializeIPCError = (error: unknown, channel = 'system'): IPCErrorP
   const details =
     error instanceof Error && error.stack ? { stack: error.stack, channel } : { channel };
 
+  const isMissingApiKey = code === 'provider.config.missing_api_key';
   return {
     type: 'SYSTEM_ERROR',
     code: `${channel}.${code}`,
     message,
-    action: 'retry',
     details,
   };
 };

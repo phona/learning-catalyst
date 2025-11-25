@@ -241,13 +241,14 @@ export const createLearningService = ({
   domainAgent: DomainAgent;
 }) => {
   const serviceLogger = loggerService.child({ service: 'learning' });
-  const learningModelPreset = aiService.getModelPreset('learning.plan');
-  const { runStructuredJson } = createStructuredJsonRunner({
+  let learningModelPreset = aiService.getModelPreset('learning.plan');
+  let currentDomainAgent = domainAgent;
+  let runStructuredJson = createStructuredJsonRunner({
     aiService,
-    domainAgent,
+    domainAgent: currentDomainAgent,
     logger: serviceLogger,
     modelConfig: learningModelPreset,
-  });
+  }).runStructuredJson;
 
   const ensureSessionRow = async (sessionId: string): Promise<LearningSessionRow> => {
     const row = await db
@@ -750,6 +751,18 @@ export const createLearningService = ({
         appliedFilters: filters || {},
         limit: filters?.limit ?? sessions.length,
       };
+    },
+    rebuild: async (agent?: DomainAgent) => {
+      if (agent) {
+        currentDomainAgent = agent;
+      }
+      learningModelPreset = aiService.getModelPreset('learning.plan');
+      runStructuredJson = createStructuredJsonRunner({
+        aiService,
+        domainAgent: currentDomainAgent,
+        logger: serviceLogger,
+        modelConfig: learningModelPreset,
+      }).runStructuredJson;
     },
   };
 };

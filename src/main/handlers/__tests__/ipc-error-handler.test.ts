@@ -8,7 +8,6 @@ describe('serializeIPCError', () => {
       type: 'CONFIG_ERROR',
       code: 'test.code',
       message: 'Setup is required',
-      needsSetup: true,
     });
 
     const structured = new IPCErrorException(payload);
@@ -24,7 +23,7 @@ describe('serializeIPCError', () => {
     expect(result.type).toBe('SYSTEM_ERROR');
     expect(result.code).toContain('handler:doSomething');
     expect(result.message).toBe('boom');
-    expect(result.action).toBe('retry');
+    // action is omitted; consumer decides based on code/type
   });
 
   it('passes through raw IPC payloads unchanged', () => {

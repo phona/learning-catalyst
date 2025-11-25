@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-import type { AppConfig } from '@/shared/types/config';
+import type { AppConfig, ProviderConfig } from '@/shared/types/config';
+import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
 type FileServiceStub = {
   showOpenDialog: () => Promise<{ canceled: boolean; filePaths: string[] }>;
@@ -14,9 +15,7 @@ type FileServiceStub = {
   getWorkspacePath: () => Promise<{ success: true; data: string }>;
 };
 
-type ConfigurationServiceStub = {
-  getConfig: () => Promise<AppConfig | null>;
-};
+type ConfigurationServiceStub = ConfigurationService;
 
 type ElectronAPIClientStub = {
   onIPCError: (callback: (payload: unknown) => void) => () => void;
@@ -43,7 +42,17 @@ export const createMockFileService = (): FileServiceStub => ({
 export const createMockConfigurationService = (
   config: AppConfig | null = null,
 ): ConfigurationServiceStub => ({
+  getAvailableProviders: vi
+    .fn()
+    .mockResolvedValue({ success: true, providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
+  configureProvider: vi
+    .fn()
+    .mockResolvedValue({ providerId: 'mock', status: 'configured' }),
+  validateProvider: vi.fn().mockResolvedValue({ success: true }),
+  getProviderModels: vi.fn().mockResolvedValue([]),
   getConfig: vi.fn().mockResolvedValue(config),
+  setConfig: vi.fn().mockResolvedValue(undefined),
+  saveConfig: vi.fn().mockResolvedValue(undefined),
 });
 
 export const createMockElectronAPIClient = (): ElectronAPIClientStub => ({

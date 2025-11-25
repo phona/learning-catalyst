@@ -101,8 +101,8 @@ export const renderWithServices = (
     if (seededClient.settings?.getConfig) {
       seededClient.settings.getConfig = async () => ({ success: true, data: preloadedConfig });
     }
-    if (seededClient.settings?.saveConfig) {
-      seededClient.settings.saveConfig = async () => ({ success: true });
+    if (seededClient.settings?.setConfig) {
+      seededClient.settings.setConfig = async () => ({ success: true });
     }
     client = seededClient;
   }

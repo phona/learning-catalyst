@@ -28,11 +28,11 @@ import { createAnalyticsService } from '@/main/services/domain/analytics/analyti
 import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager';
 import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager';
 import { createDomainAgent } from '@/main/services/agent/domain-agent';
-import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
+import { IPC_ERROR_CHANNEL, MAX_ERROR_BUFFER_SIZE } from '@/shared/types/ipc-error';
 import { createVectorDatabase } from './services/domain/knowledge/vector/vector-database';
 import { createQdrantManager } from '@/main/qdrant-manager';
 
-import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import type { IPCErrorPayload, BufferedIPCError } from '@/shared/types/ipc-error';
 
 // Import database from existing implementation
 import {
@@ -80,8 +80,27 @@ try {
 let win: BrowserWindow | null = null;
 let isShuttingDown = false;
 const pendingIpcErrors: IPCErrorPayload[] = [];
+const globalErrorBuffer: BufferedIPCError[] = [];
+
+const addToErrorBuffer = (payload: IPCErrorPayload) => {
+  const buffered: BufferedIPCError = { ...payload, timestamp: Date.now() };
+  if (globalErrorBuffer.length >= MAX_ERROR_BUFFER_SIZE) {
+    globalErrorBuffer.shift();
+  }
+  globalErrorBuffer.push(buffered);
+};
+
+const getErrorBuffer = (): BufferedIPCError[] => {
+  return [...globalErrorBuffer];
+};
+
+const clearErrorBuffer = (): void => {
+  globalErrorBuffer.length = 0;
+};
 
 const enqueueIpcError = (payload: IPCErrorPayload) => {
+  // Always add to the global buffer for renderer to drain on init
+  addToErrorBuffer(payload);
   if (win?.webContents && !win.webContents.isDestroyed()) {
     win.webContents.send(IPC_ERROR_CHANNEL, payload);
     return;
@@ -105,10 +124,21 @@ const flushPendingIpcErrors = () => {
 };
 
 const reportMainError = (error: unknown, channel = 'main') => {
+  console.log(error)
   const payload = serializeIPCError(error, channel);
   enqueueIpcError(payload);
   return payload;
 };
+
+// IPC handlers to expose the global error buffer to the renderer via preload
+ipcMain.handle('system:get-error-buffer', async () => {
+  return getErrorBuffer();
+});
+
+ipcMain.handle('system:clear-error-buffer', async () => {
+  clearErrorBuffer();
+  return { cleared: true };
+});
 
 process.on('uncaughtException', (error) => {
   console.error('[Main] Uncaught exception', error);
@@ -196,110 +226,7 @@ async function createWindow(): Promise<void> {
 
   console.log(`Using workspace: ${workspacePath}`);
 
-  // Initialize all services using the new functional architecture
-  const baseLogger = new MainThreadLogger('info', true, 1000);
-  const loggerService = createLoggerService({ logger: baseLogger });
-
-  // Create the actual database instance using the new driver factory pattern
-  const dbPath = getDefaultDatabasePath();
-  const driverFactory = await createSqliteDriverFactory(dbPath);
-  const database = createDatabase(driverFactory);
-
-  // Run database migrations before wiring domain services
-  await runMigrations(driverFactory);
-
-  // Create real config storage
-  const configStorage = createConfigStorage(learningCatalystPath);
-
-  const configService = createConfigService({
-    storage: configStorage,
-    logger: loggerService,
-  });
-  configService.onConfigChanged(() => {
-    console.log('[Main] Config changed');
-  });
-
-  applyStructuredErrorHandling();
-  setupSettingsHandlers({ configService });
-
-  const domainAgent = await createDomainAgent({
-    configService,
-  });
-
-  console.log('[Main] Creating AI service manager...');
-  const aiServiceManager = createAiServiceManager({
-    loggerService,
-    configService,
-  });
-  console.log('[Main] AI service manager created. Waiting for ready...');
-  await aiServiceManager.waitForReady();
-  console.log('[Main] AI service manager is ready');
-  const aiService = aiServiceManager;
-
-  const learningService = createLearningService({
-    db: database,
-    loggerService,
-    aiService,
-    domainAgent,
-  });
-  qdrantManagerInstance = createQdrantManager();
-  const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
-  await vectorDatabase.start();
-  const knowledgeService = createKnowledgeService({
-    db: database,
-    loggerService,
-  });
-  const conceptParsingService = createConceptParsingService({
-    aiService,
-    domainAgent,
-    vectorDatabase,
-    loggerService,
-  });
-  const practiceService = createPracticeService({
-    aiService,
-    domainAgent,
-    loggerService,
-    knowledgeService,
-  });
-  const analyticsService = createAnalyticsService({ db: database, loggerService });
-  const contentService = createContentService({ loggerService, aiService });
-  const agentManager = await createAgentManager({
-    aiService,
-    analyticsService,
-    conceptParsingService,
-    learningService,
-    loggerService,
-    configService,
-  });
-
-  const chatService = createChatService({
-    db: database,
-    loggerService,
-    aiService,
-    domainAgent,
-    agentManager,
-  });
-
-  // Setup IPC handlers with all services
-  await setupAllIpcHandlers(win, workspacePath, {
-    chatService,
-    learningService,
-    knowledgeService,
-    conceptParsingService,
-    practiceService,
-    analyticsService,
-    contentService,
-    aiService,
-    loggerService,
-    configService,
-  });
-
-  // Setup application menu
-  const menu = createAppMenu(win);
-  win.setMenu(menu);
-
-  const channels = getRegisteredIpcChannels();
-  console.log('IPC channels registered', { count: channels.length, channels });
+  // Defer service initialization until after window is shown
 
   if (VITE_DEV_SERVER_URL) {
     console.log('[Main] Loading renderer URL', VITE_DEV_SERVER_URL);
@@ -316,11 +243,128 @@ async function createWindow(): Promise<void> {
     win.show();
   }
 
-  setupChatHandlers(ipcMain, {
-    chatService,
-    practiceService,
-    loggerService,
-  });
+  try {
+    const baseLogger = new MainThreadLogger('info', true, 1000);
+    const loggerService = createLoggerService({ logger: baseLogger });
+
+    const dbPath = getDefaultDatabasePath();
+    const driverFactory = await createSqliteDriverFactory(dbPath);
+    const database = createDatabase(driverFactory);
+
+    await runMigrations(driverFactory);
+
+    const configStorage = createConfigStorage(learningCatalystPath);
+
+    const configService = createConfigService({
+      storage: configStorage,
+      logger: loggerService,
+    });
+    configService.onConfigChanged(() => {
+      console.log('[Main] Config changed');
+    });
+
+    applyStructuredErrorHandling();
+    setupSettingsHandlers({ configService });
+
+    const domainAgent = await createDomainAgent({
+      configService,
+    });
+
+    const aiServiceManager = createAiServiceManager({
+      loggerService,
+      configService,
+    });
+    await aiServiceManager.waitForReady();
+    const aiService = aiServiceManager;
+
+    const learningService = createLearningService({
+      db: database,
+      loggerService,
+      aiService,
+      domainAgent,
+    });
+
+    qdrantManagerInstance = createQdrantManager();
+    const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
+    await vectorDatabase.start();
+    const knowledgeService = createKnowledgeService({
+      db: database,
+      loggerService,
+    });
+
+    const conceptParsingService = createConceptParsingService({
+      aiService,
+      domainAgent,
+      vectorDatabase,
+      loggerService,
+    });
+
+    const practiceService = createPracticeService({
+      aiService,
+      domainAgent,
+      loggerService,
+      knowledgeService,
+    });
+
+    const analyticsService = createAnalyticsService({ db: database, loggerService });
+
+    const contentService = createContentService({ loggerService, aiService });
+
+    const agentManager = await createAgentManager({
+      aiService,
+      analyticsService,
+      conceptParsingService,
+      learningService,
+      loggerService,
+      configService,
+    });
+
+    const chatService = createChatService({
+      db: database,
+      loggerService,
+      aiService,
+      domainAgent,
+      agentManager,
+    });
+
+    await setupAllIpcHandlers(win, workspacePath, {
+      chatService,
+      learningService,
+      knowledgeService,
+      conceptParsingService,
+      practiceService,
+      analyticsService,
+      contentService,
+      aiService,
+      loggerService,
+      configService,
+    });
+
+    const menu = createAppMenu(win);
+    win.setMenu(menu);
+
+    const channels = getRegisteredIpcChannels();
+    console.log('IPC channels registered', { count: channels.length, channels });
+    aiServiceManager.onConfigReloaded(async () => {
+      try {
+        const updatedAgent = await createDomainAgent({ configService });
+        await conceptParsingService.rebuild(updatedAgent);
+        await practiceService.rebuild(updatedAgent);
+        await learningService.rebuild(updatedAgent);
+      } catch (error) {
+        reportMainError(error, 'configReload');
+      }
+    });
+
+    setupChatHandlers(ipcMain, {
+      chatService,
+      practiceService,
+      loggerService,
+    });
+
+  } catch (error) {
+    reportMainError(error, 'startup');
+  }
 }
 
 // Cleanup function to prevent memory leaks

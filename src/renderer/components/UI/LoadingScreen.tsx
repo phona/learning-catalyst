@@ -12,8 +12,6 @@ interface LoadingScreenProps {
   state?: 'config' | 'services' | 'database' | 'ai-provider' | 'ready';
   error?: string | null;
   onRetry?: () => void;
-  showProgress?: boolean;
-  progress?: number; // 0-100
 }
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
@@ -21,8 +19,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   state = 'config',
   error,
   onRetry,
-  showProgress = false,
-  progress = 0,
 }) => {
   const getStateContent = () => {
     switch (state) {
@@ -126,19 +122,6 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
         {/* Message */}
         <p className="text-gray-600 dark:text-gray-400 mb-4">{displayMessage}</p>
-
-        {/* Progress Bar */}
-        {showProgress && (
-          <div className="mb-4">
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{progress}% complete</p>
-          </div>
-        )}
 
         {/* Animated dots */}
         <div className="flex justify-center space-x-1">

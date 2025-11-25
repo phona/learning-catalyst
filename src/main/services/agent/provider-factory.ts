@@ -68,8 +68,6 @@ const normalizeSettings = (raw: ProviderConfig): ProviderSettings => {
       type: 'CONFIG_ERROR',
       code: 'provider.config.missing_api_key',
       message: `API key is required for provider ${providerName}`,
-      needsSetup: true,
-      action: 'openProviderSetup',
       details: { provider: providerName },
     });
   }
@@ -120,8 +118,6 @@ export const createProviderFactory = (configService: ConfigService) => {
         type: 'CONFIG_ERROR',
         code: 'provider.config.unsupported',
         message: `Unsupported provider: ${settings.providerType}`,
-        needsSetup: true,
-        action: 'openProviderSetup',
         details: { providerType: settings.providerType },
       });
     }
@@ -143,8 +139,6 @@ export const createProviderFactory = (configService: ConfigService) => {
         type: 'CONFIG_ERROR',
         code: 'provider.config.unsupported',
         message: `Unsupported provider for embeddings: ${settings.providerType}`,
-        needsSetup: true,
-        action: 'openProviderSetup',
         details: { providerType: settings.providerType },
       });
     }

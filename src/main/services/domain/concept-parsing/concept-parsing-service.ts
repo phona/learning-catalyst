@@ -286,6 +286,7 @@ export const createConceptParsingService = ({
   const serviceLogger = loggerService.child({ service: 'concept-parsing' });
   const presetId = 'knowledge.extraction';
   let modelConfig: ModelConfig;
+  let currentDomainAgent = domainAgent;
 
   try {
     modelConfig = aiService.getModelPreset(presetId);
@@ -294,12 +295,12 @@ export const createConceptParsingService = ({
     modelConfig = aiService.getModelPreset('default');
   }
 
-  const { runStructuredJson } = createStructuredJsonRunner({
+  let runStructuredJson = createStructuredJsonRunner({
     aiService,
-    domainAgent,
+    domainAgent: currentDomainAgent,
     logger: serviceLogger,
     modelConfig,
-  });
+  }).runStructuredJson;
 
   const extractSegment = async (
     segment: ConceptSegment,
@@ -532,6 +533,22 @@ export const createConceptParsingService = ({
 
   return {
     parseMaterials,
+    rebuild: async (agent?: DomainAgent) => {
+      if (agent) {
+        currentDomainAgent = agent;
+      }
+      try {
+        modelConfig = aiService.getModelPreset(presetId);
+      } catch {
+        modelConfig = aiService.getModelPreset('default');
+      }
+      runStructuredJson = createStructuredJsonRunner({
+        aiService,
+        domainAgent: currentDomainAgent,
+        logger: serviceLogger,
+        modelConfig,
+      }).runStructuredJson;
+    },
   };
 };
 

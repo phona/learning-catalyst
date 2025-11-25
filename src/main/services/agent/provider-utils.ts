@@ -31,8 +31,6 @@ const requireChatConfig = (): IPCErrorPayload => {
     code: 'provider.config.chat_missing',
     message:
       'Chat model configuration is missing. Please configure a provider before starting an agent.',
-    needsSetup: true,
-    action: 'openProviderSetup',
     details: { section: 'ai.modelTypes.chat' },
   });
 };
@@ -42,8 +40,6 @@ const missingProviderConfigError = (providerName: string): IPCErrorPayload => {
     type: 'CONFIG_ERROR',
     code: 'provider.config.missing',
     message: `Provider "${providerName}" is not configured yet. Set up your provider credentials in the settings.`,
-    needsSetup: true,
-    action: 'openProviderSetup',
     details: { providerName },
   });
 };
@@ -53,8 +49,6 @@ const missingApiKeyError = (providerName: string): IPCErrorPayload => {
     type: 'CONFIG_ERROR',
     code: 'provider.config.missing_api_key',
     message: `API key for provider "${providerName}" is required. Provide a valid key in the settings.`,
-    needsSetup: true,
-    action: 'openProviderSetup',
     details: { providerName },
   });
 };

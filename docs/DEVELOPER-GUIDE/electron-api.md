@@ -195,13 +195,15 @@ window.electronAPI.onIPCError((payload) => {
 
 Every payload follows:
 
-| Property     | Description                                                 |
-| ------------ | ----------------------------------------------------------- |
-| `type`       | Category (`CONFIG_ERROR`, `NETWORK_ERROR`, `SYSTEM_ERROR`). |
-| `code`       | Machine key (`provider.config.chat_missing`, etc.).         |
-| `message`    | Human-friendly message.                                     |
-| `needsSetup` | `true` when setup must appear.                              |
-| `details`    | Optional metadata (request IDs, diagnostics).               |
+| Property        | Description                                                 |
+| --------------- | ----------------------------------------------------------- |
+| `type`          | Category (`CONFIG_ERROR`, `NETWORK_ERROR`, `SYSTEM_ERROR`). |
+| `code`          | Machine key (`provider.config.missing_api_key`, etc.).      |
+| `message`       | Human-friendly message.                                     |
+| `severityLevel` | 'critical' or 'non-critical' classification.                |
+| `needsSetup`    | `true` when setup is required (e.g., for missing API key).  |
+| `action`        | Suggested action like 'retry' or 'openProviderSetup'.       |
+| `details`       | Optional metadata (request IDs, diagnostics).               |
 
 ## Common Response Format
 
@@ -219,6 +221,44 @@ Always check `success` before using `.data`. If `success` is `false`, the `error
 and should be surfaced or thrown. The `error.code` must be provided and non-empty for failures.
 Streaming helpers (e.g., `chat.sendMessageStream`) pass chunks as
 they arrive.
+
+## Visual Design for Error States and Notifications
+
+Error states and notifications follow these visual design guidelines:
+
+- **Notification System**: All non-critical errors use react-hot-toast via utility functions in `src/renderer/utils/toast.ts` (e.g., `showError(message)`). Toasts appear in the top-right corner with red background for errors, including a close button and 5-second auto-dismiss.
+
+- **Critical Errors**: Redirect to SetupScreen.tsx for configuration-related issues (e.g., missing API keys). The setup screen uses a clean, centered layout with error messages in red text, accompanied by explanatory icons.
+
+- **Error States in Components**:
+  - Loading errors show a centered error message with retry button.
+  - Form validation errors highlight fields in red with inline messages.
+  - Consistent styling: Red text (#ef4444) for errors, yellow (#eab308) for warnings.
+
+- **Consistency**: All error notifications maintain a maximum width of 400px, use sans-serif font at 14px, and include an exclamation icon for visibility.
+
+For custom styling, refer to the toast.ts utilities and component-specific error boundaries.
+
+## Validation Criteria
+
+To ensure the architecture works as designed, validate against these criteria:
+
+### Initialization Scenarios
+- **Successful Initialization**: Start the app with valid configuration. The loading screen should appear briefly, then transition to the main UI without errors.
+- **Missing API Key**: Start without configured API keys. Should redirect to SetupScreen.tsx with a critical error message prompting configuration.
+- **Network Issues**: Simulate offline mode. Non-critical errors should show toasts; critical ones should redirect appropriately.
+
+### Error Handling
+- **Expected Errors**: Trigger a known error (e.g., invalid input in a form). Should display a non-critical toast with recovery instructions.
+- **Unexpected Errors**: Force an unhandled exception. Error boundary should catch it and show fallback UI with retry option.
+- **IPC Errors**: Simulate main process error. Renderer should receive structured payload via onIPCError and handle based on severity (toast for non-critical, redirect for critical).
+
+### User Interaction Feedback
+- **Notifications**: All toasts should appear in top-right, auto-dismiss after 5s, and be closable.
+- **Error States**: Components should show red-highlighted errors with icons and messages.
+- **Recovery**: Retry buttons should function, and setup redirects should allow configuration fixes.
+
+Run `npm run dev` to start the app and manually test these scenarios. Use dev tools to simulate conditions like offline mode.
 
 ## Type Safety
 
