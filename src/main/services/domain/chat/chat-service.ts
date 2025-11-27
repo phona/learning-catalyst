@@ -4,6 +4,7 @@ import { ILogger } from '../../types';
 import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { AgentManager } from '@/main/services/agent/agent-manager';
 import type { AgentType } from '@/main/services/agent/types';
+import type { ChatStatus, ErrorCategory } from '@/shared/types/electron-api/chat-api';
 import type { LearningSessionRow, MessageRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
 import type { AiService } from '@/main/services/ai/ai-service';
@@ -71,6 +72,34 @@ const serializeMetadata = (metadata?: ConversationMetadata): string =>
 const normalizeAgentType = (value?: string): AgentType => {
   const supported: AgentType[] = ['learning', 'tutoring', 'assessment', 'practice'];
   return supported.includes(value as AgentType) ? (value as AgentType) : 'learning';
+};
+
+const classifyError = (error: unknown): { category: ErrorCategory; retryable: boolean; reason: string; suggestion?: string } => {
+  const err = error as any;
+  const message: string = err?.message ?? '';
+  const status = err?.response?.status ?? err?.status;
+  const code = err?.code ?? err?.error?.code;
+
+  const lower = message.toLowerCase();
+  if (status === 401 || lower.includes('api key') || code === 'invalid_api_key') {
+    return { category: 'auth', retryable: false, reason: message || 'Authentication required', suggestion: 'Add or update your API key' };
+  }
+  if (status === 403 || lower.includes('quota') || code === 'insufficient_quota') {
+    return { category: 'quota', retryable: false, reason: message || 'Quota exceeded', suggestion: 'Wait or switch provider/model' };
+  }
+  if (status === 429 || lower.includes('rate limit')) {
+    return { category: 'rate_limit', retryable: true, reason: message || 'Rate limited', suggestion: 'Retry shortly or reduce load' };
+  }
+  if (code === 'ECONNABORTED' || lower.includes('timeout') || err?.name === 'AbortError') {
+    return { category: 'timeout', retryable: true, reason: message || 'Timed out', suggestion: 'Try again or simplify the request' };
+  }
+  if (code === 'ENOTFOUND' || code === 'ECONNRESET') {
+    return { category: 'network', retryable: true, reason: message || 'Network error', suggestion: 'Check connection or proxy settings' };
+  }
+  if (lower.includes('tool') || lower.includes('function call')) {
+    return { category: 'tool_fail', retryable: false, reason: message || 'Tool execution failed', suggestion: 'Retry without tools or adjust input' };
+  }
+  return { category: 'unknown', retryable: false, reason: message || 'Unexpected error' };
 };
 
 export const createChatService = ({
@@ -511,6 +540,7 @@ export const createChatService = ({
       content: string;
       attachments?: MessageAttachment[];
       metadata?: Record<string, unknown>;
+      onStatus?: (status: ChatStatus) => void;
     }): Promise<{ userMessage: Message; stream: AsyncGenerator<string> }> => {
       serviceLogger.info('streamAssistantResponse invoked', { conversationId: params.conversationId });
       const conversation = await ensureConversation(params.conversationId);
@@ -556,9 +586,30 @@ Respond to the latest user message in a helpful, encouraging tone.`;
       const stream = async function* () {
         let aggregated = '';
         let canceled = false;
+        const streamStart = Date.now();
+        const emitStatus = (status: ChatStatus) => {
+          try {
+            serviceLogger.debug('Emitting chat status', {
+              conversationId: params.conversationId,
+              status,
+              elapsedMs: Date.now() - streamStart,
+            });
+            params.onStatus?.(status);
+          } catch (emitError) {
+            serviceLogger.debug('Failed to emit status', { error: emitError });
+          }
+        };
 
         try {
           serviceLogger.info('Agent run start', { conversationId: conversation.id });
+          if (canceledStreams.has(conversation.id)) {
+            canceled = true;
+            serviceLogger.warn('Stream canceled before agent run', {
+              conversationId: conversation.id,
+              elapsedMs: Date.now() - streamStart,
+            });
+            throw new Error('Stream canceled');
+          }
           const agentResponse = await agentManager.runAgent({
             agentType: normalizeAgentType(conversation.agentType),
             conversationId: conversation.id,
@@ -575,17 +626,39 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             for (const chunk of chunks) {
               if (canceledStreams.has(conversation.id)) {
                 canceled = true;
+                serviceLogger.warn('Stream canceled during chunking', {
+                  conversationId: conversation.id,
+                  aggregatedLen: aggregated.length,
+                  elapsedMs: Date.now() - streamStart,
+                });
                 break;
               }
               aggregated += chunk;
               yield chunk;
-              serviceLogger.debug('Stream chunk', { conversationId: conversation.id, len: chunk.length });
+              serviceLogger.debug('Stream chunk', {
+                conversationId: conversation.id,
+                len: chunk.length,
+                aggregatedLen: aggregated.length,
+                elapsedMs: Date.now() - streamStart,
+              });
             }
           }
         } catch (error) {
+          const info = classifyError(error);
+          const rawJson = (() => {
+            if (typeof error === 'string') return error;
+            if (error instanceof Error) return error.message;
+            try {
+              return JSON.stringify(error);
+            } catch {
+              return String(error ?? info.reason ?? 'Unknown error');
+            }
+          })();
+          emitStatus({ type: 'fail', category: info.category, suggestion: rawJson });
           serviceLogger.error('Streaming assistant reply failed', {
             conversationId: conversation.id,
             error,
+            totalElapsedMs: Date.now() - streamStart,
           });
           throw error;
         } finally {
