@@ -18,8 +18,8 @@
     "test:ui": "npm run test:main:ui && npm run test:renderer:ui",
     "test:run": "npm run test:main && npm run test:renderer",
     "test:coverage": "npm run test:main:coverage && npm run test:renderer:coverage",
-    "test:main": "vitest --config vitest.main.config.ts",
-    "test:renderer": "vitest --config vitest.renderer.config.ts",
+    "test:main": "vitest --config vitest.main.config.ts --run",
+    "test:renderer": "vitest --config vitest.renderer.config.ts --run",
     "test:main:ui": "vitest --config vitest.main.config.ts --ui",
     "test:renderer:ui": "vitest --config vitest.renderer.config.ts --ui",
     "test:main:coverage": "vitest run --config vitest.main.config.ts --coverage",
@@ -90,6 +90,7 @@
     "sqlite-electron": "^3.3.5",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.2.7",
+    "ts-chan": "^0.6.0",
     "uuid": "^9.0.0",
     "zustand": "^4.3.6"
   },

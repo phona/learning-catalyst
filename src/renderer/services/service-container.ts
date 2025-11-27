@@ -876,6 +876,9 @@ export function createTestServiceContainer(
     healthCheck: async () => ({ status: 'healthy' as const, apis: {} }),
     getVersion: async () => ({ version: '1.0.0', build: 'mock', platform: 'mock' }),
     trackEvent: async () => {},
+    getErrorBuffer: async () => [],
+    clearErrorBuffer: async () => ({ cleared: true }),
+    relaunchApp: async () => ({ relaunching: false }),
     ...mockElectronAPI,
   };
 

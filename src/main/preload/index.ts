@@ -14,6 +14,8 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
+import { IPC_EVENTS } from '@/shared/types/ipc';
+import type { SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api';
 import type { IpcRendererEvent } from 'electron';
 import {
   ElectronAPI,
@@ -28,20 +30,11 @@ import {
   SessionsAPI,
   CatalystAPI,
 } from '@/shared/types/electron-api';
-import type {
-  Session,
-  SessionSearchQuery,
-  MemorySession,
-  ConversationMessage,
-} from '@/shared/types/session';
-import type {
-  CreateLearningSessionRequest,
-  ConceptProgressUpdate,
-} from '@/shared/interfaces/analytics.interface';
 import type { ConceptParsingResult } from '@/shared/types/electron-api/knowledge-api';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
 import type { AppConfig } from '@/shared/types/config';
+import { Chan } from 'ts-chan';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -598,7 +591,8 @@ const sessionsAPI: SessionsAPI = {
   saveSessionWithMessages: (session, messages) =>
     ipcRenderer.invoke('sessions:save-session-with-messages', session, messages),
   updateTitle: (sessionId, title) => ipcRenderer.invoke('sessions:update-title', sessionId, title),
-  getRecentSessions: (options) => ipcRenderer.invoke('sessions:get-recent', options),
+  // Use learning:get-recent-sessions (the registered handler) for recent sessions
+  getRecentSessions: (options) => ipcRenderer.invoke('learning:get-recent-sessions', options),
   search: (query) => ipcRenderer.invoke('sessions:search', query),
   getStatistics: () => ipcRenderer.invoke('sessions:get-statistics'),
 };
@@ -695,6 +689,73 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
  * Combines all API modules with centralized error handling and utilities.
  * Provides a unified interface for frontend-backend communication.
  */
+// Buffered latest readiness + config change snapshots (capacity semantics via channels)
+const systemReadyChan = new Chan<SystemReadyPayload>(1);
+const configChangedChan = new Chan<ConfigChangedPayload>(8);
+
+let lastSystemState: SystemReadyPayload | null = null;
+
+const pushSystemSnapshot = (snapshot: SystemReadyPayload) => {
+  if (lastSystemState?.status === 'ready' && snapshot.status !== 'ready') {
+    console.warn('[Preload] Ignoring non-ready snapshot after ready', snapshot);
+    return;
+  }
+  lastSystemState = snapshot;
+  console.log('[Preload] SYSTEM_READY received', snapshot);
+  try {
+    // If the channel is full, drain the old value to make room for the new one.
+    // This ensures we always have the latest state available and don't accumulate floating promises.
+    if (!systemReadyChan.trySend(snapshot)) {
+      systemReadyChan.tryRecv();
+      // Try sending again, if it fails again (unlikely in single-threaded JS unless strictly tight), we drop it.
+      // But since we just drained, it should succeed.
+      systemReadyChan.trySend(snapshot);
+    }
+  } catch (error) {
+    console.error('[Preload] systemReadyChan send failed', error);
+  }
+};
+
+const pushConfigChange = (payload: ConfigChangedPayload) => {
+  try {
+    console.log('[Preload] settings:config:changed received', payload);
+    if (!configChangedChan.trySend(payload)) {
+      // For config changes, we also prefer dropping oldest if full to avoid leaks
+      configChangedChan.tryRecv();
+      configChangedChan.trySend(payload);
+    }
+  } catch (error) {
+    console.error('[Preload] configChangedChan send failed', error);
+  }
+};
+
+ipcRenderer.on(IPC_EVENTS.SYSTEM_READY, (_event: any, snapshot: SystemReadyPayload) => {
+  pushSystemSnapshot(snapshot);
+});
+
+ipcRenderer.on('settings:config:changed', (_event: any, payload: ConfigChangedPayload) => {
+  pushConfigChange(payload);
+});
+
+const recvWithTimeout = async <T>(channel: Chan<T>, timeoutMs: number, label: string): Promise<T> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error(`${label} timeout`)), timeoutMs);
+  try {
+    const result = await channel.recv(controller.signal);
+    if (result.done || result.value === undefined) {
+      throw new Error(`${label} channel closed`);
+    }
+    return result.value as T;
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`${label} timeout`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 const electronAPI = {
   // API Modules - 7 Complete Domains
   chat: chatAPI,
@@ -734,6 +795,8 @@ const electronAPI = {
   // Global error buffer accessors
   getErrorBuffer: () => ipcRenderer.invoke('system:get-error-buffer'),
   clearErrorBuffer: () => ipcRenderer.invoke('system:clear-error-buffer'),
+
+  relaunchApp: () => ipcRenderer.invoke('system:relaunch-app'),
 
   // Utility methods for better error handling and debugging
 
@@ -783,6 +846,49 @@ const electronAPI = {
    */
   trackEvent: (event: { name: string; properties?: object }) =>
     ipcRenderer.invoke('analytics:track-event', event),
+  awaitReady: async (options?: { timeoutMs?: number }) => {
+    const timeoutMs = options?.timeoutMs ?? 30000;
+    console.log('[Preload] awaitReady start', timeoutMs);
+    const isReady = (state: SystemReadyPayload | null) =>
+      !!state && state.status === 'ready' && state.ready?.ipcHandlersRegistered === true;
+
+    // First, try to hydrate from main in case we reloaded after the initial emit.
+    if (!lastSystemState) {
+      try {
+        const latest = await ipcRenderer.invoke('system:get-latest-ready');
+        if (latest) {
+          pushSystemSnapshot(latest);
+        }
+      } catch (error) {
+        console.warn('[Preload] failed to fetch latest ready snapshot', error);
+      }
+    }
+
+    if (isReady(lastSystemState)) {
+      console.log('[Preload] awaitReady immediate resolve');
+      return lastSystemState as SystemReadyPayload;
+    }
+    const deadline = Date.now() + timeoutMs;
+    let remaining = timeoutMs;
+    while (remaining > 0) {
+      const snapshot = await recvWithTimeout(systemReadyChan, remaining, 'Ready');
+      lastSystemState = snapshot;
+      if (isReady(snapshot)) {
+        console.log('[Preload] awaitReady resolved');
+        return snapshot;
+      }
+      remaining = deadline - Date.now();
+    }
+    console.warn('[Preload] awaitReady timeout');
+    throw new Error('Ready timeout');
+  },
+  awaitConfigChange: async (options?: { timeoutMs?: number }) => {
+    const timeoutMs = options?.timeoutMs ?? 30000;
+    console.log('[Preload] awaitConfigChange start', timeoutMs);
+    const event = await recvWithTimeout(configChangedChan, timeoutMs, 'Config change');
+    console.log('[Preload] awaitConfigChange received');
+    return event;
+  },
 };
 
 // ============================================================================

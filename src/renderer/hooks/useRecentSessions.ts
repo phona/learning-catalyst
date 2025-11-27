@@ -14,6 +14,59 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@/shared/types/session';
 import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/learning-api';
 import { useSessionService } from '@/renderer/services/services-provider';
+import { isIPCErrorPayload, isIPCErrorException, requiresSetup, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
+
+const ERROR_MESSAGE_MAP: Record<string, string> = {
+  [IPC_ERROR_CODES.learning.recentFailed]: 'Unable to load recent sessions. Please try again.',
+  [IPC_ERROR_CODES.sessions.notFound]: 'Session not found.',
+  [IPC_ERROR_CODES.sessions.createFailed]: 'Unable to create session.',
+};
+
+async function mapErrorToFriendlyMessage(error: unknown): Promise<string> {
+  if (isIPCErrorException(error)) {
+    const payload = error.payload;
+    const direct = ERROR_MESSAGE_MAP[payload.code];
+    if (direct) return direct;
+    if (requiresSetup(payload)) return 'Provider setup required. Please configure your API key in Settings.';
+    return payload.message || 'Failed to load sessions';
+  }
+  if (isIPCErrorPayload(error)) {
+    const direct = ERROR_MESSAGE_MAP[error.code];
+    if (direct) return direct;
+    if (requiresSetup(error)) return 'Provider setup required. Please configure your API key in Settings.';
+    return error.message || 'Failed to load sessions';
+  }
+  const anyErr = error as any;
+  if (anyErr && typeof anyErr === 'object' && typeof anyErr.code === 'string') {
+    const direct = ERROR_MESSAGE_MAP[anyErr.code];
+    if (direct) return direct;
+    return anyErr.message || 'Failed to load sessions';
+  }
+  try {
+    const buffer = await (window as any).electronAPI?.getErrorBuffer?.();
+    if (Array.isArray(buffer) && buffer.length > 0) {
+      const last = buffer[buffer.length - 1];
+      const direct = last && ERROR_MESSAGE_MAP[last.code];
+      if (direct) return direct;
+      return (last && last.message) || 'Failed to load sessions';
+    }
+  } catch {}
+  let errorMessage = anyErr?.message || 'Failed to load sessions';
+  if (typeof errorMessage === 'string') {
+    if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
+      errorMessage = 'Database is still initializing. Please wait a moment and try again.';
+    } else if (
+      errorMessage.includes('Session service not available') ||
+      errorMessage.includes('Sessions API is not available')
+    ) {
+      errorMessage = 'Session service is initializing. Please wait...';
+    } else if (errorMessage.includes('Session service is not initialized')) {
+      errorMessage =
+        'Session service is still initializing. The application may still be starting up. Please wait a moment.';
+    }
+  }
+  return errorMessage;
+}
 
 export interface RecentSessionsState {
   sessions: Session[];
@@ -61,6 +114,15 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Track mount status to avoid setState after unmount (tests/teardown)
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+
   // Add a ref to track if loadMore is currently in progress to prevent multiple concurrent calls
   const isLoadingMoreRef = useRef(false);
 
@@ -98,12 +160,14 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
     async (sessionLimit: number, isRefresh = false) => {
       try {
         console.log('[useRecentSessions] Fetching sessions, service available:', !!sessionService);
-        setState((prev) => ({
-          ...prev,
-          loading: !isRefresh && prev.loading,
-          refreshing: isRefresh,
-          error: null,
-        }));
+        if (mountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            loading: !isRefresh && prev.loading,
+            refreshing: isRefresh,
+            error: null,
+          }));
+        }
 
         // Check if session service is available
         if (!sessionService) {
@@ -161,27 +225,15 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
         });
       } catch (error: any) {
         console.error('[useRecentSessions] Failed to fetch recent sessions:', error);
-
-        // Provide more user-friendly error messages
-        let errorMessage = error.message || 'Failed to load sessions';
-        if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
-          errorMessage = 'Database is still initializing. Please wait a moment and try again.';
-        } else if (
-          errorMessage.includes('Session service not available') ||
-          errorMessage.includes('Sessions API is not available')
-        ) {
-          errorMessage = 'Session service is initializing. Please wait...';
-        } else if (errorMessage.includes('Session service is not initialized')) {
-          errorMessage =
-            'Session service is still initializing. The application may still be starting up. Please wait a moment.';
+        const errorMessage = await mapErrorToFriendlyMessage(error);
+        if (mountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            refreshing: false,
+            error: errorMessage,
+          }));
         }
-
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          refreshing: false,
-          error: errorMessage,
-        }));
       }
     },
     [sessionService, limit, maxLimit],

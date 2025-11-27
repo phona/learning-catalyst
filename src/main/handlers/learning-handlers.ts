@@ -9,6 +9,7 @@ import { ipcMain } from 'electron';
 import type { APIResponse } from '@/shared/types/electron-api';
 import type { LearningService } from '../services/domain/learning/learning-service';
 import type { LoggerService } from '../services/core/logger/logger-service';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type SearchSessionsPayload = {
   query?: string;
@@ -42,14 +43,14 @@ export const setupLearningHandlers = (
 
       if (!result) {
         handlerLogger.warn('Learning path not found', { pathId });
-        return fail('learning.path_not_found', 'Learning path not found');
+        return fail(IPC_ERROR_CODES.learning.pathNotFound, 'Learning path not found');
       }
 
       handlerLogger.info('Learning path retrieved successfully');
       return ok(result);
     } catch (error) {
       handlerLogger.error('Failed to get learning path', error);
-      return fail('learning.path_error', 'Unable to fetch learning path', error);
+      return fail(IPC_ERROR_CODES.learning.pathError, 'Unable to fetch learning path', error);
     }
   });
 
@@ -69,7 +70,7 @@ export const setupLearningHandlers = (
         return ok(session);
       } catch (error) {
         handlerLogger.error('Failed to start learning session', error);
-        return fail('learning.start_failed', 'Unable to start learning session', error);
+        return fail(IPC_ERROR_CODES.learning.startFailed, 'Unable to start learning session', error);
       }
     },
   );
@@ -84,7 +85,7 @@ export const setupLearningHandlers = (
       return ok(progress);
     } catch (error) {
       handlerLogger.error('Failed to get learning session progress', error);
-      return fail('learning.progress_failed', 'Unable to fetch progress', error);
+      return fail(IPC_ERROR_CODES.learning.progressFailed, 'Unable to fetch progress', error);
     }
   });
 
@@ -98,7 +99,7 @@ export const setupLearningHandlers = (
       return ok(pauseData);
     } catch (error) {
       handlerLogger.error('Failed to pause learning session', error);
-      return fail('learning.pause_failed', 'Unable to pause learning session', error);
+      return fail(IPC_ERROR_CODES.learning.pauseFailed, 'Unable to pause learning session', error);
     }
   });
 
@@ -112,7 +113,7 @@ export const setupLearningHandlers = (
       return ok(context);
     } catch (error) {
       handlerLogger.error('Failed to resume learning session', error);
-      return fail('learning.resume_failed', 'Unable to resume learning session', error);
+      return fail(IPC_ERROR_CODES.learning.resumeFailed, 'Unable to resume learning session', error);
     }
   });
 
@@ -128,7 +129,7 @@ export const setupLearningHandlers = (
       return ok(completion);
     } catch (error) {
       handlerLogger.error('Failed to complete learning session', error);
-      return fail('learning.complete_failed', 'Unable to complete learning session', error);
+      return fail(IPC_ERROR_CODES.learning.completeFailed, 'Unable to complete learning session', error);
     }
   });
 
@@ -142,11 +143,12 @@ export const setupLearningHandlers = (
 
         handlerLogger.info('Recent learning sessions retrieved successfully', {
           count: sessions.length,
+          sampleIds: sessions.slice(0, 3).map((s) => s.id),
         });
         return ok(sessions);
       } catch (error) {
         handlerLogger.error('Failed to get recent learning sessions', error);
-        return fail('learning.recent_failed', 'Unable to fetch recent sessions', error);
+        return fail(IPC_ERROR_CODES.learning.recentFailed, 'Unable to fetch recent sessions', error);
       }
     },
   );
@@ -168,7 +170,7 @@ export const setupLearningHandlers = (
         return ok(results);
       } catch (error) {
         handlerLogger.error('Failed to search learning sessions', error);
-        return fail('learning.search_failed', 'Unable to search sessions', error);
+        return fail(IPC_ERROR_CODES.learning.searchFailed, 'Unable to search sessions', error);
       }
     },
   );

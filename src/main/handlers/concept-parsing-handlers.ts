@@ -6,6 +6,7 @@ import type {
   ConceptParsingSettings,
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { APIResponse } from '@/shared/types/electron-api';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type ConceptParsingFilePayload = {
   fileName?: string;
@@ -99,7 +100,7 @@ export const setupConceptParsingHandlers = (
         return ok(result);
       } catch (error) {
         handlerLogger.error('Concept parsing failed', { error });
-        return fail('knowledge.parse_failed', 'Unable to parse concepts', error);
+        return fail(IPC_ERROR_CODES.knowledge.parseFailed, 'Unable to parse concepts', error);
       }
     },
   );

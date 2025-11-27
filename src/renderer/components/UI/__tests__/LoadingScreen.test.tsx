@@ -82,13 +82,6 @@ describe('LoadingScreen', () => {
     expect(errorTitle).toBeInTheDocument();
   });
 
-  it('renders progress bar when requested', () => {
-    render(<LoadingScreen showProgress progress={42} message="Booting" />);
-    expect(screen.getByText('Booting')).toBeInTheDocument();
-    const progressLabel = screen.getByText('42% complete');
-    expect(progressLabel).toBeInTheDocument();
-  });
-
   it('uses state-specific messaging and icons', () => {
     const { rerender } = render(<LoadingScreen state="ai-provider" />);
     expect(screen.getByText('Configuring AI provider...')).toBeInTheDocument();
@@ -102,5 +95,12 @@ describe('LoadingScreen', () => {
     render(<LoadingScreen error="boom" onRetry={onRetry} />);
     fireEvent.click(screen.getByText('Retry'));
     expect(onRetry).toHaveBeenCalled();
+  });
+
+  it('shows service-initialization state with spinner and message', () => {
+    render(<LoadingScreen state="services" />);
+    expect(screen.getByText('Initializing services...')).toBeInTheDocument();
+    const spinner = document.querySelector('.animate-spin');
+    expect(spinner).toBeInTheDocument();
   });
 });

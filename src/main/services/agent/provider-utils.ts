@@ -44,15 +44,6 @@ const missingProviderConfigError = (providerName: string): IPCErrorPayload => {
   });
 };
 
-const missingApiKeyError = (providerName: string): IPCErrorPayload => {
-  return createIPCError({
-    type: 'CONFIG_ERROR',
-    code: 'provider.config.missing_api_key',
-    message: `API key for provider "${providerName}" is required. Provide a valid key in the settings.`,
-    details: { providerName },
-  });
-};
-
 export const resolveProviderSettings = async (
   configService: ConfigService,
 ): Promise<ProviderSettings> => {
@@ -73,17 +64,21 @@ export const resolveProviderSettings = async (
     throw missingProviderConfigError(providerName);
   }
 
-  const resolvedApiKey = providerConfig.apiKey ?? (providerConfig as any)?.api_key;
+  // apiKey may be empty/undefined; no aliases or env fallback
+  const resolvedApiKey = providerConfig.apiKey;
 
-  if (!resolvedApiKey) {
-    throw missingApiKeyError(providerName);
+  if (!providerConfig.providerType) {
+    throw createIPCError({
+      type: 'CONFIG_ERROR',
+      code: 'provider.config.missing_provider_type',
+      message: `Provider "${providerName}" is missing providerType.`,
+      details: { providerName },
+    });
   }
 
-  const providerType = (providerConfig.providerType ??
-    providerConfig.type ??
-    'openai') as ProviderType;
-  const model = chatConfig.model || providerConfig.model || DEFAULT_PROVIDER_SETTINGS.model;
-  const baseUrl = providerConfig.baseUrl ?? DEFAULT_PROVIDER_SETTINGS.baseUrl;
+  const providerType = providerConfig.providerType as ProviderType;
+  const model = chatConfig.model; // no fallback to defaults
+  const baseUrl = providerConfig.baseUrl;
   const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
   const maxTokens = chatConfig.maxTokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
 

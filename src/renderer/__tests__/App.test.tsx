@@ -104,12 +104,14 @@ const buildElectronAPI = () => {
 type RenderAppOptions = {
   routerProps?: MemoryRouterProps;
   electronUnavailable?: boolean;
+  electronAPI?: ReturnType<typeof createMockElectronAPIClient>;
 };
 
 const renderApp = (options?: RenderAppOptions) =>
   renderWithServices(<App />, {
     routerProps: options?.routerProps,
     electronUnavailable: options?.electronUnavailable,
+    electronAPI: options?.electronAPI,
   });
 
 beforeEach(() => {
@@ -197,6 +199,47 @@ describe('App Component - Simplified Initialization', () => {
       });
 
       // Should render without crashing even when navigating to sessions
+    });
+  });
+
+  describe('Ready Guard Behavior', () => {
+    it('does not revert to setup after ready when IPC errors arrive', async () => {
+      const api = buildElectronAPI();
+      (api as any).onIPCError = (cb: (payload: any) => void) => {
+        setTimeout(() => {
+          cb({ type: 'CONFIG_ERROR', code: 'provider.config.missing_api_key', message: 'missing' });
+        }, 10);
+        return () => {};
+      };
+
+      renderApp({ routerProps: { initialEntries: ['/'] }, electronAPI: api });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('chat-area')).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('Configure AI Providers')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows loading then transitions to chat after awaitReady resolves', async () => {
+      const api = buildElectronAPI();
+      (api as any).awaitReady = vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(() => resolve({ status: 'ready', ready: { ipcHandlersRegistered: true } }), 20);
+          }),
+      );
+
+      renderApp({ electronAPI: api });
+
+      // Initial loading screen while awaitReady pending
+      expect(await screen.findByText(/Checking workspace configuration/i)).toBeInTheDocument();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('chat-area')).toBeInTheDocument();
+      });
     });
   });
 

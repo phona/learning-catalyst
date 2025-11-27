@@ -136,8 +136,6 @@ export const AppLoader = () => {
     <LoadingScreen
       state="services"
       message="Initializing AI services..."
-      showProgress={true}
-      progress={75}
     />
   );
 };

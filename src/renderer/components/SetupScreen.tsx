@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { ProviderSelect } from '@/renderer/components/Config/components/ProviderSelect';
+import { ModelSelect } from '@/renderer/components/Config/components/ModelSelect';
 import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/renderer/utils/toast';
-import { useConfigurationService } from '@/renderer/services/services-provider';
+import { useConfigurationService, useElectronAPIClient, useServiceContext } from '@/renderer/services/services-provider';
+import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import { useSetupWorkflow } from '@/renderer/hooks/useSetupWorkflow';
 import type {
   AppConfig,
@@ -99,6 +102,8 @@ const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
 
 const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
   const configService = useConfigurationService();
+  const electronAPI = useElectronAPIClient();
+  const { markSetupComplete } = useServiceContext();
   // Wizard step management
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
@@ -303,6 +308,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     setIsFadingOut(true);
 
     const timer = setTimeout(() => {
+      console.log('[SetupScreen] Navigating to index route');
       navigate('/', { replace: true });
     }, 600);
 
@@ -438,6 +444,12 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
     setShouldNavigate(false);
 
     try {
+      console.log('[SetupScreen] Starting save workflow', {
+        configuredProviders,
+        chatAssignment,
+        embeddingAssignment,
+        rerankAssignment,
+      });
       await executeWorkflow({
         configuredProviders,
         chatAssignment,
@@ -445,7 +457,13 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
         rerankAssignment,
         buildAppConfig: buildAppConfigFromSelections,
       });
+      const persisted = await configService.getConfig();
+      console.log('[SetupScreen] Persisted config after save', persisted);
       showSuccess('Configuration saved successfully. Redirecting to the chat interface...');
+      console.log('[SetupScreen] Save complete, scheduling navigation');
+      await electronAPI.awaitConfigChange({ timeoutMs: READY_TIMEOUT_MS });
+      await electronAPI.awaitReady({ timeoutMs: READY_TIMEOUT_MS });
+      await markSetupComplete();
       setShouldNavigate(true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save configuration.';
@@ -665,19 +683,28 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
             >
               Provider
             </label>
-            <select
+            <ProviderSelect
               id="chat-provider-select"
+              providers={configuredProviders.map((provider) => {
+                const { chatModels } = categorizeModels(provider.models);
+                return {
+                  id: provider.id,
+                  label:
+                    `${getProviderName(provider.id)} ${chatModels.length === 0 ? '(no chat models)' : `(${chatModels.length} models)`}`,
+                  disabled: chatModels.length === 0,
+                };
+              })}
               value={chatAssignment?.providerId ?? ''}
-              onChange={(e) => {
-                if (!e.target.value) {
+              onChange={(providerId) => {
+                if (!providerId) {
                   setChatAssignment(null);
                   return;
                 }
-                const provider = configuredProviders.find((p) => p.id === e.target.value);
+                const provider = configuredProviders.find((p) => p.id === providerId);
                 if (provider) {
                   const { chatModels } = categorizeModels(provider.models);
                   const next = {
-                    providerId: e.target.value,
+                    providerId,
                     model: chatModels[0] ?? '',
                     settings: { temperature: 0.4, maxTokens: 2048 },
                   };
@@ -699,20 +726,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                 }
               }}
               className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-            >
-              <option key="chat-provider-placeholder" value="">
-                Select provider...
-              </option>
-              {configuredProviders.map((provider) => {
-                const { chatModels } = categorizeModels(provider.models);
-                return (
-                  <option key={provider.id} value={provider.id} disabled={chatModels.length === 0}>
-                    {getProviderName(provider.id)}{' '}
-                    {chatModels.length === 0 ? '(no chat models)' : `(${chatModels.length} models)`}
-                  </option>
-                );
-              })}
-            </select>
+            />
           </div>
 
           {chatAssignment && (
@@ -721,24 +735,17 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                   Model
                 </label>
-                <input
-                  list="chat-models-list"
-                  type="text"
+                <ModelSelect
+                  models={
+                    configuredProviders
+                      .find((p) => p.id === chatAssignment.providerId)
+                      ?.models.filter((m: string) => !m.includes('embedding') && !m.includes('rerank')) || []
+                  }
                   value={chatAssignment.model}
-                  onChange={(e) => setChatAssignment({ ...chatAssignment, model: e.target.value })}
+                  onChange={(modelId) => setChatAssignment({ ...chatAssignment, model: modelId })}
+                  allowFreeInput
                   className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                  placeholder="Type to search or enter model ID"
                 />
-                <datalist id="chat-models-list">
-                  {configuredProviders
-                    .find((p) => p.id === chatAssignment.providerId)
-                    ?.models.filter(
-                      (m: string) => !m.includes('embedding') && !m.includes('rerank'),
-                    )
-                    .map((model: string) => (
-                      <option key={model} value={model} />
-                    ))}
-                </datalist>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Type to search available models or enter a custom model ID
                 </p>
@@ -827,15 +834,24 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
               >
                 Provider
               </label>
-              <select
+              <ProviderSelect
                 id="embedding-provider-select"
+                providers={configuredProviders.map((provider) => {
+                  const { embeddingModels } = categorizeModels(provider.models);
+                  return {
+                    id: provider.id,
+                    label:
+                      `${getProviderName(provider.id)} ${embeddingModels.length === 0 ? '(no embedding models)' : `(${embeddingModels.length} models)`}`,
+                    disabled: embeddingModels.length === 0,
+                  };
+                })}
                 value={embeddingAssignment.providerId}
-                onChange={(e) => {
-                  const provider = configuredProviders.find((p) => p.id === e.target.value);
+                onChange={(providerId) => {
+                  const provider = configuredProviders.find((p) => p.id === providerId);
                   if (provider) {
                     const { embeddingModels } = categorizeModels(provider.models);
                     const next = {
-                      providerId: e.target.value,
+                      providerId,
                       model: embeddingModels[0] ?? '',
                     };
                     setEmbeddingAssignment(next);
@@ -854,50 +870,29 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                   }
                 }}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              >
-                {configuredProviders.map((provider) => {
-                  const { embeddingModels } = categorizeModels(provider.models);
-                  return (
-                    <option
-                      key={provider.id}
-                      value={provider.id}
-                      disabled={embeddingModels.length === 0}
-                    >
-                      {getProviderName(provider.id)}{' '}
-                      {embeddingModels.length === 0
-                        ? '(no embedding models)'
-                        : `(${embeddingModels.length} models)`}
-                    </option>
-                  );
-                })}
-              </select>
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Model
               </label>
-              <input
-                list="embedding-models-list"
-                type="text"
-                value={embeddingAssignment.model}
-                onChange={(e) =>
-                  setEmbeddingAssignment({ ...embeddingAssignment, model: e.target.value })
+              <ModelSelect
+                models={
+                  configuredProviders
+                    .find((p) => p.id === embeddingAssignment.providerId)
+                    ?.models.filter(
+                      (m: string) =>
+                        m.includes('embedding') || (m.includes('bge') && !m.includes('rerank')),
+                    ) || []
                 }
+                value={embeddingAssignment.model}
+                onChange={(modelId) =>
+                  setEmbeddingAssignment({ ...embeddingAssignment, model: modelId })
+                }
+                allowFreeInput
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                placeholder="Type to search or enter model ID"
               />
-              <datalist id="embedding-models-list">
-                {configuredProviders
-                  .find((p) => p.id === embeddingAssignment.providerId)
-                  ?.models.filter(
-                    (m: string) =>
-                      m.includes('embedding') || (m.includes('bge') && !m.includes('rerank')),
-                  )
-                  .map((model: string) => (
-                    <option key={model} value={model} />
-                  ))}
-              </datalist>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -954,15 +949,24 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
               >
                 Provider
               </label>
-              <select
+              <ProviderSelect
                 id="rerank-provider-select"
+                providers={configuredProviders.map((provider) => {
+                  const { rerankModels } = categorizeModels(provider.models);
+                  return {
+                    id: provider.id,
+                    label:
+                      `${getProviderName(provider.id)} ${rerankModels.length === 0 ? '(no rerank models)' : `(${rerankModels.length} models)`}`,
+                    disabled: rerankModels.length === 0,
+                  };
+                })}
                 value={rerankAssignment.providerId}
-                onChange={(e) => {
-                  const provider = configuredProviders.find((p) => p.id === e.target.value);
+                onChange={(providerId) => {
+                  const provider = configuredProviders.find((p) => p.id === providerId);
                   if (provider) {
                     const { rerankModels } = categorizeModels(provider.models);
                     const next = {
-                      providerId: e.target.value,
+                      providerId,
                       model: rerankModels[0] ?? '',
                     };
                     setRerankAssignment(next);
@@ -981,47 +985,26 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
                   }
                 }}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-              >
-                {configuredProviders.map((provider) => {
-                  const { rerankModels } = categorizeModels(provider.models);
-                  return (
-                    <option
-                      key={provider.id}
-                      value={provider.id}
-                      disabled={rerankModels.length === 0}
-                    >
-                      {getProviderName(provider.id)}{' '}
-                      {rerankModels.length === 0
-                        ? '(no rerank models)'
-                        : `(${rerankModels.length} models)`}
-                    </option>
-                  );
-                })}
-              </select>
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                 Model
               </label>
-              <input
-                list="rerank-models-list"
-                type="text"
-                value={rerankAssignment.model}
-                onChange={(e) =>
-                  setRerankAssignment({ ...rerankAssignment, model: e.target.value })
+              <ModelSelect
+                models={
+                  configuredProviders
+                    .find((p) => p.id === rerankAssignment.providerId)
+                    ?.models.filter((m: string) => m.includes('rerank')) || []
                 }
+                value={rerankAssignment.model}
+                onChange={(modelId) =>
+                  setRerankAssignment({ ...rerankAssignment, model: modelId })
+                }
+                allowFreeInput
                 className="w-full border border-gray-300 dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
-                placeholder="Type to search or enter model ID"
               />
-              <datalist id="rerank-models-list">
-                {configuredProviders
-                  .find((p) => p.id === rerankAssignment.providerId)
-                  ?.models.filter((m: string) => m.includes('rerank'))
-                  .map((model: string) => (
-                    <option key={model} value={model} />
-                  ))}
-              </datalist>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-gray-400">

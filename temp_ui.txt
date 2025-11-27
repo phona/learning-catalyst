@@ -125,13 +125,15 @@ export { SettingsErrorBoundary } from './SettingsErrorBoundary';
 /**
  * ⏳️ Application Loading Screen
  *
- * Full-screen loading with state-based messaging.
+ * Full-screen loading with state-based messaging and progress indicators.
  *
  * @example
  * ```tsx
  * <LoadingScreen
  *   state="services"
  *   message="Initializing AI services..."
+ *   showProgress={true}
+ *   progress={75}
  * />
  * ```
  */
@@ -177,3 +179,4 @@ export { Skeleton, MessageSkeleton, ChatListSkeleton, SettingsSkeleton } from '.
 export { Container } from './Container';
 export { ConfirmDialog } from './ConfirmDialog';
 export type { ConfirmDialogProps } from './ConfirmDialog';
+

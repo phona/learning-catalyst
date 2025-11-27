@@ -340,4 +340,110 @@ describe('SetupScreen', () => {
       expect(showError).toHaveBeenCalledWith(expect.stringMatching(/save failed/i));
     });
   });
+
+  it('navigates to chat after Save & Finish when ready resolves', async () => {
+    const electronAPI = createMockElectronAPIClient();
+    vi.spyOn(electronAPI.settings, 'setConfig').mockResolvedValue({ success: true } as any);
+    vi.spyOn(electronAPI.settings, 'getConfig').mockResolvedValue({
+      success: true,
+      data: {
+        ai: {
+          modelTypes: { chat: { provider: 'openai', model: 'gpt-4o' } },
+          providers: { openai: { providerType: 'openai', apiKey: 'sk-test' } },
+        },
+      },
+    } as any);
+
+    const { default: SetupScreen } = await import('../SetupScreen');
+    const { render } = await import('@testing-library/react');
+    const { Routes, Route } = await import('react-router-dom');
+    const { Providers } = await import('@/test/utils/renderWithServices');
+
+    render(
+      <Providers routerProps={{ initialEntries: ['/setup'] }} electronAPI={electronAPI}>
+        <Routes>
+          <Route path="/setup" element={<SetupScreen />} />
+          <Route path="/" element={<div data-testid="chat-home">CHAT_HOME</div>} />
+        </Routes>
+      </Providers>,
+    );
+
+    await screen.findByText('Configure AI Providers');
+
+    const providerSelect1 = screen.getByLabelText(/Provider/i);
+    fireEvent.change(providerSelect1, { target: { value: 'openai' } });
+    const apiKeyInput = screen.getByLabelText(/API Key/i);
+    await userEvent.type(apiKeyInput, 'sk-test');
+    await userEvent.click(screen.getByRole('button', { name: /Add Provider/i }));
+
+    await userEvent.click(screen.getByRole('button', { name: /Continue/i }));
+    await screen.findByText('Configure Model Usages');
+
+    const chatProviderSelect = screen.getByLabelText(/^Provider$/i);
+    fireEvent.change(chatProviderSelect, { target: { value: 'openai' } });
+
+    await userEvent.click(screen.getByRole('button', { name: /Continue/i }));
+    await screen.findByText('Review Configuration');
+
+    const saveButton = await screen.findByRole('button', { name: /Save & Finish/i });
+    await userEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-home')).toBeInTheDocument();
+    });
+  });
+
+  it('awaits config change + ready before navigating to chat after Save & Finish', async () => {
+    const electronAPI = createMockElectronAPIClient();
+    const awaitConfigSpy = vi
+      .spyOn(electronAPI, 'awaitConfigChange')
+      .mockResolvedValue({ changedKeys: ['ai'], config: {}, timestamp: Date.now() });
+    const awaitReadySpy = vi
+      .spyOn(electronAPI, 'awaitReady')
+      .mockResolvedValue({ status: 'ready', ready: { ipcHandlersRegistered: true } });
+    vi.spyOn(electronAPI.settings, 'setConfig').mockResolvedValue({ success: true } as any);
+    vi.spyOn(electronAPI.settings, 'getConfig').mockResolvedValue({
+      success: true,
+      data: {
+        ai: {
+          modelTypes: { chat: { provider: 'openai', model: 'gpt-4o' } },
+          providers: { openai: { providerType: 'openai', apiKey: 'sk-test' } },
+        },
+      },
+    } as any);
+
+    const { default: SetupScreen } = await import('../SetupScreen');
+    const { render } = await import('@testing-library/react');
+    const { Routes, Route } = await import('react-router-dom');
+    const { Providers } = await import('@/test/utils/renderWithServices');
+
+    render(
+      <Providers routerProps={{ initialEntries: ['/setup'] }} electronAPI={electronAPI}>
+        <Routes>
+          <Route path="/setup" element={<SetupScreen />} />
+          <Route path="/" element={<div data-testid="chat-home">CHAT_HOME</div>} />
+        </Routes>
+      </Providers>,
+    );
+
+    await screen.findByText('Configure AI Providers');
+
+    fireEvent.change(screen.getByLabelText(/Provider/i), { target: { value: 'openai' } });
+    await userEvent.type(screen.getByLabelText(/API Key/i), 'sk-test');
+    await userEvent.click(screen.getByRole('button', { name: /Add Provider/i }));
+
+    await userEvent.click(screen.getByRole('button', { name: /Continue/i }));
+    await screen.findByText('Configure Model Usages');
+    fireEvent.change(screen.getByLabelText(/^Provider$/i), { target: { value: 'openai' } });
+
+    await userEvent.click(screen.getByRole('button', { name: /Continue/i }));
+    await screen.findByText('Review Configuration');
+    await userEvent.click(await screen.findByRole('button', { name: /Save & Finish/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('chat-home')).toBeInTheDocument();
+    });
+    expect(awaitConfigSpy).toHaveBeenCalledTimes(1);
+    expect(awaitReadySpy).toHaveBeenCalledTimes(1);
+  });
 });

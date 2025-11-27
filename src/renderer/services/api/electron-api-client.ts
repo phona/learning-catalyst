@@ -115,6 +115,12 @@ const mockFeatureDemo: FeatureDemoDisplay = {
 export function createMockElectronAPIClient(): ElectronAPI {
   const mockStreamState = new Map<string, { aborted: boolean }>();
   const partial: Partial<ElectronAPI> = {
+    awaitReady: async () => ({ status: 'ready', ready: { ipcHandlersRegistered: true } }),
+    awaitConfigChange: async () => ({
+      changedKeys: [],
+      config: {},
+      timestamp: Date.now(),
+    }),
     analytics: {
       getDashboard: () =>
         Promise.resolve({

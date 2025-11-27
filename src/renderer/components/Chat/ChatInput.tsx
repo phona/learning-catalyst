@@ -38,6 +38,7 @@ const ChatInputComponent: React.FC = () => {
   const selectedProvider = chatModelConfig?.defaultProvider ?? 'openai';
   const selectedModel = chatModelConfig?.defaultModel ?? 'gpt-3.5-turbo';
   const streamingEnabled = chatModelConfig?.capabilities?.streaming ?? true;
+  console.log('[ChatInput] Chat model config', chatModelConfig);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

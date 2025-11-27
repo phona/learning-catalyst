@@ -9,6 +9,7 @@ import type {
 } from '@/shared/types/electron-api/knowledge-api';
 import type { KnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
 import type { APIResponse } from '@/shared/types/electron-api';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type KnowledgeHandlersDeps = {
   knowledgeService: KnowledgeService;
@@ -54,7 +55,7 @@ export const setupKnowledgeHandlers = (
         return ok(ingestionResult);
       } catch (error) {
         handlerLogger.error('Concept ingestion failed', { error });
-        return fail('knowledge.ingest_failed', 'Unable to ingest concepts', error);
+        return fail(IPC_ERROR_CODES.knowledge.ingestFailed, 'Unable to ingest concepts', error);
       }
     },
   );
@@ -71,7 +72,7 @@ export const setupKnowledgeHandlers = (
       return ok(response);
     } catch (error) {
       handlerLogger.error('Knowledge search failed', { error });
-      return fail('knowledge.search_failed', 'Unable to search knowledge', error);
+      return fail(IPC_ERROR_CODES.knowledge.searchFailed, 'Unable to search knowledge', error);
     }
   });
 
@@ -95,7 +96,7 @@ export const setupKnowledgeHandlers = (
         return ok(exploration);
       } catch (error) {
         handlerLogger.error('Concept exploration failed', { error });
-        return fail('knowledge.explore_failed', 'Unable to explore concept', error);
+        return fail(IPC_ERROR_CODES.knowledge.exploreFailed, 'Unable to explore concept', error);
       }
     },
   );
@@ -111,7 +112,7 @@ export const setupKnowledgeHandlers = (
       return ok(relatedConcepts);
     } catch (error) {
       handlerLogger.error('Related concepts failed', { error, conceptId });
-      return fail('knowledge.related_failed', 'Unable to get related concepts', error);
+      return fail(IPC_ERROR_CODES.knowledge.relatedFailed, 'Unable to get related concepts', error);
     }
   });
 
@@ -127,7 +128,7 @@ export const setupKnowledgeHandlers = (
       return ok(knowledgeMap);
     } catch (error) {
       handlerLogger.error('Knowledge map failed', { error, sessionId });
-      return fail('knowledge.map_failed', 'Unable to get knowledge map', error);
+      return fail(IPC_ERROR_CODES.knowledge.mapFailed, 'Unable to get knowledge map', error);
     }
   });
 

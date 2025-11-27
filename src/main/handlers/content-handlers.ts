@@ -16,6 +16,7 @@ import type {
 } from '@/shared/types/electron-api/content-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 import type { ILogger } from '../services/types';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type ContentService = {
   exploreLocalProjects: () => Promise<ProjectDisplay[]>;
@@ -64,7 +65,7 @@ export const setupContentHandlers = (
       return ok(projects);
     } catch (error) {
       handlerLogger.error('Failed to explore projects', error);
-      return fail('content.explore_failed', 'Unable to explore projects', error);
+      return fail(IPC_ERROR_CODES.content.exploreFailed, 'Unable to explore projects', error);
     }
   });
 
@@ -79,7 +80,7 @@ export const setupContentHandlers = (
       return ok(importResults);
     } catch (error) {
       handlerLogger.error('Failed to import content', { error, fileCount });
-      return fail('content.import_failed', 'Unable to import content', error);
+      return fail(IPC_ERROR_CODES.content.importFailed, 'Unable to import content', error);
     }
   });
 
@@ -92,7 +93,7 @@ export const setupContentHandlers = (
         return ok(recommendedContent);
       } catch (error) {
         handlerLogger.error('Failed to get recommended content', error);
-        return fail('content.recommend_failed', 'Unable to get recommended content', error);
+        return fail(IPC_ERROR_CODES.content.recommendFailed, 'Unable to get recommended content', error);
       }
     },
   );
@@ -104,7 +105,7 @@ export const setupContentHandlers = (
       return ok(searchResults);
     } catch (error) {
       handlerLogger.error('Failed to search learning resources', error);
-      return fail('content.search_failed', 'Unable to search learning resources', error);
+      return fail(IPC_ERROR_CODES.content.searchFailed, 'Unable to search learning resources', error);
     }
   });
 
@@ -115,7 +116,7 @@ export const setupContentHandlers = (
       return ok(documentAnalysis);
     } catch (error) {
       handlerLogger.error('Failed to analyze document', error);
-      return fail('content.analyze_failed', 'Unable to analyze document', error);
+      return fail(IPC_ERROR_CODES.content.analyzeFailed, 'Unable to analyze document', error);
     }
   });
 
@@ -126,7 +127,7 @@ export const setupContentHandlers = (
       return ok(conceptExtraction);
     } catch (error) {
       handlerLogger.error('Failed to extract concepts', error);
-      return fail('content.extract_failed', 'Unable to extract concepts', error);
+      return fail(IPC_ERROR_CODES.content.extractFailed, 'Unable to extract concepts', error);
     }
   });
 

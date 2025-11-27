@@ -15,6 +15,8 @@ import { useService } from '@/renderer/services/services-provider';
 import type { ProviderConfig, ProviderValidationResult, ProviderType } from '@/shared/types';
 import { ModelType } from '@/shared/types/ai';
 import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';
+import { ProviderSelect } from '@/renderer/components/Config/components/ProviderSelect';
+import { ModelSelect } from '@/renderer/components/Config/components/ModelSelect';
 
 interface AIProviderSettingsProps {
   // New props for provider-based configuration
@@ -395,10 +397,15 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
           <div key={modelType} className="flex items-center space-x-4">
             <span className="capitalize w-24 text-gray-700 dark:text-gray-300">{modelType}:</span>
 
-            <select
+            <ProviderSelect
+              providers={Object.entries(configuredProviders)
+                .filter(([_, config]) => !!config.apiKey)
+                .map(([providerId, config]) => ({
+                  id: providerId,
+                  label: config.displayName ?? PREDEFINED_PROVIDERS[config.providerType]?.name ?? providerId,
+                }))}
               value={modelAssignments[modelType]?.provider_config_id || ''}
-              onChange={(e) => {
-                const providerId = e.target.value;
+              onChange={(providerId) => {
                 if (providerId) {
                   const models = getAvailableModels(providerId);
                   if (models.length > 0) {
@@ -406,39 +413,20 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({
                   }
                 }
               }}
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select provider...</option>
-              {Object.entries(configuredProviders)
-                .filter(([_, config]) => config.apiKey)
-                .map(([providerId]) => (
-                  <option key={providerId} value={providerId}>
-                    {PREDEFINED_PROVIDERS[configuredProviders[providerId].providerType]?.name ||
-                      providerId}
-                  </option>
-                ))}
-            </select>
+              placeholderLabel="Select provider..."
+            />
 
-            <select
+            <ModelSelect
+              models={getAvailableModels(modelAssignments[modelType]?.provider_config_id || '')}
               value={modelAssignments[modelType]?.model_id || ''}
-              onChange={(e) => {
+              onChange={(modelId) => {
                 const providerId = modelAssignments[modelType]?.provider_config_id;
                 if (providerId) {
-                  handleModelAssignmentChange(modelType, providerId, e.target.value);
+                  handleModelAssignmentChange(modelType, providerId, modelId);
                 }
               }}
               disabled={!modelAssignments[modelType]?.provider_config_id}
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
-            >
-              <option value="">Select model...</option>
-              {getAvailableModels(modelAssignments[modelType]?.provider_config_id || '').map(
-                (model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ),
-              )}
-            </select>
+            />
 
             <input
               type="text"

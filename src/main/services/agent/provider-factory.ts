@@ -5,7 +5,7 @@ type Embeddings = any;
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import type { ConfigService, ConfigPath } from '@/main/services/core/config/config-service';
 import type { ProviderType, ProviderConfig } from '@/shared/types/config';
-import { createIPCError } from '@/shared/types/ipc-error';
+import { createIPCError, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import {
   resolveProviderSettings,
   type ProviderSettings as ResolvedProviderSettings,
@@ -18,18 +18,23 @@ type ProviderImplementation = {
   createEmbeddings: (settings: ProviderSettings) => Embeddings;
 };
 
+const isRemoteProvider = (providerType: string) =>
+  ['openai', 'openai-compatible', 'chatglm', 'deepseek'].includes(providerType);
+
 const makeChatModel = (settings: ProviderSettings) =>
   new ChatOpenAI({
     modelName: settings.model,
     temperature: settings.temperature,
     maxTokens: settings.maxTokens,
-    openAIApiKey: settings.apiKey,
-    baseURL: settings.baseUrl,
+    apiKey: settings.apiKey,
+    // LangChain v1 expects custom endpoints inside configuration
+    configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 
 const makeOpenAIEmbeddings = (settings: ProviderSettings) =>
   new OpenAIEmbeddings({
-    openAIApiKey: settings.apiKey,
+    apiKey: settings.apiKey,
+    configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 
 const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
@@ -66,7 +71,7 @@ const normalizeSettings = (raw: ProviderConfig): ProviderSettings => {
   if (!apiKey) {
     throw createIPCError({
       type: 'CONFIG_ERROR',
-      code: 'provider.config.missing_api_key',
+      code: IPC_ERROR_CODES.provider.missingApiKey,
       message: `API key is required for provider ${providerName}`,
       details: { provider: providerName },
     });
@@ -108,6 +113,14 @@ export const createProviderFactory = (configService: ConfigService) => {
 
   const getModel = async (configKey?: string) => {
     const settings = await resolveSettings(configKey);
+    if (isRemoteProvider(settings.providerType) && !settings.apiKey) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.authRequired,
+        message: `API key is required to use provider "${settings.providerName}".`,
+        details: { provider: settings.providerName },
+      });
+    }
     const cacheKey = getCacheKey(settings);
     if (modelCache.has(cacheKey)) {
       return modelCache.get(cacheKey)!;
@@ -116,7 +129,7 @@ export const createProviderFactory = (configService: ConfigService) => {
     if (!impl) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
-        code: 'provider.config.unsupported',
+        code: IPC_ERROR_CODES.provider.unsupportedConfig,
         message: `Unsupported provider: ${settings.providerType}`,
         details: { providerType: settings.providerType },
       });
@@ -129,6 +142,14 @@ export const createProviderFactory = (configService: ConfigService) => {
 
   const getEmbeddings = async (configKey?: string) => {
     const settings = await resolveSettings(configKey);
+    if (isRemoteProvider(settings.providerType) && !settings.apiKey) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.authRequired,
+        message: `API key is required to use provider "${settings.providerName}".`,
+        details: { provider: settings.providerName },
+      });
+    }
     const cacheKey = `${getCacheKey(settings)}:emb`;
     if (embeddingsCache.has(cacheKey)) {
       return embeddingsCache.get(cacheKey)!;
@@ -137,7 +158,7 @@ export const createProviderFactory = (configService: ConfigService) => {
     if (!impl) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
-        code: 'provider.config.unsupported',
+        code: IPC_ERROR_CODES.provider.unsupportedConfig,
         message: `Unsupported provider for embeddings: ${settings.providerType}`,
         details: { providerType: settings.providerType },
       });

@@ -221,7 +221,17 @@ export class ErrorBoundary extends Component<Props, State> {
               )}
 
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  try {
+                    if (typeof window.location?.reload === 'function') {
+                      window.location.reload();
+                      return;
+                    }
+                  } catch {}
+                  try {
+                    window.electronAPI?.relaunchApp?.();
+                  } catch {}
+                }}
                 className="w-full flex items-center justify-center space-x-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium py-2 px-4 rounded-lg transition-colors"
               >
                 <ArrowPathIcon className="w-4 h-4" />

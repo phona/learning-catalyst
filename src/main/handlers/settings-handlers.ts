@@ -10,6 +10,7 @@ import { AVAILABLE_PROVIDERS } from '@/shared/types/config';
 import type { AppConfig, ProviderConfig } from '@/shared/types';
 import type { APIResponse } from '@/shared/types';
 import { ConfigService } from '../services/core/config/config-service';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type UserPreferences = Record<string, any>;
 type LearningSettings = Record<string, any>;
@@ -94,7 +95,7 @@ export const setupSettingsHandlers = (deps: {
       await configService.setConfig(config);
       return ok(undefined);
     } catch (error) {
-      return fail('settings.config_write_failed', 'Unable to save workspace config', error);
+      return fail(IPC_ERROR_CODES.settings.configWriteFailed, 'Unable to save workspace config', error);
     }
   });
 

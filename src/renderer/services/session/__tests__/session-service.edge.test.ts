@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { createSessionService } from '../session-service';
 
 const buildApi = () => {
@@ -9,7 +9,7 @@ const buildApi = () => {
     getRecentSessions: vi.fn().mockResolvedValue({ success: false, error: { message: 'nope' } }),
     getStatistics: vi.fn().mockResolvedValue({ success: true, data: { totalSessions: 1 } }),
   };
-  return { sessions } as any;
+  return { awaitReady: vi.fn(async () => undefined), sessions } as any;
 };
 
 describe('session-service edge cases', () => {

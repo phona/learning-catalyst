@@ -4,6 +4,7 @@ import {
   IPCErrorException,
   isIPCErrorPayload,
   type IPCErrorPayload,
+  IPC_ERROR_CODES,
 } from '@/shared/types/ipc-error';
 
 const PATCH_FLAG = Symbol.for('learning-catalyst:ipc-error-handled');
@@ -28,7 +29,7 @@ export const serializeIPCError = (error: unknown, channel = 'system'): IPCErrorP
   const details =
     error instanceof Error && error.stack ? { stack: error.stack, channel } : { channel };
 
-  const isMissingApiKey = code === 'provider.config.missing_api_key';
+  const isMissingApiKey = code === IPC_ERROR_CODES.provider.missingApiKey;
   return {
     type: 'SYSTEM_ERROR',
     code: `${channel}.${code}`,

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import SetupScreen from '@/renderer/components/SetupScreen';
 import { Layout } from '@/renderer/components/Layout';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
@@ -7,7 +8,7 @@ import { SessionManager } from '@/renderer/components/Session/SessionManager';
 import { DiscoveryPage } from '@/renderer/DiscoveryPage';
 import { SettingsPanel } from '@/renderer/components/Config/SettingsPanel';
 import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
-import { useAgentService, useConfigurationService, useServiceContext } from '@/renderer/services/services-provider';
+import { useAgentService, useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
@@ -54,9 +55,11 @@ export default function App(): JSX.Element {
   const [initError, setInitError] = useState<string | null>(null);
 
   const location = useLocation();
+  const navigate = useNavigate();
   const configService = useConfigurationService();
   const { ipcErrors, needsSetup, setupMessage } = useServiceContext();
   const agentService = useAgentService();
+  const electronAPI = useElectronAPIClient();
   const [processedErrors, setProcessedErrors] = useState<number>(0);
 
   useEffect(() => {
@@ -76,39 +79,88 @@ export default function App(): JSX.Element {
   }, [agentService, status]);
 
   useEffect(() => {
-    const checkConfig = async () => {
+    let mounted = true;
+
+    const run = async () => {
+      console.log('[App] init run start');
       try {
         const config = await configService.getConfig();
+        console.log('[App] Loaded config', config);
+        
+        if (!mounted) return;
+
         if (!config) {
+          console.log('[App] status -> setup: electron API unavailable');
           setStatus('setup');
           setStatusMessage('Electron API is unavailable.');
           return;
         }
 
         const chatConfig = config?.ai?.modelTypes?.chat;
-
+        console.log('[App] Chat config', chatConfig);
+        
         if (!chatConfig?.provider || !chatConfig?.model) {
+          console.log('[App] status -> setup: chat assignment missing');
           setStatus('setup');
           setStatusMessage('AI provider is not configured yet.');
           return;
         }
 
-        setStatus('ready');
-        setStatusMessage(null);
+        try {
+          console.log('[App] awaitReady start', { timeout: READY_TIMEOUT_MS });
+          await electronAPI.awaitReady({ timeoutMs: READY_TIMEOUT_MS });
+          console.log('[App] awaitReady finished');
+        } catch (error) {
+           console.error('[App] awaitReady failed', error);
+           if (mounted) {
+             setInitError('System initialization timed out. Please restart the application.');
+           }
+           return;
+        }
+
+        if (mounted) {
+          console.log('[App] status -> ready');
+          setStatus('ready');
+          setStatusMessage(null);
+        }
       } catch (error) {
-        showError(
-          error instanceof Error ? error.message : 'Failed to load workspace configuration.',
-        );
-        setStatus('setup');
-        setStatusMessage('Unable to load workspace configuration.');
+        console.error('[App] Config load failed', error);
+        if (mounted) {
+          showError(
+            error instanceof Error ? error.message : 'Failed to load workspace configuration.',
+          );
+          console.log('[App] status -> setup: config load failed');
+          setStatus('setup');
+          setStatusMessage('Unable to load workspace configuration.');
+        }
       }
     };
 
-    checkConfig();
-  }, [location.pathname, configService]);
+    run();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Monitor for external setup requirements
+  useEffect(() => {
+    if (status === 'ready') return;
+    
+    if (needsSetup) {
+      console.log('[App] status -> setup due to needsSetup', setupMessage);
+      setStatus('setup');
+      setStatusMessage(setupMessage);
+    }
+  }, [needsSetup, setupMessage, status]);
 
   useEffect(() => {
+    console.log('[App] status effect', { status, needsSetup, processedErrors });
+    if (status === 'ready') {
+      return;
+    }
     if (needsSetup) {
+      console.log('[App] status -> setup due to needsSetup', setupMessage);
       setStatus('setup');
       setStatusMessage(setupMessage);
       return;
@@ -123,6 +175,7 @@ export default function App(): JSX.Element {
         showError(msg);
       }
     }
+    console.log('[App] processed IPC errors', { count: ipcErrors.length });
     setProcessedErrors(ipcErrors.length);
   }, [ipcErrors, needsSetup, setupMessage, status, processedErrors]);
 

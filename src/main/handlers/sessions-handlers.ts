@@ -8,6 +8,7 @@ import { ipcMain } from 'electron';
 import type { LearningService } from '../services/domain/learning/learning-service';
 import type { LoggerService } from '../services/core/logger/logger-service';
 import type { ConversationMessage, MemorySession } from '@/shared/types/session';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
@@ -72,7 +73,7 @@ export const setupSessionsHandlers = (
       return ok({ sessionId: session.id, session });
     } catch (error) {
       logger.error('Failed to create session', { error });
-      return fail('sessions.create_failed', 'Unable to create session', error);
+      return fail(IPC_ERROR_CODES.sessions.createFailed, 'Unable to create session', error);
     }
   });
 
@@ -83,7 +84,7 @@ export const setupSessionsHandlers = (
     const sessions = await services.learningService.getRecentSessions({ limit: 50 });
     const found = sessions.find((s) => s.id === sessionId);
     if (!found) {
-      return fail('sessions.not_found', 'Session not found');
+      return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
     }
     return ok(found);
   });
@@ -93,7 +94,7 @@ export const setupSessionsHandlers = (
     async (_event, sessionId: string, updates: Partial<SessionDisplay>) => {
       const existing = memorySessions.get(sessionId);
       if (!existing) {
-        return fail('sessions.not_found', 'Session not found');
+        return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
       }
       const updated = { ...existing, ...updates, updatedAt: new Date().toISOString() };
       memorySessions.set(sessionId, updated);
@@ -111,7 +112,7 @@ export const setupSessionsHandlers = (
     async (_event, sessionId: string, _message: ConversationMessage) => {
       const exists = memorySessions.has(sessionId);
       if (!exists) {
-        return fail('sessions.not_found', 'Session not found');
+        return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
       }
       return ok(undefined);
     },
@@ -140,7 +141,7 @@ export const setupSessionsHandlers = (
     'sessions:update-title',
     async (_event, sessionId: string, title: string) => {
       const s = memorySessions.get(sessionId);
-      if (!s) return fail('sessions.not_found', 'Session not found');
+      if (!s) return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
       memorySessions.set(sessionId, { ...s, title });
       return ok(undefined);
     },

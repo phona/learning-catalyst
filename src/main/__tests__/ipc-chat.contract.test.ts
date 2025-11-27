@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { setupChatHandlers } from "../handlers/chat-handlers";
+import { IPC_ERROR_CODES } from "@/shared/types/ipc-error";
 import type { ChatService } from "../services/domain/chat/chat-service";
 import type { PracticeService } from "../services/domain/practice/practice-service";
 import { createIpcPair } from "@/test/utils/fakes/ipc-fake";
@@ -135,7 +136,7 @@ describe("chat IPC contract with fake ipc pair", () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error?.code).toBe("chat.practice_missing_opportunity");
+    expect(result.error?.code).toBe(IPC_ERROR_CODES.chat.practiceMissingOpportunity);
   });
 
   it("detects practice opportunity via question", async () => {

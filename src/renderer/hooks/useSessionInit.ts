@@ -79,6 +79,7 @@ export const useSessionInit = () => {
     const defaultAutoScroll = config.ui?.autoScroll ?? true;
     const defaultProvider = config.ai?.modelTypes?.chat?.defaultProvider ?? 'openai';
     const defaultModel = config.ai?.modelTypes?.chat?.defaultModel ?? 'gpt-3.5-turbo';
+    console.log('[useSessionInit] Defaults', { defaultAutoScroll, defaultProvider, defaultModel });
 
     if (typeof setAutoScroll === 'function') {
       setAutoScroll(defaultAutoScroll);

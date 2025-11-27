@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { setupSettingsHandlers } from '../handlers/settings-handlers';
+import { setupSettingsHandlers } from "../handlers/settings-handlers";
+import { IPC_ERROR_CODES } from "@/shared/types/ipc-error";
 
 // Lightweight IPC + app mock so we don't need real Electron
 const handlerMap = new Map<string, (...args: any[]) => any>();
@@ -97,6 +98,6 @@ describe('settings IPC contract (no real Electron)', () => {
     const res = await ipcRenderer.invoke('settings:setWorkspaceConfig', { ui: { theme: 'dark' } });
 
     expect(res.success).toBe(false);
-    expect(res.error?.code).toBe('settings.config_write_failed');
+    expect(res.error?.code).toBe(IPC_ERROR_CODES.settings.configWriteFailed);
   });
 });

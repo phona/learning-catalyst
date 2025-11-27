@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { resolveProviderSettings } from '../provider-utils';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { AppConfig } from '@/shared/types';
@@ -21,11 +22,11 @@ describe('resolveProviderSettings', () => {
     const errorPromise = resolveProviderSettings(service);
     await expect(errorPromise).rejects.toMatchObject({
       type: 'CONFIG_ERROR',
-      code: 'provider.config.chat_missing',
+      code: IPC_ERROR_CODES.provider.chatMissing,
     });
   });
 
-  it('throws when provider config and fallback api key are missing', async () => {
+  it('throws when provider config is missing', async () => {
     const service = createConfigService({
       ai: {
         providers: {},
@@ -41,7 +42,30 @@ describe('resolveProviderSettings', () => {
     const errorPromise = resolveProviderSettings(service);
     await expect(errorPromise).rejects.toMatchObject({
       type: 'CONFIG_ERROR',
-      code: 'provider.config.missing',
+      code: IPC_ERROR_CODES.provider.missingConfig,
+    });
+  });
+
+  it('throws when providerType is missing', async () => {
+    const service = createConfigService({
+      ai: {
+        providers: {
+          openai: {
+            apiKey: 'test-key',
+          },
+        },
+        modelTypes: {
+          chat: {
+            provider: 'openai',
+            model: 'gpt-4o',
+          },
+        },
+      },
+    });
+
+    const errorPromise = resolveProviderSettings(service);
+    await expect(errorPromise).rejects.toMatchObject({
+      code: IPC_ERROR_CODES.provider.missingProviderType,
     });
   });
 
@@ -72,5 +96,29 @@ describe('resolveProviderSettings', () => {
     expect(settings.model).toBe('gpt-4o');
     expect(settings.temperature).toBe(0.5);
     expect(settings.baseUrl).toBe('https://api.openai.com/v1');
+  });
+
+  it('allows empty API key and returns settings', async () => {
+    const service = createConfigService({
+      ai: {
+        providers: {
+          openai: {
+            providerType: 'openai',
+            apiKey: '',
+            baseUrl: 'https://api.openai.com/v1',
+          },
+        },
+        modelTypes: {
+          chat: {
+            provider: 'openai',
+            model: 'gpt-4o',
+          },
+        },
+      },
+    });
+
+    const settings = await resolveProviderSettings(service);
+    expect(settings.apiKey).toBe('');
+    expect(settings.providerName).toBe('openai');
   });
 });

@@ -36,6 +36,7 @@ interface ServiceContextType {
   ipcErrors: IPCErrorPayload[];
   needsSetup: boolean;
   setupMessage: string | null;
+  markSetupComplete: () => Promise<void>;
 }
 
 const ServiceContext = createContext<ServiceContextType | null>(null);
@@ -90,8 +91,10 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
           const errors: any[] = await api.getErrorBuffer();
           if (Array.isArray(errors) && errors.length > 0) {
             setIpcErrors((prev) => [...prev, ...errors as IPCErrorPayload[]]);
+            console.log('[ServicesProvider] loaded IPC error buffer', { count: errors.length });
             for (const payload of errors as IPCErrorPayload[]) {
               if (requiresSetup(payload)) {
+                console.log('[ServicesProvider] needsSetup triggered by buffered error');
                 setNeedsSetup(true);
                 setSetupMessage(String((payload as any)?.message ?? ''));
                 break;
@@ -100,6 +103,7 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
           }
           try {
             if (api?.clearErrorBuffer) {
+              console.log('[ServicesProvider] clearing IPC error buffer');
               await api.clearErrorBuffer();
             }
           } catch {}
@@ -110,7 +114,9 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
           unsubscribe = api.onIPCError((payload: any) => {
             const typed = payload as IPCErrorPayload;
             setIpcErrors((prev) => [...prev, typed]);
+            console.log('[ServicesProvider] IPC error received');
             if (requiresSetup(typed)) {
+              console.log('[ServicesProvider] needsSetup triggered by live error');
               setNeedsSetup(true);
               setSetupMessage(String((typed as any)?.message ?? ''));
             }
@@ -125,6 +131,49 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
       } catch {}
     };
   }, [client]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const cfg = await configService.getConfig();
+        const chat = (cfg?.ai as any)?.modelTypes?.chat;
+        const providers = (cfg?.ai as any)?.providers ?? {};
+        const providerId = chat?.provider as string | undefined;
+        const providerCfg = providerId ? providers[providerId] : undefined;
+        const localIds = ['openai-compatible', 'ollama', 'lmstudio'];
+        const isLocal = typeof (providerCfg?.providerType) === 'string' && localIds.includes(String(providerCfg?.providerType));
+        const hasModel = typeof chat?.model === 'string' && chat.model.trim().length > 0;
+        const hasProvider = typeof providerId === 'string' && providerId.trim().length > 0 && !!providerCfg;
+        const hasBaseUrl = typeof providerCfg?.baseUrl === 'string' && providerCfg.baseUrl.trim().length > 0;
+        const hasApiKey = typeof providerCfg?.apiKey === 'string' && providerCfg.apiKey.trim().length > 0;
+        const hasModels = Array.isArray(providerCfg?.models) && providerCfg.models.length > 0;
+        const credsOk = isLocal ? hasBaseUrl : (hasApiKey || hasModels);
+        const valid = hasProvider && hasModel && credsOk;
+        if (active && valid) {
+          console.log('[ServicesProvider] derived config valid, clearing needsSetup');
+          setNeedsSetup(false);
+          setSetupMessage(null);
+        }
+      } catch {}
+    })();
+    return () => {
+      active = false;
+    };
+  }, [configService]);
+
+  const markSetupComplete = async (): Promise<void> => {
+    try {
+      const api: any = client as any;
+      if (api?.clearErrorBuffer) {
+        console.log('[ServicesProvider] markSetupComplete: clearing IPC error buffer');
+        await api.clearErrorBuffer();
+      }
+    } catch {}
+    console.log('[ServicesProvider] markSetupComplete: needsSetup=false');
+    setNeedsSetup(false);
+    setSetupMessage(null);
+  };
 
   return (
     <ServiceContext.Provider
@@ -142,6 +191,7 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
         ipcErrors,
         needsSetup,
         setupMessage,
+        markSetupComplete,
       }}
     >
       {children}

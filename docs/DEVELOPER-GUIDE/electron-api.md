@@ -21,6 +21,14 @@ renders UI/state, handles navigation & toasts, and reports diagnostics.
 Main Process ⇄ IPC handlers ⇄ Preload bridge ⇄ window.electronAPI ⇄ Renderer
 ```
 
+### Readiness & Config Signals
+
+- `awaitReady(options?)` uses a buffered channel (`ts-chan`) so late subscribers still get the latest `SYSTEM_READY` snapshot without polling.
+- `awaitConfigChange(options?)` waits for the next `settings:config:changed` event (buffer size 8) emitted from `configService.onConfigChanged`.
+- Both helpers support `timeoutMs` and throw if the channel closes or the timeout elapses.
+- The main process may emit an initial `status: 'loading'` before IPC is registered; once a `status: 'ready'` snapshot is received, any later non-ready snapshots are ignored to avoid regressions and timeouts.
+- On renderer reloads during development, preload first invokes `system:get-latest-ready` to hydrate the latest snapshot from the main process, and the main process replays the cached snapshot on every `did-finish-load`. This prevents missed one-time ready events when hot reloading.
+
 ## API Structure
 
 The canonical `ElectronAPI` interface (`src/shared/types/electron-api/index.ts`) bundles eight typed

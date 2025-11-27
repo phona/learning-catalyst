@@ -17,6 +17,7 @@ import type {
   ChatAPI,
 } from '@/shared/types/electron-api/chat-api';
 import type { APIResponse } from '@/shared/types/electron-api';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type ChatHandlersDeps = {
   chatService: ChatService;
@@ -222,7 +223,7 @@ export const setupChatHandlers = (
     handlerLogger.info('Sending chat message', { conversationId: params.conversationId });
     if ((services.chatService as any).__fallback === true) {
       handlerLogger.error('Chat service unavailable (fallback)');
-      return fail('chat.unavailable', 'Chat service unavailable');
+      return fail(IPC_ERROR_CODES.chat.unavailable, 'Chat service unavailable');
     }
     const result = await services.chatService.sendMessage({
       conversationId: params.conversationId,
@@ -320,7 +321,7 @@ export const setupChatHandlers = (
       return ok({ canceled: true });
     } catch (error) {
       handlerLogger.error('Failed to cancel stream', error);
-      return fail('chat.cancel_failed', 'Unable to cancel stream');
+      return fail(IPC_ERROR_CODES.chat.cancelFailed, 'Unable to cancel stream');
     }
   });
 
@@ -383,7 +384,7 @@ export const setupChatHandlers = (
       const detection = detectPracticeOpportunity(params.userMessage);
       if (!detection.opportunity) {
         return fail(
-          'chat.practice_missing_opportunity',
+          IPC_ERROR_CODES.chat.practiceMissingOpportunity,
           'Practice opportunity required before requesting a suggestion',
         );
       }

@@ -1,4 +1,5 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { IPC_EVENTS } from '@/shared/types/ipc';
 import { mkdir } from 'fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,12 +36,7 @@ import { createQdrantManager } from '@/main/qdrant-manager';
 import type { IPCErrorPayload, BufferedIPCError } from '@/shared/types/ipc-error';
 
 // Import database from existing implementation
-import {
-  createDatabase,
-  createSqliteDriverFactory,
-  getDefaultDatabasePath,
-  runMigrations,
-} from './services/core/database/kysely-database';
+import { createDatabase, createSqliteDriverFactory, runMigrations } from './services/core/database/kysely-database';
 import { createConfigStorage } from './services/core/config/storage';
 
 // Memory debugging utility for development
@@ -79,6 +75,8 @@ try {
 
 let win: BrowserWindow | null = null;
 let isShuttingDown = false;
+let readySnapshotSent = false;
+let lastSystemReadyPayload: any | null = null;
 const pendingIpcErrors: IPCErrorPayload[] = [];
 const globalErrorBuffer: BufferedIPCError[] = [];
 
@@ -124,7 +122,7 @@ const flushPendingIpcErrors = () => {
 };
 
 const reportMainError = (error: unknown, channel = 'main') => {
-  console.log(error)
+  console.error(error)
   const payload = serializeIPCError(error, channel);
   enqueueIpcError(payload);
   return payload;
@@ -138,6 +136,18 @@ ipcMain.handle('system:get-error-buffer', async () => {
 ipcMain.handle('system:clear-error-buffer', async () => {
   clearErrorBuffer();
   return { cleared: true };
+});
+
+ipcMain.handle('system:relaunch-app', async () => {
+  try {
+    clearErrorBuffer();
+    app.relaunch();
+    app.exit(0);
+    return { relaunching: true };
+  } catch (error) {
+    reportMainError(error, 'relaunch');
+    return { relaunching: false };
+  }
 });
 
 process.on('uncaughtException', (error) => {
@@ -204,7 +214,27 @@ async function createWindow(): Promise<void> {
   });
 
   win.webContents.once('did-finish-load', () => {
+    console.log('[Main] webContents did-finish-load');
     flushPendingIpcErrors();
+    if (!win || !win.webContents) return;
+
+    // Always replay the latest known snapshot so renderer reloads don't miss ready.
+    if (lastSystemReadyPayload) {
+      console.log('[Main] Replaying last SYSTEM_READY snapshot after reload', lastSystemReadyPayload);
+      win.webContents.send(IPC_EVENTS.SYSTEM_READY, lastSystemReadyPayload);
+      return;
+    }
+
+    // Fallback: emit loading if no snapshot recorded yet.
+    if (!readySnapshotSent) {
+      const loadingPayload = {
+        status: 'loading',
+        ready: { ipcHandlersRegistered: false },
+      };
+      lastSystemReadyPayload = loadingPayload;
+      console.log('[Main] SYSTEM_READY loading (no snapshot yet)');
+      win.webContents.send(IPC_EVENTS.SYSTEM_READY, loadingPayload);
+    }
   });
 
   // Make all links open with the browser, not with the application
@@ -243,11 +273,15 @@ async function createWindow(): Promise<void> {
     win.show();
   }
 
+  let readyStart = 0;
   try {
+    readyStart = Date.now();
+    console.log('[Main] createWindow start service initialization');
     const baseLogger = new MainThreadLogger('info', true, 1000);
     const loggerService = createLoggerService({ logger: baseLogger });
 
-    const dbPath = getDefaultDatabasePath();
+    // Persist the database inside the selected workspace (dev:workspace or production)
+    const dbPath = path.join(learningCatalystPath, 'learning_catalyst.db');
     const driverFactory = await createSqliteDriverFactory(dbPath);
     const database = createDatabase(driverFactory);
 
@@ -259,8 +293,15 @@ async function createWindow(): Promise<void> {
       storage: configStorage,
       logger: loggerService,
     });
-    configService.onConfigChanged(() => {
-      console.log('[Main] Config changed');
+    configService.onConfigChanged((config) => {
+      console.log('[Main] Config changed, broadcasting settings:config:changed');
+      if (win?.webContents && !win.webContents.isDestroyed()) {
+        win.webContents.send('settings:config:changed', {
+          changedKeys: undefined,
+          config,
+          timestamp: Date.now(),
+        });
+      }
     });
 
     applyStructuredErrorHandling();
@@ -274,7 +315,11 @@ async function createWindow(): Promise<void> {
       loggerService,
       configService,
     });
-    await aiServiceManager.waitForReady();
+    try {
+      await aiServiceManager.waitForReady();
+    } catch (error) {
+      reportMainError(error, 'ai.ready');
+    }
     const aiService = aiServiceManager;
 
     const learningService = createLearningService({
@@ -286,7 +331,11 @@ async function createWindow(): Promise<void> {
 
     qdrantManagerInstance = createQdrantManager();
     const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
-    await vectorDatabase.start();
+    try {
+      await vectorDatabase.start();
+    } catch (error) {
+      reportMainError(error, 'qdrant.start');
+    }
     const knowledgeService = createKnowledgeService({
       db: database,
       loggerService,
@@ -310,14 +359,27 @@ async function createWindow(): Promise<void> {
 
     const contentService = createContentService({ loggerService, aiService });
 
-    const agentManager = await createAgentManager({
-      aiService,
-      analyticsService,
-      conceptParsingService,
-      learningService,
-      loggerService,
-      configService,
-    });
+    let agentManager: AgentManager;
+    try {
+      agentManager = await createAgentManager({
+        aiService,
+        analyticsService,
+        conceptParsingService,
+        learningService,
+        loggerService,
+        configService,
+      });
+    } catch (error) {
+      reportMainError(error, 'agentManager.create');
+      agentManager = {
+        runAgent: async (request: { agentType: any }) => ({
+          content: 'Agent is initializing. Please try again shortly.',
+          model: 'unavailable',
+          provider: 'unavailable',
+          agentType: request.agentType ?? 'learning',
+        }),
+      } as AgentManager;
+    }
 
     const chatService = createChatService({
       db: database,
@@ -327,6 +389,7 @@ async function createWindow(): Promise<void> {
       agentManager,
     });
 
+    console.log('[Main] setupAllIpcHandlers begin', { workspacePath });
     await setupAllIpcHandlers(win, workspacePath, {
       chatService,
       learningService,
@@ -339,6 +402,7 @@ async function createWindow(): Promise<void> {
       loggerService,
       configService,
     });
+    console.log('[Main] setupAllIpcHandlers complete');
 
     const menu = createAppMenu(win);
     win.setMenu(menu);
@@ -363,9 +427,40 @@ async function createWindow(): Promise<void> {
     });
 
   } catch (error) {
+    console.error('[Main] startup fatal error before ready emit', error);
     reportMainError(error, 'startup');
+    return sendReadySnapshot({ error, startMs: readyStart });
   }
+  return sendReadySnapshot({ startMs: readyStart });
 }
+
+function sendReadySnapshot({ error, startMs }: { error?: unknown; startMs?: number }) {
+  if (!win || !win.webContents || win.webContents.isDestroyed()) return;
+  const payload: any = {
+    status: 'ready',
+    ready: { ipcHandlersRegistered: true },
+  };
+  if (startMs && typeof startMs === 'number') {
+    payload.ready.startMs = startMs;
+  }
+  if (error) {
+    payload.error = {
+      message: error instanceof Error ? error.message : String(error),
+      code: (error as any)?.code,
+      type: (error as any)?.type,
+    };
+  }
+  const elapsed = startMs ? Date.now() - startMs : undefined;
+  console.log('[Main] SYSTEM_READY ready send (final)', { elapsedMs: elapsed, payload });
+  lastSystemReadyPayload = payload;
+  readySnapshotSent = true;
+  win.webContents.send(IPC_EVENTS.SYSTEM_READY, payload);
+}
+
+// Allow preload to fetch the latest readiness snapshot (useful on renderer reloads)
+ipcMain.handle('system:get-latest-ready', async () => {
+  return lastSystemReadyPayload;
+});
 
 // Cleanup function to prevent memory leaks
 async function cleanup() {

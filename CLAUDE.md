@@ -109,6 +109,12 @@ export function Component({ prop }: Props) {
 - Renderer code now subscribes to `onIPCError` so structured IPC payloads surface as toasts/setup
   guidance whenever the main process cannot initialize (missing chat config, startup failures). That
   ensures the UI never falls back to hidden defaults.
+- Readiness + config propagation rely on buffered `ts-chan` channels in preload; use
+  `awaitReady/awaitConfigChange` rather than polling or timeouts to gate renderer flows. After a
+  `status: 'ready'` snapshot is observed, later non-ready snapshots are ignored to avoid UI
+  regressions/timeouts. The main process also caches the latest readiness snapshot and replays it on
+  `did-finish-load`, and preload hydrates from `system:get-latest-ready` on reload to avoid missed
+  events during development.
 - **Main Process**: NEVER accesses electronAPI (only provides it)
 - **Service Pattern**: Pass dependencies as function parameters
 - **Agent Tools**: Call service functions only (not lower-level APIs)

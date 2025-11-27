@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  Cog6ToothIcon,
-  SparklesIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  GlobeAltIcon,
-  MagnifyingGlassIcon,
-  AdjustmentsHorizontalIcon,
-  ComputerDesktopIcon,
-} from '@heroicons/react/24/outline';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Cog6ToothIcon, CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
-import { settingsToasts, utilityToasts } from '@/renderer/utils/toast';
+import { settingsToasts } from '@/renderer/utils/toast';
 import { useDebouncedSave } from '@/renderer/hooks/useDebouncedSave';
 import { SettingsErrorBoundary } from '@/renderer/components/UI/SettingsErrorBoundary';
 import { ComponentErrorBoundary } from '@/renderer/components/UI/ComponentErrorBoundary';
-import { Accordion, Input } from '@/renderer/components/UI';
+import { Accordion, Input, ConfirmDialog } from '@/renderer/components/UI';
 import { AIProviderSettings } from './AIProviderSettings';
 import { UISettings } from './UISettings';
 import { ResponseSettings } from './ResponseSettings';
@@ -122,6 +113,11 @@ export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<string[]>(['ai-models', 'interface']);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const initialConfigRef = useRef<AppConfig | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingConfig, setPendingConfig] = useState<AppConfig | null>(null);
+  const [isManualSaving, setIsManualSaving] = useState(false);
 
   // Local state for configuration
   const [localConfig, setLocalConfig] = useState<AppConfig | null>(null);
@@ -138,7 +134,10 @@ export const SettingsPanel: React.FC = () => {
 
   useEffect(() => {
     if (!config) {
-      useConfigStore.getState().loadConfig().catch(() => {});
+      useConfigStore
+        .getState()
+        .loadConfig()
+        .catch(() => {});
     }
   }, [config]);
 
@@ -151,19 +150,26 @@ export const SettingsPanel: React.FC = () => {
   } = useDebouncedSave<AppConfig>({
     delay: 1000,
     onSave: async (configToSave) => {
-      await configService!.saveConfig(configToSave);
+      if (!configService) {
+        throw new Error('Config service unavailable');
+      }
+      await configService.saveConfig(configToSave);
       setConfig(configToSave);
     },
     onSuccess: () => {
       // Visual feedback is shown in the header - no toast needed
     },
     onError: (error) => {
+      setSaveError(error.message);
       settingsToasts.providerError('Settings', error.message);
     },
   });
 
   useEffect(() => {
     if (!config) return;
+    if (!initialConfigRef.current) {
+      initialConfigRef.current = config;
+    }
 
     const providerPool = config.ai.providers ?? {};
     const normalizedModelTypes = modelTypes.reduce<Record<ModelType, ModelTypeConfig>>(
@@ -190,6 +196,10 @@ export const SettingsPanel: React.FC = () => {
 
     // Immediate save without debouncing
     try {
+      if (!configService) {
+        settingsToasts.providerError('Settings', 'Config service unavailable');
+        return;
+      }
       // Prefer the most recent store snapshot in case other components updated config
       const storeConfig = useConfigStore.getState().config;
       const mergedConfig: AppConfig = storeConfig
@@ -205,14 +215,18 @@ export const SettingsPanel: React.FC = () => {
         : localConfig;
 
       // If providers/modelTypes vanished (e.g., during tests or hot state), pull from persisted config
-      let persisted: AppConfig | undefined;
-      if (Object.keys(mergedConfig.ai.providers ?? {}).length === 0 || !mergedConfig.ai.modelTypes) {
+      let persisted: AppConfig | null = null;
+      if (
+        Object.keys(mergedConfig.ai.providers ?? {}).length === 0 ||
+        !mergedConfig.ai.modelTypes
+      ) {
         try {
-          persisted = await configService!.getConfig();
+          persisted = await configService.getConfig();
           mergedConfig.ai.providers = Object.keys(mergedConfig.ai.providers ?? {}).length
             ? mergedConfig.ai.providers
-            : persisted?.ai?.providers ?? {};
-          mergedConfig.ai.modelTypes = mergedConfig.ai.modelTypes ?? persisted?.ai?.modelTypes ?? {};
+            : (persisted?.ai?.providers ?? {});
+          mergedConfig.ai.modelTypes =
+            mergedConfig.ai.modelTypes ?? persisted?.ai?.modelTypes ?? {};
         } catch {
           // best-effort fallback; continue with current state
         }
@@ -227,38 +241,47 @@ export const SettingsPanel: React.FC = () => {
 
       // Repair model assignments if provider ids were lost during UI state changes
       const patchedModelTypes = { ...(mergedConfig.ai.modelTypes ?? {}) };
-      (Object.keys(patchedModelTypes) as (keyof typeof patchedModelTypes)[]).forEach((modelType) => {
-        const entry = patchedModelTypes[modelType] as SelectedModel | undefined;
-        const fallback = storeConfig?.ai.modelTypes?.[modelType] as SelectedModel | undefined;
-        const persistedEntry = persisted?.ai?.modelTypes?.[modelType] as SelectedModel | undefined;
-        if (!entry) return;
-        const providerMissing = entry.provider && !providerIds.includes(entry.provider);
-        const missingModel = !entry.model && fallback?.model;
-        const fixedProvider = coerceProviderId(entry.provider);
-        const fixedModel = entry.model || fallback?.model || '';
-        patchedModelTypes[modelType] = {
-          ...entry,
-          provider: providerMissing ? coerceProviderId(fallback?.provider) : fixedProvider,
-          model: fixedModel,
-        };
-
-        if (persistedEntry) {
-          const providerMismatch = !patchedModelTypes[modelType].provider && persistedEntry.provider;
-          const modelMismatch =
-            (!patchedModelTypes[modelType].model && persistedEntry.model) ||
-            (patchedModelTypes[modelType].provider === persistedEntry.provider &&
-              patchedModelTypes[modelType].model !== persistedEntry.model);
-          if (providerMismatch || modelMismatch) {
-            patchedModelTypes[modelType] = {
-              ...persistedEntry,
-              provider: providerMismatch
-                ? coerceProviderId(persistedEntry.provider)
-                : patchedModelTypes[modelType].provider,
-              model: modelMismatch ? persistedEntry.model : patchedModelTypes[modelType].model,
-            };
+      (Object.keys(patchedModelTypes) as (keyof typeof patchedModelTypes)[]).forEach(
+        (modelType) => {
+          const validTypes = new Set<string>(Object.values(ModelType) as unknown as string[]);
+          if (!validTypes.has(modelType as unknown as string)) {
+            return;
           }
-        }
-      });
+          const entry = patchedModelTypes[modelType] as SelectedModel | undefined;
+          const fallback = storeConfig?.ai.modelTypes?.[modelType] as SelectedModel | undefined;
+          const persistedEntry = persisted?.ai?.modelTypes?.[modelType] as
+            | SelectedModel
+            | undefined;
+          if (!entry) return;
+          const providerMissing = entry.provider && !providerIds.includes(entry.provider);
+          const missingModel = !entry.model && fallback?.model;
+          const fixedProvider = coerceProviderId(entry.provider);
+          const fixedModel = entry.model || fallback?.model || '';
+          patchedModelTypes[modelType] = {
+            ...entry,
+            provider: providerMissing ? coerceProviderId(fallback?.provider) : fixedProvider,
+            model: fixedModel,
+          };
+
+          if (persistedEntry) {
+            const providerMismatch =
+              !patchedModelTypes[modelType].provider && persistedEntry.provider;
+            const modelMismatch =
+              (!patchedModelTypes[modelType].model && persistedEntry.model) ||
+              (patchedModelTypes[modelType].provider === persistedEntry.provider &&
+                patchedModelTypes[modelType].model !== persistedEntry.model);
+            if (providerMismatch || modelMismatch) {
+              patchedModelTypes[modelType] = {
+                ...persistedEntry,
+                provider: providerMismatch
+                  ? coerceProviderId(persistedEntry.provider)
+                  : patchedModelTypes[modelType].provider,
+                model: modelMismatch ? persistedEntry.model : patchedModelTypes[modelType].model,
+              };
+            }
+          }
+        },
+      );
       if (persisted?.ai?.modelTypes) {
         Object.entries(persisted.ai.modelTypes).forEach(([modelType, persistedEntry]) => {
           const existing = patchedModelTypes[modelType as ModelType] as SelectedModel | undefined;
@@ -269,8 +292,20 @@ export const SettingsPanel: React.FC = () => {
       }
       mergedConfig.ai.modelTypes = patchedModelTypes;
 
-      await configService!.saveConfig(mergedConfig);
+      if (initialConfigRef.current) {
+        const beforeProviders = Object.keys(initialConfigRef.current.ai?.providers ?? {}).sort();
+        const afterProviders = Object.keys(mergedConfig.ai?.providers ?? {}).sort();
+        const changed = beforeProviders.join(',') !== afterProviders.join(',');
+        if (changed) {
+          setPendingConfig(mergedConfig);
+          setConfirmOpen(true);
+          return;
+        }
+      }
+
+      await configService.saveConfig(mergedConfig);
       setConfig(mergedConfig);
+      initialConfigRef.current = mergedConfig;
       // Visual feedback is shown in the header - no toast needed
     } catch (error) {
       console.error('Failed to save configuration:', error);
@@ -279,6 +314,32 @@ export const SettingsPanel: React.FC = () => {
         error instanceof Error ? error.message : 'Unknown error',
       );
     }
+  };
+
+  const handleConfirmProviderChange = async () => {
+    try {
+      if (!pendingConfig || !configService) return;
+      cancelDebouncedSave();
+      setIsManualSaving(true);
+      await configService.saveConfig(pendingConfig);
+      setConfig(pendingConfig);
+      initialConfigRef.current = pendingConfig;
+    } catch (error) {
+      console.error('Failed to save configuration:', error);
+      settingsToasts.providerError(
+        'Settings',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    } finally {
+      setConfirmOpen(false);
+      setPendingConfig(null);
+      setIsManualSaving(false);
+    }
+  };
+
+  const handleCancelProviderChange = () => {
+    setConfirmOpen(false);
+    setPendingConfig(null);
   };
 
   const handleModelTypeConfigChange = (modelType: ModelType, updates: Partial<ModelTypeConfig>) => {
@@ -332,8 +393,6 @@ export const SettingsPanel: React.FC = () => {
 
     // Auto-save to global config store with debouncing
     debouncedSaveConfig(updatedConfig);
-
-    
   };
 
   const providerConfigs = useMemo(() => localConfig?.ai?.providers ?? {}, [localConfig]);
@@ -442,6 +501,28 @@ export const SettingsPanel: React.FC = () => {
     );
   };
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('settings_expanded_sections');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setExpandedSections(parsed);
+        }
+      }
+    } catch {
+      void 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('settings_expanded_sections', JSON.stringify(expandedSections));
+    } catch {
+      void 0;
+    }
+  }, [expandedSections]);
+
   const filterContent = (content: string) => {
     if (!searchQuery) return true;
     return content.toLowerCase().includes(searchQuery.toLowerCase());
@@ -457,7 +538,7 @@ export const SettingsPanel: React.FC = () => {
 
   return (
     <SettingsErrorBoundary onSaveError={(error) => console.error('Settings save error:', error)}>
-      <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+      <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 relative">
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -475,10 +556,16 @@ export const SettingsPanel: React.FC = () => {
                 </span>
               )}
               {saveStatus === 'error' && (
-                <span className="flex items-center space-x-1 text-sm text-red-600 dark:text-red-400">
+                <div className="flex items-center space-x-2 text-sm text-red-600 dark:text-red-400">
                   <XCircleIcon className="w-4 h-4" />
-                  <span>Save failed</span>
-                </span>
+                  <span>{saveError || 'Save failed'}</span>
+                  <button
+                    onClick={handleSaveConfig}
+                    className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs"
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
               <button
                 onClick={handleSaveConfig}
@@ -510,52 +597,80 @@ export const SettingsPanel: React.FC = () => {
           <div className="p-6">
             <Accordion multiple className="space-y-4">
               {/* AI Models Section */}
-              <Accordion.Item
-                id="ai-models"
-                title="AI Models"
-                description="Configure AI providers, models, and response settings"
-                defaultExpanded={true}
-              >
-                <div className="space-y-6">
-                  <ComponentErrorBoundary componentName="AI Provider Settings">
-                    <AIProviderSettings
-                      providerConfigs={providerConfigs}
-                      modelAssignments={modelAssignments}
-                      onProviderConfigChange={handleProviderConfigChange}
-                      onModelAssignmentChange={handleModelAssignmentChange}
-                    />
-                  </ComponentErrorBoundary>
-                  <ComponentErrorBoundary componentName="Response Settings">
-                    <ResponseSettings config={localConfig} onConfigChange={handleConfigChange} />
-                  </ComponentErrorBoundary>
-                </div>
-              </Accordion.Item>
+              {filterContent('AI Models Configure AI providers, models, and response settings') && (
+                <Accordion.Item
+                  id="ai-models"
+                  title="AI Models"
+                  description="Configure AI providers, models, and response settings"
+                  defaultExpanded={expandedSections.includes('ai-models')}
+                >
+                  <div className="space-y-6">
+                    <ComponentErrorBoundary componentName="AI Provider Settings">
+                      <AIProviderSettings
+                        providerConfigs={providerConfigs}
+                        modelAssignments={modelAssignments}
+                        onProviderConfigChange={handleProviderConfigChange}
+                        onModelAssignmentChange={handleModelAssignmentChange}
+                      />
+                    </ComponentErrorBoundary>
+                    <ComponentErrorBoundary componentName="Response Settings">
+                      <ResponseSettings config={localConfig} onConfigChange={handleConfigChange} />
+                    </ComponentErrorBoundary>
+                  </div>
+                </Accordion.Item>
+              )}
 
               {/* Interface Section */}
-              <Accordion.Item
-                id="interface"
-                title="Interface"
-                description="Customize the appearance and behavior of the application"
-                defaultExpanded={true}
-              >
-                <ComponentErrorBoundary componentName="UI Settings">
-                  <UISettings config={localConfig} onConfigChange={handleConfigChange} />
-                </ComponentErrorBoundary>
-              </Accordion.Item>
+              {filterContent(
+                'Interface Customize the appearance and behavior of the application',
+              ) && (
+                <Accordion.Item
+                  id="interface"
+                  title="Interface"
+                  description="Customize the appearance and behavior of the application"
+                  defaultExpanded={expandedSections.includes('interface')}
+                >
+                  <ComponentErrorBoundary componentName="UI Settings">
+                    <UISettings config={localConfig} onConfigChange={handleConfigChange} />
+                  </ComponentErrorBoundary>
+                </Accordion.Item>
+              )}
 
               {/* Advanced Section */}
-              <Accordion.Item
-                id="advanced"
-                title="Advanced"
-                description="Advanced configuration options and experimental features"
-              >
-                <ComponentErrorBoundary componentName="Advanced Settings">
-                  <AdvancedSettings config={localConfig} onConfigChange={handleConfigChange} />
-                </ComponentErrorBoundary>
-              </Accordion.Item>
+              {filterContent(
+                'Advanced Advanced configuration options and experimental features',
+              ) && (
+                <Accordion.Item
+                  id="advanced"
+                  title="Advanced"
+                  description="Advanced configuration options and experimental features"
+                  defaultExpanded={expandedSections.includes('advanced')}
+                >
+                  <ComponentErrorBoundary componentName="Advanced Settings">
+                    <AdvancedSettings config={localConfig} onConfigChange={handleConfigChange} />
+                  </ComponentErrorBoundary>
+                </Accordion.Item>
+              )}
             </Accordion>
           </div>
         </div>
+
+        {(isSaving || isManualSaving) && (
+          <div className="absolute inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+              Saving changes...
+            </div>
+          </div>
+        )}
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          title="Apply Provider Changes"
+          message="Changing providers may reset or invalidate model assignments. You may need to reselect models."
+          confirmText="Apply"
+          cancelText="Cancel"
+          onConfirm={handleConfirmProviderChange}
+          onCancel={handleCancelProviderChange}
+        />
       </div>
     </SettingsErrorBoundary>
   );

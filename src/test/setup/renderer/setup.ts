@@ -22,6 +22,7 @@ process.env.NODE_ENV = 'test';
 // Mock window.electronAPI for IPC communication
 Object.defineProperty(window, 'electronAPI', {
   value: {
+    relaunchApp: vi.fn().mockResolvedValue(undefined),
     getConfig: vi.fn().mockResolvedValue({}),
     chat: {
       sendMessage: vi

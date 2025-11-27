@@ -103,7 +103,10 @@ describe("SettingsPanel provider + model wiring", () => {
     }
 
     await userEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
-
+    const dialog = screen.queryByTestId("confirm-dialog");
+    if (dialog) {
+      await userEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+    }
     await waitFor(() => expect(saveConfig).toHaveBeenCalled());
     const saved = saveConfig.mock.calls.at(-1)?.[0];
     // debug
@@ -147,7 +150,10 @@ describe("SettingsPanel provider + model wiring", () => {
     }
 
     await userEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
-
+    const dialog2 = screen.queryByTestId("confirm-dialog");
+    if (dialog2) {
+      await userEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+    }
     await waitFor(() => expect(saveConfig).toHaveBeenCalled());
     const saved = saveConfig.mock.calls.at(-1)?.[0];
     // debug

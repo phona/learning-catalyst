@@ -42,6 +42,10 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
   };
 
   const getAvailableAgents = async () => {
+    const maybe = (apiClient as any).awaitReady;
+    if (typeof maybe === 'function') {
+      await maybe();
+    }
     const response = await apiClient.agents.getAvailableAgents();
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to load agents');

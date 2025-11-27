@@ -31,7 +31,7 @@ import type { SettingsAPI, SettingsUtility } from './settings-api';
 import type { CatalystAPI } from './catalyst-api';
 import type { SessionsAPI } from './sessions-api';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
-import type { IPCErrorPayload } from '../ipc-error';
+import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
 import type { AppConfig } from '../config'; // Re-export individual API interfaces
 export type {
   ChatAPI,
@@ -141,6 +141,8 @@ export interface ElectronAPI {
   agents: AgentsAPI;
   content: ContentAPI;
   settings: SettingsAPI & SettingsUtility;
+  awaitReady: (options?: { timeoutMs?: number }) => Promise<SystemReadyPayload>;
+  awaitConfigChange: (options?: { timeoutMs?: number }) => Promise<ConfigChangedPayload>;
   getWorkspacePath: () => Promise<string>;
   readDirectory: (
     path: string,
@@ -194,7 +196,25 @@ export interface ElectronAPI {
    * @param event - Event name and properties
    */
   trackEvent: (event: { name: string; properties?: object }) => Promise<void>;
+
+  // System utilities
+  getErrorBuffer: () => Promise<BufferedIPCError[]>;
+  clearErrorBuffer: () => Promise<{ cleared: boolean }>;
+  relaunchApp: () => Promise<{ relaunching: boolean }>;
 }
+
+export interface SystemReadyPayload {
+  status: 'ready' | 'loading';
+  ready: { ipcHandlersRegistered: boolean };
+}
+
+export interface ConfigChangedPayload {
+  changedKeys?: string[];
+  config?: Partial<AppConfig>;
+  timestamp?: number;
+}
+
+export const READY_TIMEOUT_MS = 30000;
 
 /**
  * Type helpers for dependency injection and testing

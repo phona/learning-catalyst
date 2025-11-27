@@ -3,6 +3,7 @@ import { ipcMain } from 'electron';
 import type { ILogger } from '../services/types';
 import type { AnalyticsService } from '@/main/services/domain/analytics/analytics-service';
 import type { APIResponse } from '@/shared/types/electron-api';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 export const setupCompleteAnalyticsHandlers = (
   ipcMainInstance: typeof ipcMain,
@@ -30,7 +31,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(dashboard);
     } catch (error) {
       handlerLogger.error('Failed to get dashboard', error);
-      return fail('analytics.dashboard_failed', 'Unable to fetch dashboard', error);
+      return fail(IPC_ERROR_CODES.analytics.dashboardFailed, 'Unable to fetch dashboard', error);
     }
   });
 
@@ -46,7 +47,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(progressChart);
     } catch (error) {
       handlerLogger.error('Failed to get progress chart', error);
-      return fail('analytics.progress_chart_failed', 'Unable to fetch progress chart', error);
+      return fail(IPC_ERROR_CODES.analytics.progressChartFailed, 'Unable to fetch progress chart', error);
     }
   });
 
@@ -58,7 +59,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(achievements);
     } catch (error) {
       handlerLogger.error('Failed to get achievements', error);
-      return fail('analytics.achievements_failed', 'Unable to fetch achievements', error);
+      return fail(IPC_ERROR_CODES.analytics.achievementsFailed, 'Unable to fetch achievements', error);
     }
   });
 
@@ -70,7 +71,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(result);
     } catch (error) {
       handlerLogger.error('Failed to unlock achievement', error);
-      return fail('analytics.unlock_failed', 'Unable to unlock achievement', error);
+      return fail(IPC_ERROR_CODES.analytics.unlockFailed, 'Unable to unlock achievement', error);
     }
   });
 
@@ -86,7 +87,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(stats);
     } catch (error) {
       handlerLogger.error('Failed to get usage stats', error);
-      return fail('analytics.usage_failed', 'Unable to fetch usage stats', error);
+      return fail(IPC_ERROR_CODES.analytics.usageFailed, 'Unable to fetch usage stats', error);
     }
   });
 
@@ -103,7 +104,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(tokenUsage);
     } catch (error) {
       handlerLogger.error('Failed to get token usage', error);
-      return fail('analytics.token_usage_failed', 'Unable to fetch token usage', error);
+      return fail(IPC_ERROR_CODES.analytics.tokenUsageFailed, 'Unable to fetch token usage', error);
     }
   });
 
@@ -115,7 +116,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(undefined);
     } catch (error) {
       handlerLogger.error('Failed to track event', error);
-      return fail('analytics.track_failed', 'Unable to track event', error);
+      return fail(IPC_ERROR_CODES.analytics.trackFailed, 'Unable to track event', error);
     }
   });
 
@@ -127,7 +128,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(progress);
     } catch (error) {
       handlerLogger.error('Failed to get concept progress', error);
-      return fail('analytics.concept_progress_failed', 'Unable to fetch concept progress', error);
+      return fail(IPC_ERROR_CODES.analytics.conceptProgressFailed, 'Unable to fetch concept progress', error);
     }
   });
 
@@ -139,7 +140,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(history);
     } catch (error) {
       handlerLogger.error('Failed to get session history', error);
-      return fail('analytics.session_history_failed', 'Unable to fetch session history', error);
+      return fail(IPC_ERROR_CODES.analytics.sessionHistoryFailed, 'Unable to fetch session history', error);
     }
   });
 
@@ -151,7 +152,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(achievements);
     } catch (error) {
       handlerLogger.error('Failed to check achievements', error);
-      return fail('analytics.check_achievements_failed', 'Unable to check achievements', error);
+      return fail(IPC_ERROR_CODES.analytics.checkAchievementsFailed, 'Unable to check achievements', error);
     }
   });
 
@@ -163,7 +164,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(trends);
     } catch (error) {
       handlerLogger.error('Failed to get learning trends', error);
-      return fail('analytics.trends_failed', 'Unable to fetch learning trends', error);
+      return fail(IPC_ERROR_CODES.analytics.trendsFailed, 'Unable to fetch learning trends', error);
     }
   });
 
@@ -175,7 +176,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(streak);
     } catch (error) {
       handlerLogger.error('Failed to get study streak', error);
-      return fail('analytics.streak_failed', 'Unable to fetch study streak', error);
+      return fail(IPC_ERROR_CODES.analytics.streakFailed, 'Unable to fetch study streak', error);
     }
   });
 
@@ -187,7 +188,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(stats);
     } catch (error) {
       handlerLogger.error('Failed to get time stats', error);
-      return fail('analytics.time_stats_failed', 'Unable to fetch time stats', error);
+      return fail(IPC_ERROR_CODES.analytics.timeStatsFailed, 'Unable to fetch time stats', error);
     }
   });
 
@@ -199,7 +200,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(exported);
     } catch (error) {
       handlerLogger.error('Failed to export data', error);
-      return fail('analytics.export_failed', 'Unable to export data', error);
+      return fail(IPC_ERROR_CODES.analytics.exportFailed, 'Unable to export data', error);
     }
   });
 
@@ -211,7 +212,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(undefined);
     } catch (error) {
       handlerLogger.error('Failed to import data', error);
-      return fail('analytics.import_failed', 'Unable to import data', error);
+      return fail(IPC_ERROR_CODES.analytics.importFailed, 'Unable to import data', error);
     }
   });
 
@@ -223,7 +224,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok({ sessionId: trackedSessionId });
     } catch (error) {
       handlerLogger.error('Failed to track session', error);
-      return fail('analytics.track_session_failed', 'Unable to track session', error);
+      return fail(IPC_ERROR_CODES.analytics.trackSessionFailed, 'Unable to track session', error);
     }
   });
 
@@ -235,7 +236,7 @@ export const setupCompleteAnalyticsHandlers = (
       return ok(undefined);
     } catch (error) {
       handlerLogger.error('Failed to update concept progress', error);
-      return fail('analytics.update_concept_failed', 'Unable to update concept progress', error);
+      return fail(IPC_ERROR_CODES.analytics.updateConceptFailed, 'Unable to update concept progress', error);
     }
   });
 

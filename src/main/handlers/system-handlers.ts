@@ -4,6 +4,7 @@
 
 import { ipcMain, app } from 'electron';
 import type { APIResponse } from '@/shared/types/electron-api';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
   success: true,
@@ -28,7 +29,7 @@ export function setupSystemHandlers(): void {
       };
       return ok(payload);
     } catch (error) {
-      return fail('system.report_error_failed', 'Unable to report error', error);
+      return fail(IPC_ERROR_CODES.system.reportErrorFailed, 'Unable to report error', error);
     }
   });
 
@@ -50,7 +51,7 @@ export function setupSystemHandlers(): void {
       };
       return ok(healthStatus);
     } catch (error) {
-      return fail('system.health_check_failed', 'Unable to perform health check', error);
+      return fail(IPC_ERROR_CODES.system.healthCheckFailed, 'Unable to perform health check', error);
     }
   });
 
@@ -63,7 +64,7 @@ export function setupSystemHandlers(): void {
       };
       return ok(version);
     } catch (error) {
-      return fail('system.version_failed', 'Unable to retrieve version', error);
+      return fail(IPC_ERROR_CODES.system.versionFailed, 'Unable to retrieve version', error);
     }
   });
 }
