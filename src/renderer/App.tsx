@@ -19,6 +19,7 @@ const MainRoutes = () => (
   <Routes>
     <Route element={<Layout />}>
       <Route index element={<ChatInterface />} />
+      <Route path="chat/:sessionId" element={<ChatInterface />} />
       <Route path="sessions" element={<SessionManager />} />
       <Route path="discovery" element={<DiscoveryPage />} />
       <Route path="progress" element={<LearningDashboard />} />

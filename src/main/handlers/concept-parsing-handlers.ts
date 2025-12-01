@@ -7,6 +7,7 @@ import type {
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { APIResponse } from '@/shared/types/electron-api';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
+import type { ConfigService } from '../services/core/config/config-service';
 
 type ConceptParsingFilePayload = {
   fileName?: string;
@@ -36,6 +37,7 @@ type LoggerService = {
 type ConceptParsingHandlersDeps = {
   conceptParsingService: ConceptParsingService;
   loggerService: LoggerService;
+  configService: ConfigService;
 };
 
 const normalizeMaterial = (
@@ -82,6 +84,11 @@ export const setupConceptParsingHandlers = (
         });
       }
 
+      const clampDepth = (d?: number) => {
+        if (!d && d !== 0) return undefined;
+        return Math.max(1, Math.min(6, d));
+      };
+
       const settings: ConceptParsingSettings = {
         userId: params.userId,
         options: {
@@ -89,6 +96,14 @@ export const setupConceptParsingHandlers = (
           maxConceptsPerSegment: params.options?.maxConceptsPerFile,
         },
       };
+
+      try {
+        const ui = await services.configService.get('ui');
+        const depth = clampDepth((ui as any)?.documentHeadingDepth);
+        if (depth !== undefined) {
+          settings.maxHeadingDepth = depth;
+        }
+      } catch {}
 
       try {
         const result = await services.conceptParsingService.parseMaterials(materials, settings);
@@ -99,8 +114,12 @@ export const setupConceptParsingHandlers = (
         });
         return ok(result);
       } catch (error) {
-        handlerLogger.error('Concept parsing failed', { error });
-        return fail(IPC_ERROR_CODES.knowledge.parseFailed, 'Unable to parse concepts', error);
+        const normalized =
+          error instanceof Error
+            ? { message: error.message, name: error.name, stack: error.stack }
+            : { message: String(error) };
+        handlerLogger.error('Concept parsing failed', normalized);
+        return fail(IPC_ERROR_CODES.knowledge.parseFailed, 'Unable to parse concepts', normalized);
       }
     },
   );

@@ -32,8 +32,13 @@ const sidebarConfig = {
 } as const;
 
 export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
-  const { createNewSession, setCurrentSession, clearMessages, currentSession, saveCurrentSession } =
-    useChatStore();
+  const {
+    clearMessages,
+    resetChatState,
+    setCurrentSession,
+    currentSession,
+    saveCurrentSession,
+  } = useChatStore();
   const { sessions, loading, error, refresh, hasMore, loadMore } = useRecentSessions(
     sidebarConfig.maxInitialSessions,
   );
@@ -44,28 +49,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
 
   // Use custom hooks for session events and navigation
   const { newSessionIds } = useSessionEvents({
+    eventHandlers: {
+      onSessionCreated: () => {
+        void refresh();
+      },
+    },
     enableCleanup: true,
   });
 
   const { navigationItems, handleNavigation, navigateTo, currentView, isActive, activePath } =
     useSidebarNavigation();
 
-  // Handle new chat creation
+  // Handle new chat start without creating a session until first message
   const handleNewChat = async (): Promise<void> => {
     try {
-      const sessionId = await createNewSession();
-      console.log(`[Sidebar] Created new session: ${sessionId}`);
+      // Reset chat state so the next sent message auto-creates a session
+      resetChatState();
 
-      // Navigate to chat view using navigation hook
-      navigateTo('/');
-
-      // Clear the current messages to start fresh
+      // Clear any existing messages to start fresh
       clearMessages();
 
-      console.log('[Sidebar] New chat session created and ready');
-      sessionToasts.created();
+      // Navigate to the base chat route (no sessionId)
+      navigateTo(`/`);
+
+      console.log('[Sidebar] New chat initialized (session will be created on first message)');
     } catch (error) {
-      console.error('[Sidebar] Failed to create new chat session:', error);
+      console.error('[Sidebar] Failed to initialize new chat:', error);
       sessionToasts.createError(error instanceof Error ? error.message : 'Unknown error');
     }
   };
@@ -79,19 +88,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         messageCount: session.messages?.length || 0,
       });
 
-      // Navigate to chat view FIRST
-      navigateTo('/');
-
-      // If this is the current session, don't do anything
+      // If this is the current session, just ensure we navigate to its route
       if (currentSession?.id === session.id) {
         console.log(`[Sidebar] Session ${session.id} is already active`);
+        navigateTo(`/chat/${session.id}`);
         return;
       }
 
       // Save current session messages before switching if there are unsaved messages
       if (currentSession?.id && currentSession.messages && currentSession.messages.length > 0) {
         console.log(`[Sidebar] Saving current session before switching: ${currentSession.id}`);
-        // Use setTimeout to avoid blocking the UI
         setTimeout(() => {
           saveCurrentSession().catch((error) => {
             console.warn('[Sidebar] Failed to save current session before switching:', error);
@@ -99,12 +105,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         }, 100);
       }
 
-      // Load the new session
+      // Load the new session first to avoid race with navigation
       console.log(`[Sidebar] Calling setCurrentSession...`);
-      setCurrentSession(session.id);
+      await setCurrentSession(session.id);
+
+      // Navigate after store is updated so the chat view has the correct session
+      navigateTo(`/chat/${session.id}`);
 
       console.log(`[Sidebar] Opened session: ${session.id}`);
-      // Visual feedback is sufficient - no toast needed for session loading
     } catch (error) {
       console.error('[Sidebar] Failed to open session:', error);
       sessionToasts.loadError(error instanceof Error ? error.message : 'Unknown error');

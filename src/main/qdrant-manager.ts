@@ -27,7 +27,8 @@
 import { app, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import axios from 'axios';
+import { QdrantClient } from '@qdrant/qdrant-js';
+import { createHash } from 'node:crypto';
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -55,63 +56,10 @@ class MainProcessQdrantService {
       ...config,
     };
 
-    this.client = axios.create({
-      baseURL: `http://${this.config.host}:${this.config.port}`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      // 添加连接池配置防止内存泄漏
-      maxRedirects: 5,
+    this.client = new QdrantClient({
+      host: String(this.config.host),
+      port: Number(this.config.port),
     });
-
-    // 设置HTTP agents来控制连接池
-    this.setupHttpAgents();
-  }
-
-  private async setupHttpAgents(): Promise<void> {
-    try {
-      const { default: http } = await import('http');
-      const { default: https } = await import('https');
-
-      // 设置HTTP agent限制连接池大小
-      const httpAgent = new http.Agent({
-        keepAlive: true,
-        maxSockets: 10,
-        maxFreeSockets: 5,
-        timeout: 30000,
-      });
-
-      const httpsAgent = new https.Agent({
-        keepAlive: true,
-        maxSockets: 10,
-        maxFreeSockets: 5,
-        timeout: 30000,
-      });
-
-      this.client.defaults.httpAgent = httpAgent;
-      this.client.defaults.httpsAgent = httpsAgent;
-
-      // 添加响应拦截器来确保连接正确释放
-      this.client.interceptors.response.use(
-        (response: any) => {
-          // 确保响应完成后释放连接
-          if (response.socket) {
-            response.socket.destroy();
-          }
-          return response;
-        },
-        (error: any) => {
-          // 确保错误时也释放连接
-          if (error.socket) {
-            error.socket.destroy();
-          }
-          throw error;
-        },
-      );
-    } catch (_error) {
-      console.warn('Failed to set up HTTP agents:', _error);
-    }
   }
 
   private handleOutput(data: Buffer, isError = false): void {
@@ -325,19 +273,8 @@ class MainProcessQdrantService {
   private async waitForReady(maxRetries = 30): Promise<void> {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        // Try different health endpoints
-        const endpoints = ['/health', '/', '/collections'];
-        for (const endpoint of endpoints) {
-          try {
-            const response = await this.client.get(endpoint);
-            if (response.status === 200) {
-              console.log(`Qdrant health check passed via ${endpoint}`);
-              return;
-            }
-          } catch (_endpointError) {
-            // Try next endpoint
-          }
-        }
+        await this.client.getCollections();
+        return;
       } catch (_error) {
         // Server not ready yet
       }
@@ -359,7 +296,35 @@ class MainProcessQdrantService {
         distance: distance,
       },
     };
-    await this.client.put(`/collections/${name}`, payload);
+    await this.client.createCollection(name, payload);
+  }
+
+  async getCollectionInfo(name: string): Promise<any> {
+    const info = await this.client.getCollection(name);
+    return info;
+  }
+
+  async ensureCollection(name: string, vectorSize: number, distance = 'Cosine'): Promise<void> {
+    try {
+      const info = await this.getCollectionInfo(name);
+      const cfg = info?.config ?? info;
+      const params = cfg?.params ?? cfg;
+      const vectors = params?.vectors ?? cfg?.vectors;
+      const currentSize = typeof vectors?.size === 'number' ? vectors.size : undefined;
+      const currentDistance = typeof vectors?.distance === 'string' ? vectors.distance : undefined;
+
+      if (!currentSize || currentSize !== vectorSize || (currentDistance && currentDistance !== distance)) {
+        try {
+          await this.deleteCollection(name);
+        } catch (_e) {
+          // ignore delete failure and proceed
+        }
+        await this.createCollection(name, vectorSize, distance);
+        return;
+      }
+    } catch (_error) {
+      await this.createCollection(name, vectorSize, distance);
+    }
   }
 
   async listCollections(): Promise<
@@ -371,8 +336,8 @@ class MainProcessQdrantService {
       optimizer_status: string;
     }>
     > {
-    const response = await this.client.get('/collections');
-    return response.data.collections.map((col: any) => ({
+    const res = await this.client.getCollections();
+    return res.collections.map((col: any) => ({
       name: col.name,
       vectors_count: col.vectors_count || 0,
       points_count: col.points_count || 0,
@@ -382,12 +347,32 @@ class MainProcessQdrantService {
   }
 
   async deleteCollection(name: string): Promise<void> {
-    await this.client.delete(`/collections/${name}`);
+    await this.client.deleteCollection(name);
   }
 
   async upsertVectors(collectionName: string, points: any[]): Promise<void> {
-    const payload = { points };
-    await this.client.put(`/collections/${collectionName}/points`, payload);
+    const normalized = points.map((p: any) => ({ ...p, id: this.normalizePointId(p?.id) }));
+    const payload = { points: normalized };
+    const maxAttempts = 3;
+    let attempt = 0;
+    let lastError: any = null;
+
+    while (attempt < maxAttempts) {
+      try {
+        const healthy = await this.getHealth();
+        if (!healthy) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
+        await this.client.upsert(collectionName, payload);
+        return;
+      } catch (error: any) {
+        lastError = error;
+        attempt += 1;
+        await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      }
+    }
+
+    throw lastError;
   }
 
   async searchVectors(
@@ -408,67 +393,83 @@ class MainProcessQdrantService {
       payload.filter = filter;
     }
 
-    const response = await this.client.post(
-      `/collections/${collectionName}/points/search`,
-      payload,
-    );
-    return response.data.result.map((result: any) => ({
-      id: result.id,
-      score: result.score,
-      payload: result.payload,
-    }));
+    const result = await this.client.search(collectionName, payload);
+    return result.map((r: any) => ({ id: r.id, score: r.score, payload: r.payload }));
   }
 
   async getVectors(collectionName: string, ids: any[]): Promise<any[]> {
     const payload = {
-      ids: ids,
+      ids: ids.map((id) => this.normalizePointId(id)),
       with_payload: true,
       with_vector: true,
     };
 
-    const response = await this.client.post(`/collections/${collectionName}/points`, payload);
-    return response.data.result.map((point: any) => ({
-      id: point.id,
-      vector: point.vector,
-      payload: point.payload,
-    }));
+    const result = await this.client.retrieve(collectionName, payload);
+    return result.map((point: any) => ({ id: point.id, vector: point.vector, payload: point.payload }));
   }
 
   async deleteVectors(collectionName: string, ids: any[]): Promise<void> {
-    const payload = { points: ids };
-    await this.client.post(`/collections/${collectionName}/points/delete`, payload);
+    const payload = { points: ids.map((id) => this.normalizePointId(id)) };
+    await this.client.delete(collectionName, payload);
   }
 
   async clearCollection(collectionName: string): Promise<void> {
-    const payload = {
-      points: { all: true },
-    };
-    await this.client.post(`/collections/${collectionName}/points/delete`, payload);
+    const batchSize = 1000;
+    let offset: any = undefined;
+    let done = false;
+    while (!done) {
+      const page = await this.client.scroll(collectionName, {
+        limit: batchSize,
+        with_payload: false,
+        with_vector: false,
+        offset,
+      });
+      const ids = page.points?.map((p: any) => p.id) ?? [];
+      if (ids.length > 0) {
+        await this.client.delete(collectionName, { points: ids });
+      }
+      if (!page.next_page_offset) {
+        done = true;
+      } else {
+        offset = page.next_page_offset;
+      }
+    }
+  }
+
+  private uuidFromString(s: string): string {
+    const buf = createHash('sha256').update(String(s)).digest();
+    const bytes = Buffer.from(buf.slice(0, 16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = bytes.toString('hex');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  private normalizePointId(id: any): any {
+    if (typeof id === 'number' && Number.isInteger(id) && id >= 0) {
+      return id;
+    }
+    if (typeof id === 'string') {
+      const v4 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (v4.test(id)) return id;
+      return this.uuidFromString(id);
+    }
+    return this.uuidFromString(String(id));
   }
 
   async getHealth(): Promise<boolean> {
     try {
-      // Try different health endpoints
-      const endpoints = ['/health', '/', '/collections'];
-      for (const endpoint of endpoints) {
-        try {
-          const response = await this.client.get(endpoint);
-          if (response.status === 200) {
-            return true;
-          }
-        } catch (_endpointError) {
-          // Try next endpoint
-        }
-      }
-      return false;
+      await this.client.getCollections();
+      return true;
     } catch (_error) {
       return false;
     }
   }
 
   async getMetrics(): Promise<any> {
-    const response = await this.client.get('/metrics');
-    return response.data;
+    const url = `http://${this.config.host}:${this.config.port}/metrics`;
+    const res = await fetch(url);
+    return await res.text();
   }
 }
 
@@ -504,15 +505,17 @@ class MainProcessKnowledgeService {
 
       for (const collectionName of Object.values(this.COLLECTIONS)) {
         try {
-          await this.qdrantService.createCollection(collectionName, this.VECTOR_SIZE, 'Cosine');
-          console.log(`Created Qdrant collection: ${collectionName}`);
+          await this.qdrantService.ensureCollection(
+            collectionName,
+            this.VECTOR_SIZE,
+            'Cosine',
+          );
+          console.log(`Ensured Qdrant collection: ${collectionName}`);
         } catch (error: any) {
-          if (!error.response?.data?.status?.error?.includes('already exists')) {
-            console.error(
-              `Failed to create collection ${collectionName}:`,
-              error instanceof Error ? error.message : String(error),
-            );
-          }
+          console.error(
+            `Failed to ensure collection ${collectionName}:`,
+            error instanceof Error ? error.message : String(error),
+          );
         }
       }
     } catch (error) {
@@ -679,7 +682,7 @@ class MainProcessKnowledgeService {
         queryEmbedding,
         limit,
         0.5,
-        { sessionId: sessionId },
+        { must: [{ key: 'sessionId', match: { value: sessionId } }] },
       );
 
       return searchResults.map((result) => {

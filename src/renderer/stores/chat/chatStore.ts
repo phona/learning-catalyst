@@ -106,20 +106,29 @@ const buildSessionRecord = (partial: Partial<Session>): Session => ({
 
 const normalizeConversationMessages = (messages: ConversationMessage[] = []): UIMessageDisplay[] =>
   messages.map((message) => {
+    console.log('[ChatStore] normalize message', {
+      id: message.id,
+      role: message.role,
+      hasContent: typeof message.content === 'string',
+    });
     const tokens =
       typeof message.tokensUsed === 'number'
         ? {
-          prompt_tokens: message.tokensUsed,
-          completion_tokens: 0,
-          total_tokens: message.tokensUsed,
-        }
+            prompt_tokens: message.tokensUsed,
+            completion_tokens: 0,
+            total_tokens: message.tokensUsed,
+          }
         : undefined;
+
+    const safeContent = typeof message.content === 'string' ? message.content : '';
+    const safeTimestamp =
+      message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp ?? Date.now());
 
     return {
       id: message.id,
       role: message.role,
-      content: message.content,
-      timestamp: message.timestamp ?? new Date(),
+      content: safeContent,
+      timestamp: safeTimestamp,
       status: message.status ?? 'delivered',
       provider: message.provider,
       thinking_content: message.thinkingContent,
@@ -197,8 +206,10 @@ export interface ChatState {
   thinkingContent: string;
   streamingMessageId: string | null;
   streamingContent: string;
-  streamingCancelled: boolean;
-  setCurrentSession: (sessionOrId: Partial<Session> | string) => Promise<void>;
+  setCurrentSession: (
+    sessionOrId: Partial<Session> | string,
+    options?: { preserveMessages?: boolean },
+  ) => Promise<void>;
   addMessage: (message: UIMessageDisplay) => void;
   updateMessage: (messageId: string, updates: Partial<UIMessageDisplay>) => void;
   removeMessage: (messageId: string) => void;
@@ -242,11 +253,13 @@ const initialState = {
   thinkingContent: '',
   streamingMessageId: null,
   streamingContent: '',
-  streamingCancelled: false,
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
   const { sessionService, electronAPI } = dependencies;
+  const devLog = (...args: any[]) => {
+    if (process.env.NODE_ENV !== 'production') console.debug(...args);
+  };
 
   const loadSessionById = async (sessionId: string): Promise<Session | null> => {
     const sessionResponse = await electronAPI.sessions.get(sessionId);
@@ -281,7 +294,15 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         error: null,
       });
 
-      const setCurrentSessionAction = async (sessionOrId: Partial<Session> | string) => {
+      const setCurrentSessionAction = async (
+        sessionOrId: Partial<Session> | string,
+        options: { preserveMessages?: boolean } = {},
+      ) => {
+        const preserveMessages = options.preserveMessages ?? false;
+        console.log('[ChatStore] setCurrentSessionAction start', {
+          sessionOrId: typeof sessionOrId === 'string' ? sessionOrId : sessionOrId.id,
+          preserveMessages,
+        });
         const provisionalSession =
           typeof sessionOrId === 'string'
             ? buildSessionRecord({ id: sessionOrId })
@@ -290,8 +311,9 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         set({
           currentSessionId: provisionalSession.id,
           currentSession: provisionalSession,
-          messages: [],
+          messages: preserveMessages ? get().messages : [],
         });
+        console.log('[ChatStore] provisional session set', { id: provisionalSession.id });
 
         try {
           let session: Session | null = provisionalSession;
@@ -310,11 +332,17 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             throw new Error('Unable to load session');
           }
 
-          const preserveMessages = get().messages.length > 0;
-          set(setSessionMessages(session, preserveMessages));
+          const hasMessagesAlready = get().messages.length > 0;
+          set(setSessionMessages(session, preserveMessages || hasMessagesAlready));
+          console.log('[ChatStore] setCurrentSessionAction success', {
+            id: session.id,
+            messageCount: Array.isArray(session.messages) ? session.messages.length : 0,
+            preserved: preserveMessages || hasMessagesAlready,
+          });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to load session';
           set({ error: message });
+          console.error('[ChatStore] setCurrentSessionAction error', message);
           throw error;
         }
       };
@@ -430,19 +458,28 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               streamingContent: '',
               isTyping: false,
               isStreaming: false,
-              streamingCancelled: false,
             });
           }
         },
 
-        stopStreaming: () => {
-          const { streamingMessageId } = get();
+        stopStreaming: async () => {
+          const { streamingMessageId, currentSessionId, currentSession } = get();
+          const sessionId = currentSessionId ?? currentSession?.id ?? null;
+          try {
+            if (sessionId && typeof dependencies.chatService.cancelStream === 'function') {
+              console.log('[ChatStore] stopStreaming: cancel remote stream', { sessionId });
+              await dependencies.chatService.cancelStream(sessionId);
+            }
+          } catch (err) {
+            console.warn('[ChatStore] stopStreaming: remote cancel failed', err);
+          }
+
           if (!streamingMessageId) {
+            set({ isStreaming: false });
             return;
           }
-          set({ streamingCancelled: true });
-          const finalContent = get().streamingContent;
           set({ isStreaming: false });
+          const finalContent = get().streamingContent;
           get().finishStreamingMessage(finalContent);
         },
 
@@ -456,7 +493,17 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
 
             const newSessionId = response.data?.sessionId;
             if (response.success && newSessionId) {
+              console.log('[ChatStore] createNewSession API success', { sessionId: newSessionId });
               await setCurrentSessionAction(newSessionId);
+              try {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(
+                    new CustomEvent('sessionCreated', {
+                      detail: { sessionId: newSessionId, isNew: true },
+                    }),
+                  );
+                }
+              } catch {}
               return newSessionId;
             }
 
@@ -465,10 +512,20 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             const timestamp = Date.now();
             const randomStr = Math.random().toString(36).substr(2, 9);
             const sessionId = `session_${timestamp}_${randomStr}`;
+            console.warn('[ChatStore] createNewSession fallback', { sessionId });
             await setCurrentSessionAction({
               id: sessionId,
               title: 'Untitled Session',
             });
+            try {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(
+                  new CustomEvent('sessionCreated', {
+                    detail: { sessionId, isNew: true },
+                  }),
+                );
+              }
+            } catch {}
             return sessionId;
           }
         },
@@ -518,11 +575,21 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               const createResp = await electronAPI.sessions.create({ title: 'Untitled Session' });
               if (createResp.success && createResp.data?.sessionId) {
                 sessionId = createResp.data.sessionId;
-                await setCurrentSessionAction(sessionId);
+                await setCurrentSessionAction(sessionId, { preserveMessages: true });
+                try {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(
+                      new CustomEvent('sessionCreated', {
+                        detail: { sessionId, isNew: true, hasFirstMessage: true },
+                      }),
+                    );
+                  }
+                } catch {}
               } else {
                 throw new Error(createResp.error?.message || 'Failed to create session');
               }
             }
+            console.log('[ChatStore] sendMessage using session', { sessionId });
 
             const response = await electronAPI.chat.sendMessage({
               conversationId: sessionId,
@@ -532,6 +599,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             if (!response.success || !response.data) {
               throw new Error(response.error?.message || 'Failed to send message');
             }
+            console.log('[ChatStore] sendMessage response received');
 
             const payload = response.data as SendMessageResponse;
             const assistantData =
@@ -564,7 +632,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
           const { currentSessionId } = get();
 
           try {
-            set({ isLoading: true, isStreaming: true, error: null, streamingCancelled: false });
+            set({ isLoading: true, isStreaming: true, error: null });
 
             const userMessage: UIMessageDisplay = {
               id: `msg_${Date.now()}`,
@@ -584,7 +652,16 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               const createResp = await electronAPI.sessions.create({ title: 'Untitled Session' });
               if (createResp.success && createResp.data?.sessionId) {
                 sessionId = createResp.data.sessionId;
-                await setCurrentSessionAction(sessionId);
+                await setCurrentSessionAction(sessionId, { preserveMessages: true });
+                try {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(
+                      new CustomEvent('sessionCreated', {
+                        detail: { sessionId, isNew: true, hasFirstMessage: true },
+                      }),
+                    );
+                  }
+                } catch {}
               } else {
                 throw new Error(createResp.error?.message || 'Failed to create session');
               }
@@ -602,18 +679,86 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
 
             set((state) => ({ messages: [...state.messages, assistantPlaceholder] }));
             get().startStreamingMessage(assistantId);
+            devLog('[chatStore] streaming start', { assistantId, sessionId });
 
             const { chatService } = dependencies;
+            const statusMessageId = `${assistantId}_status`;
+            const upsertStatusMessage = (text: string) => {
+              set((state) => {
+                const idx = state.messages.findIndex((m) => m.id === statusMessageId);
+                const statusMsg: UIMessageDisplay = {
+                  id: statusMessageId,
+                  role: 'system',
+                  content: text,
+                  timestamp: new Date().toISOString(),
+                  status: 'delivered',
+                  showThinking: false,
+                };
+                if (idx >= 0) {
+                  const copy = [...state.messages];
+                  copy[idx] = statusMsg;
+                  return { messages: copy };
+                }
+                return { messages: [...state.messages, statusMsg] };
+              });
+              devLog('[chatStore] status upsert', { statusMessageId, text });
+            };
+
+            const statusToText = (status: any): string => {
+              if (!status || typeof status !== 'object') return '';
+              switch (status.type) {
+              case 'retry':
+                return `Retry ${status.attempt}/${status.max}: ${status.reason ?? ''}`.trim();
+              case 'fail':
+                return `Failed (${status.category ?? 'error'})${
+                  status.suggestion ? `: ${status.suggestion}` : ''
+                }`;
+              case 'thought':
+                return status.text ?? '';
+              case 'tip':
+                return status.text ?? '';
+              case 'tool':
+                return `Tool ${status.tool ?? ''} ${status.phase ?? ''}${
+                  status.detail ? `: ${status.detail}` : ''
+                }`.trim();
+              default:
+                return '';
+              }
+            };
+
             let aggregated = '';
             const result = await chatService.sendMessageStream(
               content,
               (chunk) => {
-                if (get().streamingCancelled) {
+                devLog('[chatStore] onChunk', {
+                  type: (chunk as any).type,
+                  status: (chunk as any).status,
+                  contentPreview:
+                    typeof chunk.content === 'string'
+                      ? chunk.content.slice(0, 60)
+                      : undefined,
+                  streamingMessageId: get().streamingMessageId,
+                });
+                if (!get().isStreaming) {
+                  return;
+                }
+                if (chunk.type === 'status' && (chunk as any).status) {
+                  const text = statusToText((chunk as any).status);
+                  if (text) upsertStatusMessage(text);
                   return;
                 }
                 const text = typeof chunk.content === 'string' ? chunk.content : String(chunk.content ?? '');
                 aggregated += text;
+                // Keep legacy streamingContent updated for stopStreaming/metrics
                 get().appendStreamingContent(text);
+                // Live-update the assistant placeholder bubble content
+                set((state) => ({
+                  messages: state.messages.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, content: aggregated, status: 'typing', showThinking: true }
+                      : m,
+                  ),
+                }));
               },
               { sessionId },
             );
@@ -621,7 +766,39 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             get().finishStreamingMessage(result.content);
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to stream message';
-            set({ error: errorMessage, isStreaming: false });
+            // Surface the failure inline so users see it immediately, even if no status chunk arrived
+            set((state) => {
+              const messages = [...state.messages];
+              const placeholderIdx = messages.findIndex((m) => m.id === state.streamingMessageId);
+              if (placeholderIdx >= 0) {
+                messages[placeholderIdx] = {
+                  ...messages[placeholderIdx],
+                  content: errorMessage,
+                  status: 'error',
+                  showThinking: false,
+                };
+              } else {
+                messages.push({
+                  id: `msg_${Date.now()}_error`,
+                  role: 'system',
+                  content: errorMessage,
+                  timestamp: new Date().toISOString(),
+                  status: 'error',
+                  showThinking: false,
+                });
+              }
+              return {
+                messages,
+                error: errorMessage,
+                isStreaming: false,
+                streamingMessageId: null,
+                streamingContent: '',
+              };
+            });
+            devLog('[chatStore] stream error', {
+              error: errorMessage,
+              streamingMessageId: get().streamingMessageId,
+            });
             throw new Error(errorMessage);
           } finally {
             set({ isLoading: false });

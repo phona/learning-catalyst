@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
 
 export interface DocumentPreviewSnippet {
   label: string;
@@ -28,32 +30,65 @@ const MAX_OUTLINE_ITEMS = 12;
 const sanitizeForAi = (text: string) =>
   text.replace(/\r/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_AI_SNIPPET_LENGTH);
 
-const detectHeadingLabel = (line: string): string | null => {
+type DetectedHeading = { label: string; level: number } | null;
+
+const detectHeading = (line: string): DetectedHeading => {
   if (!line) {
     return null;
   }
 
   const markdownHeading = line.match(/^#{1,6}\s+(.*)$/);
   if (markdownHeading) {
-    return markdownHeading[1].trim();
+    const hashes = (line.match(/^#{1,6}/) || [''])[0].length;
+    return { label: markdownHeading[1].trim(), level: hashes };
   }
 
   const declarationHeading = line.match(
     /^(?:export\s+)?(?:class|function|interface|type)\s+[A-Za-z0-9_]+/i,
   );
   if (declarationHeading) {
-    return declarationHeading[0].trim();
+    return { label: declarationHeading[0].trim(), level: 2 };
   }
 
   const labelHeading = line.match(/^[A-Z][A-Za-z0-9\s]{3,}:/);
   if (labelHeading) {
-    return labelHeading[0].replace(/:$/, '').trim();
+    return { label: labelHeading[0].replace(/:$/, '').trim(), level: 2 };
   }
 
   return null;
 };
 
-const buildSectionsFromContent = (lines: string[]) => {
+export const extractMarkdownHeadings = (
+  content: string,
+): Array<{ label: string; level: number; startLine: number }> => {
+  const tree = unified().use(remarkParse).parse(content) as any;
+  const result: Array<{ label: string; level: number; startLine: number }> = [];
+  const stack: any[] = [tree];
+  while (stack.length) {
+    const node = stack.pop();
+    if (node && node.type === 'heading' && node.depth && node.position?.start?.line) {
+      const parts: string[] = [];
+      const children = Array.isArray(node.children) ? node.children : [];
+      for (const c of children) {
+        if (typeof c.value === 'string') parts.push(c.value);
+        else if (Array.isArray(c.children)) {
+          for (const cc of c.children) {
+            if (typeof cc.value === 'string') parts.push(cc.value);
+          }
+        }
+      }
+      const label = parts.join('').trim();
+      result.push({ label, level: node.depth, startLine: node.position.start.line });
+    }
+    const children = Array.isArray(node?.children) ? node.children : [];
+    for (let i = children.length - 1; i >= 0; i -= 1) {
+      stack.push(children[i]);
+    }
+  }
+  return result.sort((a, b) => a.startLine - b.startLine);
+};
+
+const buildSectionsFromContent = (lines: string[], maxDepth?: number) => {
   type Section = { label: string; startLine: number; buffer: string[] };
   const sections: Array<{ label: string; startLine: number; content: string }> = [];
   let current: Section = { label: 'Introduction', startLine: 1, buffer: [] };
@@ -65,8 +100,9 @@ const buildSectionsFromContent = (lines: string[]) => {
       insideCodeBlock = !insideCodeBlock;
     }
 
-    const heading = !insideCodeBlock ? detectHeadingLabel(trimmed) : null;
-    if (heading) {
+    const heading = !insideCodeBlock ? detectHeading(trimmed) : null;
+    const withinDepth = heading && (!maxDepth || heading.level <= Math.max(1, Math.min(6, maxDepth)));
+    if (heading && withinDepth) {
       if (current.buffer.length) {
         sections.push({
           label: current.label,
@@ -75,7 +111,7 @@ const buildSectionsFromContent = (lines: string[]) => {
         });
       }
       current = {
-        label: heading,
+        label: heading.label,
         startLine: index + 1,
         buffer: [],
       };
@@ -92,6 +128,35 @@ const buildSectionsFromContent = (lines: string[]) => {
     });
   }
 
+  return sections;
+};
+
+const buildSectionsFromHeadings = (
+  lines: string[],
+  headings: Array<{ label: string; level: number; startLine: number }>,
+  maxDepth?: number,
+) => {
+  const sections: Array<{ label: string; startLine: number; content: string }> = [];
+  const depth = maxDepth ? Math.max(1, Math.min(6, maxDepth)) : undefined;
+  const included = headings.filter((h) => (depth === undefined ? true : h.level <= depth));
+  if (!included.length) {
+    return buildSectionsFromContent(lines, maxDepth);
+  }
+  let currentLabel = 'Introduction';
+  let currentStart = 1;
+  for (const h of included) {
+    const end = h.startLine - 1;
+    const prev = lines.slice(currentStart - 1, Math.max(currentStart - 1, end)).join('\n');
+    if (prev.trim().length) {
+      sections.push({ label: currentLabel, startLine: currentStart, content: prev });
+    }
+    currentLabel = h.label;
+    currentStart = h.startLine;
+  }
+  const tail = lines.slice(currentStart - 1).join('\n');
+  if (tail.trim().length) {
+    sections.push({ label: currentLabel, startLine: currentStart, content: tail });
+  }
   return sections;
 };
 
@@ -174,11 +239,14 @@ const selectSnippetsFromSections = (
 
 export const createPreparsedMaterial = (
   rawContent: string,
-  options?: { filePath?: string; sourceLabel?: string },
+  options?: { filePath?: string; sourceLabel?: string; maxHeadingDepth?: number },
 ): DocumentPreview => {
   const safeContent = rawContent ?? '';
   const lines = safeContent.split(/\r?\n/);
-  const sections = buildSectionsFromContent(lines);
+  const mdHeadings = extractMarkdownHeadings(safeContent);
+  const sections = mdHeadings.length
+    ? buildSectionsFromHeadings(lines, mdHeadings, options?.maxHeadingDepth)
+    : buildSectionsFromContent(lines, options?.maxHeadingDepth);
   const snippets = selectSnippetsFromSections(sections, safeContent);
 
   const headings = sections
@@ -205,13 +273,9 @@ export const createPreparsedMaterial = (
 };
 
 export const previewToPromptPayload = (preview: DocumentPreview): string =>
-  JSON.stringify(
-    {
-      source: preview.source,
-      stats: preview.stats,
-      outline: preview.outline,
-      snippets: preview.snippets,
-    },
-    null,
-    2,
-  );
+  JSON.stringify({
+    source: preview.source,
+    stats: preview.stats,
+    outline: preview.outline,
+    snippets: preview.snippets,
+  });

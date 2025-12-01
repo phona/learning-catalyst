@@ -42,7 +42,7 @@ export interface UseChatResult {
 
   // Session management
   createSession: (title: string, description?: string) => Promise<string | null>;
-  loadSession: (sessionId: string) => Promise<void>;
+  loadSession: (sessionId: string, options?: { preserveMessages?: boolean }) => Promise<void>;
   updateSessionTitle: (title: string) => Promise<void>;
 
   // Agent management
@@ -70,8 +70,10 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
   // Load session by ID - define before useEffect to fix dependency issue
   const loadSession = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, options: { preserveMessages?: boolean } = {}) => {
       if (!chatService) return;
+
+      const preserveMessages = options.preserveMessages ?? false;
 
       try {
         setIsLoading(true);
@@ -81,8 +83,10 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
 
         if (session) {
           setCurrentSession(session);
-          // Messages would need to be loaded separately
-          setMessages([]);
+          // Only clear local messages when explicitly reloading history
+          if (!preserveMessages) {
+            setMessages([]);
+          }
         } else {
           setError('Session not found');
         }
@@ -129,7 +133,16 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           if (!createdId) {
             throw new Error('Failed to create session');
           }
-          await loadSession(createdId);
+          await loadSession(createdId, { preserveMessages: true });
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('sessionCreated', {
+                  detail: { sessionId: createdId, isNew: true, hasFirstMessage: true },
+                }),
+              );
+            }
+          } catch {}
           sessionId = createdId;
         }
 
@@ -198,28 +211,75 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           if (!createdId) {
             throw new Error('Failed to create session');
           }
-          await loadSession(createdId);
+          await loadSession(createdId, { preserveMessages: true });
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('sessionCreated', {
+                  detail: { sessionId: createdId, isNew: true, hasFirstMessage: true },
+                }),
+              );
+            }
+          } catch {}
           sessionId = createdId;
         }
         console.log('[useChat] Streaming start', { sessionId, contentLen: content.length });
         streamingExecutionRef.current = sessionId ?? null;
 
         // Send streaming message using chat service
+        const statusMessageId = `${assistantMessageId}_status`;
+        const upsertStatusMessage = (text: string) => {
+          setMessages((prev) => {
+            const idx = prev.findIndex((m) => m.id === statusMessageId);
+            const statusMsg: ChatMessage = {
+              id: statusMessageId,
+              role: 'system',
+              content: text,
+              timestamp: new Date(),
+            };
+            if (idx >= 0) {
+              const copy = [...prev];
+              copy[idx] = statusMsg;
+              return copy;
+            }
+            return [...prev, statusMsg];
+          });
+        };
+
+        const statusToText = (status: any): string => {
+          if (!status || typeof status !== 'object') return '';
+          switch (status.type) {
+            case 'retry':
+              return `Retry ${status.attempt}/${status.max}: ${status.reason ?? ''}`.trim();
+            case 'fail':
+              return `Failed (${status.category ?? 'error'})${status.suggestion ? `: ${status.suggestion}` : ''}`;
+            case 'tip':
+              return status.text ?? '';
+            case 'tool':
+              return `Tool ${status.tool ?? ''} ${status.phase ?? ''}${status.detail ? `: ${status.detail}` : ''}`.trim();
+            default:
+              return '';
+          }
+        };
+
         const response = await chatService.sendMessageStream(
           content,
           (chunk: ChatStreamChunk) => {
             if (chunk.type === 'content' && chunk.content) {
               console.debug('[useChat] Chunk', { len: String(chunk.content.length) });
-                    streamingContent += chunk.content;
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === assistantMessageId ? { ...msg, content: streamingContent } : msg,
-                      ),
-                    );
-                    console.debug('[useChat] assistant content length', { len: streamingContent.length });
-                  }
-                  onChunk?.(chunk);
-                },
+              streamingContent += chunk.content;
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessageId ? { ...msg, content: streamingContent } : msg,
+                ),
+              );
+              console.debug('[useChat] assistant content length', { len: streamingContent.length });
+            } else if (chunk.type === 'status' && chunk.status) {
+              const text = statusToText(chunk.status);
+              if (text) upsertStatusMessage(text);
+            }
+            onChunk?.(chunk);
+          },
           {
             sessionId,
             agentId: sendOptions.agentId ?? selectedAgent ?? undefined,
@@ -282,8 +342,16 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           : null;
 
         if (sessionId) {
-          // Load the newly created session
           await loadSession(sessionId);
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('sessionCreated', {
+                  detail: { sessionId, isNew: true },
+                }),
+              );
+            }
+          } catch {}
         }
 
         return sessionId;

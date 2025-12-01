@@ -74,9 +74,16 @@ const ChatAreaComponent: React.FC = () => {
     autoScroll = true,
     updateMessage = (): void => {},
     currentSession,
+    streamingMessageId = null,
   } = chatState;
 
   const chatMessages = Array.isArray(messages) ? messages : [];
+  console.log('[ChatArea] state', {
+    sessionId: chatState.currentSession?.id ?? chatState.currentSessionId,
+    messageCount: chatMessages.length,
+    isStreaming,
+    streamingMessageId,
+  });
   // Monitor messages to check for practice opportunities
   const lastCheckedUserMessageIdRef = useRef<string | null>(null);
   useEffect((): void => {
@@ -149,19 +156,7 @@ const ChatAreaComponent: React.FC = () => {
   //   .filter(msg => msg.role === 'assistant')
   //   .pop();
 
-  // Create a temporary streaming message
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const streamingMessage: MessageDisplayWithThinking | null = isStreaming
-    ? {
-      id: 'streaming',
-      role: 'assistant' as const,
-      content: streamingContent,
-      timestamp: new Date().toISOString(),
-      status: 'typing' as const,
-      thinking_content: thinkingContent ?? undefined,
-      showThinking: true, // Show thinking during streaming
-    }
-    : null;
+  // Ephemeral streaming bubble removed; streaming state is now shown on the placeholder message
 
   return (
     <div
@@ -171,6 +166,7 @@ const ChatAreaComponent: React.FC = () => {
     >
       <div className="h-full">
         {chatMessages.length === 0 && !isStreaming ? (
+          console.log('[ChatArea] empty'),
           /* Empty state */
           <div className="h-full flex items-center justify-center p-8">
             <div className="text-center max-w-md">
@@ -243,22 +239,16 @@ const ChatAreaComponent: React.FC = () => {
           /* Messages */
           <div className="py-6">
             <div className="max-w-4xl mx-auto space-y-6">
+              {console.log('[ChatArea] rendering messages', { count: chatMessages.length })}
               {chatMessages.map((message: MessageDisplayWithThinking) => (
                 <MessageErrorBoundary key={message.id} messageId={message.id}>
-                  <MessageBubble message={message} onToggleThinking={handleToggleThinking} />
-                </MessageErrorBoundary>
-              ))}
-
-              {/* Streaming message */}
-              {streamingMessage && (
-                <MessageErrorBoundary messageId={streamingMessage.id}>
                   <MessageBubble
-                    message={streamingMessage}
-                    isStreaming={true}
+                    message={message}
                     onToggleThinking={handleToggleThinking}
+                    isStreaming={isStreaming && message.id === streamingMessageId}
                   />
                 </MessageErrorBoundary>
-              )}
+              ))}
             </div>
 
             {/* Scroll anchor */}

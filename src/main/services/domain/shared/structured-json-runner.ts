@@ -130,13 +130,7 @@ export const createStructuredJsonRunner = ({
     fallback,
     context,
   }: StructuredJsonRequest<T>): Promise<T> => {
-    try {
-      return await runAgentJson<T>(systemPrompt, input, context);
-    } catch (error) {
-      logger.warn('Domain agent execution failed, using aiService fallback', { context, error });
-      const prompt = fallbackPrompt ?? `${systemPrompt}\n${input}`;
-      return runAiJson(prompt, fallback, context);
-    }
+    return await runAgentJson<T>(systemPrompt, input, context);
   };
 
   return {

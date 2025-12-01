@@ -51,16 +51,23 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   agentStatus,
   performanceMetrics,
 }) => {
+  const __hasContent = typeof message.content === 'string';
+  console.log('[MessageBubble] content check', {
+    id: message.id,
+    role: message.role,
+    hasContent: __hasContent,
+  });
   // Check if this is a practice suggestion (we can identify these by specific markers in the content)
+  const _lower = typeof message.content === 'string' ? message.content.toLowerCase() : '';
   const isPracticeSuggestion =
-    message.content.toLowerCase().includes('practice') &&
-    (message.content.toLowerCase().includes('suggest') ||
-      message.content.toLowerCase().includes('try') ||
-      message.content.toLowerCase().includes('challenge') ||
-      message.content.toLowerCase().includes('exercise') ||
-      message.content.toLowerCase().includes('practice suggestion') ||
-      message.content.toLowerCase().includes('time to practice') ||
-      message.content.toLowerCase().includes('ready to practice'));
+    _lower.includes('practice') &&
+    (_lower.includes('suggest') ||
+      _lower.includes('try') ||
+      _lower.includes('challenge') ||
+      _lower.includes('exercise') ||
+      _lower.includes('practice suggestion') ||
+      _lower.includes('time to practice') ||
+      _lower.includes('ready to practice'));
 
   // If it's a practice suggestion, render the PracticeSuggestionBubble
   if (isPracticeSuggestion) {

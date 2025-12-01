@@ -54,6 +54,9 @@ export type {
   PracticeOpportunityResult,
   NaturalPracticeSuggestion,
   UserLearningContext,
+  ChatStatus,
+  ChatStreamEvent,
+  ErrorCategory,
 } from './chat-api';
 export type { AgentDisplay, AgentContext } from './agent-api';
 

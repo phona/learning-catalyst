@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChatArea } from './ChatArea';
 import { ChatInput } from './ChatInput';
+import { TimelineView } from '../Timeline';
 import { useSessionInit } from '../../hooks/useSessionInit';
 import { MessageSkeleton } from '../UI';
 
@@ -21,6 +22,7 @@ import { MessageSkeleton } from '../UI';
  * - Session initialization through useSessionInit hook
  * - Clean separation of concerns with dedicated components
  * - Responsive layout that adapts to content
+ * - Real-time agent processing timeline
  *
  * 💡 Architecture:
  * - Delegates session logic to useSessionInit hook
@@ -39,8 +41,24 @@ const ChatInterfaceComponent: React.FC = () => {
 
   const loading = !!sessionState?.loading;
 
+  React.useEffect(() => {
+    console.log('[ChatInterface] mounted');
+    return () => {
+      console.log('[ChatInterface] unmounted');
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const sid = sessionState?.sessionId;
+    const count = Array.isArray(sessionState?.session?.messages)
+      ? sessionState.session.messages.length
+      : 0;
+    console.log('[ChatInterface] state', { loading, sessionId: sid, messageCount: count });
+  }, [loading, sessionState?.sessionId, sessionState?.session?.messages]);
+
   // Show loading state while session is loading
   if (loading) {
+    console.log('[ChatInterface] showing loading skeleton');
     return (
       <div className="h-full flex flex-col">
         <div className="flex-1 overflow-auto">
@@ -57,8 +75,13 @@ const ChatInterfaceComponent: React.FC = () => {
     );
   }
 
+  const currentSessionId = sessionState?.sessionId;
+
   return (
     <div className="h-full flex flex-col">
+      {/* Agent Processing Timeline */}
+      {currentSessionId && <TimelineView conversationId={currentSessionId} />}
+
       {/* Chat area */}
       <ChatArea />
 

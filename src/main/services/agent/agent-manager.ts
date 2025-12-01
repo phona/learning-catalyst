@@ -57,23 +57,30 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     const assessmentAgent = await createAssessmentAgent(toolDeps);
     const practiceAgent = await createPracticeAgent(toolDeps);
 
-    return {
+    const nonSupervisorAgents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent> = {
       learning: learningAgent,
       tutoring: tutoringAgent,
       assessment: assessmentAgent,
       practice: practiceAgent,
     };
+
+    const supervisorAgentLocal = await createSupervisorAgent(toolDeps, nonSupervisorAgents);
+
+    return {
+      ...nonSupervisorAgents,
+      supervisor: supervisorAgentLocal,
+    } as Record<AgentType, SpecializedAgent>;
   };
 
   // Agent instance management
-  let agentInstances: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent>;
+  let agentInstances: Record<AgentType, SpecializedAgent>;
   let currentConfig: AppConfig | null = null;
   let supervisorAgent: SpecializedAgent;
 
   // Initialize current config and agents
   currentConfig = await deps.configService.getConfig();
   agentInstances = await createAllAgents();
-  supervisorAgent = await createSupervisorAgent(toolDeps, agentInstances);
+  supervisorAgent = agentInstances.supervisor;
 
   // Handle configuration changes
   const handleConfigChange = async (newConfig: AppConfig) => {
@@ -83,7 +90,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
       deps.loggerService.info('Agent config changed, rebuilding agents');
       try {
         agentInstances = await createAllAgents();
-        supervisorAgent = await createSupervisorAgent(toolDeps, agentInstances);
+        supervisorAgent = agentInstances.supervisor;
         currentConfig = newConfig;
         if (typeof deps.conceptParsingService?.rebuild === 'function') {
           await deps.conceptParsingService.rebuild();
@@ -101,7 +108,10 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
   // Subscribe to configuration changes
   deps.configService.onConfigChanged(handleConfigChange);
 
-  const runAgent = async (request: AgentManagerRequest): Promise<AgentManagerResult> => {
+  const runAgent = async (
+    request: AgentManagerRequest,
+    options?: { callbacks?: any[] },
+  ): Promise<AgentManagerResult> => {
     const agent =
       request.agentType === 'supervisor' ? supervisorAgent : agentInstances[request.agentType];
     if (!agent) {
@@ -114,7 +124,9 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     });
 
     const formattedMessages = formatMessages(request.messages, request.topic);
-    const result = await agent.invoke({ messages: formattedMessages });
+    const invokeOptions = options?.callbacks ? { callbacks: options.callbacks } : undefined;
+    const result = await agent.invoke({ messages: formattedMessages }, invokeOptions as any);
+    logger.debug("Agent invoke result", JSON.stringify(result));
     const assistantMessage = pickAssistantMessage(result.messages ?? []);
 
     if (!assistantMessage?.content) {
@@ -152,8 +164,13 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     return resultPayload;
   };
 
+  const getAgent = (agentType: AgentType): SpecializedAgent => {
+    return agentInstances[agentType];
+  };
+
   return {
     runAgent,
+    getAgent,
   };
 };
 

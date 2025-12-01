@@ -121,6 +121,14 @@ export const useSessionInit = () => {
         }
 
         console.log(`[useSessionInit] Found session: ${sessionData.title}`);
+        console.log('[useSessionInit] Session data', {
+          id: (sessionData as any)?.id,
+          title: (sessionData as any)?.title,
+          hasMessages: Array.isArray((sessionData as any)?.messages),
+          messageCount: Array.isArray((sessionData as any)?.messages)
+            ? (sessionData as any).messages.length
+            : 0,
+        });
         const src = sessionData as Partial<RendererSessionDisplay> &
           Partial<ElectronSessionDisplay>;
         const stats = (sessionData as any)?.statistics;
@@ -163,6 +171,13 @@ export const useSessionInit = () => {
           hasUnreadMessages: src.hasUnreadMessages ?? false,
         };
 
+        console.log('[useSessionInit] Session record prepared', {
+          id: sessionRecord.id,
+          title: sessionRecord.title,
+          messageCount: Array.isArray(sessionRecord.messages)
+            ? sessionRecord.messages.length
+            : 0,
+        });
         console.log(`[useSessionInit] Calling setCurrentSession with session data`);
         setCurrentSession(sessionRecord);
         setSession(sessionRecord);

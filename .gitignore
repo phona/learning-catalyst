@@ -87,3 +87,4 @@ nul
 test-results
 coverage
 playwright-report
+.qdrant-initialized

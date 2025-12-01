@@ -14,6 +14,7 @@ const createStubChatService = () => {
   const streamChunks: StreamChunk[] = [
     { type: "content", content: "partial ", id: "c1" },
     { type: "content", content: "answer", id: "c2" },
+    { type: "status", status: { type: "retry", attempt: 1, max: 2, reason: "Rate limited" } },
   ];
 
   const sendMessageStream = vi.fn(async (_content: string, onChunk: (c: StreamChunk) => void): Promise<Message> => {
@@ -66,7 +67,27 @@ describe("useChat streaming integration (no Electron)", () => {
 
     expect(chatService.sendMessageStream).toHaveBeenCalled();
     expect(result.current.isStreaming).toBe(false);
-    expect(result.current.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result.current.messages.map((m) => m.role)).toEqual(["user", "assistant", "system"]);
     expect(result.current.messages[1]?.content).toBe("partial answer");
+  });
+
+  it("surfaces status chunks as system messages", async () => {
+    const chatService = createStubChatService();
+
+    const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+      <ServicesProvider apiClient={dummyApi} overrides={{ chatService, sessionService: stubSessionService }}>
+        {children}
+      </ServicesProvider>
+    );
+
+    const { result } = renderHook(() => useChat(), { wrapper });
+
+    await act(async () => {
+      await result.current.sendMessageStream("hello world");
+    });
+
+    const systemMessages = result.current.messages.filter((m) => m.role === "system");
+    expect(systemMessages.length).toBeGreaterThan(0);
+    expect(systemMessages[0].content).toMatch(/Retry 1\/2/i);
   });
 });

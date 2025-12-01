@@ -28,6 +28,12 @@ export const ChatStoreProvider = ({ children }: ChatStoreProviderProps) => {
 
   const store = useMemo(() => createChatStore(dependencies), [dependencies]);
 
+  console.log('[ChatStoreProvider] init', {
+    hasSessionService: !!sessionService,
+    hasChatService: !!chatService,
+    hasElectronAPI: !!electronAPIClient,
+  });
+
   return <ChatStoreContext.Provider value={store}>{children}</ChatStoreContext.Provider>;
 };
 

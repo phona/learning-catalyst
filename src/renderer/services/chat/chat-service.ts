@@ -90,7 +90,12 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     const assistantId = `assistant_${Date.now()}`;
 
     try {
-      console.log('[chat-service] sendMessageStream: start', { sessionId });
+      console.log('[chat-service] sendMessageStream: start', {
+        sessionId,
+        contentLen: content.length,
+        hasOnChunk: typeof onChunk === 'function',
+        options,
+      });
 
       const started = await apiClient.chat.sendMessageStream(
         {
@@ -98,6 +103,12 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
           message: content,
         },
         (evt) => {
+          console.debug('[chat-service] stream event', {
+            type: evt.type,
+            hasChunk: !!(evt as any).chunk,
+            hasStatus: !!(evt as any).status,
+            error: (evt as any).error,
+          });
           if (evt.type === 'chunk') {
             const chunk = evt.chunk ?? '';
             console.debug('[chat-service] stream chunk', { len: String(chunk.length) });
@@ -106,6 +117,7 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
           } else if (evt.type === 'complete') {
             const resolver = pendingStreams.get(sessionId)?.resolve;
             if (resolver) {
+              console.debug('[chat-service] stream complete event');
               resolver({
                 id: assistantId,
                 role: 'assistant',
@@ -116,11 +128,20 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
               pendingStreams.delete(sessionId);
             }
           } else if (evt.type === 'error') {
+            console.debug('[chat-service] stream error event', { error: evt.error });
+            // Bubble a status to ensure UI shows failure context before rejecting
+            onChunk({
+              type: 'status',
+              status: { type: 'fail', category: 'unknown', suggestion: evt.error },
+            } as StreamChunk & { status?: unknown });
             const rejecter = pendingStreams.get(sessionId)?.reject;
             if (rejecter) {
               rejecter(new Error(evt.error || 'Streaming error'));
               pendingStreams.delete(sessionId);
             }
+          } else if (evt.type === 'status') {
+            console.debug('[chat-service] stream status', evt.status);
+            onChunk({ type: 'status', status: evt.status } as StreamChunk & { status?: unknown });
           }
         },
       );
@@ -157,10 +178,17 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
         });
       });
 
-      console.log('[chat-service] sendMessageStream: complete', { aggregatedLen: aggregated.length });
+      console.log('[chat-service] sendMessageStream: complete', {
+        aggregatedLen: aggregated.length,
+        sessionId,
+        pending: pendingStreams.has(sessionId),
+      });
       return result;
     } catch (error) {
-      console.error('Error in sendMessageStream:', error);
+      console.error('Error in sendMessageStream:', error, {
+        sessionId,
+        aggregatedLen: aggregated.length,
+      });
       throw error;
     }
   };

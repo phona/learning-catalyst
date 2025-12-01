@@ -59,10 +59,11 @@ const chatAPI: ChatAPI = {
         const port = event.ports[0];
 
         const onMessage = (evt: MessageEvent) => {
-          const { type, chunk, error: err } = (evt.data ?? {}) as {
+          const { type, chunk, error: err, status } = (evt.data ?? {}) as {
             type?: string;
             chunk?: string;
             error?: string;
+            status?: any;
           };
           if (type === 'chat:chunk') {
             console.debug('[preload] chat:chunk', { len: String((chunk ?? '').length) });
@@ -79,6 +80,8 @@ const chatAPI: ChatAPI = {
             try {
               port.close();
             } catch {}
+          } else if (type === 'chat:status') {
+            onEvent?.({ type: 'status', status });
           }
         };
 
@@ -143,7 +146,27 @@ const learningAPI: LearningAPI = {
    * @param params.learningStyle - 'visual' | 'auditory' | 'kinesthetic' | 'reading'
    * @returns Promise<LearningSessionDisplay> - Session object with progress tracking
    */
-  startLearningSession: (params) => ipcRenderer.invoke('learning:start-session', params),
+  startLearningSession: async (params) => {
+    if (params.onProgress) {
+      const handler = (_event, payload) => {
+        if (payload && payload.status) {
+          params.onProgress(payload.status);
+        }
+      };
+      ipcRenderer.on('sessions:creation-status', handler);
+      try {
+        // Remove onProgress from params before sending over IPC
+        const { onProgress, ...ipcParams } = params;
+        const result = await ipcRenderer.invoke('learning:start-session', ipcParams);
+        ipcRenderer.removeListener('sessions:creation-status', handler);
+        return result;
+      } catch (error) {
+        ipcRenderer.removeListener('sessions:creation-status', handler);
+        throw error;
+      }
+    }
+    return ipcRenderer.invoke('learning:start-session', params);
+  },
 
   /**
    * Gets detailed progress for a learning session
@@ -899,10 +922,16 @@ const electronAPI = {
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
+    electron: {
+      learning: LearningAPI;
+    };
   }
 }
 
 // Expose the complete API to the renderer process
+contextBridge.exposeInMainWorld('electron', {
+  learning: learningAPI,
+});
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 export default electronAPI;

@@ -60,6 +60,41 @@ describe("useChat behavior coverage", () => {
     expect(roles).toContain("assistant");
   });
 
+  it("keeps the user message visible when a session is auto-created", async () => {
+    const chatService: ChatService = {
+      createSession: vi.fn().mockResolvedValue("session-keep"),
+      getSession: vi.fn().mockResolvedValue({ id: "session-keep", title: "Keep", status: "active" }),
+      sendMessage: vi.fn(async (content: string, options?: any) => ({
+        id: "assistant-keep",
+        role: "assistant",
+        content: "reply",
+        timestamp: new Date(),
+        sessionId: options?.sessionId,
+      })),
+      sendMessageStream: vi.fn(),
+      checkPracticeOpportunity: vi.fn(),
+      getAvailableAgents: vi.fn(),
+      cancelExecution: vi.fn(),
+      getProviderInfo: () => ({ name: "mock" }),
+    } as unknown as ChatService;
+
+    const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+      <ServicesProvider apiClient={dummyApi} overrides={{ chatService, sessionService: stubSessionService }}>
+        {children}
+      </ServicesProvider>
+    );
+
+    const { result } = renderHook(() => useChat(), { wrapper });
+
+    await act(async () => {
+      await result.current.sendMessage("hello keep");
+    });
+
+    expect(chatService.getSession).toHaveBeenCalledWith("session-keep");
+    expect(result.current.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result.current.messages[0].content).toBe("hello keep");
+  });
+
   it("uses selected agent when sending messages", async () => {
     const chatService: ChatService = {
       createSession: vi.fn().mockResolvedValue("session-agent"),

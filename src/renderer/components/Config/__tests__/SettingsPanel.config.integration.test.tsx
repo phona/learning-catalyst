@@ -58,6 +58,13 @@ describe("SettingsPanel provider + model wiring", () => {
     await waitFor(() => expect(saveProviderBtn).toBeEnabled());
     await userEvent.click(saveProviderBtn);
 
+    // Manual save is required to persist changes
+    await userEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
+    const dialog = screen.queryByTestId("confirm-dialog");
+    if (dialog) {
+      await userEvent.click(screen.getByTestId("confirm-dialog-confirm"));
+    }
+
     await waitFor(() => expect(saveConfig).toHaveBeenCalled(), { timeout: 3000 });
     const payload = saveConfig.mock.calls.at(-1)?.[0];
     expect(payload.ai.providers["openai-1700000000000"].apiKey).toBe("sk-updated");

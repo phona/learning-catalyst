@@ -16,6 +16,8 @@ export interface AccordionProps {
   className?: string;
   multiple?: boolean;
   defaultExpandedIds?: string[];
+  expandedIds?: string[];
+  onExpandedChange?: (ids: string[]) => void;
 }
 
 type AccordionItemInternalProps = AccordionItemProps & {
@@ -73,6 +75,9 @@ const AccordionItem: React.FC<AccordionItemInternalProps> = ({
     </div>
   );
 };
+// Marker so parent Accordion can reliably identify item instances even when module copies differ
+(AccordionItem as any).__ACC_ITEM = true;
+AccordionItem.displayName = 'AccordionItem';
 
 type AccordionComponent = React.FC<AccordionProps> & {
   Item: React.FC<AccordionItemProps>;
@@ -83,29 +88,48 @@ const Accordion: AccordionComponent = ({
   className,
   multiple = false,
   defaultExpandedIds = [],
+  expandedIds: controlledExpandedIds,
+  onExpandedChange,
 }) => {
-  const [expandedIds, setExpandedIds] = useState<string[]>(defaultExpandedIds);
+  const [uncontrolledExpandedIds, setUncontrolledExpandedIds] = useState<string[]>(
+    defaultExpandedIds,
+  );
+
+  const expandedIds = controlledExpandedIds ?? uncontrolledExpandedIds;
 
   const handleToggle = (id: string) => {
-    setExpandedIds((prev) => {
+    const computeNext = (prev: string[]) => {
       if (multiple) {
-        return prev.includes(id) ? prev.filter((expandedId) => expandedId !== id) : [...prev, id];
-      } else {
-        return prev.includes(id) ? [] : [id];
+        return prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
       }
-    });
+      return prev.includes(id) ? [] : [id];
+    };
+
+    const next = computeNext(expandedIds);
+    onExpandedChange?.(next);
+    if (controlledExpandedIds === undefined) {
+      setUncontrolledExpandedIds(next);
+    }
+  };
+
+  const isAccordionItem = (element: React.ReactElement) => {
+    const type: any = element.type;
+    return type === AccordionItem || type?.displayName === 'AccordionItem' || type?.__ACC_ITEM;
   };
 
   return (
     <div className={cn('space-y-3', className)}>
       {React.Children.map(children, (child) => {
-        if (React.isValidElement(child) && child.type === AccordionItem) {
-          return React.cloneElement(child, {
-            expanded: expandedIds.includes(child.props.id),
-            onToggle: () => handleToggle(child.props.id),
-          });
-        }
-        return child;
+        if (!React.isValidElement(child)) return child;
+        if (!isAccordionItem(child)) return child;
+
+        const childId = (child.props as AccordionItemProps).id;
+        if (!childId) return child;
+
+        return React.cloneElement(child, {
+          expanded: expandedIds.includes(childId),
+          onToggle: () => handleToggle(childId),
+        });
       })}
     </div>
   );

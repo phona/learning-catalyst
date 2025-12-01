@@ -1,4 +1,4 @@
-import type { ElectronAPI, AppConfig } from '@/shared/types';
+import type { ElectronAPI, AppConfig, ChatStreamEvent } from '@/shared/types';
 import type {
   AgentDisplay,
   AgentContext,
@@ -402,8 +402,8 @@ export function createMockElectronAPIClient(): ElectronAPI {
           },
         }),
       sendMessageStream: (
-        params: { conversationId: string; message: string; attachments?: File[] },
-        onEvent: (evt: { type: 'chunk' | 'complete' | 'error'; chunk?: string; error?: string }) => void,
+        params: { conversationId: string; message: string; attachments?: File[]; includeStatus?: boolean },
+        onEvent: (evt: ChatStreamEvent) => void,
       ) => {
         const text = params.message || 'Mock stream response';
         const chunks = text.match(/.{1,60}/g) ?? [text];

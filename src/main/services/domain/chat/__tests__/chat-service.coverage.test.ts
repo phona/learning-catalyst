@@ -137,8 +137,18 @@ describe('chat-service main coverage', () => {
     db = mem.api;
     const child = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(() => child) };
     loggerService = { child: vi.fn(() => child) };
-    aiService = { getModelPreset: vi.fn(() => ({ provider: 'openai', model: 'gpt-4o' })) };
-    agentManager = { runAgent: vi.fn(async () => ({ content: 'AlphaBetaGamma' })) };
+  aiService = { getModelPreset: vi.fn(() => ({ provider: 'openai', model: 'gpt-4o' })) };
+    const mockAgent = {
+      stream: vi.fn(async function* () {
+        yield { model: { messages: [{ kwargs: { content: 'AlphaBetaGamma' } }] } } as any;
+      }),
+      invoke: vi.fn(),
+      providerSettings: { providerName: 'openai', model: 'gpt-4o' },
+    };
+    agentManager = {
+      runAgent: vi.fn(async () => ({ content: 'AlphaBetaGamma' })),
+      getAgent: vi.fn(() => mockAgent),
+    };
     domainAgent = { stream: vi.fn() };
     service = createChatService({ db, loggerService, aiService, domainAgent, agentManager });
   });
@@ -184,8 +194,10 @@ describe('chat-service main coverage', () => {
     expect(agg.length).toBeGreaterThan(0);
   });
 
-  it('propagates error when agent fails (no fallback)', async () => {
-    agentManager.runAgent.mockRejectedValueOnce(new Error('fail'));
+  it('propagates error when agent stream fails', async () => {
+    agentManager.getAgent().stream.mockImplementationOnce(async () => {
+      throw new Error('fail');
+    });
     const conv = await service.createConversation({ title: 'F', agentType: 'learning' });
     const { stream } = await service.streamAssistantResponse({ conversationId: conv.id, content: 'Q2' });
     let threw = false;
@@ -203,7 +215,10 @@ describe('chat-service main coverage', () => {
   });
 
   it('can cancel stream mid-way and finalize content', async () => {
-    agentManager.runAgent.mockResolvedValueOnce({ content: '1234567890' });
+    agentManager.getAgent().stream.mockImplementationOnce(async function* () {
+      yield { model: { messages: [{ kwargs: { content: '1234' } }] } } as any;
+      yield { model: { messages: [{ kwargs: { content: '567890' } }] } } as any;
+    });
     const conv = await service.createConversation({ title: 'C', agentType: 'learning' });
     const { stream } = await service.streamAssistantResponse({ conversationId: conv.id, content: 'Q3' });
     const iterator = stream[Symbol.asyncIterator]();
@@ -222,5 +237,67 @@ describe('chat-service main coverage', () => {
     await service.endConversation(conv.id);
     const final = await service.getConversation(conv.id);
     expect(final?.status).toBe('closed');
+  });
+
+  it('emits fail status for rate-limit without retry', async () => {
+    agentManager.getAgent().stream.mockImplementationOnce(async () => {
+      const e: any = new Error('Rate limited');
+      e.response = { status: 429 };
+      throw e;
+    });
+    const conv = await service.createConversation({ title: 'RateLimit', agentType: 'learning' });
+    const statuses: any[] = [];
+
+    const { stream } = await service.streamAssistantResponse({
+      conversationId: conv.id,
+      content: 'Hello',
+      onStatus: (s) => statuses.push(s),
+    });
+
+    let threw = false;
+    try {
+      for await (const _ of stream) {
+        // exhaust stream
+      }
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
+    const failStatus = statuses.find((s) => s?.type === 'fail');
+    expect(failStatus?.category).toBe('rate_limit');
+  });
+
+  it('emits fail status and stops on non-retryable quota error', async () => {
+    agentManager.getAgent().stream.mockImplementationOnce(async () => {
+      const e: any = new Error('Quota exceeded');
+      e.response = { status: 403 };
+      e.error = { code: 'insufficient_quota' };
+      throw e;
+    });
+    const conv = await service.createConversation({ title: 'Quota', agentType: 'learning' });
+    const statuses: any[] = [];
+
+    const { stream } = await service.streamAssistantResponse({
+      conversationId: conv.id,
+      content: 'Hi',
+      onStatus: (s) => statuses.push(s),
+    });
+
+    let threw = false;
+    try {
+      for await (const _ of stream) {
+        // exhaust stream
+      }
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
+    const failStatus = statuses.find((s) => s?.type === 'fail');
+    expect(failStatus?.category).toBe('quota');
+
+    const updated = await service.getConversation(conv.id);
+    expect(updated?.messages.at(-1)?.role).toBe('user');
+    const indicator = await service.getTypingIndicator(conv.id);
+    expect(indicator.isTyping).toBe(false);
   });
 });

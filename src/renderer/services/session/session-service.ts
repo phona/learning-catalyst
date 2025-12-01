@@ -86,6 +86,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
    * Fetch recent sessions for the UI
    */
   const getRecentSessions = async (limit = 10): Promise<SessionDisplay[]> => {
+    console.log('[SessionService] getRecentSessions request', { limit });
     await apiClient.awaitReady();
     const response = await apiClient.sessions.getRecentSessions({ limit });
 
@@ -93,7 +94,9 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
       throw new Error(response.error?.message || 'Session API request failed');
     }
 
-    return response.data || [];
+    const data = response.data || [];
+    console.log('[SessionService] getRecentSessions result', { count: data.length });
+    return data;
   };
 
   /**
@@ -133,27 +136,41 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
   };
 
   const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
+    console.log('[SessionService] getSession request', { sessionId });
     const response = await apiClient.sessions.get(sessionId);
     if (!response.success || !response.data) {
+      console.warn('[SessionService] getSession not found or failed', {
+        sessionId,
+        success: response.success,
+      });
       return null;
     }
+    console.log('[SessionService] getSession success', { sessionId });
     return response.data as SessionDisplay;
   };
 
   const createSession = async (payload: SessionCreateRequest): Promise<SessionDisplay> => {
+    console.log('[SessionService] createSession request', { title: payload?.title });
     const response = await apiClient.sessions.create(payload);
     if (!response.success || !response.data?.sessionId) {
+      console.warn('[SessionService] createSession failed', {
+        error: response.error?.message,
+      });
       throw new Error(response.error?.message || 'Session API request failed');
     }
 
     // Fetch full session details if returned
     if (response.data.session) {
+      console.log('[SessionService] createSession returned full session');
       return response.data.session as SessionDisplay;
     }
 
     const created = await getSession(response.data.sessionId);
     if (!created) {
       // Fallback minimal structure
+      console.log('[SessionService] createSession fallback minimal record', {
+        id: response.data.sessionId,
+      });
       return {
         id: response.data.sessionId,
         title: payload.title,
@@ -162,6 +179,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
         messages: [],
       } as unknown as SessionDisplay;
     }
+    console.log('[SessionService] createSession fetched full record', {
+      id: created.id,
+      title: (created as any)?.title,
+    });
     return created;
   };
 

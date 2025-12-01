@@ -27,6 +27,8 @@ const makeChatModel = (settings: ProviderSettings) =>
     temperature: settings.temperature,
     maxTokens: settings.maxTokens,
     apiKey: settings.apiKey,
+    maxRetries: 1,
+    timeout: 20_000,
     // LangChain v1 expects custom endpoints inside configuration
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });

@@ -11,7 +11,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from '@heroicons/react/24/outline';
-import { useChat } from '@/renderer/hooks/useChat';
+import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import { useFileService } from '@/renderer/services/services-provider';
 import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toast';
@@ -28,7 +28,15 @@ const ChatInputComponent: React.FC = () => {
     stopStreaming,
     error,
     setError,
-  } = useChat();
+  } = useChatStore((s) => ({
+    isLoading: s.isLoading,
+    isStreaming: s.isStreaming,
+    sendMessage: s.sendMessage,
+    sendMessageStream: s.sendMessageStream,
+    stopStreaming: s.stopStreaming,
+    error: s.error,
+    setError: s.setError,
+  }));
 
   const { config, updateConfig } = useConfigStore();
   const fileService = useFileService();
@@ -70,8 +78,6 @@ const ChatInputComponent: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Restore input text on error
-      setInputText(message);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
       chatToasts.error(errorMessage);
@@ -181,7 +187,7 @@ const ChatInputComponent: React.FC = () => {
   const currentProviderName = selectedProvider;
   const currentModelName = selectedModel;
 
-  const isActionButtonDisabled = !isStreaming && (!inputText.trim() || isLoading);
+  const isActionButtonDisabled = !inputText.trim() || isLoading;
   console.log('[ChatInput] state', { isLoading, isStreaming, inputLen: inputText.length, disabled: isActionButtonDisabled });
 
   return (
@@ -214,7 +220,7 @@ const ChatInputComponent: React.FC = () => {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={isStreaming ? 'AI is responding...' : 'Type your message here...'}
-                  disabled={isStreaming || isLoading}
+                  disabled={false}
                   aria-label="Type your message here"
                   aria-describedby="input-help"
                   aria-multiline="true"
@@ -244,9 +250,12 @@ const ChatInputComponent: React.FC = () => {
 
               {/* Input state indicator */}
               {isStreaming && (
-                <div className="absolute top-3 right-3 flex items-center space-x-2 px-3 py-1.5 bg-emerald-500 text-white rounded-full text-xs font-medium">
-                  <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-                  <span>AI is thinking...</span>
+                <div
+                  className="absolute top-3 right-3 flex items-center px-2.5 py-1 bg-emerald-500 text-white rounded-full text-xs font-medium"
+                  role="status"
+                  aria-label="Generating response"
+                >
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
                 </div>
               )}
             </div>

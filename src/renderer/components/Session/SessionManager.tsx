@@ -159,7 +159,7 @@ export const SessionManager: React.FC = () => {
                     setCurrentSession(session.id);
 
                     // Navigate to chat view with session ID in URL
-                    navigate(`/sessions/${session.id}`);
+                    navigate(`/chat/${session.id}`);
 
                     // Switch to chat view
                     setCurrentView('chat');

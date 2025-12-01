@@ -390,7 +390,7 @@ export const knowledgeExtractionTool = (services: ToolServices) => {
         id: `tool-${Date.now()}`,
         title: String(params.context?.topic ?? 'tool-input'),
         content: params.content,
-        format: 'text',
+        format: 'markdown',
         metadata: {
           userId: params.userId,
           context: params.context,
@@ -399,8 +399,15 @@ export const knowledgeExtractionTool = (services: ToolServices) => {
         },
       };
 
+      let depth: number | undefined;
+      try {
+        const ui = await services.configService.get('ui');
+        depth = ui?.documentHeadingDepth;
+      } catch {}
+
       const result = await services.conceptParsingService.parseMaterials([material], {
         userId: params.userId,
+        maxHeadingDepth: depth,
         options: {
           confidenceThreshold: params.confidenceThreshold ?? 0.5,
         },
@@ -478,6 +485,103 @@ export const conceptMappingTool = (services: ToolServices) => {
         success: false,
         error: `Concept mapping failed: ${error instanceof Error ? error.message : String(error)}`,
       };
+    }
+  };
+};
+
+export const sessionBlueprintTool = (services: any) => {
+  return async (params: {
+    topic: string;
+    goals: string[];
+    difficulty: 'beginner' | 'intermediate' | 'advanced';
+    learningStyle: string;
+  }): Promise<ToolResult> => {
+    const { aiService, loggerService } = services;
+    const fallbackModules = (params.goals.length ? params.goals : ['Understand core concept']).map(
+      (goal, index) => ({
+        title: `Focus ${index + 1}: ${goal}`,
+        type: (index === params.goals.length - 1 ? 'assessment' : 'lesson') as
+          | 'assessment'
+          | 'exercise'
+          | 'quiz'
+          | 'lesson',
+        focus: goal,
+        durationMinutes: 25 + index * 10,
+        objectives: [goal, 'Apply in practice', 'Reflect on learning'],
+        resources: ['Review notes', 'Hands-on exercise', 'Reflection prompts'],
+      }),
+    );
+    const fallback = {
+      summary: `Plan to explore ${params.topic} with emphasis on ${params.goals.join(', ') || 'core fundamentals'}.`,
+      timeline: ['Warm-up & review', 'Deep dive', 'Practice & reflection'],
+      modules: fallbackModules.slice(0, 4),
+      recommendations: [
+        'Capture quick wins after each module',
+        'Schedule a follow-up practice session tomorrow',
+      ],
+    };
+    const sessionDescriptor = {
+      topic: params.topic,
+      goals: params.goals,
+      difficulty: params.difficulty,
+      learningStyle: params.learningStyle,
+      timestamp: new Date().toISOString(),
+    };
+    const systemPrompt =
+      'You are an AI learning session planner. Return concise JSON with session summary, timeline, modules (title, type, focus, durationMinutes, objectives, resources), and actionable recommendations.';
+    const userInput = JSON.stringify({ session: sessionDescriptor }, null, 2);
+    const modelConfig = aiService.getModelPreset('learning.plan');
+    try {
+      if (services.domainAgent) {
+        const { createStructuredJsonRunner } = await import(
+          '@/main/services/domain/shared/structured-json-runner'
+        );
+        const runner = createStructuredJsonRunner({
+          aiService,
+          domainAgent: services.domainAgent,
+          logger: loggerService.child({ tool: 'session-blueprint' }),
+          modelConfig,
+        });
+        const data = await runner.runStructuredJson({
+          systemPrompt,
+          input: userInput,
+          fallbackPrompt: `${systemPrompt}\n${userInput}`,
+          fallback,
+          context: 'learning-session-blueprint',
+        });
+        return { success: true, data };
+      }
+      const response = await aiService.chatCompletion({
+        messages: [
+          { role: 'system', content: 'You are an AI assistant that only returns valid JSON.' },
+          { role: 'user', content: `${systemPrompt}\n${userInput}` },
+        ],
+        modelConfig,
+      });
+      const raw = response.content?.trim() || '';
+      const normalize = (text: string) => {
+        const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+        return fence ? fence[1].trim() : text.trim();
+      };
+      const parse = (text: string) => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          const start = text.indexOf('{');
+          const end = text.lastIndexOf('}');
+          if (start !== -1 && end !== -1 && end >= start) {
+            try {
+              return JSON.parse(text.slice(start, end + 1));
+            } catch {}
+          }
+          return undefined;
+        }
+      };
+      const parsed = parse(normalize(raw));
+      return { success: true, data: parsed ?? fallback };
+    } catch (error) {
+      loggerService.warn('Session blueprint tool failed', { error });
+      return { success: true, data: fallback };
     }
   };
 };

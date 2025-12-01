@@ -77,6 +77,7 @@ export async function setupAllIpcHandlers(
   setupConceptParsingHandlers(ipcMain, {
     conceptParsingService: services.conceptParsingService,
     loggerService: services.loggerService,
+    configService: services.configService,
   });
 
   // Setup complete analytics handlers

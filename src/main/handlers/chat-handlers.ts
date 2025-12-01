@@ -15,6 +15,7 @@ import type {
   PracticeOpportunityResult,
   UserLearningContext,
   ChatAPI,
+  ChatStatus,
 } from '@/shared/types/electron-api/chat-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
@@ -27,6 +28,7 @@ type ChatHandlersDeps = {
 
 type StartConversationParams = Parameters<ChatAPI['startConversation']>[0];
 type SendMessageParams = Parameters<ChatAPI['sendMessage']>[0];
+type SendMessageStreamParams = Parameters<ChatAPI['sendMessageStream']>[0];
 type CheckPracticeParams = Parameters<ChatAPI['checkPracticeOpportunity']>[0];
 type GetPracticeSuggestionParams = Parameters<ChatAPI['getPracticeSuggestion']>[0];
 
@@ -240,7 +242,7 @@ export const setupChatHandlers = (
     return ok(payload);
   });
 
-  ipcMainInstance.on('chat:start-stream', async (event, params: SendMessageParams) => {
+  ipcMainInstance.on('chat:start-stream', async (event, params: SendMessageStreamParams) => {
     handlerLogger.info('Starting chat stream', { conversationId: params.conversationId, messageLen: params.message?.length ?? 0 });
     handlerLogger.debug('Calling chatService.streamAssistantResponse', {
       hasMethod: typeof services.chatService.streamAssistantResponse === 'function',
@@ -250,6 +252,15 @@ export const setupChatHandlers = (
     event.sender.postMessage('chat:stream-ready', null, [channel.port1]);
     channel.port2.start();
     activeStreams.set(params.conversationId, channel.port2);
+    const includeStatus = params.includeStatus !== false;
+    const emitStatus = (status: ChatStatus) => {
+      if (!includeStatus) return;
+      if (activeStreams.has(params.conversationId)) {
+        try {
+          channel.port2.postMessage({ type: 'chat:status', status });
+        } catch {}
+      }
+    };
 
     if ((services.chatService as any).__fallback === true) {
       handlerLogger.error('Chat service unavailable (fallback)');
@@ -268,6 +279,7 @@ export const setupChatHandlers = (
         conversationId: params.conversationId,
         content: params.message,
         attachments: params.attachments,
+        onStatus: emitStatus,
       });
       handlerLogger.debug('Received stream from chatService', {
         hasStream: !!result?.stream,
@@ -293,6 +305,17 @@ export const setupChatHandlers = (
       }
     } catch (error) {
       handlerLogger.error('Chat stream failed', error);
+      // Bubble a fail status to renderer so UI can show immediate feedback
+      try {
+        channel.port2.postMessage({
+          type: 'chat:status',
+          status: {
+            type: 'fail',
+            category: 'unknown',
+            suggestion: error instanceof Error ? error.message : 'Streaming error',
+          } as ChatStatus,
+        });
+      } catch {}
       if (activeStreams.has(params.conversationId)) {
         try {
           channel.port2.postMessage({

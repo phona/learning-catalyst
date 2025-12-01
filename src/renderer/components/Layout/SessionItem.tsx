@@ -37,6 +37,7 @@ export const SessionItem = memo<SessionItemProps>(
     const handleClick = useCallback(
       (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
+        console.log('[SessionItem] click', { id: session.id, title: session.title });
         onClick(session);
       },
       [onClick, session],

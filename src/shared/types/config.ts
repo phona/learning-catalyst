@@ -87,6 +87,7 @@ export interface UIConfig {
   enableMarkdown: boolean;
   enableSyntaxHighlighting: boolean;
   compactMode: boolean;
+  documentHeadingDepth?: number;
 }
 
 export interface LearningConfig {

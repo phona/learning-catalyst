@@ -16,6 +16,8 @@ const createChatModel = (settings: ProviderSettings) => {
     temperature: settings.temperature,
     maxTokens: settings.maxTokens,
     apiKey: settings.apiKey,
+    maxRetries: 4,
+    timeout: 60_000,
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 };
@@ -27,8 +29,10 @@ export const createDomainAgent = async (deps: { configService: ConfigService }) 
   const agent = createAgent({
     model: chatModel,
   });
-
-  return agent;
+  return {
+    agent,
+    chatModel,
+  };
 };
 
 export type DomainAgent = Awaited<ReturnType<typeof createDomainAgent>>;

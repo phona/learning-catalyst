@@ -34,6 +34,12 @@ export class MessageErrorBoundary extends Component<MessageErrorBoundaryProps, S
       errorInfo,
       messageId: this.props.messageId,
     });
+    try {
+      console.error('[MessageErrorBoundary] context', {
+        href: window.location.href,
+        time: new Date().toISOString(),
+      });
+    } catch {}
   }
 
   handleRetry = () => {

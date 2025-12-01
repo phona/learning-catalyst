@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
 import { ILogger } from '../../types';
-import type { ChatMessage } from '../../ai/ai-types';
 import { createStructuredJsonRunner } from '../shared/structured-json-runner';
 import type { LearningSessionRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
@@ -282,57 +281,7 @@ export const createLearningService = ({
     return nextMetadata;
   };
 
-  const buildSessionBlueprint = async (params: {
-    topic: string;
-    goals: string[];
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-    learningStyle: LearningSession['learningStyle'];
-  }): Promise<SessionBlueprint> => {
-    const fallbackModules = (params.goals.length ? params.goals : ['Understand core concept']).map(
-      (goal, index) => ({
-        title: `Focus ${index + 1}: ${goal}`,
-        type: (index === params.goals.length - 1 ? 'assessment' : 'lesson') as
-          | 'assessment'
-          | 'exercise'
-          | 'quiz'
-          | 'lesson',
-        focus: goal,
-        durationMinutes: 25 + index * 10,
-        objectives: [goal, 'Apply in practice', 'Reflect on learning'],
-        resources: ['Review notes', 'Hands-on exercise', 'Reflection prompts'],
-      }),
-    );
-
-    const fallback: SessionBlueprint = {
-      summary: `Plan to explore ${params.topic} with emphasis on ${params.goals.join(', ') || 'core fundamentals'}.`,
-      timeline: ['Warm-up & review', 'Deep dive', 'Practice & reflection'],
-      modules: fallbackModules.slice(0, 4),
-      recommendations: [
-        'Capture quick wins after each module',
-        'Schedule a follow-up practice session tomorrow',
-      ],
-    };
-
-    const sessionDescriptor = {
-      topic: params.topic,
-      goals: params.goals,
-      difficulty: params.difficulty,
-      learningStyle: params.learningStyle,
-      timestamp: new Date().toISOString(),
-    };
-
-    const systemPrompt =
-      'You are an AI learning session planner. Return concise JSON with session summary, timeline, modules (title, type, focus, durationMinutes, objectives, resources), and actionable recommendations.';
-    const userInput = JSON.stringify({ session: sessionDescriptor }, null, 2);
-
-    return runStructuredJson<SessionBlueprint>({
-      systemPrompt,
-      input: userInput,
-      fallbackPrompt: `${systemPrompt}\n${userInput}`,
-      fallback,
-      context: 'learning-session-blueprint',
-    });
-  };
+  
 
   const persistLearningPath = async (path: LearningPath): Promise<LearningPath> => {
     const key = `${PATH_PREFIX}${path.id}`;
@@ -541,13 +490,6 @@ export const createLearningService = ({
       learningStyle: LearningSession['learningStyle'];
       userId?: string;
     }): Promise<LearningSession> => {
-      const blueprint = await buildSessionBlueprint({
-        topic: params.topic,
-        goals: params.goals ?? [],
-        difficulty: params.difficulty ?? 'intermediate',
-        learningStyle: params.learningStyle ?? 'visual',
-      });
-
       const metadata: LearningSessionMetadata = {
         goals: params.goals ?? [],
         agentType: params.agentType,
@@ -556,9 +498,6 @@ export const createLearningService = ({
         learningStyle: params.learningStyle ?? 'visual',
         status: 'active',
         progress: 10,
-        blueprint,
-        recommendations: blueprint.recommendations,
-        timeline: blueprint.timeline,
         userId: params.userId,
       };
 
@@ -566,7 +505,7 @@ export const createLearningService = ({
       const row: LearningSessionRow = {
         id: `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         title: params.topic,
-        description: blueprint.summary,
+        description: '',
         start_time: now,
         end_time: undefined,
         duration_seconds: 0,
@@ -702,14 +641,30 @@ export const createLearningService = ({
     },
 
     getRecentSessions: async (options?: SessionFilters) => {
-      const limit = options?.limit ?? 5;
-      const rows = await db
-        .selectFrom('learning_sessions')
-        .selectAll()
-        .orderBy('updated_at', 'desc')
-        .limit(limit)
-        .execute();
-      return rows.map(mapSessionRow);
+      try {
+        const limit = options?.limit ?? 5;
+        const raw = await db
+          .selectFrom('learning_sessions')
+          .selectAll()
+          .orderBy('updated_at', 'desc')
+          .limit(limit)
+          .execute();
+        const rows = Array.isArray(raw)
+          ? raw
+          : Array.isArray((raw as any)?.rows)
+            ? (raw as any).rows
+            : [];
+        if (!Array.isArray(raw)) {
+          serviceLogger.warn('getRecentSessions unexpected result shape', {
+            type: typeof raw,
+            keys: raw && typeof raw === 'object' ? Object.keys(raw as any) : [],
+          });
+        }
+        return rows.map(mapSessionRow);
+      } catch (error) {
+        serviceLogger.error('getRecentSessions failed', error as any);
+        throw error;
+      }
     },
 
     searchSessions: async (query: string, filters?: SessionFilters) => {

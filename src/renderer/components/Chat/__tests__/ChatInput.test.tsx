@@ -4,15 +4,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ChatInput } from '@/renderer/components/Chat/ChatInput';
 import { renderWithServices } from '@/test/utils/renderWithServices';
 
-vi.mock('@/renderer/hooks/useChat', () => ({
-  useChat: vi.fn(),
+vi.mock('@/renderer/hooks/useChatStore', () => ({
+  useChatStore: vi.fn(),
 }));
 
 vi.mock('@/renderer/stores/useConfigStore', () => ({
   useConfigStore: vi.fn(),
 }));
 
-import { useChat, type UseChatResult } from '@/renderer/hooks/useChat';
+import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import type { AppConfig } from '@/shared/types/config';
 
@@ -100,23 +100,14 @@ const baseConfig: AppConfig = {
   },
 };
 
-const createChatMock = (): UseChatResult => ({
-  messages: [],
+const createChatMock = () => ({
   isLoading: false,
   isStreaming: false,
   error: null,
-  currentSession: null,
   sendMessage: vi.fn().mockResolvedValue(undefined),
   sendMessageStream: vi.fn().mockResolvedValue(undefined),
   stopStreaming: vi.fn().mockResolvedValue(undefined),
-  clearMessages: vi.fn(),
   setError: vi.fn(),
-  createSession: vi.fn().mockResolvedValue(null),
-  loadSession: vi.fn(),
-  updateSessionTitle: vi.fn(),
-  getAvailableAgents: vi.fn().mockResolvedValue([]),
-  setSelectedAgent: vi.fn(),
-  selectedAgent: null,
 });
 
 type ConfigStoreState = {
@@ -149,16 +140,19 @@ const createConfigStoreMock = (): ConfigStoreState => ({
   setDefaultProvider: vi.fn().mockResolvedValue(undefined),
 });
 
-const mockUseChat = vi.mocked(useChat);
+const mockUseChatStore = vi.mocked(useChatStore);
 const mockUseConfigStore = vi.mocked(useConfigStore);
 
 describe('ChatInput', () => {
-  let chatMock: UseChatResult;
+  let chatMock: ReturnType<typeof createChatMock>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     chatMock = createChatMock();
-    mockUseChat.mockReturnValue(chatMock);
+    mockUseChatStore.mockImplementation((selector?: any) => {
+      if (typeof selector === 'function') return selector(chatMock);
+      return chatMock as any;
+    });
     mockUseConfigStore.mockReturnValue(createConfigStoreMock());
 
     mockShowOpenDialog.mockResolvedValue({
@@ -214,7 +208,10 @@ describe('ChatInput', () => {
       ...chatMock,
       isStreaming: true,
     };
-    mockUseChat.mockReturnValue(streamingMock as UseChatResult);
+    mockUseChatStore.mockImplementation((selector?: any) => {
+      if (typeof selector === 'function') return selector(streamingMock);
+      return streamingMock as any;
+    });
 
     renderWithServices(<ChatInput />);
 

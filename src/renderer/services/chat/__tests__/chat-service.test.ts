@@ -115,22 +115,28 @@ describe('chat-service', () => {
         onEvent({ type: 'chunk', chunk: 'A' });
       }, 0);
       setTimeout(() => {
+        events.push('status');
+        onEvent({ type: 'status', status: { type: 'retry', attempt: 1, max: 2, reason: 'Rate limit' } });
+      }, 1);
+      setTimeout(() => {
         events.push('chunk2');
         onEvent({ type: 'chunk', chunk: 'B' });
-      }, 1);
+      }, 2);
       setTimeout(() => {
         events.push('complete');
         onEvent({ type: 'complete' });
-      }, 2);
+      }, 3);
       return { success: true, data: { started: true } };
     });
     const onChunk = vi.fn();
     const service = createChatService(api as ElectronAPI);
     const result = await service.sendMessageStream('go', onChunk, { sessionId: 'session-ev' });
-    expect(onChunk).toHaveBeenCalledTimes(2);
+    expect(onChunk).toHaveBeenCalledTimes(3);
     expect(result.content).toBe('AB');
     expect(result.provider).toBe('session-ev');
-    expect(events).toEqual(['chunk1', 'chunk2', 'complete']);
+    expect(events).toEqual(['chunk1', 'status', 'chunk2', 'complete']);
+    const statusCall = onChunk.mock.calls.find((c) => c[0]?.type === 'status');
+    expect(statusCall?.[0]?.status?.type).toBe('retry');
   });
 
   it('throws when streaming start fails', async () => {

@@ -118,6 +118,11 @@ export function Component({ prop }: Props) {
 - **Main Process**: NEVER accesses electronAPI (only provides it)
 - **Service Pattern**: Pass dependencies as function parameters
 - **Agent Tools**: Call service functions only (not lower-level APIs)
+
+### Chat streaming status
+
+- Chat streaming now emits `chat:status` frames (retry/tip/fail/tool) on the same MessageChannel used for chunks; renderers can ignore if unsupported.
+- Retry policy is bounded (2 attempts, 20s per attempt) with fast-fail for auth/quota/validation so the UI doesn’t wait on hidden backoff loops.
 - **State**: Tracked via Kysely/SQLite tables (not separate stores)
 
 ### Implementation Guidelines

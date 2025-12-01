@@ -17,7 +17,7 @@ vi.mock('@/renderer/utils/toast', () => ({
 }));
 
 describe('SettingsPanel reliability', () => {
-  it('disables Fetch Models before any provider assignment', async () => {
+  it('has no Fetch Models button until a provider exists', async () => {
     const { SettingsPanel } = await import('../SettingsPanel');
     renderWithSettings(<SettingsPanel />, { config: makeEmptyConfig() });
 
@@ -28,9 +28,8 @@ describe('SettingsPanel reliability', () => {
       await user.click(aiModelsToggle);
     }
 
-    const buttons = screen.getAllByRole('button', { name: /fetch models/i });
-    expect(buttons.length).toBeGreaterThan(0);
-    buttons.forEach((btn) => expect(btn).toHaveAttribute('disabled'));
+    const buttons = screen.queryAllByRole('button', { name: /fetch models/i });
+    expect(buttons.length).toBe(0);
   });
 
   it('shows validation error toast when provider validation fails', async () => {

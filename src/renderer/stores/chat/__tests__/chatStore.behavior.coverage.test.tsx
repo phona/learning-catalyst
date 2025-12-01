@@ -139,8 +139,9 @@ describe('chatStore advanced coverage', () => {
 
     const { messages, currentSessionId, error, isLoading } = store.getState();
     expect(currentSessionId).toBe('new-session');
-    expect(messages).toHaveLength(1);
-    expect(messages[0]).toMatchObject({ id: 'assistant-1', content: 'hi there' });
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toMatchObject({ role: 'user', content: 'hello' });
+    expect(messages[1]).toMatchObject({ id: 'assistant-1', role: 'assistant', content: 'hi there' });
     expect(error).toBeNull();
     expect(isLoading).toBe(false);
   });
@@ -149,7 +150,7 @@ describe('chatStore advanced coverage', () => {
     const electronAPI = createMockElectronAPI();
     electronAPI.chat.sendMessage = vi.fn().mockResolvedValue({
       success: false,
-      error: { message: 'network fail' },
+      error: { message: 'network fail' }
     });
 
     const store = createChatStore({ ...dependencies, electronAPI });

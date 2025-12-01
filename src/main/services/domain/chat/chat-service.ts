@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
-import { ILogger } from '../../types';
 import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { AgentManager } from '@/main/services/agent/agent-manager';
 import type { AgentType } from '@/main/services/agent/types';
@@ -11,6 +10,19 @@ import type { AiService } from '@/main/services/ai/ai-service';
 import type { DomainAgent } from '@/main/services/agent/domain-agent';
 import { ContextUpdateRequest } from '@/shared/types/practice';
 import { createUserContextTracker, UserContextTrackerService } from '@/main/services/core/context';
+import { TimelineCallbackHandler } from '@/main/services/agent/timeline-callback-handler';
+
+import type { BaseMessage } from "@langchain/core/messages";
+
+type AgentStepKey = "model" | "tools" | string;
+
+interface NodeUpdate {
+  messages: BaseMessage[];
+}
+
+type AgentUpdateChunk = {
+  [K in AgentStepKey]?: NodeUpdate;
+};
 
 interface MessageAttachment {
   id?: string;
@@ -74,7 +86,9 @@ const normalizeAgentType = (value?: string): AgentType => {
   return supported.includes(value as AgentType) ? (value as AgentType) : 'learning';
 };
 
-const classifyError = (error: unknown): { category: ErrorCategory; retryable: boolean; reason: string; suggestion?: string } => {
+const classifyError = (
+  error: unknown,
+): { category: ErrorCategory; retryable: boolean; reason: string; suggestion?: string } => {
   const err = error as any;
   const message: string = err?.message ?? '';
   const status = err?.response?.status ?? err?.status;
@@ -82,22 +96,52 @@ const classifyError = (error: unknown): { category: ErrorCategory; retryable: bo
 
   const lower = message.toLowerCase();
   if (status === 401 || lower.includes('api key') || code === 'invalid_api_key') {
-    return { category: 'auth', retryable: false, reason: message || 'Authentication required', suggestion: 'Add or update your API key' };
+    return {
+      category: 'auth',
+      retryable: false,
+      reason: message || 'Authentication required',
+      suggestion: 'Add or update your API key',
+    };
   }
   if (status === 403 || lower.includes('quota') || code === 'insufficient_quota') {
-    return { category: 'quota', retryable: false, reason: message || 'Quota exceeded', suggestion: 'Wait or switch provider/model' };
+    return {
+      category: 'quota',
+      retryable: false,
+      reason: message || 'Quota exceeded',
+      suggestion: 'Wait or switch provider/model',
+    };
   }
   if (status === 429 || lower.includes('rate limit')) {
-    return { category: 'rate_limit', retryable: true, reason: message || 'Rate limited', suggestion: 'Retry shortly or reduce load' };
+    return {
+      category: 'rate_limit',
+      retryable: true,
+      reason: message || 'Rate limited',
+      suggestion: 'Retry shortly or reduce load',
+    };
   }
   if (code === 'ECONNABORTED' || lower.includes('timeout') || err?.name === 'AbortError') {
-    return { category: 'timeout', retryable: true, reason: message || 'Timed out', suggestion: 'Try again or simplify the request' };
+    return {
+      category: 'timeout',
+      retryable: true,
+      reason: message || 'Timed out',
+      suggestion: 'Try again or simplify the request',
+    };
   }
   if (code === 'ENOTFOUND' || code === 'ECONNRESET') {
-    return { category: 'network', retryable: true, reason: message || 'Network error', suggestion: 'Check connection or proxy settings' };
+    return {
+      category: 'network',
+      retryable: true,
+      reason: message || 'Network error',
+      suggestion: 'Check connection or proxy settings',
+    };
   }
   if (lower.includes('tool') || lower.includes('function call')) {
-    return { category: 'tool_fail', retryable: false, reason: message || 'Tool execution failed', suggestion: 'Retry without tools or adjust input' };
+    return {
+      category: 'tool_fail',
+      retryable: false,
+      reason: message || 'Tool execution failed',
+      suggestion: 'Retry without tools or adjust input',
+    };
   }
   return { category: 'unknown', retryable: false, reason: message || 'Unexpected error' };
 };
@@ -286,7 +330,7 @@ export const createChatService = ({
     const session = await createSessionRow({
       id: conversationId,
       title: `Conversation ${conversationId}`,
-      agentType: 'learning',
+      agentType: 'supervisor',
     });
     return buildConversation(session, true);
   };
@@ -363,6 +407,66 @@ export const createChatService = ({
     },
   });
 
+  const parseMaybeBlueprint = (
+    raw: string,
+  ):
+    | {
+        summary: string;
+        timeline: string[];
+        modules: any[];
+        recommendations: string[];
+      }
+    | undefined => {
+    const normalize = (text: string) => {
+      const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+      return fence ? fence[1].trim() : text.trim();
+    };
+    const parse = (text: string) => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}');
+        if (start !== -1 && end !== -1 && end >= start) {
+          try {
+            return JSON.parse(text.slice(start, end + 1));
+          } catch {}
+        }
+        return undefined;
+      }
+    };
+    const parsed = parse(normalize(raw));
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'summary' in parsed &&
+      'timeline' in parsed &&
+      'modules' in parsed &&
+      'recommendations' in parsed
+    ) {
+      return parsed as any;
+    }
+    return undefined;
+  };
+
+  const mergeBlueprintIntoConversation = async (
+    conversation: Conversation,
+    blueprint: {
+      summary: string;
+      timeline: string[];
+      modules: any[];
+      recommendations: string[];
+    },
+  ) => {
+    conversation.metadata = {
+      ...conversation.metadata,
+      blueprint,
+      timeline: blueprint.timeline,
+      recommendations: blueprint.recommendations,
+      summary: blueprint.summary,
+    } as any;
+  };
+
   const generateAssistantReply = async (
     conversation: Conversation,
     userMessage: Message,
@@ -382,9 +486,12 @@ export const createChatService = ({
           content: message.content,
         })),
     });
-
+    const blueprint = parseMaybeBlueprint(agentResponse.content ?? '');
+    if (blueprint) {
+      await mergeBlueprintIntoConversation(conversation, blueprint);
+    }
     return buildAssistantMessage(conversation, {
-      reply: agentResponse.content,
+      reply: blueprint ? blueprint.summary : agentResponse.content,
       reasoning: [],
       suggestions: [],
       confidence: 0.75,
@@ -542,7 +649,9 @@ export const createChatService = ({
       metadata?: Record<string, unknown>;
       onStatus?: (status: ChatStatus) => void;
     }): Promise<{ userMessage: Message; stream: AsyncGenerator<string> }> => {
-      serviceLogger.info('streamAssistantResponse invoked', { conversationId: params.conversationId });
+      serviceLogger.info('streamAssistantResponse invoked', {
+        conversationId: params.conversationId,
+      });
       const conversation = await ensureConversation(params.conversationId);
 
       const userMessage: Message = {
@@ -570,18 +679,11 @@ export const createChatService = ({
         userId: params.metadata?.userId as string | undefined,
       });
 
-      const history = conversation.messages
-        .slice(-10)
-        .map((message) => `[${message.role.toUpperCase()}] ${message.content}`)
-        .join('\n');
-
-      serviceLogger.info('Streaming history', { history });
-      const input = `Conversation Topic: ${conversation.topic}
-Agent Type: ${conversation.agentType}
-History:
-${history}
-
-Respond to the latest user message in a helpful, encouraging tone.`;
+      const messages = conversation.messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
+      messages.push({ role: 'user', content: params.content });
 
       const stream = async function* () {
         let aggregated = '';
@@ -610,38 +712,60 @@ Respond to the latest user message in a helpful, encouraging tone.`;
             });
             throw new Error('Stream canceled');
           }
-          const agentResponse = await agentManager.runAgent({
-            agentType: normalizeAgentType(conversation.agentType),
-            conversationId: conversation.id,
-            topic: conversation.topic,
-            userId: params.metadata?.userId as string | undefined,
-            messages: [{ role: 'user', content: input }],
-          });
-          serviceLogger.info('Agent run complete', { conversationId: conversation.id, contentLen: agentResponse?.content?.length ?? 0 });
+          const agentType = normalizeAgentType(conversation.agentType);
+          const timelineCallback = new TimelineCallbackHandler(emitStatus, agentType);
+          const agent = agentManager.getAgent(agentType);
+          const agentStream = await agent.stream(
+            {
+              messages,
+            },
+            {
+              callbacks: [timelineCallback],
+              streamMode: 'updates',
+            },
+          );
 
-          // Convert the response to a stream
-          const content = agentResponse.content;
-          if (content) {
-            const chunks = content.match(/.{1,60}/g) ?? [content];
-            for (const chunk of chunks) {
-              if (canceledStreams.has(conversation.id)) {
-                canceled = true;
-                serviceLogger.warn('Stream canceled during chunking', {
-                  conversationId: conversation.id,
-                  aggregatedLen: aggregated.length,
-                  elapsedMs: Date.now() - streamStart,
-                });
-                break;
-              }
-              aggregated += chunk;
-              yield chunk;
-              serviceLogger.debug('Stream chunk', {
+          for await (const chunk of agentStream) {
+            loggerService.info('Agent chunk', { chunk });
+            const [step, update] = Object.entries(chunk)[0] as [AgentStepKey, NodeUpdate];
+            if (canceledStreams.has(conversation.id)) {
+              canceled = true;
+              serviceLogger.warn('Stream canceled during chunking', {
                 conversationId: conversation.id,
-                len: chunk.length,
                 aggregatedLen: aggregated.length,
                 elapsedMs: Date.now() - streamStart,
               });
+              break;
             }
+
+            const msgs = update?.messages ?? [];
+            const last = msgs.length ? msgs[msgs.length - 1] : undefined;
+            const raw = (last as any)?.content;
+            let text = '';
+            if (typeof raw === 'string') {
+              text = raw;
+            } else if (Array.isArray(raw)) {
+              text = raw
+                .map((part: any) =>
+                  typeof part === 'string' ? part : String(part?.text ?? part?.content ?? ''),
+                )
+                .join('');
+            } else if (raw && typeof raw === 'object' && 'text' in raw) {
+              text = String((raw as any).text ?? '');
+            }
+
+            if (!text) {
+              continue;
+            }
+
+            aggregated += text;
+            yield text;
+            serviceLogger.debug('Stream chunk', {
+              conversationId: conversation.id,
+              len: text.length,
+              aggregatedLen: aggregated.length,
+              elapsedMs: Date.now() - streamStart,
+            });
           }
         } catch (error) {
           const info = classifyError(error);
@@ -662,35 +786,19 @@ Respond to the latest user message in a helpful, encouraging tone.`;
           });
           throw error;
         } finally {
-          const assistantMessage = buildAssistantMessage(conversation, {
-            reply: aggregated,
-            reasoning: [],
-            suggestions: [],
-            confidence: 0.75,
-          });
-          if (aggregated) {
-            conversation.messages.push(assistantMessage);
-            conversation.updatedAt = assistantMessage.timestamp;
-          }
-          conversation.metadata = {
-            ...conversation.metadata,
-            assistantTyping: false,
-          };
-          if (aggregated) {
-            await saveMessage(assistantMessage);
-            await updateContextTracker({
-              conversationId: params.conversationId,
-              messageType: 'assistant_message',
-              content: assistantMessage.content,
-              userId: params.metadata?.userId as string | undefined,
-            });
-          }
+          conversation.metadata = { ...conversation.metadata, assistantTyping: false } as any;
           await persistConversation(conversation);
           if (canceled) {
             canceledStreams.delete(conversation.id);
-            serviceLogger.info('Stream canceled', { conversationId: conversation.id, finalLen: aggregated.length });
+            serviceLogger.info('Stream canceled', {
+              conversationId: conversation.id,
+              finalLen: aggregated.length,
+            });
           } else {
-            serviceLogger.info('Stream finished', { conversationId: conversation.id, finalLen: aggregated.length });
+            serviceLogger.info('Stream finished', {
+              conversationId: conversation.id,
+              finalLen: aggregated.length,
+            });
           }
         }
       };

@@ -33,25 +33,59 @@ type SpecializedAgentOptions = {
   toolBuilder: (deps: AgentToolDeps) => ToolRegistry;
 };
 
-export const pickAssistantMessage = (
-  messages: Array<{ role?: string; content?: string | Array<any> }>,
-) => {
+type ContentBlock = {
+  type?: string;
+  text?: string;
+  output_text?: string;
+  input_text?: string;
+};
+
+export type AgentCandidateMessage = {
+  role?: string;
+  type?: string;
+  content?: string | Array<ContentBlock | string>;
+  text?: string;
+};
+
+const extractTextFromContentBlocks = (blocks: Array<ContentBlock | string>): string => {
+  return blocks
+    .map((block) => {
+      if (typeof block === 'string') return block;
+      if (!block) return '';
+      if (typeof block.text === 'string') return block.text;
+      if (typeof block.output_text === 'string') return block.output_text;
+      if (typeof block.input_text === 'string') return block.input_text;
+      return '';
+    })
+    .join('')
+    .trim();
+};
+
+export const pickAssistantMessage = (messages: AgentCandidateMessage[]) => {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const candidate = messages[i];
-    if (!candidate?.role) continue;
-    if (candidate.role === 'assistant' || candidate.role === 'ai') {
-      if (typeof candidate.content === 'string') {
-        return { role: candidate.role, content: candidate.content };
+    if (!candidate) continue;
+
+    const role = candidate.role ?? candidate.type;
+    if (role !== 'assistant' && role !== 'ai') continue;
+
+    const content = candidate.content;
+
+    if (typeof content === 'string' && content.trim()) {
+      return { role, content: content.trim() };
+    }
+
+    if (Array.isArray(content)) {
+      const text = extractTextFromContentBlocks(content);
+
+      if (text) {
+        return { role, content: text };
       }
-      if (Array.isArray(candidate.content)) {
-        const text = candidate.content
-          .filter((block: any) => block?.type === 'text')
-          .map((block: any) => block?.text ?? '')
-          .join('');
-        if (text) {
-          return { role: candidate.role, content: text };
-        }
-      }
+    }
+
+    const fallbackText = candidate.text;
+    if (typeof fallbackText === 'string' && fallbackText.trim()) {
+      return { role, content: fallbackText.trim() };
     }
   }
   return null;

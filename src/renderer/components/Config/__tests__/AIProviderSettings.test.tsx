@@ -43,9 +43,10 @@ describe('AIProviderSettings (current UI)', () => {
 
   const baseProviderConfigs = {
     'openai-123': {
-      provider_type: 'openai',
-      api_key: 'test-openai-key',
-      base_url: 'https://api.openai.com/v1',
+      providerType: 'openai',
+      apiKey: 'test-openai-key',
+      baseUrl: 'https://api.openai.com/v1',
+      displayName: 'OpenAI Workspace',
       models: ['gpt-3.5-turbo', 'gpt-4'],
     },
   } as const;
@@ -71,10 +72,8 @@ describe('AIProviderSettings (current UI)', () => {
       />,
     );
 
-    expect(screen.getByText('AI Provider Configuration')).toBeInTheDocument();
-    // Use getAllByText for elements that appear multiple times
-    expect(screen.getAllByText('Provider Configuration').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Model Type Assignment').length).toBeGreaterThan(0);
+    expect(screen.getByText('Provider Configuration')).toBeInTheDocument();
+    expect(screen.getByText('Model Type Assignment')).toBeInTheDocument();
 
     expect(screen.getByText('chat:')).toBeInTheDocument();
     expect(screen.getByText('embedding:')).toBeInTheDocument();
@@ -169,10 +168,15 @@ describe('AIProviderSettings (current UI)', () => {
       />,
     );
 
-    // Two fields now show the current model id (select + custom input). Pick the select.
-    const modelSelect = screen.getAllByDisplayValue('gpt-3.5-turbo')[0];
-    await user.selectOptions(modelSelect, 'gpt-4');
+    // Model input allows search or direct entry
+    const modelInput = screen.getAllByDisplayValue('gpt-3.5-turbo')[0] as HTMLInputElement;
+    // Directly change value to avoid multiple intermediate calls from typing
+    await user.clear(modelInput);
+    await user.type(modelInput, '{selectall}gpt-4', { skipClick: true });
+    modelInput.blur();
 
-    expect(onModelAssignmentChange).toHaveBeenCalledWith('chat', 'openai-123', 'gpt-4');
+    await waitFor(() => {
+      expect(onModelAssignmentChange.mock.calls).toContainEqual(['chat', 'openai-123', 'gpt-4']);
+    });
   }, 10000);
 });

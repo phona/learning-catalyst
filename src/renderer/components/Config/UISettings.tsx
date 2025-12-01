@@ -137,6 +137,50 @@ export const UISettings: React.FC<UISettingsProps> = ({ config, onConfigChange }
               );
             })}
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Max Title Depth (H1–H6)
+            </label>
+            <div className="flex items-center gap-3">
+              <select
+                id="heading-depth-selector"
+                value={(config.ui.documentHeadingDepth ?? 3).toString()}
+                onChange={(event) =>
+                  updateUIConfig('documentHeadingDepth', Math.max(1, Math.min(6, Number(event.target.value))))
+                }
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Max Title Depth"
+              >
+                <option value="1">H1</option>
+                <option value="2">H2</option>
+                <option value="3">H3</option>
+                <option value="4">H4</option>
+                <option value="5">H5</option>
+                <option value="6">H6</option>
+              </select>
+              <div className="flex items-center gap-1" aria-label="Included heading levels">
+                {Array.from({ length: 6 }, (_, i) => i + 1).map((lvl) => {
+                  const selected = (config.ui.documentHeadingDepth ?? 3) >= lvl;
+                  return (
+                    <span
+                      key={lvl}
+                      className={`text-xs px-2 py-1 rounded border ${
+                        selected
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+                      }`}
+                    >
+                      H{lvl}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Sections start at headings up to the selected depth; deeper headings stay within their parent section.
+            </p>
+          </div>
         </div>
       </div>
     </div>

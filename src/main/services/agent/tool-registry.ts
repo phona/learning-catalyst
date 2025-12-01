@@ -11,6 +11,7 @@ import {
   learningPathTool,
   contentAnalysisTool,
   conceptMappingTool,
+  sessionBlueprintTool,
 } from './tools';
 
 const parseJsonInput = <T extends Record<string, unknown>>(raw: string, fallback: T): T => {
@@ -148,6 +149,7 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
 export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
   const baseTools = buildKnowledgeTools(deps);
   const pathBuilder = learningPathTool(deps);
+  const blueprintBuilder = sessionBlueprintTool(deps);
 
   const learningPath = tool(
     async (rawInput: string) => {
@@ -186,9 +188,44 @@ export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
     },
   );
 
+  const sessionBlueprint = tool(
+    async (rawInput: string) => {
+      const payload = parseJsonInput<{
+        topic?: string;
+        goals?: string[];
+        difficulty?: 'beginner' | 'intermediate' | 'advanced';
+        learningStyle?: string;
+      }>(rawInput, {
+        topic: '',
+        goals: [],
+        difficulty: 'intermediate',
+        learningStyle: 'visual',
+      });
+
+      const result = await blueprintBuilder({
+        topic: payload.topic ?? '',
+        goals: payload.goals ?? [],
+        difficulty: (payload.difficulty as any) ?? 'intermediate',
+        learningStyle: payload.learningStyle ?? 'visual',
+      });
+
+      if (!result.success) {
+        return `Session blueprint operation failed: ${result.error}`;
+      }
+
+      return JSON.stringify(result.data);
+    },
+    {
+      name: 'session_blueprint',
+      description:
+        'Build a learning session blueprint containing summary, timeline, modules, and recommendations based on topic, goals, difficulty, and learning style.',
+    },
+  );
+
   return {
     ...baseTools,
     learningPath,
+    sessionBlueprint,
   };
 };
 

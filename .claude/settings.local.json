@@ -67,11 +67,19 @@
       "Read(//d/**)",
       "Bash(sed:*)",
       "Bash(cd:*)",
-      "Bash(/d/Projects/learning_catalyst_ui_layer/src/renderer/components/Chat/ChatInput.tsx)"
+      "Bash(/d/Projects/learning_catalyst_ui_layer/src/renderer/components/Chat/ChatInput.tsx)",
+      "WebFetch(domain:python.langchain.com)",
+      "WebFetch(domain:js.langchain.com)",
+      "WebFetch(domain:docs.langchain.com)"
     ],
     "deny": [],
     "ask": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["context7", "magic", "sequential-thinking", "langchain"]
+  "enabledMcpjsonServers": [
+    "context7",
+    "magic",
+    "sequential-thinking",
+    "langchain"
+  ]
 }

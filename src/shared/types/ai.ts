@@ -48,13 +48,14 @@ export interface ToolDefinition {
 }
 
 export interface StreamChunk {
-  type?: 'content' | 'metadata' | 'tool_call' | 'error' | 'complete';
+  type?: 'content' | 'metadata' | 'tool_call' | 'error' | 'complete' | 'status';
   content?: string;
   reasoning_content?: string;
   thinkingContent?: string; // Alias for reasoning_content for consistency
   done?: boolean;
   usage?: TokenUsage;
   error?: string;
+  status?: unknown;
 }
 
 export interface TokenUsage {

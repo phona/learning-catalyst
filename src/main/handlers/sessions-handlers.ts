@@ -60,7 +60,7 @@ export const setupSessionsHandlers = (
     },
   );
 
-  ipcMainInstance.handle('sessions:create', async (_event, payload: MemorySession) => {
+  ipcMainInstance.handle('sessions:create', async (event, payload: MemorySession) => {
     try {
       const session = await services.learningService.startLearningSession({
         topic: payload.metadata?.title ?? payload.title ?? 'New session',
@@ -68,6 +68,9 @@ export const setupSessionsHandlers = (
         difficulty: payload.metadata?.difficulty ?? 'intermediate',
         agentType: payload.metadata?.primaryAgentId ?? 'learning',
         learningStyle: 'visual',
+        onProgress: (status) => {
+          event.sender.send('sessions:creation-status', { status });
+        },
       });
       memorySessions.set(session.id, session as unknown as SessionDisplay);
       return ok({ sessionId: session.id, session });

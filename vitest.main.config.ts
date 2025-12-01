@@ -19,6 +19,7 @@ export default defineConfig({
       'src/main/**/*.test.ts',
       'src/main/**/*.spec.ts',
       'src/main/**/__tests__/**/*.{test,spec}.{js,ts}',
+      'src/devtools/**/concept-parsing.smoke.ts',
     ],
     exclude: [
       'node_modules',

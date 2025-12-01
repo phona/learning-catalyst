@@ -7,6 +7,43 @@
 
 import type { APIResponse } from './index';
 
+export type ErrorCategory =
+  | 'rate_limit'
+  | 'quota'
+  | 'auth'
+  | 'timeout'
+  | 'network'
+  | 'tool_fail'
+  | 'validation'
+  | 'unknown';
+
+export type ChatStatus =
+  | { type: 'retry'; attempt: number; max: number; reason: string }
+  | { type: 'tool'; phase: 'start' | 'end' | 'error'; tool: string; detail?: string; durationMs?: number; agent?: string; id?: string; expandable?: boolean }
+  | { type: 'tip'; text: string }
+  | { type: 'fail'; category: ErrorCategory; suggestion?: string }
+  | { type: 'thought'; text: string; agent?: string; id?: string; expandable?: boolean }
+  | { type: 'timeline_event'; event: TimelineEventPayload }
+  | { type: 'timeline_state'; state: string; agent?: string };
+
+export interface TimelineEventPayload {
+  id: string;
+  type: 'thought' | 'tool' | 'state' | 'error';
+  agent: string;
+  timestamp: number;
+  text?: string;
+  tool?: string;
+  phase?: 'start' | 'end' | 'error';
+  detail?: string;
+  expandable?: boolean;
+}
+
+export type ChatStreamEvent =
+  | { type: 'chunk'; chunk: string }
+  | { type: 'complete' }
+  | { type: 'error'; error?: string }
+  | { type: 'status'; status: ChatStatus };
+
 export interface ChatAPI {
   /**
    * Starts a new conversation with an AI agent
@@ -53,8 +90,9 @@ export interface ChatAPI {
       conversationId: string;
       message: string;
       attachments?: File[];
+      includeStatus?: boolean;
     },
-    onEvent: (evt: { type: 'chunk' | 'complete' | 'error'; chunk?: string; error?: string }) => void,
+    onEvent: (evt: ChatStreamEvent) => void,
   ) => Promise<APIResponse<{ started: boolean }>>;
 
   /**

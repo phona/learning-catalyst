@@ -90,22 +90,23 @@ export class MainThreadLogger implements ServiceLogger {
   /**
    * Log error message
    */
-  error(message: string, error?: Error, meta?: Record<string, any>): void {
+  error(message: string, error?: unknown, meta?: Record<string, any>): void {
     if (!this.shouldLog('error') || !this.enableConsole) return;
 
-    const errorMeta = error
+    const errorMeta = error instanceof Error
       ? {
         error: {
           name: error.name,
           message: error.message,
           stack: error.stack,
-          cause: error.cause,
+          cause: (error as any).cause,
         },
       }
       : {};
 
     const allMeta = { ...meta, ...errorMeta };
-    console.error(this.formatMessage('error', message, allMeta));
+    const formatted = this.formatMessage('error', message, allMeta);
+    console.error(formatted, allMeta, error instanceof Error ? error : undefined);
   }
 }
 

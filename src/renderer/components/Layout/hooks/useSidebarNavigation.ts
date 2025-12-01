@@ -87,7 +87,7 @@ export const useSidebarNavigation = (
   // Get current view from location for now (can be enhanced later)
   const currentView: NavigationItemId | null = useMemo(() => {
     const path = location.pathname;
-    if (path === '/') return 'chat';
+    if (path === '/' || path.startsWith('/chat')) return 'chat';
     if (path === '/progress') return 'progress';
     if (path === '/discovery') return 'discovery';
     if (path === '/settings') return 'settings';

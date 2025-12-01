@@ -353,8 +353,20 @@ export const setupAgentHandlers = async (
         },
       };
 
+      const clampDepth = (d?: number) => {
+        if (!d && d !== 0) return undefined;
+        return Math.max(1, Math.min(6, d));
+      };
+
+      let maxDepth: number | undefined;
+      try {
+        const ui = await services.configService.get('ui');
+        maxDepth = clampDepth((ui as any)?.documentHeadingDepth);
+      } catch {}
+
       const parsingResult = await services.conceptParsingService.parseMaterials([material], {
         userId: params.userId,
+        maxHeadingDepth: maxDepth,
         options: { confidenceThreshold: 0.5 },
       });
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Cog6ToothIcon, CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import { settingsToasts } from '@/renderer/utils/toast';
-import { useDebouncedSave } from '@/renderer/hooks/useDebouncedSave';
 import { SettingsErrorBoundary } from '@/renderer/components/UI/SettingsErrorBoundary';
 import { ComponentErrorBoundary } from '@/renderer/components/UI/ComponentErrorBoundary';
 import { Accordion, Input, ConfirmDialog } from '@/renderer/components/UI';
@@ -112,8 +111,9 @@ const mapModelTypeConfigToSelectedModel = (
 export const SettingsPanel: React.FC = () => {
   const { config, setConfig } = useConfigStore();
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedSections, setExpandedSections] = useState<string[]>(['ai-models', 'interface']);
+  const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const initialConfigRef = useRef<AppConfig | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingConfig, setPendingConfig] = useState<AppConfig | null>(null);
@@ -141,30 +141,6 @@ export const SettingsPanel: React.FC = () => {
     }
   }, [config]);
 
-  // Debounced save functionality
-  const {
-    save: debouncedSaveConfig,
-    cancel: cancelDebouncedSave,
-    isSaving,
-    saveStatus,
-  } = useDebouncedSave<AppConfig>({
-    delay: 1000,
-    onSave: async (configToSave) => {
-      if (!configService) {
-        throw new Error('Config service unavailable');
-      }
-      await configService.saveConfig(configToSave);
-      setConfig(configToSave);
-    },
-    onSuccess: () => {
-      // Visual feedback is shown in the header - no toast needed
-    },
-    onError: (error) => {
-      setSaveError(error.message);
-      settingsToasts.providerError('Settings', error.message);
-    },
-  });
-
   useEffect(() => {
     if (!config) return;
     if (!initialConfigRef.current) {
@@ -191,13 +167,13 @@ export const SettingsPanel: React.FC = () => {
   const handleSaveConfig = async () => {
     if (!localConfig) return;
 
-    // Cancel any pending debounced saves to prevent double saving
-    cancelDebouncedSave();
+    setSaveError(null);
+    setSaveStatus('saving');
 
-    // Immediate save without debouncing
     try {
       if (!configService) {
         settingsToasts.providerError('Settings', 'Config service unavailable');
+        setSaveStatus('error');
         return;
       }
       // Prefer the most recent store snapshot in case other components updated config
@@ -299,6 +275,7 @@ export const SettingsPanel: React.FC = () => {
         if (changed) {
           setPendingConfig(mergedConfig);
           setConfirmOpen(true);
+          setSaveStatus('idle');
           return;
         }
       }
@@ -306,9 +283,11 @@ export const SettingsPanel: React.FC = () => {
       await configService.saveConfig(mergedConfig);
       setConfig(mergedConfig);
       initialConfigRef.current = mergedConfig;
+      setSaveStatus('success');
       // Visual feedback is shown in the header - no toast needed
     } catch (error) {
       console.error('Failed to save configuration:', error);
+      setSaveStatus('error');
       settingsToasts.providerError(
         'Settings',
         error instanceof Error ? error.message : 'Unknown error',
@@ -319,13 +298,15 @@ export const SettingsPanel: React.FC = () => {
   const handleConfirmProviderChange = async () => {
     try {
       if (!pendingConfig || !configService) return;
-      cancelDebouncedSave();
       setIsManualSaving(true);
+      setSaveStatus('saving');
       await configService.saveConfig(pendingConfig);
       setConfig(pendingConfig);
       initialConfigRef.current = pendingConfig;
+      setSaveStatus('success');
     } catch (error) {
       console.error('Failed to save configuration:', error);
+      setSaveStatus('error');
       settingsToasts.providerError(
         'Settings',
         error instanceof Error ? error.message : 'Unknown error',
@@ -390,9 +371,7 @@ export const SettingsPanel: React.FC = () => {
       },
     };
     setLocalConfig(updatedConfig);
-
-    // Auto-save to global config store with debouncing
-    debouncedSaveConfig(updatedConfig);
+    setSaveStatus('idle');
   };
 
   const providerConfigs = useMemo(() => localConfig?.ai?.providers ?? {}, [localConfig]);
@@ -436,7 +415,21 @@ export const SettingsPanel: React.FC = () => {
       },
     };
     setLocalConfig(updatedConfig);
-    debouncedSaveConfig(updatedConfig);
+    setSaveStatus('idle');
+  };
+
+  const handleProviderRemove = (providerId: string) => {
+    if (!localConfig) return;
+    const { [providerId]: _removed, ...remainingProviders } = localConfig.ai.providers ?? {};
+    const updatedConfig: AppConfig = {
+      ...localConfig,
+      ai: {
+        ...localConfig.ai,
+        providers: remainingProviders,
+      },
+    };
+    setLocalConfig(updatedConfig);
+    setSaveStatus('idle');
   };
 
   const handleModelAssignmentChange = (
@@ -468,7 +461,7 @@ export const SettingsPanel: React.FC = () => {
     };
 
     setLocalConfig(updatedConfig);
-    debouncedSaveConfig(updatedConfig);
+    setSaveStatus('idle');
 
     setModelTypeConfigs((prev) => ({
       ...prev,
@@ -490,16 +483,10 @@ export const SettingsPanel: React.FC = () => {
       };
 
       setLocalConfig(updatedConfig);
-      debouncedSaveConfig(updatedConfig);
+      setSaveStatus('idle');
     },
-    [localConfig, debouncedSaveConfig],
+    [localConfig],
   );
-
-  const toggleSection = (sectionId: string) => {
-    setExpandedSections((prev) =>
-      prev.includes(sectionId) ? prev.filter((id) => id !== sectionId) : [...prev, sectionId],
-    );
-  };
 
   useEffect(() => {
     try {
@@ -569,10 +556,10 @@ export const SettingsPanel: React.FC = () => {
               )}
               <button
                 onClick={handleSaveConfig}
-                disabled={isSaving}
+                disabled={saveStatus === 'saving' || isManualSaving}
                 className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg transition-colors text-sm font-medium"
               >
-                {isSaving ? 'Saving...' : 'Save Changes'}
+                {isManualSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -595,14 +582,19 @@ export const SettingsPanel: React.FC = () => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6">
-            <Accordion multiple className="space-y-4">
+            <Accordion
+              multiple
+              className="space-y-4"
+              expandedIds={expandedSections}
+              onExpandedChange={setExpandedSections}
+            >
               {/* AI Models Section */}
               {filterContent('AI Models Configure AI providers, models, and response settings') && (
                 <Accordion.Item
                   id="ai-models"
                   title="AI Models"
                   description="Configure AI providers, models, and response settings"
-                  defaultExpanded={expandedSections.includes('ai-models')}
+
                 >
                   <div className="space-y-6">
                     <ComponentErrorBoundary componentName="AI Provider Settings">
@@ -610,6 +602,7 @@ export const SettingsPanel: React.FC = () => {
                         providerConfigs={providerConfigs}
                         modelAssignments={modelAssignments}
                         onProviderConfigChange={handleProviderConfigChange}
+                        onProviderRemove={handleProviderRemove}
                         onModelAssignmentChange={handleModelAssignmentChange}
                       />
                     </ComponentErrorBoundary>
@@ -628,7 +621,7 @@ export const SettingsPanel: React.FC = () => {
                   id="interface"
                   title="Interface"
                   description="Customize the appearance and behavior of the application"
-                  defaultExpanded={expandedSections.includes('interface')}
+
                 >
                   <ComponentErrorBoundary componentName="UI Settings">
                     <UISettings config={localConfig} onConfigChange={handleConfigChange} />
@@ -644,7 +637,7 @@ export const SettingsPanel: React.FC = () => {
                   id="advanced"
                   title="Advanced"
                   description="Advanced configuration options and experimental features"
-                  defaultExpanded={expandedSections.includes('advanced')}
+
                 >
                   <ComponentErrorBoundary componentName="Advanced Settings">
                     <AdvancedSettings config={localConfig} onConfigChange={handleConfigChange} />
@@ -655,13 +648,6 @@ export const SettingsPanel: React.FC = () => {
           </div>
         </div>
 
-        {(isSaving || isManualSaving) && (
-          <div className="absolute inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
-              Saving changes...
-            </div>
-          </div>
-        )}
         <ConfirmDialog
           isOpen={confirmOpen}
           title="Apply Provider Changes"

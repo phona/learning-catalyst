@@ -79,8 +79,17 @@ const prepareConfigStore = () => {
 
 describe("SettingsPanel behavior", () => {
   beforeEach(() => {
+    localStorage.clear();
     prepareConfigStore();
   });
+
+  const openSection = async (label: RegExp | string) => {
+    const button = screen.getByRole("button", { name: label });
+    if (button.getAttribute("aria-expanded") !== "true") {
+      await userEvent.click(button);
+    }
+    return button;
+  };
 
   it("saves updated UI theme via configService", async () => {
     const saveConfig = vi.fn().mockResolvedValue(undefined);
@@ -100,7 +109,7 @@ describe("SettingsPanel behavior", () => {
 
     await screen.findByText("Preferences");
 
-    await userEvent.click(screen.getByRole("button", { name: /Interface/i }));
+    await openSection(/Interface/i);
     const themeSelect = await screen.findByLabelText("Theme");
     await userEvent.selectOptions(themeSelect, "dark");
 
@@ -128,7 +137,7 @@ describe("SettingsPanel behavior", () => {
     renderWithServices(<SettingsPanel />, { serviceOverrides: { configService } });
 
     await screen.findByText("Preferences");
-    await userEvent.click(screen.getByRole("button", { name: /Interface/i }));
+    await openSection(/Interface/i);
     const themeSelect = await screen.findByLabelText("Theme");
     await userEvent.selectOptions(themeSelect, "dark");
 
@@ -157,13 +166,16 @@ describe("SettingsPanel behavior", () => {
     renderWithServices(<SettingsPanel />, { serviceOverrides: { configService } });
 
     await screen.findByText("Preferences");
-    await userEvent.click(screen.getByRole("button", { name: /Interface/i }));
+    await openSection(/Interface/i);
 
     // Flip two toggles quickly
     await userEvent.click(screen.getByRole("switch", { name: "Auto Scroll" }));
     await userEvent.click(screen.getByRole("switch", { name: "Compact Mode" }));
 
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    // No autosave: nothing is persisted until the user clicks Save Changes
+    expect(saveConfig).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => {
       expect(saveConfig).toHaveBeenCalledTimes(1);

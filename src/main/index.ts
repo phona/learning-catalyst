@@ -36,7 +36,11 @@ import { createQdrantManager } from '@/main/qdrant-manager';
 import type { IPCErrorPayload, BufferedIPCError } from '@/shared/types/ipc-error';
 
 // Import database from existing implementation
-import { createDatabase, createSqliteDriverFactory, runMigrations } from './services/core/database/kysely-database';
+import {
+  createDatabase,
+  createSqliteDriverFactory,
+  runMigrations,
+} from './services/core/database/kysely-database';
 import { createConfigStorage } from './services/core/config/storage';
 
 // Memory debugging utility for development
@@ -122,7 +126,7 @@ const flushPendingIpcErrors = () => {
 };
 
 const reportMainError = (error: unknown, channel = 'main') => {
-  console.error(error)
+  console.error(error);
   const payload = serializeIPCError(error, channel);
   enqueueIpcError(payload);
   return payload;
@@ -220,7 +224,10 @@ async function createWindow(): Promise<void> {
 
     // Always replay the latest known snapshot so renderer reloads don't miss ready.
     if (lastSystemReadyPayload) {
-      console.log('[Main] Replaying last SYSTEM_READY snapshot after reload', lastSystemReadyPayload);
+      console.log(
+        '[Main] Replaying last SYSTEM_READY snapshot after reload',
+        lastSystemReadyPayload,
+      );
       win.webContents.send(IPC_EVENTS.SYSTEM_READY, lastSystemReadyPayload);
       return;
     }
@@ -359,27 +366,14 @@ async function createWindow(): Promise<void> {
 
     const contentService = createContentService({ loggerService, aiService });
 
-    let agentManager: AgentManager;
-    try {
-      agentManager = await createAgentManager({
-        aiService,
-        analyticsService,
-        conceptParsingService,
-        learningService,
-        loggerService,
-        configService,
-      });
-    } catch (error) {
-      reportMainError(error, 'agentManager.create');
-      agentManager = {
-        runAgent: async (request: { agentType: any }) => ({
-          content: 'Agent is initializing. Please try again shortly.',
-          model: 'unavailable',
-          provider: 'unavailable',
-          agentType: request.agentType ?? 'learning',
-        }),
-      } as AgentManager;
-    }
+    const agentManager = await createAgentManager({
+      aiService,
+      analyticsService,
+      conceptParsingService,
+      learningService,
+      loggerService,
+      configService,
+    });
 
     const chatService = createChatService({
       db: database,
@@ -419,13 +413,6 @@ async function createWindow(): Promise<void> {
         reportMainError(error, 'configReload');
       }
     });
-
-    setupChatHandlers(ipcMain, {
-      chatService,
-      practiceService,
-      loggerService,
-    });
-
   } catch (error) {
     console.error('[Main] startup fatal error before ready emit', error);
     reportMainError(error, 'startup');
