@@ -206,6 +206,8 @@ export interface ChatState {
   thinkingContent: string;
   streamingMessageId: string | null;
   streamingContent: string;
+  processingTrace: ProcessingTrace | null;
+  setProcessingTraceCollapsed: (collapsed: boolean) => void;
   setCurrentSession: (
     sessionOrId: Partial<Session> | string,
     options?: { preserveMessages?: boolean },
@@ -236,6 +238,31 @@ export interface ChatState {
   setSelectedModel: (model: string) => void;
 }
 
+type ProcessingEventKind = 'thought' | 'tool' | 'error' | 'status';
+
+interface ProcessingEvent {
+  id: string;
+  kind: ProcessingEventKind;
+  label: string;
+  detail?: string;
+  tool?: string;
+  phase?: 'start' | 'end' | 'error';
+  at: number;
+  durationMs?: number;
+}
+
+interface ProcessingTrace {
+  messageId: string;
+  startedAt: number;
+  completedAt?: number;
+  events: ProcessingEvent[];
+  toolCount: number;
+  warningCount: number;
+  errorCount: number;
+  collapsed: boolean;
+  activeToolStarts: Record<string, number>;
+}
+
 const initialState = {
   currentSessionId: null,
   currentSession: null,
@@ -253,6 +280,7 @@ const initialState = {
   thinkingContent: '',
   streamingMessageId: null,
   streamingContent: '',
+  processingTrace: null,
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
@@ -426,6 +454,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         setAutoScroll: (autoScroll) => set({ autoScroll }),
         setFontSize: (fontSize) => set({ fontSize }),
         setShowThinking: (showThinking) => set({ showThinking }),
+        setProcessingTraceCollapsed: (collapsed) =>
+          set((state) =>
+            state.processingTrace
+              ? { processingTrace: { ...state.processingTrace, collapsed } }
+              : state,
+          ),
         setThinkingContent: (thinkingContent) => set({ thinkingContent }),
         setSelectedProvider: (provider) => set({ selectedProvider: provider }),
         setSelectedModel: (model) => set({ selectedModel: model }),
@@ -681,7 +715,100 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             get().startStreamingMessage(assistantId);
             devLog('[chatStore] streaming start', { assistantId, sessionId });
 
+            const traceStartedAt = Date.now();
+            set({
+              processingTrace: {
+                messageId: assistantId,
+                startedAt: traceStartedAt,
+                events: [
+                  {
+                    id: `evt_${traceStartedAt}`,
+                    kind: 'thought',
+                    label: 'Thought process',
+                    at: traceStartedAt,
+                  },
+                ],
+                toolCount: 0,
+                warningCount: 0,
+                errorCount: 0,
+                collapsed: false,
+                activeToolStarts: {},
+              },
+            });
+
             const { chatService } = dependencies;
+
+            const addProcessingEvent = (
+              evt: Omit<ProcessingEvent, 'id' | 'at'> & { at?: number },
+            ) => {
+              set((state) => {
+                const trace = state.processingTrace;
+                if (!trace || trace.messageId !== assistantId) return state;
+                const at = evt.at ?? Date.now();
+                const event: ProcessingEvent = {
+                  id: `evt_${at}_${Math.random().toString(36).slice(2, 6)}`,
+                  kind: evt.kind,
+                  label: evt.label,
+                  detail: evt.detail,
+                  tool: evt.tool,
+                  phase: evt.phase,
+                  at,
+                  durationMs: evt.durationMs,
+                };
+                const activeToolStarts = { ...trace.activeToolStarts };
+                let toolCount = trace.toolCount;
+                let warningCount = trace.warningCount;
+                let errorCount = trace.errorCount;
+                if (evt.kind === 'tool' && evt.phase === 'start' && evt.tool) {
+                  activeToolStarts[evt.tool] = at;
+                  toolCount += 1;
+                }
+                if (
+                  evt.kind === 'tool' &&
+                  evt.tool &&
+                  (evt.phase === 'end' || evt.phase === 'error')
+                ) {
+                  const started = activeToolStarts[evt.tool];
+                  if (started) {
+                    event.durationMs = at - started;
+                    delete activeToolStarts[evt.tool];
+                  }
+                }
+                if (evt.kind === 'error') {
+                  warningCount += 1;
+                  errorCount += 1;
+                }
+                return {
+                  processingTrace: {
+                    ...trace,
+                    events: [...trace.events, event],
+                    toolCount,
+                    warningCount,
+                    errorCount,
+                    activeToolStarts,
+                  },
+                };
+              });
+            };
+
+            const completeProcessingTrace = (status: 'ok' | 'error' = 'ok') => {
+              set((state) => {
+                const trace = state.processingTrace;
+                if (!trace || trace.messageId !== assistantId) return state;
+                const finishedAt = Date.now();
+                const warningCount = status === 'error' ? trace.warningCount + 1 : trace.warningCount;
+                const errorCount = status === 'error' ? trace.errorCount + 1 : trace.errorCount;
+                return {
+                  processingTrace: {
+                    ...trace,
+                    completedAt: finishedAt,
+                    warningCount,
+                    errorCount,
+                  },
+                };
+              });
+            };
+
             const statusMessageId = `${assistantId}_status`;
             const upsertStatusMessage = (text: string) => {
               set((state) => {
@@ -726,6 +853,63 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               }
             };
 
+            const handleStatusEvent = (status: any) => {
+              if (!status || typeof status !== 'object') return;
+              const now = Date.now();
+              const pushTool = (tool?: string, phase?: 'start' | 'end' | 'error', detail?: string) =>
+                addProcessingEvent({
+                  kind: 'tool',
+                  label: `tool ${tool ?? 'unknown'} ${phase ?? ''}`.trim(),
+                  tool,
+                  phase,
+                  detail,
+                  at: now,
+                });
+
+              switch (status.type) {
+              case 'thought':
+                addProcessingEvent({
+                  kind: 'thought',
+                  label: status.text ?? 'Thought',
+                  detail: status.text,
+                  at: now,
+                });
+                break;
+              case 'tool':
+                pushTool(status.tool, status.phase, status.detail);
+                break;
+              case 'timeline_event':
+                if (status.event?.type === 'thought') {
+                  addProcessingEvent({
+                    kind: 'thought',
+                    label: status.event.text ?? 'Thought',
+                    detail: status.event.text,
+                    at: now,
+                  });
+                } else if (status.event?.type === 'tool') {
+                  pushTool(status.event.tool, status.event.phase, status.event.detail);
+                } else if (status.event?.type === 'error') {
+                  addProcessingEvent({
+                    kind: 'error',
+                    label: status.event.text ?? 'Error',
+                    detail: status.event.text,
+                    at: now,
+                  });
+                }
+                break;
+              case 'fail':
+                addProcessingEvent({
+                  kind: 'error',
+                  label: `Failed (${status.category ?? 'error'})`,
+                  detail: status.suggestion,
+                  at: now,
+                });
+                break;
+              default:
+                break;
+              }
+            };
+
             let aggregated = '';
             const result = await chatService.sendMessageStream(
               content,
@@ -743,6 +927,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   return;
                 }
                 if (chunk.type === 'status' && (chunk as any).status) {
+                  handleStatusEvent((chunk as any).status);
                   const text = statusToText((chunk as any).status);
                   if (text) upsertStatusMessage(text);
                   return;
@@ -764,8 +949,10 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             );
 
             get().finishStreamingMessage(result.content);
+            completeProcessingTrace('ok');
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to stream message';
+            completeProcessingTrace('error');
             // Surface the failure inline so users see it immediately, even if no status chunk arrived
             set((state) => {
               const messages = [...state.messages];
