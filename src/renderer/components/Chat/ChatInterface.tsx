@@ -2,7 +2,6 @@ import React from 'react';
 import { ChatArea } from './ChatArea';
 import { ChatInput } from './ChatInput';
 import { TimelineView } from '../Timeline';
-import { ChatProcessingOverlay } from './ChatProcessingOverlay';
 import { useSessionInit } from '../../hooks/useSessionInit';
 import { MessageSkeleton } from '../UI';
 
@@ -82,9 +81,6 @@ const ChatInterfaceComponent: React.FC = () => {
     <div className="h-full flex flex-col">
       {/* Agent Processing Timeline */}
       {currentSessionId && <TimelineView conversationId={currentSessionId} />}
-
-      {/* Processing overlay for heavy ops */}
-      <ChatProcessingOverlay />
 
       {/* Chat area */}
       <ChatArea />

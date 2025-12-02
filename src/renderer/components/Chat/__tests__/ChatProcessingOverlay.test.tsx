@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, beforeEach, afterEach, vi, expect } from 'vitest';
+import { describe, it, beforeEach, vi, expect } from 'vitest';
 import { ChatProcessingOverlay } from '../ChatProcessingOverlay';
 import type { ChatState } from '@/renderer/stores/chat/chatStore';
 
@@ -9,7 +9,7 @@ vi.mock('@/renderer/hooks/useChatStore', () => ({
   useChatStore: vi.fn(),
 }));
 import { useChatStore } from '@/renderer/hooks/useChatStore';
-  const mockUseChatStore = vi.mocked(useChatStore);
+const mockUseChatStore = vi.mocked(useChatStore);
 
 describe('ChatProcessingOverlay', () => {
   const baseState: Partial<ChatState> = {
@@ -75,11 +75,11 @@ describe('ChatProcessingOverlay', () => {
 
     render(<ChatProcessingOverlay />);
 
-    expect(screen.getByText(/Processing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Processing trace/i)).toBeInTheDocument();
     expect(screen.getByText(/Thought process/i)).toBeInTheDocument();
     expect(screen.getByText(/tool search start/i)).toBeInTheDocument();
     expect(screen.getByText(/tool search end/i)).toBeInTheDocument();
-    expect(screen.getByText(/⧗/)).toBeInTheDocument();
+    expect(screen.getByText(/⚡/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Collapse/i }));
     expect(setCollapsed).toHaveBeenCalledWith(true);
@@ -103,7 +103,7 @@ describe('ChatProcessingOverlay', () => {
       setProcessingTraceCollapsed: setCollapsed,
     });
 
-    render(<ChatProcessingOverlay />);
+    render(<ChatProcessingOverlay inline />);
 
     const pill = screen.getByRole('button', { name: /Expand processing details/i });
     expect(pill).toBeInTheDocument();

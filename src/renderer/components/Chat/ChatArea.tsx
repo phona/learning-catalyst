@@ -4,6 +4,7 @@ import { MessageBubble } from './MessageBubble';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { usePracticeSuggestions } from '@/renderer/hooks/usePracticeSuggestions';
 import { MessageErrorBoundary } from '@/renderer/components/UI/MessageErrorBoundary';
+import { ChatProcessingOverlay } from './ChatProcessingOverlay';
 import type { MessageDisplay } from '@/renderer/types';
 import type { ChatState } from '@/renderer/stores/chat/chatStore';
 
@@ -251,6 +252,8 @@ const ChatAreaComponent: React.FC = () => {
                   />
                 </MessageErrorBoundary>
               ))}
+              {/* Inline processing overlay (trace chip sits near latest messages) */}
+              <ChatProcessingOverlay inline />
             </div>
 
             {/* Scroll anchor */}
