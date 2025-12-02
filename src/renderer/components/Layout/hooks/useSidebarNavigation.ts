@@ -12,6 +12,8 @@ import {
   AcademicCapIcon,
   MagnifyingGlassIcon,
   CogIcon,
+  MapIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import type { NavigationItem, NavigationItemId } from '../Sidebar.types';
@@ -48,11 +50,27 @@ const DEFAULT_NAVIGATION_ITEMS: readonly NavigationItem[] = [
     icon: ChatBubbleBottomCenterTextIcon,
   },
   {
-    id: 'progress',
+    id: 'knowledge',
     label: 'Knowledge',
     path: '/progress',
-    description: 'Progress, concepts, and discovery',
+    description: 'Progress, concepts, and graph',
     icon: AcademicCapIcon,
+    children: [
+      {
+        id: 'progress',
+        label: 'Dashboard',
+        path: '/progress',
+        description: 'Learning dashboard and metrics',
+        icon: ChartBarIcon,
+      },
+      {
+        id: 'knowledge-map',
+        label: 'Map',
+        path: '/knowledge',
+        description: 'Knowledge graph view',
+        icon: MapIcon,
+      },
+    ],
   },
   {
     id: 'discovery',
@@ -89,6 +107,7 @@ export const useSidebarNavigation = (
     const path = location.pathname;
     if (path === '/' || path.startsWith('/chat')) return 'chat';
     if (path === '/progress') return 'progress';
+    if (path.startsWith('/knowledge')) return 'knowledge-map';
     if (path === '/discovery') return 'discovery';
     if (path === '/settings') return 'settings';
     return null;
@@ -102,6 +121,12 @@ export const useSidebarNavigation = (
       return items.map((item) => ({
         ...item,
         path: basePath + item.path,
+        children: item.children
+          ? item.children.map((child) => ({
+            ...child,
+            path: basePath + child.path,
+          }))
+          : undefined,
       }));
     }
     return items;

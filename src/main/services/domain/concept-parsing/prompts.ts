@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import { ChatOpenAI } from '@langchain/openai';
+import { RunnableLambda } from '@langchain/core/runnables';
 
 const ROLE_DEFINITION = `
 You are an expert Knowledge Curator and Educational Content Analyzer.
@@ -89,22 +90,10 @@ export const createSegmentExtractChain = (llm: ChatOpenAI) => {
   return {
     rawChain: chain,
     async invoke(input: { preview_payload: string }) {
-      const messages = await SEGMENT_EXTRACTION_TEMPLATE.formatMessages({
-        preview_payload: input.preview_payload,
-        format_instructions: formatInstructions,
-      });
-      try {
-        console.info('Segment extraction prompt system', {
-          content: (messages[0] as any)?.content,
-        });
-        console.info('Segment extraction prompt user', {
-          content: (messages[1] as any)?.content,
-        });
-      } catch {}
       return chain.invoke({
         ...input,
         format_instructions: formatInstructions,
       });
-    }
-  }
+    },
+  };
 };

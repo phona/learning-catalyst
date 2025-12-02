@@ -7,7 +7,7 @@ import { resolveProviderSettings } from './provider-utils';
 const isRemoteProvider = (providerType: string) =>
   ['openai', 'openai-compatible', 'chatglm', 'deepseek'].includes(providerType);
 
-const createChatModel = (settings: ProviderSettings) => {
+const createChatModel = (settings: ProviderSettings, timeoutMs: number) => {
   if (isRemoteProvider(settings.providerType) && !settings.apiKey) {
     throw new Error(`API key is required to use provider "${settings.providerName}".`);
   }
@@ -17,14 +17,20 @@ const createChatModel = (settings: ProviderSettings) => {
     maxTokens: settings.maxTokens,
     apiKey: settings.apiKey,
     maxRetries: 4,
-    timeout: 60_000,
+    timeout: timeoutMs,
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 };
 
 export const createDomainAgent = async (deps: { configService: ConfigService }) => {
   const providerSettings = await resolveProviderSettings(deps.configService);
-  const chatModel = createChatModel(providerSettings);
+  const parsingConfig = await deps.configService.get('parsing');
+  const perfConfig = await deps.configService.get('performance');
+  const timeoutSeconds =
+    parsingConfig?.chatTimeoutSeconds ??
+    perfConfig?.requestTimeout ??
+    60;
+  const chatModel = createChatModel(providerSettings, Math.max(1, timeoutSeconds) * 1000);
 
   const agent = createAgent({
     model: chatModel,

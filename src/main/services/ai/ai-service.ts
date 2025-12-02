@@ -50,7 +50,7 @@ const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
     model: chatDefaults?.model ?? 'llama-3.1-70b',
     apiKey: resolveProviderApiKey(chatProvider ?? 'openai', config.ai.providers),
     temperature: chatDefaults?.temperature ?? 0.3,
-    maxTokens: chatDefaults?.maxTokens ?? 1024,
+    maxTokens: chatDefaults?.maxTokens ?? 10240,
   };
 
   return {
@@ -60,28 +60,28 @@ const buildModelPresets = (config: AppConfig): Record<string, ModelConfig> => {
       model: 'llama-3.1-70b',
       apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.2,
-      maxTokens: 2048,
+      maxTokens: 10240,
     },
     'knowledge.extraction': {
       provider: 'local',
       model: 'llama-3.1-70b',
       apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.15,
-      maxTokens: 2048,
+      maxTokens: 10240,
     },
     'learning.plan': {
       provider: 'local',
       model: 'llama-3.1-70b',
       apiKey: resolveProviderApiKey('openai-compatible', config.ai.providers),
       temperature: 0.35,
-      maxTokens: 3072,
+      maxTokens: 10240,
     },
     'chat.reply': {
       provider: chatProvider ?? 'openai',
       model: chatDefaults?.model ?? 'gpt-4o',
       apiKey: resolveProviderApiKey(chatProvider ?? 'openai', config.ai.providers),
       temperature: 0.7,
-      maxTokens: 4096,
+      maxTokens: chatDefaults?.maxTokens ?? 10240,
     },
   };
 };

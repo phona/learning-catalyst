@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TimelineView } from '@/renderer/components/Timeline/TimelineView';
+import { useTimeline } from '@/renderer/hooks/useTimeline';
 import { useTimelineStore } from '@/renderer/stores/chat/timelineStore';
 import type { TimelineEventPayload } from '@/shared/types/electron-api/chat-api';
 
@@ -9,29 +10,30 @@ vi.mock('@/renderer/hooks/useTimeline', () => ({
   useTimeline: vi.fn(),
 }));
 
-// Mock the timeline store
+// Mock the timeline store with a Zustand-like hook shape
+const mockUseTimelineStore: any = vi.hoisted(() => {
+  const fn: any = vi.fn();
+  fn.mockImplementation((selector: any) => selector(fn.getState()));
+  fn.getState = vi.fn();
+  fn.setState = vi.fn();
+  fn.subscribe = vi.fn((selector: any, callback: any) => {
+    callback(selector(fn.getState()));
+    return vi.fn();
+  });
+  return fn;
+});
+
 vi.mock('@/renderer/stores/chat/timelineStore', () => ({
-  useTimelineStore: {
-    getState: vi.fn(),
-    setState: vi.fn(),
-    subscribe: vi.fn((selector, callback) => {
-      // Immediately call callback with current state
-      callback(selector(useTimelineStore.getState()));
-      return vi.fn();
-    }),
-  },
+  useTimelineStore: mockUseTimelineStore,
 }));
 
 describe('TimelineView', () => {
-  const mockUseTimeline = vi.mocked(
-    require('@/renderer/hooks/useTimeline').useTimeline
-  );
-
-  const mockUseTimelineStore = vi.mocked(useTimelineStore);
+  const mockUseTimeline = vi.mocked(useTimeline);
+  const mockStore = useTimelineStore as unknown as typeof mockUseTimelineStore;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: {},
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -48,7 +50,7 @@ describe('TimelineView', () => {
   });
 
   it('should not render when there are no events', () => {
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': [] },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -74,7 +76,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -100,7 +102,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: { 'test-conv': 'Executing: ReadFile' },
       addEvent: vi.fn(),
@@ -126,7 +128,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -153,7 +155,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -182,7 +184,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -224,7 +226,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -250,7 +252,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),
@@ -284,7 +286,7 @@ describe('TimelineView', () => {
       },
     ];
 
-    mockUseTimelineStore.getState.mockReturnValue({
+    mockStore.getState.mockReturnValue({
       eventsByConversation: { 'test-conv': events },
       activeStatesByConversation: {},
       addEvent: vi.fn(),

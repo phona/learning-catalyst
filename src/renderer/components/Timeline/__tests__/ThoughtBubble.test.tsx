@@ -98,7 +98,13 @@ describe('ThoughtBubble', () => {
     const button = screen.getByText('▶ Show details');
     fireEvent.click(button);
 
-    const detail = screen.getByText('Line 1\nLine 2\nLine 3');
+    const detail = screen.getByText(
+      (content, node) =>
+        node?.tagName === 'PRE' &&
+        content.includes('Line 1') &&
+        content.includes('Line 2') &&
+        content.includes('Line 3'),
+    );
     expect(detail).toBeInTheDocument();
     expect(detail.tagName).toBe('PRE');
   });

@@ -33,6 +33,7 @@ export interface AppConfig {
   learning: LearningConfig;
   privacy: PrivacyConfig;
   performance: PerformanceConfig;
+  parsing?: ParsingConfig;
 }
 
 export interface SelectedModel {
@@ -121,6 +122,14 @@ export interface PerformanceConfig {
   gpuAcceleration: boolean;
   backgroundProcessing: boolean;
   preloadModels: boolean;
+}
+
+export interface ParsingConfig {
+  maxSegmentChars?: number;
+  minSegmentChars?: number;
+  maxConcurrentSegments?: number;
+  vectorize?: boolean;
+  chatTimeoutSeconds?: number;
 }
 
 // Model type configuration for multi-model support

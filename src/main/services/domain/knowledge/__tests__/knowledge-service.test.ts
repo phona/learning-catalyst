@@ -143,4 +143,68 @@ describe('concept graph knowledge service', () => {
     expect(relationshipMetadata.targetName).toBe('Concept Beta');
     expect(relationshipMetadata.source).toBe('concept-parsing');
   });
+
+  it('honors field toggles when overwriting existing concepts', async () => {
+    await service.ingestConceptParsingResult(buildParsingResult());
+
+    const updated = buildParsingResult();
+    updated.concepts = updated.concepts.map((concept) =>
+      concept.id === 'concept-alpha'
+        ? { ...concept, description: 'New Alpha Description', difficulty: 5 }
+        : concept,
+    );
+
+    const ingestion = await service.ingestConceptParsingResult(updated, {}, {
+      actions: { 'concept-alpha': 'overwrite', 'concept-beta': 'overwrite' },
+      fieldToggles: { 'concept-alpha': { description: false } },
+    });
+
+    expect(ingestion.conceptsUpdated).toBeGreaterThan(0);
+    const alphaRow = await testDb.db
+      .selectFrom('concepts')
+      .selectAll()
+      .where('name', '=', 'Concept Alpha')
+      .executeTakeFirst();
+    expect(alphaRow?.description).toBe('First idea');
+    expect(alphaRow?.difficulty_level).toBe(5);
+  });
+
+  it('skips low-confidence concepts and prunes orphan relationships', async () => {
+    const result = buildParsingResult();
+    result.concepts.push({
+      id: 'concept-low',
+      name: 'Low Confidence Concept',
+      description: 'Should be skipped',
+      type: 'fact',
+      confidence: 0.3,
+      difficulty: 2,
+      evidence: [{ type: 'segment', text: 'low', relevance: 0.2 }],
+      metadata: {},
+    });
+    result.relationships.push({
+      sourceId: 'concept-low',
+      targetId: 'concept-alpha',
+      type: 'related',
+      strength: 0.4,
+      confidence: 0.3,
+      description: 'low -> alpha',
+    });
+
+    const ingestion = await service.ingestConceptParsingResult(result, {}, {
+      lowConfidence: { defaultThreshold: 0.5 },
+    });
+
+    expect(ingestion.conceptsInserted).toBe(2);
+    expect(ingestion.conceptsSkipped).toBe(1);
+    expect(ingestion.lowConfidenceSkipped).toBe(1);
+    const lowRow = await testDb.db
+      .selectFrom('concepts')
+      .selectAll()
+      .where('name', '=', 'Low Confidence Concept')
+      .executeTakeFirst();
+    expect(lowRow).toBeUndefined();
+
+    const relationships = await testDb.db.selectFrom('relationships').selectAll().execute();
+    expect(relationships.length).toBe(1);
+  });
 });

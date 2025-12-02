@@ -19,12 +19,21 @@ import type {
   ProposedRelationship,
   ParsingStatistics,
 } from '@/shared/types/concept-parsing';
+import type {
+  ConceptParsingResult,
+  ConceptIngestionPlan,
+  KnowledgeIngestionResult,
+} from '@/shared/types/electron-api/knowledge-api';
 
 interface ConceptParsingResultsProps {
   job: ParsingJob;
   onClose?: () => void;
   onExport?: (format: 'json' | 'csv') => void;
   onConceptSelect?: (conceptId: string) => void;
+  onIngest?: (
+    result: ConceptParsingResult,
+    plan?: ConceptIngestionPlan,
+  ) => Promise<KnowledgeIngestionResult>;
   className?: string;
 }
 
@@ -141,6 +150,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   onClose,
   onExport,
   onConceptSelect,
+  onIngest,
   className = '',
 }) => {
   const [activeTab, setActiveTab] = useState<
@@ -154,6 +164,64 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   const concepts = result?.concepts || [];
   const relationships = result?.relationships || [];
   const statistics = result?.statistics;
+  const metadata = result?.metadata;
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestSummary, setIngestSummary] = useState<KnowledgeIngestionResult | null>(null);
+  const [defaultExistingAction, setDefaultExistingAction] = useState<'overwrite' | 'skip'>(
+    'overwrite',
+  );
+  const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.6);
+  const [actions, setActions] = useState<Record<string, ConceptIngestionAction>>({});
+  const [edits, setEdits] = useState<Record<string, Partial<Concept>>>({});
+
+  const handleIngest = async () => {
+    if (!onIngest || !result) return;
+
+    const planActions: Record<string, ConceptIngestionAction> = { ...actions };
+
+    // auto-skip low-confidence unless user explicitly chose insert/overwrite
+    result.concepts.forEach((c) => {
+      const explicit = planActions[c.id];
+      if (
+        typeof c.confidence === 'number' &&
+        c.confidence < lowConfidenceThreshold &&
+        (explicit === undefined || explicit === 'skip')
+      ) {
+        planActions[c.id] = 'skip';
+      }
+    });
+
+    const filteredConcepts = result.concepts
+      .map((c) => ({ ...c, ...edits[c.id] }))
+      .filter((c) => planActions[c.id] !== 'skip');
+
+    const conceptIdSet = new Set(filteredConcepts.map((c) => c.id));
+    const filteredRelationships = result.relationships.filter(
+      (r) => conceptIdSet.has(r.sourceId) && conceptIdSet.has(r.targetId),
+    );
+
+    const payload: ConceptParsingResult = {
+      ...result,
+      concepts: filteredConcepts,
+      relationships: filteredRelationships,
+    };
+
+    try {
+      setIngesting(true);
+      setIngestSummary(null);
+
+      const summary = await onIngest(payload, {
+        defaultExistingAction,
+        lowConfidence: { defaultThreshold: lowConfidenceThreshold },
+        actions: Object.keys(planActions).length ? planActions : undefined,
+      });
+      setIngestSummary(summary);
+    } catch (err) {
+      alert(`Ingest failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIngesting(false);
+    }
+  };
 
   // Filter concepts
   const filteredConcepts = concepts
@@ -162,6 +230,9 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
         return false;
       }
       if (filterType !== 'all' && concept.type !== filterType) {
+        return false;
+      }
+      if (concept.confidence < lowConfidenceThreshold) {
         return false;
       }
       return true;
@@ -180,6 +251,10 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
         return 0;
       }
     });
+
+  const lowConfidenceCount = concepts.filter((c) => c.confidence < lowConfidenceThreshold).length;
+  const explicitSkipCount = Object.values(actions).filter((a) => a === 'skip').length;
+  const willSendCount = concepts.length - lowConfidenceCount - explicitSkipCount;
 
   const getJobStatusIcon = () => {
     switch (job.status) {
@@ -230,25 +305,120 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            {job.status === 'completed' && onExport && (
-              <button
-                onClick={() => onExport('json')}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                title="Export as JSON"
-              >
-                <ArrowDownTrayIcon className="w-4 h-4 text-gray-500" />
-              </button>
-            )}
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-              >
-                <XMarkIcon className="w-4 h-4 text-gray-500" />
-              </button>
-            )}
+        {job.status === 'completed' && onExport && (
+          <button
+            onClick={() => onExport('json')}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+            title="Export as JSON"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4 text-gray-500" />
+          </button>
+        )}
+        {job.status === 'completed' && onIngest && (
+          <button
+            onClick={handleIngest}
+            disabled={ingesting}
+            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
+          >
+            {ingesting ? 'Applying...' : 'Apply to Knowledge'}
+          </button>
+        )}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+          >
+            <XMarkIcon className="w-4 h-4 text-gray-500" />
+          </button>
+        )}
+      </div>
+
+      {metadata && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-gray-600 dark:text-gray-400 mb-3">
+          <div className="bg-gray-50 dark:bg-gray-800/60 rounded px-3 py-2">
+            <div className="font-semibold text-gray-800 dark:text-gray-200">Job</div>
+            <div className="font-mono truncate">{metadata.jobId ?? 'unknown'}</div>
+            {metadata.resumed && <div className="text-emerald-600">resumed</div>}
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 rounded px-3 py-2">
+            <div className="font-semibold text-gray-800 dark:text-gray-200">Segments</div>
+            <div>
+              {metadata.segmentsProcessed ?? '-'} / {metadata.segmentsTotal ?? '-'}
+            </div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 rounded px-3 py-2">
+            <div className="font-semibold text-gray-800 dark:text-gray-200">Processed At</div>
+            <div>{new Date(metadata.processedAt).toLocaleString()}</div>
+          </div>
+          <div className="bg-gray-50 dark:bg-gray-800/60 rounded px-3 py-2">
+            <div className="font-semibold text-gray-800 dark:text-gray-200">Duration</div>
+            <div>{formatDuration(metadata.processingTime ?? 0)}</div>
           </div>
         </div>
+      )}
+
+      {ingesting && (
+        <div className="mt-2 text-xs text-blue-700 dark:text-blue-200 flex items-center gap-2">
+          <ClockIcon className="w-4 h-4 animate-spin" />
+          <span>Applying your selections…</span>
+        </div>
+          )}
+
+          {job.status === 'completed' && (
+            <div className="mt-3 space-y-2 text-xs text-gray-700 dark:text-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="flex items-center gap-2">
+                  <span className="font-medium">Default action for existing names:</span>
+                  <select
+                    className="border rounded px-2 py-1 bg-white dark:bg-gray-900"
+                    value={defaultExistingAction}
+                    onChange={(e) =>
+                      setDefaultExistingAction(e.target.value === 'skip' ? 'skip' : 'overwrite')
+                    }
+                  >
+                    <option value="overwrite">Overwrite</option>
+                    <option value="skip">Skip</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="font-medium">Skip below confidence:</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={lowConfidenceThreshold}
+                    onChange={(e) => setLowConfidenceThreshold(Number(e.target.value))}
+                    className="flex-1"
+                  />
+                  <span className="w-10 text-right">{(lowConfidenceThreshold * 100).toFixed(0)}%</span>
+                </label>
+              </div>
+              <div className="text-gray-600 dark:text-gray-400">
+                Will send {Math.max(willSendCount, 0)} concepts | Skipping{' '}
+                {lowConfidenceCount + explicitSkipCount} (low-confidence {lowConfidenceCount}, manual{' '}
+                {explicitSkipCount})
+              </div>
+            </div>
+          )}
+        </div>
+
+        {ingestSummary && (
+          <div className="mt-3 mx-1 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/30 p-3 text-xs text-blue-800 dark:text-blue-100">
+            <div className="font-semibold text-sm mb-1">Ingestion applied</div>
+            <div className="flex gap-4 flex-wrap">
+              <span>Inserted: {ingestSummary.conceptsInserted}</span>
+              <span>Updated: {ingestSummary.conceptsUpdated}</span>
+              <span>Skipped: {ingestSummary.conceptsSkipped ?? 0}</span>
+              <span>Merged: {ingestSummary.conceptsMerged ?? 0}</span>
+              <span>Relationships: +{ingestSummary.relationshipsInserted}</span>
+              <span>Rels skipped: {ingestSummary.relationshipsSkipped ?? 0}</span>
+              {ingestSummary.lowConfidenceSkipped != null && (
+                <span>Low-confidence skipped: {ingestSummary.lowConfidenceSkipped}</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Job Progress */}
         {job.status === 'processing' && (
@@ -441,7 +611,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                           onClick={() => setActiveTab('concepts')}
                           className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                         >
-                          View all {concepts.length} concepts →
+                          View all {concepts.length} concepts {'->'}
                         </button>
                       </div>
                     )}
@@ -499,7 +669,88 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredConcepts.map((concept) => (
-                      <ConceptCard key={concept.id} concept={concept} onSelect={onConceptSelect} />
+                      <div
+                        key={concept.id}
+                        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                      >
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 space-y-2">
+                            <input
+                              aria-label="Concept name"
+                              className="w-full text-lg font-medium bg-transparent border-b border-gray-300 dark:border-gray-600 focus:outline-none focus:border-blue-500"
+                              value={edits[concept.id]?.name ?? concept.name}
+                              onChange={(e) =>
+                                setEdits((prev) => ({
+                                  ...prev,
+                                  [concept.id]: { ...prev[concept.id], name: e.target.value },
+                                }))
+                              }
+                            />
+                            <textarea
+                              aria-label="Concept description"
+                              className="w-full text-sm bg-transparent border border-gray-200 dark:border-gray-700 rounded p-2 focus:outline-none focus:border-blue-500"
+                              value={edits[concept.id]?.description ?? concept.description}
+                              onChange={(e) =>
+                                setEdits((prev) => ({
+                                  ...prev,
+                                  [concept.id]: {
+                                    ...prev[concept.id],
+                                    description: e.target.value,
+                                  },
+                                }))
+                              }
+                              rows={2}
+                            />
+                            <div className="flex gap-2 items-center text-xs text-gray-500">
+                              <label className="flex items-center gap-1">
+                                Type:
+                                <select
+                                  value={edits[concept.id]?.type ?? concept.type}
+                                  onChange={(e) =>
+                                    setEdits((prev) => ({
+                                      ...prev,
+                                      [concept.id]: { ...prev[concept.id], type: e.target.value },
+                                    }))
+                                  }
+                                  className="border rounded px-2 py-1 bg-white dark:bg-gray-900"
+                                >
+                                  <option value="topic">topic</option>
+                                  <option value="skill">skill</option>
+                                  <option value="fact">fact</option>
+                                  <option value="procedure">procedure</option>
+                                  <option value="principle">principle</option>
+                                </select>
+                              </label>
+                              <span className="ml-2">
+                                Confidence: {Math.round(concept.confidence * 100)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 items-end">
+                            <select
+                              aria-label="Concept action"
+                              value={actions[concept.id] ?? 'insert'}
+                              onChange={(e) =>
+                                setActions((prev) => ({
+                                  ...prev,
+                                  [concept.id]: e.target.value as ConceptIngestionAction,
+                                }))
+                              }
+                              className="px-2 py-1 text-xs border rounded bg-white dark:bg-gray-900"
+                            >
+                              <option value="insert">Insert</option>
+                              <option value="overwrite">Overwrite</option>
+                              <option value="skip">Skip</option>
+                            </select>
+                            <button
+                              className="text-xs text-blue-600 hover:underline"
+                              onClick={() => onConceptSelect?.(concept.id)}
+                            >
+                              View details
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -529,7 +780,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                             <span className="font-medium text-gray-900 dark:text-gray-100">
                               {relationship.targetConceptName || 'Unknown Concept'}
                             </span>
-                            <span className="mx-2 text-gray-500">→</span>
+                            <span className="mx-2 text-gray-500">{'->'}</span>
                             <span className="text-sm text-blue-600 dark:text-blue-400">
                               {relationship.type}
                             </span>

@@ -21,7 +21,10 @@ export function TimelineView({ conversationId }: TimelineViewProps) {
   }
 
   return (
-    <div className="timeline-container border border-gray-200 rounded-lg p-4 mb-4 bg-gradient-to-b from-blue-50 to-white">
+    <div
+      className="timeline-container border border-gray-200 rounded-lg p-4 mb-4 bg-gradient-to-b from-blue-50 to-white"
+      data-testid="timeline-container"
+    >
       <div className="timeline-header flex items-center justify-between mb-4 pb-2 border-b">
         <h3 className="text-lg font-semibold text-gray-800">Agent Processing</h3>
         {activeState && (

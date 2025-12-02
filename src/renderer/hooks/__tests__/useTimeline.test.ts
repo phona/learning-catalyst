@@ -3,16 +3,21 @@ import { renderHook, act } from '@testing-library/react';
 import { useTimeline } from '@/renderer/hooks/useTimeline';
 import { useTimelineStore } from '@/renderer/stores/chat/timelineStore';
 
-// Mock the timeline store
+// Mock the timeline store with a callable Zustand-style hook (hoisted)
+const mockUseTimelineStore: any = vi.hoisted(() => {
+  const fn: any = vi.fn();
+  fn.mockImplementation((selector: any) => selector(fn.getState()));
+  fn.getState = vi.fn();
+  fn.subscribe = vi.fn((selector: any, callback: any) => {
+    callback(selector(fn.getState()));
+    return vi.fn();
+  });
+  fn.setState = vi.fn();
+  return fn;
+});
+
 vi.mock('@/renderer/stores/chat/timelineStore', () => ({
-  useTimelineStore: {
-    getState: vi.fn(),
-    setState: vi.fn(),
-    subscribe: vi.fn((selector, callback) => {
-      callback(selector(useTimelineStore.getState()));
-      return vi.fn();
-    }),
-  },
+  useTimelineStore: mockUseTimelineStore,
 }));
 
 describe('useTimeline', () => {

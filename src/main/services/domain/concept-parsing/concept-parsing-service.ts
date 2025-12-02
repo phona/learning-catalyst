@@ -1,4 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { app } from 'electron';
 import type { ILogger } from '../../types';
 import type { AiService } from '@/main/services/ai/ai-service';
 import {
@@ -15,7 +18,11 @@ import type {
   ParsedConcept,
   ParsedRelationship,
 } from '@/shared/types/electron-api/knowledge-api';
-import { createSegmentExtractChain, SEGMENT_EXTRACTION_TEMPLATE, formatInstructions } from './prompts';
+import {
+  createSegmentExtractChain,
+  SEGMENT_EXTRACTION_TEMPLATE,
+  formatInstructions,
+} from './prompts';
 
 export interface ConceptParsingMaterial {
   id: string;
@@ -34,9 +41,12 @@ export interface ConceptParsingSettings {
   maxSegmentChars?: number;
   minSegmentChars?: number;
   vectorize?: boolean;
+  jobId?: string;
+  resume?: boolean;
   options?: {
     confidenceThreshold?: number;
     maxConceptsPerSegment?: number;
+    maxConcurrentSegments?: number;
   };
   maxHeadingDepth?: number;
 }
@@ -83,6 +93,34 @@ type SegmentExtractionSchema = {
   recommendations: string[];
 };
 
+type SegmentJobStatus = 'pending' | 'done' | 'failed';
+
+type SegmentJobRecord = {
+  hash: string;
+  segmentId: string;
+  materialId: string;
+  title: string;
+  status: SegmentJobStatus;
+  result?: {
+    concepts: ParsedConcept[];
+    relationships: ParsedRelationship[];
+    promptTokens?: number;
+    completionTokens?: number;
+    processingTime?: number;
+  };
+  error?: string;
+  updatedAt: string;
+};
+
+type ConceptParsingJobState = {
+  jobId: string;
+  createdAt: string;
+  updatedAt: string;
+  settingsSnapshot: Partial<ConceptParsingSettings>;
+  totalSegments: number;
+  segments: Record<string, SegmentJobRecord>;
+};
+
 const toLogError = (error: unknown) => {
   if (error instanceof Error) {
     const extra: Record<string, unknown> = {};
@@ -107,14 +145,52 @@ const DEFAULT_SETTINGS: ConceptParsingSettings = {
   splitByHeading: true,
   splitByParagraph: true,
   includeCodeBlocks: true,
-  maxSegmentChars: 1400,
-  minSegmentChars: 120,
+  maxSegmentChars: 1200,
+  minSegmentChars: 80,
   vectorize: true,
   options: {
     confidenceThreshold: 0.6,
     maxConceptsPerSegment: 32,
+    maxConcurrentSegments: 3,
   },
 };
+
+const resolveJobStoreDir = (): string => {
+  if (process.env.CONCEPT_PARSE_JOB_DIR) {
+    return process.env.CONCEPT_PARSE_JOB_DIR;
+  }
+  try {
+    return path.join(app.getPath('userData'), 'concept-parse-jobs');
+  } catch {
+    return path.join(process.cwd(), '.concept-parse-jobs');
+  }
+};
+
+const ensureDir = async (dir: string): Promise<void> => {
+  await fs.mkdir(dir, { recursive: true });
+};
+
+const loadJobState = async (jobId: string): Promise<ConceptParsingJobState | null> => {
+  const dir = resolveJobStoreDir();
+  const file = path.join(dir, `${jobId}.json`);
+  try {
+    const raw = await fs.readFile(file, 'utf8');
+    return JSON.parse(raw) as ConceptParsingJobState;
+  } catch {
+    return null;
+  }
+};
+
+const saveJobState = async (state: ConceptParsingJobState): Promise<void> => {
+  const dir = resolveJobStoreDir();
+  await ensureDir(dir);
+  const file = path.join(dir, `${state.jobId}.json`);
+  const payload = JSON.stringify(state, null, 2);
+  await fs.writeFile(file, payload, 'utf8');
+};
+
+const hashSegment = (segment: ConceptSegment): string =>
+  createHash('sha256').update(segment.title || '').update('\n').update(segment.content).digest('hex');
 
 const bucketizeConfidence = (value: number): string => {
   const clamped = Math.min(1, Math.max(0, value));
@@ -130,14 +206,14 @@ const normalizeDifficulty = (value: number): number => {
 
 const difficultyFromLabel = (label?: ExtractedConcept['difficulty']): number => {
   switch (label) {
-    case 'beginner':
-      return 2;
-    case 'intermediate':
-      return 3;
-    case 'advanced':
-      return 4;
-    default:
-      return 3;
+  case 'beginner':
+    return 2;
+  case 'intermediate':
+    return 3;
+  case 'advanced':
+    return 4;
+  default:
+    return 3;
   }
 };
 
@@ -271,6 +347,52 @@ const chunkSegmentsWithLangChain = async (
   return out;
 };
 
+/**
+ * Merge adjacent short segments to reduce the number of LLM calls while keeping order.
+ * Titles are concatenated with " / " to preserve context hints.
+ */
+const coalesceSegments = (
+  segments: ConceptSegment[],
+  maxChars: number,
+  minChars: number,
+): ConceptSegment[] => {
+  if (!maxChars || segments.length <= 1) return segments;
+
+  const merged: ConceptSegment[] = [];
+  let buffer: ConceptSegment | null = null;
+
+  const flush = () => {
+    if (buffer) {
+      buffer.order = merged.length;
+      merged.push(buffer);
+      buffer = null;
+    }
+  };
+
+  for (const seg of segments) {
+    if (!buffer) {
+      buffer = { ...seg };
+      continue;
+    }
+
+    const combinedLength = buffer.content.length + 1 + seg.content.length;
+    if (combinedLength <= maxChars || buffer.content.length < minChars || seg.content.length < minChars) {
+      buffer = {
+        id: buffer.id,
+        title: `${buffer.title} / ${seg.title}`,
+        content: `${buffer.content}\n\n${seg.content}`,
+        order: buffer.order,
+      };
+    } else {
+      flush();
+      buffer = { ...seg };
+    }
+  }
+
+  flush();
+  return merged;
+};
+
 const addSegmentToVector = async (
   segment: ConceptSegment,
   material: ConceptParsingMaterial,
@@ -362,100 +484,8 @@ export const createConceptParsingService = ({
         promptLength: previewPayload.length,
         chars: segment.content.length,
         lines,
-        model: JSON.stringify(domainAgent.chatModel),
       });
-      const timeoutMs = (domainAgent.chatModel as any)?.timeout;
-      const isTimeout =
-        (error as any)?.name === 'TimeoutError' ||
-        String((error as any)?.message ?? '')
-          .toLowerCase()
-          .includes('timeout');
-      serviceLogger.info('Timeout diagnostics', { isTimeout, durationMs, timeoutMs });
-      serviceLogger.info('Prompt payload', {
-        preview_payload: previewPayload,
-        segment_content: segment.content,
-        preview: preview,
-      });
-      serviceLogger.info('Segment context', {
-        head: segment.content.slice(0, 500),
-        length: segment.content.length,
-      });
-      const client = (domainAgent.chatModel as any)?.client as any;
-      serviceLogger.info('Model endpoint', {
-        baseURL: client?.baseURL,
-        model: (domainAgent.chatModel as any)?.model,
-        maxTokens: (domainAgent.chatModel as any)?.maxTokens,
-        temperature: (domainAgent.chatModel as any)?.temperature,
-      });
-      try {
-        const originMessages = await SEGMENT_EXTRACTION_TEMPLATE.formatMessages({
-          preview_payload: previewPayload,
-          format_instructions: formatInstructions,
-        });
-        const originSystem = (originMessages[0] as any)?.content ?? '';
-        const originUser = (originMessages[1] as any)?.content ?? '';
-        serviceLogger.info('Origin prompt system', { content: originSystem });
-        serviceLogger.info('Origin prompt user', { content: originUser });
-        const originRaw = await (domainAgent.chatModel as any).invoke(originMessages as any);
-        const originText = typeof originRaw === 'string' ? originRaw : (originRaw as any)?.content ?? '';
-        serviceLogger.info('Origin LLM response', { content: originText });
-      } catch {}
-      try {
-        if (isTimeout) {
-          const minimalPayload = JSON.stringify({
-            source: preview.source,
-            outline: (preview.outline ?? []).slice(0, 2),
-            snippets: (preview.snippets ?? [])
-              .slice(0, 1)
-              .map((s: any) => ({ label: s.label, excerpt: String(s.excerpt ?? '').slice(0, 280), startLine: s.startLine })),
-          });
-          serviceLogger.info('Retry with minimal payload', { length: minimalPayload.length });
-          const retryResult = (await segmentExtractChain.invoke({ preview_payload: minimalPayload })) as SegmentExtractionSchema;
-          serviceLogger.info('Segment extraction end', {
-            segmentId: segment.id,
-            segmentTitle: segment.title,
-            durationMs: Date.now() - startTs,
-            nodes: (retryResult.nodes ?? []).length,
-            relationships: (retryResult.relationships ?? []).length,
-            summaryLength: (retryResult.summary ?? '').length,
-          });
-          return retryResult;
-        }
-        const fallbackTemplate = ChatPromptTemplate.fromMessages([
-          ['system', 'Extract structured concepts and relationships strictly as JSON.'],
-          ['user', '{preview_payload}'],
-        ]);
-        const messages = await fallbackTemplate.formatMessages({ preview_payload: previewPayload });
-        const raw = await (domainAgent.chatModel as any).invoke(messages as any);
-        const text = typeof raw === 'string' ? raw : (raw as any)?.content ?? '';
-        const cleaned = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();
-        if (!cleaned) {
-          throw error;
-        }
-        const parsed = JSON.parse(cleaned);
-        const normalized: SegmentExtractionSchema = {
-          summary: String(parsed.summary ?? ''),
-          focusAreas: Array.isArray(parsed.focusAreas) ? parsed.focusAreas : [],
-          nodes: Array.isArray(parsed.nodes) ? parsed.nodes : [],
-          relationships: Array.isArray(parsed.relationships) ? parsed.relationships : [],
-          recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
-        };
-        serviceLogger.info('Segment extraction end', {
-          segmentId: segment.id,
-          segmentTitle: segment.title,
-          durationMs: Date.now() - startTs,
-          nodes: (normalized.nodes ?? []).length,
-          relationships: (normalized.relationships ?? []).length,
-          summaryLength: (normalized.summary ?? '').length,
-        });
-        return normalized;
-      } catch (fallbackError) {
-        serviceLogger.error('Segment extraction fallback failed', toLogError(fallbackError), {
-          segmentId: segment.id,
-          segmentTitle: segment.title,
-        });
-        throw error;
-      }
+      throw error;
     }
   };
 
@@ -557,6 +587,53 @@ export const createConceptParsingService = ({
       },
     };
 
+    const jobId = settings.jobId ?? randomUUID();
+    const resume = settings.resume ?? false;
+    const nowIso = new Date().toISOString();
+    const initialJobState: ConceptParsingJobState = {
+      jobId,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      settingsSnapshot: {
+        maxSegmentChars: normalizedSettings.maxSegmentChars,
+        minSegmentChars: normalizedSettings.minSegmentChars,
+        maxHeadingDepth: normalizedSettings.maxHeadingDepth,
+        vectorize: normalizedSettings.vectorize,
+        options: {
+          maxConcurrentSegments: normalizedSettings.options?.maxConcurrentSegments,
+        },
+      },
+      totalSegments: 0,
+      segments: {},
+    };
+
+    const jobState =
+      (resume ? await loadJobState(jobId) : null) ?? initialJobState;
+
+    const isCompatible = (state: ConceptParsingJobState): boolean => {
+      const snap = state.settingsSnapshot ?? {};
+      const opt = (snap as any).options ?? {};
+      return (
+        (snap.maxSegmentChars ?? DEFAULT_SETTINGS.maxSegmentChars) ===
+          normalizedSettings.maxSegmentChars &&
+        (snap.minSegmentChars ?? DEFAULT_SETTINGS.minSegmentChars) ===
+          normalizedSettings.minSegmentChars &&
+        (snap.maxHeadingDepth ?? DEFAULT_SETTINGS.maxHeadingDepth) ===
+          normalizedSettings.maxHeadingDepth &&
+        (opt.maxConcurrentSegments ?? DEFAULT_SETTINGS.options?.maxConcurrentSegments) ===
+          normalizedSettings.options?.maxConcurrentSegments
+      );
+    };
+
+    if (resume && jobState !== initialJobState && !isCompatible(jobState)) {
+      serviceLogger.warn('Resume requested but settings changed; starting fresh job', {
+        jobId,
+      });
+      jobState.segments = {};
+      jobState.totalSegments = 0;
+      jobState.settingsSnapshot = initialJobState.settingsSnapshot;
+    }
+
     const threshold = normalizedSettings.options?.confidenceThreshold ?? 0.6;
     const maxPerSegment = normalizedSettings.options?.maxConceptsPerSegment ?? 32;
 
@@ -571,6 +648,9 @@ export const createConceptParsingService = ({
     let totalRelationships = 0;
     let processingTime = 0;
     let processedSegments = 0;
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let llmCalls = 0;
 
     for (const material of materials) {
       let segments = createSegmentsFromText(
@@ -580,37 +660,40 @@ export const createConceptParsingService = ({
         material.filePath,
       );
       const maxChars = normalizedSettings.maxSegmentChars ?? 0;
+      const minChars = normalizedSettings.minSegmentChars ?? 64;
+
+      // Merge adjacent short segments to reduce number of LLM calls, then chunk if still long
+      segments = coalesceSegments(segments, maxChars, minChars);
       if (maxChars > 0) {
         segments = await chunkSegmentsWithLangChain(segments, maxChars);
       }
       processedSegments += segments.length;
       serviceLogger.debug('Segments prepared', { materialId: material.id, count: segments.length });
 
-      for (const segment of segments) {
-        if (shouldSkipSegment(segment, normalizedSettings)) {
-          continue;
-        }
+      const runnableSegments: Array<{ segment: ConceptSegment; material: ConceptParsingMaterial; hash: string }> = [];
+      const filtered = segments.filter((segment) => !shouldSkipSegment(segment, normalizedSettings));
 
-        const start = Date.now();
+      for (const segment of filtered) {
+        const hash = hashSegment(segment);
+        const existing = jobState.segments[hash];
+        jobState.segments[hash] = {
+          hash,
+          segmentId: segment.id,
+          materialId: material.id,
+          title: segment.title,
+          status: existing?.status ?? 'pending',
+          result: existing?.result,
+          error: existing?.error,
+          updatedAt: existing?.updatedAt ?? nowIso,
+        };
 
-        try {
-          const extraction = await extractSegment(segment, material);
-          serviceLogger.info('Segment extraction successful', extraction);
-          const segmentConcepts = (extraction.nodes ?? []).slice(0, maxPerSegment);
-
-          if (normalizedSettings.vectorize !== false) {
-            await addSegmentToVector(segment, material, vectorDatabase, serviceLogger);
-          }
-
-          const mappedNodes = segmentConcepts.map((node) => mapConcept(node, segment, material));
-          const nameToId = new Map<string, string>();
-          mappedNodes.forEach((node) => {
-            nameToId.set(node.name.toLowerCase(), node.id);
-          });
-
-          const mappedRelationships = (extraction.relationships ?? [])
-            .map((relationship) => mapRelationship(relationship, nameToId))
-            .filter(Boolean) as ParsedRelationship[];
+        if (existing?.status === 'done' && existing.hash === hash && existing.result) {
+          const mappedNodes = existing.result.concepts ?? [];
+          const mappedRelationships = existing.result.relationships ?? [];
+          const segPrompt = existing.result.promptTokens ?? Math.ceil(segment.content.length / 4);
+          const segCompletion =
+            existing.result.completionTokens ?? mappedNodes.length * 60;
+          const segDuration = existing.result.processingTime ?? 0;
 
           mappedNodes.forEach((node) => {
             totalConcepts += 1;
@@ -625,30 +708,136 @@ export const createConceptParsingService = ({
           });
 
           totalRelationships += mappedRelationships.length;
-
           concepts.push(...mappedNodes);
           relationships.push(...mappedRelationships);
-        } catch (error) {
-          errors.push(
-            `[${segment.title}] ${error instanceof Error ? error.message : String(error)}`,
-          );
-          serviceLogger.error('Concept segment processing failed', error, {
-            segmentId: segment.id,
-            segmentTitle: segment.title,
-            model: JSON.stringify(domainAgent.chatModel),
-            details: JSON.stringify(error),
-          });
-        } finally {
-          processingTime += Date.now() - start;
+          promptTokens += segPrompt;
+          completionTokens += segCompletion;
+          processingTime += segDuration;
+          continue;
         }
+
+        runnableSegments.push({ segment, material, hash });
       }
+
+      const maxConcurrent =
+        normalizedSettings.options?.maxConcurrentSegments && normalizedSettings.options.maxConcurrentSegments > 0
+          ? normalizedSettings.options.maxConcurrentSegments
+          : DEFAULT_SETTINGS.options?.maxConcurrentSegments ?? 2;
+
+      let cursor = 0;
+      const worker = async (): Promise<void> => {
+        while (cursor < runnableSegments.length) {
+          const idx = cursor;
+          cursor += 1;
+          const { segment, material: segMaterial, hash } = runnableSegments[idx];
+          const start = Date.now();
+
+          try {
+            const extraction = await extractSegment(segment, segMaterial);
+            llmCalls += 1;
+            serviceLogger.info('Segment extraction successful', extraction);
+            const segmentConcepts = (extraction.nodes ?? []).slice(0, maxPerSegment);
+
+            await addSegmentToVector(segment, segMaterial, vectorDatabase, serviceLogger);
+
+            const segPromptTokens = Math.ceil(segment.content.length / 4);
+            promptTokens += segPromptTokens;
+
+            const mappedNodes = segmentConcepts.map((node) =>
+              mapConcept(node, segment, segMaterial),
+            );
+            const nameToId = new Map<string, string>();
+            mappedNodes.forEach((node) => {
+              nameToId.set(node.name.toLowerCase(), node.id);
+            });
+
+            const mappedRelationships = (extraction.relationships ?? [])
+              .map((relationship) => mapRelationship(relationship, nameToId))
+              .filter(Boolean) as ParsedRelationship[];
+
+            mappedNodes.forEach((node) => {
+              totalConcepts += 1;
+              const bucket = bucketizeConfidence(node.confidence);
+              confidenceDistribution[bucket] = (confidenceDistribution[bucket] ?? 0) + 1;
+              difficultyDistribution[node.difficulty] =
+                (difficultyDistribution[node.difficulty] ?? 0) + 1;
+              typeDistribution[node.type] = (typeDistribution[node.type] ?? 0) + 1;
+              if (node.confidence >= threshold) {
+                validConcepts += 1;
+              }
+            });
+
+            totalRelationships += mappedRelationships.length;
+
+            concepts.push(...mappedNodes);
+            relationships.push(...mappedRelationships);
+
+            const segCompletionTokens = mappedNodes.length * 60;
+            completionTokens += segCompletionTokens;
+            const duration = Date.now() - start;
+            processingTime += duration;
+
+            jobState.segments[hash] = {
+              hash,
+              segmentId: segment.id,
+              materialId: segMaterial.id,
+              title: segment.title,
+              status: 'done',
+              result: {
+                concepts: mappedNodes,
+                relationships: mappedRelationships,
+                promptTokens: segPromptTokens,
+                completionTokens: segCompletionTokens,
+                processingTime: duration,
+              },
+              updatedAt: new Date().toISOString(),
+            };
+            jobState.updatedAt = new Date().toISOString();
+            await saveJobState(jobState);
+          } catch (error) {
+            errors.push(
+              `[${segment.title}] ${error instanceof Error ? error.message : String(error)}`,
+            );
+            jobState.segments[hash] = {
+              hash,
+              segmentId: segment.id,
+              materialId: segMaterial.id,
+              title: segment.title,
+              status: 'failed',
+              error: error instanceof Error ? error.message : String(error),
+              updatedAt: new Date().toISOString(),
+            };
+            jobState.updatedAt = new Date().toISOString();
+            await saveJobState(jobState);
+            serviceLogger.error('Concept segment processing failed', error, {
+              segmentId: segment.id,
+              segmentTitle: segment.title,
+              model: JSON.stringify(domainAgent.chatModel),
+              details: JSON.stringify(error),
+            });
+            processingTime += Date.now() - start;
+          }
+        }
+      };
+
+      const workerCount = Math.min(maxConcurrent, Math.max(1, runnableSegments.length));
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
     }
+
+    jobState.totalSegments = Object.keys(jobState.segments).length;
+    jobState.updatedAt = new Date().toISOString();
+    await saveJobState(jobState);
 
     const metadata = {
       processingTime,
       processedAt: new Date().toISOString(),
       inputFiles: materials.length,
       aiProvider: 'langchain',
+      jobId,
+      segmentsProcessed: Object.values(jobState.segments).filter((s) => s.status === 'done')
+        .length,
+      segmentsTotal: Object.keys(jobState.segments).length || processedSegments,
+      resumed: resume && jobState !== initialJobState,
     } as const;
 
     serviceLogger.info('Concept parsing completed', {
@@ -672,7 +861,13 @@ export const createConceptParsingService = ({
         typeDistribution,
         processingTime,
         modelUsage: {
-          'concept.parsing': processedSegments,
+          'concept.parsing': llmCalls,
+        },
+        tokenUsage: {
+          total: promptTokens + completionTokens,
+          prompt: promptTokens,
+          completion: completionTokens,
+          estimated: true,
         },
       },
       errors,
@@ -685,6 +880,18 @@ export const createConceptParsingService = ({
     rebuild: async (agent?: DomainAgent) => {
       if (agent) {
         domainAgent = agent;
+      }
+    },
+    clearJobCache: async (): Promise<{ removed: number }> => {
+      const dir = resolveJobStoreDir();
+      try {
+        const entries = await fs.readdir(dir).catch(() => []);
+        await fs.rm(dir, { recursive: true, force: true });
+        await fs.mkdir(dir, { recursive: true });
+        return { removed: entries.length };
+      } catch (error) {
+        serviceLogger.warn('Failed to clear concept parse job cache', toLogError(error));
+        throw error;
       }
     },
   };

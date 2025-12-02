@@ -88,3 +88,4 @@ test-results
 coverage
 playwright-report
 .qdrant-initialized
+.concept-parse-jobs

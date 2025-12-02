@@ -40,7 +40,13 @@ export interface SidebarConfig {
 // Navigation Types
 // ============================================================================
 
-export type NavigationItemId = 'chat' | 'progress' | 'knowledge-map' | 'discovery' | 'settings';
+export type NavigationItemId =
+  | 'chat'
+  | 'progress'
+  | 'knowledge'
+  | 'knowledge-map'
+  | 'discovery'
+  | 'settings';
 
 export interface NavigationItem {
   readonly id: NavigationItemId;
@@ -52,6 +58,7 @@ export interface NavigationItem {
     readonly content: string;
     readonly variant: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error';
   };
+  readonly children?: readonly NavigationItem[];
 }
 
 export interface SidebarNavigationProps {

@@ -6,6 +6,7 @@ import type {
   KnowledgeMapDisplay,
   KnowledgeSearchResultDisplay,
   RelatedConceptsDisplay,
+  ConceptIngestionPlan,
 } from '@/shared/types/electron-api/knowledge-api';
 import type { KnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
 import type { APIResponse } from '@/shared/types/electron-api';
@@ -18,6 +19,7 @@ type KnowledgeHandlersDeps = {
 
 type IngestHandlerParams = {
   result: ConceptParsingResult;
+  plan?: ConceptIngestionPlan;
   options?: {
     userId?: string;
     materialId?: string;
@@ -49,6 +51,7 @@ export const setupKnowledgeHandlers = (
         const ingestionResult = await services.knowledgeService.ingestConceptParsingResult(
           params.result,
           params.options,
+          params.plan,
         );
 
         handlerLogger.info('Concept parsing result ingested', ingestionResult);

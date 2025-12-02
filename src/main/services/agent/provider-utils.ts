@@ -13,6 +13,35 @@ export type ProviderSettings = {
   maxTokens: number;
 };
 
+const PROVIDER_OUTPUT_CAP: Record<ProviderType, number> = {
+  openai: 16384,
+  'openai-compatible': 16384,
+  chatglm: 12000,
+  deepseek: 16384,
+  siliconflow: 12000,
+};
+
+const detectModelCap = (model?: string): number | undefined => {
+  if (!model) return undefined;
+  const lower = model.toLowerCase();
+  if (lower.includes('128k') || lower.includes('200k')) return 65536;
+  if (lower.includes('64k')) return 32768;
+  if (lower.includes('32k')) return 16384;
+  if (lower.includes('16k')) return 12000;
+  return undefined;
+};
+
+export const clampMaxTokens = (
+  requested: number,
+  providerType: ProviderType,
+  model?: string,
+): number => {
+  const baseCap = PROVIDER_OUTPUT_CAP[providerType] ?? 12000;
+  const modelCap = detectModelCap(model);
+  const cap = Math.max(baseCap, modelCap ?? baseCap);
+  return Math.min(requested, cap);
+};
+
 export const SUPPORTED_LANGCHAIN_PROVIDERS: ProviderType[] = ['openai', 'openai-compatible'];
 
 export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
@@ -22,7 +51,7 @@ export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   apiKey: process.env.OPENAI_API_KEY,
   baseUrl: 'https://api.openai.com/v1',
   temperature: 0.4,
-  maxTokens: 2048,
+  maxTokens: 10240,
 };
 
 const requireChatConfig = (): IPCErrorPayload => {
@@ -80,7 +109,8 @@ export const resolveProviderSettings = async (
   const model = chatConfig.model; // no fallback to defaults
   const baseUrl = providerConfig.baseUrl;
   const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
-  const maxTokens = chatConfig.maxTokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
+  const desiredMaxTokens = chatConfig.maxTokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
+  const maxTokens = clampMaxTokens(desiredMaxTokens, providerType, model);
 
   return {
     providerName,

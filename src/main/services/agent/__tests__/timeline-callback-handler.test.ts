@@ -72,7 +72,7 @@ describe('TimelineCallbackHandler', () => {
 
       await handler.onAgentAction(action);
 
-      expect(mockOnStatus).toHaveBeenCalledTimes(2);
+      expect(mockOnStatus).toHaveBeenCalledTimes(3);
       expect(mockOnStatus).toHaveBeenNthCalledWith(1, {
         type: 'timeline_event',
         event: expect.objectContaining({
@@ -81,6 +81,14 @@ describe('TimelineCallbackHandler', () => {
         }),
       });
       expect(mockOnStatus).toHaveBeenNthCalledWith(2, {
+        type: 'timeline_event',
+        event: expect.objectContaining({
+          type: 'tool',
+          tool: 'ReadFile',
+          phase: 'start',
+        }),
+      });
+      expect(mockOnStatus).toHaveBeenNthCalledWith(3, {
         type: 'timeline_state',
         state: 'Executing: ReadFile',
         agent: 'TestAgent',
@@ -133,14 +141,19 @@ describe('TimelineCallbackHandler', () => {
 
       await handler.onToolEnd(output);
 
-      expect(mockOnStatus).toHaveBeenCalledWith({
+      expect(mockOnStatus).toHaveBeenNthCalledWith(1, {
         type: 'timeline_event',
         event: expect.objectContaining({
           type: 'tool',
           tool: 'unknown',
           phase: 'end',
-          detail: '{"content":"File contents here"}',
+          detail: expect.stringContaining('"content": "File contents here"'),
         }),
+      });
+      expect(mockOnStatus).toHaveBeenNthCalledWith(2, {
+        type: 'timeline_state',
+        state: 'Complete',
+        agent: 'TestAgent',
       });
     });
 

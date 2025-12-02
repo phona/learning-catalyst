@@ -26,11 +26,11 @@ export const useTimelineStore = create<TimelineStore>((set) => ({
       },
     })),
 
-  setState: (conversationId, state) =>
+  setState: (conversationId, newState) =>
     set((state) => ({
       activeStatesByConversation: {
         ...state.activeStatesByConversation,
-        [conversationId]: state,
+        [conversationId]: newState,
       },
     })),
 

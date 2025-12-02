@@ -7,6 +7,13 @@ interface ToolCallProps {
 
 export function ToolCall({ event }: ToolCallProps) {
   const [expanded, setExpanded] = useState(false);
+  const toolName = event.tool ?? 'unknown';
+  const detail =
+    typeof event.detail === 'string'
+      ? event.detail
+      : event.detail != null
+        ? String(event.detail)
+        : '';
 
   const getPhaseIcon = () => {
     switch (event.phase) {
@@ -35,29 +42,31 @@ export function ToolCall({ event }: ToolCallProps) {
     }
   };
 
+  if (event.type !== 'tool') return null;
+
   return (
-    <div className={getPhaseClass()}>
+    <div className={getPhaseClass()} data-testid="tool-call-container">
       <div className="event-header">
         <span className="icon">{getPhaseIcon()}</span>
-        <span className="tool-name font-semibold text-gray-800">{event.tool}</span>
+        <span className="agent-name text-sm text-gray-600">{event.agent ?? 'unknown'}</span>
+        <span className="tool-name font-semibold text-gray-800">{toolName}</span>
         <span className="phase-label text-xs px-2 py-1 rounded bg-gray-200 text-gray-600">
           {event.phase?.toUpperCase() || 'PENDING'}
         </span>
       </div>
 
-      {event.expandable && event.detail && (
+      {event.expandable && detail && (
         <button
           className="expand-btn text-xs text-blue-600 hover:text-blue-800 mt-2 hover:underline"
+          type="button"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? '▼ Hide I/O' : '▶ Show I/O'}
         </button>
       )}
 
-      {expanded && event.detail && (
-        <pre className="tool-detail mt-2 p-2 bg-white rounded text-xs overflow-x-auto border font-mono">
-          {event.detail}
-        </pre>
+      {expanded && detail && (
+        <pre className="tool-detail mt-2 p-2 bg-white rounded text-xs overflow-x-auto border font-mono">{detail}</pre>
       )}
     </div>
   );

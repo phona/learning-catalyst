@@ -18,6 +18,8 @@ export interface ConceptParsingServiceOptions {
   includeRelationships?: boolean;
   aiProvider?: string;
   aiModel?: string;
+  jobId?: string;
+  resume?: boolean;
 }
 
 interface ActiveJob {
@@ -38,6 +40,16 @@ export const createConceptParsingService = (
     content: string,
     options?: ConceptParsingServiceOptions,
   ) => Promise<ConceptParsingResult>;
+  ingestParsedResult: (
+    result: ConceptParsingResult,
+    plan?: ConceptIngestionPlan,
+    options?: {
+      userId?: string;
+      materialId?: string;
+      sessionId?: string;
+      source?: string;
+    },
+  ) => Promise<KnowledgeIngestionResult>;
   parseFiles: (filePaths: string[], options?: ConceptParsingServiceOptions) => Promise<ParsingJob>;
   parseDirectories: (
     directoryPaths: string[],
@@ -46,8 +58,14 @@ export const createConceptParsingService = (
   getJobStatus: (jobId: string) => ParsingJob | undefined;
   listActiveJobs: () => ParsingJob[];
   cancelJob: (jobId: string) => boolean;
+  clearSavedJobs: () => Promise<number>;
+  getLastJobId: () => string | null;
+  getLastFiles: () => string[];
 } => {
   const activeJobs = new Map<string, ActiveJob>();
+  const progressIntervals = new Map<string, ReturnType<typeof setInterval>>();
+  const LAST_JOB_KEY = 'conceptParsing.lastJobId';
+  const LAST_FILES_KEY = 'conceptParsing.lastFiles';
 
   const generateJobId = (): string =>
     `job-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
@@ -125,6 +143,8 @@ export const createConceptParsingService = (
 
     const result = await apiClient.knowledge.parseConcepts({
       content,
+      jobId: options.jobId,
+      resume: options.resume,
       options: {
         confidenceThreshold: options.confidenceThreshold ?? 0.6,
         maxConceptsPerFile: options.maxConceptsPerFile ?? 50,
@@ -138,11 +158,32 @@ export const createConceptParsingService = (
     return result.data;
   };
 
+  const ingestParsedResult = async (
+    result: ConceptParsingResult,
+    plan?: ConceptIngestionPlan,
+    options?: {
+      userId?: string;
+      materialId?: string;
+      sessionId?: string;
+      source?: string;
+    },
+  ): Promise<KnowledgeIngestionResult> => {
+    const ingestion = await apiClient.knowledge.ingestConcepts({
+      result,
+      plan,
+      options,
+    });
+    if (!ingestion.success || !ingestion.data) {
+      throw new Error(ingestion.error?.message ?? 'Concept ingestion failed');
+    }
+    return ingestion.data;
+  };
+
   const parseFiles = async (
     filePaths: string[],
     options: ConceptParsingServiceOptions = {},
   ): Promise<ParsingJob> => {
-    const jobId = generateJobId();
+    const jobId = options.jobId ?? generateJobId();
     const job: ParsingJob = {
       id: jobId,
       materialId: `files-${Date.now()}`,
@@ -185,7 +226,7 @@ export const createConceptParsingService = (
     directoryPaths: string[],
     options: ConceptParsingServiceOptions = {},
   ): Promise<ParsingJob> => {
-    const jobId = generateJobId();
+    const jobId = options.jobId ?? generateJobId();
     const job: ParsingJob = {
       id: jobId,
       materialId: `directories-${Date.now()}`,
@@ -247,11 +288,15 @@ export const createConceptParsingService = (
         { name: 'compilation', status: 'pending', progress: 0 },
       ],
       result: activeJob.result
-        ? {
-          concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
-          relationships: activeJob.result.relationships.map(
-            transformParsedRelationshipToProposed,
-          ),
+        ? (() => {
+          const conceptNameById = new Map(
+            activeJob.result.concepts.map((c) => [c.id, c.name] as const),
+          );
+          return {
+            concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
+            relationships: activeJob.result.relationships.map((rel) =>
+              transformParsedRelationshipToProposed(rel, conceptNameById),
+            ),
           learningPath: {
             id: 'default',
             title: 'Learning Path',
@@ -292,16 +337,19 @@ export const createConceptParsingService = (
             severity: 'medium' as const,
             timestamp: new Date(),
           })),
-        }
+          };
+        })()
         : undefined,
     };
   };
 
   const transformParsedRelationshipToProposed = (
     parsed: ParsedRelationship,
+    conceptNameById: Map<string, string>,
   ): ProposedRelationship => {
     return {
       targetConceptId: parsed.targetId,
+      targetConceptName: conceptNameById.get(parsed.targetId),
       type: parsed.type as
         | 'prerequisite'
         | 'related'
@@ -334,11 +382,15 @@ export const createConceptParsingService = (
         { name: 'compilation', status: 'pending', progress: 0 },
       ],
       result: activeJob.result
-        ? {
-          concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
-          relationships: activeJob.result.relationships.map(
-            transformParsedRelationshipToProposed,
-          ),
+        ? (() => {
+          const conceptNameById = new Map(
+            activeJob.result.concepts.map((c) => [c.id, c.name] as const),
+          );
+          return {
+            concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
+            relationships: activeJob.result.relationships.map((rel) =>
+              transformParsedRelationshipToProposed(rel, conceptNameById),
+            ),
           learningPath: {
             id: 'default',
             title: 'Learning Path',
@@ -379,7 +431,8 @@ export const createConceptParsingService = (
             severity: 'medium' as const,
             timestamp: new Date(),
           })),
-        }
+          };
+        })()
         : undefined,
     }));
   };
@@ -444,6 +497,10 @@ export const createConceptParsingService = (
             content,
             title: fileName.replace(/\.(md|markdown)$/, '').replace(/[-_]/g, ' '),
           });
+
+          // Reflect progress through file collection (up to 40%)
+          const collectedRatio = files.length / Math.max(filePaths.length, 1);
+          activeJob.progress = Math.min(0.4, 0.1 + collectedRatio * 0.3);
         } catch (error) {
           console.warn(`Failed to process file ${filePath}:`, error);
         }
@@ -455,8 +512,23 @@ export const createConceptParsingService = (
 
       activeJob.progress = 0.6;
 
+      // While parseConcepts runs, gently tick progress toward 0.9 so UI doesn’t look frozen
+      const heartbeat = setInterval(() => {
+        if (!activeJob || activeJob.status !== 'processing') {
+          clearInterval(heartbeat);
+          progressIntervals.delete(jobId);
+          return;
+        }
+        if (activeJob.progress < 0.9) {
+          activeJob.progress = Math.min(0.9, activeJob.progress + 0.02);
+        }
+      }, 500);
+      progressIntervals.set(jobId, heartbeat);
+
       const parsingResult = await apiClient.knowledge.parseConcepts({
         files,
+        jobId,
+        resume: options.resume,
         options: {
           confidenceThreshold: options.confidenceThreshold ?? 0.6,
           maxConceptsPerFile: options.maxConceptsPerFile ?? 50,
@@ -468,11 +540,30 @@ export const createConceptParsingService = (
         throw new Error(err);
       }
 
+      const interval = progressIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        progressIntervals.delete(jobId);
+      }
+
       activeJob.progress = 1.0;
       activeJob.status = 'completed';
       activeJob.result = parsingResult.data;
       activeJob.completedAt = new Date();
+      try {
+        const storage = window?.localStorage;
+        storage?.setItem(LAST_JOB_KEY, parsingResult.data.metadata?.jobId ?? jobId);
+        storage?.setItem(LAST_FILES_KEY, JSON.stringify(filePaths));
+      } catch {
+        // ignore
+      }
     } catch (error) {
+      const interval = progressIntervals.get(jobId);
+      if (interval) {
+        clearInterval(interval);
+        progressIntervals.delete(jobId);
+      }
+
       activeJob.status = 'failed';
       activeJob.errorMessage = error instanceof Error ? error.message : 'Unknown error';
       activeJob.completedAt = new Date();
@@ -522,11 +613,40 @@ export const createConceptParsingService = (
 
   return {
     parseContent,
+    ingestParsedResult,
     parseFiles,
     parseDirectories,
     getJobStatus,
     listActiveJobs,
     cancelJob,
+    clearSavedJobs: async () => {
+      const res = await apiClient.knowledge.clearParsingJobs();
+      if (!res.success || !res.data) {
+        throw new Error(res.error?.message ?? 'Failed to clear parsing cache');
+      }
+      try {
+        window?.localStorage?.removeItem(LAST_JOB_KEY);
+        window?.localStorage?.removeItem(LAST_FILES_KEY);
+      } catch {}
+      return res.data.removed;
+    },
+    getLastJobId: () => {
+      try {
+        return window?.localStorage?.getItem(LAST_JOB_KEY) ?? null;
+      } catch {
+        return null;
+      }
+    },
+    getLastFiles: () => {
+      try {
+        const raw = window?.localStorage?.getItem(LAST_FILES_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? (parsed as string[]) : [];
+      } catch {
+        return [];
+      }
+    },
   };
 };
 

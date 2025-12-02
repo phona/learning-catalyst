@@ -8,6 +8,7 @@ import type { ProviderType, ProviderConfig } from '@/shared/types/config';
 import { createIPCError, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import {
   resolveProviderSettings,
+  clampMaxTokens,
   type ProviderSettings as ResolvedProviderSettings,
 } from './provider-utils';
 
@@ -67,7 +68,8 @@ const normalizeSettings = (raw: ProviderConfig): ProviderSettings => {
   const model = raw.model ?? 'gpt-4o';
   const apiKey = raw.apiKey;
   const temperature = raw.temperature ?? 0.7;
-  const maxTokens = raw.maxTokens ?? 2048;
+  const desiredMaxTokens = raw.maxTokens ?? 10240;
+  const maxTokens = clampMaxTokens(desiredMaxTokens, providerType, model);
   const providerName = (raw as any).providerName ?? raw.providerType;
 
   if (!apiKey) {

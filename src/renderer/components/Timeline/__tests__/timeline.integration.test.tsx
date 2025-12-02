@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
 import { useTimelineStore } from '@/renderer/stores/chat/timelineStore';
+import { useSessionInit } from '@/renderer/hooks/useSessionInit';
 
 // Mock Electron API
 vi.mock('@/renderer/services/api/electron-api-client', () => ({
@@ -15,6 +16,35 @@ vi.mock('@/renderer/services/api/electron-api-client', () => ({
     learning: {
       getSessions: vi.fn(),
     },
+  })),
+}));
+
+// Mock service provider hooks to avoid requiring the provider tree
+vi.mock('@/renderer/services/services-provider', () => ({
+  useChatService: vi.fn(() => ({
+    checkPracticeOpportunity: vi.fn().mockResolvedValue({ hasOpportunity: false }),
+  })),
+  useFileService: vi.fn(() => ({
+    showOpenDialog: vi.fn().mockResolvedValue({ success: false }),
+  })),
+  useSessionService: vi.fn(() => ({})),
+  useElectronAPIClient: vi.fn(() => ({
+    chat: {},
+    sessions: {},
+    learning: {},
+  })),
+}));
+
+// Mock chat store hook to avoid provider dependency
+vi.mock('@/renderer/hooks/useChatStore', () => ({
+  useChatStore: vi.fn(() => ({
+    isLoading: false,
+    isStreaming: false,
+    sendMessage: vi.fn(),
+    sendMessageStream: vi.fn(),
+    stopStreaming: vi.fn(),
+    error: null,
+    setError: vi.fn(),
   })),
 }));
 
@@ -33,21 +63,20 @@ vi.mock('@/renderer/hooks/useSessionInit', () => ({
 }));
 
 // Mock timeline store
-vi.mock('@/renderer/stores/chat/timelineStore', () => ({
-  useTimelineStore: {
-    getState: vi.fn(),
-    setState: vi.fn(),
-    subscribe: vi.fn((selector, callback) => {
-      const state = useTimelineStore.getState();
-      callback(selector(state));
-      return vi.fn();
-    }),
-  },
-}));
+const mockUseTimelineStore: any = vi.hoisted(() => {
+  const fn: any = vi.fn();
+  fn.mockImplementation((selector: any) => selector(fn.getState()));
+  fn.getState = vi.fn();
+  fn.setState = vi.fn();
+  fn.subscribe = vi.fn((selector: any, callback: any) => {
+    callback(selector(fn.getState()));
+    return vi.fn();
+  });
+  return fn;
+});
 
-// Mock useTimeline
-vi.mock('@/renderer/hooks/useTimeline', () => ({
-  useTimeline: vi.fn(),
+vi.mock('@/renderer/stores/chat/timelineStore', () => ({
+  useTimelineStore: mockUseTimelineStore,
 }));
 
 describe('Timeline Integration', () => {
@@ -56,6 +85,17 @@ describe('Timeline Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    vi.mocked(useSessionInit).mockReturnValue({
+      loading: false,
+      sessionId: 'test-session-123',
+      session: {
+        id: 'test-session-123',
+        title: 'Test Session',
+        messages: [],
+        createdAt: new Date().toISOString(),
+      },
+    });
 
     useTimelineStore.getState.mockReturnValue({
       eventsByConversation: {
@@ -74,6 +114,7 @@ describe('Timeline Integration', () => {
             timestamp: Date.now() + 100,
             tool: 'ReadFile',
             phase: 'start',
+            expandable: true,
           },
           {
             id: 'event-3',
@@ -83,6 +124,7 @@ describe('Timeline Integration', () => {
             tool: 'ReadFile',
             phase: 'end',
             detail: 'File contents loaded',
+            expandable: true,
           },
         ],
       },
@@ -123,9 +165,9 @@ describe('Timeline Integration', () => {
     expect(screen.getByText('Analyzing user question')).toBeInTheDocument();
 
     // Check for tool events
-    expect(screen.getByText('ReadFile')).toBeInTheDocument();
+    expect(screen.getAllByText('ReadFile')).toHaveLength(2);
     expect(screen.getByText('START')).toBeInTheDocument();
-    expect(screen.getByText('COMPLETE')).toBeInTheDocument();
+    expect(screen.getByText('END')).toBeInTheDocument();
   });
 
   it('should render active state', async () => {
@@ -161,7 +203,7 @@ describe('Timeline Integration', () => {
       expect(screen.getByText('Agent Processing')).toBeInTheDocument();
     });
 
-    const showButton = screen.getByText('▶ Show I/O');
+    const showButton = screen.getByRole('button', { name: /show i\/o/i });
     expect(showButton).toBeInTheDocument();
 
     // Click to expand
@@ -174,7 +216,7 @@ describe('Timeline Integration', () => {
   });
 
   it('should handle real-time timeline updates', async () => {
-    let eventCallback: (data: any) => void;
+    let eventCallback: ((data: any) => void) | undefined;
 
     window.addEventListener = vi.fn((event, handler) => {
       if (event === 'message') {
@@ -186,7 +228,7 @@ describe('Timeline Integration', () => {
 
     // Simulate receiving a new timeline event via IPC
     act(() => {
-      eventCallback({
+      eventCallback?.({
         data: {
           type: 'chat:status',
           status: {

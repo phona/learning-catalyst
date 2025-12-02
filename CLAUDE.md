@@ -141,6 +141,12 @@ export function Component({ prop }: Props) {
 - Avoid try/catch blocks that only silence errors
 - Propagate errors to the UI layer so they render user-friendly messages
 
+### Knowledge ingestion plan (new)
+
+- `knowledge.ingestConcepts` accepts an optional `plan` with per-concept `actions`, field toggles, canonical/alias choices, merge targets, and low-confidence thresholds.
+- Defaults stay the same (`overwrite` existing names, keep relationships) when no plan is provided.
+- Relationships are pruned when their source/target is skipped or merged; ingestion results now include `conceptsSkipped`, `conceptsMerged`, `relationshipsSkipped`, and `lowConfidenceSkipped`.
+
 ## Project Structure
 
 ```

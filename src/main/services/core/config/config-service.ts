@@ -11,7 +11,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
         provider: 'openai',
         model: 'gpt-3.5-turbo',
         temperature: 0.7,
-        maxTokens: 2048,
+        maxTokens: 10240,
         topP: 1,
         enableThinking: false,
         stream: true,
@@ -72,6 +72,13 @@ const DEFAULT_APP_CONFIG: AppConfig = {
     gpuAcceleration: false,
     backgroundProcessing: true,
     preloadModels: false,
+  },
+  parsing: {
+    maxSegmentChars: 1200,
+    minSegmentChars: 80,
+    maxConcurrentSegments: 3,
+    vectorize: true,
+    chatTimeoutSeconds: 60,
   },
 };
 

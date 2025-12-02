@@ -24,6 +24,8 @@ import type {
 import type { ParsingJob, ParsingOptions } from '@/shared/types/concept-parsing';
 import { ConceptParsingResults } from './ConceptParsingResults';
 import { useFileService, useService } from '@/renderer/services/services-provider';
+import type { ConceptIngestionPlan } from '@/shared/types/electron-api/knowledge-api';
+import { showSuccess, showError } from '@/renderer/utils/toast';
 
 interface LocalProjectExplorerProps {
   onFileSelect?: (filePath: string) => void;
@@ -181,6 +183,8 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [selectedDirectories, setSelectedDirectories] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [lastJobId, setLastJobId] = useState<string | null>(null);
+  const [lastFiles, setLastFiles] = useState<string[]>([]);
 
   // Concept parsing state
   const [activeParsingJob, setActiveParsingJob] = useState<ParsingJob | null>(null);
@@ -260,6 +264,12 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     loadDefaultDirectory();
   }, []);
 
+  useEffect(() => {
+    if (!conceptParsingService) return;
+    setLastJobId(conceptParsingService.getLastJobId());
+    setLastFiles(conceptParsingService.getLastFiles());
+  }, [conceptParsingService]);
+
   const handleFileToggle = (filePath: string) => {
     setSelectedFiles((prev) => {
       const newSet = new Set(prev);
@@ -315,6 +325,25 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       (filePath) =>
         filePath.toLowerCase().endsWith('.md') || filePath.toLowerCase().endsWith('.markdown'),
     );
+  };
+
+  const monitorJob = (jobId: string, usedFiles: string[]) => {
+    const checkProgress = setInterval(() => {
+      const updatedJob = conceptParsingService!.getJobStatus(jobId);
+      if (updatedJob) {
+        setActiveParsingJob(updatedJob);
+
+        if (updatedJob.status === 'completed') {
+          clearInterval(checkProgress);
+          setShowParsingResults(true);
+          const jobMetaId = updatedJob.result?.metadata?.jobId ?? jobId;
+          setLastJobId(jobMetaId);
+          setLastFiles(usedFiles);
+        } else if (updatedJob.status === 'failed') {
+          clearInterval(checkProgress);
+        }
+      }
+    }, 1000);
   };
 
   const startConceptParsing = async () => {
@@ -388,21 +417,8 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       });
 
       setActiveParsingJob(job);
-
-      // Monitor job progress
-      const checkProgress = setInterval(() => {
-        const updatedJob = conceptParsingService!.getJobStatus(job.id);
-        if (updatedJob) {
-          setActiveParsingJob(updatedJob);
-
-          if (updatedJob.status === 'completed') {
-            clearInterval(checkProgress);
-            setShowParsingResults(true);
-          } else if (updatedJob.status === 'failed') {
-            clearInterval(checkProgress);
-          }
-        }
-      }, 1000);
+      monitorJob(job.id, markdownFiles);
+      showSuccess('Parsing started');
     } catch (error) {
       console.error('Failed to start concept parsing:', error);
       showErrorDialog(
@@ -428,8 +444,9 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       return;
 
     try {
+      const filesToUse = getSelectedMarkdownFiles();
       // Reset job status for retry
-      const retryJob = await conceptParsingService!.parseFiles(getSelectedMarkdownFiles(), {
+      const retryJob = await conceptParsingService!.parseFiles(filesToUse, {
         confidenceThreshold: 0.6,
         maxConceptsPerFile: 50,
         includeRelationships: true,
@@ -438,23 +455,59 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       setActiveParsingJob(retryJob);
 
       // Monitor retry job progress
-      const checkProgress = setInterval(() => {
-        const updatedJob = conceptParsingService!.getJobStatus(retryJob.id);
-        if (updatedJob) {
-          setActiveParsingJob(updatedJob);
-
-          if (updatedJob.status === 'completed') {
-            clearInterval(checkProgress);
-            setShowParsingResults(true);
-          } else if (updatedJob.status === 'failed') {
-            clearInterval(checkProgress);
-          }
-        }
-      }, 1000);
+      monitorJob(retryJob.id, filesToUse);
+      showSuccess('Retry started');
     } catch (error) {
       console.error('Failed to retry concept parsing:', error);
-      alert('Failed to retry concept parsing. Please try again.');
+      showError('Failed to retry concept parsing. Please try again.');
     }
+  };
+
+  const resumeLastParsing = async () => {
+    if (!conceptParsingService) return;
+    const useFiles = getSelectedMarkdownFiles();
+    const files = useFiles.length ? useFiles : lastFiles;
+    if (!lastJobId || files.length === 0) {
+      showError('No previous parsing job to resume.');
+      return;
+    }
+    try {
+      const job = await conceptParsingService.parseFiles(files, {
+        confidenceThreshold: 0.6,
+        maxConceptsPerFile: 50,
+        includeRelationships: true,
+        jobId: lastJobId,
+        resume: true,
+      });
+      setActiveParsingJob(job);
+      monitorJob(job.id, files);
+      showSuccess('Resumed previous parse');
+    } catch (error) {
+      console.error('Failed to resume concept parsing:', error);
+      showError('Resume failed. Try starting a new parse.');
+    }
+  };
+
+  const clearParsingCache = async () => {
+    if (!conceptParsingService) return;
+    try {
+      const removed = await conceptParsingService.clearSavedJobs();
+      setLastJobId(null);
+      setLastFiles([]);
+      showSuccess(`Cleared ${removed} cached parsing jobs.`);
+    } catch (error) {
+      console.error('Failed to clear parsing cache', error);
+      showError('Failed to clear parsing cache.');
+    }
+  };
+
+  const applyLastFilesSelection = () => {
+    if (!lastFiles.length) {
+      showError('No previous file selection found.');
+      return;
+    }
+    setSelectedFiles(new Set(lastFiles));
+    showSuccess('Re-applied previous file selection');
   };
 
   const clearFailedJob = () => {
@@ -468,6 +521,12 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
       // TODO: Implement export functionality
       console.log(`Exporting results as ${format}:`, activeParsingJob.result);
     }
+  };
+
+  const handleIngestResults = async () => {
+    if (!conceptParsingService || !activeParsingJob?.result) return;
+    const plan: ConceptIngestionPlan = { defaultExistingAction: 'overwrite' };
+    await conceptParsingService.ingestParsedResult(activeParsingJob.result as any, plan);
   };
 
   const handleConceptSelect = (conceptId: string) => {
@@ -626,9 +685,47 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                     <PlayIcon className="w-3 h-3" />
                     <span>Parse Concepts</span>
                   </button>
+                  <button
+                    onClick={resumeLastParsing}
+                    disabled={!lastJobId}
+                    className={`flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-colors ${
+                      lastJobId
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <ArrowPathIcon className="w-3 h-3" />
+                    <span>Resume Last</span>
+                  </button>
+                  <button
+                    onClick={applyLastFilesSelection}
+                    disabled={!lastFiles.length}
+                    className={`flex items-center space-x-1 px-3 py-1 text-sm rounded-md transition-colors ${
+                      lastFiles.length
+                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <DocumentTextIcon className="w-3 h-3" />
+                    <span>Use Last Files</span>
+                  </button>
+                  <button
+                    onClick={clearParsingCache}
+                    className="flex items-center space-x-1 px-3 py-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm rounded-md transition-colors"
+                  >
+                    <XMarkIcon className="w-3 h-3" />
+                    <span>Clear Cache</span>
+                  </button>
                 </div>
               )}
             </div>
+
+            {lastJobId && (
+              <div className="text-xs text-gray-600 dark:text-gray-400 ml-6">
+                Last job: <span className="font-mono">{lastJobId.slice(0, 12)}…</span>{' '}
+                {lastFiles.length ? `(${lastFiles.length} files)` : ''}
+              </div>
+            )}
 
             {/* Active Parsing Job */}
             {activeParsingJob && (
@@ -859,6 +956,9 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                 onClose={() => setShowParsingResults(false)}
                 onExport={handleExportResults}
                 onConceptSelect={handleConceptSelect}
+                onIngest={async (result, plan) => {
+                  await conceptParsingService!.ingestParsedResult(result, plan);
+                }}
               />
             </div>
           </div>

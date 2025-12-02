@@ -135,7 +135,7 @@ describe('AI Service - Basic Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.2,
-        maxTokens: 2048,
+        maxTokens: 10240,
       });
     });
 
@@ -146,7 +146,7 @@ describe('AI Service - Basic Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.15,
-        maxTokens: 2048,
+        maxTokens: 10240,
       });
     });
 
@@ -157,7 +157,7 @@ describe('AI Service - Basic Tests', () => {
         provider: 'local',
         model: 'llama-3.1-70b',
         temperature: 0.35,
-        maxTokens: 3072,
+        maxTokens: 10240,
       });
     });
 
@@ -278,7 +278,7 @@ describe('AI Service - Basic Tests', () => {
         model: 'llama-3.1-70b',
         apiKey: 'local-dev',
         temperature: 0.3,
-        maxTokens: 1024,
+        maxTokens: 10240,
       });
     });
   });

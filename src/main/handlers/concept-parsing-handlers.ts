@@ -28,6 +28,8 @@ type ConceptParsingHandlerParams = {
   };
   userId?: string;
   materialId?: string;
+  jobId?: string;
+  resume?: boolean;
 };
 
 type LoggerService = {
@@ -38,6 +40,55 @@ type ConceptParsingHandlersDeps = {
   conceptParsingService: ConceptParsingService;
   loggerService: LoggerService;
   configService: ConfigService;
+};
+
+export const buildParsingSettings = async (
+  params: ConceptParsingHandlerParams,
+  configService: ConfigService,
+): Promise<ConceptParsingSettings> => {
+  const clampDepth = (d?: number) => {
+    if (!d && d !== 0) return undefined;
+    return Math.max(1, Math.min(6, d));
+  };
+
+  const settings: ConceptParsingSettings = {
+    userId: params.userId,
+    jobId: params.jobId,
+    resume: params.resume,
+    options: {
+      confidenceThreshold: params.options?.confidenceThreshold,
+      maxConceptsPerSegment: params.options?.maxConceptsPerFile,
+    },
+    // Always enable vectorization so downstream tools can rely on embeddings
+    vectorize: true,
+  };
+
+  try {
+    const ui = await configService.get('ui');
+    const depth = clampDepth((ui as any)?.documentHeadingDepth);
+    if (depth !== undefined) {
+      settings.maxHeadingDepth = depth;
+    }
+  } catch {
+    // ignore ui config read errors
+  }
+
+  try {
+    const parsing = await configService.get('parsing');
+    if (parsing) {
+      settings.maxSegmentChars = parsing.maxSegmentChars ?? settings.maxSegmentChars;
+      settings.minSegmentChars = parsing.minSegmentChars ?? settings.minSegmentChars;
+      settings.options = {
+        ...settings.options,
+        maxConcurrentSegments:
+          parsing.maxConcurrentSegments ?? settings.options?.maxConcurrentSegments,
+      };
+    }
+  } catch {
+    // ignore parsing config read errors
+  }
+
+  return settings;
 };
 
 const normalizeMaterial = (
@@ -84,28 +135,8 @@ export const setupConceptParsingHandlers = (
         });
       }
 
-      const clampDepth = (d?: number) => {
-        if (!d && d !== 0) return undefined;
-        return Math.max(1, Math.min(6, d));
-      };
-
-      const settings: ConceptParsingSettings = {
-        userId: params.userId,
-        options: {
-          confidenceThreshold: params.options?.confidenceThreshold,
-          maxConceptsPerSegment: params.options?.maxConceptsPerFile,
-        },
-      };
-
       try {
-        const ui = await services.configService.get('ui');
-        const depth = clampDepth((ui as any)?.documentHeadingDepth);
-        if (depth !== undefined) {
-          settings.maxHeadingDepth = depth;
-        }
-      } catch {}
-
-      try {
+        const settings = await buildParsingSettings(params, services.configService);
         const result = await services.conceptParsingService.parseMaterials(materials, settings);
         handlerLogger.info('Concept parsing completed', {
           success: result.success,
@@ -123,4 +154,15 @@ export const setupConceptParsingHandlers = (
       }
     },
   );
+
+  ipcMainInstance.handle('knowledge:clear-parsing-jobs', async () => {
+    try {
+      const result = await services.conceptParsingService.clearJobCache();
+      handlerLogger.info('Cleared parsing job cache', result);
+      return ok(result);
+    } catch (error) {
+      handlerLogger.error('Failed to clear parsing job cache', error);
+      return fail(IPC_ERROR_CODES.knowledge.parseFailed, 'Unable to clear parsing cache', error);
+    }
+  });
 };

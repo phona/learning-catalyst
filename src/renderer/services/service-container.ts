@@ -40,6 +40,7 @@ import type {
   KnowledgeIngestionResult,
   RelatedConceptsDisplay,
   KnowledgeMapDisplay,
+  ConceptIngestionPlan,
 } from '@/shared/types/electron-api/knowledge-api';
 
 import type {
@@ -667,7 +668,16 @@ export function createTestServiceContainer(
           },
         },
       }),
-      ingestConcepts: async (params: any): Promise<APIResponse<KnowledgeIngestionResult>> => ({
+      ingestConcepts: async (params: {
+        result: ConceptParsingResult;
+        plan?: ConceptIngestionPlan;
+        options?: {
+          userId?: string;
+          materialId?: string;
+          sessionId?: string;
+          source?: string;
+        };
+      }): Promise<APIResponse<KnowledgeIngestionResult>> => ({
         success: true,
         data: {
           conceptsInserted: 0,

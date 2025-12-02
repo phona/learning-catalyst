@@ -1,4 +1,4 @@
-// @ts-nocheck
+/* eslint-disable */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createConceptParsingService } from '../main/services/domain/concept-parsing/concept-parsing-service';
@@ -17,21 +17,27 @@ const readChatGLMConfig = async () => {
   }
 };
 
+const arg = (name: string, fallback?: string) => {
+  const flag = `--${name}=`;
+  const raw = process.argv.find((a) => a.startsWith(flag));
+  return raw ? raw.slice(flag.length) : fallback;
+};
+
 const buildService = async (cfg: any) => {
   const aiService: any = {};
-  const mode = process.argv[2] ?? 'json';
+  const mode = arg('mode', process.argv[2] ?? 'json');
   let chatModel: any;
   if (mode === 'real' || mode === 'real-raw') {
     const providerName = cfg?.ai?.modelTypes?.chat?.provider;
-    const model = cfg?.ai?.modelTypes?.chat?.model;
+    const model = arg('model', cfg?.ai?.modelTypes?.chat?.model);
     const providerCfg = providerName ? cfg?.ai?.providers?.[providerName] : null;
     chatModel = new ChatOpenAI({
       model,
       apiKey: providerCfg?.apiKey,
       temperature: cfg?.ai?.modelTypes?.chat?.temperature ?? 0.4,
-      maxTokens: cfg?.ai?.modelTypes?.chat?.maxTokens ?? 1024,
+      maxTokens: Number(arg('maxTokens', String(cfg?.ai?.modelTypes?.chat?.maxTokens ?? 1024))),
       maxRetries: 1,
-      timeout: 40000,
+      timeout: Number(arg('timeoutMs', '40000')),
       configuration: providerCfg?.baseUrl ? { baseURL: providerCfg.baseUrl } : undefined,
     });
   } else {
@@ -76,10 +82,24 @@ const buildService = async (cfg: any) => {
 const run = async () => {
   const cfg = await readChatGLMConfig();
   const { svc, captured, chatModel } = await buildService(cfg);
-  const md = ['# Alpha', 'ALPHA ALPHA ALPHA', '```', '## Inside Code', '```', '## Beta', 'BETA BETA BETA'].join('\n');
+
+  const fileArg = arg('file', path.resolve('test_workspace/test_concept.md'));
+  const content = await fs.readFile(fileArg, 'utf-8');
+  const maxChars = Number(arg('maxSegmentChars', '50'));
+  const minChars = Number(arg('minSegmentChars', '1'));
+  const vectorize = arg('vectorize', 'true') === 'true';
+  const maxConcurrent = Number(arg('maxConcurrent', '2'));
+
+  const md = content;
   const res = await svc.parseMaterials(
     [{ id: 'm1', title: 'doc', content: md, format: 'markdown' }],
-    { maxHeadingDepth: 2, maxSegmentChars: 50, minSegmentChars: 1, vectorize: true },
+    {
+      maxHeadingDepth: 2,
+      maxSegmentChars: maxChars,
+      minSegmentChars: minChars,
+      vectorize,
+      options: { maxConcurrentSegments: maxConcurrent },
+    },
   );
   if ((process.argv[2] ?? '') === 'real-raw') {
     const alphaContent = ['# Alpha', 'ALPHA ALPHA ALPHA', '```', '## Inside Code', '```'].join('\n');
@@ -155,7 +175,9 @@ const run = async () => {
     success: res.success,
     errors: res.errors,
     stats: res.statistics,
+    tokenUsage: res.statistics?.tokenUsage ?? res.metadata?.tokenUsage,
     concepts: res.concepts.map((c) => ({ name: c.name, confidence: c.confidence, title: c.metadata.segmentTitle })),
+    relationships: res.relationships.map((r) => ({ from: r.sourceId, to: r.targetId, type: r.type })),
     chunkTitles: captured.map((d) => d.title),
     outline: preview.outline,
     bugDetected,
@@ -169,3 +191,10 @@ run().catch((err) => {
   console.error(String(err));
   process.exit(1);
 });
+
+// Prevent vitest from failing on   -replace  \u201d,no tests” when this helper is included in glob runs
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+describe?.skip?.('concept parsing smoke helper', () => {
+  it('is skipped', () => {});
+});
+

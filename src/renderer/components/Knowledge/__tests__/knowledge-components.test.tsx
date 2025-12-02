@@ -1,10 +1,12 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ConceptManager } from '../ConceptManager';
 import { KnowledgeSearch } from '../KnowledgeSearch';
 import { RelationshipManager } from '../RelationshipManager';
 import { KnowledgeGraphVisualization } from '../KnowledgeGraphVisualization';
+import { renderWithServices } from '@/test/utils/test-providers';
+import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 
 describe('Knowledge components placeholders', () => {
   it('renders ConceptManager placeholder copy', () => {
@@ -38,11 +40,22 @@ describe('Knowledge components placeholders', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows loading then error state for KnowledgeGraphVisualization', async () => {
-    render(<KnowledgeGraphVisualization />);
+  it('renders KnowledgeGraphVisualization with loaded data', async () => {
+    const client = createMockElectronAPIClient();
+    client.knowledge.getKnowledgeMap = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        nodes: [
+          { id: '1', label: 'Alpha', category: 'topic', mastery: 0.4 },
+          { id: '2', label: 'Beta', category: 'skill', mastery: 0.7 },
+        ],
+        edges: [{ from: '1', to: '2', label: 'rel', strength: 0.9 }],
+      },
+    } as any);
 
-    const errorText = await screen.findByText(/Knowledge graph component needs IPC refactoring/i);
-    expect(errorText).toBeInTheDocument();
-    expect(screen.queryByText(/Loading knowledge graph/i)).not.toBeInTheDocument();
+    renderWithServices(<KnowledgeGraphVisualization />, { electronAPI: client });
+
+    await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument());
+    expect(screen.getByText(/2 concepts · 1 relationships/i)).toBeInTheDocument();
   });
 });

@@ -537,7 +537,7 @@ export function createMockElectronAPIClient(): ElectronAPI {
       tryAgentFeature: () => Promise.resolve({ success: true, data: mockFeatureDemo }),
     },
     knowledge: {
-      ingestConcepts: () =>
+      ingestConcepts: (_params?: any) =>
         Promise.resolve({
           success: true,
           data: {
@@ -619,8 +619,17 @@ export function createMockElectronAPIClient(): ElectronAPI {
               processingTime: 0,
               processedAt: new Date().toISOString(),
               inputFiles: 0,
+              jobId: 'mock-job',
+              segmentsProcessed: 0,
+              segmentsTotal: 0,
+              resumed: false,
             },
           },
+        }),
+      clearParsingJobs: () =>
+        Promise.resolve({
+          success: true,
+          data: { removed: 0 },
         }),
     },
     content: {

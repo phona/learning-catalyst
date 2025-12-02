@@ -206,7 +206,7 @@ export const useConfigStore = create<ConfigStore>()(
                 provider: providerName,
                 model: modelName,
                 temperature: 0.7,
-                maxTokens: 2048,
+                maxTokens: 10240,
                 topP: 1,
                 enableThinking: false,
                 stream: true,

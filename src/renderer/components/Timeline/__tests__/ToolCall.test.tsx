@@ -135,7 +135,10 @@ describe('ToolCall', () => {
     const button = screen.getByText('▶ Show I/O');
     fireEvent.click(button);
 
-    const detail = screen.getByText('Input: {}\nOutput: {}');
+    const detail = screen.getByText(
+      (content, node) =>
+        node?.tagName === 'PRE' && content.includes('Input: {}') && content.includes('Output: {}'),
+    );
     expect(detail).toBeInTheDocument();
     expect(detail.tagName).toBe('PRE');
   });
@@ -171,7 +174,7 @@ describe('ToolCall', () => {
     const button = screen.getByText('▶ Show I/O');
     fireEvent.click(button);
 
-    expect(screen.getByText('"param": "value"')).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('"param": "value"'))).toBeInTheDocument();
   });
 
   it('should display agent name', () => {

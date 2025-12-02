@@ -96,6 +96,23 @@ helper methods listed below.
 | `searchKnowledge(query)`        | Perform semantic knowledge search.                   |
 | `parseConcepts(params)`         | Parse documents/files/text into structured concepts. |
 
+**Ingestion plan keys**
+
+```
+plan: {
+  actions: { [parsedId]: insert|overwrite|skip|merge },
+  fieldToggles: { [parsedId]: { name?: bool, type?: bool, description?: bool, difficulty?: bool, tags?: bool } },
+  canonicalization: { [parsedId]: { canonicalName?: string, aliases?: string[], applyAlias?: bool } },
+  mergeTargets: { [parsedId]: existingConceptId },
+  lowConfidence: { defaultThreshold?: number, overrides?: Record<string, number> },
+  defaultExistingAction?: overwrite|skip
+}
+```
+
+- Omit `plan` to keep legacy behavior (always overwrite matching names).
+- Relationships referencing skipped or merged concepts are dropped automatically.
+- The ingestion result now includes optional counts for skipped/merged concepts and pruned relationships.
+
 ### Analytics API (`analytics-api.ts`)
 
 | Method                                                                       | Description                                 |

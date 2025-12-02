@@ -12,6 +12,9 @@ const mockFileService = {
 const mockConceptService = {
   parseDirectories: vi.fn(),
   parseFiles: vi.fn(),
+  getLastJobId: vi.fn(() => null),
+  getLastFiles: vi.fn(() => []),
+  clearSavedJobs: vi.fn(async () => 0),
 };
 
 vi.mock('@/renderer/services/services-provider', () => ({

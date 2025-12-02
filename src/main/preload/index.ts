@@ -30,7 +30,10 @@ import {
   SessionsAPI,
   CatalystAPI,
 } from '@/shared/types/electron-api';
-import type { ConceptParsingResult } from '@/shared/types/electron-api/knowledge-api';
+import type {
+  ConceptParsingResult,
+  ConceptIngestionPlan,
+} from '@/shared/types/electron-api/knowledge-api';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
 import type { AppConfig } from '@/shared/types/config';
@@ -290,6 +293,8 @@ const knowledgeAPI: KnowledgeAPI = {
       metadata?: Record<string, unknown>;
     }>;
     content?: string;
+    jobId?: string;
+    resume?: boolean;
     options?: {
       confidenceThreshold?: number;
       maxConceptsPerFile?: number;
@@ -298,12 +303,18 @@ const knowledgeAPI: KnowledgeAPI = {
   }) => ipcRenderer.invoke('knowledge:parse-concepts', params),
 
   /**
+   * Clears persisted parsing job cache on disk
+   */
+  clearParsingJobs: () => ipcRenderer.invoke('knowledge:clear-parsing-jobs'),
+
+  /**
    * Ingests a previously parsed result into the knowledge graph
    * @param params.result - Result returned by parseConcepts
    * @param params.options - Optional metadata for ingestion
    */
   ingestConcepts: (params: {
     result: ConceptParsingResult;
+    plan?: ConceptIngestionPlan;
     options?: {
       userId?: string;
       materialId?: string;

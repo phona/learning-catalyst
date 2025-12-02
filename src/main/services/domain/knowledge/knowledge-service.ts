@@ -6,6 +6,9 @@ import type { Database as CoreDatabase } from '@/main/services/core/database/kys
 import type {
   ConceptExplorationDisplay,
   ConceptParsingResult,
+  ConceptIngestionPlan,
+  ConceptFieldKey,
+  ConceptIngestionAction,
   KnowledgeMapDisplay,
   KnowledgeNodeDisplay,
   KnowledgeRelationshipDisplay,
@@ -232,38 +235,181 @@ const relationshipTypeToEdgeType = (type: RelationshipRow['relationship_type']) 
   return 'related' as const;
 };
 
+const canonicalizeName = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDeps) => {
   const serviceLogger = loggerService.child({ service: 'knowledge' });
 
   const ingestConceptParsingResult = async (
     result: ConceptParsingResult,
     options: KnowledgeIngestionOptions = {},
+    plan?: ConceptIngestionPlan,
   ): Promise<KnowledgeIngestionResult> => {
     const now = new Date().toISOString();
-    const names = result.concepts.map((concept) => concept.name.trim()).filter(Boolean);
+    const lowConfidenceDefault = plan?.lowConfidence?.defaultThreshold;
+    const actionOverrides = plan?.actions ?? {};
+    const fieldToggleOverrides = plan?.fieldToggles ?? {};
+    const canonicalOverrides = plan?.canonicalization ?? {};
+    const mergeTargets = plan?.mergeTargets ?? {};
+    const defaultExistingAction = plan?.defaultExistingAction ?? 'overwrite';
+
+    const lookupNames = new Set<string>();
+    result.concepts.forEach((concept) => {
+      const override = canonicalOverrides[concept.id];
+      [concept.name, override?.canonicalName, ...(override?.aliases ?? [])]
+        .filter(Boolean)
+        .forEach((name) => lookupNames.add((name as string).trim()));
+    });
+
     const existingRows =
-      names.length > 0
-        ? await db.selectFrom('concepts').selectAll().where('name', 'in', names).execute()
+      lookupNames.size > 0
+        ? await db
+          .selectFrom('concepts')
+          .selectAll()
+          .where('name', 'in', Array.from(lookupNames))
+          .execute()
         : [];
-    const existingByName = new Map(existingRows.map((row) => [row.name, row]));
+
+    const mergeTargetIds = Array.from(new Set(Object.values(mergeTargets))).filter(Boolean);
+    const mergeTargetRows =
+      mergeTargetIds.length > 0
+        ? await db.selectFrom('concepts').selectAll().where('id', 'in', mergeTargetIds).execute()
+        : [];
+
+    const existingByCanonical = new Map<string, ConceptRow>();
+    const existingById = new Map<string, ConceptRow>();
+    [...existingRows, ...mergeTargetRows].forEach((row) => {
+      existingByCanonical.set(canonicalizeName(row.name), row);
+      existingById.set(row.id, row);
+    });
 
     const nodeIdMapping = new Map<string, string>();
     const nameById = new Map<string, string>();
     let insertedConcepts = 0;
     let updatedConcepts = 0;
+    let skippedConcepts = 0;
+    let mergedConcepts = 0;
+    let lowConfidenceSkipped = 0;
+
+    const resolveExisting = (candidates: string[]): ConceptRow | undefined => {
+      for (const candidate of candidates) {
+        const key = canonicalizeName(candidate);
+        const match = existingByCanonical.get(key);
+        if (match) return match;
+      }
+      return undefined;
+    };
+
+    const resolveAction = (
+      parsedId: string,
+      confidence: number,
+      existing: ConceptRow | undefined,
+    ): { action: ConceptIngestionAction; low: boolean } => {
+      const explicit = actionOverrides[parsedId];
+      if (explicit) return { action: explicit, low: false };
+      const threshold =
+        plan?.lowConfidence?.overrides?.[parsedId] ??
+        (typeof lowConfidenceDefault === 'number' ? lowConfidenceDefault : undefined);
+      if (typeof threshold === 'number' && confidence < threshold) {
+        return { action: 'skip', low: true };
+      }
+      if (existing) {
+        return { action: defaultExistingAction, low: false };
+      }
+      return { action: 'insert', low: false };
+    };
+
+    const defaultFieldToggles: Record<ConceptFieldKey, boolean> = {
+      name: true,
+      type: true,
+      description: true,
+      difficulty: true,
+      tags: true,
+    };
+
+    const applyFieldToggles = (
+      payload: {
+        name: string;
+        description: string;
+        concept_type: ConceptRow['concept_type'];
+        difficulty_level: number;
+        tags: string;
+        metadata: string;
+      },
+      existing: ConceptRow,
+      toggles: Record<ConceptFieldKey, boolean>,
+    ) => ({
+      name: toggles.name ? payload.name : existing.name,
+      description: toggles.description ? payload.description : existing.description,
+      concept_type: toggles.type ? payload.concept_type : existing.concept_type,
+      difficulty_level: toggles.difficulty ? payload.difficulty_level : existing.difficulty_level,
+      tags: toggles.tags ? payload.tags : existing.tags,
+      metadata: payload.metadata,
+    });
 
     for (const node of result.concepts) {
-      const name = node.name.trim();
-      if (!name) continue;
+      const override = canonicalOverrides[node.id] ?? {};
+      const candidateNames = [
+        override.canonicalName ?? node.name,
+        node.name,
+        ...(override.aliases ?? []),
+      ].filter(Boolean) as string[];
+      const existing = resolveExisting(candidateNames);
+      const { action, low } = resolveAction(node.id, node.confidence ?? 0, existing);
+      if (action === 'skip') {
+        skippedConcepts += 1;
+        if (low) {
+          lowConfidenceSkipped += 1;
+        }
+        continue;
+      }
 
-      const existing = existingByName.get(name);
+      if (action === 'merge') {
+        const targetId = mergeTargets[node.id];
+        const targetRow = targetId ? existingById.get(targetId) : undefined;
+        if (targetId && targetRow) {
+          nodeIdMapping.set(node.id, targetId);
+          nameById.set(targetId, targetRow.name);
+          nameById.set(node.id, targetRow.name);
+          mergedConcepts += 1;
+        } else {
+          serviceLogger.warn('Merge target not found for parsed concept', {
+            parsedId: node.id,
+            targetId,
+          });
+          skippedConcepts += 1;
+        }
+        continue;
+      }
+
+      const finalName =
+        override.applyAlias && override.canonicalName
+          ? override.canonicalName.trim()
+          : override.canonicalName?.trim() ?? node.name.trim();
+
       const conceptId = existing ? existing.id : node.id || randomUUID();
       const incomingTags = Array.isArray(node.metadata?.tags) ? node.metadata.tags : [];
-      const extraTags = name
+      const extraTags = finalName
         .split(/\s+/)
         .map((token) => token.replace(/[^\w]/g, '').toLowerCase())
         .filter(Boolean);
       const normalizedTags = normalizeTags([...incomingTags, node.type, ...extraTags]);
+      const toggles: Record<ConceptFieldKey, boolean> = {
+        ...defaultFieldToggles,
+        ...(fieldToggleOverrides[node.id] ?? {}),
+      };
+      const effectiveTags = toggles.tags
+        ? normalizedTags
+        : existing
+          ? safeParse<string[]>(existing.tags, normalizedTags)
+          : normalizedTags;
+
       const metadataPayload = JSON.stringify({
         ...(node.metadata ?? {}),
         segmentId: node.metadata?.segmentId,
@@ -272,21 +418,27 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         source: node.metadata?.source ?? options.source ?? 'concept-parsing',
         userId: options.userId,
         parsedAt: now,
-        tags: normalizedTags,
+        tags: effectiveTags,
+        canonicalName: finalName,
+        aliases: override.aliases ?? [],
+        originalName: node.name,
       });
 
       const difficultyLevel = Math.min(5, Math.max(1, Math.round(node.difficulty)));
-      const payload = {
-        name,
+      const basePayload = {
+        name: finalName,
         description: node.description ?? existing?.description ?? '',
         concept_type: normalizeConceptType(node.type),
         difficulty_level: difficultyLevel,
-        tags: JSON.stringify(normalizedTags),
+        tags: JSON.stringify(effectiveTags),
         metadata: metadataPayload,
         updated_at: now,
       };
 
-      if (existing) {
+      const payload =
+        existing && action === 'overwrite' ? applyFieldToggles(basePayload, existing, toggles) : basePayload;
+
+      if (existing && action === 'overwrite') {
         await db.updateTable('concepts').set(payload).where('id', '=', existing.id).execute();
         updatedConcepts += 1;
       } else {
@@ -304,10 +456,11 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
         insertedConcepts += 1;
       }
 
-      existingByName.set(name, {
-        ...(existing ?? {
+      const updatedRow: ConceptRow = existing
+        ? { ...existing, ...payload, id: existing.id }
+        : {
           id: conceptId,
-          name,
+          name: payload.name,
           description: payload.description,
           concept_type: payload.concept_type,
           difficulty_level: payload.difficulty_level,
@@ -319,22 +472,31 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
           last_reviewed: undefined,
           created_at: now,
           updated_at: now,
-        }),
-        ...payload,
-      });
+        };
 
-      nodeIdMapping.set(node.id, conceptId);
-      nameById.set(conceptId, name);
+      existingByCanonical.set(canonicalizeName(updatedRow.name), updatedRow);
+      existingById.set(updatedRow.id, updatedRow);
+
+      nodeIdMapping.set(node.id, updatedRow.id);
+      nameById.set(updatedRow.id, updatedRow.name);
       if (node.id) {
-        nameById.set(node.id, name);
+        nameById.set(node.id, updatedRow.name);
       }
     }
 
     let insertedRelationships = 0;
+    let skippedRelationships = 0;
     for (const relationship of result.relationships) {
       const sourceConceptId = nodeIdMapping.get(relationship.sourceId);
       const targetConceptId = nodeIdMapping.get(relationship.targetId);
-      if (!sourceConceptId || !targetConceptId) continue;
+      if (!sourceConceptId || !targetConceptId) {
+        skippedRelationships += 1;
+        continue;
+      }
+      if (sourceConceptId === targetConceptId) {
+        skippedRelationships += 1;
+        continue;
+      }
 
       const relType = normalizeRelationshipType(relationship.type);
       const metadataPayload = JSON.stringify({
@@ -387,13 +549,21 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
     serviceLogger.info('Ingested concept parsing result', {
       conceptsInserted: insertedConcepts,
       conceptsUpdated: updatedConcepts,
+      conceptsSkipped: skippedConcepts,
+      conceptsMerged: mergedConcepts,
       relationshipsInserted: insertedRelationships,
+      relationshipsSkipped: skippedRelationships,
+      lowConfidenceSkipped,
     });
 
     return {
       conceptsInserted: insertedConcepts,
       conceptsUpdated: updatedConcepts,
       relationshipsInserted: insertedRelationships,
+      conceptsSkipped: skippedConcepts,
+      conceptsMerged: mergedConcepts,
+      relationshipsSkipped: skippedRelationships,
+      lowConfidenceSkipped,
       metadata: {
         processedAt: now,
         source: options.source,

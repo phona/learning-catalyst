@@ -4,6 +4,8 @@ import {
   ConceptManager,
   RelationshipManager,
   KnowledgeSearch,
+  LoadedConceptsPanel,
+  KnowledgeMiniGraphPanel,
 } from '../Knowledge';
 import type { Concept } from '../../../shared/types/knowledge';
 
@@ -15,8 +17,7 @@ export const KnowledgeMap: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'concepts' | 'relationships'>('concepts');
 
   const handleConceptSelect = (concept: Concept): void => {
-    // TODO: Get concept from IPC when implementing full functionality
-    console.log('Selected concept:', concept.id);
+    setSelectedConcept(concept);
   };
 
   const handleConceptCreated = (concept: Concept): void => {
@@ -64,6 +65,12 @@ export const KnowledgeMap: React.FC = () => {
         <div className="w-80 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
           <div className="p-4">
             <KnowledgeSearch onConceptSelect={handleConceptSelect} />
+          </div>
+          <div className="px-4 pb-4">
+            <LoadedConceptsPanel onConceptSelect={handleConceptSelect} />
+          </div>
+          <div className="px-4 pb-4">
+            <KnowledgeMiniGraphPanel onConceptSelect={handleConceptSelect} />
           </div>
         </div>
 

@@ -499,6 +499,21 @@ export const createLearningService = ({
         status: 'active',
         progress: 10,
         userId: params.userId,
+        blueprint: {
+          summary: 'Session initialized with starter blueprint',
+          timeline: ['Session created'],
+          modules: [
+            {
+              title: params.topic,
+              type: 'lesson',
+              focus: params.goals?.[0] ?? params.topic,
+              durationMinutes: 45,
+              objectives: params.goals ?? [],
+              resources: [],
+            },
+          ],
+          recommendations: [],
+        },
       };
 
       const now = new Date().toISOString();

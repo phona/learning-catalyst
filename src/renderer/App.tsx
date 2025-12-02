@@ -8,6 +8,7 @@ import { SessionManager } from '@/renderer/components/Session/SessionManager';
 import { DiscoveryPage } from '@/renderer/DiscoveryPage';
 import { SettingsPanel } from '@/renderer/components/Config/SettingsPanel';
 import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
+import { KnowledgeMap } from '@/renderer/components/Dashboard/KnowledgeMap';
 import { useAgentService, useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
@@ -19,14 +20,15 @@ const MainRoutes = () => (
   <Routes>
     <Route element={<Layout />}>
       <Route index element={<ChatInterface />} />
-      <Route path="chat/:sessionId" element={<ChatInterface />} />
-      <Route path="sessions" element={<SessionManager />} />
-      <Route path="discovery" element={<DiscoveryPage />} />
-      <Route path="progress" element={<LearningDashboard />} />
-      <Route path="settings" element={<SettingsPanel />} />
-      <Route path="*" element={<ChatInterface />} />
-    </Route>
-  </Routes>
+    <Route path="chat/:sessionId" element={<ChatInterface />} />
+    <Route path="sessions" element={<SessionManager />} />
+    <Route path="discovery" element={<DiscoveryPage />} />
+    <Route path="progress" element={<LearningDashboard />} />
+    <Route path="knowledge" element={<KnowledgeMap />} />
+    <Route path="settings" element={<SettingsPanel />} />
+    <Route path="*" element={<ChatInterface />} />
+  </Route>
+</Routes>
 );
 
 type AppState = 'loading' | 'setup' | 'ready';

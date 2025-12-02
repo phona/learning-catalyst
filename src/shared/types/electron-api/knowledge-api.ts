@@ -13,6 +13,7 @@ export interface KnowledgeAPI {
    */
   ingestConcepts: (params: {
     result: ConceptParsingResult;
+    plan?: ConceptIngestionPlan;
     options?: {
       userId?: string;
       materialId?: string;
@@ -75,11 +76,18 @@ export interface KnowledgeAPI {
     materialId?: string;
     title?: string;
     format?: 'markdown' | 'text' | 'html';
+    jobId?: string;
+    resume?: boolean;
     options?: {
       confidenceThreshold?: number;
       maxConceptsPerFile?: number;
     };
   }) => Promise<APIResponse<ConceptParsingResult>>;
+
+  /**
+   * Clears persisted parsing job cache on disk
+   */
+  clearParsingJobs: () => Promise<APIResponse<{ removed: number }>>;
 }
 
 export interface KnowledgeExtractionDisplay {
@@ -301,6 +309,12 @@ export interface ConceptParsingResult {
     typeDistribution: Record<string, number>;
     processingTime: number;
     modelUsage: Record<string, number>;
+    tokenUsage?: {
+      total: number;
+      prompt: number;
+      completion: number;
+      estimated?: boolean;
+    };
   };
   errors: string[];
   metadata: {
@@ -309,6 +323,10 @@ export interface ConceptParsingResult {
     inputFiles: number;
     aiProvider?: string;
     aiModel?: string;
+    jobId?: string;
+    segmentsProcessed?: number;
+    segmentsTotal?: number;
+    resumed?: boolean;
   };
 }
 
@@ -316,6 +334,10 @@ export interface KnowledgeIngestionResult {
   conceptsInserted: number;
   conceptsUpdated: number;
   relationshipsInserted: number;
+  conceptsSkipped?: number;
+  conceptsMerged?: number;
+  relationshipsSkipped?: number;
+  lowConfidenceSkipped?: number;
   metadata: {
     processedAt: string;
     source?: string;
@@ -328,6 +350,7 @@ export interface KnowledgeIngestionResult {
 export interface ParsedConcept {
   id: string;
   name: string;
+  canonicalName?: string;
   description: string;
   type: string;
   confidence: number;
@@ -350,4 +373,45 @@ export interface ParsedRelationship {
   strength: number;
   confidence: number;
   description?: string;
+}
+
+export type ConceptIngestionAction = 'insert' | 'overwrite' | 'skip' | 'merge';
+
+export type ConceptFieldKey = 'name' | 'type' | 'description' | 'difficulty' | 'tags';
+
+export interface ConceptCanonicalizationChoice {
+  canonicalName?: string;
+  aliases?: string[];
+  applyAlias?: boolean;
+}
+
+export interface ConceptIngestionPlan {
+  /**
+   * Default action for concepts that already exist in the database
+   * when no explicit action is provided.
+   */
+  defaultExistingAction?: Extract<ConceptIngestionAction, 'overwrite' | 'skip'>;
+  /**
+   * Rules for skipping low-confidence concepts.
+   */
+  lowConfidence?: {
+    defaultThreshold?: number;
+    overrides?: Record<string, number>;
+  };
+  /**
+   * Per-parsed-concept action overrides keyed by parsed concept id.
+   */
+  actions?: Record<string, ConceptIngestionAction>;
+  /**
+   * Field-level overwrite toggles keyed by parsed concept id.
+   */
+  fieldToggles?: Record<string, Partial<Record<ConceptFieldKey, boolean>>>;
+  /**
+   * Canonicalization and alias choices keyed by parsed concept id.
+   */
+  canonicalization?: Record<string, ConceptCanonicalizationChoice>;
+  /**
+   * Merge directives: parsed concept id -> target existing concept id.
+   */
+  mergeTargets?: Record<string, string>;
 }

@@ -19,6 +19,16 @@ vi.mock('@/renderer/components/Knowledge', () => ({
       create-concept
     </button>
   ),
+  LoadedConceptsPanel: ({ onConceptSelect }: any) => (
+    <button onClick={() => onConceptSelect({ id: 'c3', name: 'LoadedConcept', conceptType: 'topic', masteryLevel: 4 } as any)}>
+      select-loaded
+    </button>
+  ),
+  KnowledgeMiniGraphPanel: ({ onConceptSelect }: any) => (
+    <button onClick={() => onConceptSelect({ id: 'c4', name: 'MiniGraphConcept', conceptType: 'fact', masteryLevel: 5 } as any)}>
+      select-mini
+    </button>
+  ),
   RelationshipManager: () => <div data-testid="relationships">relationships</div>,
 }));
 
@@ -41,5 +51,9 @@ describe('KnowledgeMap', () => {
     // Switch to relationships tab
     fireEvent.click(screen.getAllByText(/Relationships/i)[0]);
     expect(screen.getByTestId('relationships')).toBeInTheDocument();
+
+    // loaded concepts panel selection updates footer
+    fireEvent.click(screen.getByText(/select-loaded/i));
+    expect(screen.getByText(/Selected: LoadedConcept/i)).toBeInTheDocument();
   });
 });

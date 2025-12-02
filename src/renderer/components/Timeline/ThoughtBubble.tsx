@@ -9,7 +9,7 @@ export function ThoughtBubble({ event }: ThoughtBubbleProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="timeline-event thought-bubble">
+    <div className="timeline-event thought-bubble" data-testid="thought-bubble-container">
       <div className="event-header">
         <span className="icon">💭</span>
         <span className="agent-name">{event.agent}</span>
@@ -24,6 +24,7 @@ export function ThoughtBubble({ event }: ThoughtBubbleProps) {
         {event.expandable && event.detail && (
           <button
             className="expand-btn text-xs text-blue-600 hover:text-blue-800 mt-2 hover:underline"
+            type="button"
             onClick={() => setExpanded(!expanded)}
           >
             {expanded ? '▼ Hide details' : '▶ Show details'}
