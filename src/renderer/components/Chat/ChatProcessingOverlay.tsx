@@ -18,7 +18,7 @@ const glyphFor = (kind: string, phase?: string): Glyph => {
     if (phase === 'start') return '(@)';
     return '>';
   }
-  if (kind === 'thought') {
+  if (kind === 'thought' || kind === 'status') {
     if (phase === 'start') return '(@)';
     return '>';
   }
@@ -45,6 +45,7 @@ const Pill: React.FC<{ label: string; onClick: () => void; inline?: boolean }> =
 
 type OverlayProps = {
   inline?: boolean;
+  targetMessageId?: string;
 };
 
 const Row: React.FC<{
@@ -54,58 +55,59 @@ const Row: React.FC<{
   elapsedMs: number;
   durationMs?: number;
   isError?: boolean;
-}> = ({ glyph, label, detail, elapsedMs, durationMs, isError }) => (
-  <div className="flex items-start gap-3 text-xs font-mono text-gray-900 dark:text-gray-100">
-    <span className={`w-8 text-right ${isError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>
-      {glyph}
-    </span>
-    <div className="flex-1 space-y-1">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className={`font-semibold ${isError ? 'text-red-700 dark:text-red-300' : ''}`}>
-          {label}
-        </span>
-        {durationMs != null && durationMs > 0 && (
-          <span className="text-[11px] text-gray-500">[{formatMs(durationMs)}]</span>
-        )}
-        <span className="text-[11px] text-gray-400">T+{formatMs(elapsedMs)}</span>
-      </div>
-      {detail && (
-        <div
-          className={`text-[11px] whitespace-pre-wrap leading-snug ${isError ? 'text-red-600 dark:text-red-300' : 'text-gray-600 dark:text-gray-300'}`}
-        >
-          {detail}
+}> = ({ glyph, label, detail, elapsedMs, durationMs, isError }) => {
+  const showDuration = durationMs != null && durationMs >= 100;
+  return (
+    <div className="flex items-start gap-3 text-xs font-mono text-gray-900 dark:text-gray-100">
+      <span className={`w-8 text-right ${isError ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>
+        {glyph}
+      </span>
+      <div className="flex-1 space-y-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`font-semibold ${isError ? 'text-red-700 dark:text-red-300' : ''}`}>
+            {label}
+          </span>
+          {showDuration && <span className="text-[11px] text-gray-500">[{formatMs(durationMs!)}]</span>}
+          <span className="text-[11px] text-gray-400">T+{formatMs(elapsedMs)}</span>
         </div>
-      )}
+        {detail && (
+          <div
+            className={`text-[11px] whitespace-pre-wrap leading-snug ${isError ? 'text-red-600 dark:text-red-300' : 'text-gray-600 dark:text-gray-300'}`}
+          >
+            {detail}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
-export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false }) => {
+export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false, targetMessageId }) => {
   const processingTrace = useChatStore((s) => s.processingTrace);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const setCollapsed = useChatStore((s) => (s as any).setProcessingTraceCollapsed);
 
   const hasTrace = processingTrace && Array.isArray((processingTrace as any).events);
-  const events = hasTrace ? processingTrace.events : [];
+  if (!hasTrace || !processingTrace) return null;
+  if (targetMessageId && processingTrace.messageId !== targetMessageId) return null;
+
+  const events = processingTrace.events ?? [];
 
   const totalLabel = useMemo(() => {
-    if (!hasTrace || !processingTrace) return '';
     const totalMs =
       (processingTrace.completedAt ?? Date.now()) - (processingTrace.startedAt ?? Date.now());
     const warnPart = processingTrace.warningCount ? ` | ${processingTrace.warningCount} warn` : '';
     const errorPart = processingTrace.errorCount ? ` | ${processingTrace.errorCount} err` : '';
     return `⚡ ${formatMs(totalMs)} | ${processingTrace.toolCount} tools${warnPart}${errorPart}`;
-  }, [hasTrace, processingTrace]);
+  }, [processingTrace]);
 
   useEffect(() => {
-    if (!hasTrace || !processingTrace || processingTrace.collapsed) return;
+    if (processingTrace.collapsed) return;
     if (processingTrace.completedAt && !isStreaming && typeof setCollapsed === 'function') {
       const id = window.setTimeout(() => setCollapsed(true), 5000);
       return () => window.clearTimeout(id);
     }
-  }, [hasTrace, processingTrace, isStreaming, setCollapsed]);
-
-  if (!hasTrace || !processingTrace) return null;
+  }, [processingTrace, isStreaming, setCollapsed]);
 
   const totalMs =
     (processingTrace.completedAt ?? Date.now()) - (processingTrace.startedAt ?? Date.now());
@@ -118,7 +120,7 @@ export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false }
 
   if (processingTrace.collapsed) {
     return (
-      <div className={`${inline ? 'mt-3 pr-4 flex' : 'fixed bottom-4 right-4 z-30'}`}>
+      <div className={`${inline ? 'mt-2 flex justify-end' : 'fixed bottom-4 right-4 z-30'}`}>
         <Pill label={totalLabel} onClick={() => collapse(false)} inline={inline} />
       </div>
     );
@@ -126,16 +128,14 @@ export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false }
 
   return (
     <div
-      className={`${
-        inline ? 'mt-4 max-w-4xl mx-auto' : 'fixed bottom-4 right-4 z-30 w-96 max-w-full drop-shadow-lg'
-      }`}
+      className={`${inline ? 'mt-2' : 'fixed bottom-4 right-4 z-30 w-96 max-w-full drop-shadow-lg'}`}
       data-testid="chat-processing-overlay"
     >
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
         <header className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div>
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Processing trace</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Thoughts + tool calls (heavy ops)</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Thought + tool calls</p>
           </div>
           <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
             <div className="flex items-center gap-1">
@@ -154,7 +154,7 @@ export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false }
           </div>
         </header>
 
-        <div className="max-h-72 overflow-auto p-4 space-y-3">
+        <div className="max-h-72 overflow-auto p-4 space-y-3 font-mono">
           {events.map((evt) => {
             const elapsed = evt.at - processingTrace.startedAt;
             const glyph = glyphFor(evt.kind, evt.phase);

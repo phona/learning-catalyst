@@ -73,7 +73,7 @@ describe('ChatProcessingOverlay', () => {
       setProcessingTraceCollapsed: setCollapsed,
     });
 
-    render(<ChatProcessingOverlay />);
+    render(<ChatProcessingOverlay targetMessageId="m1" />);
 
     expect(screen.getByText(/Processing trace/i)).toBeInTheDocument();
     expect(screen.getByText(/Thought process/i)).toBeInTheDocument();
@@ -103,11 +103,29 @@ describe('ChatProcessingOverlay', () => {
       setProcessingTraceCollapsed: setCollapsed,
     });
 
-    render(<ChatProcessingOverlay inline />);
+    render(<ChatProcessingOverlay inline targetMessageId="m1" />);
 
     const pill = screen.getByRole('button', { name: /Expand processing details/i });
     expect(pill).toBeInTheDocument();
     await userEvent.click(pill);
     expect(setCollapsed).toHaveBeenCalledWith(false);
+  });
+
+  it('does not render when message id does not match target', () => {
+    withState({
+      processingTrace: {
+        messageId: 'm-other',
+        startedAt: Date.now(),
+        events: [],
+        toolCount: 0,
+        warningCount: 0,
+        errorCount: 0,
+        collapsed: false,
+        activeToolStarts: {},
+      },
+    });
+
+    const { container } = render(<ChatProcessingOverlay targetMessageId="m1" />);
+    expect(container).toBeEmptyDOMElement();
   });
 });

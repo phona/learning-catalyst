@@ -78,6 +78,7 @@ const ChatAreaComponent: React.FC = () => {
     updateMessage = (): void => {},
     currentSession,
     streamingMessageId = null,
+    processingTrace = null,
   } = chatState;
 
   const chatMessages = Array.isArray(messages) ? messages : [];
@@ -244,16 +245,21 @@ const ChatAreaComponent: React.FC = () => {
             <div className="max-w-4xl mx-auto space-y-6">
               {console.log('[ChatArea] rendering messages', { count: chatMessages.length })}
               {chatMessages.map((message: MessageDisplayWithThinking) => (
-                <MessageErrorBoundary key={message.id} messageId={message.id}>
-                  <MessageBubble
-                    message={message}
-                    onToggleThinking={handleToggleThinking}
-                    isStreaming={isStreaming && message.id === streamingMessageId}
-                  />
-                </MessageErrorBoundary>
+                <React.Fragment key={message.id}>
+                  <MessageErrorBoundary messageId={message.id}>
+                    <MessageBubble
+                      message={message}
+                      onToggleThinking={handleToggleThinking}
+                      isStreaming={isStreaming && message.id === streamingMessageId}
+                    />
+                  </MessageErrorBoundary>
+                  {processingTrace?.messageId === message.id && (
+                    <div className="pl-14 pt-1">
+                      <ChatProcessingOverlay inline targetMessageId={message.id} />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
-              {/* Inline processing overlay (trace chip sits near latest messages) */}
-              <ChatProcessingOverlay inline />
             </div>
 
             {/* Scroll anchor */}

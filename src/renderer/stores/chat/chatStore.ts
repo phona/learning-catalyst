@@ -761,14 +761,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               processingTrace: {
                 messageId: assistantId,
                 startedAt: traceStartedAt,
-                events: [
-                  {
-                    id: `evt_${traceStartedAt}`,
-                    kind: 'thought',
-                    label: 'Thought process',
-                    at: traceStartedAt,
-                  },
-                ],
+                events: [],
                 toolCount: 0,
                 warningCount: 0,
                 errorCount: 0,
@@ -937,6 +930,14 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                     at: now,
                   });
                 }
+                break;
+              case 'timeline_state':
+                addProcessingEvent({
+                  kind: 'status',
+                  label: status.state ?? 'Status',
+                  detail: status.state,
+                  at: now,
+                });
                 break;
               case 'fail':
                 addProcessingEvent({
