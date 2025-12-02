@@ -148,14 +148,6 @@ export const KnowledgeMiniGraphPanel: React.FC<KnowledgeMiniGraphPanelProps> = (
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span>
-              Nodes {filteredNodes.length}/{nodes.length}
-            </span>
-            <span>
-              Edges {filteredEdges.length}/{edges.length}
-            </span>
-          </div>
           <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto">
             {filteredNodes.slice(0, 60).map((node) => (
               <button

@@ -1,9 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ArrowPathIcon,
-  ExclamationCircleIcon,
-  ArrowsRightLeftIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import type { Concept } from '@/shared/types/knowledge';
 import type { KnowledgeMapDisplay, KnowledgeMapNode, KnowledgeMapEdge } from '@/shared/types/electron-api/knowledge-api';
 import { useElectronAPIClient } from '@/renderer/services/services-provider';
@@ -123,7 +119,6 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphVisualizationPr
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="border border-gray-200 dark:border-gray-700 rounded p-2 max-h-72 overflow-y-auto">
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Nodes</div>
           {nodes.length === 0 ? (
             <div className="text-sm text-gray-500 dark:text-gray-400">No concepts found.</div>
           ) : (
@@ -151,10 +146,6 @@ export const KnowledgeGraphVisualization: React.FC<KnowledgeGraphVisualizationPr
         </div>
 
         <div className="border border-gray-200 dark:border-gray-700 rounded p-2 max-h-72 overflow-y-auto">
-          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2">
-            <ArrowsRightLeftIcon className="w-4 h-4" />
-            Edges (top {edgeList.length})
-          </div>
           {edgeList.length === 0 ? (
             <div className="text-sm text-gray-500 dark:text-gray-400">No relationships found.</div>
           ) : (

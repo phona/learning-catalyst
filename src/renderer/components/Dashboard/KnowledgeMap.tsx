@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  KnowledgeGraphVisualization,
-  ConceptManager,
-  RelationshipManager,
-  KnowledgeSearch,
-  LoadedConceptsPanel,
-  KnowledgeMiniGraphPanel,
-} from '../Knowledge';
+import { KnowledgeGameMap, ConceptManager, RelationshipManager } from '../Knowledge';
 import type { Concept } from '../../../shared/types/knowledge';
 
 export const KnowledgeMap: React.FC = () => {
@@ -45,75 +38,79 @@ export const KnowledgeMap: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={() => {
-              setShowManager(!showManager);
-              if (!showManager) setActiveTab('concepts');
+              setShowManager(true);
+              setActiveTab('concepts');
             }}
             className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              showManager
-                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+              'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            {showManager ? 'Hide Manager' : 'Manage'}
+            Manage
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Search Sidebar */}
-        <div className="w-80 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-          <div className="p-4">
-            <KnowledgeSearch onConceptSelect={handleConceptSelect} />
-          </div>
-          <div className="px-4 pb-4">
-            <LoadedConceptsPanel onConceptSelect={handleConceptSelect} />
-          </div>
-          <div className="px-4 pb-4">
-            <KnowledgeMiniGraphPanel onConceptSelect={handleConceptSelect} />
-          </div>
-        </div>
-
+      <div className="flex-1 flex overflow-hidden">
         {/* Knowledge Graph Visualization */}
         <div
-          className={`flex-1 ${showManager ? 'border-r border-gray-200 dark:border-gray-700' : ''}`}
+          className={`flex-1 flex flex-col ${showManager ? 'border-r border-gray-200 dark:border-gray-700' : ''}`}
         >
-          <div className="h-full p-6">
-            <KnowledgeGraphVisualization onConceptSelect={handleConceptSelect} />
+          <div className="flex-1 h-full p-6 overflow-hidden">
+            <KnowledgeGameMap onConceptSelect={handleConceptSelect} className="h-full" />
           </div>
         </div>
+      </div>
 
-        {/* Management Sidebar */}
-        {showManager && (
-          <div className="w-96 overflow-y-auto bg-gray-50 dark:bg-gray-800">
-            {/* Tabs */}
-            <div className="border-b border-gray-200 dark:border-gray-700">
-              <div className="flex">
-                <button
-                  onClick={() => setActiveTab('concepts')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'concepts'
-                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                  }`}
-                >
-                  Concepts
-                </button>
-                <button
-                  onClick={() => setActiveTab('relationships')}
-                  className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                    activeTab === 'relationships'
-                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
-                  }`}
-                >
-                  Relationships
-                </button>
+      {/* Management Dialog */}
+      {showManager && (
+        <div
+          className="fixed inset-0 z-30 flex items-start md:items-center justify-center bg-black/50 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Manage concepts and relationships"
+          data-testid="manager-dialog"
+          onClick={() => setShowManager(false)}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-5xl mx-4 mt-16 md:mt-0 border border-gray-200 dark:border-gray-700"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Manage Knowledge</h2>
+                <div className="flex rounded-md overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setActiveTab('concepts')}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      activeTab === 'concepts'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    Concepts
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('relationships')}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                      activeTab === 'relationships'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    Relationships
+                  </button>
+                </div>
               </div>
+              <button
+                onClick={() => setShowManager(false)}
+                className="text-sm px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200"
+              >
+                Close
+              </button>
             </div>
 
-            {/* Tab Content */}
-            <div className="p-6">
+            <div className="max-h-[72vh] overflow-y-auto px-6 py-5">
               {activeTab === 'concepts' && (
                 <ConceptManager
                   onConceptCreated={handleConceptCreated}
@@ -130,8 +127,8 @@ export const KnowledgeMap: React.FC = () => {
               )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Selected Concept Footer */}
       {selectedConcept && (

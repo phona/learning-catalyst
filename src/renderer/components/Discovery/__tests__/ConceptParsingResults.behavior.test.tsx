@@ -156,6 +156,7 @@ describe('ConceptParsingResults', () => {
     render(<ConceptParsingResults job={job} onIngest={onIngest} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Apply to Knowledge/i }));
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
 
     await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(1));
     const [, plan] = onIngest.mock.calls[0];
@@ -191,6 +192,7 @@ describe('ConceptParsingResults', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Apply to Knowledge/i }));
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
 
     await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(1));
     const [, plan] = onIngest.mock.calls[0];
@@ -230,6 +232,7 @@ describe('ConceptParsingResults', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Apply to Knowledge/i }));
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
 
     await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(1));
     const [payload, plan] = onIngest.mock.calls[0];
@@ -288,6 +291,7 @@ describe('ConceptParsingResults', () => {
     fireEvent.change(screen.getAllByLabelText('Concept action')[0], { target: { value: 'skip' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Apply to Knowledge/i }));
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
 
     await waitFor(() => expect(onIngest).toHaveBeenCalledTimes(1));
     const [payload, plan] = onIngest.mock.calls[0];
@@ -314,6 +318,8 @@ describe('ConceptParsingResults', () => {
     const applyButton = screen.getByRole('button', { name: /Apply to Knowledge/i });
     fireEvent.click(applyButton);
     fireEvent.click(applyButton);
+
+    fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
 
     expect(onIngest).toHaveBeenCalledTimes(1);
 

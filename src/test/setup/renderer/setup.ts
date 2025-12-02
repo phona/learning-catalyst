@@ -10,6 +10,7 @@
 
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
+vi.mock('relation-graph-react');
 
 // Import React Testing Library
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';

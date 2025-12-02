@@ -4,3 +4,4 @@ export { RelationshipManager } from './RelationshipManager';
 export { KnowledgeSearch } from './KnowledgeSearch';
 export { LoadedConceptsPanel } from './LoadedConceptsPanel';
 export { KnowledgeMiniGraphPanel } from './KnowledgeMiniGraphPanel';
+export { KnowledgeGameMap } from './KnowledgeGameMap';

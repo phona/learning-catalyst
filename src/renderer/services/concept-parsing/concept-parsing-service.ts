@@ -348,6 +348,8 @@ export const createConceptParsingService = (
     conceptNameById: Map<string, string>,
   ): ProposedRelationship => {
     return {
+      sourceConceptId: parsed.sourceId,
+      sourceConceptName: conceptNameById.get(parsed.sourceId),
       targetConceptId: parsed.targetId,
       targetConceptName: conceptNameById.get(parsed.targetId),
       type: parsed.type as

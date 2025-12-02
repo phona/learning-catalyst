@@ -24,6 +24,8 @@ import type {
   ConceptIngestionPlan,
   KnowledgeIngestionResult,
 } from '@/shared/types/electron-api/knowledge-api';
+import { showSuccess, showError } from '@/renderer/utils/toast';
+import { ConfirmDialog } from '../UI/ConfirmDialog';
 
 interface ConceptParsingResultsProps {
   job: ParsingJob;
@@ -167,6 +169,9 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   const metadata = result?.metadata;
   const [ingesting, setIngesting] = useState(false);
   const [ingestSummary, setIngestSummary] = useState<KnowledgeIngestionResult | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<ConceptParsingResult | null>(null);
+  const [pendingPlan, setPendingPlan] = useState<ConceptIngestionPlan | null>(null);
   const [defaultExistingAction, setDefaultExistingAction] = useState<'overwrite' | 'skip'>(
     'overwrite',
   );
@@ -174,8 +179,19 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   const [actions, setActions] = useState<Record<string, ConceptIngestionAction>>({});
   const [edits, setEdits] = useState<Record<string, Partial<Concept>>>({});
 
-  const handleIngest = async () => {
-    if (!onIngest || !result) return;
+  const buildPayloadAndPlan = () => {
+    if (!result) {
+      return {
+        payload: {
+          concepts: [],
+          relationships: [],
+        } as unknown as ConceptParsingResult,
+        plan: {
+          defaultExistingAction,
+          lowConfidence: { defaultThreshold: lowConfidenceThreshold },
+        },
+      };
+    }
 
     const planActions: Record<string, ConceptIngestionAction> = { ...actions };
 
@@ -196,9 +212,43 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
       .filter((c) => planActions[c.id] !== 'skip');
 
     const conceptIdSet = new Set(filteredConcepts.map((c) => c.id));
-    const filteredRelationships = result.relationships.filter(
-      (r) => conceptIdSet.has(r.sourceId) && conceptIdSet.has(r.targetId),
-    );
+    const nameToId = new Map(filteredConcepts.map((c) => [c.name.toLowerCase(), c.id] as const));
+
+    const filteredRelationships: ParsedRelationship[] = [];
+
+    // relationships attached to concepts (source implied by the owning concept)
+    filteredConcepts.forEach((concept) => {
+      concept.relationships?.forEach((rel) => {
+        const targetId =
+          rel.targetConceptId ??
+          (rel.targetConceptName ? nameToId.get(rel.targetConceptName.toLowerCase()) : undefined);
+        if (!targetId || !conceptIdSet.has(targetId)) return;
+        filteredRelationships.push({
+          sourceId: concept.id,
+          targetId,
+          type: rel.type ?? 'related',
+          strength: Math.min(1, Math.max(0, rel.strength ?? 0.5)),
+          confidence: Math.min(1, Math.max(0, rel.confidence ?? 0.5)),
+          description: rel.description,
+        });
+      });
+    });
+
+    // relationships already structured with source/target (if present)
+    result.relationships?.forEach((rel: any) => {
+      const sourceId: string | undefined = rel.sourceId ?? rel.sourceConceptId;
+      const targetId: string | undefined = rel.targetId ?? rel.targetConceptId;
+      if (!sourceId || !targetId) return;
+      if (!conceptIdSet.has(sourceId) || !conceptIdSet.has(targetId)) return;
+      filteredRelationships.push({
+        sourceId,
+        targetId,
+        type: rel.type ?? 'related',
+        strength: Math.min(1, Math.max(0, rel.strength ?? 0.5)),
+        confidence: Math.min(1, Math.max(0, rel.confidence ?? 0.5)),
+        description: rel.description,
+      });
+    });
 
     const payload: ConceptParsingResult = {
       ...result,
@@ -206,22 +256,52 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
       relationships: filteredRelationships,
     };
 
+    const plan: ConceptIngestionPlan = {
+      defaultExistingAction,
+      lowConfidence: { defaultThreshold: lowConfidenceThreshold },
+      actions: Object.keys(planActions).length ? planActions : undefined,
+    };
+
+    return { payload, plan };
+  };
+
+  const handleOpenConfirm = () => {
+    const built = buildPayloadAndPlan();
+    setPendingPayload(built.payload);
+    setPendingPlan(built.plan);
+    setConfirmOpen(true);
+  };
+
+  const handleIngest = async () => {
+    if (!onIngest) return;
+    const built =
+      pendingPayload && pendingPlan ? { payload: pendingPayload, plan: pendingPlan } : buildPayloadAndPlan();
+    const { payload, plan } = built;
+
     try {
       setIngesting(true);
       setIngestSummary(null);
 
-      const summary = await onIngest(payload, {
-        defaultExistingAction,
-        lowConfidence: { defaultThreshold: lowConfidenceThreshold },
-        actions: Object.keys(planActions).length ? planActions : undefined,
-      });
+      const summary = await onIngest(payload, plan);
       setIngestSummary(summary);
+      showSuccess('Applied to knowledge successfully');
     } catch (err) {
-      alert(`Ingest failed: ${err instanceof Error ? err.message : String(err)}`);
+      showError(`Ingest failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIngesting(false);
+      setConfirmOpen(false);
+      setPendingPayload(null);
+      setPendingPlan(null);
     }
   };
+
+  const confirmSummary = (() => {
+    const payload = pendingPayload ?? buildPayloadAndPlan().payload;
+    return {
+      concepts: payload.concepts.length,
+      relationships: payload.relationships.length,
+    };
+  })();
 
   // Filter concepts
   const filteredConcepts = concepts
@@ -316,7 +396,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
         )}
         {job.status === 'completed' && onIngest && (
           <button
-            onClick={handleIngest}
+            onClick={handleOpenConfirm}
             disabled={ingesting}
             className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
           >
@@ -914,6 +994,20 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Apply to Knowledge"
+        message={`Apply ${confirmSummary.concepts} concepts and ${confirmSummary.relationships} relationships to knowledge?`}
+        confirmText="Apply"
+        cancelText="Keep editing"
+        onConfirm={handleIngest}
+        onCancel={() => {
+          setConfirmOpen(false);
+          setPendingPayload(null);
+          setPendingPlan(null);
+        }}
+      />
     </div>
   );
 };

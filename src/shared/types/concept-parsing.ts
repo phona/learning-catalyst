@@ -33,6 +33,8 @@ export interface ConceptEvidence {
 }
 
 export interface ProposedRelationship {
+  sourceConceptId?: string;
+  sourceConceptName?: string;
   targetConceptId?: string;
   targetConceptName?: string;
   type: 'prerequisite' | 'related' | 'contains' | 'example' | 'application' | 'contrasts';
