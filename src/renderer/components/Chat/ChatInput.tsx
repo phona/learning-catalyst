@@ -19,6 +19,11 @@ import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toas
 const ChatInputComponent: React.FC = () => {
   const [inputText, setInputText] = useState<string>('');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null);
+  const [historyMode, setHistoryMode] = useState<boolean>(false);
+  const [draftBeforeHistory, setDraftBeforeHistory] = useState<string>('');
+  const [searchOpen, setSearchOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const {
     isLoading,
@@ -28,6 +33,8 @@ const ChatInputComponent: React.FC = () => {
     stopStreaming,
     error,
     setError,
+    history = [],
+    currentSessionId,
   } = useChatStore((s) => ({
     isLoading: s.isLoading,
     isStreaming: s.isStreaming,
@@ -36,6 +43,8 @@ const ChatInputComponent: React.FC = () => {
     stopStreaming: s.stopStreaming,
     error: s.error,
     setError: s.setError,
+    history: s.history,
+    currentSessionId: s.currentSessionId ?? s.currentSession?.id ?? null,
   }));
 
   const { config, updateConfig } = useConfigStore();
@@ -57,6 +66,32 @@ const ChatInputComponent: React.FC = () => {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [inputText]);
+
+  const sessionHistory = React.useMemo(
+    () =>
+      history
+        .filter((h) => h.sessionId === currentSessionId)
+        .sort((a, b) => b.createdAt - a.createdAt),
+    [history, currentSessionId],
+  );
+
+  const applyHistoryEntry = (nextIndex: number | null) => {
+    if (nextIndex === null) {
+      setHistoryIndex(null);
+      setHistoryMode(false);
+      setInputText(draftBeforeHistory);
+      return;
+    }
+    const entry = sessionHistory[nextIndex];
+    if (!entry) return;
+    if (historyIndex === null) {
+      setDraftBeforeHistory(inputText);
+    }
+    setHistoryIndex(nextIndex);
+    setHistoryMode(true);
+    setInputText(entry.text);
+    setTimeout(() => textareaRef.current?.setSelectionRange(entry.text.length, entry.text.length), 0);
+  };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -82,12 +117,31 @@ const ChatInputComponent: React.FC = () => {
       setError(errorMessage);
       chatToasts.error(errorMessage);
     }
+    setHistoryIndex(null);
+    setHistoryMode(false);
+    setDraftBeforeHistory('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (searchOpen) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSearchOpen(false);
+      }
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
+    } else if (e.key === 'ArrowUp' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      const next = historyIndex === null ? 0 : Math.min(historyIndex + 1, sessionHistory.length - 1);
+      if (sessionHistory.length > 0) applyHistoryEntry(next);
+    } else if (e.key === 'ArrowDown' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      if (historyIndex === null) return;
+      const next = historyIndex - 1;
+      applyHistoryEntry(next < 0 ? null : next);
     } else if (e.ctrlKey && e.key === 't') {
       e.preventDefault();
       // Toggle deep thinking mode
@@ -99,7 +153,8 @@ const ChatInputComponent: React.FC = () => {
       textareaRef.current?.focus();
     } else if (e.ctrlKey && e.key === 'k') {
       e.preventDefault();
-      // Open command palette (placeholder)
+      setSearchOpen(true);
+      setSearchQuery('');
     } else if (e.ctrlKey && e.key === '/') {
       e.preventDefault();
       // Show keyboard shortcuts (placeholder)
@@ -291,6 +346,12 @@ const ChatInputComponent: React.FC = () => {
             )}
           </fieldset>
 
+          {historyMode && (
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              History mode: ↑/↓ to cycle, Esc to exit. ({(historyIndex ?? 0) + 1}/{sessionHistory.length})
+            </div>
+          )}
+
           {/* Enhanced keyboard shortcuts */}
           <div
             id="input-help"
@@ -318,6 +379,61 @@ const ChatInputComponent: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {searchOpen && (
+        <div className="absolute bottom-24 right-6 left-6 max-w-3xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 z-30">
+          <div className="flex items-center mb-3">
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setSearchOpen(false);
+                }
+              }}
+              placeholder="Search history…"
+              className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <button
+              type="button"
+              onClick={() => setSearchOpen(false)}
+              className="ml-3 text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"
+            >
+              Close
+            </button>
+          </div>
+          <div className="max-h-64 overflow-auto space-y-2 text-sm">
+            {sessionHistory
+              .filter((h) => h.text.toLowerCase().includes(searchQuery.toLowerCase()))
+              .slice(0, 20)
+              .map((h, idx) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  onClick={() => {
+                    setInputText(h.text);
+                    setSearchOpen(false);
+                    setTimeout(
+                      () => textareaRef.current?.setSelectionRange(h.text.length, h.text.length),
+                      0,
+                    );
+                  }}
+                  className="w-full text-left px-3 py-2 rounded border border-gray-200 dark:border-gray-700 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition"
+                >
+                  <div className="text-gray-900 dark:text-gray-100 truncate">{h.text}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                    #{idx + 1} • {new Date(h.createdAt).toLocaleTimeString()}
+                  </div>
+                </button>
+              ))}
+            {sessionHistory.length === 0 && (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No history yet.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Advanced Options Toggle */}
       <div className="px-6 pb-4">

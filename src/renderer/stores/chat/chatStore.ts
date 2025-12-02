@@ -207,6 +207,10 @@ export interface ChatState {
   streamingMessageId: string | null;
   streamingContent: string;
   processingTrace: ProcessingTrace | null;
+  history: HistoryEntry[];
+  addHistoryEntry: (entry: HistoryEntry) => void;
+  getHistoryForSession: (sessionId: string | null) => HistoryEntry[];
+  clearHistory: (sessionId?: string | null) => void;
   setProcessingTraceCollapsed: (collapsed: boolean) => void;
   setCurrentSession: (
     sessionOrId: Partial<Session> | string,
@@ -263,6 +267,13 @@ interface ProcessingTrace {
   activeToolStarts: Record<string, number>;
 }
 
+export interface HistoryEntry {
+  id: string;
+  text: string;
+  sessionId: string | null;
+  createdAt: number;
+}
+
 const initialState = {
   currentSessionId: null,
   currentSession: null,
@@ -281,6 +292,7 @@ const initialState = {
   streamingMessageId: null,
   streamingContent: '',
   processingTrace: null,
+  history: [] as HistoryEntry[],
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
@@ -461,6 +473,23 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               : state,
           ),
         setThinkingContent: (thinkingContent) => set({ thinkingContent }),
+        addHistoryEntry: (entry) =>
+          set((state) => {
+            // keep last 200 per session
+            const perSession = state.history.filter((h) => h.sessionId === entry.sessionId);
+            const trimmed =
+              perSession.length >= 200 ? perSession.slice(perSession.length - 199) : perSession;
+            const merged = state.history.filter((h) => h.sessionId !== entry.sessionId);
+            return { history: [...merged, ...trimmed, entry] };
+          }),
+        getHistoryForSession: (sessionId) =>
+          get().history
+            .filter((h) => h.sessionId === sessionId || (!sessionId && h.sessionId === null))
+            .sort((a, b) => b.createdAt - a.createdAt),
+        clearHistory: (sessionId) =>
+          set((state) => ({
+            history: sessionId ? state.history.filter((h) => h.sessionId !== sessionId) : [],
+          })),
         setSelectedProvider: (provider) => set({ selectedProvider: provider }),
         setSelectedModel: (model) => set({ selectedModel: model }),
 
@@ -624,6 +653,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               }
             }
             console.log('[ChatStore] sendMessage using session', { sessionId });
+            get().addHistoryEntry({
+              id: `hist_${Date.now()}`,
+              text: content,
+              sessionId,
+              createdAt: Date.now(),
+            });
 
             const response = await electronAPI.chat.sendMessage({
               conversationId: sessionId,
@@ -700,6 +735,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                 throw new Error(createResp.error?.message || 'Failed to create session');
               }
             }
+            get().addHistoryEntry({
+              id: `hist_${Date.now()}`,
+              text: content,
+              sessionId,
+              createdAt: Date.now(),
+            });
 
             const assistantId = `msg_${Date.now()}_assistant`;
             const assistantPlaceholder: UIMessageDisplay = {
