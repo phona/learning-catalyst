@@ -1,0 +1,45 @@
+flowchart TD
+    %% Chatbox UI <-> LangGraph pause/resume
+
+    subgraph StreamLoop [Streaming Path]
+        direction TB
+        Send[User clicks Send] --> SendMsg[sendMessageStream()]
+        SendMsg -->|status events| HandleStatus[handleStatusEvent]
+        SendMsg -->|content/tool chunks| UpdateBubble[Update assistant placeholder content]
+        HandleStatus -->|await_user_input| SetAwait[Set awaitingUserInput\n(stop streaming/typing)]
+        SetAwait --> ShowBanner[Show “Waiting for your answer” banner\nPrompt used as placeholder]
+    end
+
+    subgraph AwaitResume [Pause & Resume]
+        direction TB
+        ShowBanner --> UserAnswer[User types answer]
+        UserAnswer --> SubmitAns[sendMessageStream(answer)\n(includes sessionId/checkpointId/questionId)]
+        SubmitAns --> ClearAwait[Clear awaitingUserInput\nresume streaming flow]
+        ClearAwait --> StreamLoop
+    end
+
+    subgraph BackendSync [Backend LangGraph]
+        direction TB
+        LangGraph[LangGraph workflow graph\n(StateGraph + SQLiteCheckpointSaver)] -->|interrupt: await_user_input| ChatStatus[status payload\n{prompt, checkpointId, questionId, sessionId}]
+        ChatStatus --> HandleStatus
+    end
+
+    %% Notes
+    note right of SetAwait
+        - isStreaming/isTyping set false
+        - Composer shows prompt as placeholder
+        - Stop button can be disabled while paused
+    end
+
+    note right of SubmitAns
+        - Uses same thread_id and checkpointId to resume graph
+        - Clears awaitingUserInput on send
+    end
+
+    classDef ui fill:#eef,stroke:#447,stroke-width:1px;
+    classDef backend fill:#ffe,stroke:#b84,stroke-width:1px;
+    classDef action fill:#fff,stroke:#777,stroke-width:1px;
+
+    class Send,SendMsg,HandleStatus,UpdateBubble,SetAwait,ShowBanner,UserAnswer,SubmitAns,ClearAwait ui
+    class LangGraph,ChatStatus backend
+    class AwaitResume,StreamLoop action
