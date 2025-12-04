@@ -1,0 +1,53 @@
+flowchart TD
+    %% Chatbox UI + Main Process Workflow (LangGraph)
+
+    %% ---------------- UI Layer ----------------
+    subgraph UI["Renderer (Chat UI)"]
+        direction TB
+        Send[User clicks Send] --> StoreSend[chatStore.sendMessageStream]
+        StoreSend -->|status: await_user_input| AwaitState[Set awaitingUserInput\n{prompt, checkpointId, questionId, sessionId}]
+        AwaitState --> Banner[Show banner + prompt placeholder]
+        Banner -->|Cancel| ClearAwait[awaitingUserInput = null\nisStreaming=false]
+        Banner -->|Resume later| HideBanner[awaitingUserInput.hidden=true]
+        HideBanner --> Composer[Composer idle\n(prompt kept in state)]
+        AwaitState --> Composer
+        Composer --> Answer[User types answer]
+        Answer --> ResumeSend[sendMessageStream with checkpointId/questionId/metadata]
+        ResumeSend --> UIStream[Stream content/tool/status]
+        UIStream --> UpdateBubble[Update assistant placeholder]
+        UIStream --> StatusEvents[Handle timeline/tool/thought/await events]
+        StatusEvents --> AwaitState
+    end
+
+    %% ---------------- Main Process ----------------
+    subgraph Main["Main Process (LangGraph)"]
+        direction TB
+        LangGraph[StateGraph workflow\nAssess→FastTrack→Teach→Practice→Wait→Evaluate→Mastery→Remediate/Breaker→Complete] -->|interrupt await_user_input| EmitAwait[Emit status await_user_input\n{prompt, checkpointId, questionId, sessionId}]
+        EmitAwait --> Pause[Pause graph, checkpoint via SQLiteCheckpointSaver]
+        ResumeInput[User answer with checkpointId/questionId] --> ResumeGraph[LangGraph resume via Command/stream]
+        ResumeGraph --> LangGraph
+        LangGraph --> StreamChunks[Stream content/tool updates\ntimeline callbacks]
+    end
+
+    %% Connections UI <-> Main
+    StoreSend -->|messages, sessionId| LangGraph
+    EmitAwait -->|status event| AwaitState
+    ResumeSend -->|answer + checkpointId| ResumeInput
+    StreamChunks --> UIStream
+
+    %% Notes
+    note right of AwaitState
+        Banner shows prompt, Stop hidden
+        Await metadata kept if "Resume later" clicked
+    end
+
+    note right of ResumeSend
+        Payload includes checkpointId/questionId and prompt metadata
+    end
+
+    classDef ui fill:#eef,stroke:#446,stroke-width:1px;
+    classDef main fill:#ffe,stroke:#b84,stroke-width:1px;
+    classDef action fill:#fff,stroke:#777,stroke-width:1px;
+
+    class Send,StoreSend,AwaitState,Banner,HideBanner,ClearAwait,Composer,Answer,ResumeSend,UIStream,UpdateBubble,StatusEvents ui
+    class LangGraph,EmitAwait,Pause,ResumeInput,ResumeGraph,StreamChunks main
