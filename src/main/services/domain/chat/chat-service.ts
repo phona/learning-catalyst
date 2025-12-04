@@ -11,6 +11,10 @@ import { ContextUpdateRequest } from '@/shared/types/practice';
 import { createUserContextTracker, UserContextTrackerService } from '@/main/services/core/context';
 import { TimelineCallbackHandler } from '@/main/services/agent/timeline-callback-handler';
 import type { StreamChunk, ToolCall } from '@/shared/types/ai';
+import { createWorkflowGraph, extractInterrupt, isInterruptEvent } from './workflow-graph';
+import { SQLiteCheckpointSaver } from '@/main/services/core/checkpoints/SQLiteCheckpointSaver';
+import { Command } from '@langchain/langgraph';
+import { createChatWorkflowOrchestrator } from './workflow-orchestrator';
 
 import type { BaseMessage } from "@langchain/core/messages";
 
@@ -163,6 +167,8 @@ export const createChatService = ({
   const trackerLogger = serviceLogger.child({ component: 'user-context-tracker' });
   const trackerDependencies = { logger: trackerLogger };
   const canceledStreams = new Set<string>();
+  const checkpointSaver = new SQLiteCheckpointSaver(db as any);
+  const workflowGraph = createWorkflowGraph({ agentManager, loggerService, checkpointer: checkpointSaver });
 
   const extractConceptsFromContent = (content: string): string[] => {
     if (!content) return [];
@@ -710,6 +716,94 @@ export const createChatService = ({
             });
             throw new Error('Stream canceled');
           }
+
+          const workflowEnabled =
+            process.env.WORKFLOW_CHAT === '1' ||
+            (conversation.metadata as any)?.workflowMode === 'workflow_v1';
+
+          if (workflowEnabled) {
+            const awaiting = (conversation.metadata as any)?.awaitingUserInput;
+            const input = awaiting
+              ? new Command({ resume: { answer: params.content } })
+              : {
+                messages,
+                topic: conversation.topic,
+                userInput: params.content,
+              };
+
+            const config = {
+              configurable: { thread_id: conversation.id },
+            };
+
+            const wfStream = await workflowGraph.stream(input, config, { stream_mode: 'updates' });
+
+            for await (const evt of wfStream) {
+              if (isInterruptEvent(evt)) {
+                const payload = extractInterrupt(evt) ?? {};
+                const prompt =
+                  payload?.prompt ??
+                  payload?.message ??
+                  payload?.question ??
+                  'Please answer to continue.';
+                const questionId = payload?.questionId ?? `q_${Date.now()}`;
+
+                emitStatus({
+                  type: 'await_user_input',
+                  prompt: String(prompt),
+                  sessionId: conversation.id,
+                  checkpointId: conversation.id,
+                  questionId,
+                });
+
+                conversation.status = 'paused';
+                conversation.metadata = {
+                  ...(conversation.metadata ?? {}),
+                  awaitingUserInput: {
+                    prompt,
+                    questionId,
+                    requestedAt: new Date().toISOString(),
+                  },
+                  workflowMode: 'workflow_v1',
+                } as any;
+                await persistConversation(conversation);
+                serviceLogger.info('Workflow paused awaiting user input', {
+                  conversationId: conversation.id,
+                  questionId,
+                });
+                break;
+              }
+
+              // LangGraph streams updates as tuples [path, nodeUpdate]
+              if (Array.isArray(evt)) {
+                const nodeUpdate = evt[1];
+                const nodeName = Object.keys(nodeUpdate ?? {})[0];
+                const update = nodeUpdate?.[nodeName] as any;
+                const msgs = update?.messages ?? [];
+                const last = msgs.length ? msgs[msgs.length - 1] : undefined;
+                const raw = last?.content ?? last?.text ?? '';
+                if (typeof raw === 'string' && raw.trim()) {
+                  aggregated += raw;
+                  yield { type: 'content', content: raw };
+                }
+              }
+            }
+
+            // If we finished without pausing, clear awaiting flags and mark active
+            if (!canceled) {
+              const meta = { ...(conversation.metadata as any) };
+              if (meta.awaitingUserInput) {
+                delete meta.awaitingUserInput;
+              }
+              meta.workflowMode = 'workflow_v1';
+              conversation.metadata = meta as any;
+              conversation.status = 'active';
+              await persistConversation(conversation);
+            }
+
+            // For workflow path, bail out early (finally will persist)
+            return;
+          }
+
           const agentType = normalizeAgentType(conversation.agentType);
           const timelineCallback = new TimelineCallbackHandler(emitStatus, agentType);
           const agent = agentManager.getAgent(agentType);
