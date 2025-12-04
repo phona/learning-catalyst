@@ -717,9 +717,7 @@ export const createChatService = ({
             throw new Error('Stream canceled');
           }
 
-          const workflowEnabled =
-            process.env.WORKFLOW_CHAT === '1' ||
-            (conversation.metadata as any)?.workflowMode === 'workflow_v1';
+          const workflowEnabled = true;
 
           if (workflowEnabled) {
             const awaiting = (conversation.metadata as any)?.awaitingUserInput;
@@ -733,7 +731,10 @@ export const createChatService = ({
 
             const timelineCallback = new TimelineCallbackHandler(emitStatus, 'workflow');
             const config = {
-              configurable: { thread_id: conversation.id },
+              configurable: {
+                thread_id: conversation.id,
+                checkpoint_id: awaiting?.checkpointId,
+              },
               callbacks: [timelineCallback],
             };
 
@@ -742,18 +743,20 @@ export const createChatService = ({
             for await (const evt of wfStream) {
               if (isInterruptEvent(evt)) {
                 const payload = extractInterrupt(evt) ?? {};
+                const rawInterrupt = (evt as any)?.__interrupt__?.[0] ?? {};
                 const prompt =
                   payload?.prompt ??
                   payload?.message ??
                   payload?.question ??
                   'Please answer to continue.';
                 const questionId = payload?.questionId ?? `q_${Date.now()}`;
+                const checkpointId = rawInterrupt?.checkpoint_id;
 
                 emitStatus({
                   type: 'await_user_input',
                   prompt: String(prompt),
                   sessionId: conversation.id,
-                  checkpointId: conversation.id,
+                  checkpointId: checkpointId ?? conversation.id,
                   questionId,
                 });
 
@@ -763,6 +766,7 @@ export const createChatService = ({
                   awaitingUserInput: {
                     prompt,
                     questionId,
+                    checkpointId: checkpointId ?? (conversation.metadata as any)?.checkpointId,
                     requestedAt: new Date().toISOString(),
                   },
                   workflowMode: 'workflow_v1',
