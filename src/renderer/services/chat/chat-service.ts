@@ -110,10 +110,27 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
             error: (evt as any).error,
           });
           if (evt.type === 'chunk') {
-            const chunk = evt.chunk ?? '';
-            console.debug('[chat-service] stream chunk', { len: String(chunk.length) });
-            aggregated += chunk;
-            onChunk({ content: chunk, type: 'content' } as StreamChunk & { type?: string });
+            const chunk = evt.chunk as unknown;
+            if (typeof chunk === 'string') {
+              console.debug('[chat-service] stream chunk', { len: String(chunk.length) });
+              aggregated += chunk;
+              onChunk({ content: chunk, type: 'content' });
+            } else if (chunk && typeof chunk === 'object') {
+              const typed = chunk as StreamChunk;
+              console.debug('[chat-service] stream chunk object', {
+                type: typed.type ?? 'content',
+                hasContent: Boolean(typed.content),
+              });
+              if (!typed.type || typed.type === 'content') {
+                const text = typed.content ?? '';
+                aggregated += text;
+              }
+              onChunk(typed);
+            } else {
+              const fallback = String(chunk ?? '');
+              aggregated += fallback;
+              onChunk({ type: 'content', content: fallback });
+            }
           } else if (evt.type === 'complete') {
             const resolver = pendingStreams.get(sessionId)?.resolve;
             if (resolver) {
@@ -150,10 +167,21 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
       const data = (started as any)?.data;
       const isAsyncIterable = data && typeof data[Symbol.asyncIterator] === 'function';
       if (isAsyncIterable) {
-        for await (const chunk of data as AsyncIterable<string>) {
-          const part = String(chunk ?? '');
-          aggregated += part;
-          onChunk({ content: part, type: 'content' } as StreamChunk & { type?: string });
+        for await (const chunk of data as AsyncIterable<unknown>) {
+          if (typeof chunk === 'string') {
+            aggregated += chunk;
+            onChunk({ content: chunk, type: 'content' });
+          } else if (chunk && typeof chunk === 'object') {
+            const typed = chunk as StreamChunk;
+            if (!typed.type || typed.type === 'content') {
+              aggregated += typed.content ?? '';
+            }
+            onChunk(typed);
+          } else {
+            const part = String(chunk ?? '');
+            aggregated += part;
+            onChunk({ content: part, type: 'content' });
+          }
         }
         return {
           id: assistantId,

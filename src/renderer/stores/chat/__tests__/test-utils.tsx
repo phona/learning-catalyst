@@ -114,6 +114,13 @@ export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI 
       getPracticeSuggestion: vi
         .fn()
         .mockResolvedValue({ success: true, data: { suggestion: 'practice' } } as any),
+      searchPrompts: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          prompts: [],
+          pagination: { limit: 50, offset: 0, hasMore: false },
+        },
+      }),
     },
     sessions: {
       create: vi.fn().mockImplementation(async ({ title }) => {

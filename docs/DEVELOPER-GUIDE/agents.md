@@ -13,6 +13,7 @@ Agents are **specialized AI assistants** that handle specific learning tasks:
 - **Assessment Agent** - Tests knowledge and identifies gaps
 - **Tutoring Agent** - Provides personalized guidance
 - **Practice Agent** - Creates exercises and challenges
+- **Learning Planner Agent** - Builds a single-session plan (one primary concept) using the session blueprint tool
 
 ### Why Use Agents?
 
@@ -903,6 +904,27 @@ export function createLearningAgent({
   };
 }
 ```
+
+## Session Blueprint (Single Session)
+
+- **Purpose**: Build a one-sitting learning plan with exactly one primary concept and bound practice to check understanding.
+- **Inputs**: `topic`, `level` (required; `novice`|`intermediate`|`advanced`), optional `userGoal`, `successCriteria`, `timeAvailable` (minutes), `constraints[]`, `allowExternal`.
+- **Outputs**: `learnerProfile`, `goal`, `session { primaryConcept, adjacentConcepts?, practiceBlocks[] }`, `tacticsApplied` (retrieval + teach_back required, spaced=false).
+- **Practice blocks required**: at least one of each `retrieval`, `apply`, `teach_back`, `open_question`; total minutes ≤ `timeAvailable`.
+- **Pass rule**: retrieval ≥80% AND teach_back pass AND apply pass. If pass but confidence low/med → reinforce; else advance. Fail → repeat with new examples.
+- **Level acquisition**: If level is not provided by the user, supervisor must call the assessment agent first to infer `level` (and optionally timeAvailable/constraints) before invoking the planner.
+
+## Assessment Agent (Single Session)
+
+- **Purpose**: Judge concept understanding from existing practice/discussion, then emit profile + concept confidence + level for supervisor/planner.
+- **Inputs (from supervisor only)**: `goal`, `concepts[{id,name,critical?}]`, optional `priorLevel` (`novice`|`intermediate`|`advanced`). No raw practice is passed in.
+- **Tools the agent calls itself**: `fetch_practice_history`, `fetch_goal_artifacts`, `fetch_discussion_transcript`, `grade_open_answer` (for free-form answers). No userId needed (desktop-only context).
+- **Rules**: do NOT invent new questions; evidence only. Score concepts to labels (`<0.4 low`, `0.4–0.7 med`, `>0.7 high`). Level: any critical=low -> novice; all high -> advanced; mixed -> intermediate; thin evidence -> `unknown` + recommendation.
+- **Output JSON**: `{ profile { level|unknown, strengths[], weaknesses[], recommendations[] }, conceptConfidences[], gaps[], summary, nextSteps[], evidenceUsed[] }`.
+- **Flow (ascii)**:
+  - `user -> supervisor -> assessment_agent(goal+concepts)`
+  - `assessment_agent -> fetch_* tools -> score -> level -> JSON report`
+  - `supervisor -> planner/practice` based on level + gaps.
 
 ## Future Enhancements
 

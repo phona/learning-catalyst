@@ -1,9 +1,9 @@
 import { ILogger } from '../../types';
-import type { ModelConfig } from '../../ai/ai-types';
-import { createStructuredJsonRunner } from '../shared/structured-json-runner';
+import { randomUUID } from 'node:crypto';
 import type { KnowledgeService } from '../knowledge/knowledge-service';
-import type { AiService } from '@/main/services/ai/ai-service';
-import type { DomainAgent } from '@/main/services/agent/domain-agent';
+import type { PracticeAgent } from '@/main/services/agent/practice-agent';
+import { Kysely } from 'kysely';
+import { Database } from '@/main/services/core/database';
 
 export type PracticeExerciseOutput = {
   id: string;
@@ -45,10 +45,10 @@ export interface PracticeRequest {
 }
 
 type PracticeDeps = {
-  aiService: AiService;
-  domainAgent: DomainAgent;
+  practiceAgent: PracticeAgent;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
   knowledgeService: KnowledgeService;
+  db: Kysely<Database>;
 };
 
 const DEFAULT_PRACTICE_SETTINGS: Required<Pick<PracticeRequest, 'difficulty' | 'count'>> = {
@@ -130,29 +130,12 @@ const buildFallbackPlan = (
 };
 
 export const createPracticeService = ({
-  aiService,
-  domainAgent,
+  practiceAgent,
   loggerService,
   knowledgeService,
+  db,
 }: PracticeDeps) => {
   const serviceLogger = loggerService.child({ service: 'practice' });
-  const presetId = 'practice.exercise';
-  let modelConfig: ModelConfig;
-  let currentDomainAgent = domainAgent;
-
-  try {
-    modelConfig = aiService.getModelPreset(presetId);
-  } catch {
-    serviceLogger.warn('Practice preset not found, falling back to chat.reply');
-    modelConfig = aiService.getModelPreset('chat.reply');
-  }
-
-  let runStructuredJson = createStructuredJsonRunner({
-    aiService,
-    domainAgent: currentDomainAgent,
-    logger: serviceLogger,
-    modelConfig,
-  }).runStructuredJson;
 
   const generatePracticePlan = async (request: PracticeRequest): Promise<PracticePlan> => {
     const normalized: PracticeRequest = {
@@ -203,55 +186,96 @@ export const createPracticeService = ({
       2,
     );
 
-    const systemPrompt =
-      'You are a practice designer. Return JSON with practiceType, difficulty, count, summary, focusConcepts (string[]), exercises (array), suggestions (string[]), and metadata.';
-
     const fallback = buildFallbackPlan({ ...normalized, practiceType, focusConcepts });
 
-    const response = await runStructuredJson<PracticePlan>({
-      systemPrompt,
-      input: promptPayload,
-      fallbackPrompt: `${systemPrompt}\n${promptPayload}`,
-      fallback,
-      context: 'practice-plan-generation',
-    });
+    try {
+      const agentResponse = await practiceAgent.invoke({
+        messages: [{ role: 'user', content: promptPayload }],
+        topic: normalized.topic,
+        userId: normalized.userId,
+      });
 
-    const enriched: PracticePlan = {
-      ...response,
-      metadata: {
-        ...response.metadata,
-        generatedAt: new Date().toISOString(),
-        knowledgeNodes: focusConcepts.length,
-        knowledgeRelationships: relatedConcepts.length,
-      },
-    };
+      let response: PracticePlan;
+      try {
+        const raw = String(agentResponse).trim();
+        response = JSON.parse(raw) as PracticePlan;
+      } catch {
+        response = fallback;
+      }
 
-    serviceLogger.info('Practice plan generated', {
-      topic: enriched.topic,
-      exercises: enriched.exercises.length,
-      practiceType: enriched.practiceType,
-    });
+      // Validate the response structure
+      if (!response || !response.exercises || !Array.isArray(response.exercises)) {
+        response = fallback;
+      }
 
-    return enriched;
+      const enriched: PracticePlan = {
+        ...response,
+        metadata: {
+          ...response.metadata,
+          generatedAt: new Date().toISOString(),
+          knowledgeNodes: focusConcepts.length,
+          knowledgeRelationships: relatedConcepts.length,
+        },
+      };
+
+      serviceLogger.info('Practice plan generated', {
+        topic: enriched.topic,
+        exercises: enriched.exercises.length,
+        practiceType: enriched.practiceType,
+      });
+
+      return enriched;
+    } catch (error) {
+      serviceLogger.warn('Practice agent failed, using fallback', { error });
+      
+      const enriched: PracticePlan = {
+        ...fallback,
+        metadata: {
+          ...fallback.metadata,
+          generatedAt: new Date().toISOString(),
+          knowledgeNodes: focusConcepts.length,
+          knowledgeRelationships: relatedConcepts.length,
+        },
+      };
+
+      return enriched;
+    }
+  };
+
+  const recordPracticeAttempt = async (attempt: {
+    taskId: string;
+    conceptIds: string[];
+    result: 'pass' | 'fail' | 'partial';
+    answer?: string;
+    errorTags?: string[];
+    rubricScores?: { retrieval?: number; application?: number; teachBack?: number };
+    timestamp?: string;
+  }): Promise<void> => {
+    if (!attempt?.taskId?.trim()) throw new Error('taskId is required');
+    if (!attempt.conceptIds?.length) throw new Error('conceptIds are required');
+    const now = new Date().toISOString();
+    await db
+      .insertInto('practice_attempts')
+      .values({
+        id: randomUUID(),
+        task_id: attempt.taskId,
+        concept_ids: JSON.stringify(attempt.conceptIds),
+        result: attempt.result,
+        answer: attempt.answer ?? null,
+        error_tags: attempt.errorTags ? JSON.stringify(attempt.errorTags) : null,
+        rubric_scores: attempt.rubricScores ? JSON.stringify(attempt.rubricScores) : null,
+        timestamp: attempt.timestamp ?? now,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
   };
 
   return {
     generatePracticePlan,
-    rebuild: async (agent?: DomainAgent) => {
-      if (agent) {
-        currentDomainAgent = agent;
-      }
-      try {
-        modelConfig = aiService.getModelPreset(presetId);
-      } catch {
-        modelConfig = aiService.getModelPreset('chat.reply');
-      }
-      runStructuredJson = createStructuredJsonRunner({
-        aiService,
-        domainAgent: currentDomainAgent,
-        logger: serviceLogger,
-        modelConfig,
-      }).runStructuredJson;
+    recordPracticeAttempt,
+    rebuild: async () => {
+      serviceLogger.info('Practice service rebuild called - practice agent manages its own configuration');
     },
   };
 };

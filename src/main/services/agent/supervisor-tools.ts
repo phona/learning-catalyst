@@ -35,10 +35,12 @@ const parseJsonInput = <T extends Record<string, unknown>>(raw: string, fallback
 const agentDescriptions: Record<Exclude<AgentType, 'supervisor'>, string> = {
   learning:
     'Focuses on concept introduction, explanation, and analogy generation so the learner understands the current topic before moving forward.',
+  learning_planner:
+    'Creates a single-session plan with one primary concept, required retrieval/apply/teach-back/open-question blocks, and MUST be given level.',
   tutoring:
     'Provides adaptive, multi-modal coaching, asking clarifying questions and encouraging reflection when a learner needs deeper support.',
   assessment:
-    'Constructs and evaluates quizzes/exercises, interprets responses via rubrics, and outputs structured feedback for mastery checks.',
+    'Aggregates practice/discussion evidence for listed concepts, scores confidence, infers level, and reports gaps for mastery checks.',
   practice:
     'Generates practice challenges or drills that reinforce the learner’s recent concepts, monitors attempts, and surfaces retry suggestions.',
 };

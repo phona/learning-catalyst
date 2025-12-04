@@ -75,11 +75,10 @@ describe('ChatProcessingOverlay', () => {
 
     render(<ChatProcessingOverlay targetMessageId="m1" />);
 
-    expect(screen.getByText(/Processing trace/i)).toBeInTheDocument();
     expect(screen.getByText(/Thought process/i)).toBeInTheDocument();
     expect(screen.getByText(/tool search start/i)).toBeInTheDocument();
     expect(screen.getByText(/tool search end/i)).toBeInTheDocument();
-    expect(screen.getByText(/⚡/)).toBeInTheDocument();
+    expect(screen.getByText(/Collapse/i)).toBeInTheDocument(); // footer present (contains total)
 
     await userEvent.click(screen.getByRole('button', { name: /Collapse/i }));
     expect(setCollapsed).toHaveBeenCalledWith(true);

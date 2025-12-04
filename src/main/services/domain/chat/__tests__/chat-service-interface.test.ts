@@ -47,7 +47,6 @@ describe('Chat Service - Interface Tests', () => {
   let mockDb: any;
   let mockLoggerService: any;
   let mockAiService: any;
-  let mockDomainAgent: any;
   let mockAgentManager: any;
   let chatService: any;
 
@@ -78,10 +77,6 @@ describe('Chat Service - Interface Tests', () => {
       getModelPreset: vi.fn(),
     };
 
-    // Mock domain agent
-    mockDomainAgent = {
-      stream: vi.fn(),
-    };
 
     // Mock agent manager
     mockAgentManager = {
@@ -95,7 +90,6 @@ describe('Chat Service - Interface Tests', () => {
       db: mockDb,
       loggerService: mockLoggerService,
       aiService: mockAiService,
-      domainAgent: mockDomainAgent,
       agentManager: mockAgentManager,
     });
   });

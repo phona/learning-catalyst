@@ -6,6 +6,7 @@
  */
 
 import type { APIResponse } from './index';
+import type { StreamChunk } from '../ai';
 
 export type ErrorCategory =
   | 'rate_limit'
@@ -39,10 +40,42 @@ export interface TimelineEventPayload {
 }
 
 export type ChatStreamEvent =
-  | { type: 'chunk'; chunk: string }
+  | { type: 'chunk'; chunk: string | StreamChunk }
   | { type: 'complete' }
   | { type: 'error'; error?: string }
   | { type: 'status'; status: ChatStatus };
+
+// ---------------------------------------------------------------------------
+// Prompt search (cross-session)
+// ---------------------------------------------------------------------------
+
+export type PromptRole = 'user' | 'assistant';
+
+export interface PromptHistoryItem {
+  id: string;
+  sessionId: string;
+  role: PromptRole;
+  text: string;
+  createdAt: string;
+}
+
+export interface PromptSearchRequest {
+  sessionId?: string;
+  role?: PromptRole;
+  query?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PromptSearchResponse {
+  prompts: PromptHistoryItem[];
+  pagination: {
+    total?: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
 
 export interface ChatAPI {
   /**
@@ -181,6 +214,16 @@ export interface ChatAPI {
     userMessage: string;
     userContext?: UserLearningContext;
   }) => Promise<APIResponse<NaturalPracticeSuggestion>>;
+
+  /**
+   * Cross-session prompt search for history recall
+   * @param params.role - 'user' | 'assistant' (default 'user')
+   * @param params.sessionId - optional session filter
+   * @param params.query - optional text search
+   * @param params.limit - default 50
+   * @param params.offset - default 0
+   */
+  searchPrompts: (params: PromptSearchRequest) => Promise<APIResponse<PromptSearchResponse>>;
 }
 
 // ============================================================================

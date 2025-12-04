@@ -128,7 +128,6 @@ describe('chat-service main coverage', () => {
   let loggerService: any;
   let aiService: any;
   let agentManager: any;
-  let domainAgent: any;
   let service: ReturnType<typeof createChatService>;
 
   beforeEach(() => {
@@ -149,8 +148,7 @@ describe('chat-service main coverage', () => {
       runAgent: vi.fn(async () => ({ content: 'AlphaBetaGamma' })),
       getAgent: vi.fn(() => mockAgent),
     };
-    domainAgent = { stream: vi.fn() };
-    service = createChatService({ db, loggerService, aiService, domainAgent, agentManager });
+    service = createChatService({ db, loggerService, aiService, agentManager });
   });
 
   it('creates conversation and persists', async () => {

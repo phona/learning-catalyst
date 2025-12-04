@@ -27,6 +27,7 @@ import type {
   CheckpointRow,
   CheckpointWriteRow,
   CheckpointBlobRow,
+  PracticeAttemptRow,
 } from '@/shared/types/database';
 
 // Core Kysely interface for the entire database
@@ -43,6 +44,7 @@ export interface Database extends SharedDatabase {
   agent_lifecycle_events: AgentLifecycleEventRow;
   agent_states: AgentStateRow;
   agent_archives: AgentArchiveRow;
+  practice_attempts: PracticeAttemptRow;
 }
 
 // Re-export shared types for convenience
@@ -62,6 +64,7 @@ export type {
   CheckpointRow,
   CheckpointWriteRow,
   CheckpointBlobRow,
+  PracticeAttemptRow,
 };
 
 // SessionConceptRow and other shared types are now imported from @/shared/types/database

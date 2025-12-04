@@ -57,6 +57,10 @@ export type {
   ChatStatus,
   ChatStreamEvent,
   ErrorCategory,
+  PromptHistoryItem,
+  PromptSearchRequest,
+  PromptSearchResponse,
+  PromptRole,
 } from './chat-api';
 export type { AgentDisplay, AgentContext } from './agent-api';
 

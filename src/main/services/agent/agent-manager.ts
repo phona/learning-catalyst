@@ -5,8 +5,11 @@ import type { LearningService } from '@/main/services/domain/learning/learning-s
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import { AgentToolDeps } from './tool-registry';
 import { LoggerService } from '../core/logger/logger-service';
+import type { Kysely } from 'kysely';
+import type { Database } from '@/main/services/core/database';
 import { createAssessmentAgent } from './assessment-agent';
 import { createLearningAgent } from './learning-agent';
+import { createLearningPlannerAgent } from './learning-planner-agent';
 import { createPracticeAgent } from './practice-agent';
 import { createSupervisorAgent } from './supervisor-agent';
 import { createTutoringAgent } from './tutoring-agent';
@@ -36,6 +39,7 @@ interface AgentManagerDeps {
   learningService: LearningService;
   loggerService: LoggerService;
   configService: ConfigService;
+  db: Kysely<Database>;
 }
 
 export const createAgentManager = async (deps: AgentManagerDeps) => {
@@ -48,17 +52,20 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     loggerService: deps.loggerService,
     configService: deps.configService,
     providerFactory,
+    db: deps.db,
   };
 
   // Function to create all agents
   const createAllAgents = async () => {
     const learningAgent = await createLearningAgent(toolDeps);
+    const learningPlannerAgent = await createLearningPlannerAgent(toolDeps);
     const tutoringAgent = await createTutoringAgent(toolDeps);
     const assessmentAgent = await createAssessmentAgent(toolDeps);
     const practiceAgent = await createPracticeAgent(toolDeps);
 
     const nonSupervisorAgents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent> = {
       learning: learningAgent,
+      learning_planner: learningPlannerAgent,
       tutoring: tutoringAgent,
       assessment: assessmentAgent,
       practice: practiceAgent,

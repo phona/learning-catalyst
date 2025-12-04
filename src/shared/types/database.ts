@@ -97,6 +97,19 @@ export interface MessageRow {
   created_at: string;
 }
 
+export interface PracticeAttemptRow {
+  id: string;
+  task_id: string;
+  concept_ids: string; // JSON array of concept ids
+  result: 'pass' | 'fail' | 'partial';
+  answer?: string;
+  error_tags?: string; // JSON array
+  rubric_scores?: string; // JSON object
+  timestamp: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface SessionConceptRow {
   id: string;
   session_id: string;

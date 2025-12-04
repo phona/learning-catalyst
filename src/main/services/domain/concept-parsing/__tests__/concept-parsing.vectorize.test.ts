@@ -21,14 +21,17 @@ describe('concept parsing vectorization', () => {
   it('always vectorizes when a vector DB is provided, even if vectorize flag is false', async () => {
     const addDocument = vi.fn().mockResolvedValue(undefined);
     const vectorDatabase = { addDocument };
-    const domainAgent: any = { chatModel: {} };
-    const aiService: any = {};
+    const providerFactory: any = {
+      getModel: vi.fn(async () => ({
+        model: {},
+        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
+      })),
+    };
     const loggerService: any = {
       child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
     };
     const svc = createConceptParsingService({
-      aiService,
-      domainAgent,
+      providerFactory,
       vectorDatabase,
       loggerService,
     });

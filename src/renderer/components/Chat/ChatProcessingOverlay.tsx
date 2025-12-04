@@ -84,31 +84,25 @@ const Row: React.FC<{
 
 export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false, targetMessageId }) => {
   const processingTrace = useChatStore((s) => s.processingTrace);
-  const isStreaming = useChatStore((s) => s.isStreaming);
   const setCollapsed = useChatStore((s) => (s as any).setProcessingTraceCollapsed);
 
   const hasTrace = processingTrace && Array.isArray((processingTrace as any).events);
-  if (!hasTrace || !processingTrace) return null;
-  if (targetMessageId && processingTrace.messageId !== targetMessageId) return null;
-
-  const events = processingTrace.events ?? [];
+  const matchesTarget = targetMessageId ? processingTrace?.messageId === targetMessageId : true;
 
   const totalLabel = useMemo(() => {
+    if (!hasTrace || !processingTrace) return '';
     const totalMs =
       (processingTrace.completedAt ?? Date.now()) - (processingTrace.startedAt ?? Date.now());
     const warnPart = processingTrace.warningCount ? ` | ${processingTrace.warningCount} warn` : '';
     const errorPart = processingTrace.errorCount ? ` | ${processingTrace.errorCount} err` : '';
-    return `⚡ ${formatMs(totalMs)} | ${processingTrace.toolCount} tools${warnPart}${errorPart}`;
-  }, [processingTrace]);
+    return `- ${formatMs(totalMs)} | ${processingTrace.toolCount} tools${warnPart}${errorPart}`;
+  }, [hasTrace, processingTrace]);
 
-  useEffect(() => {
-    if (processingTrace.collapsed) return;
-    if (processingTrace.completedAt && !isStreaming && typeof setCollapsed === 'function') {
-      const id = window.setTimeout(() => setCollapsed(true), 5000);
-      return () => window.clearTimeout(id);
-    }
-  }, [processingTrace, isStreaming, setCollapsed]);
+  if (!hasTrace || !processingTrace) return null;
+  if (!matchesTarget) return null;
 
+  const events = processingTrace.events ?? [];
+  // No timer-based auto-collapse; state collapse is driven by store (set when complete)
   const totalMs =
     (processingTrace.completedAt ?? Date.now()) - (processingTrace.startedAt ?? Date.now());
 
@@ -118,9 +112,29 @@ export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false, 
     }
   };
 
+  const body = (
+    <div className="space-y-2 font-mono text-xs text-gray-900 dark:text-gray-100">
+      {events.map((evt) => {
+        const elapsed = evt.at - processingTrace.startedAt;
+        const glyph = glyphFor(evt.kind, evt.phase);
+        return (
+          <Row
+            key={evt.id}
+            glyph={glyph}
+            label={evt.label}
+            detail={evt.detail}
+            elapsedMs={elapsed}
+            durationMs={evt.durationMs}
+            isError={evt.kind === 'error' || evt.phase === 'error'}
+          />
+        );
+      })}
+    </div>
+  );
+
   if (processingTrace.collapsed) {
     return (
-      <div className={`${inline ? 'mt-2 flex justify-end' : 'fixed bottom-4 right-4 z-30'}`}>
+      <div className={`${inline ? 'mt-1 flex justify-end' : 'fixed bottom-4 right-4 z-30'}`}>
         <Pill label={totalLabel} onClick={() => collapse(false)} inline={inline} />
       </div>
     );
@@ -128,54 +142,28 @@ export const ChatProcessingOverlay: React.FC<OverlayProps> = ({ inline = false, 
 
   return (
     <div
-      className={`${inline ? 'mt-2' : 'fixed bottom-4 right-4 z-30 w-96 max-w-full drop-shadow-lg'}`}
+      className={`${
+        inline ? 'mt-1' : 'fixed bottom-4 right-4 z-30 w-96 max-w-full drop-shadow-lg'
+      }`}
       data-testid="chat-processing-overlay"
     >
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
-        <header className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Processing trace</p>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">Thought + tool calls</p>
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2">
+        {body}
+        <div className="flex items-center justify-end gap-3 text-[11px] text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-1">
+            <ClockIcon className="w-3.5 h-3.5" />
+            <span>{formatMs(totalMs)}</span>
           </div>
-          <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-300">
-            <div className="flex items-center gap-1">
-              <ClockIcon className="w-4 h-4" />
-              <span>{formatMs(totalMs)}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => collapse(true)}
-              className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-700 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1"
-              aria-label="Collapse processing panel"
-            >
-              <ChevronDownIcon className="w-4 h-4" />
-              Collapse
-            </button>
-          </div>
-        </header>
-
-        <div className="max-h-72 overflow-auto p-4 space-y-3 font-mono">
-          {events.map((evt) => {
-            const elapsed = evt.at - processingTrace.startedAt;
-            const glyph = glyphFor(evt.kind, evt.phase);
-            return (
-              <Row
-                key={evt.id}
-                glyph={glyph}
-                label={evt.label}
-                detail={evt.detail}
-                elapsedMs={elapsed}
-                durationMs={evt.durationMs}
-                isError={evt.kind === 'error' || evt.phase === 'error'}
-              />
-            );
-          })}
+          <button
+            type="button"
+            onClick={() => collapse(true)}
+            className="px-2 py-1 rounded-md border border-gray-300 dark:border-gray-700 text-[11px] text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1"
+            aria-label="Collapse processing panel"
+          >
+            <ChevronDownIcon className="w-4 h-4" />
+            Collapse
+          </button>
         </div>
-
-        <footer className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 text-[11px] text-gray-600 dark:text-gray-400 flex items-center gap-2">
-          <ClockIcon className="w-3.5 h-3.5" />
-          <span>{totalLabel}</span>
-        </footer>
       </div>
     </div>
   );

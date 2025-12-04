@@ -23,12 +23,14 @@ import {
   formatDateTimeForHtml,
 } from '@/renderer/utils/timeUtils';
 import { copyToClipboard } from '@/renderer/utils/clipboardUtils';
+import { ChatProcessingOverlay } from './ChatProcessingOverlay';
 
 interface MessageBubbleProps {
   message: MessageDisplay;
   isStreaming?: boolean;
   onToggleThinking?: (messageId: string) => void;
   streamingProgress?: number;
+  processingTrace?: any;
   agentStatus?: {
     agentId: string;
     agentName: string;
@@ -48,6 +50,7 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   isStreaming = false,
   onToggleThinking,
   streamingProgress = 0,
+  processingTrace,
   agentStatus,
   performanceMetrics,
 }) => {
@@ -368,7 +371,14 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
           </section>
         )}
 
-        {/* Message content - simplified styling */}
+        {/* Processing trace (inline inside assistant bubble) */}
+        {!isUser && processingTrace && (
+          <div className="mb-2">
+            <ChatProcessingOverlay inline targetMessageId={message.id} />
+          </div>
+        )}
+
+        {/* Message content - simplified styling (placed after trace) */}
         <main
           id={`message-${message.id}`}
           className={`message-bubble relative ${

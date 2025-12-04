@@ -30,6 +30,7 @@ vi.mock('../practice-service', () => {
         knowledgeRelationships: 1,
       },
     }),
+    recordPracticeAttempt: vi.fn(),
   };
 
   return {
@@ -97,6 +98,7 @@ describe('Practice Service - Basic Tests', () => {
       domainAgent: mockDomainAgent,
       loggerService: mockLoggerService,
       knowledgeService: mockKnowledgeService,
+      db: {} as any,
     });
   });
 
@@ -104,6 +106,8 @@ describe('Practice Service - Basic Tests', () => {
     it('should create practice service with required methods', () => {
       expect(practiceService).toHaveProperty('generatePracticePlan');
       expect(typeof practiceService.generatePracticePlan).toBe('function');
+      expect(practiceService).toHaveProperty('recordPracticeAttempt');
+      expect(typeof practiceService.recordPracticeAttempt).toBe('function');
     });
 
     it('should have AI service dependency', () => {

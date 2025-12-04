@@ -119,6 +119,9 @@ const createChatMock = (overrides: Partial<Record<string, unknown>> = {}) => ({
   setError: vi.fn(),
   history: [],
   currentSessionId: null,
+  promptSearchResults: [],
+  searchPrompts: vi.fn().mockResolvedValue([]),
+  clearPromptSearchResults: vi.fn(),
   ...overrides,
 });
 
@@ -182,11 +185,13 @@ describe('ChatInput history UX', () => {
   });
 
   it('opens search palette with Ctrl+K and inserts selection', async () => {
+    const prompts = [
+      { id: 'h1', text: 'alpha prompt', sessionId: 's1', createdAt: 1 },
+      { id: 'h2', text: 'beta idea', sessionId: 's1', createdAt: 2 },
+    ];
     const chatMock = createChatMock({
-      history: [
-        { id: 'h1', text: 'alpha prompt', sessionId: 's1', createdAt: 1 },
-        { id: 'h2', text: 'beta idea', sessionId: 's1', createdAt: 2 },
-      ],
+      promptSearchResults: prompts,
+      searchPrompts: vi.fn().mockResolvedValue(prompts),
       currentSessionId: 's1',
     });
     mockUseChatStore.mockImplementation((selector?: any) => (selector ? selector(chatMock) : chatMock));
@@ -196,13 +201,13 @@ describe('ChatInput history UX', () => {
     const textarea = screen.getByPlaceholderText('Type your message here...');
 
     fireEvent.keyDown(textarea, { key: 'k', ctrlKey: true });
-    const searchBox = await screen.findByPlaceholderText(/Search history/i);
+    const searchBox = await screen.findByPlaceholderText(/Search prompts/i);
     fireEvent.change(searchBox, { target: { value: 'beta' } });
 
     const betaButton = await screen.findByText('beta idea');
     fireEvent.click(betaButton);
 
-    await waitFor(() => expect(screen.queryByPlaceholderText(/Search history/i)).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByPlaceholderText(/Search prompts/i)).not.toBeInTheDocument());
     expect((textarea as HTMLTextAreaElement).value).toBe('beta idea');
   });
 
@@ -219,10 +224,10 @@ describe('ChatInput history UX', () => {
     fireEvent.change(textarea, { target: { value: 'stay the same' } });
 
     fireEvent.keyDown(textarea, { key: 'k', ctrlKey: true });
-    const searchBox = await screen.findByPlaceholderText(/Search history/i);
+    const searchBox = await screen.findByPlaceholderText(/Search prompts/i);
     fireEvent.keyDown(searchBox, { key: 'Escape' });
 
-    expect(screen.queryByPlaceholderText(/Search history/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Search prompts/i)).not.toBeInTheDocument();
     expect(textarea.value).toBe('stay the same');
   });
 });

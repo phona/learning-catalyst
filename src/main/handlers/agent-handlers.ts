@@ -16,6 +16,8 @@ import { LoggerService } from '../services/core/logger/logger-service';
 import { AiService } from '../services/ai/ai-service';
 import { ConfigService } from '../services/core/config/config-service';
 import { KnowledgeService } from '../services/domain/knowledge/knowledge-service';
+import type { Kysely } from 'kysely';
+import type { Database } from '../services/core/database';
 import type { AgentType } from '@/main/services/agent/types';
 
 type AgentProcessMessageParams = {
@@ -82,9 +84,10 @@ export const setupAgentHandlers = async (
     analyticsService: AnalyticsService;
     loggerService: LoggerService;
     chatService: ChatService;
-    aiService: AiService;
-    conceptParsingService: ConceptParsingService;
-    configService: ConfigService;
+  aiService: AiService;
+  conceptParsingService: ConceptParsingService;
+  configService: ConfigService;
+  db: Kysely<Database>;
   },
 ): Promise<void> => {
   const handlerLogger = services.loggerService.child({ handler: 'agent' });
@@ -97,6 +100,7 @@ export const setupAgentHandlers = async (
     learningService: services.learningService,
     loggerService: services.loggerService,
     configService: services.configService,
+    db: services.db,
   });
 
   /**

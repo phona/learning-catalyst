@@ -11,7 +11,35 @@ import type {
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
 import type { ConfigService } from '@/main/services/core/config/config-service';
-import type { ToolServices, ToolParams, ToolResult } from './types';
+import type { ToolServices, ToolResult } from './types';
+import { ChatOpenAI } from '@langchain/openai';
+import { z } from 'zod';
+import {
+  PracticeBlockSchema,
+  SessionBlueprintSchema,
+  createSessionBlueprintChain,
+} from '../prompts/session-blueprint';
+import { sql } from 'kysely';
+
+const safeJsonArray = (value?: string): string[] => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const safeJsonObject = <T extends Record<string, any>>(value?: string): T | undefined => {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(value);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as T) : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 /**
  * Content Analysis Tool
@@ -253,111 +281,266 @@ export const learningPathTool = (services: ToolServices) => {
 };
 
 /**
- * Assessment Tool
- * Creates, evaluates, and provides feedback on assessments
+ * Assessment evidence + grading tools
+ * These are the ONLY tools the assessment agent should call.
  */
-export const assessmentTool = (services: ToolServices) => {
+export type PracticeAttempt = {
+  taskId: string;
+  conceptIds: string[];
+  result: 'pass' | 'fail' | 'partial';
+  answer?: string;
+  errorTags?: string[];
+  rubricScores?: {
+    retrieval?: number;
+    application?: number;
+    teachBack?: number;
+  };
+  timestamp?: string;
+};
+
+export type DiscussionTurn = {
+  text: string;
+  conceptIds?: string[];
+  timestamp?: string;
+};
+
+export type GoalArtifact = {
+  type: 'code' | 'text' | 'quiz' | 'other';
+  content: string;
+  conceptIds?: string[];
+  timestamp?: string;
+};
+
+const requireConcepts = (conceptIds?: string[]) => {
+  if (!conceptIds || conceptIds.length === 0) {
+    return {
+      success: false,
+      error: 'conceptIds is required and cannot be empty',
+    } as const;
+  }
+  return null;
+};
+
+export const fetchPracticeHistoryTool = (services: ToolServices) => {
   return async (params: {
-    action: 'create' | 'evaluate' | 'feedback';
-    type: 'quiz' | 'exercise' | 'open_response' | 'coding';
-    content: string;
-    answer?: string;
-    context?: Record<string, unknown>;
+    conceptIds: string[];
+    since?: string;
   }): Promise<ToolResult> => {
-    if (!params.content?.trim()) {
-      return {
-        success: false,
-        error: 'Content is required for assessment operations',
-      };
-    }
+    const validation = requireConcepts(params?.conceptIds);
+    if (validation) return validation;
 
-    if (params.action === 'evaluate' && !params.answer) {
-      return {
-        success: false,
-        error: 'Answer is required for evaluation',
-      };
-    }
-
-    const logger = services.loggerService.child({ tool: 'assessment' });
-    logger.info('Assessment operation requested', {
-      action: params.action,
-      type: params.type,
-      contentLength: params.content.length,
+    const logger = services.loggerService.child({ tool: 'fetch-practice-history' });
+    logger.info('Fetching practice history', {
+      conceptCount: params.conceptIds.length,
+      since: params.since,
     });
 
     try {
-      let systemPrompt = '';
-      let userPrompt = params.content;
+      // Ensure practice_attempts table exists; if not, surface an error (no fallback)
+      await sql`select 1 from practice_attempts limit 1`.execute(services.db);
 
-      switch (params.action) {
-        case 'create':
-          systemPrompt = `Create an assessment of type ${params.type} based on the provided content. For quizzes, provide multiple choice questions. For exercises, provide practical tasks. For open responses, provide essay questions. For coding, provide programming challenges.`;
-          break;
+      const rows = await sql<
+        {
+          task_id: string;
+          concept_ids?: string;
+          result: string;
+          answer?: string;
+          error_tags?: string;
+          rubric_scores?: string;
+          timestamp?: string;
+        }[]
+      >`select task_id, concept_ids, result, answer, error_tags, rubric_scores, timestamp from practice_attempts order by timestamp desc limit 50`
+        .execute(services.db);
 
-        case 'evaluate':
-          systemPrompt = `Evaluate the user's answer to an assessment question. Provide detailed feedback on correctness, completeness, and suggestions for improvement.`;
-          userPrompt = `Question: ${params.content}\nUser's answer: ${params.answer}`;
-          break;
-
-        case 'feedback':
-          systemPrompt = `Provide constructive feedback on the provided content or response. Focus on areas of strength and areas for improvement.`;
-          break;
-      }
-
-      // Get model configuration
-      const configResult = await services.configService.get('ai.modelTypes.chat');
-      const modelConfig =
-        typeof configResult === 'object' && configResult !== null
-          ? (configResult as any)
-          : {
-              provider: 'openai',
-              model: 'gpt-4o',
-              temperature: 0.4,
-              maxTokens: 4096,
-            };
-
-      // Validate API key exists
-      if (!modelConfig.apiKey) {
-        return {
-          success: false,
-          error: 'API key is required for assessment operations',
-        };
-      }
-
-      const result = await services.aiService.chatCompletion({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        modelConfig: {
-          provider: modelConfig.provider || 'openai',
-          model: modelConfig.model || 'gpt-4o',
-          apiKey: modelConfig.apiKey,
-          temperature: modelConfig.temperature || 0.4,
-          maxTokens: modelConfig.maxTokens || 4096,
-        },
-      });
+      const attempts: PracticeAttempt[] = rows.rows
+        .map((row) => {
+          const conceptIds = row.concept_ids ? safeJsonArray(row.concept_ids) : [];
+          const errorTags = row.error_tags ? safeJsonArray(row.error_tags) : undefined;
+          const rubricScores = row.rubric_scores
+            ? safeJsonObject<Record<string, number>>(row.rubric_scores)
+            : undefined;
+          const normalizedResult =
+            row.result === 'pass' || row.result === 'fail' || row.result === 'partial'
+              ? row.result
+              : 'partial';
+          return {
+            taskId: row.task_id,
+            conceptIds: conceptIds.length ? conceptIds : params.conceptIds,
+            result: normalizedResult,
+            answer: row.answer ?? undefined,
+            errorTags,
+            rubricScores: rubricScores
+              ? {
+                  retrieval: rubricScores.retrieval,
+                  application: rubricScores.application,
+                  teachBack: rubricScores.teachBack,
+                }
+              : undefined,
+            timestamp: row.timestamp ?? undefined,
+          };
+        })
+        .filter((a) => a.conceptIds.length > 0);
 
       return {
         success: true,
         data: {
-          action: params.action,
-          type: params.type,
-          content: params.content,
-          answer: params.answer,
-          feedback: result.content,
-          model: result.model,
-          usage: result.usage,
-          timestamp: new Date().toISOString(),
+          attempts,
+          source: 'practice_attempts',
+          fetchedAt: new Date().toISOString(),
         },
       };
     } catch (error) {
-      logger.error('Assessment operation failed', { error, action: params.action });
       return {
         success: false,
-        error: `Assessment ${params.action} failed: ${error instanceof Error ? error.message : String(error)}`,
+        error: `practice_attempts query failed (table missing or other error): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       };
     }
+  };
+};
+
+export const fetchDiscussionTranscriptTool = (services: ToolServices) => {
+  return async (params: {
+    conceptIds?: string[];
+    limit?: number;
+  }): Promise<ToolResult> => {
+    const logger = services.loggerService.child({ tool: 'fetch-discussion-transcript' });
+    logger.info('Fetching discussion transcript', {
+      conceptCount: params.conceptIds?.length ?? 0,
+      limit: params.limit,
+    });
+
+    try {
+      const limit = Math.min(params.limit ?? 15, 50);
+      await sql`select 1 from messages limit 1`.execute(services.db);
+      const rows = await sql<{ content: string; timestamp: string }[]>`
+        select content, timestamp
+        from messages
+        where content is not null and trim(content) <> ''
+        order by timestamp desc
+        limit ${limit}
+      `.execute(services.db);
+
+      const turns: DiscussionTurn[] = rows.rows
+        .map((row) => ({
+          text: row.content,
+          conceptIds: params.conceptIds,
+          timestamp: row.timestamp,
+        }))
+        .filter((t) => t.text);
+
+      return {
+        success: true,
+        data: { turns, source: 'messages', fetchedAt: new Date().toISOString() },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `messages query failed (table missing or other error): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+  };
+};
+
+export const fetchGoalArtifactsTool = (services: ToolServices) => {
+  return async (params: {
+    goal: string;
+  }): Promise<ToolResult> => {
+    if (!params.goal?.trim()) {
+      return { success: false, error: 'goal is required to fetch goal artifacts' };
+    }
+
+    const logger = services.loggerService.child({ tool: 'fetch-goal-artifacts' });
+    logger.info('Fetching goal artifacts', {
+      goal: params.goal.slice(0, 100),
+    });
+
+    try {
+      await sql`select 1 from messages limit 1`.execute(services.db);
+      const rows = await sql<{ content: string; timestamp: string }[]>`
+        select content, timestamp
+        from messages
+        where content is not null and trim(content) <> ''
+        order by timestamp desc
+        limit 20
+      `.execute(services.db);
+
+      const artifacts: GoalArtifact[] = rows.rows
+        .map((row) => {
+          const isCode = /```/.test(row.content) || /function|class|const|let|var/.test(row.content);
+          const type: GoalArtifact['type'] = isCode ? 'code' : 'text';
+          return {
+            type,
+            content: row.content,
+            conceptIds: [],
+            timestamp: row.timestamp,
+          };
+        })
+        .filter((a) => a.content);
+
+      return {
+        success: true,
+        data: { artifacts, source: 'messages', fetchedAt: new Date().toISOString() },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `messages query failed (table missing or other error): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+  };
+};
+
+export const gradeOpenAnswerTool = (services: ToolServices) => {
+  return async (params: {
+    question: string;
+    answer: string;
+    rubric: { points: string[] };
+  }): Promise<ToolResult> => {
+    if (!params.question?.trim()) {
+      return { success: false, error: 'question is required for grading' };
+    }
+    if (!params.answer?.trim()) {
+      return { success: false, error: 'answer is required for grading' };
+    }
+    if (!params.rubric?.points?.length) {
+      return { success: false, error: 'rubric.points must include at least one expectation' };
+    }
+
+    const logger = services.loggerService.child({ tool: 'grade-open-answer' });
+    logger.info('Grading open answer', {
+      questionLength: params.question.length,
+      answerLength: params.answer.length,
+      rubricPoints: params.rubric.points.length,
+    });
+
+    // Lightweight heuristic: score based on keyword hits
+    const normalizedAnswer = params.answer.toLowerCase();
+    const hits = params.rubric.points.filter((point) =>
+      normalizedAnswer.includes(point.toLowerCase()),
+    ).length;
+    const score = Math.min(1, Math.max(0, hits / params.rubric.points.length));
+
+    const errorTags = score >= 0.75 ? [] : ['missing_points'];
+    const note =
+      score >= 0.75
+        ? 'Covers most rubric points'
+        : 'Answer misses some rubric points; prompt learner to add specifics';
+
+    return {
+      success: true,
+      data: {
+        score,
+        errorTags,
+        note,
+        rubricPoints: params.rubric.points,
+      },
+    };
   };
 };
 
@@ -489,99 +672,163 @@ export const conceptMappingTool = (services: ToolServices) => {
   };
 };
 
-export const sessionBlueprintTool = (services: any) => {
+/**
+ * Session planner helpers and types
+ */
+export type PracticeBlock = z.infer<typeof PracticeBlockSchema>;
+export type SessionBlueprint = z.infer<typeof SessionBlueprintSchema>;
+export type LearnerLevel = SessionBlueprint['learnerProfile']['level'];
+
+const DEFAULT_TIME_AVAILABLE = 60;
+
+const ensureGoalText = (topic: string, userGoal?: string, goals?: string[]): { userGoal: string; successCriteria: string[] } => {
+  const goalText = userGoal || goals?.[0] || `Learn the basics of ${topic}`;
+  const criteria = (goals && goals.length > 0 ? goals : [`Can explain the core idea of ${topic}`]).slice(0, 3);
+  return { userGoal: goalText, successCriteria: criteria };
+};
+
+const buildPlanPayload = (params: {
+  topic: string;
+  level: LearnerLevel;
+  timeAvailable: number;
+  constraints: string[];
+  goal: { userGoal: string; successCriteria: string[] };
+  allowExternal: boolean;
+}) => {
+  return JSON.stringify({
+    topic: params.topic,
+    level: params.level,
+    timeAvailable: params.timeAvailable,
+    constraints: params.constraints,
+    goal: params.goal,
+    allowExternal: params.allowExternal,
+  });
+};
+
+/**
+ * Compute confidence from practice signals (behavioral, not self-report).
+ */
+export const computeConfidence = (input: {
+  retrievalScore: number;
+  applyPass: boolean;
+  teachBackPass: boolean;
+  openAnswerQuality: number; // 0-2
+  hintsUsed: number;
+  attempts: number;
+  timeOnTarget: boolean;
+  errorTags?: string[];
+}): 'low' | 'med' | 'high' => {
+  let score = 0;
+  if (input.retrievalScore >= 85) score += 1;
+  if (input.applyPass) score += 1;
+  if (input.teachBackPass) score += 1;
+  if (input.hintsUsed === 0 && input.attempts === 1 && input.timeOnTarget) score += 1;
+  if (input.errorTags?.length) {
+    score -= Math.min(input.errorTags.length, 2);
+  }
+  if (input.openAnswerQuality === 2) score += 1;
+  if (input.openAnswerQuality === 0) score -= 1;
+
+  if (score <= 1) return 'low';
+  if (score === 2) return 'med';
+  return 'high';
+};
+
+/**
+ * Evaluate mastery/outcome using performance + confidence.
+ */
+export const evaluateOutcome = (input: {
+  retrievalScore: number;
+  applyPass: boolean;
+  teachBackPass: boolean;
+  openAnswerQuality: number; // 0-2
+  confidence: 'low' | 'med' | 'high';
+}) => {
+  const done = input.retrievalScore >= 80 && input.applyPass && input.teachBackPass;
+  if (!done) {
+    return { done: false, nextStep: 'repeat' as const };
+  }
+  if (input.confidence === 'low' || input.confidence === 'med') {
+    return { done: true, nextStep: 'reinforce' as const };
+  }
+  return { done: true, nextStep: 'advance' as const };
+};
+
+export const sessionBlueprintTool = (services: ToolServices) => {
   return async (params: {
     topic: string;
-    goals: string[];
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-    learningStyle: string;
+    userGoal?: string;
+    goals?: string[];
+    level?: LearnerLevel;
+    timeAvailable?: number;
+    constraints?: string[];
+    allowExternal?: boolean;
   }): Promise<ToolResult> => {
-    const { aiService, loggerService } = services;
-    const fallbackModules = (params.goals.length ? params.goals : ['Understand core concept']).map(
-      (goal, index) => ({
-        title: `Focus ${index + 1}: ${goal}`,
-        type: (index === params.goals.length - 1 ? 'assessment' : 'lesson') as
-          | 'assessment'
-          | 'exercise'
-          | 'quiz'
-          | 'lesson',
-        focus: goal,
-        durationMinutes: 25 + index * 10,
-        objectives: [goal, 'Apply in practice', 'Reflect on learning'],
-        resources: ['Review notes', 'Hands-on exercise', 'Reflection prompts'],
-      }),
-    );
-    const fallback = {
-      summary: `Plan to explore ${params.topic} with emphasis on ${params.goals.join(', ') || 'core fundamentals'}.`,
-      timeline: ['Warm-up & review', 'Deep dive', 'Practice & reflection'],
-      modules: fallbackModules.slice(0, 4),
-      recommendations: [
-        'Capture quick wins after each module',
-        'Schedule a follow-up practice session tomorrow',
-      ],
-    };
+    const { loggerService, configService } = services;
+    if (!params.topic?.trim()) {
+      return { success: false, error: 'Topic is required for session blueprint operations' };
+    }
+
+    if (!params.level) {
+      return { success: false, error: 'level is required (novice|intermediate|advanced); no defaults' };
+    }
+
+    const level: LearnerLevel = params.level;
+    const timeAvailable = Number.isFinite(params.timeAvailable) ? Math.max(Number(params.timeAvailable), 15) : DEFAULT_TIME_AVAILABLE;
+    const constraintList = params.constraints ?? [];
+    const goal = ensureGoalText(params.topic, params.userGoal, params.goals);
+    const allowExternal = params.allowExternal ?? false;
+
     const sessionDescriptor = {
       topic: params.topic,
-      goals: params.goals,
-      difficulty: params.difficulty,
-      learningStyle: params.learningStyle,
+      level,
+      goal,
+      timeAvailable,
+      constraints: constraintList,
+      allowExternal,
       timestamp: new Date().toISOString(),
     };
-    const systemPrompt =
-      'You are an AI learning session planner. Return concise JSON with session summary, timeline, modules (title, type, focus, durationMinutes, objectives, resources), and actionable recommendations.';
-    const userInput = JSON.stringify({ session: sessionDescriptor }, null, 2);
-    const modelConfig = aiService.getModelPreset('learning.plan');
     try {
-      if (services.domainAgent) {
-        const { createStructuredJsonRunner } = await import(
-          '@/main/services/domain/shared/structured-json-runner'
-        );
-        const runner = createStructuredJsonRunner({
-          aiService,
-          domainAgent: services.domainAgent,
-          logger: loggerService.child({ tool: 'session-blueprint' }),
-          modelConfig,
-        });
-        const data = await runner.runStructuredJson({
-          systemPrompt,
-          input: userInput,
-          fallbackPrompt: `${systemPrompt}\n${userInput}`,
-          fallback,
-          context: 'learning-session-blueprint',
-        });
-        return { success: true, data };
+      const chat = (await configService.get('ai.modelTypes.chat')) || ({} as any);
+      const providerName = chat?.provider || 'openai';
+      const provider = await configService.getProviderConfig(providerName);
+      const apiKey = provider?.apiKey || process.env.OPENAI_API_KEY || '';
+      if (!apiKey) {
+        return { success: false, error: 'API key is required for session blueprint operations' };
       }
-      const response = await aiService.chatCompletion({
-        messages: [
-          { role: 'system', content: 'You are an AI assistant that only returns valid JSON.' },
-          { role: 'user', content: `${systemPrompt}\n${userInput}` },
-        ],
-        modelConfig,
+      const llm = new ChatOpenAI({
+        apiKey,
+        model: chat?.model || 'gpt-4',
+        temperature: chat?.temperature ?? 0.4,
       });
-      const raw = response.content?.trim() || '';
-      const normalize = (text: string) => {
-        const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-        return fence ? fence[1].trim() : text.trim();
-      };
-      const parse = (text: string) => {
-        try {
-          return JSON.parse(text);
-        } catch {
-          const start = text.indexOf('{');
-          const end = text.lastIndexOf('}');
-          if (start !== -1 && end !== -1 && end >= start) {
-            try {
-              return JSON.parse(text.slice(start, end + 1));
-            } catch {}
-          }
-          return undefined;
-        }
-      };
-      const parsed = parse(normalize(raw));
-      return { success: true, data: parsed ?? fallback };
+      const chain = createSessionBlueprintChain(llm);
+      const result = await chain.invoke({
+        plan_payload: buildPlanPayload({
+          topic: sessionDescriptor.topic,
+          level: sessionDescriptor.level,
+          timeAvailable: sessionDescriptor.timeAvailable,
+          constraints: sessionDescriptor.constraints,
+          goal: sessionDescriptor.goal,
+          allowExternal: sessionDescriptor.allowExternal,
+        }),
+      });
+      const parsed = SessionBlueprintSchema.safeParse(result);
+      if (!parsed.success) {
+        loggerService.warn('Session blueprint schema validation failed', {
+          issues: parsed.error.issues,
+        });
+        return {
+          success: false,
+          error: 'Session blueprint response did not match schema',
+        };
+      }
+      return { success: true, data: parsed.data };
     } catch (error) {
       loggerService.warn('Session blueprint tool failed', { error });
-      return { success: true, data: fallback };
+      return {
+        success: false,
+        error: error instanceof Error ? `Session blueprint tool failed: ${error.message}` : 'Session blueprint tool failed',
+      };
     }
   };
 };

@@ -18,6 +18,10 @@ vi.mock('../learning-agent', () => ({
   createLearningAgent: vi.fn(() => createMockAgent('learning', 'response')),
 }));
 
+vi.mock('../learning-planner-agent', () => ({
+  createLearningPlannerAgent: vi.fn(() => createMockAgent('learning_planner', 'planner response')),
+}));
+
 vi.mock('../tutoring-agent', () => ({
   createTutoringAgent: vi.fn(() => createMockAgent('tutoring', 'tutoring response')),
 }));
@@ -176,6 +180,7 @@ describe('Agent Manager - Basic Tests', () => {
       learningService: mockLearningService,
       loggerService: mockLoggerService,
       configService: mockConfigService,
+      db: {} as any, // minimal stub; tools requiring db aren't invoked in these tests
     });
   });
 
@@ -197,12 +202,14 @@ describe('Agent Manager - Basic Tests', () => {
   describe('Agent Factory Initialization', () => {
     it('should initialize all agent types', async () => {
       const { createLearningAgent } = await import('../learning-agent');
+      const { createLearningPlannerAgent } = await import('../learning-planner-agent');
       const { createSupervisorAgent } = await import('../supervisor-agent');
       const { createTutoringAgent } = await import('../tutoring-agent');
       const { createAssessmentAgent } = await import('../assessment-agent');
       const { createPracticeAgent } = await import('../practice-agent');
 
       expect(createLearningAgent).toHaveBeenCalled();
+      expect(createLearningPlannerAgent).toHaveBeenCalled();
       expect(createTutoringAgent).toHaveBeenCalled();
       expect(createAssessmentAgent).toHaveBeenCalled();
       expect(createPracticeAgent).toHaveBeenCalled();
@@ -268,12 +275,9 @@ describe('Agent Manager - Basic Tests', () => {
   });
 
   describe('Different Agent Types', () => {
-    const agentTypes: Array<'learning' | 'tutoring' | 'assessment' | 'practice'> = [
-      'learning',
-      'tutoring',
-      'assessment',
-      'practice',
-    ];
+    const agentTypes: Array<
+      'learning' | 'learning_planner' | 'tutoring' | 'assessment' | 'practice'
+    > = ['learning', 'learning_planner', 'tutoring', 'assessment', 'practice'];
 
     agentTypes.forEach((agentType) => {
       it(`should run ${agentType} agent`, async () => {
@@ -363,6 +367,7 @@ describe('Agent Manager - Basic Tests', () => {
           learningService: mockLearningService,
           loggerService: mockLoggerService,
           configService: mockConfigService,
+          db: {} as any,
         }),
       ).rejects.toThrow('Config load failed');
     });

@@ -7,10 +7,10 @@ import type { ChatStatus, ErrorCategory } from '@/shared/types/electron-api/chat
 import type { LearningSessionRow, MessageRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
 import type { AiService } from '@/main/services/ai/ai-service';
-import type { DomainAgent } from '@/main/services/agent/domain-agent';
 import { ContextUpdateRequest } from '@/shared/types/practice';
 import { createUserContextTracker, UserContextTrackerService } from '@/main/services/core/context';
 import { TimelineCallbackHandler } from '@/main/services/agent/timeline-callback-handler';
+import type { StreamChunk, ToolCall } from '@/shared/types/ai';
 
 import type { BaseMessage } from "@langchain/core/messages";
 
@@ -150,13 +150,11 @@ export const createChatService = ({
   db,
   loggerService,
   aiService,
-  domainAgent,
   agentManager,
 }: {
   db: Kysely<CoreDatabase>;
   loggerService: LoggerService;
   aiService: AiService;
-  domainAgent: DomainAgent;
   agentManager: AgentManager;
 }) => {
   const serviceLogger = loggerService.child({ service: 'chat' });
@@ -648,7 +646,7 @@ export const createChatService = ({
       attachments?: MessageAttachment[];
       metadata?: Record<string, unknown>;
       onStatus?: (status: ChatStatus) => void;
-    }): Promise<{ userMessage: Message; stream: AsyncGenerator<string> }> => {
+    }): Promise<{ userMessage: Message; stream: AsyncGenerator<StreamChunk> }> => {
       serviceLogger.info('streamAssistantResponse invoked', {
         conversationId: params.conversationId,
       });
@@ -740,6 +738,33 @@ export const createChatService = ({
 
             const msgs = update?.messages ?? [];
             const last = msgs.length ? msgs[msgs.length - 1] : undefined;
+            const toolCallsRaw =
+              (last as any)?.tool_calls ?? (last as any)?.additional_kwargs?.tool_calls ?? [];
+            if (Array.isArray(toolCallsRaw) && toolCallsRaw.length > 0) {
+              const normalizedCalls: ToolCall[] = toolCallsRaw.map((call: any, index: number) => ({
+                id: String(
+                  call?.id ??
+                    call?.tool_call_id ??
+                    `call_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_${index}`,
+                ),
+                type: (call?.type as ToolCall['type']) ?? 'function',
+                function: {
+                  name: String(call?.function?.name ?? call?.name ?? 'unknown'),
+                  arguments:
+                    typeof call?.function?.arguments === 'string'
+                      ? call.function.arguments
+                      : JSON.stringify(
+                        call?.function?.arguments ?? call?.arguments ?? call?.args ?? {},
+                        null,
+                        2,
+                      ),
+                },
+              }));
+
+              const toolChunk: StreamChunk = { type: 'tool_call', tool_calls: normalizedCalls };
+              yield toolChunk;
+            }
+
             const raw = (last as any)?.content;
             let text = '';
             if (typeof raw === 'string') {
@@ -759,7 +784,7 @@ export const createChatService = ({
             }
 
             aggregated += text;
-            yield text;
+            yield { type: 'content', content: text };
             serviceLogger.debug('Stream chunk', {
               conversationId: conversation.id,
               len: text.length,
@@ -804,6 +829,49 @@ export const createChatService = ({
       };
 
       return { userMessage, stream: stream() };
+    },
+
+    searchPrompts: async (params: {
+      role?: 'user' | 'assistant';
+      sessionId?: string;
+      query?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const role = params.role ?? 'user';
+      const limit = Math.max(1, Math.min(params.limit ?? 50, 200));
+      const offset = Math.max(0, params.offset ?? 0);
+      const q = params.query?.trim();
+
+      let select = db
+        .selectFrom('messages')
+        .select(['id', 'session_id', 'role', 'content', 'created_at'])
+        .where('role', '=', role);
+
+      if (params.sessionId) {
+        select = select.where('session_id', '=', params.sessionId);
+      }
+
+      if (q && q.length > 0) {
+        select = select.where('content', 'like', `%${q}%`);
+      }
+
+      const rows = await select.orderBy('created_at', 'desc').limit(limit).offset(offset).execute();
+
+      return {
+        prompts: rows.map((row) => ({
+          id: row.id,
+          sessionId: row.session_id,
+          role: row.role as 'user' | 'assistant',
+          text: row.content,
+          createdAt: row.created_at,
+        })),
+        pagination: {
+          limit,
+          offset,
+          hasMore: rows.length === limit,
+        },
+      };
     },
 
     cancelStream: (conversationId: string) => {

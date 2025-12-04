@@ -16,22 +16,6 @@ const createLoggerService = () => {
   };
 };
 
-const createAiService = () => ({
-  getModelPreset: () => ({
-    model: 'test-model',
-    temperature: 0.2,
-    maxTokens: 1024,
-    apiKey: 'test-key',
-  }),
-  chatCompletion: vi.fn(async () => ({
-    content: JSON.stringify({ fallback: true }),
-    model: 'test-model',
-    usage: { totalTokens: 100, promptTokens: 50, completionTokens: 50 },
-    finishReason: 'stop',
-  })),
-  getProviders: vi.fn(() => ({})),
-  getAvailableModels: vi.fn(() => []),
-});
 
 type ResponseKey = 'learning-blueprint' | 'learning-summary';
 
@@ -45,7 +29,7 @@ const detectKey = (systemPrompt: string): ResponseKey => {
   throw new Error(`Unhandled system prompt: ${systemPrompt}`);
 };
 
-const createDomainAgent = () => {
+const createLearningAgent = () => {
   const responses = new Map<ResponseKey, string>();
 
   const mockAgent = {
@@ -55,53 +39,15 @@ const createDomainAgent = () => {
     reset() {
       responses.clear();
     },
-    invoke: vi.fn(
-      async ({
-        systemPrompt,
-        messages,
-      }: {
-        systemPrompt?: string;
-        messages?: { role: string; content: string }[];
-      }) => {
-        const promptSource = systemPrompt ?? messages?.[0]?.content ?? '';
-        const key = detectKey(promptSource);
-        if (!responses.has(key)) {
-          throw new Error(`No mock response for ${key}`);
-        }
-        return responses.get(key)!;
-      },
-    ),
-    stream: vi.fn().mockImplementation(async function* ({
-      systemPrompt,
-      messages,
-    }: {
-      systemPrompt?: string;
-      messages?: { role: string; content: string }[];
-    }) {
-      const promptSource = systemPrompt ?? messages?.[0]?.content ?? '';
+    invoke: vi.fn(async ({ messages }: { messages?: { role: string; content: string }[] }) => {
+      const promptSource = messages?.[0]?.content ?? '';
       const key = detectKey(promptSource);
       if (!responses.has(key)) {
         throw new Error(`No mock response for ${key}`);
       }
-      yield responses.get(key)!;
+      const content = responses.get(key)!;
+      return { messages: [{ role: 'ai', content }] } as any;
     }),
-    options: {},
-    graph: {},
-    name: 'test-agent',
-    description: 'test agent',
-    tags: [],
-    // Add missing ReactAgent properties
-    drawMermaidPng: vi.fn(),
-    drawMermaid: vi.fn(),
-    streamEvents: vi.fn().mockImplementation(async function* () {
-      yield { event: 'start', data: {} };
-    }),
-    updateState: vi.fn(),
-    getState: vi.fn(() => ({})),
-    withConfig: vi.fn(() => mockAgent),
-    withListeners: vi.fn(() => mockAgent),
-    withRetry: vi.fn(() => mockAgent),
-    withMiddlewares: vi.fn(() => mockAgent),
   } as any;
 
   return mockAgent;
@@ -111,12 +57,11 @@ describe('learning service (kysely)', () => {
   let testDb: Awaited<ReturnType<typeof createKyselyTestDb>>;
   let service: ReturnType<typeof createLearningService>;
   const loggerService = createLoggerService();
-  const aiService = createAiService();
-  const domainAgent = createDomainAgent();
+  const learningAgent = createLearningAgent();
 
   beforeEach(async () => {
-    domainAgent.reset();
-    domainAgent.setResponse('learning-blueprint', {
+    learningAgent.reset();
+    learningAgent.setResponse('learning-blueprint', {
       summary: 'Plan to explore Topic',
       timeline: ['Warm-up', 'Focus', 'Practice'],
       modules: [
@@ -132,7 +77,7 @@ describe('learning service (kysely)', () => {
       recommendations: ['Reflect after session'],
     });
 
-    domainAgent.setResponse('learning-summary', {
+    learningAgent.setResponse('learning-summary', {
       summary: {
         topicsCovered: ['Topic'],
         keyTakeaways: ['Key insight'],
@@ -151,8 +96,7 @@ describe('learning service (kysely)', () => {
     service = createLearningService({
       db: testDb.db,
       loggerService,
-      aiService,
-      domainAgent,
+      learningAgent,
     });
   });
 

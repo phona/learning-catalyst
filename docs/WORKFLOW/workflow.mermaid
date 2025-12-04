@@ -1,0 +1,86 @@
+flowchart TD
+    Start(["**User said**: Start Module X"]) --> DelegateConf["**Orchestrator**: Request Assessment"]
+
+    %% --- PATH A: FAST TRACK ---
+    subgraph FastTrack [Path A: Fast Track Assessment]
+        direction TB
+        DelegateConf --> FetchData["**Assessment Agent**: Fetch Profile & History"]
+        FetchData --> Analyze["**Assessment Agent**: Analyze Readiness"]
+        Analyze --> SendReport["**Assessment Agent**: Send Readiness Report"]
+        SendReport --> CheckConf{"**Orchestrator**: Confidence High?"}
+        
+        CheckConf -- Yes --> OfferSkip["**Orchestrator**: Offer: Skip to Quiz?"]
+        OfferSkip -- Yes --> DiagAssess["**Practice Agent**: Generate Diagnostic Assessment"]
+        DiagAssess --> PresentDiag["**Practice Agent**: Present Diagnostic Quiz"]
+        PresentDiag --> WaitDiag{{"Wait for User Answers\n(checkpoint)"}}
+        WaitDiag -- Answer --> Grade["**Assessment Agent**: Grade & Analyze Gaps"]
+        WaitDiag -- Timeout --> StrategyChange["**Orchestrator**: Suggest Break / Handoff"]
+        Grade --> CheckMastery{"**Orchestrator**: Mastery > 90%?"}
+        CheckMastery -- Yes --> Complete(["**Orchestrator**: Module Complete / Expert"])
+        CheckMastery -- No --> PlanUpdate["**Orchestrator**: Update Learning Plan (Gap-Focused)"]
+        PlanUpdate --> StandardStart
+    end
+
+    CheckConf -- No --> StandardStart
+    OfferSkip -- No --> StandardStart
+
+    %% --- PATH B: STANDARD LEARNING ---
+    subgraph StandardLoop [Path B: Standard Learning Loop]
+        direction TB
+        StandardStart("**Orchestrator**: Start Topic (Gap-Aware)") --> CheckProfile{"**Orchestrator**: Check User Profile"}
+        
+        subgraph TeachingPhase [Adaptive Teaching Phase]
+            direction TB
+            CheckProfile --> SelectStrategy["**Orchestrator**: Select Strategy: Visual/Text/Interactive"]
+            SelectStrategy --> Deliver["**Learning Agent**: Deliver Lesson Content"]
+            Deliver --> Dialogue["**User ↔ Learning Agent**: Q&A / Clarify"]
+            Dialogue --> MicroCheck{"**Learning Agent**: Quick Concept Check"}
+            MicroCheck -- No --> AltExplain["**Learning Agent**: Explain Differently"]
+            AltExplain --> MicroCheck
+        end
+
+        MicroCheck -- Yes --> PracticeStart("**Practice Agent**: Generate Problem")
+        PracticeStart --> PresentProblem["**Practice Agent**: Present Problem"]
+        PresentProblem --> WaitAnswer{{"Wait for User Answer\n(checkpoint)"}}
+        WaitAnswer -- Answer --> UserAnswer[/"**User**: Answer"/]
+        UserAnswer --> Eval{"**Assessment Agent**: Evaluate"}
+        WaitAnswer -- Timeout --> StrategyChange["**Orchestrator**: Suggest Break / Handoff"]
+    end
+
+    %% --- OUTCOMES ---
+    Eval -- Correct --> MasteryCheck{"**Assessment Agent**: Mastery Pulse Check?"}
+    MasteryCheck -- Yes --> LogSuccess["**Orchestrator**: Log Success"]
+    MasteryCheck -- No --> PracticeStart
+    LogSuccess --> NextTopic{"**Orchestrator**: More Topics?"}
+    NextTopic -- Yes --> StandardStart
+    NextTopic -- No --> Complete
+
+    %% --- PATH C & D: REMEDIATION ---
+    subgraph Remediation [Path C/D: Remediation & Circuit Breaker]
+        direction TB
+        Eval -- Incorrect --> LogFail["**Orchestrator**: Log Error"]
+        LogFail --> CheckFoundation{"**Orchestrator**: Missing Foundation?"}
+        
+        %% Path C
+        CheckFoundation -- Yes --> InjectPrereq["**Orchestrator**: Inject Prerequisite Module Y"]
+        InjectPrereq --> Recurse[["**Orchestrator**: Recursive Execute Module Y"]]
+        Recurse --> ReTeach["**Learning Agent**: Re-Teach Concept"]
+        ReTeach --> PracticeStart
+
+        %% Path D
+        CheckFoundation -- No --> CheckBreaker{"**Orchestrator**: Fail Count > 3?"}
+        CheckBreaker -- Yes --> StrategyChange["**Orchestrator**: Suggest Break / Handoff"]
+        StrategyChange --> EndFail(["**Orchestrator**: Circuit Breaker / Exit"])
+        
+        CheckBreaker -- No --> Hint["**Learning Agent**: Targeted Hint"]
+        Hint --> PracticeStart
+    end
+
+    %% Formatting
+    classDef success fill:#dcf,stroke:#333,stroke-width:2px;
+    classDef fail fill:#fdd,stroke:#333,stroke-width:2px;
+    classDef process fill:#eee,stroke:#333,stroke-width:1px;
+    
+    class Start,Complete,EndFail success
+    class InjectPrereq,Recurse fail
+    class DiagAssess,PracticeStart,Deliver,AltExplain,ReTeach,Hint,SelectStrategy process

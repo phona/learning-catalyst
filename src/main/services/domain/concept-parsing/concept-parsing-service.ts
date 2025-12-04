@@ -3,7 +3,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { app } from 'electron';
 import type { ILogger } from '../../types';
-import type { AiService } from '@/main/services/ai/ai-service';
 import {
   createPreparsedMaterial,
   previewToPromptPayload,
@@ -12,7 +11,7 @@ import {
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { VectorDatabase } from '../knowledge/vector/vector-database';
-import type { DomainAgent } from '@/main/services/agent/domain-agent';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 import type {
   ConceptParsingResult,
   ParsedConcept,
@@ -59,8 +58,7 @@ type ConceptSegment = {
 };
 
 type ConceptParsingDeps = {
-  aiService: AiService;
-  domainAgent: DomainAgent;
+  providerFactory: ProviderFactory;
   vectorDatabase?: VectorDatabase;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
 };
@@ -433,13 +431,12 @@ const addSegmentToVector = async (
 };
 
 export const createConceptParsingService = ({
-  aiService,
-  domainAgent,
+  providerFactory,
   vectorDatabase,
   loggerService,
 }: ConceptParsingDeps) => {
   const serviceLogger = loggerService.child({ service: 'concept-parsing' });
-  const segmentExtractChain = createSegmentExtractChain(domainAgent.chatModel);
+  let currentProviderFactory = providerFactory;
 
   const extractSegment = async (
     segment: ConceptSegment,
@@ -452,6 +449,7 @@ export const createConceptParsingService = ({
     });
     const previewPayload = previewToPromptPayload(preview);
     const lines = segment.content.split(/\r?\n/).length;
+    const modelEntry = await currentProviderFactory.getModel();
     serviceLogger.info('Segment extraction start', {
       segmentId: segment.id,
       segmentTitle: segment.title,
@@ -459,10 +457,12 @@ export const createConceptParsingService = ({
       lines,
       promptLength: previewPayload.length,
       previewStats: preview.stats,
-      model: JSON.stringify(domainAgent.chatModel),
+      provider: modelEntry.settings.providerName,
+      model: modelEntry.settings.model,
     });
     try {
-      const result = (await segmentExtractChain.invoke({
+      const chain = createSegmentExtractChain(modelEntry.model as any);
+      const result = (await chain.invoke({
         preview_payload: previewPayload,
       })) as SegmentExtractionSchema;
       // const durationMs = Date.now() - startTs;
@@ -812,7 +812,6 @@ export const createConceptParsingService = ({
             serviceLogger.error('Concept segment processing failed', error, {
               segmentId: segment.id,
               segmentTitle: segment.title,
-              model: JSON.stringify(domainAgent.chatModel),
               details: JSON.stringify(error),
             });
             processingTime += Date.now() - start;
@@ -877,11 +876,7 @@ export const createConceptParsingService = ({
 
   return {
     parseMaterials,
-    rebuild: async (agent?: DomainAgent) => {
-      if (agent) {
-        domainAgent = agent;
-      }
-    },
+    rebuild: async () => {},
     clearJobCache: async (): Promise<{ removed: number }> => {
       const dir = resolveJobStoreDir();
       try {

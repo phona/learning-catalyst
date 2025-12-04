@@ -361,6 +361,37 @@ export const setupChatHandlers = (
     return ok(history);
   });
 
+  ipcMainInstance.handle(
+    'chat:search-prompts',
+    async (
+      _event,
+      params: {
+        role?: 'user' | 'assistant';
+        sessionId?: string;
+        query?: string;
+        limit?: number;
+        offset?: number;
+      },
+    ) => {
+      handlerLogger.info('Searching prompts', {
+        role: params?.role,
+        sessionId: params?.sessionId,
+        hasQuery: Boolean(params?.query),
+      });
+      try {
+        const result = await services.chatService.searchPrompts(params ?? {});
+        return ok(result);
+      } catch (error) {
+        handlerLogger.error('Failed to search prompts', error);
+        return fail(
+          IPC_ERROR_CODES.chat.unavailable,
+          (error as Error)?.message ?? 'Unable to search prompts',
+          error,
+        );
+      }
+    },
+  );
+
   ipcMainInstance.handle('chat:pause-conversation', async (_event, conversationId: string) => {
     handlerLogger.info('Pausing conversation', { conversationId });
     await services.chatService.pauseConversation(conversationId);

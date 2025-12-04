@@ -29,13 +29,17 @@ describe('concept parsing depth', () => {
     vi.resetModules();
   });
 
-  const domainAgent: any = { chatModel: {} };
-  const aiService: any = {};
+  const providerFactory: any = {
+    getModel: vi.fn(async () => ({
+      model: {},
+      settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
+    })),
+  };
   const vectorDatabase: any = undefined;
   const loggerService: any = { child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }) };
 
   it('splits by headings up to selected depth and continues on errors', async () => {
-    const svc = createConceptParsingService({ aiService, domainAgent, vectorDatabase, loggerService });
+    const svc = createConceptParsingService({ providerFactory, vectorDatabase, loggerService });
     const content = ['# H1', 'alpha beta gamma', '## H2', 'delta epsilon zeta', '### H3', 'eta theta iota'].join('\n');
     const res = await svc.parseMaterials(
       [{ id: 'm1', title: 't', content, format: 'markdown' }],

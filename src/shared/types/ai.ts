@@ -56,6 +56,7 @@ export interface StreamChunk {
   usage?: TokenUsage;
   error?: string;
   status?: unknown;
+  tool_calls?: ToolCall[];
 }
 
 export interface TokenUsage {

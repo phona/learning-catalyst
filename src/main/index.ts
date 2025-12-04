@@ -28,7 +28,7 @@ import { createContentService } from '@/main/services/domain/content/content-ser
 import { createAnalyticsService } from '@/main/services/domain/analytics/analytics-service';
 import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager';
 import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager';
-import { createDomainAgent } from '@/main/services/agent/domain-agent';
+import { createProviderFactory } from '@/main/services/agent/provider-factory';
 import { IPC_ERROR_CHANNEL, MAX_ERROR_BUFFER_SIZE } from '@/shared/types/ipc-error';
 import { createVectorDatabase } from './services/domain/knowledge/vector/vector-database';
 import { createQdrantManager } from '@/main/qdrant-manager';
@@ -314,9 +314,6 @@ async function createWindow(): Promise<void> {
     applyStructuredErrorHandling();
     setupSettingsHandlers({ configService });
 
-    const domainAgent = await createDomainAgent({
-      configService,
-    });
 
     const aiServiceManager = createAiServiceManager({
       loggerService,
@@ -332,8 +329,6 @@ async function createWindow(): Promise<void> {
     const learningService = createLearningService({
       db: database,
       loggerService,
-      aiService,
-      domainAgent,
     });
 
     qdrantManagerInstance = createQdrantManager();
@@ -348,19 +343,13 @@ async function createWindow(): Promise<void> {
       loggerService,
     });
 
+    const providerFactory = createProviderFactory(configService);
     const conceptParsingService = createConceptParsingService({
-      aiService,
-      domainAgent,
+      providerFactory,
       vectorDatabase,
       loggerService,
     });
 
-    const practiceService = createPracticeService({
-      aiService,
-      domainAgent,
-      loggerService,
-      knowledgeService,
-    });
 
     const analyticsService = createAnalyticsService({ db: database, loggerService });
 
@@ -373,13 +362,23 @@ async function createWindow(): Promise<void> {
       learningService,
       loggerService,
       configService,
+      db: database,
+    });
+
+    const learningAgent = agentManager.getAgent('learning');
+    await learningService.rebuild(learningAgent);
+    const practiceAgent = agentManager.getAgent('practice');
+    const practiceService = createPracticeService({
+      practiceAgent,
+      loggerService,
+      knowledgeService,
+      db: database,
     });
 
     const chatService = createChatService({
       db: database,
       loggerService,
       aiService,
-      domainAgent,
       agentManager,
     });
 
@@ -405,10 +404,9 @@ async function createWindow(): Promise<void> {
     console.log('IPC channels registered', { count: channels.length, channels });
     aiServiceManager.onConfigReloaded(async () => {
       try {
-        const updatedAgent = await createDomainAgent({ configService });
-        await conceptParsingService.rebuild(updatedAgent);
-        await practiceService.rebuild(updatedAgent);
-        await learningService.rebuild(updatedAgent);
+        await conceptParsingService.rebuild();
+        await practiceService.rebuild();
+        await learningService.rebuild(agentManager.getAgent('learning'));
       } catch (error) {
         reportMainError(error, 'configReload');
       }

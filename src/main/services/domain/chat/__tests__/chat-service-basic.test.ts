@@ -14,7 +14,6 @@ describe('Chat Service - Basic Structure Tests', () => {
   let mockDb: any;
   let mockLoggerService: any;
   let mockAiService: any;
-  let mockDomainAgent: any;
   let mockAgentManager: any;
   let createChatService: any;
   let chatService: ChatService;
@@ -54,10 +53,6 @@ describe('Chat Service - Basic Structure Tests', () => {
       getAvailableModels: vi.fn(),
     };
 
-    // Mock domain agent
-    mockDomainAgent = {
-      stream: vi.fn(),
-    };
 
     // Mock agent manager
     mockAgentManager = {
@@ -71,7 +66,7 @@ describe('Chat Service - Basic Structure Tests', () => {
         ...originalModule,
         createChatService: vi
           .fn()
-          .mockImplementation(({ db, loggerService, aiService, domainAgent, agentManager }) => {
+          .mockImplementation(({ db, loggerService, aiService, agentManager }) => {
             aiService.getModelPreset('chat.reply');
             loggerService.child({ service: 'chat' });
             return {
@@ -106,7 +101,6 @@ describe('Chat Service - Basic Structure Tests', () => {
       db: mockDb,
       loggerService: mockLoggerService,
       aiService: mockAiService,
-      domainAgent: mockDomainAgent,
       agentManager: mockAgentManager,
     });
   });
@@ -252,7 +246,6 @@ describe('Chat Service - Basic Structure Tests', () => {
           db: {},
           loggerService: mockLoggerService,
           aiService: mockAiService,
-          domainAgent: mockDomainAgent,
           agentManager: mockAgentManager,
         });
       }).not.toThrow();

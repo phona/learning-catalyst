@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
 import { ILogger } from '../../types';
-import { createStructuredJsonRunner } from '../shared/structured-json-runner';
 import type { LearningSessionRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
-import type { AiService } from '@/main/services/ai/ai-service';
-import type { DomainAgent } from '@/main/services/agent/domain-agent';
+import type { LearningAgent } from '@/main/services/agent/learning-agent';
+import { pickAssistantMessage, formatMessages } from '@/main/services/agent/specialized-agent';
 
 interface LearningPath {
   id: string;
@@ -231,23 +230,59 @@ const buildLearningPathFromModules = ({
 export const createLearningService = ({
   db,
   loggerService,
-  aiService,
-  domainAgent,
+  learningAgent,
 }: {
   db: Kysely<CoreDatabase>;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
-  aiService: AiService;
-  domainAgent: DomainAgent;
+  learningAgent?: LearningAgent;
 }) => {
   const serviceLogger = loggerService.child({ service: 'learning' });
-  let learningModelPreset = aiService.getModelPreset('learning.plan');
-  let currentDomainAgent = domainAgent;
-  let runStructuredJson = createStructuredJsonRunner({
-    aiService,
-    domainAgent: currentDomainAgent,
-    logger: serviceLogger,
-    modelConfig: learningModelPreset,
-  }).runStructuredJson;
+  let currentLearningAgent = learningAgent;
+  const normalizeJsonText = (raw: string) => {
+    const trimmed = raw?.trim() ?? '';
+    const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenceMatch) {
+      return fenceMatch[1].trim();
+    }
+    return trimmed;
+  };
+  const tryParseJson = <T>(text: string): T | undefined => {
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return undefined;
+    }
+  };
+  const parseJsonPayload = <T>(raw: string): T => {
+    const normalized = normalizeJsonText(raw);
+    const direct = tryParseJson<T>(normalized);
+    if (direct !== undefined) {
+      return direct;
+    }
+    const sliceBetween = (text: string, startChar: '{' | '[', endChar: '}' | ']') => {
+      const start = text.indexOf(startChar);
+      const end = text.lastIndexOf(endChar);
+      if (start !== -1 && end !== -1 && end >= start) {
+        return text.slice(start, end + 1);
+      }
+      return null;
+    };
+    const objectSlice = sliceBetween(normalized, '{', '}');
+    if (objectSlice) {
+      const parsed = tryParseJson<T>(objectSlice);
+      if (parsed !== undefined) {
+        return parsed;
+      }
+    }
+    const arraySlice = sliceBetween(normalized, '[', ']');
+    if (arraySlice) {
+      const parsed = tryParseJson<T>(arraySlice);
+      if (parsed !== undefined) {
+        return parsed;
+      }
+    }
+    throw new Error('Unable to parse JSON payload');
+  };
 
   const ensureSessionRow = async (sessionId: string): Promise<LearningSessionRow> => {
     const row = await db
@@ -326,47 +361,6 @@ export const createLearningService = ({
     userId: string,
     context?: Record<string, unknown>,
   ): Promise<LearningPath[]> => {
-    const fallbackPaths: LearningPath[] = [
-      buildLearningPathFromModules({
-        pathId: `rec_${Date.now()}_1`,
-        params: {
-          title: 'Strengthen Core Concepts',
-          description: 'Reinforce fundamental topics before moving forward.',
-          userId,
-          metadata: context,
-        },
-        modules: [
-          { title: 'Concept Review', description: 'Summarize key ideas', type: 'lesson', order: 0 },
-          {
-            title: 'Targeted Practice',
-            description: 'Hands-on drills',
-            type: 'exercise',
-            order: 1,
-          },
-          { title: 'Reflection', description: 'Document takeaways', type: 'assessment', order: 2 },
-        ],
-      }),
-      buildLearningPathFromModules({
-        pathId: `rec_${Date.now()}_2`,
-        params: {
-          title: 'Project-Based Deep Dive',
-          description: 'Apply concepts within a self-directed project.',
-          userId,
-          metadata: context,
-        },
-        modules: [
-          { title: 'Scoping', description: 'Define project goals', type: 'lesson', order: 0 },
-          { title: 'Implementation', description: 'Build iteratively', type: 'exercise', order: 1 },
-          {
-            title: 'Review & Feedback',
-            description: 'Assess outcomes',
-            type: 'assessment',
-            order: 2,
-          },
-        ],
-      }),
-    ];
-
     const payload = JSON.stringify(
       {
         userId,
@@ -376,47 +370,42 @@ export const createLearningService = ({
       2,
     );
 
-    const systemPrompt =
-      'You are a learning strategist. Return JSON array of learning paths with title, description, rationale, modules (title, description, type).';
-
-    const suggestions = await runStructuredJson<
-      Array<{
-        title: string;
-        description: string;
-        rationale?: string;
-        modules: Array<{ title: string; description: string; type: LearningModule['type'] }>;
-      }>
-    >({
-      systemPrompt,
-      input: payload,
-      fallbackPrompt: `${systemPrompt}\n${payload}`,
-      fallback: fallbackPaths.map((path) => ({
-        title: path.title,
-        description: path.description,
-        modules: path.modules.map((module) => ({
-          title: module.title,
-          description: module.description,
-          type: module.type,
-        })),
-      })),
-      context: 'learning-path-recommendations',
-    });
-
-    return suggestions.map((suggestion, index) =>
-      buildLearningPathFromModules({
-        pathId: `rec_${Date.now()}_${index}`,
-        params: {
-          title: suggestion.title,
-          description: suggestion.description,
-          userId,
-          metadata: { context, rationale: suggestion.rationale },
-        },
-        modules: suggestion.modules.map((module, order) => ({
-          ...module,
-          order,
-        })),
-      }),
-    );
+    try {
+      if (!currentLearningAgent) {
+        throw new Error('agent');
+      }
+      const prompt = `Return JSON array of learning paths with title, description, rationale, modules (title, description, type).\n${payload}`;
+      const result = await currentLearningAgent.invoke({
+        messages: formatMessages([{ role: 'user', content: prompt }]),
+      } as any);
+      const assistant = pickAssistantMessage((result as any)?.messages ?? []);
+      const text = assistant?.content ?? '';
+      const suggestions = parseJsonPayload<
+        Array<{
+          title: string;
+          description: string;
+          rationale?: string;
+          modules: Array<{ title: string; description: string; type: LearningModule['type'] }>;
+        }>
+      >(text);
+      return suggestions.map((suggestion, index) =>
+        buildLearningPathFromModules({
+          pathId: `rec_${Date.now()}_${index}`,
+          params: {
+            title: suggestion.title,
+            description: suggestion.description,
+            userId,
+            metadata: { context, rationale: suggestion.rationale },
+          },
+          modules: suggestion.modules.map((module, order) => ({
+            ...module,
+            order,
+          })),
+        }),
+      );
+    } catch {
+      return [];
+    }
   };
 
   return {
@@ -622,14 +611,21 @@ export const createLearningService = ({
         2,
       );
 
-      const summary = await runStructuredJson<typeof fallbackSummary>({
-        systemPrompt:
-          'You are a learning reflection coach. Return JSON { summary: { topicsCovered: string[], keyTakeaways: string[], strengths: string[], areasForImprovement: string[], nextSteps: string[] }, performance: { accuracy: number, engagement: number, retention: number } }',
-        input: payload,
-        fallbackPrompt: `${payload}`,
-        fallback: fallbackSummary,
-        context: 'learning-session-summary',
-      });
+      let summary: typeof fallbackSummary;
+      try {
+        if (!currentLearningAgent) {
+          throw new Error('agent');
+        }
+        const prompt = `You are a learning reflection coach. Return JSON { summary: { topicsCovered: string[], keyTakeaways: string[], strengths: string[], areasForImprovement: string[], nextSteps: string[] }, performance: { accuracy: number, engagement: number, retention: number } }\n${payload}`;
+        const result = await currentLearningAgent.invoke({
+          messages: formatMessages([{ role: 'user', content: prompt }]),
+        } as any);
+        const assistant = pickAssistantMessage((result as any)?.messages ?? []);
+        const text = assistant?.content ?? '';
+        summary = parseJsonPayload<typeof fallbackSummary>(text);
+      } catch {
+        summary = fallbackSummary;
+      }
 
       await updateSessionMetadata(
         sessionId,
@@ -722,17 +718,10 @@ export const createLearningService = ({
         limit: filters?.limit ?? sessions.length,
       };
     },
-    rebuild: async (agent?: DomainAgent) => {
+    rebuild: async (agent?: LearningAgent) => {
       if (agent) {
-        currentDomainAgent = agent;
+        currentLearningAgent = agent;
       }
-      learningModelPreset = aiService.getModelPreset('learning.plan');
-      runStructuredJson = createStructuredJsonRunner({
-        aiService,
-        domainAgent: currentDomainAgent,
-        logger: serviceLogger,
-        modelConfig: learningModelPreset,
-      }).runStructuredJson;
     },
   };
 };

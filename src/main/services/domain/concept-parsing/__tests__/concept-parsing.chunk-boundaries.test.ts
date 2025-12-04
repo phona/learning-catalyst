@@ -21,8 +21,12 @@ describe('concept parsing chunk boundaries', () => {
     vi.resetModules();
   });
 
-  const domainAgent: any = { chatModel: {} };
-  const aiService: any = {};
+  const providerFactory: any = {
+    getModel: vi.fn(async () => ({
+      model: {},
+      settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
+    })),
+  };
   const loggerService: any = {
     child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
   };
@@ -35,7 +39,7 @@ describe('concept parsing chunk boundaries', () => {
       }),
     };
 
-    const svc = createConceptParsingService({ aiService, domainAgent, vectorDatabase, loggerService });
+    const svc = createConceptParsingService({ providerFactory, vectorDatabase, loggerService });
 
     const alphaBody = new Array(100).fill('ALPHA').join(' ');
     const betaBody = new Array(100).fill('BETA').join(' ');

@@ -24,6 +24,7 @@ const ChatInputComponent: React.FC = () => {
   const [draftBeforeHistory, setDraftBeforeHistory] = useState<string>('');
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSearching, setIsSearching] = useState<boolean>(false);
 
   const {
     isLoading,
@@ -35,6 +36,9 @@ const ChatInputComponent: React.FC = () => {
     setError,
     history = [],
     currentSessionId,
+    promptSearchResults = [],
+    searchPrompts,
+    clearPromptSearchResults,
   } = useChatStore((s) => ({
     isLoading: s.isLoading,
     isStreaming: s.isStreaming,
@@ -45,6 +49,9 @@ const ChatInputComponent: React.FC = () => {
     setError: s.setError,
     history: s.history,
     currentSessionId: s.currentSessionId ?? s.currentSession?.id ?? null,
+    promptSearchResults: (s as any).promptSearchResults ?? [],
+    searchPrompts: (s as any).searchPrompts ?? (async () => []),
+    clearPromptSearchResults: (s as any).clearPromptSearchResults ?? (() => {}),
   }));
 
   const { config, updateConfig } = useConfigStore();
@@ -93,6 +100,27 @@ const ChatInputComponent: React.FC = () => {
     setTimeout(() => textareaRef.current?.setSelectionRange(entry.text.length, entry.text.length), 0);
   };
 
+  // Cross-session prompt search (debounced)
+  useEffect(() => {
+    if (!searchOpen) return;
+    setIsSearching(true);
+    const handle = setTimeout(() => {
+      void searchPrompts({
+        role: 'user',
+        query: searchQuery.trim() || undefined,
+        limit: 50,
+      }).finally(() => setIsSearching(false));
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [searchOpen, searchQuery, searchPrompts]);
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setSearchQuery('');
+    setIsSearching(false);
+    clearPromptSearchResults?.();
+  };
+
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
@@ -126,7 +154,7 @@ const ChatInputComponent: React.FC = () => {
     if (searchOpen) {
       if (e.key === 'Escape') {
         e.preventDefault();
-        setSearchOpen(false);
+        closeSearch();
       }
       return;
     }
@@ -155,6 +183,8 @@ const ChatInputComponent: React.FC = () => {
       e.preventDefault();
       setSearchOpen(true);
       setSearchQuery('');
+      setIsSearching(false);
+      void searchPrompts({ role: 'user', limit: 50 });
     } else if (e.ctrlKey && e.key === '/') {
       e.preventDefault();
       // Show keyboard shortcuts (placeholder)
@@ -382,7 +412,27 @@ const ChatInputComponent: React.FC = () => {
 
       {searchOpen && (
         <div className="absolute bottom-24 right-6 left-6 max-w-3xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 z-30">
-          <div className="flex items-center mb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+                Prompt search
+              </span>
+              <span className="px-2 py-1 text-[11px] font-semibold rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200">
+                All sessions
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {isSearching ? 'Searching...' : `${promptSearchResults.length} found`}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={closeSearch}
+              className="text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"
+            >
+              Close
+            </button>
+          </div>
+          <div className="flex items-center gap-3 mb-3">
             <input
               autoFocus
               value={searchQuery}
@@ -390,47 +440,56 @@ const ChatInputComponent: React.FC = () => {
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   e.preventDefault();
-                  setSearchOpen(false);
+                  closeSearch();
                 }
               }}
-              placeholder="Search history…"
+              placeholder="Search prompts..."
               className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            <button
-              type="button"
-              onClick={() => setSearchOpen(false)}
-              className="ml-3 text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"
-            >
-              Close
-            </button>
-          </div>
-          <div className="max-h-64 overflow-auto space-y-2 text-sm">
-            {sessionHistory
-              .filter((h) => h.text.toLowerCase().includes(searchQuery.toLowerCase()))
-              .slice(0, 20)
-              .map((h, idx) => (
-                <button
-                  key={h.id}
-                  type="button"
-                  onClick={() => {
-                    setInputText(h.text);
-                    setSearchOpen(false);
-                    setTimeout(
-                      () => textareaRef.current?.setSelectionRange(h.text.length, h.text.length),
-                      0,
-                    );
-                  }}
-                  className="w-full text-left px-3 py-2 rounded border border-gray-200 dark:border-gray-700 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition"
-                >
-                  <div className="text-gray-900 dark:text-gray-100 truncate">{h.text}</div>
-                  <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                    #{idx + 1} • {new Date(h.createdAt).toLocaleTimeString()}
-                  </div>
-                </button>
-              ))}
-            {sessionHistory.length === 0 && (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">No history yet.</p>
+            {isSearching && (
+              <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                Searching...
+              </span>
             )}
+          </div>
+          <div className="max-h-72 overflow-auto space-y-2 text-sm">
+            {isSearching && (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Searching...</p>
+            )}
+            {!isSearching && promptSearchResults.length === 0 && (
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                No prompts found yet. Try another phrase.
+              </p>
+            )}
+            {promptSearchResults.map((prompt) => (
+              <button
+                key={`${prompt.id}-${prompt.sessionId}`}
+                type="button"
+                onClick={() => {
+                  setInputText(prompt.text);
+                  closeSearch();
+                  setTimeout(
+                    () =>
+                      textareaRef.current?.setSelectionRange(
+                        prompt.text.length,
+                        prompt.text.length,
+                      ),
+                    0,
+                  );
+                }}
+                className="w-full text-left px-3 py-2 rounded border border-gray-200 dark:border-gray-700 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition"
+              >
+                <div className="text-gray-900 dark:text-gray-100 truncate">{prompt.text}</div>
+                <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                  <span className="px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-200">
+                    {prompt.sessionId === currentSessionId
+                      ? 'This session'
+                      : `Session ${prompt.sessionId.slice(0, 8)}`}
+                  </span>
+                  <span>{new Date(prompt.createdAt).toLocaleString()}</span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       )}

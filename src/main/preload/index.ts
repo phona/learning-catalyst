@@ -64,13 +64,17 @@ const chatAPI: ChatAPI = {
         const onMessage = (evt: MessageEvent) => {
           const { type, chunk, error: err, status } = (evt.data ?? {}) as {
             type?: string;
-            chunk?: string;
+            chunk?: unknown;
             error?: string;
             status?: any;
           };
           if (type === 'chat:chunk') {
-            console.debug('[preload] chat:chunk', { len: String((chunk ?? '').length) });
-            onEvent?.({ type: 'chunk', chunk: chunk ?? '' });
+            const preview =
+              typeof chunk === 'string'
+                ? { len: String(chunk.length) }
+                : { kind: (chunk as any)?.type ?? typeof chunk };
+            console.debug('[preload] chat:chunk', preview);
+            onEvent?.({ type: 'chunk', chunk });
           } else if (type === 'chat:complete') {
             console.log('[preload] chat:complete');
             onEvent?.({ type: 'complete' });
@@ -126,6 +130,8 @@ const chatAPI: ChatAPI = {
 
   getPracticeSuggestion: (params: any) =>
     ipcRenderer.invoke('chat:get-practice-suggestion', params),
+
+  searchPrompts: (params) => ipcRenderer.invoke('chat:search-prompts', params),
 };
 
 // ============================================================================

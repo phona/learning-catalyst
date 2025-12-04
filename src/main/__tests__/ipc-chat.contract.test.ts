@@ -68,6 +68,18 @@ const makeDeps = () => {
     pauseConversation: vi.fn(async () => undefined),
     resumeConversation: vi.fn(async () => undefined),
     endConversation: vi.fn(async () => undefined),
+    searchPrompts: vi.fn(async () => ({
+      prompts: [
+        {
+          id: 'p1',
+          sessionId: 'conv-1',
+          role: 'user',
+          text: 'hello',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      pagination: { limit: 50, offset: 0, hasMore: false },
+    })),
   };
 
   const practiceService: Partial<PracticeService> = {
@@ -218,5 +230,25 @@ describe("chat IPC contract with fake ipc pair", () => {
     });
     expect(res.success).toBe(true);
     expect(res.data?.id).toBe("conv-new");
+  });
+
+  it("searches prompts across sessions", async () => {
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    const deps = makeDeps();
+    setupChatHandlers(ipcMain as any, deps);
+
+    const res = await ipcRenderer.invoke("chat:search-prompts", {
+      role: "user",
+      query: "hello",
+      limit: 10,
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.data?.prompts?.[0]?.text).toBe("hello");
+    expect(deps.chatService.searchPrompts).toHaveBeenCalledWith({
+      role: "user",
+      query: "hello",
+      limit: 10,
+    });
   });
 });

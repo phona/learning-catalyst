@@ -4,13 +4,16 @@ import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { ConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
 import type { ConfigService } from '@/main/services/core/config/config-service';
+import type { Kysely } from 'kysely';
+import type { Database } from '@/main/services/core/database';
 import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 import {
-  assessmentTool,
+  fetchPracticeHistoryTool,
+  fetchDiscussionTranscriptTool,
+  fetchGoalArtifactsTool,
+  gradeOpenAnswerTool,
   knowledgeExtractionTool,
-  learningPathTool,
   contentAnalysisTool,
-  conceptMappingTool,
   sessionBlueprintTool,
 } from './tools';
 
@@ -39,28 +42,30 @@ type KnowledgeInput = {
   context?: Record<string, unknown>;
 };
 
-type LearningPathInput = {
-  action?: 'recommend' | 'create' | 'update' | 'get';
-  userId?: string;
-  context?: Record<string, unknown>;
-  topic?: string;
-};
-
-type SearchInput = {
-  query?: string;
-};
-
-type AssessmentInput = {
-  action?: 'create' | 'evaluate' | 'feedback';
-  type?: 'quiz' | 'exercise' | 'open_response' | 'coding';
-  content?: string;
-  answer?: string;
-};
-
 type ContentAnalysisInput = {
   content?: string;
   analysisType?: 'summary' | 'keypoints' | 'structure' | 'complexity';
   userId?: string;
+};
+
+type PracticeHistoryInput = {
+  conceptIds?: string[];
+  since?: string;
+};
+
+type DiscussionTranscriptInput = {
+  conceptIds?: string[];
+  limit?: number;
+};
+
+type GoalArtifactsInput = {
+  goal?: string;
+};
+
+type GradeOpenAnswerInput = {
+  question?: string;
+  answer?: string;
+  rubric?: { points?: string[] };
 };
 
 export type ToolRegistry = Record<string, Tool<string>>;
@@ -72,6 +77,7 @@ export interface AgentToolDeps {
   loggerService: LoggerService;
   configService: ConfigService;
   providerFactory: ProviderFactory;
+  db: Kysely<Database>;
 }
 
 export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
@@ -148,65 +154,43 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
 
 export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
   const baseTools = buildKnowledgeTools(deps);
-  const pathBuilder = learningPathTool(deps);
+
+  return {
+    ...baseTools,
+  };
+};
+
+export const buildLearningPlannerTools = (deps: AgentToolDeps): ToolRegistry => {
+  // Planner should only expose the session blueprint tool to avoid tool noise
   const blueprintBuilder = sessionBlueprintTool(deps);
-
-  const learningPath = tool(
-    async (rawInput: string) => {
-      const payload = parseJsonInput<LearningPathInput>(rawInput, {
-        action: 'recommend',
-        userId: 'anonymous',
-        context: {},
-        topic: undefined,
-      });
-
-      const result = await pathBuilder({
-        action: payload.action ?? 'recommend',
-        userId: payload.userId ?? 'anonymous',
-        context: payload.context,
-        title: payload.topic,
-        description: payload.topic,
-        modules: [],
-      });
-
-      if (!result.success) {
-        return `Learning path operation failed: ${result.error}`;
-      }
-
-      const data = result.data;
-      const paths = (Array.isArray(data) ? data : [data]).filter(Boolean);
-      const summary = paths.length
-        ? paths.map((path: any) => `• ${path.title ?? 'untitled path'}`).join('\n')
-        : 'No learning paths available right now.';
-
-      return `${payload.topic ? `Paths for ${payload.topic}:\n` : ''}${summary}`;
-    },
-    {
-      name: 'learning_path',
-      description:
-        'Recommend, create, fetch, or update learning paths by adjusting modules, pacing, and sequencing to align with a learner’s goals, including contextual topic signals.',
-    },
-  );
-
   const sessionBlueprint = tool(
     async (rawInput: string) => {
       const payload = parseJsonInput<{
         topic?: string;
+        userGoal?: string;
         goals?: string[];
-        difficulty?: 'beginner' | 'intermediate' | 'advanced';
-        learningStyle?: string;
+        level?: 'novice' | 'intermediate' | 'advanced';
+        timeAvailable?: number;
+        constraints?: string[];
+        allowExternal?: boolean;
       }>(rawInput, {
         topic: '',
+        userGoal: undefined,
         goals: [],
-        difficulty: 'intermediate',
-        learningStyle: 'visual',
+        level: undefined,
+        timeAvailable: undefined,
+        constraints: [],
+        allowExternal: false,
       });
 
       const result = await blueprintBuilder({
         topic: payload.topic ?? '',
+        userGoal: payload.userGoal,
         goals: payload.goals ?? [],
-        difficulty: (payload.difficulty as any) ?? 'intermediate',
-        learningStyle: payload.learningStyle ?? 'visual',
+        level: payload.level,
+        timeAvailable: payload.timeAvailable,
+        constraints: payload.constraints ?? [],
+        allowExternal: payload.allowExternal ?? false,
       });
 
       if (!result.success) {
@@ -218,15 +202,11 @@ export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
     {
       name: 'session_blueprint',
       description:
-        'Build a learning session blueprint containing summary, timeline, modules, and recommendations based on topic, goals, difficulty, and learning style.',
+        'Build a single-session learning plan (one primary concept) with required retrieval/apply/teach-back/open-question tasks, bounded by timeAvailable and learner level.',
     },
   );
 
-  return {
-    ...baseTools,
-    learningPath,
-    sessionBlueprint,
-  };
+  return { sessionBlueprint };
 };
 
 export const buildTutoringTools = (deps: AgentToolDeps): ToolRegistry => ({
@@ -234,44 +214,116 @@ export const buildTutoringTools = (deps: AgentToolDeps): ToolRegistry => ({
 });
 
 export const buildAssessmentTools = (deps: AgentToolDeps): ToolRegistry => {
-  const baseTools = buildKnowledgeTools(deps);
-  const assessor = assessmentTool(deps);
+  const practiceHistoryBuilder = fetchPracticeHistoryTool(deps);
+  const discussionTranscriptBuilder = fetchDiscussionTranscriptTool(deps);
+  const goalArtifactsBuilder = fetchGoalArtifactsTool(deps);
+  const gradeOpenAnswerBuilder = gradeOpenAnswerTool(deps);
 
-  const assessment = tool(
+  const fetchPracticeHistory = tool(
     async (rawInput: string) => {
-      const payload = parseJsonInput<AssessmentInput>(rawInput, {
-        action: 'feedback',
-        type: 'open_response',
-        content: rawInput,
+      const payload = parseJsonInput<PracticeHistoryInput>(rawInput, {
+        conceptIds: [],
+        since: undefined,
       });
-      const result = await assessor({
-        action: payload.action ?? 'feedback',
-        type: payload.type ?? 'open_response',
-        content: payload.content ?? '',
-        answer: payload.answer,
+
+      const result = await practiceHistoryBuilder({
+        conceptIds: payload.conceptIds ?? [],
+        since: payload.since,
       });
 
       if (!result.success) {
-        return `Assessment operation failed: ${result.error}`;
+        return `fetch_practice_history failed: ${result.error}`;
       }
 
-      return JSON.stringify({
-        action: result.data?.action,
-        type: result.data?.type,
-        feedback: result.data?.feedback,
-        summary: result.data?.content,
-      });
+      return JSON.stringify(result.data);
     },
     {
-      name: 'assessment_helper',
+      name: 'fetch_practice_history',
       description:
-        'Support creation, evaluation, and feedback of assessments (quizzes, coding tasks, open responses) by leveraging the assessment tool’s scoring logic and returning structured observations.',
+        'Pull recent practice attempts for the given conceptIds (pass/fail/partial, answers, errorTags, rubricScores). Use first to gather evidence before scoring understanding.',
+    },
+  );
+
+  const fetchDiscussionTranscript = tool(
+    async (rawInput: string) => {
+      const payload = parseJsonInput<DiscussionTranscriptInput>(rawInput, {
+        conceptIds: undefined,
+        limit: undefined,
+      });
+
+      const result = await discussionTranscriptBuilder({
+        conceptIds: payload.conceptIds,
+        limit: payload.limit,
+      });
+
+      if (!result.success) {
+        return `fetch_discussion_transcript failed: ${result.error}`;
+      }
+
+      return JSON.stringify(result.data);
+    },
+    {
+      name: 'fetch_discussion_transcript',
+      description:
+        'Retrieve learner explanations/discussion turns related to conceptIds; useful to judge quality of reasoning and misconceptions.',
+    },
+  );
+
+  const fetchGoalArtifacts = tool(
+    async (rawInput: string) => {
+      const payload = parseJsonInput<GoalArtifactsInput>(rawInput, {
+        goal: undefined,
+      });
+
+      const result = await goalArtifactsBuilder({
+        goal: payload.goal ?? rawInput,
+      });
+
+      if (!result.success) {
+        return `fetch_goal_artifacts failed: ${result.error}`;
+      }
+
+      return JSON.stringify(result.data);
+    },
+    {
+      name: 'fetch_goal_artifacts',
+      description:
+        'Collect artifacts the learner produced toward the goal (code/text/quiz). Use to see applied understanding.',
+    },
+  );
+
+  const gradeOpenAnswer = tool(
+    async (rawInput: string) => {
+      const payload = parseJsonInput<GradeOpenAnswerInput>(rawInput, {
+        question: undefined,
+        answer: undefined,
+        rubric: { points: [] },
+      });
+
+      const result = await gradeOpenAnswerBuilder({
+        question: payload.question ?? '',
+        answer: payload.answer ?? '',
+        rubric: { points: payload.rubric?.points ?? [] },
+      });
+
+      if (!result.success) {
+        return `grade_open_answer failed: ${result.error}`;
+      }
+
+      return JSON.stringify(result.data);
+    },
+    {
+      name: 'grade_open_answer',
+      description:
+        'Lightweight grading for free-form answers using rubric points; returns score 0-1, errorTags, and a short note.',
     },
   );
 
   return {
-    ...baseTools,
-    assessment,
+    fetch_practice_history: fetchPracticeHistory,
+    fetch_discussion_transcript: fetchDiscussionTranscript,
+    fetch_goal_artifacts: fetchGoalArtifacts,
+    grade_open_answer: gradeOpenAnswer,
   };
 };
 

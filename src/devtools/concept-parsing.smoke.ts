@@ -24,7 +24,6 @@ const arg = (name: string, fallback?: string) => {
 };
 
 const buildService = async (cfg: any) => {
-  const aiService: any = {};
   const mode = arg('mode', process.argv[2] ?? 'json');
   let chatModel: any;
   if (mode === 'real' || mode === 'real-raw') {
@@ -65,7 +64,19 @@ const buildService = async (cfg: any) => {
       },
     };
   }
-  const domainAgent: any = { chatModel, provider: cfg?.chatglm ?? 'chatglm' };
+  const providerFactory: any = {
+    getModel: async () => ({
+      model: chatModel,
+      settings: {
+        providerName: cfg?.ai?.modelTypes?.chat?.provider ?? 'dev',
+        model: cfg?.ai?.modelTypes?.chat?.model ?? 'gpt-4o',
+        temperature: cfg?.ai?.modelTypes?.chat?.temperature ?? 0.4,
+        maxTokens: Number(arg('maxTokens', String(cfg?.ai?.modelTypes?.chat?.maxTokens ?? 1024))),
+        apiKey: (cfg?.ai?.providers?.[cfg?.ai?.modelTypes?.chat?.provider]?.apiKey ?? '') as string,
+        baseUrl: (cfg?.ai?.providers?.[cfg?.ai?.modelTypes?.chat?.provider]?.baseUrl ?? undefined) as string | undefined,
+      },
+    }),
+  };
   const captured: Array<{ title: string; content: string }> = [];
   const vectorDatabase = {
     addDocument: async (doc: any) => {
@@ -75,8 +86,8 @@ const buildService = async (cfg: any) => {
   const loggerService = {
     child: () => ({ info: () => {}, debug: () => {}, warn: () => {}, error: () => {} }),
   };
-  const svc = createConceptParsingService({ aiService, domainAgent, vectorDatabase, loggerService });
-  return { svc, captured, chatModel, provider: domainAgent.provider };
+  const svc = createConceptParsingService({ providerFactory, vectorDatabase, loggerService });
+  return { svc, captured, chatModel, provider: cfg?.ai?.modelTypes?.chat?.provider ?? 'dev' };
 };
 
 const run = async () => {

@@ -91,8 +91,6 @@ describe('Learning Service - Interface Tests', () => {
     learningService = createLearningService({
       db: mockDb,
       loggerService: mockLoggerService,
-      aiService: mockAiService,
-      domainAgent: mockDomainAgent as any,
     });
   });
 

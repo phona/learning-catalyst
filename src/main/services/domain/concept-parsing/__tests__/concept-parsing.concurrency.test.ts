@@ -30,16 +30,19 @@ describe('concept parsing concurrency', () => {
     vi.resetModules();
   });
 
-  const domainAgent: any = { chatModel: {} };
-  const aiService: any = {};
+  const providerFactory: any = {
+    getModel: vi.fn(async () => ({
+      model: {},
+      settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
+    })),
+  };
   const loggerService: any = {
     child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
   };
 
   it('processes multiple segments in parallel up to the configured concurrency limit', async () => {
     const svc = createConceptParsingService({
-      aiService,
-      domainAgent,
+      providerFactory,
       vectorDatabase: undefined,
       loggerService,
     });

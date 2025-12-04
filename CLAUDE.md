@@ -267,10 +267,12 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 
 **Specialized Agents:**
 
-- **Learning** → Learning Guide (explores concepts conversationally)
-- **Assessment** → Understanding Coach (checks mastery naturally)
-- **Tutoring** → Learning Mentor (personalized help and motivation)
-- **Practice** → Practice Master (gamified challenges)
+- **Learning** -> Learning Guide (explores concepts conversationally).
+- **Assessment** -> Understanding Coach (pulls practice/discussion evidence for the provided goal+concepts, scores confidence, infers level; tools: fetch_practice_history, fetch_goal_artifacts, fetch_discussion_transcript, grade_open_answer; no userId or extra context needed in this desktop app; no new questions invented).
+- **Tutoring** -> Learning Mentor (personalized help and motivation).
+- **Practice** -> Practice Master (gamified challenges).
+- **Learning Planner** -> Builds single-session plans using the session blueprint tool; requires `level` + `timeAvailable` (no difficulty aliases or defaults).
+- **Session Blueprint (single-session)** -> Builds a one-sitting plan with one primary concept plus required retrieval/apply/teach-back/open-question blocks, bounded by `level` (novice|intermediate|advanced) and `timeAvailable`; `level` is the only difficulty field. Supervisor should call assessment first when level is unknown.
 
 **Configuration Schema:**
 
@@ -463,3 +465,4 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - All main process code should NEVER reference or access `window.electronAPI`
 - `electronAPI` now exposes documented sessions/catalyst domains and filesystem/dialog helpers with
   matching IPC handlers.
+

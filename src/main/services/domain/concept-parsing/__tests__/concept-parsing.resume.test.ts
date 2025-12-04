@@ -30,14 +30,18 @@ describe('concept parsing resume support', () => {
   it('skips already processed segments when resume is true', async () => {
     const { createConceptParsingService } = await import('../concept-parsing-service');
 
-    const domainAgent: any = { chatModel: {} };
+    const providerFactory: any = {
+      getModel: vi.fn(async () => ({
+        model: {},
+        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
+      })),
+    };
     const loggerService: any = {
       child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
     };
     const vectorDatabase: any = { addDocument: vi.fn() };
     const service = createConceptParsingService({
-      aiService: {},
-      domainAgent,
+      providerFactory,
       vectorDatabase,
       loggerService,
     });

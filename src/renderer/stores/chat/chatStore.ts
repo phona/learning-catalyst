@@ -5,7 +5,8 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { MessageDisplay as UIMessageDisplay, AgentDisplay } from '../../types';
+import type { MessageDisplay as UIMessageDisplay, AgentDisplay, ToolCallDisplay } from '../../types';
+import type { StreamChunk } from '@/shared/types/ai';
 import type {
   ConversationMessage,
   Session,
@@ -16,8 +17,8 @@ import type {
 } from '@/shared/types/session';
 import type { SessionService } from '../../services/session/session-service';
 import type { ChatService } from '@/renderer/services/chat/chat-service';
-import type { ChatAPI, SessionsAPI } from '@/shared/types/electron-api';
-import type { MessageDisplay as ChatAPIMessageDisplay } from '@/shared/types/electron-api/chat-api';
+import type { ChatAPI, SessionsAPI, PromptHistoryItem, PromptSearchRequest } from '@/shared/types/electron-api';
+import type { MessageDisplay as ChatAPIMessageDisplay, PromptSearchResponse } from '@/shared/types/electron-api/chat-api';
 
 type SendMessageResponse =
   | ChatAPIMessageDisplay
@@ -208,9 +209,12 @@ export interface ChatState {
   streamingContent: string;
   processingTrace: ProcessingTrace | null;
   history: HistoryEntry[];
+  promptSearchResults: PromptHistoryItem[];
   addHistoryEntry: (entry: HistoryEntry) => void;
   getHistoryForSession: (sessionId: string | null) => HistoryEntry[];
   clearHistory: (sessionId?: string | null) => void;
+  searchPrompts: (params: PromptSearchRequest) => Promise<PromptHistoryItem[]>;
+  clearPromptSearchResults: () => void;
   setProcessingTraceCollapsed: (collapsed: boolean) => void;
   setCurrentSession: (
     sessionOrId: Partial<Session> | string,
@@ -293,6 +297,7 @@ const initialState = {
   streamingContent: '',
   processingTrace: null,
   history: [] as HistoryEntry[],
+  promptSearchResults: [] as PromptHistoryItem[],
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
@@ -466,12 +471,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         setAutoScroll: (autoScroll) => set({ autoScroll }),
         setFontSize: (fontSize) => set({ fontSize }),
         setShowThinking: (showThinking) => set({ showThinking }),
-        setProcessingTraceCollapsed: (collapsed) =>
-          set((state) =>
-            state.processingTrace
-              ? { processingTrace: { ...state.processingTrace, collapsed } }
-              : state,
-          ),
+      setProcessingTraceCollapsed: (collapsed) =>
+        set((state) =>
+          state.processingTrace
+            ? { processingTrace: { ...state.processingTrace, collapsed } }
+            : state,
+        ),
         setThinkingContent: (thinkingContent) => set({ thinkingContent }),
         addHistoryEntry: (entry) =>
           set((state) => {
@@ -490,6 +495,21 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
           set((state) => ({
             history: sessionId ? state.history.filter((h) => h.sessionId !== sessionId) : [],
           })),
+        searchPrompts: async (params: PromptSearchRequest) => {
+          try {
+            const res = await electronAPI.chat.searchPrompts(params);
+            if (res?.success && res.data) {
+              const payload = res.data as PromptSearchResponse;
+              set({ promptSearchResults: payload.prompts ?? [] });
+              return payload.prompts ?? [];
+            }
+            return [];
+          } catch (err) {
+            console.error('[ChatStore] searchPrompts failed', err);
+            return [];
+          }
+        },
+        clearPromptSearchResults: () => set({ promptSearchResults: [] }),
         setSelectedProvider: (provider) => set({ selectedProvider: provider }),
         setSelectedModel: (model) => set({ selectedModel: model }),
 
@@ -838,6 +858,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                     completedAt: finishedAt,
                     warningCount,
                     errorCount,
+                    collapsed: true, // auto-collapse once done
                   },
                 };
               });
@@ -906,27 +927,63 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   kind: 'thought',
                   label: status.text ?? 'Thought',
                   detail: status.text,
-                  at: now,
-                });
-                break;
-              case 'tool':
-                pushTool(status.tool, status.phase, status.detail);
-                break;
-              case 'timeline_event':
-                if (status.event?.type === 'thought') {
-                  addProcessingEvent({
-                    kind: 'thought',
-                    label: status.event.text ?? 'Thought',
-                    detail: status.event.text,
-                    at: now,
-                  });
-                } else if (status.event?.type === 'tool') {
-                  pushTool(status.event.tool, status.event.phase, status.event.detail);
-                } else if (status.event?.type === 'error') {
-                  addProcessingEvent({
-                    kind: 'error',
-                    label: status.event.text ?? 'Error',
-                    detail: status.event.text,
+              at: now,
+            });
+            break;
+          case 'tool':
+            pushTool(status.tool, status.phase, status.detail);
+            if (status.tool) {
+              const toolId = toolCallNameToId.get(status.tool) ?? status.tool;
+              upsertToolCalls(
+                [
+                  {
+                    id: toolId,
+                    type: 'function',
+                    function: { name: status.tool, arguments: status.detail ?? '' },
+                  },
+                ],
+                status.phase === 'end'
+                  ? 'completed'
+                  : status.phase === 'error'
+                    ? 'error'
+                    : 'running',
+                status.phase === 'error' ? status.detail : undefined,
+              );
+            }
+            break;
+          case 'timeline_event':
+            if (status.event?.type === 'thought') {
+              addProcessingEvent({
+                kind: 'thought',
+                label: status.event.text ?? 'Thought',
+                detail: status.event.text,
+                at: now,
+              });
+            } else if (status.event?.type === 'tool') {
+              pushTool(status.event.tool, status.event.phase, status.event.detail);
+              if (status.event.tool) {
+                const toolId = toolCallNameToId.get(status.event.tool) ?? status.event.tool;
+                upsertToolCalls(
+                  [
+                    {
+                      id: toolId,
+                      type: 'function',
+                      function: { name: status.event.tool, arguments: status.event.detail ?? '' },
+                    },
+                  ],
+                  status.event.phase === 'end'
+                    ? 'completed'
+                    : status.event.phase === 'error'
+                      ? 'error'
+                      : 'running',
+                  status.event.phase === 'error' ? status.event.detail : undefined,
+                );
+              }
+            } else if (status.event?.type === 'error') {
+              addProcessingEvent({
+                kind: 'error',
+                label: status.event.text ?? 'Error',
+                detail: status.event.text,
                     at: now,
                   });
                 }
@@ -947,10 +1004,49 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   at: now,
                 });
                 break;
-              default:
-                break;
-              }
+            default:
+              break;
+            }
+          };
+
+            const mergeToolCalls = (
+              existing: ToolCallDisplay[] | undefined,
+              incoming: ToolCallDisplay[],
+              statusOverride?: ToolCallDisplay['status'],
+              error?: string,
+            ): ToolCallDisplay[] => {
+              const map = new Map<string, ToolCallDisplay>();
+              (existing ?? []).forEach((tc) => map.set(tc.id, tc));
+              incoming.forEach((tc) => {
+                const current = map.get(tc.id);
+                map.set(tc.id, {
+                  ...current,
+                  ...tc,
+                  status: statusOverride ?? tc.status ?? current?.status,
+                  error: error ?? tc.error ?? current?.error,
+                });
+              });
+              return Array.from(map.values());
             };
+
+            const upsertToolCalls = (
+              calls: ToolCallDisplay[],
+              statusOverride?: ToolCallDisplay['status'],
+              error?: string,
+            ) => {
+              set((state) => ({
+                messages: state.messages.map((m) =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        tool_calls: mergeToolCalls(m.tool_calls, calls, statusOverride, error),
+                      }
+                    : m,
+                ),
+              }));
+            };
+
+            const toolCallNameToId = new Map<string, string>();
 
             let aggregated = '';
             const result = await chatService.sendMessageStream(
@@ -974,7 +1070,37 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   if (text) upsertStatusMessage(text);
                   return;
                 }
-                const text = typeof chunk.content === 'string' ? chunk.content : String(chunk.content ?? '');
+                if (chunk.type === 'tool_call' && Array.isArray(chunk.tool_calls)) {
+                  const displayCalls: ToolCallDisplay[] = chunk.tool_calls.map((call) => ({
+                    id: call.id,
+                    type: call.type ?? 'function',
+                    function: {
+                      name: call.function?.name ?? 'unknown',
+                      arguments: call.function?.arguments ?? '',
+                    },
+                    status: 'running',
+                  }));
+                  displayCalls.forEach((tc) => {
+                    const key = tc.function?.name ?? tc.id;
+                    if (key) {
+                      toolCallNameToId.set(key, tc.id);
+                    }
+                  });
+                  upsertToolCalls(displayCalls, 'running');
+                  return;
+                }
+                const isContentChunk = !chunk.type || chunk.type === 'content';
+                const text =
+                  isContentChunk && typeof chunk.content === 'string'
+                    ? chunk.content
+                    : isContentChunk && chunk.content != null
+                      ? String(chunk.content)
+                      : '';
+
+                if (!text) {
+                  return;
+                }
+
                 aggregated += text;
                 // Keep legacy streamingContent updated for stopStreaming/metrics
                 get().appendStreamingContent(text);
