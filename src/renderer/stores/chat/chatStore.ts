@@ -303,6 +303,7 @@ const initialState = {
         prompt: string;
         checkpointId?: string;
         questionId?: string;
+        sessionId?: string;
       }
     | null,
 };
@@ -772,6 +773,16 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               createdAt: Date.now(),
             });
 
+            // If we were paused, auto-append the prompt as context metadata
+            const answerMetadata =
+              awaitingUserInput && awaitingUserInput.prompt
+                ? {
+                    awaitingPrompt: awaitingUserInput.prompt,
+                    checkpointId: awaitingUserInput.checkpointId,
+                    questionId: awaitingUserInput.questionId,
+                  }
+                : undefined;
+
             const assistantId = `msg_${Date.now()}_assistant`;
             const assistantPlaceholder: UIMessageDisplay = {
               id: assistantId,
@@ -1026,6 +1037,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                     prompt: status.prompt,
                     checkpointId: (status as any).checkpointId,
                     questionId: (status as any).questionId,
+                    sessionId: (status as any).sessionId,
                   },
                   isStreaming: false,
                   isTyping: false,
@@ -1144,6 +1156,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                 sessionId,
                 checkpointId: awaitingUserInput?.checkpointId,
                 questionId: awaitingUserInput?.questionId,
+                metadata: answerMetadata,
               },
             );
 

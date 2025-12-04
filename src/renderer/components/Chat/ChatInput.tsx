@@ -277,6 +277,11 @@ const ChatInputComponent: React.FC = () => {
   const isActionButtonDisabled = (!inputText.trim() && !awaitingUserInput) || isLoading;
   console.log('[ChatInput] state', { isLoading, isStreaming, inputLen: inputText.length, disabled: isActionButtonDisabled });
 
+  const handleCancelAwait = () => {
+    // Clears awaiting state so user can type freely; no backend action yet
+    useChatStore.setState({ awaitingUserInput: null, isStreaming: false, isTyping: false });
+  };
+
   return (
     <div
       className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
@@ -285,9 +290,20 @@ const ChatInputComponent: React.FC = () => {
     >
       {awaitingUserInput ? (
         <div className="px-6 pt-4">
-          <div className="rounded-md border border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100 px-3 py-2 text-sm flex items-start gap-2">
-            <span className="font-semibold">Waiting for your answer:</span>
-            <span>{awaitingUserInput.prompt}</span>
+          <div className="rounded-md border border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100 px-3 py-2 text-sm flex items-start gap-3">
+            <div className="flex-1">
+              <span className="font-semibold">Waiting for your answer:</span>{' '}
+              <span>{awaitingUserInput.prompt}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCancelAwait}
+                className="px-2 py-1 text-xs rounded border border-amber-500 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-800"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
