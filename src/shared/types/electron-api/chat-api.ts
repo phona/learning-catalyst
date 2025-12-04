@@ -232,6 +232,24 @@ export interface ChatAPI {
    * @param params.offset - default 0
    */
   searchPrompts: (params: PromptSearchRequest) => Promise<APIResponse<PromptSearchResponse>>;
+
+  /**
+   * Resume workflow after await_user_input checkpoint
+   * Used to continue workflow after user provides input, skips, or chooses to resume later
+   * @param params.conversationId - Active conversation ID
+   * @param params.checkpointId - Checkpoint ID from await_user_input
+   * @param params.questionId - Question ID if applicable
+   * @param params.action - Action to take: 'answer', 'skip', or 'resume_later'
+   * @param params.input - User input when action is 'answer'
+   * @returns Promise<{ success: boolean; resumed: boolean }>
+   */
+  resumeWorkflow: (params: {
+    conversationId: string;
+    checkpointId: string;
+    questionId?: string;
+    action: 'answer' | 'skip' | 'resume_later';
+    input?: string;
+  }) => Promise<APIResponse<{ success: boolean; resumed: boolean }>>;
 }
 
 // ============================================================================

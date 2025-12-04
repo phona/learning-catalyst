@@ -224,6 +224,12 @@ export const handlerConfigs = {
       method: 'endConversation',
       requiredParams: ['conversationId'],
     },
+    resumeWorkflow: {
+      channel: 'chat:resume-workflow',
+      service: 'chatService',
+      method: 'resumeWorkflow',
+      requiredParams: ['conversationId', 'checkpointId', 'action'],
+    },
   },
 
   // Agent handlers

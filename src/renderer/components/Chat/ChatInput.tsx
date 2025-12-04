@@ -127,12 +127,48 @@ const ChatInputComponent: React.FC = () => {
 
   const isActionButtonDisabled = (!inputText.trim() && !awaitingUserInput) || isLoading;
 
+  const handleSkip = async () => {
+    if (!awaitingUserInput) return;
+    try {
+      console.log('[ChatInput] Skip clicked', { checkpointId: awaitingUserInput.checkpointId });
+      // TODO: Call resume-workflow API when implemented
+      // await electronAPI.chat.resumeWorkflow({
+      //   checkpointId: awaitingUserInput.checkpointId,
+      //   questionId: awaitingUserInput.questionId,
+      //   action: 'skip'
+      // });
+    } catch (error) {
+      console.error('Failed to skip:', error);
+    }
+  };
+
   return (
     <div
       className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
       role="region"
       aria-label="Chat input area"
     >
+      {/* Context Preview - Show when awaiting input */}
+      {awaitingUserInput?.prompt && (
+        <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <div className="max-w-4xl mx-auto flex items-start gap-3">
+            <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                Responding to:
+              </p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {awaitingUserInput.prompt}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Input */}
       <div className="p-6">
         <form
@@ -149,7 +185,11 @@ const ChatInputComponent: React.FC = () => {
               <label htmlFor="chat-input" className="sr-only">
                 Type your message
               </label>
-              <div className="relative">
+              <div className={`relative ${
+                awaitingUserInput?.prompt
+                  ? 'border-amber-300 dark:border-amber-700 bg-amber-50/30 dark:bg-amber-900/10'
+                  : 'border-gray-200 dark:border-gray-700'
+              } border rounded-lg transition-colors duration-200`}>
                 <textarea
                   id="chat-input"
                   ref={textareaRef}
@@ -157,14 +197,20 @@ const ChatInputComponent: React.FC = () => {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    isStreaming
-                      ? 'AI is responding...'
-                      : 'Type your message here...'
+                    awaitingUserInput?.prompt
+                      ? 'Type your response here...'
+                      : isStreaming
+                        ? 'AI is responding...'
+                        : 'Type your message here...'
                   }
                   disabled={false}
-                  aria-label="Type your message here"
+                  aria-label={
+                    awaitingUserInput?.prompt
+                      ? 'Type your response here'
+                      : 'Type your message here'
+                  }
                   aria-multiline="true"
-                  className="w-full px-5 py-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                  className="w-full px-5 py-4 bg-transparent dark:bg-transparent resize-none focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   rows={1}
                   style={{ minHeight: '56px', maxHeight: '200px' }}
                 />
@@ -182,35 +228,53 @@ const ChatInputComponent: React.FC = () => {
               )}
             </div>
 
-            {/* Send / Stop button */}
-            {isStreaming && !(awaitingUserInput && !awaitingUserInput.hidden) ? (
-              <button
-                type="button"
-                onClick={() => {
-                  console.log('[ChatInput] stop clicked');
-                  void stopStreaming();
-                }}
-                className="px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
-                aria-label="Stop generating response"
-              >
-                <StopIcon className="w-5 h-5" />
-                <span>Stop</span>
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className={`px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                  !isActionButtonDisabled
-                    ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                }`}
-                disabled={isActionButtonDisabled}
-                aria-label="Send message"
-              >
-                <PaperAirplaneIcon className="w-5 h-5" />
-                <span>Send</span>
-              </button>
-            )}
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              {/* Skip button - only show when awaiting input */}
+              {awaitingUserInput?.prompt && !isStreaming && (
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="px-4 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300 focus:ring-amber-500"
+                  aria-label="Skip this question"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Skip</span>
+                </button>
+              )}
+
+              {/* Send / Stop button */}
+              {isStreaming && !(awaitingUserInput && !awaitingUserInput.hidden) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log('[ChatInput] stop clicked');
+                    void stopStreaming();
+                  }}
+                  className="px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-red-600 hover:bg-red-700 text-white focus:ring-red-500"
+                  aria-label="Stop generating response"
+                >
+                  <StopIcon className="w-5 h-5" />
+                  <span>Stop</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className={`px-6 py-4 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                    !isActionButtonDisabled
+                      ? 'bg-primary-500 hover:bg-primary-600 text-white focus:ring-primary-500'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  }`}
+                  disabled={isActionButtonDisabled}
+                  aria-label="Send message"
+                >
+                  <PaperAirplaneIcon className="w-5 h-5" />
+                  <span>Send</span>
+                </button>
+              )}
+            </div>
           </fieldset>
         </form>
       </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SyntaxHighlighterWrapper } from '@/renderer/components/UI/SyntaxHighlighterWrapper';
@@ -14,6 +14,7 @@ import {
   formatDateTimeForHtml,
 } from '@/renderer/utils/timeUtils';
 import { copyToClipboard } from '@/renderer/utils/clipboardUtils';
+import { useChatStore } from '@/renderer/hooks/useChatStore';
 
 interface MessageBubbleProps {
   message: MessageDisplay;
@@ -29,6 +30,11 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   onToggleDetails,
   streamingProgress = 0,
 }) => {
+  const [skipLoading, setSkipLoading] = useState(false);
+  const [resumeLoading, setResumeLoading] = useState(false);
+
+  const { currentSessionId } = useChatStore();
+
   const __hasContent = typeof message.content === 'string';
   console.log('[MessageBubble] content check', {
     id: message.id,
@@ -41,6 +47,47 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
   });
 
   const isUser = message.role === 'user';
+
+  // Wire up resume workflow API
+  const handleSkip = async () => {
+    if (!message.awaitingInput?.checkpointId || !currentSessionId) return;
+    console.log('Skip button clicked', { checkpointId: message.awaitingInput.checkpointId });
+    setSkipLoading(true);
+    try {
+      await window.electronAPI.chat.resumeWorkflow({
+        conversationId: currentSessionId,
+        checkpointId: message.awaitingInput.checkpointId,
+        questionId: message.awaitingInput.questionId,
+        action: 'skip',
+      });
+      console.log('Workflow skipped successfully');
+    } catch (error) {
+      console.error('Failed to skip workflow:', error);
+      // TODO: Show error toast
+    } finally {
+      setSkipLoading(false);
+    }
+  };
+
+  const handleResumeLater = async () => {
+    if (!message.awaitingInput?.checkpointId || !currentSessionId) return;
+    console.log('Resume later button clicked', { checkpointId: message.awaitingInput.checkpointId });
+    setResumeLoading(true);
+    try {
+      await window.electronAPI.chat.resumeWorkflow({
+        conversationId: currentSessionId,
+        checkpointId: message.awaitingInput.checkpointId,
+        questionId: message.awaitingInput.questionId,
+        action: 'resume_later',
+      });
+      console.log('Workflow saved for later');
+    } catch (error) {
+      console.error('Failed to save workflow for later:', error);
+      // TODO: Show error toast
+    } finally {
+      setResumeLoading(false);
+    }
+  };
 
   const getAvatar = () => {
     if (isUser) {
@@ -152,21 +199,56 @@ const MessageBubbleComponent: React.FC<MessageBubbleProps> = ({
                   </ReactMarkdown>
                   <div className="flex items-center gap-2 mt-4">
                     <button
-                      onClick={() => console.log('Skip clicked')}
-                      className="text-xs px-3 py-1.5 bg-white dark:bg-gray-800 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition"
+                      onClick={handleSkip}
+                      disabled={skipLoading || resumeLoading}
+                      className="text-xs px-3 py-1.5 bg-white dark:bg-gray-800 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                     >
-                      Skip
+                      {skipLoading ? (
+                        <>
+                          <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Skipping...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Skip
+                        </>
+                      )}
                     </button>
                     <button
-                      onClick={() => console.log('Resume later clicked')}
-                      className="text-xs px-3 py-1.5 bg-white dark:bg-gray-800 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition"
+                      onClick={handleResumeLater}
+                      disabled={skipLoading || resumeLoading}
+                      className="text-xs px-3 py-1.5 bg-white dark:bg-gray-800 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                     >
-                      Resume Later
+                      {resumeLoading ? (
+                        <>
+                          <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Resume Later
+                        </>
+                      )}
                     </button>
                     <button
                       onClick={() => onToggleDetails?.(message.id, 1)}
-                      className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition"
+                      className="text-xs px-3 py-1.5 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition flex items-center gap-1.5"
                     >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                       Details
                     </button>
                   </div>

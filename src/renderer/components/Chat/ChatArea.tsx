@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { DetailsPanel } from './DetailsPanel';
+import { TimelineView } from '@/renderer/components/Timeline/TimelineView';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { usePracticeSuggestions } from '@/renderer/hooks/usePracticeSuggestions';
 import { MessageErrorBoundary } from '@/renderer/components/UI/MessageErrorBoundary';
@@ -266,6 +267,10 @@ const ChatAreaComponent: React.FC = () => {
           /* Messages */
           <div className="py-6">
             <div className="max-w-4xl mx-auto space-y-6">
+              {/* Timeline View - Show during streaming */}
+              {isStreaming && currentSession?.id && (
+                <TimelineView conversationId={currentSession.id} />
+              )}
               {console.log('[ChatArea] rendering messages', { count: chatMessages.length })}
               {chatMessages.map((message: MessageDisplay) => {
                 const messageWithDetails = message as MessageDisplayWithDetails;

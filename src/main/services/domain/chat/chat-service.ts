@@ -1089,6 +1089,81 @@ export const createChatService = ({
       serviceLogger.info('Cancel requested for conversation stream', { conversationId });
       canceledStreams.add(conversationId);
     },
+
+    resumeWorkflow: async (params: {
+      conversationId: string;
+      checkpointId: string;
+      questionId?: string;
+      action: 'answer' | 'skip' | 'resume_later';
+      input?: string;
+    }) => {
+      const { conversationId, checkpointId, questionId, action, input } = params;
+
+      serviceLogger.info('Resume workflow requested', {
+        conversationId,
+        checkpointId,
+        questionId,
+        action,
+      });
+
+      try {
+        // Get the conversation
+        const conversation = await getConversation(conversationId);
+        if (!conversation) {
+          throw new Error(`Conversation ${conversationId} not found`);
+        }
+
+        // Update conversation status to active if it was paused
+        if (conversation.status === 'paused') {
+          conversation.status = 'active';
+          conversation.updatedAt = new Date().toISOString();
+          await persistConversation(conversation);
+          serviceLogger.info('Conversation status set to active', { conversationId });
+        }
+
+        // Handle different actions
+        if (action === 'resume_later') {
+          // Just update metadata to mark as saved for later
+          conversation.metadata = {
+            ...(conversation.metadata ?? {}),
+            savedForLater: true,
+            savedAt: new Date().toISOString(),
+            checkpointId,
+            questionId,
+          };
+          await persistConversation(conversation);
+          return { success: true, resumed: false };
+        }
+
+        // For 'answer' or 'skip', we continue the workflow
+        // The actual workflow continuation will happen when the next message is sent
+        // with the checkpoint_id in the metadata
+
+        // Clear the awaitingUserInput state
+        conversation.metadata = {
+          ...(conversation.metadata ?? {}),
+          awaitingUserInput: null,
+          lastAction: action,
+          lastActionAt: new Date().toISOString(),
+        };
+        await persistConversation(conversation);
+
+        serviceLogger.info('Workflow state updated', {
+          conversationId,
+          action,
+          hasInput: !!input,
+        });
+
+        return { success: true, resumed: true };
+      } catch (error) {
+        serviceLogger.error('Failed to resume workflow', {
+          conversationId,
+          checkpointId,
+          error,
+        });
+        throw error;
+      }
+    },
   };
 };
 
