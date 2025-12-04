@@ -193,7 +193,7 @@ describe('chat-service main coverage', () => {
   });
 
   it('propagates error when agent stream fails', async () => {
-    agentManager.getAgent().stream.mockImplementationOnce(async () => {
+    agentManager.runAgent.mockImplementationOnce(async () => {
       throw new Error('fail');
     });
     const conv = await service.createConversation({ title: 'F', agentType: 'learning' });
@@ -238,7 +238,7 @@ describe('chat-service main coverage', () => {
   });
 
   it('emits fail status for rate-limit without retry', async () => {
-    agentManager.getAgent().stream.mockImplementationOnce(async () => {
+    agentManager.runAgent.mockImplementationOnce(async () => {
       const e: any = new Error('Rate limited');
       e.response = { status: 429 };
       throw e;
@@ -266,7 +266,7 @@ describe('chat-service main coverage', () => {
   });
 
   it('emits fail status and stops on non-retryable quota error', async () => {
-    agentManager.getAgent().stream.mockImplementationOnce(async () => {
+    agentManager.runAgent.mockImplementationOnce(async () => {
       const e: any = new Error('Quota exceeded');
       e.response = { status: 403 };
       e.error = { code: 'insufficient_quota' };

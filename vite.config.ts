@@ -3,7 +3,6 @@ import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron/simple';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 // import viteMemoryPlugin from './src/utils/vite-memory-plugin.js'
 // @ts-ignore
 import pkg from './package.json';
@@ -57,28 +56,6 @@ export default defineConfig(({ command }) => {
           ],
         },
       }),
-      // Node.js polyfills for LangChain compatibility
-      nodePolyfills({
-        // Enable specific polyfills needed by LangChain
-        protocolImports: true,
-        // Enable polyfills for Node.js built-in modules
-        include: [
-          'async_hooks' as any,
-          'events',
-          'util',
-          'crypto',
-          'stream',
-          'string_decoder',
-          'url',
-          'querystring',
-          'path',
-          'fs',
-        ],
-        // Exclude polyfills that might cause issues in browser
-        exclude: [
-          'buffer', // Use Vite's built-in buffer polyfill
-        ],
-      }),
       // Memory leak prevention plugin for development
       // ...(isServe ? [viteMemoryPlugin({
       //   maxMemoryMB: 600, // Alert at 600MB
@@ -107,7 +84,7 @@ export default defineConfig(({ command }) => {
               },
             },
             build: {
-              sourcemap,
+              sourcemap: true,
               minify: isBuild,
               outDir: 'dist-electron/main',
               rollupOptions: {
@@ -133,7 +110,7 @@ export default defineConfig(({ command }) => {
               },
             },
             build: {
-              sourcemap: sourcemap ? 'inline' : undefined, // #332
+              sourcemap: true, // generate maps for preload
               minify: isBuild,
               outDir: 'dist-electron/preload',
               rollupOptions: {
@@ -198,39 +175,8 @@ export default defineConfig(({ command }) => {
       };
     })(),
     clearScreen: false,
-    optimizeDeps: {
-      // Pre-bundle dependencies to improve performance
-      include: [
-        'react',
-        'react-dom',
-        'zustand',
-        '@langchain/openai',
-        'langchain',
-        '@langchain/community',
-        '@langchain/core',
-        '@langchain/textsplitters',
-      ],
-      // Memory optimization for dependency management
-      force: false, // Don't force rebuild unless necessary
-      // Exclude large dependencies that cause memory issues
-      exclude: ['@anthropic-ai/claude-code', 'qdrant-js', 'sqlite-electron'],
-      // Add Node.js polyfills for LangChain
-      add: [
-        'async_hooks',
-        'events',
-        'util',
-        'crypto',
-        'stream',
-        'string_decoder',
-        'url',
-        'querystring',
-      ],
-      // Limit the size of pre-bundled chunks
-      maxChunkSize: 500000, // 500KB chunks
-      // Enable more aggressive garbage collection
-      noDedupe: false,
-    },
     build: {
+      sourcemap: true, // emit source maps for renderer build
       // Reduce memory usage during development
       rollupOptions: {
         onwarn(warning, warn) {

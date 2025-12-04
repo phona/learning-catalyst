@@ -1,53 +1,36 @@
-flowchart TD
-    %% Chatbox UI + Main Process Workflow (LangGraph)
+﻿sequenceDiagram
+  participant User
+  participant Renderer as Chat UI (renderer)
+  participant Store as chatStore
+  participant IPC as electronAPI (chat)
+  participant Main as chat-service (main)
+  participant Graph as LangGraph workflow
+  participant DB as SQLiteCheckpointSaver
 
-    %% ---------------- UI Layer ----------------
-    subgraph UI["Renderer (Chat UI)"]
-        direction TB
-        Send[User clicks Send] --> StoreSend[chatStore.sendMessageStream]
-        StoreSend -->|status: await_user_input| AwaitState[Set awaitingUserInput\n{prompt, checkpointId, questionId, sessionId}]
-        AwaitState --> Banner[Show banner + prompt placeholder]
-        Banner -->|Cancel| ClearAwait[awaitingUserInput = null\nisStreaming=false]
-        Banner -->|Resume later| HideBanner[awaitingUserInput.hidden=true]
-        HideBanner --> Composer[Composer idle\n(prompt kept in state)]
-        AwaitState --> Composer
-        Composer --> Answer[User types answer]
-        Answer --> ResumeSend[sendMessageStream with checkpointId/questionId/metadata]
-        ResumeSend --> UIStream[Stream content/tool/status]
-        UIStream --> UpdateBubble[Update assistant placeholder]
-        UIStream --> StatusEvents[Handle timeline/tool/thought/await events]
-        StatusEvents --> AwaitState
-    end
+  User->>Renderer: type message
+  Renderer->>Store: onSubmit(content)
+  Store->>IPC: send chat.streamAssistantResponse
+  IPC->>Main: request stream with content + metadata
+  Main->>Graph: stream(input, config{thread_id, checkpoint_id?})
+  Graph->>DB: load latest checkpoint + writes
+  Graph-->>Main: stream updates / interrupt events
+  Main-->>IPC: forward StreamChunk updates
+  IPC-->>Store: emit status/content
+  Store-->>Renderer: render assistant text
 
-    %% ---------------- Main Process ----------------
-    subgraph Main["Main Process (LangGraph)"]
-        direction TB
-        LangGraph[StateGraph workflow\nAssess→FastTrack→Teach→Practice→Wait→Evaluate→Mastery→Remediate/Breaker→Complete] -->|interrupt await_user_input| EmitAwait[Emit status await_user_input\n{prompt, checkpointId, questionId, sessionId}]
-        EmitAwait --> Pause[Pause graph, checkpoint via SQLiteCheckpointSaver]
-        ResumeInput[User answer with checkpointId/questionId] --> ResumeGraph[LangGraph resume via Command/stream]
-        ResumeGraph --> LangGraph
-        LangGraph --> StreamChunks[Stream content/tool updates\ntimeline callbacks]
-    end
+  alt workflow pauses (await_user_input)
+    Graph-->>Main: __interrupt__ await_user_input + checkpoint_id
+    Main-->>Store: status {type: await_user_input, prompt, checkpointId}
+    Store-->>Renderer: show banner, disable send button
+    User-->>Renderer: provide answer
+    Renderer->>Store: submit answer with checkpointId/questionId
+    Store->>IPC: send streamAssistantResponse(answer, checkpointId)
+    IPC->>Main: resume workflow Command(resume: {answer})
+    Main->>Graph: resume from checkpoint
+  end
 
-    %% Connections UI <-> Main
-    StoreSend -->|messages, sessionId| LangGraph
-    EmitAwait -->|status event| AwaitState
-    ResumeSend -->|answer + checkpointId| ResumeInput
-    StreamChunks --> UIStream
-
-    %% Notes
-    note right of AwaitState
-        Banner shows prompt, Stop hidden
-        Await metadata kept if "Resume later" clicked
-    end
-
-    note right of ResumeSend
-        Payload includes checkpointId/questionId and prompt metadata
-    end
-
-    classDef ui fill:#eef,stroke:#446,stroke-width:1px;
-    classDef main fill:#ffe,stroke:#b84,stroke-width:1px;
-    classDef action fill:#fff,stroke:#777,stroke-width:1px;
-
-    class Send,StoreSend,AwaitState,Banner,HideBanner,ClearAwait,Composer,Answer,ResumeSend,UIStream,UpdateBubble,StatusEvents ui
-    class LangGraph,EmitAwait,Pause,ResumeInput,ResumeGraph,StreamChunks main
+  Graph-->>Main: final content / Complete|Breaker
+  Main-->>DB: persist metadata, clear awaitingUserInput
+  Main-->>IPC: stream end
+  IPC-->>Store: mark assistantTyping=false, awaitingUserInput cleared
+  Store-->>Renderer: enable input, show final text

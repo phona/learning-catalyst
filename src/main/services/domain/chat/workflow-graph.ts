@@ -5,14 +5,11 @@ import {
   END,
   Command,
   interrupt,
-  type StreamEvent,
 } from '@langchain/langgraph';
-import type { BaseMessage } from '@langchain/core/messages';
-import type { AgentManager } from '@/main/services/agent/agent-manager';
-import type { AgentType } from '@/main/services/agent/types';
-import type { LoggerService } from '@/main/services/core/logger/logger-service';
-import type { SQLiteCheckpointSaver } from '@/main/services/core/checkpoints/SQLiteCheckpointSaver';
-import type { ChatStatus } from '@/shared/types/electron-api/chat-api';
+import type { AgentManager } from '../../agent/agent-manager';
+import type { AgentType } from '../../agent/types';
+import type { LoggerService } from '../../core/logger/logger-service';
+import type { SQLiteCheckpointSaver } from '../../core/checkpoints/SQLiteCheckpointSaver';
 import { randomUUID } from 'node:crypto';
 
 const WorkflowStateSchema = z.object({
@@ -264,10 +261,14 @@ export const createWorkflowGraph = (deps: WorkflowDeps) => {
 
 export type WorkflowGraphRunner = ReturnType<typeof createWorkflowGraph>;
 
-export const isInterruptEvent = (evt: StreamEvent<any>) =>
-  !!(evt as any)?.__interrupt__?.length;
+type InterruptEvent = { __interrupt__?: Array<{ value?: unknown; checkpoint_id?: string }> };
 
-export const extractInterrupt = (evt: StreamEvent<any>) => {
-  const raw = (evt as any)?.__interrupt__?.[0];
+export const isInterruptEvent = (evt: unknown): evt is InterruptEvent =>
+  !!(evt as InterruptEvent)?.__interrupt__?.length;
+
+export const extractInterrupt = (
+  evt: InterruptEvent,
+): Record<string, unknown> | unknown | undefined => {
+  const raw = evt?.__interrupt__?.[0];
   return raw?.value ?? raw;
 };

@@ -5,7 +5,11 @@
 
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { MessageDisplay as UIMessageDisplay, AgentDisplay, ToolCallDisplay } from '../../types';
+import type {
+  MessageDisplay as UIMessageDisplay,
+  AgentDisplay,
+  ToolCallDisplay,
+} from '../../types';
 import type { StreamChunk } from '@/shared/types/ai';
 import type {
   ConversationMessage,
@@ -17,8 +21,16 @@ import type {
 } from '@/shared/types/session';
 import type { SessionService } from '../../services/session/session-service';
 import type { ChatService } from '@/renderer/services/chat/chat-service';
-import type { ChatAPI, SessionsAPI, PromptHistoryItem, PromptSearchRequest } from '@/shared/types/electron-api';
-import type { MessageDisplay as ChatAPIMessageDisplay, PromptSearchResponse } from '@/shared/types/electron-api/chat-api';
+import type {
+  ChatAPI,
+  SessionsAPI,
+  PromptHistoryItem,
+  PromptSearchRequest,
+} from '@/shared/types/electron-api';
+import type {
+  MessageDisplay as ChatAPIMessageDisplay,
+  PromptSearchResponse,
+} from '@/shared/types/electron-api/chat-api';
 
 type SendMessageResponse =
   | ChatAPIMessageDisplay
@@ -123,7 +135,9 @@ const normalizeConversationMessages = (messages: ConversationMessage[] = []): UI
 
     const safeContent = typeof message.content === 'string' ? message.content : '';
     const safeTimestamp =
-      message.timestamp instanceof Date ? message.timestamp : new Date(message.timestamp ?? Date.now());
+      message.timestamp instanceof Date
+        ? message.timestamp
+        : new Date(message.timestamp ?? Date.now());
 
     return {
       id: message.id,
@@ -146,16 +160,16 @@ const normalizeConversationMessages = (messages: ConversationMessage[] = []): UI
 const chatDisplayToConversationMessage = (display: ChatAPIMessageDisplay): ConversationMessage => {
   const mapStatus = (status: ChatAPIMessageDisplay['status']): ConversationMessage['status'] => {
     switch (status) {
-    case 'sending':
-      return 'sending';
-    case 'processing':
-      return 'typing';
-    case 'error':
-      return 'error';
-    case 'sent':
-    case 'completed':
-    default:
-      return 'delivered';
+      case 'sending':
+        return 'sending';
+      case 'processing':
+        return 'typing';
+      case 'error':
+        return 'error';
+      case 'sent':
+      case 'completed':
+      default:
+        return 'delivered';
     }
   };
 
@@ -298,15 +312,13 @@ const initialState = {
   processingTrace: null,
   history: [] as HistoryEntry[],
   promptSearchResults: [] as PromptHistoryItem[],
-  awaitingUserInput: null as
-    | {
-        prompt: string;
-        checkpointId?: string;
-        questionId?: string;
-        sessionId?: string;
-        hidden?: boolean;
-      }
-    | null,
+  awaitingUserInput: null as {
+    prompt: string;
+    checkpointId?: string;
+    questionId?: string;
+    sessionId?: string;
+    hidden?: boolean;
+  } | null,
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
@@ -480,12 +492,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         setAutoScroll: (autoScroll) => set({ autoScroll }),
         setFontSize: (fontSize) => set({ fontSize }),
         setShowThinking: (showThinking) => set({ showThinking }),
-      setProcessingTraceCollapsed: (collapsed) =>
-        set((state) =>
-          state.processingTrace
-            ? { processingTrace: { ...state.processingTrace, collapsed } }
-            : state,
-        ),
+        setProcessingTraceCollapsed: (collapsed) =>
+          set((state) =>
+            state.processingTrace
+              ? { processingTrace: { ...state.processingTrace, collapsed } }
+              : state,
+          ),
         setThinkingContent: (thinkingContent) => set({ thinkingContent }),
         addHistoryEntry: (entry) =>
           set((state) => {
@@ -497,8 +509,10 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             return { history: [...merged, ...trimmed, entry] };
           }),
         getHistoryForSession: (sessionId) =>
-          get().history
-            .filter((h) => h.sessionId === sessionId || (!sessionId && h.sessionId === null))
+          get()
+            .history.filter(
+              (h) => h.sessionId === sessionId || (!sessionId && h.sessionId === null),
+            )
             .sort((a, b) => b.createdAt - a.createdAt),
         clearHistory: (sessionId) =>
           set((state) => ({
@@ -730,6 +744,8 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         sendMessageStream: async (content) => {
           const { currentSessionId, awaitingUserInput } = get();
 
+          let completeProcessingTrace: (status?: 'ok' | 'error') => void = () => undefined;
+
           try {
             set({ isLoading: true, isStreaming: true, error: null });
             // Clear any pending await state when user proactively sends input
@@ -867,12 +883,13 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               });
             };
 
-            const completeProcessingTrace = (status: 'ok' | 'error' = 'ok') => {
+            completeProcessingTrace = (status: 'ok' | 'error' = 'ok') => {
               set((state) => {
                 const trace = state.processingTrace;
                 if (!trace || trace.messageId !== assistantId) return state;
                 const finishedAt = Date.now();
-                const warningCount = status === 'error' ? trace.warningCount + 1 : trace.warningCount;
+                const warningCount =
+                  status === 'error' ? trace.warningCount + 1 : trace.warningCount;
                 const errorCount = status === 'error' ? trace.errorCount + 1 : trace.errorCount;
                 return {
                   processingTrace: {
@@ -911,29 +928,33 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             const statusToText = (status: any): string => {
               if (!status || typeof status !== 'object') return '';
               switch (status.type) {
-              case 'retry':
-                return `Retry ${status.attempt}/${status.max}: ${status.reason ?? ''}`.trim();
-              case 'fail':
-                return `Failed (${status.category ?? 'error'})${
-                  status.suggestion ? `: ${status.suggestion}` : ''
-                }`;
-              case 'thought':
-                return status.text ?? '';
-              case 'tip':
-                return status.text ?? '';
-              case 'tool':
-                return `Tool ${status.tool ?? ''} ${status.phase ?? ''}${
-                  status.detail ? `: ${status.detail}` : ''
-                }`.trim();
-              default:
-                return '';
+                case 'retry':
+                  return `Retry ${status.attempt}/${status.max}: ${status.reason ?? ''}`.trim();
+                case 'fail':
+                  return `Failed (${status.category ?? 'error'})${
+                    status.suggestion ? `: ${status.suggestion}` : ''
+                  }`;
+                case 'thought':
+                  return status.text ?? '';
+                case 'tip':
+                  return status.text ?? '';
+                case 'tool':
+                  return `Tool ${status.tool ?? ''} ${status.phase ?? ''}${
+                    status.detail ? `: ${status.detail}` : ''
+                  }`.trim();
+                default:
+                  return '';
               }
             };
 
             const handleStatusEvent = (status: any) => {
               if (!status || typeof status !== 'object') return;
               const now = Date.now();
-              const pushTool = (tool?: string, phase?: 'start' | 'end' | 'error', detail?: string) =>
+              const pushTool = (
+                tool?: string,
+                phase?: 'start' | 'end' | 'error',
+                detail?: string,
+              ) =>
                 addProcessingEvent({
                   kind: 'tool',
                   label: `tool ${tool ?? 'unknown'} ${phase ?? ''}`.trim(),
@@ -944,108 +965,111 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                 });
 
               switch (status.type) {
-              case 'thought':
-                addProcessingEvent({
-                  kind: 'thought',
-                  label: status.text ?? 'Thought',
-                  detail: status.text,
-              at: now,
-            });
-            break;
-          case 'tool':
-            pushTool(status.tool, status.phase, status.detail);
-            if (status.tool) {
-              const toolId = toolCallNameToId.get(status.tool) ?? status.tool;
-              upsertToolCalls(
-                [
-                  {
-                    id: toolId,
-                    type: 'function',
-                    function: { name: status.tool, arguments: status.detail ?? '' },
-                  },
-                ],
-                status.phase === 'end'
-                  ? 'completed'
-                  : status.phase === 'error'
-                    ? 'error'
-                    : 'running',
-                status.phase === 'error' ? status.detail : undefined,
-              );
-            }
-            break;
-          case 'timeline_event':
-            if (status.event?.type === 'thought') {
-              addProcessingEvent({
-                kind: 'thought',
-                label: status.event.text ?? 'Thought',
-                detail: status.event.text,
-                at: now,
-              });
-            } else if (status.event?.type === 'tool') {
-              pushTool(status.event.tool, status.event.phase, status.event.detail);
-              if (status.event.tool) {
-                const toolId = toolCallNameToId.get(status.event.tool) ?? status.event.tool;
-                upsertToolCalls(
-                  [
-                    {
-                      id: toolId,
-                      type: 'function',
-                      function: { name: status.event.tool, arguments: status.event.detail ?? '' },
-                    },
-                  ],
-                  status.event.phase === 'end'
-                    ? 'completed'
-                    : status.event.phase === 'error'
-                      ? 'error'
-                      : 'running',
-                  status.event.phase === 'error' ? status.event.detail : undefined,
-                );
-              }
-            } else if (status.event?.type === 'error') {
-              addProcessingEvent({
-                kind: 'error',
-                label: status.event.text ?? 'Error',
-                detail: status.event.text,
+                case 'thought':
+                  addProcessingEvent({
+                    kind: 'thought',
+                    label: status.text ?? 'Thought',
+                    detail: status.text,
                     at: now,
                   });
-                }
-                break;
-              case 'timeline_state':
-                addProcessingEvent({
-                  kind: 'status',
-                  label: status.state ?? 'Status',
-                  detail: status.state,
-                  at: now,
-                });
-                break;
-              case 'fail':
-                addProcessingEvent({
-                  kind: 'error',
-                  label: `Failed (${status.category ?? 'error'})`,
-                  detail: status.suggestion,
-                  at: now,
-                });
-                break;
-              case 'await_user_input':
-                addProcessingEvent({
-                  kind: 'status',
-                  label: 'Waiting for your answer',
-                  detail: status.prompt,
-                  at: now,
-                });
-                set({
-                  awaitingUserInput: {
-                    prompt: status.prompt,
-                    checkpointId: (status as any).checkpointId,
-                    questionId: (status as any).questionId,
-                    sessionId: (status as any).sessionId,
-                  },
-                  isStreaming: false,
-                  isTyping: false,
-                });
-                break;
-              default:
-                break;
+                  break;
+                case 'tool':
+                  pushTool(status.tool, status.phase, status.detail);
+                  if (status.tool) {
+                    const toolId = toolCallNameToId.get(status.tool) ?? status.tool;
+                    upsertToolCalls(
+                      [
+                        {
+                          id: toolId,
+                          type: 'function',
+                          function: { name: status.tool, arguments: status.detail ?? '' },
+                        },
+                      ],
+                      status.phase === 'end'
+                        ? 'completed'
+                        : status.phase === 'error'
+                          ? 'error'
+                          : 'running',
+                      status.phase === 'error' ? status.detail : undefined,
+                    );
+                  }
+                  break;
+                case 'timeline_event':
+                  if (status.event?.type === 'thought') {
+                    addProcessingEvent({
+                      kind: 'thought',
+                      label: status.event.text ?? 'Thought',
+                      detail: status.event.text,
+                      at: now,
+                    });
+                  } else if (status.event?.type === 'tool') {
+                    pushTool(status.event.tool, status.event.phase, status.event.detail);
+                    if (status.event.tool) {
+                      const toolId = toolCallNameToId.get(status.event.tool) ?? status.event.tool;
+                      upsertToolCalls(
+                        [
+                          {
+                            id: toolId,
+                            type: 'function',
+                            function: {
+                              name: status.event.tool,
+                              arguments: status.event.detail ?? '',
+                            },
+                          },
+                        ],
+                        status.event.phase === 'end'
+                          ? 'completed'
+                          : status.event.phase === 'error'
+                            ? 'error'
+                            : 'running',
+                        status.event.phase === 'error' ? status.event.detail : undefined,
+                      );
+                    }
+                  } else if (status.event?.type === 'error') {
+                    addProcessingEvent({
+                      kind: 'error',
+                      label: status.event.text ?? 'Error',
+                      detail: status.event.text,
+                      at: now,
+                    });
+                  }
+                  break;
+                case 'timeline_state':
+                  addProcessingEvent({
+                    kind: 'status',
+                    label: status.state ?? 'Status',
+                    detail: status.state,
+                    at: now,
+                  });
+                  break;
+                case 'fail':
+                  addProcessingEvent({
+                    kind: 'error',
+                    label: `Failed (${status.category ?? 'error'})`,
+                    detail: status.suggestion,
+                    at: now,
+                  });
+                  break;
+                case 'await_user_input':
+                  addProcessingEvent({
+                    kind: 'status',
+                    label: 'Waiting for your answer',
+                    detail: status.prompt,
+                    at: now,
+                  });
+                  set({
+                    awaitingUserInput: {
+                      prompt: status.prompt,
+                      checkpointId: (status as any).checkpointId,
+                      questionId: (status as any).questionId,
+                      sessionId: (status as any).sessionId,
+                    },
+                    isStreaming: false,
+                    isTyping: false,
+                  });
+                  break;
+                default:
+                  break;
               }
             };
 
@@ -1096,9 +1120,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   type: (chunk as any).type,
                   status: (chunk as any).status,
                   contentPreview:
-                    typeof chunk.content === 'string'
-                      ? chunk.content.slice(0, 60)
-                      : undefined,
+                    typeof chunk.content === 'string' ? chunk.content.slice(0, 60) : undefined,
                   streamingMessageId: get().streamingMessageId,
                 });
                 if (!get().isStreaming) {
@@ -1164,7 +1186,8 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             get().finishStreamingMessage(result.content);
             completeProcessingTrace('ok');
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to stream message';
+            const errorMessage =
+              error instanceof Error ? error.message : 'Failed to stream message';
             completeProcessingTrace('error');
             // Surface the failure inline so users see it immediately, even if no status chunk arrived
             set((state) => {

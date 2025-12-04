@@ -378,24 +378,6 @@ const ChatInputComponent: React.FC = () => {
                   {inputText.length}
                 </div>
               )}
-
-              {/* Error display */}
-              {error && (
-                <div className="absolute top-3 right-3 px-3 py-1.5 bg-red-500 text-white rounded-full text-xs font-medium max-w-xs truncate">
-                  <span title={error}>{error}</span>
-                </div>
-              )}
-
-              {/* Input state indicator */}
-              {isStreaming && (
-                <div
-                  className="absolute top-3 right-3 flex items-center px-2.5 py-1 bg-emerald-500 text-white rounded-full text-xs font-medium"
-                  role="status"
-                  aria-label="Generating response"
-                >
-                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-                </div>
-              )}
             </div>
 
             {/* Send / Stop button */}

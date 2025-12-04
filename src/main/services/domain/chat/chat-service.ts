@@ -721,89 +721,140 @@ export const createChatService = ({
 
           if (workflowEnabled) {
             const awaiting = (conversation.metadata as any)?.awaitingUserInput;
-            const input = awaiting
-              ? new Command({ resume: { answer: params.content } })
-              : {
-                messages,
-                topic: conversation.topic,
-                userInput: params.content,
+            const hasCheckpoint = !!awaiting?.checkpointId;
+            const baseInput = {
+              messages,
+              topic: conversation.topic,
+              userInput: params.content,
+            };
+            const resumeInput =
+              awaiting && hasCheckpoint
+                ? new Command({ resume: { answer: params.content } })
+                : baseInput;
+
+            const runWorkflow = async (
+              inputToUse: any,
+              clearAwaitingOnSuccess: boolean,
+              useCheckpoint: boolean,
+            ): Promise<boolean> => {
+              const timelineCallback = new TimelineCallbackHandler(emitStatus, 'workflow');
+              const config = {
+                configurable: {
+                  thread_id: conversation.id,
+                  ...(useCheckpoint && hasCheckpoint ? { checkpoint_id: awaiting?.checkpointId } : {}),
+                },
+                callbacks: [timelineCallback],
+                stream_mode: 'updates' as const,
               };
 
-            const timelineCallback = new TimelineCallbackHandler(emitStatus, 'workflow');
-            const config = {
-              configurable: {
-                thread_id: conversation.id,
-                checkpoint_id: awaiting?.checkpointId,
-              },
-              callbacks: [timelineCallback],
-            };
+              const wfStream = await workflowGraph.stream(inputToUse, config);
 
-            const wfStream = await workflowGraph.stream(input, config, { stream_mode: 'updates' });
+              for await (const evt of wfStream) {
+                if (isInterruptEvent(evt)) {
+                  const payload =
+                    (extractInterrupt(evt) as Record<string, unknown> | undefined) ?? {};
+                  const rawInterrupt = (evt as any)?.__interrupt__?.[0] ?? {};
+                  const prompt =
+                    payload?.prompt ??
+                    payload?.message ??
+                    payload?.question ??
+                    'Please answer to continue.';
+                  const questionId =
+                    (payload as { questionId?: string })?.questionId ?? `q_${Date.now()}`;
+                  const checkpointId = rawInterrupt?.checkpoint_id;
 
-            for await (const evt of wfStream) {
-              if (isInterruptEvent(evt)) {
-                const payload = extractInterrupt(evt) ?? {};
-                const rawInterrupt = (evt as any)?.__interrupt__?.[0] ?? {};
-                const prompt =
-                  payload?.prompt ??
-                  payload?.message ??
-                  payload?.question ??
-                  'Please answer to continue.';
-                const questionId = payload?.questionId ?? `q_${Date.now()}`;
-                const checkpointId = rawInterrupt?.checkpoint_id;
-
-                emitStatus({
-                  type: 'await_user_input',
-                  prompt: String(prompt),
-                  sessionId: conversation.id,
-                  checkpointId: checkpointId ?? conversation.id,
-                  questionId,
-                });
-
-                conversation.status = 'paused';
-                conversation.metadata = {
-                  ...(conversation.metadata ?? {}),
-                  awaitingUserInput: {
-                    prompt,
+                  emitStatus({
+                    type: 'await_user_input',
+                    prompt: String(prompt),
+                    sessionId: conversation.id,
+                    checkpointId: checkpointId ?? conversation.id,
                     questionId,
-                    checkpointId: checkpointId ?? (conversation.metadata as any)?.checkpointId,
-                    requestedAt: new Date().toISOString(),
-                  },
-                  workflowMode: 'workflow_v1',
-                } as any;
-                await persistConversation(conversation);
-                serviceLogger.info('Workflow paused awaiting user input', {
-                  conversationId: conversation.id,
-                  questionId,
-                });
-                break;
-              }
+                  });
 
-              // LangGraph streams updates as tuples [path, nodeUpdate]
-              if (Array.isArray(evt)) {
-                const nodeUpdate = evt[1];
-                const nodeName = Object.keys(nodeUpdate ?? {})[0];
-                const update = nodeUpdate?.[nodeName] as any;
-                const msgs = update?.messages ?? [];
-                const last = msgs.length ? msgs[msgs.length - 1] : undefined;
-                const raw = last?.content ?? last?.text ?? '';
-                if (typeof raw === 'string' && raw.trim()) {
-                  aggregated += raw;
-                  yield { type: 'content', content: raw };
+                  conversation.status = 'paused';
+                  conversation.metadata = {
+                    ...(conversation.metadata ?? {}),
+                    awaitingUserInput: {
+                      prompt,
+                      questionId,
+                      checkpointId: checkpointId ?? (conversation.metadata as any)?.checkpointId,
+                      requestedAt: new Date().toISOString(),
+                    },
+                    workflowMode: 'workflow_v1',
+                  } as any;
+                  await persistConversation(conversation);
+                  serviceLogger.info('Workflow paused awaiting user input', {
+                    conversationId: conversation.id,
+                    questionId,
+                  });
+                  return true; // paused
+                }
+
+                // LangGraph streams updates as tuples [path, nodeUpdate]
+                if (Array.isArray(evt)) {
+                  const nodeUpdate = evt[1];
+                  const nodeName = Object.keys(nodeUpdate ?? {})[0];
+                  const update = nodeUpdate?.[nodeName] as any;
+                  const msgs = update?.messages ?? [];
+                  const last = msgs.length ? msgs[msgs.length - 1] : undefined;
+                  const raw = last?.content ?? last?.text ?? '';
+                  if (typeof raw === 'string' && raw.trim()) {
+                    aggregated += raw;
+                    chunks.push({ type: 'content', content: raw });
+                  }
                 }
               }
-            }
 
-            // If we finished without pausing, clear awaiting flags and mark active
-            if (!canceled) {
-              const meta = { ...(conversation.metadata as any) };
-              if (meta.awaitingUserInput) {
-                delete meta.awaitingUserInput;
+              // If we finished without pausing, clear awaiting flags and mark active
+              if (clearAwaitingOnSuccess && !canceled) {
+                const meta = { ...(conversation.metadata as any) };
+                if (meta.awaitingUserInput) {
+                  delete meta.awaitingUserInput;
+                }
+                meta.workflowMode = 'workflow_v1';
+                conversation.metadata = meta as any;
+                conversation.status = 'active';
+                await persistConversation(conversation);
               }
-              meta.workflowMode = 'workflow_v1';
-              conversation.metadata = meta as any;
+              return false; // not paused
+            };
+
+            const chunks: StreamChunk[] = [];
+
+            try {
+              const paused = await runWorkflow(resumeInput, true, true);
+              for (const chunk of chunks) {
+                yield chunk;
+              }
+              chunks.length = 0;
+              if (paused || canceled) return;
+            } catch (err) {
+              const msg = (err as Error)?.message ?? '';
+              const canRetryFromScratch = msg.includes('__input__');
+              serviceLogger.error('Workflow resume failed', {
+                conversationId: conversation.id,
+                error: msg,
+                retryingFromScratch: canRetryFromScratch,
+              });
+
+              if (!canRetryFromScratch) {
+                throw err;
+              }
+
+              // Fallback: clear awaiting state and rerun from scratch without checkpoint
+              conversation.metadata = {
+                ...(conversation.metadata ?? {}),
+                workflowMode: 'workflow_v1',
+              } as any;
               conversation.status = 'active';
               await persistConversation(conversation);
+
+              const paused = await runWorkflow(baseInput, false, false);
+              for (const chunk of chunks) {
+                yield chunk;
+              }
+              chunks.length = 0;
+              if (paused || canceled) return;
             }
 
             // For workflow path, bail out early (finally will persist)

@@ -156,18 +156,31 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
     }
 
     try {
-      const result = await this.db
+      const results = await this.db
         .selectFrom('checkpoints')
         .selectAll()
         .where('checkpoint_id', '=', checkpointId)
         .where('thread_id', '=', threadId)
-        .executeTakeFirst();
+        .limit(1)
+        .execute();
 
+      const result = results[0];
       if (!result) {
         return undefined;
       }
 
-      return this.createCheckpointTuple(result, config);
+      const writes = (await this.getWrites(
+        {
+          configurable: {
+            thread_id: threadId,
+            checkpoint_id: checkpointId,
+            checkpoint_ns: config.configurable?.checkpoint_ns ?? '',
+          },
+        },
+        undefined,
+      )) ?? [];
+
+      return this.createCheckpointTuple(result, config, writes);
     } catch (error) {
       console.error('Failed to retrieve checkpoint tuple:', error);
       throw new Error(`Checkpoint tuple retrieval failed: ${error}`);
@@ -347,13 +360,16 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
     checkpointNs?: string,
   ): Promise<CheckpointTuple | undefined> {
     try {
-      const result = await this.db
+      const results = await this.db
         .selectFrom('checkpoints')
         .selectAll()
         .where('thread_id', '=', threadId)
         .where('checkpoint_ns', '=', checkpointNs || '')
         .orderBy('created_at', 'desc')
-        .executeTakeFirst();
+        .limit(1)
+        .execute();
+
+      const result = results[0];
 
       if (!result) {
         return undefined;
@@ -367,17 +383,24 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
         },
       };
 
-      return this.createCheckpointTuple(result, config);
+      const writes = (await this.getWrites(config, undefined)) ?? [];
+
+      return this.createCheckpointTuple(result, config, writes);
     } catch (error) {
-      console.error('Failed to get latest checkpoint tuple:', error);
-      throw new Error(`Latest checkpoint tuple retrieval failed: ${error}`);
+      // If the latest checkpoint is corrupted or unreadable, fall back to no checkpoint
+      console.error('Failed to get latest checkpoint tuple, falling back to empty state:', error);
+      return undefined;
     }
   }
 
   /**
    * Create a CheckpointTuple from a database row
    */
-  private createCheckpointTuple(row: CheckpointRow, config: RunnableConfig): CheckpointTuple {
+  private createCheckpointTuple(
+    row: CheckpointRow,
+    config: RunnableConfig,
+    writes?: PendingWrite[],
+  ): CheckpointTuple {
     const checkpoint: Checkpoint = JSONFieldHelpers.parseObject(row.checkpoint_data);
     const metadata: CheckpointMetadata = JSONFieldHelpers.parseObject(row.metadata || '{}');
 
@@ -400,6 +423,7 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
       checkpoint,
       metadata,
       parentConfig,
+      writes: writes ?? [],
     };
   }
 
@@ -430,7 +454,7 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
   /**
    * Get checkpoint writes for a specific checkpoint
    */
-  async getWrites(config: RunnableConfig, taskId?: string): Promise<any[]> {
+  async getWrites(config: RunnableConfig, taskId?: string): Promise<PendingWrite[]> {
     const threadId = this.getThreadId(config);
     const checkpointId = config.configurable?.checkpoint_id;
 
@@ -447,15 +471,14 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
       if (taskId) {
         query = query.where('task_id', '=', taskId);
       }
-
       const writes = await query.execute();
 
-      return writes.map((write) => ({
-        taskId: write.task_id,
-        channel: write.channel,
-        type: write.type,
-        value: JSONFieldHelpers.parseObject(write.value || '{}'),
-      }));
+      return writes.map(
+        (write): PendingWrite => [
+          write.channel,
+          JSONFieldHelpers.parseObject(write.value || '{}'),
+        ],
+      );
     } catch (error) {
       console.error('Failed to get checkpoint writes:', error);
       throw new Error(`Checkpoint writes retrieval failed: ${error}`);
