@@ -304,6 +304,7 @@ const initialState = {
         checkpointId?: string;
         questionId?: string;
         sessionId?: string;
+        hidden?: boolean;
       }
     | null,
 };

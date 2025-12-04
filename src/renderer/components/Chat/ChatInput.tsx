@@ -282,13 +282,26 @@ const ChatInputComponent: React.FC = () => {
     useChatStore.setState({ awaitingUserInput: null, isStreaming: false, isTyping: false });
   };
 
+  const handleHideAwait = () => {
+    const current = useChatStore.getState().awaitingUserInput;
+    if (current) {
+      useChatStore.setState({
+        awaitingUserInput: { ...current, hidden: true },
+        isStreaming: false,
+        isTyping: false,
+      });
+    }
+  };
+
+  const showAwaitBanner = awaitingUserInput && !awaitingUserInput.hidden;
+
   return (
     <div
       className="relative border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
       role="region"
       aria-label="Chat input area"
     >
-      {awaitingUserInput ? (
+      {showAwaitBanner ? (
         <div className="px-6 pt-4">
           <div className="rounded-md border border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100 px-3 py-2 text-sm flex items-start gap-3">
             <div className="flex-1">
@@ -302,6 +315,13 @@ const ChatInputComponent: React.FC = () => {
                 className="px-2 py-1 text-xs rounded border border-amber-500 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-800"
               >
                 Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleHideAwait}
+                className="px-2 py-1 text-xs rounded border border-amber-300 text-amber-900 dark:text-amber-100 hover:bg-amber-100/60 dark:hover:bg-amber-800/60"
+              >
+                Resume later
               </button>
             </div>
           </div>
@@ -332,7 +352,7 @@ const ChatInputComponent: React.FC = () => {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    awaitingUserInput
+                    awaitingUserInput && !awaitingUserInput.hidden
                       ? `Answer: ${awaitingUserInput.prompt}`
                       : isStreaming
                         ? 'AI is responding...'
@@ -379,7 +399,7 @@ const ChatInputComponent: React.FC = () => {
             </div>
 
             {/* Send / Stop button */}
-            {isStreaming ? (
+            {isStreaming && !(awaitingUserInput && !awaitingUserInput.hidden) ? (
               <button
                 type="button"
                 onClick={() => {
