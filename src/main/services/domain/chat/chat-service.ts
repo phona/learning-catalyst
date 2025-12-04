@@ -694,16 +694,17 @@ export const createChatService = ({
         let canceled = false;
         const streamStart = Date.now();
         const emitStatus = (status: ChatStatus) => {
-          try {
-            serviceLogger.debug('Emitting chat status', {
-              conversationId: params.conversationId,
-              status,
-              elapsedMs: Date.now() - streamStart,
-            });
-            params.onStatus?.(status);
-          } catch (emitError) {
-            serviceLogger.debug('Failed to emit status', { error: emitError });
+          const logLevel = !params.onStatus ? 'error' : 'debug';
+          serviceLogger[logLevel]('Emitting chat status', {
+            conversationId: params.conversationId,
+            status,
+            hasOnStatusCallback: !!params.onStatus,
+            elapsedMs: Date.now() - streamStart,
+          });
+          if (!params.onStatus) {
+            serviceLogger.error('onStatus callback is UNDEFINED - status will be lost!', { statusType: status?.type });
           }
+          params.onStatus?.(status);
         };
 
         try {
@@ -763,6 +764,12 @@ export const createChatService = ({
                     (payload as { questionId?: string })?.questionId ?? `q_${Date.now()}`;
                   const checkpointId = rawInterrupt?.checkpoint_id;
 
+                  serviceLogger.info('EMITTING await_user_input status (interrupt)', {
+                    prompt: String(prompt),
+                    sessionId: conversation.id,
+                    checkpointId,
+                  });
+                  serviceLogger.info('About to call emitStatus for await_user_input');
                   emitStatus({
                     type: 'await_user_input',
                     prompt: String(prompt),
@@ -770,6 +777,7 @@ export const createChatService = ({
                     checkpointId: checkpointId ?? conversation.id,
                     questionId,
                   });
+                  serviceLogger.info('Finished calling emitStatus for await_user_input');
 
                   conversation.status = 'paused';
                   conversation.metadata = {
@@ -932,6 +940,11 @@ export const createChatService = ({
                   promptText = awaitTool.function.arguments ?? 'Please respond to continue.';
                 }
 
+                serviceLogger.info('EMITTING await_user_input status (awaitTool)', {
+                  promptText,
+                  sessionId: conversation.id,
+                  questionId: awaitTool.id,
+                });
                 emitStatus({
                   type: 'await_user_input',
                   prompt: String(promptText ?? 'Please respond to continue.'),

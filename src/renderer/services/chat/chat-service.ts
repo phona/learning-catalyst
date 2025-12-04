@@ -34,7 +34,33 @@ export interface ChatService {
 export const createChatService = (apiClient: ElectronAPI): ChatService => {
   const pendingStreams = new Map<
     string,
-    { resolve: (msg: Message) => void; reject: (err: unknown) => void; getContent: () => string; assistantId: string }
+    {
+      resolve: (msg: Message) => void;
+      reject: (err: unknown) => void;
+      getContent: () => string;
+      assistantId: string;
+      // Aggregated data for DetailsPanel
+      reasoning?: string;
+      tools?: Array<{
+        id: string;
+        name: string;
+        duration: number;
+        phase: 'start' | 'end' | 'error';
+        input?: string;
+        output?: string;
+      }>;
+      performance?: {
+        responseTime: number;
+        tokens?: number;
+        speed?: number;
+        memory?: number;
+      };
+      timeline?: Array<{
+        id: string;
+        offset: string;
+        description: string;
+      }>;
+    }
   >();
   const ensureSessionId = (options?: { sessionId?: string }) => {
     const sessionId = options?.sessionId;
@@ -88,6 +114,15 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     const sessionId = ensureSessionId(options);
     let aggregated = '';
     const assistantId = `assistant_${Date.now()}`;
+    const startTime = Date.now();
+    const streamData = {
+      reasoning: '',
+      tools: [] as NonNullable<typeof pendingStreams extends Map<any, infer V> ? V : any>['tools'],
+      performance: {
+        responseTime: 0,
+      } as NonNullable<typeof pendingStreams extends Map<any, infer V> ? V : any>['performance'],
+      timeline: [] as NonNullable<typeof pendingStreams extends Map<any, infer V> ? V : any>['timeline'],
+    };
 
     try {
       console.log('[chat-service] sendMessageStream: start', {
@@ -135,12 +170,20 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
             const resolver = pendingStreams.get(sessionId)?.resolve;
             if (resolver) {
               console.debug('[chat-service] stream complete event');
+              const responseTime = Date.now() - startTime;
               resolver({
                 id: assistantId,
                 role: 'assistant',
                 content: aggregated,
                 timestamp: new Date(),
                 provider: sessionId,
+                reasoning: streamData.reasoning || undefined,
+                tools: streamData.tools.length > 0 ? streamData.tools : undefined,
+                performance: {
+                  ...streamData.performance,
+                  responseTime,
+                },
+                timeline: streamData.timeline.length > 0 ? streamData.timeline : undefined,
               });
               pendingStreams.delete(sessionId);
             }
@@ -158,6 +201,41 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
             }
           } else if (evt.type === 'status') {
             console.debug('[chat-service] stream status', evt.status);
+            // Collect status data for DetailsPanel
+            const status = evt.status;
+            if (status && typeof status === 'object' && 'type' in status) {
+              if (status.type === 'thought' && 'text' in status) {
+                streamData.reasoning += (streamData.reasoning ? '\n\n' : '') + status.text;
+              } else if (status.type === 'tool' && 'tool' in status && 'phase' in status) {
+                const existingTool = streamData.tools.find(t => t.name === status.tool);
+                const toolEntry = {
+                  id: `tool_${status.tool}_${Date.now()}_${Math.random()}`,
+                  name: status.tool,
+                  duration: 0, // Will be calculated
+                  phase: status.phase as 'start' | 'end' | 'error',
+                  input: status.detail && status.phase === 'start' ? status.detail : undefined,
+                  output: status.detail && status.phase === 'end' ? status.detail : undefined,
+                };
+                if (existingTool) {
+                  Object.assign(existingTool, toolEntry);
+                } else {
+                  streamData.tools.push(toolEntry);
+                }
+              } else if (status.type === 'timeline_event' && 'event' in status) {
+                const event = status.event;
+                if (event && typeof event === 'object' && 'type' in event && 'text' in event) {
+                  const offsetMs = Date.now() - startTime;
+                  const offset = offsetMs < 1000
+                    ? `${offsetMs}ms`
+                    : `${(offsetMs / 1000).toFixed(1)}s`;
+                  streamData.timeline.push({
+                    id: event.id || `event_${Date.now()}_${Math.random()}`,
+                    offset,
+                    description: event.text || 'Event',
+                  });
+                }
+              }
+            }
             onChunk({ type: 'status', status: evt.status } as StreamChunk & { status?: unknown });
           }
         },
@@ -183,12 +261,20 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
             onChunk({ content: part, type: 'content' });
           }
         }
+        const responseTime = Date.now() - startTime;
         return {
           id: assistantId,
           role: 'assistant',
           content: aggregated,
           timestamp: new Date(),
           provider: sessionId,
+          reasoning: streamData.reasoning || undefined,
+          tools: streamData.tools.length > 0 ? streamData.tools : undefined,
+          performance: {
+            ...streamData.performance,
+            responseTime,
+          },
+          timeline: streamData.timeline.length > 0 ? streamData.timeline : undefined,
         };
       }
 
@@ -203,6 +289,10 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
           reject,
           getContent: () => aggregated,
           assistantId,
+          reasoning: streamData.reasoning,
+          tools: streamData.tools,
+          performance: streamData.performance,
+          timeline: streamData.timeline,
         });
       });
 

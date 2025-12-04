@@ -67,8 +67,8 @@ describe("useChat streaming integration (no Electron)", () => {
 
     expect(chatService.sendMessageStream).toHaveBeenCalled();
     expect(result.current.isStreaming).toBe(false);
-    expect(result.current.messages.map((m) => m.role)).toEqual(["user", "assistant", "system"]);
-    expect(result.current.messages[1]?.content).toBe("partial answer");
+    expect(result.current.messages.map((m) => m.role)).toEqual(["user", "system", "assistant"]);
+    expect(result.current.messages[2]?.content).toBe("partial answer");
   });
 
   it("surfaces status chunks as system messages", async () => {

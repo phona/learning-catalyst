@@ -18,6 +18,10 @@
     "langchain": {
       "type": "http",
       "url": "https://docs.langchain.com/mcp"
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest", "--browser-url=http://localhost:9222"]
     }
   }
 }

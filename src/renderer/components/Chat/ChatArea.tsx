@@ -1,16 +1,36 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/strict-boolean-expressions */
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { MessageBubble } from './MessageBubble';
+import { DetailsPanel } from './DetailsPanel';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { usePracticeSuggestions } from '@/renderer/hooks/usePracticeSuggestions';
 import { MessageErrorBoundary } from '@/renderer/components/UI/MessageErrorBoundary';
 import type { MessageDisplay } from '@/renderer/types';
 import type { ChatState } from '@/renderer/stores/chat/chatStore';
 
-// Extended interface for messages with thinking toggle support
-interface MessageDisplayWithThinking extends MessageDisplay {
-  showThinking?: boolean;
-  thinking_content?: string;
+// Extended interface for messages with details panel support
+interface MessageDisplayWithDetails extends MessageDisplay {
+  detailsLevel?: 0 | 1 | 2;  // 0 = collapsed, 1 = basic, 2 = advanced
+  reasoning?: string;
+  tools?: Array<{
+    id: string;
+    name: string;
+    duration: number;
+    phase: 'start' | 'end' | 'error';
+    input?: string;
+    output?: string;
+  }>;
+  performance?: {
+    responseTime: number;
+    tokens?: number;
+    speed?: number;
+    memory?: number;
+  };
+  timeline?: Array<{
+    id: string;
+    offset: string;
+    description: string;
+  }>;
 }
 
 // Interface for current session
@@ -38,7 +58,7 @@ const ChatAreaComponent: React.FC = () => {
     thinkingContent: '',
     streamingMessageId: null,
     streamingContent: '',
-    processingTrace: null,
+    // Removed: processingTrace
     setCurrentSession: async () => undefined,
     addMessage: () => undefined,
     updateMessage: () => undefined,
@@ -52,7 +72,7 @@ const ChatAreaComponent: React.FC = () => {
     setFontSize: () => undefined,
     setShowThinking: () => undefined,
     setThinkingContent: () => undefined,
-    setProcessingTraceCollapsed: () => undefined,
+    setProcessingTraceCollapsed: () => undefined,  // Keep for compatibility
     startStreamingMessage: () => undefined,
     appendStreamingContent: () => undefined,
     finishStreamingMessage: () => undefined,
@@ -64,6 +84,9 @@ const ChatAreaComponent: React.FC = () => {
     setSelectedProvider: () => undefined,
     setSelectedModel: () => undefined,
   };
+
+  // Local state for details panel
+  const [detailsLevels, setDetailsLevels] = useState<Record<string, 0 | 1 | 2>>({});
 
   const chatState: ChatState = useChatStore() ?? fallbackState;
   const [practiceState, practiceActions] = usePracticeSuggestions();
@@ -77,7 +100,7 @@ const ChatAreaComponent: React.FC = () => {
     updateMessage = (): void => {},
     currentSession,
     streamingMessageId = null,
-    processingTrace = null,
+    // Removed: processingTrace
   } = chatState;
 
   const chatMessages = Array.isArray(messages) ? messages : [];
@@ -87,6 +110,7 @@ const ChatAreaComponent: React.FC = () => {
     isStreaming,
     streamingMessageId,
   });
+
   // Monitor messages to check for practice opportunities
   const lastCheckedUserMessageIdRef = useRef<string | null>(null);
   useEffect((): void => {
@@ -112,12 +136,12 @@ const ChatAreaComponent: React.FC = () => {
     }
   }, [chatMessages, currentSession?.id, practiceActions, practiceState.isLoading]);
 
-  // Simple toggle function for individual message thinking visibility
-  const handleToggleThinking = (messageId: string): void => {
-    const message = chatMessages.find((msg: MessageDisplayWithThinking) => msg.id === messageId);
-    if (message != null) {
-      updateMessage(messageId, { showThinking: !message.showThinking });
-    }
+  // Toggle details panel for a message
+  const handleToggleDetails = (messageId: string, level: 1 | 2): void => {
+    setDetailsLevels((prev) => ({
+      ...prev,
+      [messageId]: prev[messageId] === level ? 0 : level,
+    }));
   };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -243,20 +267,38 @@ const ChatAreaComponent: React.FC = () => {
           <div className="py-6">
             <div className="max-w-4xl mx-auto space-y-6">
               {console.log('[ChatArea] rendering messages', { count: chatMessages.length })}
-              {chatMessages.map((message: MessageDisplayWithThinking) => (
-                <React.Fragment key={message.id}>
-                  <MessageErrorBoundary messageId={message.id}>
-                    <MessageBubble
-                      message={message}
-                      onToggleThinking={handleToggleThinking}
-                      isStreaming={isStreaming && message.id === streamingMessageId}
-                      processingTrace={
-                        processingTrace?.messageId === message.id ? processingTrace : undefined
-                      }
-                    />
-                  </MessageErrorBoundary>
-                </React.Fragment>
-              ))}
+              {chatMessages.map((message: MessageDisplay) => {
+                const messageWithDetails = message as MessageDisplayWithDetails;
+                const detailsLevel = detailsLevels[message.id] ?? 0;
+
+                return (
+                  <React.Fragment key={message.id}>
+                    <MessageErrorBoundary messageId={message.id}>
+                      <div>
+                        <MessageBubble
+                          message={message}
+                          onToggleDetails={handleToggleDetails}
+                          isStreaming={isStreaming && message.id === streamingMessageId}
+                        />
+                        {detailsLevel > 0 && (
+                          <DetailsPanel
+                            messageId={message.id}
+                            isExpanded={true}
+                            level={detailsLevel}
+                            onToggle={handleToggleDetails}
+                            data={{
+                              reasoning: messageWithDetails.reasoning,
+                              tools: messageWithDetails.tools,
+                              performance: messageWithDetails.performance,
+                              timeline: messageWithDetails.timeline,
+                            }}
+                          />
+                        )}
+                      </div>
+                    </MessageErrorBoundary>
+                  </React.Fragment>
+                );
+              })}
             </div>
 
             {/* Scroll anchor */}

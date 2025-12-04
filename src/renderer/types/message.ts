@@ -34,10 +34,15 @@ export interface MessageDisplay {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   timestamp: string | Date;
-  status?: 'sending' | 'delivered' | 'error' | 'typing';
+  status?: 'sending' | 'delivered' | 'error' | 'typing' | 'awaiting_input';
   provider?: string;
   thinking_content?: string;
   showThinking?: boolean;
+  awaitingInput?: {
+    prompt: string;
+    checkpointId?: string;
+    questionId?: string;
+  };
   tool_calls?: ToolCallDisplay[];
   tokens_used?: {
     prompt_tokens: number;
@@ -53,6 +58,27 @@ export interface MessageDisplay {
     emoji: string;
     count: number;
   }[];
+  // Enhanced fields for DetailsPanel progressive disclosure
+  reasoning?: string;  // AI reasoning/thinking (from thinking_content)
+  tools?: Array<{
+    id: string;
+    name: string;
+    duration: number;
+    phase: 'start' | 'end' | 'error';
+    input?: string;
+    output?: string;
+  }>;
+  performance?: {
+    responseTime: number;  // milliseconds
+    tokens?: number;  // total tokens generated
+    speed?: number;  // tokens per second
+    memory?: number;  // MB used
+  };
+  timeline?: Array<{
+    id: string;
+    offset: string;  // e.g., "0.2s", "1.5s"
+    description: string;  // e.g., "Searching knowledge base"
+  }>;
   metadata?: {
     confidence?: number;
     concepts?: string[];

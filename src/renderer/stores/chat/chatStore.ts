@@ -585,9 +585,27 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             set({ isStreaming: false });
             return;
           }
-          set({ isStreaming: false });
           const finalContent = get().streamingContent;
-          get().finishStreamingMessage(finalContent);
+          set((state) => ({
+            messages:
+              finalContent && finalContent.length > 0
+                ? [
+                    ...state.messages,
+                    {
+                      id: streamingMessageId,
+                      role: 'assistant',
+                      content: finalContent,
+                      timestamp: new Date().toISOString(),
+                      status: 'delivered',
+                      showThinking: false,
+                    },
+                  ]
+                : state.messages,
+            isStreaming: false,
+            streamingMessageId: null,
+            streamingContent: '',
+            isTyping: false,
+          }));
         },
 
         resetChatState: () => set(initialState),
@@ -801,18 +819,14 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                 : undefined;
 
             const assistantId = `msg_${Date.now()}_assistant`;
-            const assistantPlaceholder: UIMessageDisplay = {
-              id: assistantId,
-              role: 'assistant',
-              content: '',
-              timestamp: new Date().toISOString(),
-              status: 'typing',
-              showThinking: true,
-            };
-
-            set((state) => ({ messages: [...state.messages, assistantPlaceholder] }));
-            get().startStreamingMessage(assistantId);
-            devLog('[chatStore] streaming start', { assistantId, sessionId });
+            // We delay rendering the assistant bubble until the stream completes.
+            set({
+              streamingMessageId: assistantId,
+              streamingContent: '',
+              isTyping: true,
+              isStreaming: true,
+            });
+            devLog('[chatStore] streaming start (deferred render)', { assistantId, sessionId });
 
             const traceStartedAt = Date.now();
             set({
@@ -903,26 +917,23 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               });
             };
 
-            const statusMessageId = `${assistantId}_status`;
-            const upsertStatusMessage = (text: string) => {
-              set((state) => {
-                const idx = state.messages.findIndex((m) => m.id === statusMessageId);
-                const statusMsg: UIMessageDisplay = {
-                  id: statusMessageId,
-                  role: 'system',
-                  content: text,
-                  timestamp: new Date().toISOString(),
-                  status: 'delivered',
-                  showThinking: false,
-                };
-                if (idx >= 0) {
-                  const copy = [...state.messages];
-                  copy[idx] = statusMsg;
-                  return { messages: copy };
-                }
-                return { messages: [...state.messages, statusMsg] };
-              });
-              devLog('[chatStore] status upsert', { statusMessageId, text });
+            const addStepMessage = (text: string) => {
+              if (!text) return;
+              const id = `step_${assistantId}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+              set((state) => ({
+                messages: [
+                  ...state.messages,
+                  {
+                    id,
+                    role: 'system',
+                    content: text,
+                    timestamp: new Date().toISOString(),
+                    status: 'delivered',
+                    showThinking: false,
+                  },
+                ],
+              }));
+              devLog('[chatStore] step message appended', { id, text });
             };
 
             const statusToText = (status: any): string => {
@@ -950,6 +961,48 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             const handleStatusEvent = (status: any) => {
               if (!status || typeof status !== 'object') return;
               const now = Date.now();
+              const markAssistantAsAwaiting = (prompt: string) => {
+                console.log('[chatStore] markAssistantAsAwaiting called', { prompt });
+                set((state) => {
+                  // Find the last assistant message
+                  const messages = [...state.messages];
+                  console.log('[chatStore] Current messages before update', { count: messages.length, roles: messages.map(m => m.role) });
+
+                  for (let i = messages.length - 1; i >= 0; i--) {
+                    if (messages[i].role === 'assistant') {
+                      console.log('[chatStore] Found assistant message at index', i);
+                      messages[i] = {
+                        ...messages[i],
+                        content: `${messages[i].content}\n\n---\n\n**Awaiting your answer:** ${prompt}`,
+                        status: 'delivered' as const,
+                      };
+                      console.log('[chatStore] Updated existing assistant message');
+                      return { messages };
+                    }
+                  }
+
+                  // No assistant message exists yet - create one with awaiting state
+                  const assistantMessageId = `msg_${Date.now()}_assistant`;
+                  const assistantMessage: UIMessageDisplay = {
+                    id: assistantMessageId,
+                    role: 'assistant',
+                    content: '', // No content yet, will be filled later
+                    timestamp: new Date().toISOString(),
+                    status: 'awaiting_input',
+                    showThinking: false,
+                    awaitingInput: {
+                      prompt: prompt,
+                      checkpointId: status.checkpointId,
+                      questionId: status.questionId,
+                    },
+                  };
+                  console.log('[chatStore] No assistant message found, creating new awaiting message');
+                  return {
+                    messages: [...messages, assistantMessage],
+                    streamingMessageId: assistantMessageId,
+                  };
+                });
+              };
               const pushTool = (
                 tool?: string,
                 phase?: 'start' | 'end' | 'error',
@@ -1057,6 +1110,9 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                     detail: status.prompt,
                     at: now,
                   });
+                  if (typeof status.prompt === 'string' && status.prompt.trim().length > 0) {
+                    markAssistantAsAwaiting(status.prompt);
+                  }
                   set({
                     awaitingUserInput: {
                       prompt: status.prompt,
@@ -1116,6 +1172,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
             const result = await chatService.sendMessageStream(
               content,
               (chunk) => {
+                const chunkType = (chunk as any)?.type;
+                console.log('[chatStore] Raw chunk received', {
+                  type: chunkType,
+                  hasStatus: !!(chunk as any)?.status,
+                  chunkKeys: Object.keys(chunk || {}),
+                });
                 devLog('[chatStore] onChunk', {
                   type: (chunk as any).type,
                   status: (chunk as any).status,
@@ -1127,11 +1189,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   return;
                 }
                 if (chunk.type === 'status' && (chunk as any).status) {
+                  console.log('[chatStore] Status chunk detected', { statusType: (chunk as any).status?.type });
                   handleStatusEvent((chunk as any).status);
                   const text = statusToText((chunk as any).status);
-                  if (text) upsertStatusMessage(text);
-                  return;
-                }
+              if (text) addStepMessage(text);
+              return;
+            }
                 if (chunk.type === 'tool_call' && Array.isArray(chunk.tool_calls)) {
                   const displayCalls: ToolCallDisplay[] = chunk.tool_calls.map((call) => ({
                     id: call.id,
@@ -1166,14 +1229,6 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                 aggregated += text;
                 // Keep legacy streamingContent updated for stopStreaming/metrics
                 get().appendStreamingContent(text);
-                // Live-update the assistant placeholder bubble content
-                set((state) => ({
-                  messages: state.messages.map((m) =>
-                    m.id === assistantId
-                      ? { ...m, content: aggregated, status: 'typing', showThinking: true }
-                      : m,
-                  ),
-                }));
               },
               {
                 sessionId,
@@ -1183,7 +1238,49 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               },
             );
 
-            get().finishStreamingMessage(result.content);
+            // Render the final assistant message once streaming completes
+            // Check if we're in an awaiting state - if so, update the existing message instead of creating a new one
+            const { awaitingUserInput: currentAwaiting } = get();
+            const isAwaitingState = currentAwaiting && typeof currentAwaiting.prompt === 'string';
+
+            set((state) => {
+              const messages = [...state.messages];
+              const existingMessageIndex = messages.findIndex((m) => m.id === assistantId);
+
+              if (existingMessageIndex >= 0) {
+                // Update the existing message
+                messages[existingMessageIndex] = {
+                  ...messages[existingMessageIndex],
+                  content: result.content,
+                  status: 'delivered',
+                  showThinking: false,
+                };
+              } else if (isAwaitingState) {
+                // We're in awaiting state but no message exists yet - this shouldn't normally happen,
+                // but handle it gracefully by not creating an empty bubble
+                console.log('[chatStore] Stream completed in awaiting state but no message found, skipping final message creation');
+              } else {
+                // Normal case - create a new assistant message
+                const finalAssistant: UIMessageDisplay = {
+                  id: assistantId,
+                  role: 'assistant',
+                  content: result.content,
+                  timestamp: new Date().toISOString(),
+                  status: 'delivered',
+                  showThinking: false,
+                };
+                messages.push(finalAssistant);
+              }
+
+              return {
+                messages,
+                streamingMessageId: null,
+                streamingContent: '',
+                isTyping: false,
+                isStreaming: false,
+              };
+            });
+
             completeProcessingTrace('ok');
           } catch (error) {
             const errorMessage =

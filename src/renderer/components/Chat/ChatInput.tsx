@@ -7,24 +7,14 @@ import {
   PaperAirplaneIcon,
   PaperClipIcon,
   StopIcon,
-  SparklesIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
 } from '@heroicons/react/24/outline';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import { useFileService } from '@/renderer/services/services-provider';
-import { chatToasts, settingsToasts, utilityToasts } from '@/renderer/utils/toast';
+import { chatToasts, utilityToasts } from '@/renderer/utils/toast';
 
 const ChatInputComponent: React.FC = () => {
   const [inputText, setInputText] = useState<string>('');
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
-  const [historyIndex, setHistoryIndex] = useState<number | null>(null);
-  const [historyMode, setHistoryMode] = useState<boolean>(false);
-  const [draftBeforeHistory, setDraftBeforeHistory] = useState<string>('');
-  const [searchOpen, setSearchOpen] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isSearching, setIsSearching] = useState<boolean>(false);
 
   const {
     isLoading,
@@ -34,11 +24,7 @@ const ChatInputComponent: React.FC = () => {
     stopStreaming,
     error,
     setError,
-    history = [],
     currentSessionId,
-    promptSearchResults = [],
-    searchPrompts,
-    clearPromptSearchResults,
     awaitingUserInput,
   } = useChatStore((s) => ({
     isLoading: s.isLoading,
@@ -48,23 +34,12 @@ const ChatInputComponent: React.FC = () => {
     stopStreaming: s.stopStreaming,
     error: s.error,
     setError: s.setError,
-    history: s.history,
     currentSessionId: s.currentSessionId ?? s.currentSession?.id ?? null,
-    promptSearchResults: (s as any).promptSearchResults ?? [],
-    searchPrompts: (s as any).searchPrompts ?? (async () => []),
-    clearPromptSearchResults: (s as any).clearPromptSearchResults ?? (() => {}),
     awaitingUserInput: (s as any).awaitingUserInput ?? null,
   }));
 
-  const { config, updateConfig } = useConfigStore();
+  const { config } = useConfigStore();
   const fileService = useFileService();
-
-  // Use config values for provider/model since new service architecture doesn't expose these directly
-  const chatModelConfig = config?.ai?.modelTypes?.chat;
-  const selectedProvider = chatModelConfig?.defaultProvider ?? 'openai';
-  const selectedModel = chatModelConfig?.defaultModel ?? 'gpt-3.5-turbo';
-  const streamingEnabled = chatModelConfig?.capabilities?.streaming ?? true;
-  console.log('[ChatInput] Chat model config', chatModelConfig);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -75,53 +50,6 @@ const ChatInputComponent: React.FC = () => {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [inputText]);
-
-  const sessionHistory = React.useMemo(
-    () =>
-      history
-        .filter((h) => h.sessionId === currentSessionId)
-        .sort((a, b) => b.createdAt - a.createdAt),
-    [history, currentSessionId],
-  );
-
-  const applyHistoryEntry = (nextIndex: number | null) => {
-    if (nextIndex === null) {
-      setHistoryIndex(null);
-      setHistoryMode(false);
-      setInputText(draftBeforeHistory);
-      return;
-    }
-    const entry = sessionHistory[nextIndex];
-    if (!entry) return;
-    if (historyIndex === null) {
-      setDraftBeforeHistory(inputText);
-    }
-    setHistoryIndex(nextIndex);
-    setHistoryMode(true);
-    setInputText(entry.text);
-    setTimeout(() => textareaRef.current?.setSelectionRange(entry.text.length, entry.text.length), 0);
-  };
-
-  // Cross-session prompt search (debounced)
-  useEffect(() => {
-    if (!searchOpen) return;
-    setIsSearching(true);
-    const handle = setTimeout(() => {
-      void searchPrompts({
-        role: 'user',
-        query: searchQuery.trim() || undefined,
-        limit: 50,
-      }).finally(() => setIsSearching(false));
-    }, 200);
-    return () => clearTimeout(handle);
-  }, [searchOpen, searchQuery, searchPrompts]);
-
-  const closeSearch = () => {
-    setSearchOpen(false);
-    setSearchQuery('');
-    setIsSearching(false);
-    clearPromptSearchResults?.();
-  };
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -135,99 +63,25 @@ const ChatInputComponent: React.FC = () => {
     setError(null);
 
     try {
-      console.log('[ChatInput] submit', { streamingEnabled, len: message.length });
-      if (streamingEnabled) {
-        await sendMessageStream(message);
-      } else {
-        await sendMessage(message);
-      }
+      console.log('[ChatInput] submit', { len: message.length });
+      await sendMessageStream(message);
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setError(errorMessage);
       chatToasts.error(errorMessage);
     }
-    setHistoryIndex(null);
-    setHistoryMode(false);
-    setDraftBeforeHistory('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
-    if (searchOpen) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        closeSearch();
-      }
-      return;
-    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
-    } else if (e.key === 'ArrowUp' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      e.preventDefault();
-      const next = historyIndex === null ? 0 : Math.min(historyIndex + 1, sessionHistory.length - 1);
-      if (sessionHistory.length > 0) applyHistoryEntry(next);
-    } else if (e.key === 'ArrowDown' && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
-      e.preventDefault();
-      if (historyIndex === null) return;
-      const next = historyIndex - 1;
-      applyHistoryEntry(next < 0 ? null : next);
-    } else if (e.ctrlKey && e.key === 't') {
-      e.preventDefault();
-      // Toggle deep thinking mode
-      toggleDeepThinking();
     } else if (e.key === 'Escape') {
       // Clear input on escape
       e.preventDefault();
       setInputText('');
       textareaRef.current?.focus();
-    } else if (e.ctrlKey && e.key === 'k') {
-      e.preventDefault();
-      setSearchOpen(true);
-      setSearchQuery('');
-      setIsSearching(false);
-      void searchPrompts({ role: 'user', limit: 50 });
-    } else if (e.ctrlKey && e.key === '/') {
-      e.preventDefault();
-      // Show keyboard shortcuts (placeholder)
-    }
-  };
-
-  const toggleDeepThinking = async (): Promise<void> => {
-    if (!config) return;
-
-    const chatModel = config.ai.modelTypes?.chat;
-    if (!chatModel?.capabilities) {
-      return;
-    }
-
-    const newThinkingState = !chatModel.capabilities.thinking;
-
-    try {
-      await updateConfig({
-        ai: {
-          ...config.ai,
-          modelTypes: {
-            ...(config.ai.modelTypes ?? {}),
-            chat: chatModel
-              ? {
-                ...chatModel,
-                capabilities: {
-                  ...chatModel.capabilities,
-                  thinking: newThinkingState,
-                },
-              }
-              : undefined,
-          },
-        },
-      });
-      // Button provides visual feedback - no toast needed
-    } catch (error) {
-      console.error('Failed to update thinking config:', error);
-      settingsToasts.providerError(
-        'Settings',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
     }
   };
 
@@ -271,29 +125,7 @@ const ChatInputComponent: React.FC = () => {
     }
   };
 
-  const currentProviderName = selectedProvider;
-  const currentModelName = selectedModel;
-
   const isActionButtonDisabled = (!inputText.trim() && !awaitingUserInput) || isLoading;
-  console.log('[ChatInput] state', { isLoading, isStreaming, inputLen: inputText.length, disabled: isActionButtonDisabled });
-
-  const handleCancelAwait = () => {
-    // Clears awaiting state so user can type freely; no backend action yet
-    useChatStore.setState({ awaitingUserInput: null, isStreaming: false, isTyping: false });
-  };
-
-  const handleHideAwait = () => {
-    const current = useChatStore.getState().awaitingUserInput;
-    if (current) {
-      useChatStore.setState({
-        awaitingUserInput: { ...current, hidden: true },
-        isStreaming: false,
-        isTyping: false,
-      });
-    }
-  };
-
-  const showAwaitBanner = awaitingUserInput && !awaitingUserInput.hidden;
 
   return (
     <div
@@ -301,33 +133,6 @@ const ChatInputComponent: React.FC = () => {
       role="region"
       aria-label="Chat input area"
     >
-      {showAwaitBanner ? (
-        <div className="px-6 pt-4">
-          <div className="rounded-md border border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100 px-3 py-2 text-sm flex items-start gap-3">
-            <div className="flex-1">
-              <span className="font-semibold">Waiting for your answer:</span>{' '}
-              <span>{awaitingUserInput.prompt}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCancelAwait}
-                className="px-2 py-1 text-xs rounded border border-amber-500 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleHideAwait}
-                className="px-2 py-1 text-xs rounded border border-amber-300 text-amber-900 dark:text-amber-100 hover:bg-amber-100/60 dark:hover:bg-amber-800/60"
-              >
-                Resume later
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {/* Main Input */}
       <div className="p-6">
         <form
@@ -352,15 +157,12 @@ const ChatInputComponent: React.FC = () => {
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={
-                    awaitingUserInput && !awaitingUserInput.hidden
-                      ? `Answer: ${awaitingUserInput.prompt}`
-                      : isStreaming
-                        ? 'AI is responding...'
-                        : 'Type your message here...'
+                    isStreaming
+                      ? 'AI is responding...'
+                      : 'Type your message here...'
                   }
                   disabled={false}
                   aria-label="Type your message here"
-                  aria-describedby="input-help"
                   aria-multiline="true"
                   className="w-full px-5 py-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   rows={1}
@@ -410,265 +212,22 @@ const ChatInputComponent: React.FC = () => {
               </button>
             )}
           </fieldset>
-
-          {historyMode && (
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              History mode: ↑/↓ to cycle, Esc to exit. ({(historyIndex ?? 0) + 1}/{sessionHistory.length})
-            </div>
-          )}
-
-          {/* Enhanced keyboard shortcuts */}
-          <div
-            id="input-help"
-            className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-gray-400"
-            role="note"
-          >
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">
-                Enter
-              </kbd>
-              <span>send</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">
-                Shift+Enter
-              </kbd>
-              <span>new line</span>
-            </div>
-            <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <kbd className="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono shadow-sm">
-                Esc
-              </kbd>
-              <span>clear</span>
-            </div>
-          </div>
         </form>
       </div>
 
-      {searchOpen && (
-        <div className="absolute bottom-24 right-6 left-6 max-w-3xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 z-30">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                Prompt search
-              </span>
-              <span className="px-2 py-1 text-[11px] font-semibold rounded-full bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200">
-                All sessions
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {isSearching ? 'Searching...' : `${promptSearchResults.length} found`}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={closeSearch}
-              className="text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"
-            >
-              Close
-            </button>
-          </div>
-          <div className="flex items-center gap-3 mb-3">
-            <input
-              autoFocus
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.preventDefault();
-                  closeSearch();
-                }
-              }}
-              placeholder="Search prompts..."
-              className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-            {isSearching && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                Searching...
-              </span>
-            )}
-          </div>
-          <div className="max-h-72 overflow-auto space-y-2 text-sm">
-            {isSearching && (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Searching...</p>
-            )}
-            {!isSearching && promptSearchResults.length === 0 && (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                No prompts found yet. Try another phrase.
-              </p>
-            )}
-            {promptSearchResults.map((prompt) => (
-              <button
-                key={`${prompt.id}-${prompt.sessionId}`}
-                type="button"
-                onClick={() => {
-                  setInputText(prompt.text);
-                  closeSearch();
-                  setTimeout(
-                    () =>
-                      textareaRef.current?.setSelectionRange(
-                        prompt.text.length,
-                        prompt.text.length,
-                      ),
-                    0,
-                  );
-                }}
-                className="w-full text-left px-3 py-2 rounded border border-gray-200 dark:border-gray-700 hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition"
-              >
-                <div className="text-gray-900 dark:text-gray-100 truncate">{prompt.text}</div>
-                <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                  <span className="px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-[10px] font-medium text-gray-700 dark:text-gray-200">
-                    {prompt.sessionId === currentSessionId
-                      ? 'This session'
-                      : `Session ${prompt.sessionId.slice(0, 8)}`}
-                  </span>
-                  <span>{new Date(prompt.createdAt).toLocaleString()}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Advanced Options Toggle */}
-      <div className="px-6 pb-4">
+      {/* Simple File attachment button */}
+      <div className="px-6 pb-6">
         <button
           type="button"
-          onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-          className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors duration-200"
-          aria-expanded={showAdvancedOptions}
-          aria-controls="advanced-options"
+          onClick={handleFileSelect}
+          className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors duration-200"
+          title="Attach file to message"
+          aria-label="Attach file to message"
         >
-          <div
-            className={`p-1 rounded-lg bg-gray-100 dark:bg-gray-800 ${showAdvancedOptions ? 'bg-primary-100 dark:bg-primary-900/30' : ''}`}
-          >
-            {showAdvancedOptions ? (
-              <ChevronUpIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-            ) : (
-              <ChevronDownIcon className="w-4 h-4" />
-            )}
-          </div>
-          <span className="font-medium">Advanced Options</span>
-          <div
-            className={`w-2 h-2 rounded-full ${showAdvancedOptions ? 'bg-primary-500' : 'bg-gray-400'}`}
-          ></div>
+          <PaperClipIcon className="w-4 h-4" />
+          <span>Attach file</span>
         </button>
       </div>
-
-      {/* Enhanced Advanced Options Panel */}
-      {showAdvancedOptions && (
-        <div
-          id="advanced-options"
-          className="border-t border-gray-200 dark:border-gray-700 px-6 py-5 bg-gray-50 dark:bg-gray-900"
-        >
-          <div className="max-w-4xl mx-auto space-y-5">
-            {/* Provider/Model Info */}
-            <div
-              className="flex items-center justify-between text-sm p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                  <span className="text-gray-600 dark:text-gray-400">Provider:</span>
-                  <span
-                    className="font-semibold text-gray-900 dark:text-gray-100 bg-primary-100 dark:bg-primary-900/30 px-2 py-1 rounded"
-                    aria-label={`Current AI provider: ${currentProviderName}`}
-                  >
-                    {currentProviderName}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                  <span className="text-gray-600 dark:text-gray-400">Model:</span>
-                  <span
-                    className="font-semibold text-gray-900 dark:text-gray-100 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded"
-                    aria-label={`Current AI model: ${currentModelName}`}
-                  >
-                    {currentModelName}
-                  </span>
-                </div>
-              </div>
-
-              {/* Enhanced Deep Thinking Toggle */}
-              <button
-                onClick={toggleDeepThinking}
-                className={`flex items-center space-x-3 px-5 py-2.5 rounded-lg transition-colors duration-200 ${
-                  config?.ai?.modelTypes?.chat?.capabilities?.thinking
-                    ? 'bg-primary-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-primary-100 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400'
-                }`}
-                title={
-                  config?.ai?.modelTypes?.chat?.capabilities?.thinking
-                    ? 'Disable deep thinking mode (Ctrl+T)'
-                    : 'Enable deep thinking mode (Ctrl+T)'
-                }
-                aria-pressed={config?.ai?.modelTypes?.chat?.capabilities?.thinking}
-                aria-describedby="deep-thinking-status"
-              >
-                <SparklesIcon
-                  className={`w-4 h-4 ${config?.ai?.modelTypes?.chat?.capabilities?.thinking ? 'text-white' : ''}`}
-                />
-                <span className="text-sm font-semibold">Deep Thinking</span>
-                <div
-                  id="deep-thinking-status"
-                  className={`w-2.5 h-2.5 rounded-full ${
-                    config?.ai?.modelTypes?.chat?.capabilities?.thinking
-                      ? 'bg-white'
-                      : 'bg-gray-400'
-                  }`}
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
-
-            {/* Enhanced File attachment */}
-            <div className="flex items-center space-x-4">
-              <button
-                type="button"
-                onClick={handleFileSelect}
-                className="flex items-center space-x-3 px-5 py-3 text-sm bg-gray-100 dark:bg-gray-800 hover:bg-blue-100 dark:hover:bg-blue-900/20 text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors duration-200"
-                title="Attach file to message"
-                aria-label="Attach file to message"
-              >
-                <PaperClipIcon className="w-4 h-4" />
-                <span className="font-medium">Attach File</span>
-              </button>
-            </div>
-
-            {/* Enhanced Additional keyboard shortcuts */}
-            <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-              <span className="font-semibold text-amber-800 dark:text-amber-200 text-sm mb-2 block">
-                Pro Tips:
-              </span>
-              <div className="flex items-center flex-wrap gap-3">
-                <div className="flex items-center space-x-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-700">
-                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">
-                    Ctrl+T
-                  </kbd>
-                  <span className="text-amber-700 dark:text-amber-300 text-xs">
-                    toggle thinking
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-700">
-                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">
-                    Ctrl+K
-                  </kbd>
-                  <span className="text-amber-700 dark:text-amber-300 text-xs">
-                    command palette
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-700">
-                  <kbd className="px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded text-xs font-mono">
-                    Ctrl+/
-                  </kbd>
-                  <span className="text-amber-700 dark:text-amber-300 text-xs">keyboard help</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

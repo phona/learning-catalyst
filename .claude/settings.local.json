@@ -70,7 +70,10 @@
       "Bash(/d/Projects/learning_catalyst_ui_layer/src/renderer/components/Chat/ChatInput.tsx)",
       "WebFetch(domain:python.langchain.com)",
       "WebFetch(domain:js.langchain.com)",
-      "WebFetch(domain:docs.langchain.com)"
+      "WebFetch(domain:docs.langchain.com)",
+      "mcp__chrome-devtools__*",
+      "mcp__chrome-devtools__click",
+      "mcp__chrome-devtools__take_screenshot"
     ],
     "deny": [],
     "ask": []

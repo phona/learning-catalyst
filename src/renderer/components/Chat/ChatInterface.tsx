@@ -1,7 +1,6 @@
 import React from 'react';
 import { ChatArea } from './ChatArea';
 import { ChatInput } from './ChatInput';
-import { TimelineView } from '../Timeline';
 import { useSessionInit } from '../../hooks/useSessionInit';
 import { MessageSkeleton } from '../UI';
 
@@ -22,7 +21,6 @@ import { MessageSkeleton } from '../UI';
  * - Session initialization through useSessionInit hook
  * - Clean separation of concerns with dedicated components
  * - Responsive layout that adapts to content
- * - Real-time agent processing timeline
  *
  * 💡 Architecture:
  * - Delegates session logic to useSessionInit hook
@@ -75,13 +73,8 @@ const ChatInterfaceComponent: React.FC = () => {
     );
   }
 
-  const currentSessionId = sessionState?.sessionId;
-
   return (
     <div className="h-full flex flex-col">
-      {/* Agent Processing Timeline */}
-      {currentSessionId && <TimelineView conversationId={currentSessionId} />}
-
       {/* Chat area */}
       <ChatArea />
 

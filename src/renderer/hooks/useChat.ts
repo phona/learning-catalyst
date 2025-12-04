@@ -191,16 +191,9 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
             console.log('[useChat] user message queued', { id: userMessage.id });
             setMessages((prev) => [...prev, userMessage]);
 
-        // Create a placeholder assistant message for streaming
+        // Prepare assistant message id; render after stream completes
         const assistantMessageId = `assistant_${Date.now()}`;
-        const assistantMessage: ChatMessage = {
-          id: assistantMessageId,
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-        };
-            console.log('[useChat] assistant placeholder queued', { id: assistantMessageId });
-            setMessages((prev) => [...prev, assistantMessage]);
+        console.log('[useChat] assistant placeholder deferred', { id: assistantMessageId });
 
         let streamingContent = '';
 
@@ -227,23 +220,18 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
         streamingExecutionRef.current = sessionId ?? null;
 
         // Send streaming message using chat service
-        const statusMessageId = `${assistantMessageId}_status`;
-        const upsertStatusMessage = (text: string) => {
-          setMessages((prev) => {
-            const idx = prev.findIndex((m) => m.id === statusMessageId);
-            const statusMsg: ChatMessage = {
-              id: statusMessageId,
+        const addStepMessage = (text: string) => {
+          if (!text) return;
+          const id = `step_${assistantMessageId}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id,
               role: 'system',
               content: text,
               timestamp: new Date(),
-            };
-            if (idx >= 0) {
-              const copy = [...prev];
-              copy[idx] = statusMsg;
-              return copy;
-            }
-            return [...prev, statusMsg];
-          });
+            },
+          ]);
         };
 
         const statusToText = (status: any): string => {
@@ -268,15 +256,10 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
             if (chunk.type === 'content' && chunk.content) {
               console.debug('[useChat] Chunk', { len: String(chunk.content.length) });
               streamingContent += chunk.content;
-              setMessages((prev) =>
-                prev.map((msg) =>
-                  msg.id === assistantMessageId ? { ...msg, content: streamingContent } : msg,
-                ),
-              );
               console.debug('[useChat] assistant content length', { len: streamingContent.length });
             } else if (chunk.type === 'status' && chunk.status) {
               const text = statusToText(chunk.status);
-              if (text) upsertStatusMessage(text);
+              if (text) addStepMessage(text);
             }
             onChunk?.(chunk);
           },
@@ -286,13 +269,17 @@ export function useChat(options: UseChatOptions = {}): UseChatResult {
           },
         );
 
-        // Update the final assistant message
+        // Add the final assistant message
         console.log('[useChat] final assistant content set', { len: response.content?.length ?? 0 });
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessageId ? { ...msg, content: response.content } : msg,
-          ),
-        );
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantMessageId,
+            role: 'assistant',
+            content: response.content,
+            timestamp: new Date(),
+          },
+        ]);
 
         onMessage?.(response);
       } catch (err) {
