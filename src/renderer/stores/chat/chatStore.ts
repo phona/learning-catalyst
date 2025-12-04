@@ -298,6 +298,13 @@ const initialState = {
   processingTrace: null,
   history: [] as HistoryEntry[],
   promptSearchResults: [] as PromptHistoryItem[],
+  awaitingUserInput: null as
+    | {
+        prompt: string;
+        checkpointId?: string;
+        questionId?: string;
+      }
+    | null,
 };
 
 export function createChatStore(dependencies: ChatStoreDependencies) {
@@ -541,6 +548,7 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
               streamingContent: '',
               isTyping: false,
               isStreaming: false,
+              awaitingUserInput: null,
             });
           }
         },
@@ -718,10 +726,12 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
         },
 
         sendMessageStream: async (content) => {
-          const { currentSessionId } = get();
+          const { currentSessionId, awaitingUserInput } = get();
 
           try {
             set({ isLoading: true, isStreaming: true, error: null });
+            // Clear any pending await state when user proactively sends input
+            set({ awaitingUserInput: null });
 
             const userMessage: UIMessageDisplay = {
               id: `msg_${Date.now()}`,
@@ -1011,6 +1021,15 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   detail: status.prompt,
                   at: now,
                 });
+                set({
+                  awaitingUserInput: {
+                    prompt: status.prompt,
+                    checkpointId: (status as any).checkpointId,
+                    questionId: (status as any).questionId,
+                  },
+                  isStreaming: false,
+                  isTyping: false,
+                });
                 break;
               default:
                 break;
@@ -1121,7 +1140,11 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   ),
                 }));
               },
-              { sessionId },
+              {
+                sessionId,
+                checkpointId: awaitingUserInput?.checkpointId,
+                questionId: awaitingUserInput?.questionId,
+              },
             );
 
             get().finishStreamingMessage(result.content);

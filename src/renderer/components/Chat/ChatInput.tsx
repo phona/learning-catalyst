@@ -39,6 +39,7 @@ const ChatInputComponent: React.FC = () => {
     promptSearchResults = [],
     searchPrompts,
     clearPromptSearchResults,
+    awaitingUserInput,
   } = useChatStore((s) => ({
     isLoading: s.isLoading,
     isStreaming: s.isStreaming,
@@ -52,6 +53,7 @@ const ChatInputComponent: React.FC = () => {
     promptSearchResults: (s as any).promptSearchResults ?? [],
     searchPrompts: (s as any).searchPrompts ?? (async () => []),
     clearPromptSearchResults: (s as any).clearPromptSearchResults ?? (() => {}),
+    awaitingUserInput: (s as any).awaitingUserInput ?? null,
   }));
 
   const { config, updateConfig } = useConfigStore();
@@ -272,7 +274,7 @@ const ChatInputComponent: React.FC = () => {
   const currentProviderName = selectedProvider;
   const currentModelName = selectedModel;
 
-  const isActionButtonDisabled = !inputText.trim() || isLoading;
+  const isActionButtonDisabled = (!inputText.trim() && !awaitingUserInput) || isLoading;
   console.log('[ChatInput] state', { isLoading, isStreaming, inputLen: inputText.length, disabled: isActionButtonDisabled });
 
   return (
@@ -281,6 +283,15 @@ const ChatInputComponent: React.FC = () => {
       role="region"
       aria-label="Chat input area"
     >
+      {awaitingUserInput ? (
+        <div className="px-6 pt-4">
+          <div className="rounded-md border border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-500/60 dark:bg-amber-900/30 dark:text-amber-100 px-3 py-2 text-sm flex items-start gap-2">
+            <span className="font-semibold">Waiting for your answer:</span>
+            <span>{awaitingUserInput.prompt}</span>
+          </div>
+        </div>
+      ) : null}
+
       {/* Main Input */}
       <div className="p-6">
         <form
@@ -304,7 +315,13 @@ const ChatInputComponent: React.FC = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={isStreaming ? 'AI is responding...' : 'Type your message here...'}
+                  placeholder={
+                    awaitingUserInput
+                      ? `Answer: ${awaitingUserInput.prompt}`
+                      : isStreaming
+                        ? 'AI is responding...'
+                        : 'Type your message here...'
+                  }
                   disabled={false}
                   aria-label="Type your message here"
                   aria-describedby="input-help"
