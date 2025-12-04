@@ -731,8 +731,10 @@ export const createChatService = ({
                 userInput: params.content,
               };
 
+            const timelineCallback = new TimelineCallbackHandler(emitStatus, 'workflow');
             const config = {
               configurable: { thread_id: conversation.id },
+              callbacks: [timelineCallback],
             };
 
             const wfStream = await workflowGraph.stream(input, config, { stream_mode: 'updates' });

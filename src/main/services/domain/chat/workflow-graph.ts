@@ -28,7 +28,7 @@ const WorkflowStateSchema = z.object({
 
 export type WorkflowState = z.infer<typeof WorkflowStateSchema>;
 
-type NodeFn = (state: WorkflowState, config?: any) => Promise<Partial<WorkflowState>>;
+type NodeFn = (state: WorkflowState, config?: { callbacks?: any[] }) => Promise<Partial<WorkflowState>>;
 
 type WorkflowDeps = {
   agentManager: AgentManager;
@@ -58,13 +58,13 @@ const parseScore = (text?: string | null): number | undefined => {
 };
 
 // ---------------------- Node implementations ----------------------
-const assessNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const assessNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'assessment',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   const confidence = parseScore(res.content) ?? 0.5;
   return {
     messages: appendMessage(state, 'assistant', res.content),
@@ -72,13 +72,13 @@ const assessNode = (deps: WorkflowDeps): NodeFn => async (state) => {
   };
 };
 
-const fastTrackQuizNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const fastTrackQuizNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'practice',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   return {
     messages: appendMessage(state, 'assistant', res.content),
     practicePrompt: res.content,
@@ -103,13 +103,13 @@ const waitAnswerNode = (_label: 'quiz' | 'practice'): NodeFn => async (state) =>
   };
 };
 
-const gradeQuizNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const gradeQuizNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'assessment',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   const mastery = parseScore(res.content) ?? 0.5;
   return {
     mastery,
@@ -117,13 +117,13 @@ const gradeQuizNode = (deps: WorkflowDeps): NodeFn => async (state) => {
   };
 };
 
-const teachNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const teachNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'learning',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   return {
     messages: appendMessage(state, 'assistant', res.content),
   };
@@ -136,20 +136,20 @@ const qaNode = (): NodeFn => async (state) => {
   };
 };
 
-const practiceNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const practiceNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'practice',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   return {
     practicePrompt: res.content,
     messages: appendMessage(state, 'assistant', res.content),
   };
 };
 
-const evaluateNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const evaluateNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'assessment',
     conversationId: 'workflow',
@@ -158,7 +158,7 @@ const evaluateNode = (deps: WorkflowDeps): NodeFn => async (state) => {
       { role: 'user', content: state.userAnswer ?? '' },
     ],
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   const mastery = parseScore(res.content) ?? state.mastery ?? 0.5;
   const attemptCount = (state.attemptCount ?? 0) + 1;
   return {
@@ -170,25 +170,25 @@ const evaluateNode = (deps: WorkflowDeps): NodeFn => async (state) => {
 
 const masteryCheckNode = (): NodeFn => async (state) => ({ ...state });
 
-const remediateNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const remediateNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'learning',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   return {
     messages: appendMessage(state, 'assistant', res.content),
   };
 };
 
-const breakerNode = (deps: WorkflowDeps): NodeFn => async (state) => {
+const breakerNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'tutoring' as AgentType,
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  });
+  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
   return {
     messages: appendMessage(state, 'assistant', res.content),
   };
