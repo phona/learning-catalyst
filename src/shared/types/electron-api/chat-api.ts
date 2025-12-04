@@ -25,7 +25,15 @@ export type ChatStatus =
   | { type: 'fail'; category: ErrorCategory; suggestion?: string }
   | { type: 'thought'; text: string; agent?: string; id?: string; expandable?: boolean }
   | { type: 'timeline_event'; event: TimelineEventPayload }
-  | { type: 'timeline_state'; state: string; agent?: string };
+  | { type: 'timeline_state'; state: string; agent?: string }
+  | {
+      type: 'await_user_input';
+      prompt: string;
+      sessionId: string;
+      checkpointId?: string;
+      questionId?: string;
+      timeoutAt?: number;
+    };
 
 export interface TimelineEventPayload {
   id: string;

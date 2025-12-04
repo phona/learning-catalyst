@@ -761,6 +761,53 @@ export const createChatService = ({
                 },
               }));
 
+              // Detect human-in-loop pause request via special tool name
+              const awaitTool = normalizedCalls.find((c) =>
+                ['await_user_input', 'wait_for_user', 'await_input'].includes(
+                  c.function.name.toLowerCase(),
+                ),
+              );
+              if (awaitTool) {
+                let promptText = '';
+                try {
+                  const parsed = JSON.parse(awaitTool.function.arguments ?? '{}');
+                  promptText =
+                    parsed.prompt ??
+                    parsed.question ??
+                    parsed.content ??
+                    parsed.message ??
+                    awaitTool.function.arguments;
+                } catch {
+                  promptText = awaitTool.function.arguments ?? 'Please respond to continue.';
+                }
+
+                emitStatus({
+                  type: 'await_user_input',
+                  prompt: String(promptText ?? 'Please respond to continue.'),
+                  sessionId: conversation.id,
+                  checkpointId: conversation.id,
+                  questionId: awaitTool.id,
+                });
+
+                // Mark conversation paused for resume logic downstream
+                conversation.status = 'paused';
+                conversation.metadata = {
+                  ...(conversation.metadata ?? {}),
+                  awaitingUserInput: {
+                    tool: awaitTool.function.name,
+                    questionId: awaitTool.id,
+                    prompt: promptText,
+                    requestedAt: new Date().toISOString(),
+                  },
+                } as any;
+                await persistConversation(conversation);
+                serviceLogger.info('Pausing stream awaiting user input', {
+                  conversationId: conversation.id,
+                  tool: awaitTool.function.name,
+                });
+                break;
+              }
+
               const toolChunk: StreamChunk = { type: 'tool_call', tool_calls: normalizedCalls };
               yield toolChunk;
             }

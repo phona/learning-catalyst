@@ -1004,10 +1004,18 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
                   at: now,
                 });
                 break;
-            default:
-              break;
-            }
-          };
+              case 'await_user_input':
+                addProcessingEvent({
+                  kind: 'status',
+                  label: 'Waiting for your answer',
+                  detail: status.prompt,
+                  at: now,
+                });
+                break;
+              default:
+                break;
+              }
+            };
 
             const mergeToolCalls = (
               existing: ToolCallDisplay[] | undefined,

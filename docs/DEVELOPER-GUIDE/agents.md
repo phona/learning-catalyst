@@ -945,6 +945,16 @@ The agent system is designed to be extensible:
 - Implement new orchestration strategies
 - Plugin architecture for agent providers
 
+## Streaming status events
+
+Agents emit status updates alongside streamed content so the chat UI can show progress. Current
+status types include:
+
+- `thought`, `tool`, `timeline_event`, `timeline_state`
+- `await_user_input` — emitted when the agent/tool needs a human reply; includes `prompt`,
+  `sessionId`, and optional `checkpointId`/`questionId` so the frontend can pause and resume the
+  workflow.
+
 ## Related Documentation
 
 - [Architecture Overview](./architecture.md)
