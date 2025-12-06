@@ -16,24 +16,54 @@ export type LangGraphHandlerDeps = {
 };
 
 /**
+ * Maps workflow node names to agent types
+ */
+const getAgentTypeFromNode = (nodeName: string): string => {
+  const nodeToAgentMap: Record<string, string> = {
+    'Assess': 'assessment',
+    'FastTrackQuiz': 'practice',
+    'GradeQuiz': 'assessment',
+    'Teach': 'learning',
+    'QA': 'tutoring',
+    'Practice': 'practice',
+    'Evaluate': 'assessment',
+    'MasteryCheck': 'assessment',
+    'Remediate': 'learning',
+    'Breaker': 'tutoring',
+    'Complete': 'tutoring',
+  };
+  return nodeToAgentMap[nodeName] || 'learning';
+};
+
+/**
  * Converts LangChain messages to plain objects compatible with AI SDK
  */
-const convertToPlainMessage = (msg: any): { role: string; content: string } => {
+const convertToPlainMessage = (msg: any, nodeName?: string): { role: string; content: string; agentType?: string; workflowNode?: string } => {
   // Handle LangChain message objects
   if (msg?.lc_serializable || msg?.lc_kwargs) {
-    return {
+    const result = {
       role: msg.lc_kwargs?.role || 'assistant',
       content: typeof msg.lc_kwargs?.content === 'string'
         ? msg.lc_kwargs.content
         : JSON.stringify(msg.lc_kwargs?.content || ''),
     };
+    if (nodeName) {
+      result.agentType = getAgentTypeFromNode(nodeName);
+      result.workflowNode = nodeName;
+    }
+    return result;
   }
 
   // Handle plain messages
-  return {
+  const result = {
     role: msg.role || 'assistant',
     content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || ''),
   };
+  if (nodeName) {
+    result.agentType = getAgentTypeFromNode(nodeName);
+    result.workflowNode = nodeName;
+  }
+  return result;
 };
 
 export const setupLangGraphHandler = ({ window, agentManager, loggerService, db }: LangGraphHandlerDeps) => {
@@ -99,10 +129,13 @@ export const setupLangGraphHandler = ({ window, agentManager, loggerService, db 
 
           // Normal message streaming
           for (const [key, value] of Object.entries(chunk)) {
+            // Extract node name from chunk key
+            const nodeName = key;
+
             // Convert LangChain messages to plain objects compatible with AI SDK
             if (value.messages && Array.isArray(value.messages)) {
               for (const message of value.messages) {
-                const plainMessage = convertToPlainMessage(message);
+                const plainMessage = convertToPlainMessage(message, nodeName);
                 replyPort.postMessage(plainMessage);
               }
             }
