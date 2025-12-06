@@ -456,6 +456,43 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - `vitest*.config.ts` - Test configurations
 - `src/test/` - Global test utilities
 
+## Assistant UI Integration (Dec 5, 2025)
+
+**Migration from Custom Chat Components:**
+
+The project has migrated from custom-built chat UI components to the `assistant-ui` library for a more robust and feature-rich chat experience.
+
+**Removed Components:**
+- `ChatArea.tsx` - Custom chat display area
+- `MessageBubble.tsx` - Individual message rendering
+- `TimelineView.tsx` - Timeline/thread display
+- `ChatProcessingOverlay.tsx` - Processing state overlay
+- `DetailsPanel.tsx` - Message details sidebar
+- `PracticeSuggestionBubble.tsx` - Practice prompts
+- Associated test files for all above components
+
+**New Architecture:**
+
+- **UI Library**: `@assistant-ui/react` provides the core `Thread` component for chat interface
+- **Message Components**: Custom message types implemented in `src/renderer/components/Chat/MessageComponents.tsx`
+- **Better Thread**: Enhanced thread component in `src/renderer/components/Chat/BetterThread.tsx`
+- **LangGraph Integration**: New IPC route `chat:stream-ai-sdk` streams LangGraph output via `MessagePort`
+- **Transport Bridge**: Preload exposes `electronAPI.aiSDK.stream(params)` for renderer communication
+- **Simplified State**: Chat store (`chatStore.ts`) slimmed to session/agent selectors only; Assistant UI owns all message state and rendering
+
+**Benefits:**
+- More polished and accessible chat UI out-of-the-box
+- Better message streaming and real-time updates
+- Simplified renderer code and state management
+- Built-in support for message actions, loading states, and error handling
+- Easier to maintain and extend with new chat features
+
+**Key Files:**
+- `src/renderer/components/Chat/BetterThread.tsx` - Main thread component
+- `src/renderer/components/Chat/MessageComponents.tsx` - Custom message types
+- `src/renderer/services/chat/chat-service.ts` - Updated chat service
+- `src/renderer/services/api/electron-api-client.ts` - API client updates
+
 ## Important Notes
 
 - Uses `sqlite-electron` (not `sqlite3`)

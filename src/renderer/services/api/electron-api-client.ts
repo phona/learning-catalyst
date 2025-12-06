@@ -115,6 +115,12 @@ const mockFeatureDemo: FeatureDemoDisplay = {
 export function createMockElectronAPIClient(): ElectronAPI {
   const mockStreamState = new Map<string, { aborted: boolean }>();
   const partial: Partial<ElectronAPI> = {
+    aiSDK: {
+      stream: async () => {
+        const channel = new MessageChannel();
+        return channel.port1;
+      },
+    },
     awaitReady: async () => ({ status: 'ready', ready: { ipcHandlersRegistered: true } }),
     awaitConfigChange: async () => ({
       changedKeys: [],

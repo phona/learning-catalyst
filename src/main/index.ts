@@ -4,7 +4,6 @@ import { mkdir } from 'fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setupAllIpcHandlers } from './handlers';
-import { setupChatHandlers } from './handlers/chat-handlers';
 import { setupSessionsHandlers } from './handlers/sessions-handlers';
 import { setupEnhancedAgentHandlers } from './handlers/agent-enhanced-handlers';
 import { setupSettingsHandlers } from './handlers/settings-handlers';
@@ -314,7 +313,6 @@ async function createWindow(): Promise<void> {
     applyStructuredErrorHandling();
     setupSettingsHandlers({ configService });
 
-
     const aiServiceManager = createAiServiceManager({
       loggerService,
       configService,
@@ -350,7 +348,6 @@ async function createWindow(): Promise<void> {
       loggerService,
     });
 
-
     const analyticsService = createAnalyticsService({ db: database, loggerService });
 
     const contentService = createContentService({ loggerService, aiService });
@@ -385,6 +382,8 @@ async function createWindow(): Promise<void> {
     console.log('[Main] setupAllIpcHandlers begin', { workspacePath });
     await setupAllIpcHandlers(win, workspacePath, {
       chatService,
+      agentManager,
+      db: database,
       learningService,
       knowledgeService,
       conceptParsingService,

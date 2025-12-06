@@ -9,7 +9,7 @@ import { formatRelativeTime } from '@/renderer/utils/timeUtils';
 export const SessionManager: React.FC = () => {
   const { sessions, loading, error, refresh, clearError } = useRecentSessions(20);
   const navigate = useNavigate();
-  const { setCurrentSession, clearMessages } = useChatStore();
+  const { setCurrentSession } = useChatStore();
   const { setCurrentView } = useAppStore();
 
   const handleRefresh = async () => {

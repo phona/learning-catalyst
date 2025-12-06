@@ -33,11 +33,9 @@ const sidebarConfig = {
 
 export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
   const {
-    clearMessages,
     resetChatState,
     setCurrentSession,
     currentSession,
-    saveCurrentSession,
   } = useChatStore();
   const { sessions, loading, error, refresh, hasMore, loadMore } = useRecentSessions(
     sidebarConfig.maxInitialSessions,
@@ -66,9 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
       // Reset chat state so the next sent message auto-creates a session
       resetChatState();
 
-      // Clear any existing messages to start fresh
-      clearMessages();
-
       // Navigate to the base chat route (no sessionId)
       navigateTo(`/`);
 
@@ -93,16 +88,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ open }) => {
         console.log(`[Sidebar] Session ${session.id} is already active`);
         navigateTo(`/chat/${session.id}`);
         return;
-      }
-
-      // Save current session messages before switching if there are unsaved messages
-      if (currentSession?.id && currentSession.messages && currentSession.messages.length > 0) {
-        console.log(`[Sidebar] Saving current session before switching: ${currentSession.id}`);
-        setTimeout(() => {
-          saveCurrentSession().catch((error) => {
-            console.warn('[Sidebar] Failed to save current session before switching:', error);
-          });
-        }, 100);
       }
 
       // Load the new session first to avoid race with navigation

@@ -1,5 +1,4 @@
 import { BrowserWindow, ipcMain } from 'electron';
-import { setupChatHandlers } from './chat-handlers';
 import { setupLearningHandlers } from './learning-handlers';
 import { setupKnowledgeHandlers } from './knowledge-handlers';
 import { setupSystemHandlers } from './system-handlers';
@@ -21,15 +20,21 @@ import { ConceptParsingService } from '../services/domain/concept-parsing/concep
 import { LoggerService } from '../services/core/logger/logger-service';
 import { ConfigService } from '../services/core/config/config-service';
 import { PracticeService } from '../services/domain/practice/practice-service';
+import { setupLangGraphHandler } from './langgraph-handler';
+import type { AgentManager } from '@/main/services/agent/agent-manager';
+import { Kysely } from 'kysely';
+import { Database } from '../services/core/database';
 
 /**
  * Setup all IPC handlers with provided services
  */
 export async function setupAllIpcHandlers(
-  mainWindow: BrowserWindow | null,
+  mainWindow: BrowserWindow,
   workspacePath: string,
   services: {
     chatService: ChatService;
+    agentManager: AgentManager;
+    db: Kysely<Database>;
     learningService: LearningService;
     knowledgeService: KnowledgeService;
     analyticsService: AnalyticsService;
@@ -43,10 +48,11 @@ export async function setupAllIpcHandlers(
 ): Promise<void> {
   applyStructuredErrorHandling();
   // Setup domain handlers with services
-  setupChatHandlers(ipcMain, {
-    chatService: services.chatService,
-    practiceService: services.practiceService,
+  setupLangGraphHandler({
+    window: mainWindow,
+    agentManager: services.agentManager,
     loggerService: services.loggerService,
+    db: services.db,
   });
 
   setupLearningHandlers(ipcMain, {

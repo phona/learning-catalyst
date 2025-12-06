@@ -29,6 +29,7 @@ import type { AgentsAPI } from './agent-api';
 import type { ContentAPI } from './content-api';
 import type { SettingsAPI, SettingsUtility } from './settings-api';
 import type { CatalystAPI } from './catalyst-api';
+import type { Message as AIMessage } from '../ai';
 import type { SessionsAPI } from './sessions-api';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
 import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
@@ -73,6 +74,16 @@ export type {
   ActiveExecution,
   StreamChunk,
 } from './catalyst-api';
+
+export type AISDKAPI = {
+  stream: (
+    params: {
+      messages: Array<Pick<AIMessage, 'role' | 'content'>>;
+      conversationId?: string;
+    },
+    callback: (data: any) => void,
+  ) => () => void;
+};
 
 // Export key display-optimized types for convenience
 export type {
@@ -141,6 +152,7 @@ export type { ProviderConfig } from '../config';
 export interface ElectronAPI {
   // 7 Complete API Domains
   chat: ChatAPI;
+  aiSDK: AISDKAPI;
   learning: LearningAPI;
   knowledge: KnowledgeAPI;
   analytics: AnalyticsAPI;

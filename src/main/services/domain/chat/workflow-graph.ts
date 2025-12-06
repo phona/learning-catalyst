@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
 import {
   StateGraph,
   START,
@@ -6,37 +6,54 @@ import {
   Command,
   interrupt,
 } from '@langchain/langgraph';
+import { Annotation } from '@langchain/langgraph';
 import type { AgentManager } from '../../agent/agent-manager';
 import type { AgentType } from '../../agent/types';
 import type { LoggerService } from '../../core/logger/logger-service';
 import type { SQLiteCheckpointSaver } from '../../core/checkpoints/SQLiteCheckpointSaver';
-import { randomUUID } from 'node:crypto';
+import type { BaseMessage } from '@langchain/core/messages';
 
-const WorkflowStateSchema = z.object({
-  messages: z.array(z.any()),
-  topic: z.string().optional(),
-  confidence: z.number().optional(),
-  mastery: z.number().optional(),
-  attemptCount: z.number().optional(),
-  practicePrompt: z.string().optional(),
-  gaps: z.array(z.string()).optional(),
-  userAnswer: z.string().optional(),
+// Define custom reducer for messages
+const messagesStateReducer = (current: BaseMessage[] | undefined, update: BaseMessage[]): BaseMessage[] => {
+  const curr = current ?? [];
+  return [...curr, ...update];
+};
+
+// Define the state using Annotation.Root (LangGraph v1 pattern)
+const WorkflowStateAnnotation = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+  }),
+  topic: Annotation<string>({
+    reducer: (current, update) => update ?? current,
+  }),
+  confidence: Annotation<number>({
+    reducer: (current, update) => update ?? current,
+  }),
+  mastery: Annotation<number>({
+    reducer: (current, update) => update ?? current,
+  }),
+  attemptCount: Annotation<number>({
+    reducer: (current, update) => update ?? current,
+    default: () => 0,
+  }),
+  practicePrompt: Annotation<string>({
+    reducer: (current, update) => update ?? current,
+  }),
+  gaps: Annotation<string[]>({
+    reducer: (current, update) => update ?? current,
+  }),
+  userAnswer: Annotation<string>({
+    reducer: (current, update) => update ?? current,
+  }),
 });
 
-export type WorkflowState = z.infer<typeof WorkflowStateSchema>;
-
-type NodeFn = (state: WorkflowState, config?: { callbacks?: any[] }) => Promise<Partial<WorkflowState>>;
+export type WorkflowState = typeof WorkflowStateAnnotation.State;
 
 type WorkflowDeps = {
   agentManager: AgentManager;
   loggerService: LoggerService;
   checkpointer: SQLiteCheckpointSaver;
-};
-
-const appendMessage = (state: WorkflowState, role: 'assistant' | 'user', content: string) => {
-  const messages = [...(state.messages ?? [])];
-  messages.push({ role, content });
-  return messages;
 };
 
 const parseScore = (text?: string | null): number | undefined => {
@@ -55,34 +72,34 @@ const parseScore = (text?: string | null): number | undefined => {
 };
 
 // ---------------------- Node implementations ----------------------
-const assessNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const assessNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'assessment',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   const confidence = parseScore(res.content) ?? 0.5;
   return {
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
     confidence,
   };
 };
 
-const fastTrackQuizNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const fastTrackQuizNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'practice',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   return {
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
     practicePrompt: res.content,
   };
 };
 
-const waitAnswerNode = (_label: 'quiz' | 'practice'): NodeFn => async (state) => {
+const waitAnswerNode = (_label: 'quiz' | 'practice') => async (state: typeof WorkflowStateAnnotation.State) => {
   const prompt = state.practicePrompt ?? 'Please answer the question to continue.';
   const questionId = randomUUID();
   const resumeVal = await interrupt({
@@ -96,57 +113,57 @@ const waitAnswerNode = (_label: 'quiz' | 'practice'): NodeFn => async (state) =>
       : (resumeVal as any)?.answer ?? (resumeVal as any)?.content ?? '';
   return {
     userAnswer: answer,
-    messages: appendMessage(state, 'user', answer),
+    messages: [{ role: 'user', content: answer }],
   };
 };
 
-const gradeQuizNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const gradeQuizNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'assessment',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   const mastery = parseScore(res.content) ?? 0.5;
   return {
     mastery,
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
   };
 };
 
-const teachNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const teachNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'learning',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   return {
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
   };
 };
 
-const qaNode = (): NodeFn => async (state) => {
+const qaNode = () => async (state: typeof WorkflowStateAnnotation.State) => {
   const prompt = 'Any questions before we practice?';
   return {
-    messages: appendMessage(state, 'assistant', prompt),
+    messages: [{ role: 'assistant', content: prompt }],
   };
 };
 
-const practiceNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const practiceNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'practice',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   return {
     practicePrompt: res.content,
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
   };
 };
 
-const evaluateNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const evaluateNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'assessment',
     conversationId: 'workflow',
@@ -155,53 +172,53 @@ const evaluateNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
       { role: 'user', content: state.userAnswer ?? '' },
     ],
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   const mastery = parseScore(res.content) ?? state.mastery ?? 0.5;
   const attemptCount = (state.attemptCount ?? 0) + 1;
   return {
     mastery,
     attemptCount,
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
   };
 };
 
-const masteryCheckNode = (): NodeFn => async (state) => ({ ...state });
+const masteryCheckNode = () => async (state: typeof WorkflowStateAnnotation.State) => ({ ...state });
 
-const remediateNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const remediateNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'learning',
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   return {
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
   };
 };
 
-const breakerNode = (deps: WorkflowDeps): NodeFn => async (state, config) => {
+const breakerNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'tutoring' as AgentType,
     conversationId: 'workflow',
     messages: state.messages as any,
     topic: state.topic,
-  }, config?.callbacks ? { callbacks: config.callbacks } : undefined);
+  });
   return {
-    messages: appendMessage(state, 'assistant', res.content),
+    messages: [{ role: 'assistant', content: res.content }],
   };
 };
 
-const completeNode = (): NodeFn => async (state) => {
+const completeNode = () => async (state: typeof WorkflowStateAnnotation.State) => {
   const summary =
     'Great work! You have completed this topic. Want to schedule a spaced review?';
   return {
-    messages: appendMessage(state, 'assistant', summary),
+    messages: [{ role: 'assistant', content: summary }],
   };
 };
 
 // ---------------------- Graph builder ----------------------
 export const createWorkflowGraph = (deps: WorkflowDeps) => {
-  const graph = new StateGraph(WorkflowStateSchema)
+  const graph = new StateGraph(WorkflowStateAnnotation)
     .addNode('Assess', assessNode(deps))
     .addNode('FastTrackQuiz', fastTrackQuizNode(deps))
     .addNode('WaitQuizAnswer', waitAnswerNode('quiz'))

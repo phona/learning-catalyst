@@ -15,7 +15,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_EVENTS } from '@/shared/types/ipc';
-import type { SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api';
+import type { SystemReadyPayload, ConfigChangedPayload, AISDKAPI } from '@/shared/types/electron-api';
 import type { IpcRendererEvent } from 'electron';
 import {
   ElectronAPI,
@@ -38,100 +38,48 @@ import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
 import type { AppConfig } from '@/shared/types/config';
 import { Chan } from 'ts-chan';
+import type { Message as AIMessage } from '@/shared/types/ai';
 
 // ============================================================================
 // 1. Chat & Conversation API
 // ============================================================================
 
 /**
- * Chat & Conversation API
- *
- * Manages real-time conversations with AI agents.
- * All methods return display-optimized data ready for UI rendering.
+ * Chat API (legacy)
+ * Replaced by aiSDK.stream; kept as stub for backward compatibility.
  */
-const chatAPI: ChatAPI = {
-  startConversation: (params) => ipcRenderer.invoke('chat:start-conversation', params),
+const chatAPI = {} as ChatAPI;
 
-  sendMessage: (params) => ipcRenderer.invoke('chat:send-message', params),
+/**
+ * AI SDK bridge for Assistant UI
+ * Returns a MessagePort that streams AI SDK protocol chunks from the main process.
+ */
+const aiSDK: AISDKAPI = {
+  stream: (
+    params: {
+      messages: Array<Pick<AIMessage, 'role' | 'content'>>;
+      conversationId?: string;
+    },
+    callback: (data: any) => void,
+  ) => {
+    const { port1, port2 } = new MessageChannel();
+    const streamId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-  sendMessageStream: (params, onEvent) => {
-    console.log('[preload] sendMessageStream invoked', params);
-    return new Promise((resolve) => {
-      const streamReadyHandler = (event: any) => {
-        console.log('[preload] chat:stream-ready');
-        const port = event.ports[0];
+    console.log('[Preload] Creating stream interface:', streamId);
 
-        const onMessage = (evt: MessageEvent) => {
-          const { type, chunk, error: err, status } = (evt.data ?? {}) as {
-            type?: string;
-            chunk?: unknown;
-            error?: string;
-            status?: any;
-          };
-          if (type === 'chat:chunk') {
-            const preview =
-              typeof chunk === 'string'
-                ? { len: String(chunk.length) }
-                : { kind: (chunk as any)?.type ?? typeof chunk };
-            console.debug('[preload] chat:chunk', preview);
-            onEvent?.({ type: 'chunk', chunk });
-          } else if (type === 'chat:complete') {
-            console.log('[preload] chat:complete');
-            onEvent?.({ type: 'complete' });
-            try {
-              port.close();
-            } catch {}
-          } else if (type === 'chat:error') {
-            console.error('[preload] chat:error', err);
-            onEvent?.({ type: 'error', error: err || 'Streaming error' });
-            try {
-              port.close();
-            } catch {}
-          } else if (type === 'chat:status') {
-            onEvent?.({ type: 'status', status });
-          }
-        };
+    ipcRenderer.postMessage('chat:start-stream', { streamId, ...params }, [port2]);
 
-        port.onmessage = onMessage;
-        port.start();
-        console.log('[preload] stream port started');
+    port1.onmessage = (event) => {
+      callback(event.data);
+    };
+    port1.onclose = () => {
+      console.log('[Preload] Stream ended:', streamId);
+    };
 
-        resolve({ success: true, data: { started: true } });
-        ipcRenderer.removeListener('chat:stream-ready', streamReadyHandler);
-      };
-
-      ipcRenderer.on('chat:stream-ready', streamReadyHandler);
-      ipcRenderer.send('chat:start-stream', params);
-    });
+    return () => {
+      port1.close();
+    };
   },
-
-  cancelStream: (conversationId: string) => {
-    console.log('[preload] cancelStream invoked', { conversationId });
-    return ipcRenderer.invoke('chat:cancel-stream', conversationId);
-  },
-
-  getTypingIndicator: (conversationId: string) =>
-    ipcRenderer.invoke('chat:get-typing-indicator', conversationId),
-
-  getConversationHistory: (conversationId: string, options?: any) =>
-    ipcRenderer.invoke('chat:get-history', { conversationId, options }),
-
-  pauseConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:pause-conversation', conversationId),
-
-  resumeConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:resume-conversation', conversationId),
-
-  endConversation: (conversationId: string) =>
-    ipcRenderer.invoke('chat:end-conversation', conversationId),
-
-  checkPracticeOpportunity: (params: any) =>
-    ipcRenderer.invoke('chat:check-practice-opportunity', params),
-
-  getPracticeSuggestion: (params: any) =>
-    ipcRenderer.invoke('chat:get-practice-suggestion', params),
-
-  searchPrompts: (params) => ipcRenderer.invoke('chat:search-prompts', params),
 };
 
 // ============================================================================
@@ -716,7 +664,8 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
   getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
   quit: () => ipcRenderer.invoke('settings:quitApp'),
   getConfig: () => ipcRenderer.invoke('settings:getWorkspaceConfig'),
-  setConfig: (config: Partial<AppConfig>) => ipcRenderer.invoke('settings:setWorkspaceConfig', config),
+  setConfig: (config: Partial<AppConfig>) =>
+    ipcRenderer.invoke('settings:setWorkspaceConfig', config),
 };
 
 // ============================================================================
@@ -777,7 +726,11 @@ ipcRenderer.on('settings:config:changed', (_event: any, payload: ConfigChangedPa
   pushConfigChange(payload);
 });
 
-const recvWithTimeout = async <T>(channel: Chan<T>, timeoutMs: number, label: string): Promise<T> => {
+const recvWithTimeout = async <T>(
+  channel: Chan<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error(`${label} timeout`)), timeoutMs);
   try {
@@ -799,6 +752,7 @@ const recvWithTimeout = async <T>(channel: Chan<T>, timeoutMs: number, label: st
 const electronAPI = {
   // API Modules - 7 Complete Domains
   chat: chatAPI,
+  aiSDK,
   learning: learningAPI,
   knowledge: knowledgeAPI,
   analytics: analyticsAPI,

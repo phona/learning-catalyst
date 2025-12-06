@@ -14,6 +14,7 @@ import { ServicesProvider } from './services/services-provider';
 import { createElectronAPIClient } from './services/api/electron-api-client';
 import { ChatStoreProvider } from './stores/chat/ChatStoreProvider';
 import '../index.css';
+import '@assistant-ui/react-ui/styles/index.css';
 
 // Create a client for React Query
 const queryClient = new QueryClient({

@@ -26,6 +26,13 @@ export interface ChatService {
   getAvailableAgents?: () => Promise<AgentDisplay[]>;
   cancelExecution?: (executionId: string) => Promise<void>;
   getProviderInfo?: () => { name?: string; provider?: string } | null;
+  resumeWorkflow?: (params: {
+    conversationId: string;
+    checkpointId: string;
+    questionId?: string;
+    action: 'answer' | 'skip' | 'resume_later';
+    input?: string;
+  }) => Promise<{ success: boolean; resumed: boolean }>;
 }
 
 /**
@@ -392,6 +399,22 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     }
   };
 
+  const resumeWorkflow = async (params: {
+    conversationId: string;
+    checkpointId: string;
+    questionId?: string;
+    action: 'answer' | 'skip' | 'resume_later';
+    input?: string;
+  }): Promise<{ success: boolean; resumed: boolean }> => {
+    const response = await apiClient.chat.resumeWorkflow(params);
+
+    if (!response.success) {
+      throw new Error(response.error?.message ?? 'Failed to resume workflow');
+    }
+
+    return response.data;
+  };
+
   return {
     sendMessage,
     sendMessageStream,
@@ -403,5 +426,6 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     getAvailableAgents,
     cancelExecution,
     getProviderInfo,
+    resumeWorkflow,
   };
 };
