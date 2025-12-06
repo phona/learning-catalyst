@@ -82,6 +82,7 @@ export type AISDKAPI = {
       conversationId?: string;
     },
     callback: (data: any) => void,
+    onComplete?: () => void,
   ) => () => void;
 };
 

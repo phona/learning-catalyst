@@ -61,6 +61,7 @@ const aiSDK: AISDKAPI = {
       conversationId?: string;
     },
     callback: (data: any) => void,
+    onComplete?: () => void,
   ) => {
     const { port1, port2 } = new MessageChannel();
     const streamId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -74,6 +75,7 @@ const aiSDK: AISDKAPI = {
     };
     port1.onclose = () => {
       console.log('[Preload] Stream ended:', streamId);
+      onComplete?.();
     };
 
     return () => {
