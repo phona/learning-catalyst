@@ -30,6 +30,16 @@ export interface VectorDatabaseApi {
   addDocument: (
     document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
   ) => Promise<void>;
+  addDocumentWithEmbedding: (
+    document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
+    embedding: number[],
+  ) => Promise<void>;
+  addDocumentBatch: (
+    documents: Array<{
+      doc: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>;
+      embedding: number[];
+    }>,
+  ) => Promise<void>;
   search: (query: string, options?: VectorSearchOptions) => Promise<SearchResult[]>;
   deleteDocument: (documentId: string) => Promise<void>;
   getStats: () => Promise<{ totalDocuments: number }>;
@@ -60,6 +70,31 @@ export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDataba
     };
 
     await qdrantManager.addKnowledgeItem(vectorDoc, null);
+  };
+
+  const addDocumentWithEmbedding = async (
+    document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
+    embedding: number[],
+  ): Promise<void> => {
+    const vectorDoc: VectorDocument = {
+      ...document,
+      embedding,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await qdrantManager.addKnowledgeItem(vectorDoc, null);
+  };
+
+  const addDocumentBatch = async (
+    documents: Array<{
+      doc: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>;
+      embedding: number[];
+    }>,
+  ): Promise<void> => {
+    for (const { doc, embedding } of documents) {
+      await addDocumentWithEmbedding(doc, embedding);
+    }
   };
 
   const search = async (
@@ -102,7 +137,15 @@ export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDataba
     await qdrantManager.initialize();
   };
 
-  return { addDocument, search, deleteDocument, getStats, start };
+  return {
+    addDocument,
+    addDocumentWithEmbedding,
+    addDocumentBatch,
+    search,
+    deleteDocument,
+    getStats,
+    start,
+  };
 };
 
 export type VectorDatabase = VectorDatabaseApi;

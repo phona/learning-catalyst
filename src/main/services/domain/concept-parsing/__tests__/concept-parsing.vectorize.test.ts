@@ -20,7 +20,15 @@ describe('concept parsing vectorization', () => {
 
   it('always vectorizes when a vector DB is provided, even if vectorize flag is false', async () => {
     const addDocument = vi.fn().mockResolvedValue(undefined);
-    const vectorDatabase = { addDocument };
+    const vectorDatabase = {
+      addDocument: addDocument,
+      addDocumentWithEmbedding: vi.fn(),
+      addDocumentBatch: vi.fn(),
+      search: vi.fn(),
+      deleteDocument: vi.fn(),
+      getStats: vi.fn(),
+      start: vi.fn(),
+    };
     const providerFactory: any = {
       getModel: vi.fn(async () => ({
         model: {},

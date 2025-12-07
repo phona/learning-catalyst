@@ -4,8 +4,6 @@ import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { ConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
 import type { ConfigService } from '@/main/services/core/config/config-service';
-import type { Kysely } from 'kysely';
-import type { Database } from '@/main/services/core/database';
 import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 import {
   fetchPracticeHistoryTool,
@@ -77,7 +75,6 @@ export interface AgentToolDeps {
   loggerService: LoggerService;
   configService: ConfigService;
   providerFactory: ProviderFactory;
-  db: Kysely<Database>;
 }
 
 export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
@@ -327,12 +324,4 @@ export const buildAssessmentTools = (deps: AgentToolDeps): ToolRegistry => {
   };
 };
 
-export const buildPracticeTools = (deps: AgentToolDeps): ToolRegistry => {
-  const learningTools = buildLearningTools(deps);
-  const assessmentTools = buildAssessmentTools(deps);
-
-  return {
-    ...learningTools,
-    ...assessmentTools,
-  };
-};
+// buildPracticeTools - REMOVED (was only used by practice agent which has been migrated to workflow node)

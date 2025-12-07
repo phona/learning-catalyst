@@ -3,6 +3,8 @@ import type { Kysely } from 'kysely';
 import type { ILogger } from '../../types';
 import type { ConceptRow, RelationshipRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
+import type { VectorDatabaseApi } from './vector/vector-database';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 import type {
   ConceptExplorationDisplay,
   ConceptParsingResult,
@@ -20,6 +22,8 @@ import type {
 
 type KnowledgeServiceDeps = {
   db: Kysely<CoreDatabase>;
+  vectorDatabase: VectorDatabaseApi;
+  providerFactory: ProviderFactory;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
 };
 
@@ -243,7 +247,12 @@ const canonicalizeName = (value: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDeps) => {
+export const createKnowledgeService = ({
+  db,
+  vectorDatabase,
+  providerFactory,
+  loggerService,
+}: KnowledgeServiceDeps) => {
   const serviceLogger = loggerService.child({ service: 'knowledge' });
 
   const ingestConceptParsingResult = async (
@@ -864,12 +873,74 @@ export const createKnowledgeService = ({ db, loggerService }: KnowledgeServiceDe
     };
   };
 
+  const findRelatedByPrompt = async (
+    prompt: string,
+    options: {
+      limit?: number;
+      threshold?: number;
+    } = {},
+  ) => {
+    const { limit = 10, threshold = 0.6 } = options;
+
+    serviceLogger.debug('Finding related concepts by prompt', { prompt, limit, threshold });
+
+    const vectorResults = await vectorDatabase.search(prompt, { limit: limit * 2, threshold });
+
+    if (vectorResults.length === 0) {
+      return {
+        matches: [],
+        query: prompt,
+        timestamp: new Date().toISOString(),
+        stats: {
+          totalResults: 0,
+          vectorCount: 0,
+        },
+      };
+    }
+
+    const rerankModel = await providerFactory.getRerankModel();
+    const documents = vectorResults.map(r => r.document.content);
+
+    const rerankResult = await rerankModel.rerank(prompt, documents);
+
+    const rankedResults = rerankResult.indices
+      .slice(0, limit)
+      .map((idx, rank) => {
+        const result = vectorResults[idx];
+        return {
+          id: result.metadata?.conceptId ||
+              result.metadata?.sourceId ||
+              result.document.id,
+          name: result.metadata?.segmentTitle ||
+                result.metadata?.sourceName ||
+                result.metadata?.conceptName ||
+                result.document.id,
+          score: rerankResult.scores[rank],
+          type: result.metadata?.type,
+          relationshipType: result.metadata?.relationshipType,
+          metadata: result.metadata,
+        };
+      });
+
+    return {
+      matches: rankedResults,
+      query: prompt,
+      timestamp: new Date().toISOString(),
+      stats: {
+        totalResults: rankedResults.length,
+        vectorCount: vectorResults.length,
+        rerankModel: rerankModel.settings.model,
+      },
+    };
+  };
+
   return {
     ingestConceptParsingResult,
     searchKnowledge,
     exploreConcept,
     getRelatedConcepts,
     getKnowledgeMap,
+    findRelatedByPrompt,
   };
 };
 

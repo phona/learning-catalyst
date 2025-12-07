@@ -140,4 +140,48 @@ describe('learning service (kysely)', () => {
     const completion = await service.completeSession(session.id);
     expect(completion.summary.keyTakeaways).toContain('Key insight');
   });
+
+  it('adds and lists messages for a session', async () => {
+    const session = await service.startLearningSession({
+      topic: 'Algebra',
+      goals: ['Practice basics'],
+      difficulty: 'beginner',
+      agentType: 'learning',
+      learningStyle: 'visual',
+      userId: 'tester',
+    });
+
+    await service.addMessage({ sessionId: session.id, role: 'user', content: 'Hello' });
+    await service.addMessage({ sessionId: session.id, role: 'assistant', content: 'Hi' });
+
+    const rows = await service.listMessages({ sessionId: session.id, order: 'asc' });
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    expect(rows[0].content).toBe('Hello');
+    expect(rows[1].content).toBe('Hi');
+  });
+
+  it('returns structured practice history', async () => {
+    const now = new Date().toISOString();
+    await testDb.db
+      .insertInto('practice_attempts')
+      .values({
+        id: 'p1',
+        task_id: 'task-1',
+        concept_ids: JSON.stringify(['c1']),
+        result: 'pass',
+        answer: '42',
+        error_tags: JSON.stringify([]),
+        rubric_scores: JSON.stringify({ retrieval: 1, application: 1, teachBack: 1 }),
+        timestamp: now,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    const attempts = await service.getPracticeHistory({ conceptIds: ['c1'], limit: 10 });
+    expect(attempts.length).toBeGreaterThanOrEqual(1);
+    expect(attempts[0].taskId).toBe('task-1');
+    expect(attempts[0].conceptIds).toEqual(['c1']);
+    expect(attempts[0].result).toBe('pass');
+  });
 });

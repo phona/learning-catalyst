@@ -3,5 +3,5 @@ export type AgentType =
   | 'learning_planner'
   | 'tutoring'
   | 'assessment'
-  | 'practice'
+  // 'practice' - REMOVED (migrated to workflow node)
   | 'supervisor';

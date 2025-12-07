@@ -430,6 +430,58 @@ const addSegmentToVector = async (
   }
 };
 
+const addRelationshipToVector = async (
+  relationship: ParsedRelationship,
+  concepts: Map<string, ParsedConcept>,
+  material: ConceptParsingMaterial,
+  providerFactory: ProviderFactory,
+  vectorDatabase?: VectorDatabase,
+  logger?: ILogger,
+) => {
+  if (!vectorDatabase) return;
+
+  const sourceConcept = concepts.get(relationship.sourceId);
+  const targetConcept = concepts.get(relationship.targetId);
+
+  if (!sourceConcept || !targetConcept) {
+    return;
+  }
+
+  const relationshipText = [
+    `Relationship: ${sourceConcept.name}`,
+    `Type: ${relationship.type}`,
+    `Target: ${targetConcept.name}`,
+    relationship.description ? `Description: ${relationship.description}` : '',
+    `Strength: ${relationship.strength}`,
+    `Context: ${sourceConcept.type} to ${targetConcept.type}`,
+  ]
+    .filter(Boolean)
+    .join(' | ');
+
+  const embeddingModel = await providerFactory.getEmbeddingModel();
+  const embedding = await embeddingModel.embed(relationshipText);
+
+  await vectorDatabase.addDocumentWithEmbedding(
+    {
+      id: `rel:${relationship.type}:${relationship.sourceId}:${relationship.targetId}`,
+      content: relationshipText,
+      metadata: {
+        type: 'relationship',
+        relationshipType: relationship.type,
+        sourceId: relationship.sourceId,
+        targetId: relationship.targetId,
+        sourceName: sourceConcept.name,
+        targetName: targetConcept.name,
+        strength: relationship.strength,
+        confidence: relationship.confidence,
+        materialId: material.id,
+        source: 'concept-parsing',
+      },
+    },
+    embedding,
+  );
+};
+
 export const createConceptParsingService = ({
   providerFactory,
   vectorDatabase,
@@ -754,6 +806,14 @@ export const createConceptParsingService = ({
             const mappedRelationships = (extraction.relationships ?? [])
               .map((relationship) => mapRelationship(relationship, nameToId))
               .filter(Boolean) as ParsedRelationship[];
+
+            // Store relationships in vector database
+            const conceptsMap = new Map(mappedNodes.map(node => [node.id, node]));
+            await Promise.all(
+              mappedRelationships.map(rel =>
+                addRelationshipToVector(rel, conceptsMap, segMaterial, providerFactory, vectorDatabase, serviceLogger)
+              )
+            );
 
             mappedNodes.forEach((node) => {
               totalConcepts += 1;

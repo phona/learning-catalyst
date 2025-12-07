@@ -718,6 +718,144 @@ export const createLearningService = ({
         limit: filters?.limit ?? sessions.length,
       };
     },
+    addMessage: async (params: {
+      sessionId: string;
+      role: 'user' | 'assistant' | 'system' | 'tool';
+      content: string;
+      provider?: string;
+      model?: string;
+      tokensUsed?: { prompt?: number; completion?: number; total?: number };
+      timestamp?: string;
+    }): Promise<void> => {
+      const session = await ensureSessionRow(params.sessionId);
+      const countRow = await db
+        .selectFrom('messages')
+        .select((eb) => eb.fn.count('id').as('count'))
+        .where('session_id', '=', params.sessionId)
+        .executeTakeFirst();
+      const order = Number((countRow as any)?.count ?? 0) + 1;
+      const now = new Date().toISOString();
+      await db
+        .insertInto('messages')
+        .values({
+          id: randomUUID(),
+          session_id: params.sessionId,
+          role: params.role,
+          content: params.content,
+          thinking_content: null,
+          provider: params.provider ?? null,
+          model: params.model ?? null,
+          tokens_used: JSON.stringify(params.tokensUsed ?? {}),
+          timestamp: params.timestamp ?? now,
+          message_order: order,
+          created_at: now,
+        })
+        .execute();
+      await db
+        .updateTable('learning_sessions')
+        .set({
+          total_messages: (session.total_messages ?? 0) + 1,
+          updated_at: now,
+        })
+        .where('id', '=', params.sessionId)
+        .execute();
+    },
+    listMessages: async (params?: {
+      sessionId?: string;
+      limit?: number;
+      onlyNonEmpty?: boolean;
+      order?: 'asc' | 'desc';
+    }): Promise<Array<{ content: string; timestamp: string }>> => {
+      const limit = Math.min(params?.limit ?? 15, 200);
+      let builder = db.selectFrom('messages').select(['content', 'timestamp']);
+      if (params?.sessionId) {
+        builder = builder.where('session_id', '=', params.sessionId);
+      }
+      if (params?.onlyNonEmpty) {
+        builder = builder.where('content', '!=', '');
+      }
+      builder = builder.orderBy('timestamp', params?.order ?? 'desc').limit(limit);
+      const rows = await builder.execute();
+      return rows.map((r) => ({ content: r.content, timestamp: r.timestamp }));
+    },
+    getPracticeHistory: async (params?: {
+      conceptIds?: string[];
+      since?: string;
+      limit?: number;
+    }): Promise<
+      Array<{
+        taskId: string;
+        conceptIds: string[];
+        result: 'pass' | 'fail' | 'partial';
+        answer?: string;
+        errorTags?: string[];
+        rubricScores?: { retrieval?: number; application?: number; teachBack?: number };
+        timestamp?: string;
+      }>
+    > => {
+      const limit = Math.min(params?.limit ?? 50, 200);
+      let builder = db
+        .selectFrom('practice_attempts')
+        .select([
+          'task_id',
+          'concept_ids',
+          'result',
+          'answer',
+          'error_tags',
+          'rubric_scores',
+          'timestamp',
+        ])
+        .orderBy('timestamp', 'desc')
+        .limit(limit);
+      if (params?.since) {
+        builder = builder.where('timestamp', '>', params.since);
+      }
+      const raw = await builder.execute();
+      const toArray = (json?: string): string[] => {
+        if (!json) return [];
+        try {
+          const v = JSON.parse(json);
+          return Array.isArray(v) ? (v.filter(Boolean) as string[]) : [];
+        } catch {
+          return [];
+        }
+      };
+      const toObject = <T extends Record<string, number>>(json?: string): T | undefined => {
+        if (!json) return undefined as any;
+        try {
+          const v = JSON.parse(json) as T;
+          return typeof v === 'object' && v ? v : undefined;
+        } catch {
+          return undefined;
+        }
+      };
+      return raw
+        .map((row: any) => {
+          const conceptIds = toArray(row.concept_ids);
+          const errorTags = toArray(row.error_tags);
+          const rubric = toObject<Record<string, number>>(row.rubric_scores);
+          const normalized =
+            row.result === 'pass' || row.result === 'fail' || row.result === 'partial'
+              ? row.result
+              : 'partial';
+          return {
+            taskId: row.task_id,
+            conceptIds: conceptIds.length ? conceptIds : params?.conceptIds ?? [],
+            result: normalized,
+            answer: row.answer ?? undefined,
+            errorTags: errorTags.length ? errorTags : undefined,
+            rubricScores: rubric
+              ? {
+                retrieval: rubric.retrieval,
+                application: rubric.application,
+                teachBack: rubric.teachBack,
+              }
+              : undefined,
+            timestamp: row.timestamp ?? undefined,
+          };
+        })
+        .filter((a: any) => Array.isArray(a.conceptIds) ? a.conceptIds.length > 0 : true);
+    },
     rebuild: async (agent?: LearningAgent) => {
       if (agent) {
         currentLearningAgent = agent;

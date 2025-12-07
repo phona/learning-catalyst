@@ -1,5 +1,4 @@
 import { ipcMain, MessageChannelMain } from 'electron';
-import type { ChatService } from '@/main/services/domain/chat/chat-service';
 import type {
   PracticeService,
   PracticePlan,
@@ -21,7 +20,7 @@ import type { APIResponse } from '@/shared/types/electron-api';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type ChatHandlersDeps = {
-  chatService: ChatService;
+  chatService: any;
   practiceService: PracticeService;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
 };
@@ -71,7 +70,7 @@ const toMessageDisplay = (message: {
 });
 
 const toConversationDisplay = (
-  conversation: Awaited<ReturnType<ChatService['getConversation']>>,
+  conversation: any,
 ): ConversationDisplay => {
   const messages = conversation?.messages.map(toMessageDisplay) ?? [];
   const status = (conversation?.status === 'closed' ? 'ended' : conversation?.status) ?? 'active';
@@ -92,7 +91,7 @@ const toConversationDisplay = (
 };
 
 const buildHistory = (
-  conversation: Awaited<ReturnType<ChatService['getConversation']>>,
+  conversation: any,
 ): ConversationHistory => ({
   conversationId: conversation?.id ?? 'unknown',
   messages: conversation?.messages.map(toMessageDisplay) ?? [],

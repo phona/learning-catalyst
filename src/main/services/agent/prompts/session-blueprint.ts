@@ -4,6 +4,19 @@ import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import { ChatOpenAI } from '@langchain/openai';
 
 /**
+ * DEPRECATED: This module has been migrated to the workflow system.
+ *
+ * The session blueprint schemas and generation logic have been moved to:
+ * - Schema: src/main/services/domain/workflow/nodes/plan.ts
+ * - Node: src/main/services/domain/workflow/nodes/plan.ts
+ *
+ * This file is kept for backward compatibility with existing agent tools.
+ * New code should use the workflow node instead.
+ *
+ * @deprecated Use src/main/services/domain/workflow/nodes/plan.ts instead
+ */
+
+/**
  * Single-session learning blueprint schema (single source of truth for formatter and validation)
  */
 export const LearnerLevelSchema = z.enum(['novice', 'intermediate', 'advanced']);

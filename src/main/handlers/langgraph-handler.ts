@@ -1,9 +1,14 @@
 import { ipcMain } from 'electron';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { SQLiteCheckpointSaver } from '@/main/services/core/checkpoints/SQLiteCheckpointSaver';
-import { createWorkflowGraph, isInterruptEvent, extractInterrupt } from '@/main/services/domain/chat/workflow-graph';
+import { createWorkflowGraph, isInterruptEvent, extractInterrupt } from '@/main/services/domain/workflow';
 import type { AgentManager } from '@/main/services/agent/agent-manager';
 import type { LoggerService } from '@/main/services/core/logger/logger-service';
+import type { ConfigService } from '@/main/services/core/config/config-service';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
+import type { KnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
+import type { PracticeService } from '@/main/services/domain/practice/practice-service';
+import type { LearningService } from '@/main/services/domain/learning/learning-service';
 import { Kysely } from 'kysely';
 import { Database } from '../services/core/database';
 import { BrowserWindow } from 'electron/main';
@@ -13,6 +18,11 @@ export type LangGraphHandlerDeps = {
   agentManager: AgentManager;
   loggerService: LoggerService;
   db: Kysely<Database>;
+  configService: ConfigService;
+  providerFactory: ProviderFactory;
+  knowledgeService: KnowledgeService;
+  practiceService: PracticeService;
+  learningService: LearningService;
 };
 
 /**
@@ -21,7 +31,7 @@ export type LangGraphHandlerDeps = {
 const getAgentTypeFromNode = (nodeName: string): string => {
   const nodeToAgentMap: Record<string, string> = {
     'Assess': 'assessment',
-    'FastTrackQuiz': 'practice',
+    'FastTrackQuiz': 'assessment',
     'GradeQuiz': 'assessment',
     'Teach': 'learning',
     'QA': 'tutoring',
@@ -66,10 +76,10 @@ const convertToPlainMessage = (msg: any, nodeName?: string): { role: string; con
   return result;
 };
 
-export const setupLangGraphHandler = ({ window, agentManager, loggerService, db }: LangGraphHandlerDeps) => {
+export const setupLangGraphHandler = ({ window, agentManager, loggerService, db, configService, providerFactory, knowledgeService, practiceService, learningService }: LangGraphHandlerDeps) => {
   const handlerLogger = loggerService.child({ handler: 'langgraph-adapter' });
   const checkpointSaver = new SQLiteCheckpointSaver(db);
-  const workflowGraph = createWorkflowGraph({ agentManager, loggerService, checkpointer: checkpointSaver });
+  const workflowGraph = createWorkflowGraph({ agentManager, loggerService, checkpointer: checkpointSaver, configService, providerFactory, knowledgeService, practiceService, learningService });
 
   // Keep old IPC streaming API as fallback (to be removed later)
   ipcMain.on(
@@ -129,15 +139,14 @@ export const setupLangGraphHandler = ({ window, agentManager, loggerService, db 
 
           // Normal message streaming
           for (const [key, value] of Object.entries(chunk)) {
-            // Extract node name from chunk key
             const nodeName = key;
 
-            // Convert LangChain messages to plain objects compatible with AI SDK
-            if (value.messages && Array.isArray(value.messages)) {
-              for (const message of value.messages) {
-                const plainMessage = convertToPlainMessage(message, nodeName);
-                replyPort.postMessage(plainMessage);
-              }
+            if (!value.messages || !Array.isArray(value.messages)) continue;
+
+            // Pass through as assistant messages with workflow metadata
+            for (const message of value.messages) {
+              const plainMessage = convertToPlainMessage(message, nodeName);
+              replyPort.postMessage(plainMessage);
             }
           }
         }

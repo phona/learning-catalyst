@@ -336,12 +336,14 @@ async function createWindow(): Promise<void> {
     } catch (error) {
       reportMainError(error, 'qdrant.start');
     }
+    const providerFactory = createProviderFactory(configService);
     const knowledgeService = createKnowledgeService({
       db: database,
+      vectorDatabase,
+      providerFactory,
       loggerService,
     });
 
-    const providerFactory = createProviderFactory(configService);
     const conceptParsingService = createConceptParsingService({
       providerFactory,
       vectorDatabase,
@@ -359,14 +361,12 @@ async function createWindow(): Promise<void> {
       learningService,
       loggerService,
       configService,
-      db: database,
     });
 
     const learningAgent = agentManager.getAgent('learning');
     await learningService.rebuild(learningAgent);
-    const practiceAgent = agentManager.getAgent('practice');
+    // const practiceAgent - REMOVED (practice agent deleted, migrated to workflow node)
     const practiceService = createPracticeService({
-      practiceAgent,
       loggerService,
       knowledgeService,
       db: database,
@@ -393,6 +393,7 @@ async function createWindow(): Promise<void> {
       aiService,
       loggerService,
       configService,
+      providerFactory,
     });
     console.log('[Main] setupAllIpcHandlers complete');
 

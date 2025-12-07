@@ -75,8 +75,26 @@ describe('concept graph knowledge service', () => {
 
   beforeEach(async () => {
     testDb = await createKyselyTestDb();
+    const vectorDatabase = {
+      addDocument: vi.fn(),
+      addDocumentWithEmbedding: vi.fn(),
+      addDocumentBatch: vi.fn(),
+      search: vi.fn(),
+      deleteDocument: vi.fn(),
+      getStats: vi.fn(),
+      start: vi.fn(),
+    };
+    const providerFactory = {
+      getModel: vi.fn(),
+      setModel: vi.fn(),
+      getEmbeddings: vi.fn(),
+      getEmbeddingModel: vi.fn(),
+      getRerankModel: vi.fn(),
+    };
     service = createKnowledgeService({
       db: testDb.db,
+      vectorDatabase,
+      providerFactory,
       loggerService: createLoggerService(),
     });
   });

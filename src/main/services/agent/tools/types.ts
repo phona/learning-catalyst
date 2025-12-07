@@ -7,8 +7,6 @@ import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { ConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
 import type { ConfigService } from '@/main/services/core/config/config-service';
-import type { Database } from '@/main/services/core/database';
-import type { Kysely } from 'kysely';
 
 export interface ToolParams {
   [key: string]: any;
@@ -26,5 +24,4 @@ export interface ToolServices {
   learningService: LearningService;
   loggerService: LoggerService;
   configService: ConfigService;
-  db: Kysely<Database>;
 }

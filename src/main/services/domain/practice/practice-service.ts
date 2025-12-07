@@ -1,7 +1,6 @@
 import { ILogger } from '../../types';
 import { randomUUID } from 'node:crypto';
 import type { KnowledgeService } from '../knowledge/knowledge-service';
-import type { PracticeAgent } from '@/main/services/agent/practice-agent';
 import { Kysely } from 'kysely';
 import { Database } from '@/main/services/core/database';
 
@@ -45,7 +44,7 @@ export interface PracticeRequest {
 }
 
 type PracticeDeps = {
-  practiceAgent: PracticeAgent;
+  // practiceAgent - REMOVED
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
   knowledgeService: KnowledgeService;
   db: Kysely<Database>;
@@ -130,117 +129,11 @@ const buildFallbackPlan = (
 };
 
 export const createPracticeService = ({
-  practiceAgent,
   loggerService,
   knowledgeService,
   db,
 }: PracticeDeps) => {
   const serviceLogger = loggerService.child({ service: 'practice' });
-
-  const generatePracticePlan = async (request: PracticeRequest): Promise<PracticePlan> => {
-    const normalized: PracticeRequest = {
-      ...request,
-      difficulty: request.difficulty ?? DEFAULT_PRACTICE_SETTINGS.difficulty,
-      count: request.count ?? DEFAULT_PRACTICE_SETTINGS.count,
-    };
-
-    const practiceType =
-      normalized.practiceType ?? practiceTypeFromContent(normalized.content ?? normalized.topic);
-    const focusQuery = normalized.content?.trim() ? normalized.content : normalized.topic;
-
-    const searchResult = await knowledgeService.searchKnowledge({
-      query: focusQuery,
-      limit: 6,
-    });
-
-    const focusConcepts = Array.from(
-      new Set(searchResult.results.map((result) => result.title).filter(Boolean)),
-    ).slice(0, 5);
-
-    const relatedSet = new Set<string>();
-    if (searchResult.results[0]?.id) {
-      const related = await knowledgeService.getRelatedConcepts(searchResult.results[0].id);
-      related.relatedConcepts.forEach((rel) => relatedSet.add(rel.name));
-    }
-
-    const relatedConcepts = Array.from(relatedSet).slice(0, 6);
-    const contextSummary =
-      normalized.context ??
-      [
-        `Focus concepts: ${focusConcepts.join(', ') || 'none'}`,
-        `Related concepts: ${relatedConcepts.join(', ') || 'none'}`,
-      ].join(' | ');
-
-    const promptPayload = JSON.stringify(
-      {
-        practiceType,
-        topic: normalized.topic,
-        difficulty: normalized.difficulty,
-        count: normalized.count,
-        focusConcepts,
-        relatedConcepts,
-        vibe: normalized.vibe ?? 'focused',
-        context: contextSummary,
-      },
-      null,
-      2,
-    );
-
-    const fallback = buildFallbackPlan({ ...normalized, practiceType, focusConcepts });
-
-    try {
-      const agentResponse = await practiceAgent.invoke({
-        messages: [{ role: 'user', content: promptPayload }],
-        topic: normalized.topic,
-        userId: normalized.userId,
-      });
-
-      let response: PracticePlan;
-      try {
-        const raw = String(agentResponse).trim();
-        response = JSON.parse(raw) as PracticePlan;
-      } catch {
-        response = fallback;
-      }
-
-      // Validate the response structure
-      if (!response || !response.exercises || !Array.isArray(response.exercises)) {
-        response = fallback;
-      }
-
-      const enriched: PracticePlan = {
-        ...response,
-        metadata: {
-          ...response.metadata,
-          generatedAt: new Date().toISOString(),
-          knowledgeNodes: focusConcepts.length,
-          knowledgeRelationships: relatedConcepts.length,
-        },
-      };
-
-      serviceLogger.info('Practice plan generated', {
-        topic: enriched.topic,
-        exercises: enriched.exercises.length,
-        practiceType: enriched.practiceType,
-      });
-
-      return enriched;
-    } catch (error) {
-      serviceLogger.warn('Practice agent failed, using fallback', { error });
-      
-      const enriched: PracticePlan = {
-        ...fallback,
-        metadata: {
-          ...fallback.metadata,
-          generatedAt: new Date().toISOString(),
-          knowledgeNodes: focusConcepts.length,
-          knowledgeRelationships: relatedConcepts.length,
-        },
-      };
-
-      return enriched;
-    }
-  };
 
   const recordPracticeAttempt = async (attempt: {
     taskId: string;
@@ -272,10 +165,9 @@ export const createPracticeService = ({
   };
 
   return {
-    generatePracticePlan,
     recordPracticeAttempt,
     rebuild: async () => {
-      serviceLogger.info('Practice service rebuild called - practice agent manages its own configuration');
+      serviceLogger.info('Practice service rebuild called - no agent dependency');
     },
   };
 };

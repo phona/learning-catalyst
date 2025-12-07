@@ -5,12 +5,9 @@ import type { LearningService } from '@/main/services/domain/learning/learning-s
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import { AgentToolDeps } from './tool-registry';
 import { LoggerService } from '../core/logger/logger-service';
-import type { Kysely } from 'kysely';
-import type { Database } from '@/main/services/core/database';
 import { createAssessmentAgent } from './assessment-agent';
 import { createLearningAgent } from './learning-agent';
 import { createLearningPlannerAgent } from './learning-planner-agent';
-import { createPracticeAgent } from './practice-agent';
 import { createSupervisorAgent } from './supervisor-agent';
 import { createTutoringAgent } from './tutoring-agent';
 import { formatMessages, pickAssistantMessage } from './specialized-agent';
@@ -39,7 +36,6 @@ interface AgentManagerDeps {
   learningService: LearningService;
   loggerService: LoggerService;
   configService: ConfigService;
-  db: Kysely<Database>;
 }
 
 export const createAgentManager = async (deps: AgentManagerDeps) => {
@@ -52,7 +48,6 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     loggerService: deps.loggerService,
     configService: deps.configService,
     providerFactory,
-    db: deps.db,
   };
 
   // Function to create all agents
@@ -61,14 +56,13 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     const learningPlannerAgent = await createLearningPlannerAgent(toolDeps);
     const tutoringAgent = await createTutoringAgent(toolDeps);
     const assessmentAgent = await createAssessmentAgent(toolDeps);
-    const practiceAgent = await createPracticeAgent(toolDeps);
 
     const nonSupervisorAgents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent> = {
       learning: learningAgent,
       learning_planner: learningPlannerAgent,
       tutoring: tutoringAgent,
       assessment: assessmentAgent,
-      practice: practiceAgent,
+      // practice - REMOVED (migrated to workflow node)
     };
 
     const supervisorAgentLocal = await createSupervisorAgent(toolDeps, nonSupervisorAgents);
@@ -133,7 +127,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     const formattedMessages = formatMessages(request.messages, request.topic);
     const invokeOptions = options?.callbacks ? { callbacks: options.callbacks } : undefined;
     const result = await agent.invoke({ messages: formattedMessages }, invokeOptions as any);
-    logger.debug("Agent invoke result", JSON.stringify(result));
+    logger.debug('Agent invoke result', JSON.stringify(result));
     const assistantMessage = pickAssistantMessage(result.messages ?? []);
 
     if (!assistantMessage?.content) {

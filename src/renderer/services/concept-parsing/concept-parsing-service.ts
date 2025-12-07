@@ -9,6 +9,8 @@ import type {
   ConceptParsingResult,
   ParsedConcept,
   ParsedRelationship,
+  ConceptIngestionPlan,
+  KnowledgeIngestionResult,
 } from '@/shared/types/electron-api/knowledge-api';
 import type { ConfigurationService } from '../configuration/configuration-service';
 

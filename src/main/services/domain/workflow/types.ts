@@ -1,0 +1,17 @@
+export enum NodeName {
+  TOPIC_PARSE = 'TopicParse',
+  PLAN = 'Plan',
+  ASSESS = 'Assess',
+  FAST_TRACK_QUIZ = 'FastTrackQuiz',
+  WAIT_QUIZ_ANSWER = 'WaitQuizAnswer',
+  GRADE_QUIZ = 'GradeQuiz',
+  TEACH = 'Teach',
+  QA = 'QA',
+  PRACTICE = 'Practice',
+  WAIT_PRACTICE = 'WaitPractice',
+  EVALUATE = 'Evaluate',
+  MASTERY_CHECK = 'MasteryCheck',
+  REMEDIATE = 'Remediate',
+  BREAKER = 'Breaker',
+  COMPLETE = 'Complete',
+}

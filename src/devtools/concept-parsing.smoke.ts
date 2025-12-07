@@ -82,6 +82,20 @@ const buildService = async (cfg: any) => {
     addDocument: async (doc: any) => {
       captured.push({ title: String(doc.metadata.segmentTitle ?? ''), content: String(doc.content ?? '') });
     },
+    addDocumentWithEmbedding: async (doc: any, embedding: number[]) => {
+      captured.push({ title: String(doc.metadata.segmentTitle ?? ''), content: String(doc.content ?? '') });
+    },
+    addDocumentBatch: async (docs: Array<{ doc: any; embedding: number[] }>) => {
+      for (const { doc } of docs) {
+        captured.push({ title: String(doc.metadata.segmentTitle ?? ''), content: String(doc.content ?? '') });
+      }
+    },
+    search: async (query: string, options?: any) => {
+      return [];
+    },
+    deleteDocument: async (id: string) => {},
+    getStats: async () => ({ totalDocuments: 0 }),
+    start: async () => {},
   };
   const loggerService = {
     child: () => ({ info: () => {}, debug: () => {}, warn: () => {}, error: () => {} }),

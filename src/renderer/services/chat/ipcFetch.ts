@@ -6,6 +6,7 @@ export const createIpcFetch = (): FetchFunction => async (_input, init) => {
   let cancelStream: () => void;
   const textEncoder = new TextEncoder();
 
+  // Use a stable message id for the assistant response
   const messageId = `msg-${Date.now()}`;
   let isFirstChunk = true;
 
@@ -20,21 +21,16 @@ export const createIpcFetch = (): FetchFunction => async (_input, init) => {
         cancelStream = window.electronAPI.aiSDK.stream(
           { messages, conversationId },
           (stream) => {
-            console.log('ipcFetch: Stream chunk:', stream);
- 
-            // Format for assistant-ui AI SDK
             if (isFirstChunk) {
-              // Send text-start with id
               controller.enqueue(
-                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-start' }) + '\n\n')
+                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-start' }) + '\n\n'),
               );
               isFirstChunk = false;
             }
 
-            // Send text-delta with content in delta field
             if (stream.content) {
               controller.enqueue(
-                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-delta', delta: stream.content }) + '\n\n')
+                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-delta', delta: stream.content }) + '\n\n'),
               );
             }
           },
@@ -42,18 +38,17 @@ export const createIpcFetch = (): FetchFunction => async (_input, init) => {
             // Stream completed callback - send text-end
             if (!isFirstChunk) {
               controller.enqueue(
-                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-end' }) + '\n\n')
+                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-end' }) + '\n\n'),
               );
             }
             // Delay closing to ensure text-end is received
             setTimeout(() => controller.close(), 100);
-          }
+          },
         );
       },
 
       cancel() {
         if (cancelStream) {
-          console.log('ipcFetch: Stream cancelled.');
           cancelStream();
         }
       },

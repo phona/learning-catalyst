@@ -30,9 +30,6 @@ vi.mock('../assessment-agent', () => ({
   createAssessmentAgent: vi.fn(() => createMockAgent('assessment', 'assessment response')),
 }));
 
-vi.mock('../practice-agent', () => ({
-  createPracticeAgent: vi.fn(() => createMockAgent('practice', 'practice response')),
-}));
 
 vi.mock('../supervisor-agent', () => ({
   createSupervisorAgent: vi.fn(() => ({
@@ -180,7 +177,6 @@ describe('Agent Manager - Basic Tests', () => {
       learningService: mockLearningService,
       loggerService: mockLoggerService,
       configService: mockConfigService,
-      db: {} as any, // minimal stub; tools requiring db aren't invoked in these tests
     });
   });
 
@@ -206,13 +202,11 @@ describe('Agent Manager - Basic Tests', () => {
       const { createSupervisorAgent } = await import('../supervisor-agent');
       const { createTutoringAgent } = await import('../tutoring-agent');
       const { createAssessmentAgent } = await import('../assessment-agent');
-      const { createPracticeAgent } = await import('../practice-agent');
 
       expect(createLearningAgent).toHaveBeenCalled();
       expect(createLearningPlannerAgent).toHaveBeenCalled();
       expect(createTutoringAgent).toHaveBeenCalled();
       expect(createAssessmentAgent).toHaveBeenCalled();
-      expect(createPracticeAgent).toHaveBeenCalled();
       expect(createSupervisorAgent).toHaveBeenCalled();
     });
 
@@ -275,9 +269,12 @@ describe('Agent Manager - Basic Tests', () => {
   });
 
   describe('Different Agent Types', () => {
-    const agentTypes: Array<
-      'learning' | 'learning_planner' | 'tutoring' | 'assessment' | 'practice'
-    > = ['learning', 'learning_planner', 'tutoring', 'assessment', 'practice'];
+    const agentTypes: Array<'learning' | 'learning_planner' | 'tutoring' | 'assessment'> = [
+      'learning',
+      'learning_planner',
+      'tutoring',
+      'assessment',
+    ];
 
     agentTypes.forEach((agentType) => {
       it(`should run ${agentType} agent`, async () => {

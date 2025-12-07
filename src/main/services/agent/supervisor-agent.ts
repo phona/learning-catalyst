@@ -20,7 +20,6 @@ Other routing:
 - Explanations: "learning_assistant".
 - Coaching/guidance: "tutoring_assistant".
 - Mastery checks: "assessment_assistant".
-- Exercises/drills: "practice_assistant".
 
 Always include the user goal/concepts when asking assessment to run. Avoid redundant tool calls. Summarize final results for the user.`;
 

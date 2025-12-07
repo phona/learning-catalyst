@@ -38,6 +38,7 @@ const makeOpenAIEmbeddings = (settings: ProviderSettings) =>
   new OpenAIEmbeddings({
     apiKey: settings.apiKey,
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
+    model: settings.model,
   });
 
 const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
@@ -145,16 +146,44 @@ export const createProviderFactory = (configService: ConfigService) => {
   };
 
   const getEmbeddings = async (configKey?: string) => {
-    const settings = await resolveSettings(configKey);
+    const config = await configService.getConfig();
+    const embConfig = config?.ai?.modelTypes?.embedding;
+    if (!embConfig?.provider || !embConfig?.model) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: 'Embedding model configuration is required. Please configure ai.modelTypes.embedding.',
+        details: { section: 'ai.modelTypes.embedding' },
+      });
+    }
+    const providerName = embConfig.provider.toLowerCase();
+    const provider = config?.ai?.providers?.[providerName];
+    if (!provider) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: `Embedding provider "${providerName}" is not configured.`,
+        details: { providerName },
+      });
+    }
+    const settings = {
+      providerName,
+      providerType: provider.providerType,
+      model: embConfig.model,
+      apiKey: provider.apiKey,
+      baseUrl: provider.baseUrl,
+      temperature: 0,
+      maxTokens: 0,
+    } as ProviderSettings;
     if (isRemoteProvider(settings.providerType) && !settings.apiKey) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
         code: IPC_ERROR_CODES.provider.authRequired,
-        message: `API key is required to use provider "${settings.providerName}".`,
+        message: `API key is required to use embedding provider "${settings.providerName}".`,
         details: { provider: settings.providerName },
       });
     }
-    const cacheKey = `${getCacheKey(settings)}:emb`;
+    const cacheKey = `${getCacheKey(settings)}:emb:${settings.model}`;
     if (embeddingsCache.has(cacheKey)) {
       return embeddingsCache.get(cacheKey)!;
     }
@@ -172,9 +201,70 @@ export const createProviderFactory = (configService: ConfigService) => {
     return embeddings;
   };
 
+  const getEmbeddingModel = async () => {
+    const embeddings = await getEmbeddings('embedding');
+    return {
+      settings: {
+        providerName: 'embedding',
+        model: 'embedding-model',
+        embeddingDims: 1536,
+      },
+      embed: async (text: string): Promise<number[]> => {
+        const result = await embeddings.embedQuery(text);
+        return result;
+      },
+      embedBatch: async (texts: string[]): Promise<number[][]> => {
+        const result = await embeddings.embedDocuments(texts);
+        return result;
+      },
+    };
+  };
+
+  const getRerankModel = async () => {
+    const model = await getModel('rerank');
+    return {
+      settings: {
+        providerName: 'rerank',
+        model: 'rerank-model',
+      },
+      rerank: async (query: string, documents: string[]) => {
+        const modelInstance = model.model;
+        const prompt = `
+Query: ${query}
+
+Documents:
+${documents.map((doc, i) => `${i + 1}. ${doc}`).join('\n')}
+
+Rank these documents by relevance to the query. Return a JSON array of scores from 0-1.
+        `.trim();
+
+        const response = await modelInstance.invoke([{ role: 'user', content: prompt }]);
+        const content = typeof response === 'string' ? response : response?.content || '[]';
+
+        try {
+          const scores = JSON.parse(content) as number[];
+          const indices = scores.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
+          return {
+            indices,
+            scores: indices.map((i) => scores[i]),
+          };
+        } catch {
+          const scores = documents.map(() => 1.0);
+          const indices = scores.map((_, i) => i);
+          return {
+            indices,
+            scores,
+          };
+        }
+      },
+    };
+  };
+
   return {
     getModel,
     getEmbeddings,
+    getEmbeddingModel,
+    getRerankModel,
   };
 };
 

@@ -10,7 +10,6 @@ import { setupFilesystemHandlers } from './filesystem-handlers';
 import { setupSessionsHandlers } from './sessions-handlers';
 import { setupCatalystHandlers } from './catalyst-handlers';
 import { applyStructuredErrorHandling } from './ipc-error-handler';
-import { ChatService } from '../services/domain/chat/chat-service';
 import { LearningService } from '../services/domain/learning/learning-service';
 import { KnowledgeService } from '../services/domain/knowledge/knowledge-service';
 import { AnalyticsService } from '../services/domain/analytics/analytics-service';
@@ -24,6 +23,7 @@ import { setupLangGraphHandler } from './langgraph-handler';
 import type { AgentManager } from '@/main/services/agent/agent-manager';
 import { Kysely } from 'kysely';
 import { Database } from '../services/core/database';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 
 /**
  * Setup all IPC handlers with provided services
@@ -32,7 +32,6 @@ export async function setupAllIpcHandlers(
   mainWindow: BrowserWindow,
   workspacePath: string,
   services: {
-    chatService: ChatService;
     agentManager: AgentManager;
     db: Kysely<Database>;
     learningService: LearningService;
@@ -44,6 +43,7 @@ export async function setupAllIpcHandlers(
     practiceService: PracticeService;
     loggerService: LoggerService;
     configService: ConfigService;
+    providerFactory: ProviderFactory;
   },
 ): Promise<void> {
   applyStructuredErrorHandling();
@@ -53,6 +53,11 @@ export async function setupAllIpcHandlers(
     agentManager: services.agentManager,
     loggerService: services.loggerService,
     db: services.db,
+    configService: services.configService,
+    providerFactory: services.providerFactory,
+    knowledgeService: services.knowledgeService,
+    practiceService: services.practiceService,
+    learningService: services.learningService,
   });
 
   setupLearningHandlers(ipcMain, {
