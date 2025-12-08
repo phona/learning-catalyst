@@ -12,6 +12,8 @@ import type { LearningService } from '@/main/services/domain/learning/learning-s
 import { Kysely } from 'kysely';
 import { Database } from '../services/core/database';
 import { BrowserWindow } from 'electron/main';
+import type { NormalizedMessage } from '@/main/services/domain/workflow/utils/normalization';
+import { convertToPlainMessage } from '@/main/services/domain/workflow/utils/normalization';
 
 export type LangGraphHandlerDeps = {
   window: BrowserWindow;
@@ -25,61 +27,29 @@ export type LangGraphHandlerDeps = {
   learningService: LearningService;
 };
 
-/**
- * Maps workflow node names to agent types
- */
-const getAgentTypeFromNode = (nodeName: string): string => {
-  const nodeToAgentMap: Record<string, string> = {
-    'Assess': 'assessment',
-    'FastTrackQuiz': 'assessment',
-    'GradeQuiz': 'assessment',
-    'Teach': 'learning',
-    'QA': 'tutoring',
-    'Practice': 'practice',
-    'Evaluate': 'assessment',
-    'MasteryCheck': 'assessment',
-    'Remediate': 'learning',
-    'Breaker': 'tutoring',
-    'Complete': 'tutoring',
-  };
-  return nodeToAgentMap[nodeName] || 'learning';
-};
-
-/**
- * Converts LangChain messages to plain objects compatible with AI SDK
- */
-const convertToPlainMessage = (msg: any, nodeName?: string): { role: string; content: string; agentType?: string; workflowNode?: string } => {
-  // Handle LangChain message objects
-  if (msg?.lc_serializable || msg?.lc_kwargs) {
-    const result = {
-      role: msg.lc_kwargs?.role || 'assistant',
-      content: typeof msg.lc_kwargs?.content === 'string'
-        ? msg.lc_kwargs.content
-        : JSON.stringify(msg.lc_kwargs?.content || ''),
-    };
-    if (nodeName) {
-      result.agentType = getAgentTypeFromNode(nodeName);
-      result.workflowNode = nodeName;
-    }
-    return result;
-  }
-
-  // Handle plain messages
-  const result = {
-    role: msg.role || 'assistant',
-    content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content || ''),
-  };
-  if (nodeName) {
-    result.agentType = getAgentTypeFromNode(nodeName);
-    result.workflowNode = nodeName;
-  }
-  return result;
-};
-
-export const setupLangGraphHandler = ({ window, agentManager, loggerService, db, configService, providerFactory, knowledgeService, practiceService, learningService }: LangGraphHandlerDeps) => {
+export const setupLangGraphHandler = ({
+  window,
+  agentManager,
+  loggerService,
+  db,
+  configService,
+  providerFactory,
+  knowledgeService,
+  practiceService,
+  learningService
+}: LangGraphHandlerDeps) => {
   const handlerLogger = loggerService.child({ handler: 'langgraph-adapter' });
   const checkpointSaver = new SQLiteCheckpointSaver(db);
-  const workflowGraph = createWorkflowGraph({ agentManager, loggerService, checkpointer: checkpointSaver, configService, providerFactory, knowledgeService, practiceService, learningService });
+  const workflowGraph = createWorkflowGraph({
+    agentManager,
+    loggerService,
+    checkpointer: checkpointSaver,
+    configService,
+    providerFactory,
+    knowledgeService,
+    practiceService,
+    learningService
+  });
 
   // Keep old IPC streaming API as fallback (to be removed later)
   ipcMain.on(
@@ -99,7 +69,10 @@ export const setupLangGraphHandler = ({ window, agentManager, loggerService, db,
       const [replyPort] = event.ports;
 
       const safeConversationId = conversationId || `thread_${Date.now()}`;
-      handlerLogger.info('chat:start-stream', { conversationId: safeConversationId, messageCount: messages.length });
+      handlerLogger.info('chat:start-stream', {
+        conversationId: safeConversationId,
+        messageCount: messages.length,
+      });
 
       try {
         const lcMessages = messages.map((m) => {
@@ -141,12 +114,23 @@ export const setupLangGraphHandler = ({ window, agentManager, loggerService, db,
           for (const [key, value] of Object.entries(chunk)) {
             const nodeName = key;
 
-            if (!value.messages || !Array.isArray(value.messages)) continue;
+            // Type guard for value containing messages
+            if (
+              typeof value === 'object' &&
+              value !== null &&
+              'messages' in value &&
+              Array.isArray(value.messages)
+            ) {
+              // Convert messages using normalization utilities
+              // This replaces the old convertToPlainMessage logic
+              const normalizedMessages: NormalizedMessage[] = value.messages.map((message: unknown) =>
+                convertToPlainMessage(message, nodeName)
+              );
 
-            // Pass through as assistant messages with workflow metadata
-            for (const message of value.messages) {
-              const plainMessage = convertToPlainMessage(message, nodeName);
-              replyPort.postMessage(plainMessage);
+              // Send each normalized message to the UI
+              for (const normalizedMessage of normalizedMessages) {
+                replyPort.postMessage(normalizedMessage);
+              }
             }
           }
         }

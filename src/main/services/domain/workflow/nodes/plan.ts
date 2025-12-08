@@ -109,28 +109,28 @@ const SessionBlueprintSchema = z
       })
       .optional(),
   })
-  .strict()
-  .superRefine((value, ctx) => {
-    const requiredTypes = ['retrieval', 'apply', 'teach_back', 'open_question'];
-    const present = new Set(value.session.practiceBlocks.map((b) => b.type));
-    for (const t of requiredTypes) {
-      if (!present.has(t)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `practiceBlocks must include at least one "${t}" block`,
-          path: ['session', 'practiceBlocks'],
-        });
-      }
+  .strict();
+
+// Validation function to be called after parsing
+function validateSessionBlueprint(value: unknown) {
+  const parsed = value as SessionBlueprint;
+
+  const requiredTypes = ['retrieval', 'apply', 'teach_back', 'open_question'] as const;
+  const present = new Set(parsed.session.practiceBlocks.map((b) => b.type));
+
+  for (const t of requiredTypes) {
+    if (!present.has(t)) {
+      throw new Error(`practiceBlocks must include at least one "${t}" block`);
     }
-    const totalMinutes = value.session.practiceBlocks.reduce((sum, b) => sum + b.minutes, 0);
-    if (totalMinutes > value.learnerProfile.timeAvailable) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Total practice minutes exceed timeAvailable',
-        path: ['session', 'practiceBlocks'],
-      });
-    }
-  });
+  }
+
+  const totalMinutes = parsed.session.practiceBlocks.reduce((sum, b) => sum + b.minutes, 0);
+  if (totalMinutes > parsed.learnerProfile.timeAvailable) {
+    throw new Error('Total practice minutes exceed timeAvailable');
+  }
+
+  return parsed;
+}
 
 export type SessionBlueprint = z.infer<typeof SessionBlueprintSchema>;
 export type LearnerLevel = z.infer<typeof LearnerLevelSchema>;
@@ -152,9 +152,8 @@ RULES:
 3. ALWAYS USE DOUBLE QUOTES FOR STRINGS AND KEYS
 `;
 
-const parser = StructuredOutputParser.fromZodSchema(SessionBlueprintSchema);
-const rawFormatInstructions = parser.getFormatInstructions();
-const formatInstructions = rawFormatInstructions
+const parser = StructuredOutputParser.fromZodSchema(SessionBlueprintSchema as any);
+const formatInstructions = parser.getFormatInstructions()
   .replace(/Include the enclosing markdown codeblock:[\s\S]*?```/g, '')
   .replace(/```json[\s\S]*?```/g, '')
   .replace(/```/g, '')
@@ -252,7 +251,8 @@ export const planNode = (deps: WorkflowDeps) => async (state: typeof WorkflowSta
     throw new Error('Failed to generate valid session blueprint');
   }
 
-  const blueprint = parsed.data;
+  // Additional validation for business rules
+  const blueprint = validateSessionBlueprint(parsed.data);
 
   // Return state updates
   return {

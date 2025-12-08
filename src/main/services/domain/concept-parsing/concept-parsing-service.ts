@@ -394,6 +394,7 @@ const coalesceSegments = (
 const addSegmentToVector = async (
   segment: ConceptSegment,
   material: ConceptParsingMaterial,
+  providerFactory: ProviderFactory,
   vectorDatabase?: VectorDatabase,
   logger?: ILogger,
 ) => {
@@ -405,18 +406,24 @@ const addSegmentToVector = async (
       sourceLabel: material.title,
     });
 
-    await vectorDatabase.addDocument({
-      id: `${material.id}:${segment.id}`,
-      content: segment.content,
-      metadata: {
-        materialId: material.id,
-        segmentId: segment.id,
-        segmentTitle: segment.title,
-        previewStats: preview.stats,
-        source: 'concept-parsing',
-        format: material.format ?? 'markdown',
+    const embeddingModel = await providerFactory.getEmbeddingModel();
+    const embedding = await embeddingModel.embed(segment.content);
+
+    await vectorDatabase.addDocumentWithEmbedding(
+      {
+        id: `${material.id}:${segment.id}`,
+        content: segment.content,
+        metadata: {
+          materialId: material.id,
+          segmentId: segment.id,
+          segmentTitle: segment.title,
+          previewStats: preview.stats,
+          source: 'concept-parsing',
+          format: material.format ?? 'markdown',
+        },
       },
-    });
+      embedding,
+    );
   } catch (error) {
     logger?.warn(
       'Concept parsing vector insertion failed',
@@ -790,7 +797,7 @@ export const createConceptParsingService = ({
             serviceLogger.info('Segment extraction successful', extraction);
             const segmentConcepts = (extraction.nodes ?? []).slice(0, maxPerSegment);
 
-            await addSegmentToVector(segment, segMaterial, vectorDatabase, serviceLogger);
+            await addSegmentToVector(segment, segMaterial, providerFactory, vectorDatabase, serviceLogger);
 
             const segPromptTokens = Math.ceil(segment.content.length / 4);
             promptTokens += segPromptTokens;

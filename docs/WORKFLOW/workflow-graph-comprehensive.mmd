@@ -1,0 +1,149 @@
+---
+title: Learning Catalyst - Workflow Graph
+description: Complete workflow visualization showing all nodes, edges, conditional flows, and OpenAI roles
+---
+
+flowchart TD
+    %% Define node styles
+    classDef toolNode fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef assistantNode fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    classDef startEnd fill:#fff3e0,stroke:#e65100,stroke-width:3px,color:#000
+    classDef decision fill:#fff9c4,stroke:#f57f17,stroke-width:2px,color:#000
+
+    %% Start and End
+    START([Start]):::startEnd
+    END([End]):::startEnd
+
+    %% TOOL NODES - Structured Output (7 nodes)
+    TOPIC_PARSE[TopicParse<br/>Extract & Validate Concepts]:::toolNode
+    ASSESS[Assess<br/>Analyze Readiness]:::toolNode
+    PLAN[Plan<br/>Generate Session Blueprint]:::toolNode
+    FAST_TRACK_QUIZ[FastTrackQuiz<br/>Generate Diagnostic Quiz]:::toolNode
+    GRADE_QUIZ[GradeQuiz<br/>Score & Analyze]:::toolNode
+    PRACTICE[Practice<br/>Generate Exercises]:::toolNode
+    EVALUATE[Evaluate<br/>Score Performance]:::toolNode
+
+    %% ASSISTANT NODES - Conversational (6 nodes)
+    TEACH[Teach<br/>Conversational Learning]:::assistantNode
+    QA[QA<br/>Interactive Q&A]:::assistantNode
+    REMEDIATE[Remediate<br/>Targeted Help]:::assistantNode
+    MASTERY_CHECK[MasteryCheck<br/>Final Assessment]:::assistantNode
+    BREAKER[Breaker<br/>Circuit Breaker]:::assistantNode
+    COMPLETE[Complete<br/>Success Celebration]:::assistantNode
+
+    %% ========================================================================
+    %% PATH 0: Initialization Flow
+    %% ========================================================================
+    START --> TOPIC_PARSE
+    TOPIC_PARSE --> ASSESS
+
+    %% ========================================================================
+    %% PATH 1: Standard Learning Loop - Initial Planning
+    %% ========================================================================
+    ASSESS --> PLAN
+
+    %% ========================================================================
+    %% PATH A: Fast Track Assessment (High Confidence)
+    %% ========================================================================
+    ASSESS -.->|confidence ≥ threshold| FAST_TRACK_QUIZ
+    FAST_TRACK_QUIZ --> GRADE_QUIZ
+    GRADE_QUIZ -.->|mastery ≥ 90%| COMPLETE
+    GRADE_QUIZ -.->|mastery < 90%| TEACH
+
+    %% ========================================================================
+    %% PATH B: Standard Learning Loop (Low Confidence)
+    %% ========================================================================
+    ASSESS -.->|confidence < threshold| TEACH
+    PLAN -.->|optional connection| TEACH
+    TEACH --> QA
+    QA --> PRACTICE
+    PRACTICE --> EVALUATE
+
+    %% ========================================================================
+    %% PATH C: Remediation Loop
+    %% ========================================================================
+    EVALUATE -.->|mastery ≥ pass threshold<br/>attempts < breaker limit| MASTERY_CHECK
+    EVALUATE -.->|attempts ≥ breaker limit| BREAKER
+    EVALUATE -.->|mastery < pass threshold<br/>attempts < breaker limit| REMEDIATE
+    REMEDIATE --> PRACTICE
+
+    %% ========================================================================
+    %% PATH D: Completion Flow
+    %% ========================================================================
+    MASTERY_CHECK -.->|mastery ≥ 90%| COMPLETE
+    MASTERY_CHECK -.->|mastery < 90%| PRACTICE
+    COMPLETE --> END
+    BREAKER --> END
+
+    %% ========================================================================
+    %% LEGEND
+    %% ========================================================================
+    subgraph LEGEND [ " " ]
+        L1[TOOL Nodes - Structured Output<br/>Rich UI with formatted data]:::toolNode
+        L2[ASSISTANT Nodes - Conversational<br/>Natural dialogue flow]:::assistantNode
+        L3[Conditional Edges<br/>Dashed lines with conditions]:::decision
+        L4[Direct Edges<br/>Solid lines for standard flow]:::startEnd
+    end
+
+    %% ========================================================================
+    %% PATH ANNOTATIONS
+    %% ========================================================================
+    subgraph PATHS [ " " ]
+        P1[Path A: Fast Track Assessment<br/>High confidence → Quiz → Grade]:::toolNode
+        P2[Path B: Standard Learning<br/>Low confidence → Teach → Practice]:::assistantNode
+        P3[Path C: Remediation Loop<br/>Targeted help → Practice retry]:::assistantNode
+        P4[Path D: Circuit Breaker<br/>Too many attempts → Support]:::assistantNode
+    end
+
+    %% ========================================================================
+    %% DECISION LOGIC
+    %% ========================================================================
+    subgraph DECISIONS [ "Decision Logic" ]
+        D1[ASSESS Decision<br/>if confidence ≥ 0.7<br/>→ Fast Track (Path A)<br/>else → Standard (Path B)]:::decision
+        D2[GRADE_QUIZ Decision<br/>if mastery ≥ 0.9<br/>→ Complete<br/>else → Teach (Path B)]:::decision
+        D3[EVALUATE Decision<br/>if mastery ≥ 0.7<br/>→ MasteryCheck<br/>else if attempts ≥ 5<br/>→ Breaker<br/>else → Remediate]:::decision
+        D4[MASTERY_CHECK Decision<br/>if mastery ≥ 0.9<br/>→ Complete<br/>else → Practice]:::decision
+    end
+
+    %% ========================================================================
+    %% DATA FLOW EXAMPLE
+    %% ========================================================================
+    subgraph EXAMPLE [ "Example Flow: User studies 'French Geography'" ]
+        E1[User Input: "I want to learn French geography"]:::startEnd
+        E2[TOPIC_PARSE: Extracts concepts<br/>{regions, cities, landmarks}]:::toolNode
+        E3[ASSESS: Confidence = 0.8<br/>高于0.7阈值]:::toolNode
+        E4[FAST_TRACK_QUIZ: Generate 5 questions]:::toolNode
+        E5[USER: Answers quiz]:::startEnd
+        E6[GRADE_QUIZ: Score = 85%<br/>低于90%阈值]:::toolNode
+        E7[TEACH: Explain weak areas]:::assistantNode
+        E8[PRACTICE: Generate exercises]:::toolNode
+        E9[USER: Completes exercises]:::startEnd
+        E10[EVALUATE: Score = 92%<br/>高于90%阈值]:::toolNode
+        E11[MASTERY_CHECK: Final check]:::assistantNode
+        E12[COMPLETE: Celebrate success!]:::assistantNode
+
+        E1 --> E2 --> E3 --> E4 --> E5 --> E6 --> E7 --> E8 --> E9 --> E10 --> E11 --> E12
+    end
+
+    %% ========================================================================
+    %% STYLES
+    %% ========================================================================
+    style START fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px,color:#000
+    style END fill:#ffcdd2,stroke:#c62828,stroke-width:3px,color:#000
+
+    %% Tool node gradient
+    style TOPIC_PARSE fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style ASSESS fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style PLAN fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style FAST_TRACK_QUIZ fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style GRADE_QUIZ fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style PRACTICE fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    style EVALUATE fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+
+    %% Assistant node gradient
+    style TEACH fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style QA fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style REMEDIATE fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style MASTERY_CHECK fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style BREAKER fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    style COMPLETE fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000

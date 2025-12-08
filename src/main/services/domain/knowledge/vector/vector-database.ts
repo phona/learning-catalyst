@@ -27,9 +27,6 @@ export interface VectorSearchOptions {
 }
 
 export interface VectorDatabaseApi {
-  addDocument: (
-    document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
-  ) => Promise<void>;
   addDocumentWithEmbedding: (
     document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
     embedding: number[],
@@ -59,19 +56,6 @@ const isCollection = (value: unknown): value is { name: unknown; points_count?: 
 };
 
 export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDatabaseApi => {
-  const addDocument = async (
-    document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
-  ): Promise<void> => {
-    const vectorDoc: VectorDocument = {
-      ...document,
-      embedding: [0.1, 0.2, 0.3],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await qdrantManager.addKnowledgeItem(vectorDoc, null);
-  };
-
   const addDocumentWithEmbedding = async (
     document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
     embedding: number[],
@@ -138,7 +122,6 @@ export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDataba
   };
 
   return {
-    addDocument,
     addDocumentWithEmbedding,
     addDocumentBatch,
     search,

@@ -6,15 +6,16 @@
  *
  * Flow Context:
  * - Triggered after: OfferSkip (Orchestrator: Offer: Skip to Quiz?) - when "Yes"
- * - Triggers: PresentDiag (Practice Agent: Present Diagnostic Quiz)
+ * - Triggers: Grade (Assessment Agent: Grade & Analyze Gaps)
  * - Note: DiagAssess is shorthand for Diagnostic Assessment
  *
  * Purpose:
  * Generates a diagnostic quiz to quickly assess user's actual knowledge by:
  * 1. Creating a short, focused quiz targeting the specific topic
  * 2. Using AI to generate appropriate diagnostic questions
- * 3. Providing immediate feedback on user's true understanding
- * 4. Determining if user can skip to advanced content
+ * 3. Waiting for user response via interrupt
+ * 4. Providing immediate feedback on user's true understanding
+ * 5. Determining if user can skip to advanced content
  *
  * Fast Track Logic:
  * - Runs after confidence assessment shows high readiness
@@ -25,9 +26,8 @@
  * Flow Progression:
  * 1. CheckConf (Confidence High?) → Yes
  * 2. OfferSkip → Yes
- * 3. DiagAssess (this node) → PresentDiag
- * 4. WaitDiag → Grade
- * 5. CheckMastery → Complete or StandardStart
+ * 3. DiagAssess (this node) → Grade
+ * 4. CheckMastery → Complete or StandardStart
  *
  * Diagnostic Assessment Goals:
  * - Verify self-reported confidence with objective measure
@@ -36,24 +36,68 @@
  * - Save time for users who already know the material
  *
  * Outputs:
- * - messages: Assistant message with diagnostic quiz
- * - practicePrompt: The quiz content for later evaluation
+ * - messages: Assistant message with diagnostic quiz + user answer
+ * - practicePrompt: The quiz content for grading
+ * - userAnswer: User's response to the quiz
  *
  * Note:
  * This is the "test" in "study → assess → review" loop
  * Provides objective data to complement subjective confidence
+ * Now includes interruption handling for user input
  */
 
+import { randomUUID } from 'node:crypto';
+import { interrupt } from '@langchain/langgraph';
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 
 export const fastTrackQuizNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
-  const { model } = await deps.providerFactory.getModel('chat');
-  const prompt = `Create a short diagnostic quiz for topic: ${state.topic}. Return plain text prompt to ask the user.`;
-  const res = await model.invoke(prompt as any);
-  const content = String((res as any)?.content ?? res ?? '');
-  return {
-    messages: [{ role: 'assistant', content }],
-    practicePrompt: content,
-  };
+  // Check if quiz already generated (detect resume)
+  const hasGeneratedQuiz = state.practicePrompt &&
+    (state.messages ?? []).some(m => (m as any).role === 'assistant' && (m as any).content === state.practicePrompt);
+
+  if (!hasGeneratedQuiz) {
+    // ========================================================================
+    // PHASE 1: Generate Quiz
+    // ========================================================================
+    const { model } = await deps.providerFactory.getModel('chat');
+    const prompt = `Create a short diagnostic quiz for topic: ${state.topic}. Return plain text prompt to ask the user.`;
+    const res = await model.invoke(prompt as any);
+    const quizContent = String((res as any)?.content ?? res ?? '');
+
+    // Generate unique question ID for tracking
+    const questionId = randomUUID();
+
+    // Interrupt workflow to wait for user answer
+    // Workflow will pause here and resume when user provides input
+    const resumeValue = await interrupt({
+      type: 'await_user_input',
+      prompt: quizContent,
+      questionId
+    });
+
+    // ========================================================================
+    // PHASE 2: Extract Answer (after resume)
+    // ========================================================================
+    const answer = typeof resumeValue === 'string'
+      ? resumeValue
+      : (resumeValue as any)?.answer ?? (resumeValue as any)?.content ?? '';
+
+    // Return quiz content, user answer, and tracking info
+    return {
+      messages: [
+        { role: 'assistant', content: quizContent },
+        { role: 'user', content: answer }
+      ],
+      practicePrompt: quizContent,
+      userAnswer: answer,
+    };
+  }
+
+  // ========================================================================
+  // PHASE 3: Resume (quiz already shown and answered)
+  // ========================================================================
+  // This path shouldn't normally execute since interrupt() captures everything
+  // But as a safety net, if we reach here, just pass through to next node
+  return state;
 };

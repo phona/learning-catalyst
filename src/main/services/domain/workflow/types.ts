@@ -3,12 +3,12 @@ export enum NodeName {
   PLAN = 'Plan',
   ASSESS = 'Assess',
   FAST_TRACK_QUIZ = 'FastTrackQuiz',
-  WAIT_QUIZ_ANSWER = 'WaitQuizAnswer',
+  // WAIT_QUIZ_ANSWER = 'WaitQuizAnswer', // REMOVED: merged into FAST_TRACK_QUIZ
   GRADE_QUIZ = 'GradeQuiz',
   TEACH = 'Teach',
   QA = 'QA',
   PRACTICE = 'Practice',
-  WAIT_PRACTICE = 'WaitPractice',
+  // WAIT_PRACTICE = 'WaitPractice', // REMOVED: merged into PRACTICE
   EVALUATE = 'Evaluate',
   MASTERY_CHECK = 'MasteryCheck',
   REMEDIATE = 'Remediate',
