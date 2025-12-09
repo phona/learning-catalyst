@@ -19,10 +19,9 @@ export const SIMPLE_EDGES: Array<[any, any]> = [
   [NodeName.FAST_TRACK_QUIZ, NodeName.GRADE_QUIZ],
 
   // Path B: Standard Learning Loop - Teaching and practice
-  // Deliver([**Learning Agent**]: Deliver Lesson Content) --> Dialogue([**User ↔ Learning Agent**]: Q&A / Clarify)
-  [NodeName.TEACH, NodeName.QA],
-  // Dialogue --> MicroCheck --> PracticeStart([**Practice Agent**]: Generate Problem)
-  [NodeName.QA, NodeName.PRACTICE],
+  // Deliver([**Learning Agent**]: Deliver Lesson Content) --> PracticeStart([**Practice Agent**]: Generate Problem)
+  // NOTE: TEACH is now interactive and handles Q&A within the node
+  [NodeName.TEACH, NodeName.PRACTICE],
   // PresentProblem([**Practice Agent**]: Present Problem) --> Eval([**Assessment Agent**]: Evaluate)
   [NodeName.PRACTICE, NodeName.EVALUATE],
 

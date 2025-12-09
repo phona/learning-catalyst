@@ -7,7 +7,6 @@ import { topicParseNode } from './nodes/topicParse';
 import { fastTrackQuizNode } from './nodes/fastTrackQuiz';
 import { gradeQuizNode } from './nodes/gradeQuiz';
 import { teachNode } from './nodes/teach';
-import { qaNode } from './nodes/qa';
 import { practiceNode } from './nodes/practice';
 import { evaluateNode } from './nodes/evaluate';
 import { masteryCheckNode } from './nodes/masteryCheck';
@@ -16,6 +15,15 @@ import { breakerNode } from './nodes/breaker';
 import { completeNode } from './nodes/complete';
 import { SIMPLE_EDGES, CONDITIONALS } from './edges';
 
+/**
+ * Workflow Graph Configuration
+ *
+ * CHANGES FROM PREVIOUS VERSION:
+ * - Removed QA node (interactve TEACH now handles Q&A)
+ * - Updated edge from TEACH to PRACTICE (direct, no QA in between)
+ * - All question/assessment nodes (PRACTICE, FAST_TRACK_QUIZ, GRADE_QUIZ) now use ASSISTANT role
+ * - TEACH node is fully interactive with interrupts
+ */
 export const createWorkflowGraph = (deps: WorkflowDeps) => {
   const graph = new StateGraph(WorkflowStateAnnotation)
     .addNode(NodeName.TOPIC_PARSE, topicParseNode(deps))
@@ -24,7 +32,7 @@ export const createWorkflowGraph = (deps: WorkflowDeps) => {
     .addNode(NodeName.FAST_TRACK_QUIZ, fastTrackQuizNode(deps))
     .addNode(NodeName.GRADE_QUIZ, gradeQuizNode(deps))
     .addNode(NodeName.TEACH, teachNode(deps))
-    .addNode(NodeName.QA, qaNode())
+    // QA node removed - interactive TEACH handles Q&A
     .addNode(NodeName.PRACTICE, practiceNode(deps))
     .addNode(NodeName.EVALUATE, evaluateNode(deps))
     .addNode(NodeName.MASTERY_CHECK, masteryCheckNode())
