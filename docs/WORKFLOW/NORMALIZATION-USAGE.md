@@ -442,7 +442,8 @@ const ipcMessage = createIPCMessage(
 // Send via IPC
 event.sender.send('chat:stream', {
   conversationId: ipcMessage.conversationId,
-  messages: ipcMessage.messages
+  messages: ipcMessage.messages,
+  metadata: ipcMessage.metadata
 });
 ```
 

@@ -26,6 +26,9 @@ describe('concept parsing chunk boundaries', () => {
       model: {},
       settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
     })),
+    getEmbeddingModel: vi.fn(async () => ({
+      embed: vi.fn(async () => Array(1536).fill(0.1)),
+    })),
   };
   const loggerService: any = {
     child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
@@ -34,7 +37,7 @@ describe('concept parsing chunk boundaries', () => {
   it('keeps chunking within section boundaries when splitting', async () => {
     const captured: Array<{ title: string; content: string }> = [];
     const vectorDatabase: any = {
-      addDocument: vi.fn(async (doc: any) => {
+      addDocumentWithEmbedding: vi.fn(async (doc: any) => {
         captured.push({ title: doc.metadata.segmentTitle, content: doc.content });
       }),
     };

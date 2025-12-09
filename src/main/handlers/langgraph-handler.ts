@@ -86,7 +86,7 @@ export const setupLangGraphHandler = ({
           { messages: lcMessages },
           {
             configurable: { thread_id: safeConversationId },
-            stream_mode: 'updates',
+            streamMode: 'updates',
           },
         );
 

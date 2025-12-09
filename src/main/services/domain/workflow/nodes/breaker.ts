@@ -40,15 +40,15 @@
  */
 
 import type { WorkflowDeps } from '../state';
-import type { AgentType } from '../../agent/types';
 import { WorkflowStateAnnotation } from '../state';
+import { AIMessage } from '@langchain/core/messages';
 
 export const breakerNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
-    agentType: 'tutoring' as AgentType,
+    agentType: 'tutoring',
     conversationId: 'workflow',
-    messages: state.messages as any,
+    messages: state.messages,
     topic: state.topic,
   });
-  return { messages: [{ role: 'assistant', content: res.content }] };
+  return { messages: [new AIMessage(res.content)] };
 };

@@ -73,10 +73,10 @@ const aiSDK: AISDKAPI = {
     port1.onmessage = (event) => {
       callback(event.data);
     };
-    port1.onclose = () => {
+    port1.on('close', () => {
       console.log('[Preload] Stream ended:', streamId);
       onComplete?.();
-    };
+    });
 
     return () => {
       port1.close();
@@ -106,24 +106,6 @@ const learningAPI: LearningAPI = {
    * @returns Promise<LearningSessionDisplay> - Session object with progress tracking
    */
   startLearningSession: async (params) => {
-    if (params.onProgress) {
-      const handler = (_event, payload) => {
-        if (payload && payload.status) {
-          params.onProgress(payload.status);
-        }
-      };
-      ipcRenderer.on('sessions:creation-status', handler);
-      try {
-        // Remove onProgress from params before sending over IPC
-        const { onProgress, ...ipcParams } = params;
-        const result = await ipcRenderer.invoke('learning:start-session', ipcParams);
-        ipcRenderer.removeListener('sessions:creation-status', handler);
-        return result;
-      } catch (error) {
-        ipcRenderer.removeListener('sessions:creation-status', handler);
-        throw error;
-      }
-    }
     return ipcRenderer.invoke('learning:start-session', params);
   },
 

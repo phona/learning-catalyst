@@ -104,7 +104,8 @@ describe('concept parsing relationship vectorization', () => {
       maxSegmentChars: 200,
     });
 
-    expect(addDocumentWithEmbeddingMock).toHaveBeenCalledTimes(1);
+    // Called twice: once for the segment, once for the relationship
+    expect(addDocumentWithEmbeddingMock).toHaveBeenCalledTimes(2);
 
     const callArgs = addDocumentWithEmbeddingMock.mock.calls.map((call) => call[0]);
 

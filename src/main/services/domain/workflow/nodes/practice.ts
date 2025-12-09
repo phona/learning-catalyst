@@ -1,36 +1,37 @@
 /**
- * Workflow Node: PRACTICE
+ * Workflow Node: PRACTICE (ASSISTANT Role)
  *
  * Mermaid Mapping (Line 42): "Practice Agent: Generate Problem"
  * Part of Path B: Standard Learning Loop
  *
  * Flow Context:
- * - Triggered after: MicroCheck (Learning Agent: Quick Concept Check) - when "Yes"
- * - Triggers: Eval (Assessment Agent: Evaluate)
+ * - Triggered after: INTERACTIVE_TEACH (when user is ready)
+ * - Triggers: EVALUATE (Assessment Agent: Evaluate)
  *
  * Purpose:
- * Generates personalized practice exercises by:
+ * Generates personalized practice exercises through natural conversation by:
  * 1. Searching knowledge graph for relevant concepts
  * 2. Building context from focus and related concepts
- * 3. Invoking AI model to create structured practice content
- * 4. Formatting exercises with steps, hints, and suggestions
- * 5. Recording the practice attempt for analytics
+ * 3. Invoking AI model to create natural language practice content
+ * 4. Presenting exercises conversationally with examples and guidance
+ * 5. Encouraging user to work through problems
  * 6. Waiting for user response via interrupt
- * 7. Passing both exercises and answer to EVALUATE node
+ * 7. Passing user answer to EVALUATE node
  *
  * Also invoked in Remediation Path (Line 76): After Hint (Learning Agent: Targeted Hint)
  *
  * Outputs:
- * - practicePrompt: Structured practice exercises formatted for display
- * - messages: Assistant message containing the practice content + user answer
+ * - messages: Assistant message containing the practice content
  * - userAnswer: User's response to the practice exercises
+ *
+ * Note: Uses ASSISTANT role for natural conversation flow, no structured JSON
  */
 
 import { randomUUID } from 'node:crypto';
 import { interrupt } from '@langchain/langgraph';
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
-import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
 /**
  * System prompt for practice generation.
@@ -98,7 +99,7 @@ const practiceTypeFromContent = (content: string): 'coding' | 'conceptual' | 'pr
 export const practiceNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   // Check if practice already generated
   const hasGeneratedPractice = state.practicePrompt &&
-    (state.messages ?? []).some(m => (m as any).role === 'assistant');
+    (state.messages ?? []).some(m => m instanceof AIMessage);
 
   if (!hasGeneratedPractice) {
     // ============================================================================
@@ -194,7 +195,12 @@ export const practiceNode = (deps: WorkflowDeps) => async (state: typeof Workflo
     const practicePrompt = [
       `## ${practicePlan.summary || `Practice: ${state.topic}`}`,
       '',
-      ...practicePlan.exercises.map((ex: any, idx: number) => [
+      ...practicePlan.exercises.map((ex: {
+        title: string;
+        description: string;
+        steps: string[];
+        hints: string[];
+      }, idx: number) => [
         `### Exercise ${idx + 1}: ${ex.title}`,
         ex.description,
         '',
@@ -239,12 +245,12 @@ export const practiceNode = (deps: WorkflowDeps) => async (state: typeof Workflo
     // ============================================================================
     const answer = typeof resumeValue === 'string'
       ? resumeValue
-      : (resumeValue as any)?.answer ?? (resumeValue as any)?.content ?? '';
+      : (resumeValue as { answer?: string; content?: string })?.answer ?? (resumeValue as { answer?: string; content?: string })?.content ?? '';
 
     return {
       messages: [
-        { role: 'assistant', content: practicePrompt },
-        { role: 'user', content: answer }
+        new AIMessage(practicePrompt),
+        new HumanMessage(answer)
       ],
       practicePrompt,
       userAnswer: answer,

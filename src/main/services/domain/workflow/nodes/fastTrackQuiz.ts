@@ -50,11 +50,17 @@ import { randomUUID } from 'node:crypto';
 import { interrupt } from '@langchain/langgraph';
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
 export const fastTrackQuizNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   // Check if quiz already generated (detect resume)
   const hasGeneratedQuiz = state.practicePrompt &&
-    (state.messages ?? []).some(m => (m as any).role === 'assistant' && (m as any).content === state.practicePrompt);
+    (state.messages ?? []).some(m => {
+      if (m instanceof AIMessage) {
+        return m.content === state.practicePrompt;
+      }
+      return false;
+    });
 
   if (!hasGeneratedQuiz) {
     // ========================================================================
@@ -62,8 +68,8 @@ export const fastTrackQuizNode = (deps: WorkflowDeps) => async (state: typeof Wo
     // ========================================================================
     const { model } = await deps.providerFactory.getModel('chat');
     const prompt = `Create a short diagnostic quiz for topic: ${state.topic}. Return plain text prompt to ask the user.`;
-    const res = await model.invoke(prompt as any);
-    const quizContent = String((res as any)?.content ?? res ?? '');
+    const res = await model.invoke([new HumanMessage(prompt)]);
+    const quizContent = String(res.content ?? res ?? '');
 
     // Generate unique question ID for tracking
     const questionId = randomUUID();
@@ -81,13 +87,13 @@ export const fastTrackQuizNode = (deps: WorkflowDeps) => async (state: typeof Wo
     // ========================================================================
     const answer = typeof resumeValue === 'string'
       ? resumeValue
-      : (resumeValue as any)?.answer ?? (resumeValue as any)?.content ?? '';
+      : (resumeValue as { answer?: string; content?: string })?.answer ?? (resumeValue as { answer?: string; content?: string })?.content ?? '';
 
     // Return quiz content, user answer, and tracking info
     return {
       messages: [
-        { role: 'assistant', content: quizContent },
-        { role: 'user', content: answer }
+        new AIMessage(quizContent),
+        new HumanMessage(answer)
       ],
       practicePrompt: quizContent,
       userAnswer: answer,

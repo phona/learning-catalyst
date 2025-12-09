@@ -7,7 +7,7 @@ export type ProviderSettings = {
   providerName: string;
   providerType: ProviderType;
   model: string;
-  apiKey?: string;
+  apiKey?: string | undefined;
   baseUrl?: string;
   temperature: number;
   maxTokens: number;
@@ -106,13 +106,13 @@ export const resolveProviderSettings = async (
   }
 
   const providerType = providerConfig.providerType as ProviderType;
-  const model = chatConfig.model; // no fallback to defaults
+  const model = chatConfig.model!; // validated at line 80
   const baseUrl = providerConfig.baseUrl;
   const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
   const desiredMaxTokens = chatConfig.maxTokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
   const maxTokens = clampMaxTokens(desiredMaxTokens, providerType, model);
 
-  return {
+  const settings: ProviderSettings = {
     providerName,
     providerType,
     model,
@@ -121,6 +121,8 @@ export const resolveProviderSettings = async (
     temperature,
     maxTokens,
   };
+
+  return settings;
 };
 
 export const buildLearnerPrompt = async (

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-unused-vars */
 import { ipcMain } from 'electron';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import {
   createAgentManager,
   type AgentManagerRequest,
@@ -122,7 +123,7 @@ export const setupAgentHandlers = async (
         const request: AgentManagerRequest = {
           agentType: params.agentType,
           conversationId,
-          messages: [{ role: 'user', content: params.content }],
+          messages: [new HumanMessage(params.content)],
           topic: params.topic,
           userId: params.userId,
         };
@@ -331,7 +332,7 @@ export const setupAgentHandlers = async (
       const request: AgentManagerRequest = {
         agentType: 'learning',
         conversationId,
-        messages: [{ role: 'user', content: params.content }],
+        messages: [new HumanMessage(params.content)],
         topic: params.context?.topic ?? 'knowledge_extraction',
         userId: params.userId,
       };
@@ -415,10 +416,7 @@ export const setupAgentHandlers = async (
         agentType: 'learning',
         conversationId,
         messages: [
-          {
-            role: 'user',
-            content: `Create a learning path for: ${params.topic}`,
-          },
+          new HumanMessage(`Create a learning path for: ${params.topic}`),
         ],
         topic: params.topic,
         userId: params.userId,
@@ -604,10 +602,7 @@ export const setupAgentHandlers = async (
         agentType: params.agentType,
         conversationId,
         messages: [
-          {
-            role: 'user',
-            content: params.testMessage ?? 'Hello, can you help me test your capabilities?',
-          },
+          new HumanMessage(params.testMessage ?? 'Hello, can you help me test your capabilities?'),
         ],
         topic: params.topic ?? 'functionality_test',
         userId: params.userId ?? 'test_user',

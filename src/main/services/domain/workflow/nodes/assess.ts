@@ -25,6 +25,7 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 const recencyWeight = (ts?: string) => {
@@ -37,7 +38,7 @@ const recencyWeight = (ts?: string) => {
 
 export const assessNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const search = await deps.knowledgeService.searchKnowledge({ query: state.topic, limit: 5 });
-  const conceptIds = (search?.results ?? []).map((r: any) => r.id).filter(Boolean);
+  const conceptIds = (search?.results ?? []).map((r) => r.id).filter(Boolean);
 
   const attempts = await deps.learningService.getPracticeHistory({ conceptIds, limit: 100 });
   const gapsSet = new Set<string>();
@@ -54,36 +55,35 @@ export const assessNode = (deps: WorkflowDeps) => async (state: typeof WorkflowS
 
   const stateMsgs = (state.messages ?? []).slice(-20);
 
-  const passCount = attempts.filter((a: any) => a.result === 'pass').length;
-  const partialCount = attempts.filter((a: any) => a.result === 'partial').length;
-  const failCount = attempts.filter((a: any) => a.result === 'fail').length;
+  const passCount = attempts.filter((a) => a.result === 'pass').length;
+  const partialCount = attempts.filter((a) => a.result === 'partial').length;
+  const failCount = attempts.filter((a) => a.result === 'fail').length;
   const rubricVals = attempts
-    .map((a: any) => a.rubricScores)
+    .map((a) => a.rubricScores)
     .filter(Boolean)
-    .map((r: any) => [r.retrieval, r.application, r.teachBack])
+    .map((r) => [r?.retrieval, r?.application, r?.teachBack])
     .flat()
-    .filter((v: any) => typeof v === 'number');
+    .filter((v): v is number => typeof v === 'number');
   const rubricAvg = rubricVals.length
     ? rubricVals.reduce((s: number, v: number) => s + v, 0) / (rubricVals.length * 100)
     : undefined;
   const msgsText = stateMsgs
-    .map((m: any) => {
-      const role = (m?.lc_kwargs?.role ?? m?.role ?? 'assistant');
-      const raw = m?.content ?? m?.lc_kwargs?.content ?? '';
-      const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
-      const trimmed = text.length > 200 ? text.slice(0, 200) : text;
-      return `${role}: ${trimmed}`;
+    .map((m) => {
+      // Use instanceof to identify message type, no need for role property
+      const role = m instanceof HumanMessage ? 'user' : 'assistant';
+      const text = m.content.length > 200 ? m.content.slice(0, 200) : m.content;
+      return `${role}: ${text}`;
     })
     .join('\n');
   const { model } = await deps.providerFactory.getModel('chat');
   const prompt = `Assess confidence (0-100%) for topic: ${state.topic}\nPractice: pass=${passCount}, partial=${partialCount}, fail=${failCount}\nRubricAvg: ${typeof rubricAvg === 'number' ? Math.round(rubricAvg * 100) : 'n/a'}%\nMessages:\n${msgsText}\nReturn "Score: NN%".`;
-  const res = await model.invoke(prompt as any);
-  const llmOut = String((res as any)?.content ?? res ?? '');
+  const res = await model.invoke([new HumanMessage(prompt)]);
+  const llmOut = String(res.content ?? res ?? '');
   const llmConfidence = parseScore(llmOut);
   const confidence = clamp01(llmConfidence ?? 0.5);
   const content = `Confidence: ${Math.round(confidence * 100)}%`;
   return {
-    messages: [{ role: 'assistant', content }],
+    messages: [new AIMessage(content)],
     confidence,
     gaps: Array.from(gapsSet),
   };

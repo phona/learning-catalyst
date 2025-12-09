@@ -1,5 +1,5 @@
 import { Annotation } from '@langchain/langgraph';
-import type { BaseMessage } from '@langchain/core/messages';
+import type { BaseMessage, BaseMessageLike } from '@langchain/core/messages';
 import type { AgentManager } from '../../agent/agent-manager';
 import type { LoggerService } from '../../core/logger/logger-service';
 import type { SQLiteCheckpointSaver } from '../../core/checkpoints/SQLiteCheckpointSaver';

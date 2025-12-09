@@ -12,7 +12,6 @@ import {
   gradeOpenAnswerTool,
   knowledgeExtractionTool,
   contentAnalysisTool,
-  sessionBlueprintTool,
 } from './tools';
 
 const parseJsonInput = <T extends Record<string, unknown>>(raw: string, fallback: T): T => {
@@ -155,55 +154,6 @@ export const buildLearningTools = (deps: AgentToolDeps): ToolRegistry => {
   return {
     ...baseTools,
   };
-};
-
-export const buildLearningPlannerTools = (deps: AgentToolDeps): ToolRegistry => {
-  // Planner should only expose the session blueprint tool to avoid tool noise
-  const blueprintBuilder = sessionBlueprintTool(deps);
-  const sessionBlueprint = tool(
-    async (rawInput: string) => {
-      const payload = parseJsonInput<{
-        topic?: string;
-        userGoal?: string;
-        goals?: string[];
-        level?: 'novice' | 'intermediate' | 'advanced';
-        timeAvailable?: number;
-        constraints?: string[];
-        allowExternal?: boolean;
-      }>(rawInput, {
-        topic: '',
-        userGoal: undefined,
-        goals: [],
-        level: undefined,
-        timeAvailable: undefined,
-        constraints: [],
-        allowExternal: false,
-      });
-
-      const result = await blueprintBuilder({
-        topic: payload.topic ?? '',
-        userGoal: payload.userGoal,
-        goals: payload.goals ?? [],
-        level: payload.level,
-        timeAvailable: payload.timeAvailable,
-        constraints: payload.constraints ?? [],
-        allowExternal: payload.allowExternal ?? false,
-      });
-
-      if (!result.success) {
-        return `Session blueprint operation failed: ${result.error}`;
-      }
-
-      return JSON.stringify(result.data);
-    },
-    {
-      name: 'session_blueprint',
-      description:
-        'Build a single-session learning plan (one primary concept) with required retrieval/apply/teach-back/open-question tasks, bounded by timeAvailable and learner level.',
-    },
-  );
-
-  return { sessionBlueprint };
 };
 
 export const buildTutoringTools = (deps: AgentToolDeps): ToolRegistry => ({

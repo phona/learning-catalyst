@@ -110,9 +110,6 @@ export class AgentTestOrchestrator {
       case 'practice':
         agent = AgentMocks.PracticeAgent(agentConfig.config);
         break;
-      case 'assessment':
-        agent = AgentMocks.AssessmentAgent(agentConfig.config);
-        break;
       case 'tutoring':
         agent = AgentMocks.TutoringAgent(agentConfig.config);
         break;
@@ -695,11 +692,6 @@ export const AgentTestScenarios = {
           config: { name: 'Learning Agent' },
         },
         {
-          id: 'assessment-agent',
-          type: 'assessment',
-          config: { name: 'Assessment Agent' },
-        },
-        {
           id: 'tutoring-agent',
           type: 'tutoring',
           config: { name: 'Tutoring Agent' },
@@ -716,11 +708,6 @@ export const AgentTestScenarios = {
               input: 'Create a comprehensive learning plan for React',
             },
             {
-              agentId: 'assessment-agent',
-              action: 'collaborate',
-              input: 'Assess current knowledge level for React',
-            },
-            {
               agentId: 'tutoring-agent',
               action: 'collaborate',
               input: 'Provide personalized guidance for React learning',
@@ -731,7 +718,7 @@ export const AgentTestScenarios = {
       expectations: {
         totalProcessingTime: 15000,
         maxErrors: 0,
-        expectedMessages: 3,
+        expectedMessages: 2,
       },
     };
   },

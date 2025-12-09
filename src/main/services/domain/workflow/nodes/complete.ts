@@ -34,8 +34,9 @@
 
 import { WorkflowStateAnnotation } from '../state';
 import { PROMPTS } from '../prompts';
+import { AIMessage } from '@langchain/core/messages';
 
 export const completeNode = () => async (state: typeof WorkflowStateAnnotation.State) => {
   const summary = PROMPTS.COMPLETE_SUMMARY;
-  return { messages: [{ role: 'assistant', content: summary }] };
+  return { messages: [new AIMessage(summary)] };
 };

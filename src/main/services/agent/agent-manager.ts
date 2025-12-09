@@ -5,9 +5,7 @@ import type { LearningService } from '@/main/services/domain/learning/learning-s
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import { AgentToolDeps } from './tool-registry';
 import { LoggerService } from '../core/logger/logger-service';
-import { createAssessmentAgent } from './assessment-agent';
 import { createLearningAgent } from './learning-agent';
-import { createLearningPlannerAgent } from './learning-planner-agent';
 import { createSupervisorAgent } from './supervisor-agent';
 import { createTutoringAgent } from './tutoring-agent';
 import { formatMessages, pickAssistantMessage } from './specialized-agent';
@@ -16,11 +14,12 @@ import { needsAgentRebuild } from './provider-utils';
 import type { AppConfig } from '@/shared/types/config';
 import { createProviderFactory } from './provider-factory';
 import type { AgentType } from './types';
+import type { BaseMessage } from '@langchain/core/messages';
 
 export interface AgentManagerRequest {
   agentType: AgentType;
   conversationId: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+  messages: BaseMessage[];
   topic?: string;
   userId?: string;
 }
@@ -53,16 +52,14 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
   // Function to create all agents
   const createAllAgents = async () => {
     const learningAgent = await createLearningAgent(toolDeps);
-    const learningPlannerAgent = await createLearningPlannerAgent(toolDeps);
     const tutoringAgent = await createTutoringAgent(toolDeps);
-    const assessmentAgent = await createAssessmentAgent(toolDeps);
 
     const nonSupervisorAgents: Record<Exclude<AgentType, 'supervisor'>, SpecializedAgent> = {
       learning: learningAgent,
-      learning_planner: learningPlannerAgent,
       tutoring: tutoringAgent,
-      assessment: assessmentAgent,
       // practice - REMOVED (migrated to workflow node)
+      // learning_planner - REMOVED (migrated to workflow plan node)
+      // assessment - REMOVED (migrated to workflow assess node)
     };
 
     const supervisorAgentLocal = await createSupervisorAgent(toolDeps, nonSupervisorAgents);

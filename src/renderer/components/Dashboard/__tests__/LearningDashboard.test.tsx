@@ -96,14 +96,6 @@ describe('LearningDashboard - Performance Optimized', () => {
           enabled: true,
         },
         {
-          id: 'assessment-agent',
-          name: 'Assessment Coach',
-          type: 'coach',
-          description: 'Tests knowledge',
-          capabilities: ['testing', 'evaluation'],
-          enabled: true,
-        },
-        {
           id: 'practice-agent',
           name: 'Practice Master',
           type: 'master',

@@ -39,8 +39,9 @@
 
 import { WorkflowStateAnnotation } from '../state';
 import { PROMPTS } from '../prompts';
+import { AIMessage } from '@langchain/core/messages';
 
 export const qaNode = () => async (state: typeof WorkflowStateAnnotation.State) => {
   const prompt = PROMPTS.QA_CHECKPOINT;
-  return { messages: [{ role: 'assistant', content: prompt }] };
+  return { messages: [new AIMessage(prompt)] };
 };

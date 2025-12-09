@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ILogger } from '../../types';
 import type { LearningSessionRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
@@ -376,7 +377,7 @@ export const createLearningService = ({
       }
       const prompt = `Return JSON array of learning paths with title, description, rationale, modules (title, description, type).\n${payload}`;
       const result = await currentLearningAgent.invoke({
-        messages: formatMessages([{ role: 'user', content: prompt }]),
+        messages: formatMessages([new HumanMessage(prompt)]),
       } as any);
       const assistant = pickAssistantMessage((result as any)?.messages ?? []);
       const text = assistant?.content ?? '';
@@ -618,7 +619,7 @@ export const createLearningService = ({
         }
         const prompt = `You are a learning reflection coach. Return JSON { summary: { topicsCovered: string[], keyTakeaways: string[], strengths: string[], areasForImprovement: string[], nextSteps: string[] }, performance: { accuracy: number, engagement: number, retention: number } }\n${payload}`;
         const result = await currentLearningAgent.invoke({
-          messages: formatMessages([{ role: 'user', content: prompt }]),
+          messages: formatMessages([new HumanMessage(prompt)]),
         } as any);
         const assistant = pickAssistantMessage((result as any)?.messages ?? []);
         const text = assistant?.content ?? '';
@@ -742,9 +743,9 @@ export const createLearningService = ({
           session_id: params.sessionId,
           role: params.role,
           content: params.content,
-          thinking_content: null,
-          provider: params.provider ?? null,
-          model: params.model ?? null,
+          thinking_content: undefined,
+          provider: params.provider ?? undefined,
+          model: params.model ?? undefined,
           tokens_used: JSON.stringify(params.tokensUsed ?? {}),
           timestamp: params.timestamp ?? now,
           message_order: order,

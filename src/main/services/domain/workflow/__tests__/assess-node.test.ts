@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { assessNode } from '../nodes/assess';
 import { WorkflowStateAnnotation } from '../state';
 
-const makeDeps = () => {
+const makeDeps = (score: string = 'Score: 85%') => {
   const knowledgeService = {
     searchKnowledge: vi.fn().mockResolvedValue({ results: [{ id: 'c1' }, { id: 'c2' }] }),
   } as any;
@@ -10,9 +10,16 @@ const makeDeps = () => {
     getPracticeHistory: vi.fn(),
     listMessages: vi.fn(),
   } as any;
+  const providerFactory = {
+    getModel: vi.fn(async () => ({
+      model: { invoke: vi.fn().mockResolvedValue({ content: score }) },
+      settings: { providerName: 'mock', model: 'mock-model' }
+    }))
+  } as any;
   const deps = {
     knowledgeService,
     learningService,
+    providerFactory,
   } as any;
   return { deps, knowledgeService, learningService };
 };
@@ -40,7 +47,7 @@ describe('assess node', () => {
   });
 
   it('computes lower confidence with older fails and negative messages', async () => {
-    const { deps, learningService } = makeDeps();
+    const { deps, learningService } = makeDeps('Score: 45%');
     const old = new Date(Date.now() - 1000 * 60 * 60 * 24 * 120).toISOString();
     learningService.getPracticeHistory.mockResolvedValue([
       { result: 'fail', timestamp: old },

@@ -1,4 +1,5 @@
 import { tool } from 'langchain';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { ToolRegistry, AgentToolDeps } from './tool-registry';
 import { buildKnowledgeTools } from './tool-registry';
 import { formatMessages, pickAssistantMessage } from './specialized-agent';
@@ -35,14 +36,11 @@ const parseJsonInput = <T extends Record<string, unknown>>(raw: string, fallback
 const agentDescriptions: Record<Exclude<AgentType, 'supervisor'>, string> = {
   learning:
     'Focuses on concept introduction, explanation, and analogy generation so the learner understands the current topic before moving forward.',
-  learning_planner:
-    'Creates a single-session plan with one primary concept, required retrieval/apply/teach-back/open-question blocks, and MUST be given level.',
   tutoring:
     'Provides adaptive, multi-modal coaching, asking clarifying questions and encouraging reflection when a learner needs deeper support.',
-  assessment:
-    'Aggregates practice/discussion evidence for listed concepts, scores confidence, infers level, and reports gaps for mastery checks.',
-  practice:
-    'Generates practice challenges or drills that reinforce the learner’s recent concepts, monitors attempts, and surfaces retry suggestions.',
+  // practice - REMOVED (migrated to workflow node)
+  // learning_planner - REMOVED (migrated to workflow plan node)
+  // assessment - REMOVED (migrated to workflow assess node)
 };
 
 const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: SpecializedAgent) =>
@@ -57,10 +55,13 @@ const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: Spe
       });
 
       const inboundMessages = payload.messages?.filter((entry) => Boolean(entry?.content)) ?? [];
+      const langchainMessages = inboundMessages.map((msg) =>
+        msg.role === 'user' ? new HumanMessage(msg.content) : new AIMessage(msg.content)
+      );
       const formattedMessages =
         inboundMessages.length > 0
-          ? formatMessages(inboundMessages, payload.topic)
-          : formatMessages([{ role: 'user', content: payload.content ?? rawInput }], payload.topic);
+          ? formatMessages(langchainMessages, payload.topic)
+          : formatMessages([new HumanMessage(payload.content ?? rawInput)], payload.topic);
 
       const result = await agent.invoke({
         messages: formattedMessages,

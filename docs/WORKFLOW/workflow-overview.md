@@ -1,8 +1,8 @@
-# Learning Catalyst - Workflow ASCII Diagram
+# Learning Catalyst - Workflow Overview
 
 ## Overview
 
-This document provides a text-based overview of the Learning Catalyst workflow graph, showing all nodes, paths, and decision logic.
+This document consolidates the text-based workflow overview, paths, and decision logic for the Learning Catalyst system.
 
 ## Node Legend
 
@@ -11,7 +11,7 @@ This document provides a text-based overview of the Learning Catalyst workflow g
 - **[DEC]** = Decision point (conditional logic)
 - **[●]** = Start/End state
 
-## Complete Workflow Graph
+## Complete Workflow Graph (ASCII)
 
 ```
                                     ┌─────────────┐

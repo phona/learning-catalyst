@@ -27,13 +27,14 @@
 
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
+import { AIMessage } from '@langchain/core/messages';
 
 export const teachNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const res = await deps.agentManager.runAgent({
     agentType: 'learning',
     conversationId: 'workflow',
-    messages: state.messages as any,
+    messages: state.messages,
     topic: state.topic,
   });
-  return { messages: [{ role: 'assistant', content: res.content }] };
+  return { messages: [new AIMessage(res.content)] };
 };

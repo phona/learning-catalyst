@@ -1,16 +1,16 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 
 export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const messages = state.messages ?? [];
-  const lastUserMsg = [...messages].reverse().find((m: any) => (m?.lc_kwargs?.role ?? m?.role ?? 'assistant') === 'user');
-  const raw = lastUserMsg?.content ?? lastUserMsg?.lc_kwargs?.content ?? state.topic ?? '';
+  const lastUserMsg = [...messages].reverse().find((m) => m instanceof HumanMessage);
+  const raw = lastUserMsg?.content ?? state.topic ?? '';
   const text = String(raw ?? '').normalize('NFKC').trim();
   const prompt = text;
 
   if (!prompt) {
-    const msg = { role: 'assistant', content: 'No topic provided. Please specify what you want to learn about.' };
-    return { messages: [msg], topic: '' };
+    return { messages: [new AIMessage('No topic provided. Please specify what you want to learn about.')], topic: '' };
   }
 
   try {
@@ -23,8 +23,7 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
     const top = conceptMatches[0];
 
     if (!top) {
-      const msg = { role: 'assistant', content: 'No matching concepts found. Try importing learning materials or rephrasing your question.' };
-      return { messages: [msg], topic: prompt };
+      return { messages: [new AIMessage('No matching concepts found. Try importing learning materials or rephrasing your question.')], topic: prompt };
     }
 
     const relationshipMatches = result.matches.filter((m) => m.type === 'relationship');
@@ -35,14 +34,13 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
       : `Topic: ${top.name}`;
 
     return {
-      messages: [{ role: 'assistant', content: msgText }],
+      messages: [new AIMessage(msgText)],
       topic: top.name,
     };
   } catch (error) {
-    const msg = {
-      role: 'assistant',
-      content: `Failed to parse topic: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    return {
+      messages: [new AIMessage(`Failed to parse topic: ${error instanceof Error ? error.message : 'Unknown error'}`)],
+      topic: prompt,
     };
-    return { messages: [msg], topic: prompt };
   }
 };

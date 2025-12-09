@@ -68,9 +68,6 @@ export const setupSessionsHandlers = (
         difficulty: payload.metadata?.difficulty ?? 'intermediate',
         agentType: payload.metadata?.primaryAgentId ?? 'learning',
         learningStyle: 'visual',
-        onProgress: (status) => {
-          event.sender.send('sessions:creation-status', { status });
-        },
       });
       memorySessions.set(session.id, session as unknown as SessionDisplay);
       return ok({ sessionId: session.id, session });

@@ -1,6 +1,8 @@
 import { createAgent } from 'langchain';
 import type { AgentToolDeps, ToolRegistry } from './tool-registry';
 import { buildLearnerPrompt, type ProviderSettings } from './provider-utils';
+import type { BaseMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
 
 type AgentMessage = {
   role: 'user' | 'assistant';
@@ -91,8 +93,21 @@ export const pickAssistantMessage = (messages: AgentCandidateMessage[]) => {
   return null;
 };
 
-export const formatMessages = (messages: AgentMessage[], topic?: string) => {
-  const formatted = messages
+export const formatMessages = (messages: BaseMessage[], topic?: string) => {
+  // Convert BaseMessage[] to AgentMessage format using instanceof for type checking
+  const agentMessages: AgentMessage[] = messages.map((msg) => {
+    // Determine role using instanceof (more reliable than private _getType method)
+    const role = msg instanceof AIMessage ? 'ai' :
+                 msg instanceof HumanMessage ? 'human' :
+                 msg instanceof SystemMessage ? 'system' :
+                 msg instanceof ToolMessage ? 'tool' : 'unknown';
+    return {
+      role: role === 'ai' ? 'assistant' : 'user',
+      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+    };
+  });
+
+  const formatted = agentMessages
     .filter((message) => Boolean(message.content?.trim()))
     .map((message) => ({
       role: message.role === 'assistant' ? 'assistant' : 'human',

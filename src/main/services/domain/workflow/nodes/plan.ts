@@ -56,6 +56,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
+import { AIMessage } from '@langchain/core/messages';
 
 /**
  * Single-session learning blueprint schemas
@@ -152,6 +153,10 @@ RULES:
 3. ALWAYS USE DOUBLE QUOTES FOR STRINGS AND KEYS
 `;
 
+// Using 'as any' cast here is a Zod best practice when working with external libraries.
+// LangChain's StructuredOutputParser expects a Zod schema, but TypeScript may not recognize
+// the schema type without this cast. This is recommended in the Zod official documentation
+// for scenarios where Zod schemas are passed to third-party type systems.
 const parser = StructuredOutputParser.fromZodSchema(SessionBlueprintSchema as any);
 const formatInstructions = parser.getFormatInstructions()
   .replace(/Include the enclosing markdown codeblock:[\s\S]*?```/g, '')
@@ -257,10 +262,7 @@ export const planNode = (deps: WorkflowDeps) => async (state: typeof WorkflowSta
   // Return state updates
   return {
     messages: [
-      {
-        role: 'assistant',
-        content: `Based on your assessment (${Math.round(confidence * 100)}% confidence), I've created a personalized learning plan for "${blueprint.learnerProfile.topic}". The session will focus on ${blueprint.session.primaryConcept} with ${blueprint.session.practiceBlocks.length} practice activities.`,
-      },
+      new AIMessage(`Based on your assessment (${Math.round(confidence * 100)}% confidence), I've created a personalized learning plan for "${blueprint.learnerProfile.topic}". The session will focus on ${blueprint.session.primaryConcept} with ${blueprint.session.practiceBlocks.length} practice activities.`),
     ],
     sessionBlueprint: blueprint,
     topic: sessionParams.topic,

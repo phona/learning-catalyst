@@ -18,16 +18,8 @@ vi.mock('../learning-agent', () => ({
   createLearningAgent: vi.fn(() => createMockAgent('learning', 'response')),
 }));
 
-vi.mock('../learning-planner-agent', () => ({
-  createLearningPlannerAgent: vi.fn(() => createMockAgent('learning_planner', 'planner response')),
-}));
-
 vi.mock('../tutoring-agent', () => ({
   createTutoringAgent: vi.fn(() => createMockAgent('tutoring', 'tutoring response')),
-}));
-
-vi.mock('../assessment-agent', () => ({
-  createAssessmentAgent: vi.fn(() => createMockAgent('assessment', 'assessment response')),
 }));
 
 
@@ -198,15 +190,11 @@ describe('Agent Manager - Basic Tests', () => {
   describe('Agent Factory Initialization', () => {
     it('should initialize all agent types', async () => {
       const { createLearningAgent } = await import('../learning-agent');
-      const { createLearningPlannerAgent } = await import('../learning-planner-agent');
       const { createSupervisorAgent } = await import('../supervisor-agent');
       const { createTutoringAgent } = await import('../tutoring-agent');
-      const { createAssessmentAgent } = await import('../assessment-agent');
 
       expect(createLearningAgent).toHaveBeenCalled();
-      expect(createLearningPlannerAgent).toHaveBeenCalled();
       expect(createTutoringAgent).toHaveBeenCalled();
-      expect(createAssessmentAgent).toHaveBeenCalled();
       expect(createSupervisorAgent).toHaveBeenCalled();
     });
 
@@ -269,11 +257,9 @@ describe('Agent Manager - Basic Tests', () => {
   });
 
   describe('Different Agent Types', () => {
-    const agentTypes: Array<'learning' | 'learning_planner' | 'tutoring' | 'assessment'> = [
+    const agentTypes: Array<'learning' | 'tutoring'> = [
       'learning',
-      'learning_planner',
       'tutoring',
-      'assessment',
     ];
 
     agentTypes.forEach((agentType) => {

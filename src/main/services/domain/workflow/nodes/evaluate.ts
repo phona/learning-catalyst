@@ -31,15 +31,16 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
 export const evaluateNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
   const { model } = await deps.providerFactory.getModel('chat');
   const question = state.practicePrompt ?? '';
   const answer = state.userAnswer ?? '';
   const prompt = `Grade the user's answer for topic: ${state.topic}. Question: ${question}. Answer: ${answer}. Return "Score: NN%" only.`;
-  const res = await model.invoke(prompt as any);
-  const content = String((res as any)?.content ?? res ?? '');
+  const res = await model.invoke([new HumanMessage(prompt)]);
+  const content = String(res.content ?? res ?? '');
   const mastery = parseScore(content) ?? state.mastery ?? 0.5;
   const attemptCount = (state.attemptCount ?? 0) + 1;
-  return { mastery, attemptCount, messages: [{ role: 'assistant', content }] };
+  return { mastery, attemptCount, messages: [new AIMessage(content)] };
 };
