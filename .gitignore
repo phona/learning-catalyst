@@ -57,6 +57,7 @@ sqlite-electron-example
 # Learning space data
 **/.learningspace/
 .testenv
+.testconfig.json
 **/.catalyst/
 .mypy_cache
 .pytest_cache
