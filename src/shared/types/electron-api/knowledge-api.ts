@@ -315,6 +315,10 @@ export interface ConceptParsingResult {
       completion: number;
       estimated?: boolean;
     };
+    deduplication?: {
+      duplicatesMerged: number;
+      deduplicationStrategy: string;
+    };
   };
   errors: string[];
   metadata: {

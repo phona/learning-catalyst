@@ -217,6 +217,10 @@ const getKnowledgeGraph = async (db: Kysely<CoreDatabase>, startId: string, dept
 
     const nextIds = new Set<string>();
     relationships.forEach((relationship) => {
+      // Filter out invalid relationships with missing concept IDs
+      if (!relationship.source_concept_id || !relationship.target_concept_id) {
+        return;
+      }
       collectedRelationships.push(mapRelationshipRowToDisplay(relationship));
       nextIds.add(relationship.source_concept_id);
       nextIds.add(relationship.target_concept_id);
@@ -859,8 +863,15 @@ export const createKnowledgeService = ({
       };
     }
 
+    // Filter out relationships with invalid concept IDs
+    const validRelationships = relationships.filter(
+      (rel) => rel.source_concept_id && rel.target_concept_id,
+    );
+
     const neighborIds = Array.from(
-      new Set(relationships.flatMap((rel) => [rel.source_concept_id, rel.target_concept_id])),
+      new Set(
+        validRelationships.flatMap((rel) => [rel.source_concept_id, rel.target_concept_id]),
+      ),
     ).filter((id) => id !== conceptId);
 
     const neighborRows = neighborIds.length
@@ -872,7 +883,7 @@ export const createKnowledgeService = ({
       : [];
     const neighborMap = new Map(neighborRows.map((row) => [row.id, row.name]));
 
-    const relatedConcepts = relationships.map((rel) => {
+    const relatedConcepts = validRelationships.map((rel) => {
       const direction = rel.source_concept_id === conceptId ? 'source' : 'target';
       const otherId = direction === 'source' ? rel.target_concept_id : rel.source_concept_id;
       return {
@@ -959,17 +970,26 @@ export const createKnowledgeService = ({
       .limit(80)
       .execute();
 
-    const mappedEdges = edges.map((edge) => ({
-      from: edge.source_concept_id,
-      to: edge.target_concept_id,
-      label: edge.relationship_type,
-      strength: edge.strength,
-      type: relationshipTypeToEdgeType(edge.relationship_type) as
-        | 'foundation'
-        | 'related'
-        | 'prerequisite'
-        | 'application',
-    }));
+    // Filter out edges with invalid or missing node references
+    const validNodeIds = new Set(nodeIds);
+    const mappedEdges = edges
+      .filter((edge) => {
+        // Ensure both source and target exist in our node set
+        const hasValidSource = edge.source_concept_id && validNodeIds.has(edge.source_concept_id);
+        const hasValidTarget = edge.target_concept_id && validNodeIds.has(edge.target_concept_id);
+        return hasValidSource && hasValidTarget;
+      })
+      .map((edge) => ({
+        from: edge.source_concept_id,
+        to: edge.target_concept_id,
+        label: edge.relationship_type,
+        strength: edge.strength,
+        type: relationshipTypeToEdgeType(edge.relationship_type) as
+          | 'foundation'
+          | 'related'
+          | 'prerequisite'
+          | 'application',
+      }));
 
     const clusters = Array.from(new Set(positions.map((node) => node.category)));
     const learningPaths = clusters.map((cluster) => ({

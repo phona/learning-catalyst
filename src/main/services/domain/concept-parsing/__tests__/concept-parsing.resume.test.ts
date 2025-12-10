@@ -3,12 +3,28 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 
-const invokeSpy = vi.fn();
+const workflowSpy = vi.fn();
 
-vi.mock('../prompts', () => ({
-  createSegmentExtractChain: () => ({
-    invoke: invokeSpy,
-  }),
+// Mock the extraction workflow to track invocations
+vi.mock('../extraction-workflow', () => ({
+  executeExtractionWorkflow: workflowSpy.mockImplementation(async () => ({
+    success: true,
+    result: {
+      summary: '',
+      focusAreas: [],
+      nodes: [{ name: 'Alpha', confidence: 0.9 }],
+      relationships: [],
+      recommendations: [],
+    },
+    attempt: 1,
+    metrics: {
+      chainCreationMs: 0,
+      llmInvokeMs: 100,
+      jsonParseMs: 0,
+      validationMs: 0,
+      totalMs: 100,
+    },
+  })),
 }));
 
 describe('concept parsing resume support', () => {
@@ -18,23 +34,13 @@ describe('concept parsing resume support', () => {
     process.env.CONCEPT_PARSE_JOB_DIR = jobDir;
     fs.rmSync(jobDir, { recursive: true, force: true });
     vi.clearAllMocks();
-    invokeSpy.mockImplementation(async () => ({
-      summary: '',
-      focusAreas: [],
-      nodes: [{ name: 'Alpha', confidence: 0.9 }],
-      relationships: [],
-      recommendations: [],
-    }));
   });
 
   it('skips already processed segments when resume is true', async () => {
     const { createConceptParsingService } = await import('../concept-parsing-service');
 
     const providerFactory: any = {
-      getModel: vi.fn(async () => ({
-        model: {},
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-      })),
+      getModel: vi.fn(async () => ({})),
     };
     const loggerService: any = {
       child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
@@ -56,11 +62,11 @@ describe('concept parsing resume support', () => {
     const jobId = 'resume-job-1';
 
     await service.parseMaterials([material], { jobId });
-    expect(invokeSpy).toHaveBeenCalledTimes(1);
+    expect(workflowSpy).toHaveBeenCalledTimes(1);
 
     const resumed = await service.parseMaterials([material], { jobId, resume: true });
 
-    expect(invokeSpy).toHaveBeenCalledTimes(1); // no additional LLM calls
+    expect(workflowSpy).toHaveBeenCalledTimes(1); // no additional LLM calls
     expect(resumed.concepts.length).toBeGreaterThan(0);
     expect(resumed.metadata.jobId).toBe(jobId);
     expect(resumed.metadata.resumed).toBe(true);

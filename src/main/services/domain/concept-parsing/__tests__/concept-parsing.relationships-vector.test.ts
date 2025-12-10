@@ -1,45 +1,52 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConceptParsingService } from '../concept-parsing-service';
 
-vi.mock('../prompts', () => ({
-  createSegmentExtractChain: () => ({
-    invoke: vi.fn(async (input: any) => {
-      const previewPayload = input.preview_payload || '';
-      return {
-        summary: 'Test summary',
-        focusAreas: ['area1'],
-        nodes: [
-          {
-            name: 'Photosynthesis',
-            description: 'Process of converting light to energy',
-            type: 'topic',
-            difficulty: 'intermediate',
-            confidence: 0.9,
-            tags: ['biology', 'plants'],
-          },
-          {
-            name: 'Chlorophyll',
-            description: 'Green pigment in plants',
-            type: 'fact',
-            difficulty: 'beginner',
-            confidence: 0.85,
-            tags: ['biology'],
-          },
-        ],
-        relationships: [
-          {
-            from: 'Chlorophyll',
-            to: 'Photosynthesis',
-            type: 'prerequisite',
-            strength: 0.9,
-            confidence: 0.85,
-            description: 'Chlorophyll is required for photosynthesis',
-          },
-        ],
-        recommendations: ['Learn about light spectrum'],
-      };
-    }),
-  }),
+// Mock the extraction workflow to return concepts with relationships
+vi.mock('../extraction-workflow', () => ({
+  executeExtractionWorkflow: vi.fn(async () => ({
+    success: true,
+    result: {
+      summary: 'Test summary',
+      focusAreas: ['area1'],
+      nodes: [
+        {
+          name: 'Photosynthesis',
+          description: 'Process of converting light to energy',
+          type: 'topic',
+          difficulty: 'intermediate',
+          confidence: 0.9,
+          tags: ['biology', 'plants'],
+        },
+        {
+          name: 'Chlorophyll',
+          description: 'Green pigment in plants',
+          type: 'fact',
+          difficulty: 'beginner',
+          confidence: 0.85,
+          tags: ['biology'],
+        },
+      ],
+      relationships: [
+        {
+          from: 'Chlorophyll',
+          to: 'Photosynthesis',
+          type: 'prerequisite',
+          strength: 0.9,
+          confidence: 0.85,
+          description: 'Chlorophyll is required for photosynthesis',
+        },
+      ],
+      recommendations: ['Learn about light spectrum'],
+    },
+    attempt: 1,
+    metrics: {
+      chainCreationMs: 0,
+      llmInvokeMs: 100,
+      jsonParseMs: 0,
+      validationMs: 0,
+      totalMs: 100,
+    },
+  })),
 }));
 
 describe('concept parsing relationship vectorization', () => {
@@ -68,10 +75,7 @@ describe('concept parsing relationship vectorization', () => {
     };
 
     const providerFactory: any = {
-      getModel: vi.fn(async () => ({
-        model: {},
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-      })),
+      getModel: vi.fn(async () => ({})),
       getEmbeddingModel: vi.fn(async () => embeddingModel),
     };
 
@@ -141,10 +145,7 @@ describe('concept parsing relationship vectorization', () => {
     };
 
     const providerFactory: any = {
-      getModel: vi.fn(async () => ({
-        model: {},
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-      })),
+      getModel: vi.fn(async () => ({})),
       getEmbeddingModel: vi.fn(async () => embeddingModel),
     };
 
@@ -192,10 +193,7 @@ describe('concept parsing relationship vectorization', () => {
     };
 
     const providerFactory: any = {
-      getModel: vi.fn(async () => ({
-        model: {},
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-      })),
+      getModel: vi.fn(async () => ({})),
       getEmbeddingModel: vi.fn(async () => embeddingModel),
     };
 
@@ -252,10 +250,7 @@ describe('concept parsing relationship vectorization', () => {
     };
 
     const providerFactory: any = {
-      getModel: vi.fn(async () => ({
-        model: {},
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-      })),
+      getModel: vi.fn(async () => ({})),
       getEmbeddingModel: vi.fn(async () => embeddingModel),
     };
 

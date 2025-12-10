@@ -1,39 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConceptParsingService } from '../concept-parsing-service';
 
-vi.mock('../prompts', () => {
-  let calls = 0;
-  return {
-    createSegmentExtractChain: () => ({
-      invoke: async () => {
-        calls += 1;
-        if (calls === 2) {
-          throw new Error('forced error');
-        }
-        return {
-          args: {
-            summary: '',
-            focusAreas: [],
-            nodes: [{ name: 'Concept', confidence: 0.7 }],
-            relationships: [],
-            recommendations: [],
-          },
-        };
+let calls = 0;
+
+// Mock the extraction workflow to fail on second call
+vi.mock('../extraction-workflow', () => ({
+  executeExtractionWorkflow: vi.fn(async () => {
+    calls += 1;
+    if (calls === 2) {
+      throw new Error('forced error');
+    }
+    return {
+      success: true,
+      result: {
+        summary: '',
+        focusAreas: [],
+        nodes: [{ name: 'Concept', confidence: 0.7 }],
+        relationships: [],
+        recommendations: [],
       },
-    }),
-  };
-});
+      attempt: 1,
+      metrics: {
+        chainCreationMs: 0,
+        llmInvokeMs: 100,
+        jsonParseMs: 0,
+        validationMs: 0,
+        totalMs: 100,
+      },
+    };
+  }),
+}));
 
 describe('concept parsing depth', () => {
   beforeEach(() => {
-    vi.resetModules();
+    calls = 0;
+    vi.clearAllMocks();
   });
 
   const providerFactory: any = {
-    getModel: vi.fn(async () => ({
-      model: {},
-      settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-    })),
+    getModel: vi.fn(async () => ({})),
   };
   const vectorDatabase: any = undefined;
   const loggerService: any = { child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }) };

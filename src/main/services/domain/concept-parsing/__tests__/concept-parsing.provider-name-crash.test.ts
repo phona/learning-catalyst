@@ -7,12 +7,14 @@ import { createConceptParsingService } from '../concept-parsing-service';
  * Bug: extractSegment tried to access modelEntry.settings.providerName
  *      but getModel() returns a LangChain model without .settings property
  *
- * Fix: Removed the logging line that accessed modelEntry.settings.providerName
+ * Fix: Now uses LangGraph workflow which doesn't access model.settings
  */
 
-vi.mock('../prompts', () => ({
-  createSegmentExtractChain: vi.fn(() => ({
-    invoke: async (input: any) => ({
+// Mock the extraction workflow
+vi.mock('../extraction-workflow', () => ({
+  executeExtractionWorkflow: vi.fn(async () => ({
+    success: true,
+    result: {
       summary: 'Test summary',
       focusAreas: [],
       nodes: [
@@ -26,14 +28,20 @@ vi.mock('../prompts', () => ({
       ],
       relationships: [],
       recommendations: [],
-    }),
+    },
+    attempt: 1,
+    metrics: {
+      chainCreationMs: 0,
+      llmInvokeMs: 100,
+      jsonParseMs: 0,
+      validationMs: 0,
+      totalMs: 100,
+    },
   })),
-  SEGMENT_EXTRACTION_TEMPLATE: '',
 }));
 
 describe('concept parsing - providerName crash fix', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
   });
 

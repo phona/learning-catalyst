@@ -17,11 +17,10 @@ import type {
   ParsedConcept,
   ParsedRelationship,
 } from '@/shared/types/electron-api/knowledge-api';
+import { ChatOpenAI } from '@langchain/openai';
 import {
-  createSegmentExtractChain,
-  SEGMENT_EXTRACTION_TEMPLATE,
-  formatInstructions,
-} from './prompts';
+  executeExtractionWorkflow,
+} from './extraction-workflow';
 
 export interface ConceptParsingMaterial {
   id: string;
@@ -739,8 +738,6 @@ export const createConceptParsingService = ({
       promptToContentRatio: (payloadSize / segment.content.length).toFixed(2),
     });
     try {
-      const chain = createSegmentExtractChain(model as any);
-
       // DEBUG: Log model configuration for concept parsing
       const modelConfig = (model as any)?.config || {};
       serviceLogger.debug('[CONCEPT-PARSING] Model config', {
@@ -760,30 +757,80 @@ export const createConceptParsingService = ({
       });
 
       const chainInvokeStart = Date.now();
-      const result = (await chain.invoke({
-        preview_payload: previewPayload,
-      })) as SegmentExtractionSchema;
+
+      // LANGGRAPH WORKFLOW: Use LangGraph for intelligent extraction with retry
+      // Benefits:
+      // - Visual workflow with nodes and edges
+      // - Automatic state management across retries
+      // - Smart error classification (only retry validation errors)
+      // - Better performance monitoring
+      serviceLogger.info('[CONCEPT-PARSING] Starting LangGraph workflow', {
+        segmentId: segment.id,
+        contentLength: segment.content.length,
+        timestamp: new Date().toISOString(),
+      });
+
+      const workflowResult = await executeExtractionWorkflow(
+        segment.content,
+        model as ChatOpenAI,
+        serviceLogger,
+        2, // max 2 attempts
+      );
+
       const chainInvokeDuration = Date.now() - chainInvokeStart;
 
-      serviceLogger.info('[CONCEPT-PARSING] LangChain invoke completed', {
+      serviceLogger.info('[CONCEPT-PARSING] LangGraph workflow completed', {
         segmentId: segment.id,
+        success: workflowResult.success,
+        attempts: workflowResult.attempt,
         chainInvokeDurationMs: chainInvokeDuration,
         chainInvokeDurationSec: (chainInvokeDuration / 1000).toFixed(2),
         completionTime: new Date().toISOString(),
-        nodesFound: (result.nodes ?? []).length,
-        relationshipsFound: (result.relationships ?? []).length,
-        charsPerSecond: Math.round((segment.content.length / chainInvokeDuration) * 1000),
+        metrics: workflowResult.metrics,
       });
+
+      if (!workflowResult.success) {
+        throw new Error(workflowResult.error || 'Extraction failed');
+      }
+
+      // Convert to expected format for return
+      const result = workflowResult.result!;
+      const typedResult: SegmentExtractionSchema = {
+        summary: result.summary,
+        focusAreas: result.focusAreas,
+        nodes: result.nodes.map(node => ({
+          name: node.name,
+          description: node.description ?? undefined,
+          type: node.type ?? undefined,
+          difficulty: node.difficulty ?? undefined,
+          confidence: node.confidence ?? undefined,
+          tags: node.tags ?? undefined,
+          metadata: node.metadata ?? undefined,
+        })),
+        relationships: result.relationships.map(rel => ({
+          from: rel.from,
+          to: rel.to,
+          type: rel.type ?? undefined,
+          strength: rel.strength ?? undefined,
+          confidence: rel.confidence ?? undefined,
+          description: rel.description ?? undefined,
+          metadata: rel.metadata ?? undefined,
+        })),
+        recommendations: result.recommendations,
+      };
+
       const durationMs = Date.now() - startTs;
       serviceLogger.info('Segment extraction completed', {
         segmentId: segment.id,
         segmentTitle: segment.title,
+        attempts: workflowResult.attempt,
         durationMs,
-        nodes: (result.nodes ?? []).length,
-        relationships: (result.relationships ?? []).length,
-        avgTimePerNode: durationMs / Math.max(1, (result.nodes ?? []).length),
+        nodes: typedResult.nodes.length,
+        relationships: typedResult.relationships.length,
+        avgTimePerNode: durationMs / Math.max(1, typedResult.nodes.length),
       });
-      return result;
+
+      return typedResult;
     } catch (error) {
       const durationMs = Date.now() - startTs;
       serviceLogger.error('Segment extraction error', toLogError(error), {

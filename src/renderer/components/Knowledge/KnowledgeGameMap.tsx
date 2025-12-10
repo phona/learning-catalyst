@@ -150,7 +150,23 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
       size: 30 + (n.mastery ?? 0.3) * 10,
     }));
 
-    const links: RGLink[] = filtered.edges.map((e) => ({
+    // Filter out edges with invalid node references to prevent graph rendering errors
+    const validNodeIds = new Set(nodes.map((n) => n.id));
+    console.log('[KnowledgeMap] Valid node IDs:', validNodeIds);
+    console.log('[KnowledgeMap] Raw edges count:', filtered.edges.length);
+    console.log('[KnowledgeMap] Raw edges:', filtered.edges);
+
+    const validEdges = filtered.edges.filter((e) => {
+      const isValid = e.from && e.to && validNodeIds.has(e.from) && validNodeIds.has(e.to);
+      if (!isValid) {
+        console.log('[KnowledgeMap] Filtering out invalid edge:', { from: e.from, to: e.to, validFrom: validNodeIds.has(e.from), validTo: validNodeIds.has(e.to) });
+      }
+      return isValid;
+    });
+
+    console.log('[KnowledgeMap] Valid edges after filtering:', validEdges.length);
+
+    const links: RGLink[] = validEdges.map((e) => ({
       from: e.from,
       to: e.to,
       text: e.label ?? e.type ?? 'related',
@@ -163,6 +179,8 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
         },
       ],
     }));
+
+    console.log('[KnowledgeMap] Final graph data:', { nodes: nodes.length, links: links.length });
 
     return { nodes, links };
   }, [filtered.edges, filtered.nodes]);

@@ -1,16 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createConceptParsingService } from '../concept-parsing-service';
 
-vi.mock('../prompts', () => ({
-  createSegmentExtractChain: () => ({
-    invoke: vi.fn(async () => ({
+// Mock the extraction workflow
+vi.mock('../extraction-workflow', () => ({
+  executeExtractionWorkflow: vi.fn(async () => ({
+    success: true,
+    result: {
       summary: '',
       focusAreas: [],
       nodes: [{ name: 'Alpha', confidence: 0.9 }],
       relationships: [],
       recommendations: [],
-    })),
-  }),
+    },
+    attempt: 1,
+    metrics: {
+      chainCreationMs: 0,
+      llmInvokeMs: 100,
+      jsonParseMs: 0,
+      validationMs: 0,
+      totalMs: 100,
+    },
+  })),
 }));
 
 describe('concept parsing vectorization', () => {
@@ -30,10 +40,7 @@ describe('concept parsing vectorization', () => {
       start: vi.fn(),
     };
     const providerFactory: any = {
-      getModel: vi.fn(async () => ({
-        model: {},
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
-      })),
+      getModel: vi.fn(async () => ({})),
       getEmbeddingModel: vi.fn(async () => ({
         embed: vi.fn(async () => Array(1536).fill(0.1)),
         embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
