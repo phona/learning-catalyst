@@ -414,4 +414,34 @@ export interface ConceptIngestionPlan {
    * Merge directives: parsed concept id -> target existing concept id.
    */
   mergeTargets?: Record<string, string>;
+  /**
+   * Auto-deduplication configuration for Stage 2 (knowledge base check).
+   * When enabled, concepts will be checked against existing knowledge base
+   * and merged if similarity exceeds threshold.
+   */
+  autoDeduplicate?: {
+    /**
+     * Enable auto-deduplication during ingestion (Stage 2).
+     * @default false
+     */
+    enabled?: boolean;
+    /**
+     * Vector similarity threshold for considering concepts as duplicates.
+     * Range: 0.85 - 0.99 (higher = more strict)
+     * @default 0.92
+     */
+    threshold?: number;
+    /**
+     * Strategy for handling duplicates found during KB check.
+     * - 'skip': Don't store new concept (keep existing)
+     * - 'merge_metadata': Merge metadata into existing, don't store new
+     * @default 'skip'
+     */
+    strategy?: 'skip' | 'merge_metadata';
+    /**
+     * Whether to update relationship pointers when merging.
+     * @default true
+     */
+    updateRelationships?: boolean;
+  };
 }

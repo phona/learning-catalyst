@@ -10,6 +10,12 @@ describe('topicParse node', () => {
 
   it('parses valid topic with concept matches', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockResolvedValue({
         matches: [
           { type: 'concept', name: 'React' },
@@ -41,6 +47,12 @@ describe('topicParse node', () => {
 
   it('handles topic with no relationships', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockResolvedValue({
         matches: [
           { type: 'concept', name: 'React' },
@@ -61,6 +73,12 @@ describe('topicParse node', () => {
 
   it('handles empty topic gracefully', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn(),
     };
 
@@ -79,6 +97,12 @@ describe('topicParse node', () => {
 
   it('handles topic from last user message', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockResolvedValue({
         matches: [
           { type: 'concept', name: 'TypeScript' },
@@ -105,6 +129,12 @@ describe('topicParse node', () => {
 
   it('handles no matching concepts found', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockResolvedValue({
         matches: [],
       }),
@@ -123,6 +153,12 @@ describe('topicParse node', () => {
 
   it('handles errors gracefully', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockRejectedValue(new Error('Database error')),
     };
 
@@ -139,6 +175,12 @@ describe('topicParse node', () => {
 
   it('normalizes and trims topic text', async () => {
     const mockKnowledgeService = {
+      ingestConceptParsingResult: vi.fn(),
+      searchKnowledge: vi.fn(),
+      semanticSearch: vi.fn(),  // ← NEW method
+      exploreConcept: vi.fn(),
+      getRelatedConcepts: vi.fn(),
+      getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockResolvedValue({
         matches: [
           { type: 'concept', name: 'React' },

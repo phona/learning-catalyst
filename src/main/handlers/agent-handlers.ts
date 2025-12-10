@@ -12,7 +12,6 @@ import type {
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import { LearningService } from '../services/domain/learning/learning-service';
 import { AnalyticsService } from '../services/domain/analytics/analytics-service';
-import { ChatService } from '../services/domain/chat/chat-service';
 import { LoggerService } from '../services/core/logger/logger-service';
 import { AiService } from '../services/ai/ai-service';
 import { ConfigService } from '../services/core/config/config-service';
@@ -82,10 +81,9 @@ export const setupAgentHandlers = async (
     knowledgeService: KnowledgeService;
     analyticsService: AnalyticsService;
     loggerService: LoggerService;
-    chatService: ChatService;
-  aiService: AiService;
-  conceptParsingService: ConceptParsingService;
-  configService: ConfigService;
+    aiService: AiService;
+    conceptParsingService: ConceptParsingService;
+    configService: ConfigService;
   },
 ): Promise<void> => {
   const handlerLogger = services.loggerService.child({ handler: 'agent' });

@@ -104,19 +104,19 @@ describe('concept parsing relationship vectorization', () => {
       maxSegmentChars: 200,
     });
 
-    // Called twice: once for the segment, once for the relationship
-    expect(addDocumentWithEmbeddingMock).toHaveBeenCalledTimes(2);
+    // Called three times: twice for the concepts (Photosynthesis, Chlorophyll), once for the relationship
+    expect(addDocumentWithEmbeddingMock).toHaveBeenCalledTimes(3);
 
     const callArgs = addDocumentWithEmbeddingMock.mock.calls.map((call) => call[0]);
 
     const relationshipCall = callArgs.find((doc) => doc.id.startsWith('rel:'));
     expect(relationshipCall).toBeDefined();
     expect(relationshipCall?.metadata?.type).toBe('relationship');
-    expect(relationshipCall?.metadata?.relationshipType).toBe('prerequisite');
-    expect(relationshipCall?.metadata?.sourceName).toBe('Chlorophyll');
-    expect(relationshipCall?.metadata?.targetName).toBe('Photosynthesis');
-    expect(relationshipCall?.metadata?.strength).toBe(0.9);
-    expect(relationshipCall?.metadata?.confidence).toBe(0.85);
+    expect(relationshipCall?.metadata?.sourceConceptId).toBeDefined();
+    expect(relationshipCall?.metadata?.targetConceptId).toBeDefined();
+    expect(relationshipCall?.metadata?.relationshipId).toBeDefined();
+    // Content should contain the relationship type
+    expect(relationshipCall?.content).toContain('prerequisite');
 
     expect(embeddingModel.embed).toHaveBeenCalled();
   });
@@ -288,9 +288,7 @@ describe('concept parsing relationship vectorization', () => {
     const relationshipCalls = callArgs.filter((doc) => doc.id.startsWith('rel:'));
 
     expect(relationshipCalls[0]?.content).toContain('Relationship:');
-    expect(relationshipCalls[0]?.content).toContain('Type:');
-    expect(relationshipCalls[0]?.content).toContain('Target:');
-    expect(relationshipCalls[0]?.content).toContain('Strength:');
-    expect(relationshipCalls[0]?.content).toContain('Context:');
+    expect(relationshipCalls[0]?.content).toContain('From concept');
+    expect(relationshipCalls[0]?.content).toContain('To concept');
   });
 });

@@ -18,7 +18,6 @@ import { MainThreadLogger } from './services/logger';
 // Import the new service factories
 import { createConfigService } from '@/main/services/core/config/config-service';
 import { createLoggerService } from '@/main/services/core/logger/logger-service';
-import { createChatService } from '@/main/services/domain/chat/chat-service';
 import { createLearningService } from '@/main/services/domain/learning/learning-service';
 import { createKnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
 import { createConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
@@ -30,7 +29,8 @@ import { createAgentManager, type AgentManager } from '@/main/services/agent/age
 import { createProviderFactory } from '@/main/services/agent/provider-factory';
 import { IPC_ERROR_CHANNEL, MAX_ERROR_BUFFER_SIZE } from '@/shared/types/ipc-error';
 import { createVectorDatabase } from './services/domain/knowledge/vector/vector-database';
-import { createQdrantManager } from '@/main/qdrant-manager';
+import { createQdrantProcessService } from './services/core/database/qdrant-process-service';
+import { createVectorStore } from './services/core/database/vector-store';
 
 import type { IPCErrorPayload, BufferedIPCError } from '@/shared/types/ipc-error';
 
@@ -329,13 +329,28 @@ async function createWindow(): Promise<void> {
       loggerService,
     });
 
-    qdrantManagerInstance = createQdrantManager();
-    const vectorDatabase = createVectorDatabase(qdrantManagerInstance);
+    // Create and initialize Qdrant process service (infrastructure layer)
+    const qdrantProcessService = createQdrantProcessService({
+      host: '127.0.0.1',
+      port: 6333,
+    });
+
+    // Create vector store (core database layer)
+    const vectorStore = createVectorStore(qdrantProcessService, {
+      host: '127.0.0.1',
+      port: 6333,
+    });
+
+    // Create vector database adapter (domain layer)
+    const vectorDatabase = createVectorDatabase(vectorStore, providerFactory);
+
     try {
+      await qdrantProcessService.start();
       await vectorDatabase.start();
     } catch (error) {
       reportMainError(error, 'qdrant.start');
     }
+
     const providerFactory = createProviderFactory(configService);
     const knowledgeService = createKnowledgeService({
       db: database,
@@ -370,13 +385,6 @@ async function createWindow(): Promise<void> {
       loggerService,
       knowledgeService,
       db: database,
-    });
-
-    const chatService = createChatService({
-      db: database,
-      loggerService,
-      aiService,
-      agentManager,
     });
 
     console.log('[Main] setupAllIpcHandlers begin', { workspacePath });
@@ -457,13 +465,6 @@ async function cleanup() {
   // cleanupMemoryDebug();
 
   // Clean up any additional resources as needed
-  if (qdrantManagerInstance) {
-    try {
-      await qdrantManagerInstance.shutdown();
-    } finally {
-      qdrantManagerInstance.cleanup();
-    }
-  }
   console.log('✅ Cleanup completed');
 }
 
@@ -507,4 +508,3 @@ app.on('before-quit', async () => {
 app.on('will-quit', async () => {
   await cleanup();
 });
-let qdrantManagerInstance: ReturnType<typeof createQdrantManager> | null = null;

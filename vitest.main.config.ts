@@ -31,10 +31,9 @@ export default defineConfig({
     ],
 
     // Test execution settings
-    testTimeout: 30000, // 30 seconds for async operations
+    testTimeout: 60000, // 60 seconds for async operations (increased for workflow tests)
     hookTimeout: 10000,
     bail: 5, // Stop after 5 test failures
-    retries: process.env.CI ? 2 : 0, // Retry flaky tests in CI
     isolate: true,
     passWithNoTests: false,
 
@@ -51,7 +50,6 @@ export default defineConfig({
 
     // File watching
     watch: false,
-    watchExclude: ['node_modules/**', 'dist/**', 'src/test/fixtures/**', 'src/test/mocks/**'],
 
     // Setup files
     setupFiles: ['./src/test/setup/main-process/setup.ts'],

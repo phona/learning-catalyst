@@ -14,13 +14,38 @@ import {
 
 export type ProviderSettings = ResolvedProviderSettings;
 
+interface SiliconFlowRerankResult {
+  results: Array<{
+    document: {
+      text: string;
+    };
+    index: number;
+    relevance_score: number;
+  }>;
+  tokens?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
+interface Reranker {
+  rerank: (query: string, documents: string[]) => Promise<{
+    indices: number[];
+    scores: number[];
+  }>;
+}
+
 type ProviderImplementation = {
   createModel: (settings: ProviderSettings) => BaseLanguageModel;
   createEmbeddings: (settings: ProviderSettings) => Embeddings;
+  createReranker?: (settings: ProviderSettings) => Reranker;
 };
 
 const isRemoteProvider = (providerType: string) =>
-  ['openai', 'openai-compatible', 'chatglm', 'deepseek'].includes(providerType);
+  ['openai', 'openai-compatible', 'chatglm', 'deepseek', 'siliconflow'].includes(providerType);
+
+const requiresApiKey = (providerType: string) =>
+  ['openai', 'chatglm', 'deepseek', 'siliconflow'].includes(providerType);
 
 const makeChatModel = (settings: ProviderSettings) =>
   new ChatOpenAI({
@@ -41,6 +66,48 @@ const makeOpenAIEmbeddings = (settings: ProviderSettings) =>
     model: settings.model,
   });
 
+const makeSiliconFlowReranker = (settings: ProviderSettings): Reranker => ({
+  rerank: async (query: string, documents: string[]): Promise<{
+    indices: number[];
+    scores: number[];
+  }> => {
+    console.log(`[SiliconFlow Reranker] Using model: ${settings.model} at ${settings.baseUrl}`);
+
+    const response = await fetch(`${settings.baseUrl}/rerank`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${settings.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        query,
+        documents,
+        top_n: documents.length,
+        return_documents: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[SiliconFlow Reranker] API error for model ${settings.model}:`, errorText);
+      throw new Error(`SiliconFlow rerank API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const result: SiliconFlowRerankResult = await response.json();
+    const sortedResults = [...result.results].sort((a, b) => b.relevance_score - a.relevance_score);
+    const indices = sortedResults.map(r => r.index);
+    const scores = sortedResults.map(r => r.relevance_score);
+
+    console.log(`[SiliconFlow Reranker] Successfully ranked ${documents.length} documents`);
+
+    return {
+      indices,
+      scores,
+    };
+  },
+});
+
 const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
   openai: {
     createModel: makeChatModel,
@@ -54,7 +121,12 @@ const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
     createModel: makeChatModel,
     createEmbeddings: makeOpenAIEmbeddings,
   },
-  local: {
+  siliconflow: {
+    createModel: makeChatModel,
+    createEmbeddings: makeOpenAIEmbeddings,
+    createReranker: makeSiliconFlowReranker,
+  },
+  'openai-compatible': {
     createModel: makeChatModel,
     createEmbeddings: makeOpenAIEmbeddings,
   },
@@ -73,7 +145,7 @@ const normalizeSettings = (raw: ProviderConfig): ProviderSettings => {
   const maxTokens = clampMaxTokens(desiredMaxTokens, providerType, model);
   const providerName = (raw as any).providerName ?? raw.providerType;
 
-  if (!apiKey) {
+  if (!apiKey && requiresApiKey(providerType)) {
     throw createIPCError({
       type: 'CONFIG_ERROR',
       code: IPC_ERROR_CODES.provider.missingApiKey,
@@ -118,7 +190,7 @@ export const createProviderFactory = (configService: ConfigService) => {
 
   const getModel = async (configKey?: string) => {
     const settings = await resolveSettings(configKey);
-    if (isRemoteProvider(settings.providerType) && !settings.apiKey) {
+    if (requiresApiKey(settings.providerType) && !settings.apiKey) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
         code: IPC_ERROR_CODES.provider.authRequired,
@@ -175,7 +247,7 @@ export const createProviderFactory = (configService: ConfigService) => {
       temperature: 0,
       maxTokens: 0,
     } as ProviderSettings;
-    if (isRemoteProvider(settings.providerType) && !settings.apiKey) {
+    if (requiresApiKey(settings.providerType) && !settings.apiKey) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
         code: IPC_ERROR_CODES.provider.authRequired,
@@ -221,42 +293,71 @@ export const createProviderFactory = (configService: ConfigService) => {
   };
 
   const getRerankModel = async () => {
-    const model = await getModel('rerank');
+    const config = await configService.getConfig();
+    const rerankConfig = config?.ai?.modelTypes?.rerank;
+
+    if (!rerankConfig?.provider || !rerankConfig?.model) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: 'Rerank model configuration is required. Please configure ai.modelTypes.rerank.',
+        details: { section: 'ai.modelTypes.rerank' },
+      });
+    }
+
+    const providerName = rerankConfig.provider.toLowerCase();
+    const provider = config?.ai?.providers?.[providerName];
+
+    if (!provider) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: `Rerank provider "${providerName}" is not configured.`,
+        details: { providerName },
+      });
+    }
+
+    const providerConfigPath = `ai.providers.${providerName}` as ConfigPath;
+    const raw = await configService.get(providerConfigPath) as ProviderConfig | undefined;
+
+    if (!raw) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: `Provider "${providerName}" configuration not found.`,
+        details: { providerName },
+      });
+    }
+
+    // Merge provider config with model type config to get the complete settings
+    const settings = normalizeSettings({
+      ...raw,
+      model: rerankConfig.model,  // Use the model from modelTypes.rerank.model
+    });
+    const impl = PROVIDER_IMPLEMENTATIONS[settings.providerType];
+
+    if (!impl) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.unsupportedConfig,
+        message: `Unsupported provider for rerank: ${settings.providerType}`,
+        details: { providerType: settings.providerType },
+      });
+    }
+
+    if (!impl.createReranker) {
+      throw new Error(`Model "${settings.model}" does not support reranking. Please configure a rerank-capable model.`);
+    }
+
+    console.log(`[ProviderFactory] Initializing reranker for provider: ${providerName}, model: ${settings.model}`);
+
+    const reranker = impl.createReranker(settings);
     return {
       settings: {
-        providerName: 'rerank',
-        model: 'rerank-model',
+        providerName,
+        model: settings.model,
       },
-      rerank: async (query: string, documents: string[]) => {
-        const modelInstance = model.model;
-        const prompt = `
-Query: ${query}
-
-Documents:
-${documents.map((doc, i) => `${i + 1}. ${doc}`).join('\n')}
-
-Rank these documents by relevance to the query. Return a JSON array of scores from 0-1.
-        `.trim();
-
-        const response = await modelInstance.invoke([{ role: 'user', content: prompt }]);
-        const content = typeof response === 'string' ? response : response?.content || '[]';
-
-        try {
-          const scores = JSON.parse(content) as number[];
-          const indices = scores.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
-          return {
-            indices,
-            scores: indices.map((i) => scores[i]),
-          };
-        } catch {
-          const scores = documents.map(() => 1.0);
-          const indices = scores.map((_, i) => i);
-          return {
-            indices,
-            scores,
-          };
-        }
-      },
+      rerank: reranker.rerank,
     };
   };
 

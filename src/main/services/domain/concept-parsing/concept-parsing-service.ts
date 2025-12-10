@@ -153,6 +153,137 @@ const DEFAULT_SETTINGS: ConceptParsingSettings = {
   },
 };
 
+/**
+ * Stage 1 Deduplication: Lightweight name-based deduplication within parsing batch
+ * Merges concepts with similar names to reduce duplicates before KB check
+ */
+const deduplicateWithinBatch = (
+  concepts: ParsedConcept[],
+  relationships: ParsedRelationship[],
+): {
+  deduplicatedConcepts: ParsedConcept[];
+  deduplicatedRelationships: ParsedRelationship[];
+  duplicatesMerged: number;
+} => {
+  const deduplicatedConcepts: ParsedConcept[] = [];
+  const canonicalMap = new Map<string, ParsedConcept>();
+  const duplicatesMergedMap = new Map<string, string[]>(); // canonicalId -> duplicateIds
+
+  // Helper: Calculate string similarity using Jaccard index
+  const calculateStringSimilarity = (str1: string, str2: string): number => {
+    const s1 = str1.toLowerCase().trim();
+    const s2 = str2.toLowerCase().trim();
+
+    // Token-based Jaccard similarity
+    const tokens1 = new Set(s1.split(/\s+/).filter((t) => t.length > 2));
+    const tokens2 = new Set(s2.split(/\s+/).filter((t) => t.length > 2));
+
+    const intersection = new Set([...tokens1].filter((x) => tokens2.has(x)));
+    const union = new Set([...tokens1, ...tokens2]);
+
+    return union.size === 0 ? 0 : intersection.size / union.size;
+  };
+
+  // First pass: Find canonical concepts
+  for (const concept of concepts) {
+    const canonicalName = concept.name.toLowerCase().trim();
+
+    // Check if this concept is already a duplicate of an existing canonical
+    let foundCanonical = false;
+    for (const [canonicalId, canonical] of canonicalMap.entries()) {
+      const similarity = calculateStringSimilarity(concept.name, canonical.name);
+
+      // Threshold for name similarity (0.85 catches "AI" vs "AI Systems")
+      if (similarity >= 0.85) {
+        // Mark as duplicate
+        if (!duplicatesMergedMap.has(canonicalId)) {
+          duplicatesMergedMap.set(canonicalId, []);
+        }
+        duplicatesMergedMap.get(canonicalId)!.push(concept.id);
+
+        // Optionally merge metadata into canonical
+        const existingMetadata = canonical.metadata ?? {};
+        const newMetadata = {
+          ...existingMetadata,
+          mergedFrom: [
+            ...(Array.isArray(existingMetadata.mergedFrom) ? existingMetadata.mergedFrom : []),
+            concept.id,
+          ],
+          mergeCount: (existingMetadata.mergeCount as number) ?? 0 + 1,
+          lastMergedAt: new Date().toISOString(),
+        };
+
+        // Update canonical with merged metadata
+        canonical.metadata = newMetadata;
+        foundCanonical = true;
+        break;
+      }
+    }
+
+    // If not a duplicate, make it a canonical concept
+    if (!foundCanonical) {
+      canonicalMap.set(concept.id, { ...concept });
+    }
+  }
+
+  // Build deduplicated concepts array
+  for (const [canonicalId, canonical] of canonicalMap.entries()) {
+    const duplicates = duplicatesMergedMap.get(canonicalId) ?? [];
+    if (duplicates.length > 0) {
+      // Add merge info to metadata
+      deduplicatedConcepts.push({
+        ...canonical,
+        metadata: {
+          ...canonical.metadata,
+          mergedFrom: duplicates,
+          mergeCount: duplicates.length,
+          deduplicated: true,
+        },
+      });
+    } else {
+      deduplicatedConcepts.push(canonical);
+    }
+  }
+
+  // Update relationships to point to canonical IDs
+  const deduplicatedRelationships: ParsedRelationship[] = [];
+  const conceptIdMap = new Map<string, string>(); // oldId -> canonicalId
+
+  // Build mapping of old IDs to canonical IDs
+  for (const [canonicalId, canonical] of canonicalMap.entries()) {
+    conceptIdMap.set(canonicalId, canonicalId);
+    const duplicates = duplicatesMergedMap.get(canonicalId) ?? [];
+    for (const dupId of duplicates) {
+      conceptIdMap.set(dupId, canonicalId);
+    }
+  }
+
+  // Update relationships
+  for (const rel of relationships) {
+    const newSourceId = conceptIdMap.get(rel.sourceId) ?? rel.sourceId;
+    const newTargetId = conceptIdMap.get(rel.targetId) ?? rel.targetId;
+
+    // Skip relationships where source == target (self-loop from duplicate merge)
+    if (newSourceId === newTargetId) {
+      continue;
+    }
+
+    deduplicatedRelationships.push({
+      ...rel,
+      sourceId: newSourceId,
+      targetId: newTargetId,
+    });
+  }
+
+  const duplicatesMerged = concepts.length - deduplicatedConcepts.length;
+
+  return {
+    deduplicatedConcepts,
+    deduplicatedRelationships,
+    duplicatesMerged,
+  };
+};
+
 const resolveJobStoreDir = (): string => {
   if (process.env.CONCEPT_PARSE_JOB_DIR) {
     return process.env.CONCEPT_PARSE_JOB_DIR;
@@ -391,46 +522,44 @@ const coalesceSegments = (
   return merged;
 };
 
-const addSegmentToVector = async (
-  segment: ConceptSegment,
-  material: ConceptParsingMaterial,
+/**
+ * Store final concepts in Qdrant with their actual concept IDs
+ * This should be called AFTER concepts are extracted and mapped
+ */
+const addConceptsToVector = async (
+  concepts: ParsedConcept[],
   providerFactory: ProviderFactory,
   vectorDatabase?: VectorDatabase,
   logger?: ILogger,
 ) => {
-  if (!vectorDatabase) return;
+  if (!vectorDatabase || concepts.length === 0) return;
 
   try {
-    const preview = createPreparsedMaterial(segment.content, {
-      filePath: material.filePath ?? material.title,
-      sourceLabel: material.title,
-    });
-
     const embeddingModel = await providerFactory.getEmbeddingModel();
-    const embedding = await embeddingModel.embed(segment.content);
 
-    await vectorDatabase.addDocumentWithEmbedding(
-      {
-        id: `${material.id}:${segment.id}`,
-        content: segment.content,
-        metadata: {
-          materialId: material.id,
-          segmentId: segment.id,
-          segmentTitle: segment.title,
-          previewStats: preview.stats,
-          source: 'concept-parsing',
-          format: material.format ?? 'markdown',
+    // Store each concept with its actual ID
+    for (const concept of concepts) {
+      const text = `${concept.name}\n\n${concept.description}`;
+      const embedding = await embeddingModel.embed(text);
+
+      await vectorDatabase.addDocumentWithEmbedding(
+        {
+          id: `concept:${concept.id}`,
+          content: text,
+          metadata: {
+            conceptId: concept.id,  // ← Link to SQLite (single source of truth)
+            type: 'concept',
+          },
         },
-      },
-      embedding,
-    );
+        embedding,
+      );
+    }
   } catch (error) {
     logger?.warn(
-      'Concept parsing vector insertion failed',
+      'Concept vector storage failed',
       error instanceof Error ? error : undefined,
       {
-        segmentId: segment.id,
-        materialId: material.id,
+        conceptCount: concepts.length,
         details: toLogError(error),
       },
     );
@@ -455,12 +584,9 @@ const addRelationshipToVector = async (
   }
 
   const relationshipText = [
-    `Relationship: ${sourceConcept.name}`,
-    `Type: ${relationship.type}`,
-    `Target: ${targetConcept.name}`,
-    relationship.description ? `Description: ${relationship.description}` : '',
-    `Strength: ${relationship.strength}`,
-    `Context: ${sourceConcept.type} to ${targetConcept.type}`,
+    `Relationship: ${relationship.type}`,
+    `From concept ${relationship.sourceId}`,
+    `To concept ${relationship.targetId}`,
   ]
     .filter(Boolean)
     .join(' | ');
@@ -468,21 +594,16 @@ const addRelationshipToVector = async (
   const embeddingModel = await providerFactory.getEmbeddingModel();
   const embedding = await embeddingModel.embed(relationshipText);
 
+  // Store minimal data - only IDs, no duplicate concept names!
   await vectorDatabase.addDocumentWithEmbedding(
     {
-      id: `rel:${relationship.type}:${relationship.sourceId}:${relationship.targetId}`,
+      id: `rel:${relationship.sourceId}:${relationship.targetId}`,
       content: relationshipText,
       metadata: {
         type: 'relationship',
-        relationshipType: relationship.type,
-        sourceId: relationship.sourceId,
-        targetId: relationship.targetId,
-        sourceName: sourceConcept.name,
-        targetName: targetConcept.name,
-        strength: relationship.strength,
-        confidence: relationship.confidence,
-        materialId: material.id,
-        source: 'concept-parsing',
+        relationshipId: `${relationship.sourceId}:${relationship.targetId}`,  // ← Link to SQLite
+        sourceConceptId: relationship.sourceId,
+        targetConceptId: relationship.targetId,
       },
     },
     embedding,
@@ -797,8 +918,6 @@ export const createConceptParsingService = ({
             serviceLogger.info('Segment extraction successful', extraction);
             const segmentConcepts = (extraction.nodes ?? []).slice(0, maxPerSegment);
 
-            await addSegmentToVector(segment, segMaterial, providerFactory, vectorDatabase, serviceLogger);
-
             const segPromptTokens = Math.ceil(segment.content.length / 4);
             promptTokens += segPromptTokens;
 
@@ -914,14 +1033,30 @@ export const createConceptParsingService = ({
       errors: errors.length,
     });
 
+    // Stage 1: In-batch deduplication (lightweight, name-based)
+    const deduplicationResult = deduplicateWithinBatch(concepts, relationships);
+    const { deduplicatedConcepts, deduplicatedRelationships, duplicatesMerged } = deduplicationResult;
+
+    if (duplicatesMerged > 0) {
+      serviceLogger.info('In-batch deduplication completed', {
+        duplicatesMerged,
+        originalConcepts: totalConcepts,
+        deduplicatedConcepts: deduplicatedConcepts.length,
+      });
+    }
+
+    // Store final concepts in Qdrant with their actual IDs
+    // This happens AFTER deduplication, so we store the canonical concepts
+    await addConceptsToVector(deduplicatedConcepts, providerFactory, vectorDatabase, serviceLogger);
+
     return {
       success: errors.length === 0,
-      concepts,
-      relationships,
+      concepts: deduplicatedConcepts,
+      relationships: deduplicatedRelationships,
       statistics: {
-        totalConcepts,
+        totalConcepts: deduplicatedConcepts.length,
         validConcepts,
-        totalRelationships,
+        totalRelationships: deduplicatedRelationships.length,
         confidenceDistribution,
         difficultyDistribution,
         typeDistribution,
@@ -934,6 +1069,11 @@ export const createConceptParsingService = ({
           prompt: promptTokens,
           completion: completionTokens,
           estimated: true,
+        },
+        // Deduplication stats
+        deduplication: {
+          duplicatesMerged,
+          deduplicationStrategy: 'in_batch_name_similarity',
         },
       },
       errors,

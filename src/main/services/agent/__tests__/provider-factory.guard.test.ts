@@ -46,13 +46,14 @@ describe('provider-factory runtime auth guard', () => {
     });
   });
 
-  it('allows local provider without apiKey', async () => {
+  it('allows openai-compatible provider without apiKey', async () => {
     const config: Partial<AppConfig> = {
       ai: {
         providers: {
           local: {
-            providerType: 'local',
+            providerType: 'openai-compatible',
             apiKey: undefined,
+            baseUrl: 'http://localhost:11434/v1',
           },
         },
         modelTypes: {
@@ -65,7 +66,8 @@ describe('provider-factory runtime auth guard', () => {
     };
     const factory = createProviderFactory(makeConfigService(config));
     const { settings } = await factory.getModel();
-    expect(settings.providerType).toBe('local');
+    expect(settings.providerType).toBe('openai-compatible');
     expect(settings.apiKey).toBeUndefined();
+    expect(settings.baseUrl).toBe('http://localhost:11434/v1');
   });
 });

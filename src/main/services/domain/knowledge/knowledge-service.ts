@@ -371,6 +371,65 @@ export const createKnowledgeService = ({
       ].filter(Boolean) as string[];
       const existing = resolveExisting(candidateNames);
       const { action, low } = resolveAction(node.id, node.confidence ?? 0, existing);
+
+      // Stage 2: Auto-deduplication - Check against knowledge base using vector similarity
+      const autoDedupEnabled = plan?.autoDeduplicate?.enabled ?? false;
+      if (autoDedupEnabled && !existing) {
+        const dedupThreshold = plan?.autoDeduplicate?.threshold ?? 0.92;
+        const dedupStrategy = plan?.autoDeduplicate?.strategy ?? 'skip';
+
+        // Search Qdrant for similar concepts
+        const searchText = node.description ?? node.name;
+        const vectorResults = await vectorDatabase.search(searchText, {
+          limit: 5,
+          threshold: dedupThreshold,
+        });
+
+        if (vectorResults.length > 0) {
+          const bestMatch = vectorResults[0];
+          const conceptId = bestMatch.metadata?.conceptId || bestMatch.document.id;
+
+          // Found a similar concept in the knowledge base
+          if (dedupStrategy === 'skip') {
+            // Don't store the new concept, mark as skipped (used existing)
+            nodeIdMapping.set(node.id, conceptId);
+            nameById.set(node.id, bestMatch.metadata?.conceptName || bestMatch.document);
+            skippedConcepts += 1;
+            continue;
+          } else if (dedupStrategy === 'merge_metadata' && conceptId) {
+            // Merge metadata into existing concept, don't store new
+            const existingRow = await selectConceptById(db, conceptId);
+            if (existingRow) {
+              const existingMetadata = safeParse<Record<string, unknown>>(existingRow.metadata, {});
+              const newMetadata = {
+                ...existingMetadata,
+                mergedFrom: [
+                  ...(Array.isArray(existingMetadata.mergedFrom) ? existingMetadata.mergedFrom : []),
+                  node.id,
+                ],
+                mergeCount: (existingMetadata.mergeCount as number) ?? 0 + 1,
+                lastMergedAt: now,
+                autoDedup: true,
+              };
+
+              await db
+                .updateTable('concepts')
+                .set({
+                  metadata: JSON.stringify(newMetadata),
+                  updated_at: now,
+                })
+                .where('id', '=', conceptId)
+                .execute();
+
+              nodeIdMapping.set(node.id, conceptId);
+              nameById.set(node.id, existingRow.name);
+              mergedConcepts += 1;
+              continue;
+            }
+          }
+        }
+      }
+
       if (action === 'skip') {
         skippedConcepts += 1;
         if (low) {
@@ -565,6 +624,8 @@ export const createKnowledgeService = ({
       lowConfidenceSkipped,
     });
 
+    const autoDedupEnabled = plan?.autoDeduplicate?.enabled ?? false;
+
     return {
       conceptsInserted: insertedConcepts,
       conceptsUpdated: updatedConcepts,
@@ -576,6 +637,13 @@ export const createKnowledgeService = ({
       metadata: {
         processedAt: now,
         source: options.source,
+        autoDeduplication: autoDedupEnabled
+          ? {
+              enabled: true,
+              threshold: plan?.autoDeduplicate?.threshold ?? 0.92,
+              strategy: plan?.autoDeduplicate?.strategy ?? 'skip',
+            }
+          : { enabled: false },
       },
     };
   };
@@ -621,6 +689,57 @@ export const createKnowledgeService = ({
       suggestions,
       filters,
     };
+  };
+
+  /**
+   * Semantic search using Qdrant vector similarity
+   * Returns concepts similar to the query based on vector embeddings
+   */
+  const semanticSearch = async (query: string, limit: number = 10) => {
+    const trimmedQuery = String(query ?? '').trim();
+    if (!trimmedQuery) {
+      throw new Error('Query is required for semantic search');
+    }
+
+    try {
+      // 1. Search Qdrant for similar vectors (get conceptIds only)
+      const qdrantResults = await vectorDatabase.search(trimmedQuery, {
+        limit,
+        threshold: 0.7,
+      });
+
+      // 2. Extract conceptIds from Qdrant results
+      const conceptIds = qdrantResults
+        .map((result) => result.document.metadata.conceptId)
+        .filter(Boolean);
+
+      // 3. Query SQLite for full concept data (single query)
+      const rows = await db
+        .selectFrom('concepts')
+        .selectAll()
+        .where('id', 'in', conceptIds)
+        .execute();
+
+      // 4. Restore order by relevance score from Qdrant
+      const conceptMap = new Map(rows.map((row) => [row.id, row]));
+      const results = qdrantResults
+        .map((result) => {
+          const conceptId = result.document.metadata.conceptId;
+          const concept = conceptMap.get(conceptId);
+          if (!concept) return null;
+
+          return {
+            concept: mapConceptRowToDisplay(concept),
+            relevanceScore: result.score,
+          };
+        })
+        .filter(Boolean) as Array<{ concept: KnowledgeNodeDisplay; relevanceScore: number }>;
+
+      return results;
+    } catch (error) {
+      serviceLogger.error('Semantic search failed', { error, query: trimmedQuery });
+      throw error;
+    }
   };
 
   const exploreConcept = async ({
@@ -937,6 +1056,7 @@ export const createKnowledgeService = ({
   return {
     ingestConceptParsingResult,
     searchKnowledge,
+    semanticSearch,  // ← NEW: Semantic search using Qdrant + SQLite
     exploreConcept,
     getRelatedConcepts,
     getKnowledgeMap,

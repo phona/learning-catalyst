@@ -2,9 +2,11 @@
  * Vector Database Module (Production Implementation)
  *
  * Provides vector storage and semantic search capabilities using Qdrant.
+ * This is an adapter that wraps the core vector-store service.
  */
 
-import type { QdrantManager } from '@/main/qdrant-manager';
+import type { VectorStore } from '@/main/services/core/database/vector-store';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 
 export interface VectorDocument {
   id: string;
@@ -55,19 +57,37 @@ const isCollection = (value: unknown): value is { name: unknown; points_count?: 
   return 'name' in rec;
 };
 
-export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDatabaseApi => {
+export const createVectorDatabase = (
+  vectorStore: VectorStore,
+  providerFactory: ProviderFactory
+): VectorDatabaseApi => {
   const addDocumentWithEmbedding = async (
     document: Omit<VectorDocument, 'embedding' | 'createdAt' | 'updatedAt'>,
     embedding: number[],
   ): Promise<void> => {
+    const now = new Date();
     const vectorDoc: VectorDocument = {
       ...document,
       embedding,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
 
-    await qdrantManager.addKnowledgeItem(vectorDoc, null);
+    // Convert to VectorPoint format for storage
+    const point = {
+      id: document.id,
+      vector: embedding,
+      payload: {
+        content: document.content,
+        metadata: {
+          ...document.metadata,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+      },
+    };
+
+    await vectorStore.upsert('knowledge_items', [point]);
   };
 
   const addDocumentBatch = async (
@@ -76,9 +96,21 @@ export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDataba
       embedding: number[];
     }>,
   ): Promise<void> => {
-    for (const { doc, embedding } of documents) {
-      await addDocumentWithEmbedding(doc, embedding);
-    }
+    const now = new Date();
+    const points = documents.map(({ doc, embedding }) => ({
+      id: doc.id,
+      vector: embedding,
+      payload: {
+        content: doc.content,
+        metadata: {
+          ...doc.metadata,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+      },
+    }));
+
+    await vectorStore.upsert('knowledge_items', points);
   };
 
   const search = async (
@@ -88,37 +120,47 @@ export const createVectorDatabase = (qdrantManager: QdrantManager): VectorDataba
     const limit = options.limit ?? 10;
     const threshold = options.threshold ?? 0.6;
 
-    const rawResults: unknown = await qdrantManager.searchKnowledge(query, null, limit);
-    const filtered = Array.isArray(rawResults) ? rawResults.filter(isSearchItem) : [];
-    return filtered
-      .filter((r) => r.similarity >= threshold)
-      .slice(0, limit)
-      .map((r) => {
-        const item = r.item as VectorDocument;
-        return {
-          document: item,
-          score: r.similarity,
-          metadata: item?.metadata,
-        };
-      });
+    // Generate embedding using provider factory
+    const embeddingModel = await providerFactory.getEmbeddingModel();
+    const queryEmbedding = await embeddingModel.embed(query);
+
+    const rawResults = await vectorStore.search('knowledge_items', queryEmbedding, {
+      limit,
+      scoreThreshold: threshold,
+    });
+
+    return rawResults.map((result) => {
+      const document: VectorDocument = {
+        id: typeof result.id === 'string' ? result.id : String(result.id),
+        content: result.payload.content || '',
+        metadata: result.payload.metadata || {},
+        createdAt: new Date(result.payload.metadata?.createdAt || Date.now()),
+        updatedAt: new Date(result.payload.metadata?.updatedAt || Date.now()),
+      };
+
+      return {
+        document,
+        score: result.score,
+        metadata: result.payload.metadata,
+      };
+    });
   };
 
   const deleteDocument = async (documentId: string): Promise<void> => {
-    await qdrantManager.deleteKnowledgeItem(documentId);
+    await vectorStore.delete('knowledge_items', [documentId]);
   };
 
   const getStats = async (): Promise<{ totalDocuments: number }> => {
-    const collectionsUnknown: unknown = await qdrantManager.listCollections();
-    const collections = Array.isArray(collectionsUnknown)
-      ? collectionsUnknown.filter(isCollection)
-      : [];
+    const collections = await vectorStore.listCollections();
     const kc = collections.find((c) => c.name === 'knowledge_items');
-    const points = kc && typeof kc.points_count === 'number' ? kc.points_count : 0;
-    return { totalDocuments: points ?? 0 };
+    const points = kc?.points_count || 0;
+    return { totalDocuments: points };
   };
 
   const start = async (): Promise<void> => {
-    await qdrantManager.initialize();
+    // Vector store handles its own initialization
+    // This method exists for interface compatibility
+    return Promise.resolve();
   };
 
   return {

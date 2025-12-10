@@ -73,10 +73,11 @@ const aiSDK: AISDKAPI = {
     port1.onmessage = (event) => {
       callback(event.data);
     };
-    port1.on('close', () => {
+    // @ts-ignore
+    port1.onclose = () => {
       console.log('[Preload] Stream ended:', streamId);
       onComplete?.();
-    });
+    };
 
     return () => {
       port1.close();

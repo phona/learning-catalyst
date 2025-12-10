@@ -22,7 +22,19 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
     const conceptMatches = result.matches.filter((m) => m.type === 'concept');
     const top = conceptMatches[0];
 
+    console.log(`[TopicParse] Query: "${prompt}"`);
+    console.log(`[TopicParse] Total matches: ${result.matches.length}, Concept matches: ${conceptMatches.length}`);
+
+    if (result.matches.length > 0) {
+      console.log(`[TopicParse] Found matches:`, result.matches.map(m => ({
+        type: m.type,
+        name: m.name,
+        score: m.score
+      })));
+    }
+
     if (!top) {
+      console.log(`[TopicParse] No concept matches found for query: "${prompt}"`);
       return { messages: [new AIMessage('No matching concepts found. Try importing learning materials or rephrasing your question.')], topic: prompt };
     }
 
@@ -38,8 +50,13 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
       topic: top.name,
     };
   } catch (error) {
+    const errorMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : JSON.stringify(error);
     return {
-      messages: [new AIMessage(`Failed to parse topic: ${error instanceof Error ? error.message : 'Unknown error'}`)],
+      messages: [new AIMessage(`Failed to parse topic: ${errorMessage}`)],
       topic: prompt,
     };
   }
