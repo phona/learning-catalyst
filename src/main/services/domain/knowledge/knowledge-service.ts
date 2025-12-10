@@ -979,24 +979,17 @@ export const createKnowledgeService = ({
         const hasValidTarget = edge.target_concept_id && validNodeIds.has(edge.target_concept_id);
         return hasValidSource && hasValidTarget;
       })
-      .map((edge) => {
-        const mapped = {
-          from: edge.source_concept_id,
-          to: edge.target_concept_id,
-          label: edge.relationship_type,
-          strength: edge.strength,
-          type: relationshipTypeToEdgeType(edge.relationship_type) as
-            | 'foundation'
-            | 'related'
-            | 'prerequisite'
-            | 'application',
-        };
-        console.log('[KnowledgeService] Mapped edge:', mapped);
-        return mapped;
-      });
-
-    console.log('[KnowledgeService] Total mapped edges:', mappedEdges.length);
-    console.log('[KnowledgeService] Node IDs:', Array.from(validNodeIds));
+      .map((edge) => ({
+        from: edge.source_concept_id,
+        to: edge.target_concept_id,
+        label: edge.relationship_type,
+        strength: edge.strength,
+        type: relationshipTypeToEdgeType(edge.relationship_type) as
+          | 'foundation'
+          | 'related'
+          | 'prerequisite'
+          | 'application',
+      }));
 
     const clusters = Array.from(new Set(positions.map((node) => node.category)));
     const learningPaths = clusters.map((cluster) => ({
