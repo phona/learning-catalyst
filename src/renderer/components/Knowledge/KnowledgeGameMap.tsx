@@ -62,6 +62,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
 }) => {
   const apiClient = useElectronAPIClient();
   const graphRef = useRef<RelationGraphComponent | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [rawNodes, setRawNodes] = useState<KnowledgeMapNode[]>([]);
   const [rawEdges, setRawEdges] = useState<KnowledgeMapEdge[]>([]);
   const [, setLoading] = useState(false);
@@ -106,6 +107,30 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Set up non-passive event listeners to allow preventDefault
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // prevent page scroll but let the graph receive the wheel event for zoom/pan
+      e.preventDefault();
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // keep touch panning inside the graph
+      e.preventDefault();
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      container.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
 
   const filtered = useMemo(
     () => ({
@@ -178,16 +203,9 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className={`relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden touch-none ${className}`}
       style={{ minHeight: 520, height: '100%', touchAction: 'none', overscrollBehavior: 'contain' }}
-      onWheelCapture={(e) => {
-        // prevent page scroll but let the graph receive the wheel event for zoom/pan
-        e.preventDefault();
-      }}
-      onTouchMove={(e) => {
-        // keep touch panning inside the graph
-        e.preventDefault();
-      }}
     >
       {error && (
         <div className="absolute top-2 left-2 right-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2 flex items-center gap-2 z-10">

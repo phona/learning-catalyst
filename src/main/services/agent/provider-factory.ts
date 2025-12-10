@@ -124,22 +124,34 @@ async function loadProviderConfig(
  * @param providerName - Name of the provider (for ProviderSettings.providerName)
  * @param provider - The provider config from ai.providers
  * @param config - The full app config (for embeddingDimensions, etc.)
+ * @param modelTypeConfig - Optional model type config (chat/embedding/rerank) with model, temperature, maxTokens
  * @param modelOverride - Optional model name override (used for rerank which uses different model)
  * @returns ProviderSettings object ready for creating model instances
  *
  * @example
- * const settings = buildSettings("openai", providerConfig, appConfig);
+ * const settings = buildSettings("openai", providerConfig, appConfig, chatConfig);
  * // Returns: { providerName: "openai", providerType: "openai", model: "gpt-4o", ... }
  */
 function buildSettings(
   providerName: string,
   provider: ProviderConfig,
   config: any,
+  modelTypeConfig?: any,
   modelOverride?: string
 ): ProviderSettings {
   const providerType = provider.providerType as ProviderType;
-  const model = modelOverride || provider.model!;
-  const maxTokens = clampMaxTokens(provider.maxTokens!, providerType, model);
+  const model = modelOverride || modelTypeConfig?.model || provider.model!;
+  const temperature = modelTypeConfig?.temperature ?? provider.temperature!;
+  const maxTokens = clampMaxTokens(
+    modelTypeConfig?.maxTokens ?? provider.maxTokens!,
+    providerType,
+    model
+  );
+
+  // Determine timeout: use parsing.chatTimeoutSeconds if available, otherwise performance.requestTimeout
+  // Timeout is in seconds in config, but we need milliseconds for ChatOpenAI
+  const timeoutSeconds = config.parsing?.chatTimeoutSeconds ?? config.performance?.requestTimeout ?? 30;
+  const timeoutMs = timeoutSeconds * 1000;
 
   return {
     providerName,
@@ -147,9 +159,10 @@ function buildSettings(
     model,
     apiKey: provider.apiKey,
     baseUrl: provider.baseUrl,
-    temperature: provider.temperature!,
+    temperature,
     maxTokens,
     embeddingDimensions: config.ai.embeddingDimensions,
+    timeout: timeoutMs,
   };
 }
 
@@ -164,7 +177,7 @@ const makeChatModel = (settings: ProviderSettings) =>
     maxTokens: settings.maxTokens,
     apiKey: settings.apiKey,
     maxRetries: 1,
-    timeout: 20_000,
+    timeout: settings.timeout,
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 
@@ -309,8 +322,8 @@ export const createProviderFactory = (configService: ConfigService) => {
    */
   const getModel = async (providerName?: string) => {
     // If no provider specified, get default from ai.modelTypes.chat
+    const config = await configService.getConfig();
     if (!providerName) {
-      const config = await configService.getConfig();
       providerName = config.ai.modelTypes?.chat?.provider;
       if (!providerName) {
         throw createIPCError({
@@ -321,12 +334,21 @@ export const createProviderFactory = (configService: ConfigService) => {
       }
     }
 
+    const chatConfig = config.ai.modelTypes?.chat;
+    if (!chatConfig) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: 'Chat model config not found. Set ai.modelTypes.chat',
+      });
+    }
+
     const cacheKey = `model:${providerName}`;
     return getOrCreate(modelCache, cacheKey, async () => {
       // Load provider config (throws if not found)
-      const { config, provider } = await loadProviderConfig(configService, providerName!);
-      // Convert to ProviderSettings format
-      const settings = buildSettings(providerName!, provider, config);
+      const { config: fullConfig, provider } = await loadProviderConfig(configService, providerName!);
+      // Convert to ProviderSettings format using chat config
+      const settings = buildSettings(providerName!, provider, fullConfig, chatConfig);
 
       // Validate API key for providers that need it (cloud providers, not local)
       if (requiresApiKey(settings.providerType) && !settings.apiKey) {
@@ -348,6 +370,7 @@ export const createProviderFactory = (configService: ConfigService) => {
         });
       }
 
+      console.log("model", JSON.stringify(settings));
       return impl.createModel(settings);
     });
   };
@@ -359,6 +382,7 @@ export const createProviderFactory = (configService: ConfigService) => {
     const config = await configService.getConfig();
     const embConfig = config.ai.modelTypes?.embedding;
 
+    console.log("embConfig", JSON.stringify(embConfig));
     if (!embConfig?.provider || !embConfig?.model) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
@@ -367,10 +391,19 @@ export const createProviderFactory = (configService: ConfigService) => {
       });
     }
 
+    // Validate embeddingDimensions is required
+    if (!config.ai.embeddingDimensions) {
+      throw createIPCError({
+        type: 'CONFIG_ERROR',
+        code: IPC_ERROR_CODES.provider.missingConfig,
+        message: 'embeddingDimensions is required. Set ai.embeddingDimensions',
+      });
+    }
+
     const cacheKey = `emb:${embConfig.provider}:${embConfig.model}`;
     return getOrCreate(embeddingsCache, cacheKey, async () => {
-      const { config, provider } = await loadProviderConfig(configService, embConfig.provider!);
-      const settings = buildSettings(embConfig.provider!, provider, config);
+      const { config: fullConfig, provider } = await loadProviderConfig(configService, embConfig.provider!);
+      const settings = buildSettings(embConfig.provider!, provider, fullConfig, embConfig);
 
       if (requiresApiKey(settings.providerType) && !settings.apiKey) {
         throw createIPCError({
@@ -410,8 +443,8 @@ export const createProviderFactory = (configService: ConfigService) => {
 
     const cacheKey = `rerank:${rerankConfig.provider}:${rerankConfig.model}`;
     return getOrCreate(rerankerCache, cacheKey, async () => {
-      const { config, provider } = await loadProviderConfig(configService, rerankConfig.provider!);
-      const settings = buildSettings(rerankConfig.provider!, provider, config, rerankConfig.model!);
+      const { config: fullConfig, provider } = await loadProviderConfig(configService, rerankConfig.provider!);
+      const settings = buildSettings(rerankConfig.provider!, provider, fullConfig, rerankConfig, rerankConfig.model!);
 
       const impl = PROVIDER_IMPLEMENTATIONS[settings.providerType];
       if (!impl?.createReranker) {

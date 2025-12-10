@@ -341,6 +341,9 @@ async function createWindow(): Promise<void> {
       port: 6333,
     });
 
+    // Create provider factory (needs to be before vectorDatabase)
+    const providerFactory = createProviderFactory(configService);
+
     // Create vector database adapter (domain layer)
     const vectorDatabase = createVectorDatabase(vectorStore, providerFactory);
 
@@ -350,8 +353,6 @@ async function createWindow(): Promise<void> {
     } catch (error) {
       reportMainError(error, 'qdrant.start');
     }
-
-    const providerFactory = createProviderFactory(configService);
     const knowledgeService = createKnowledgeService({
       db: database,
       vectorDatabase,

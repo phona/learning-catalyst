@@ -159,7 +159,6 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   const fetchSessions = useCallback(
     async (sessionLimit: number, isRefresh = false) => {
       try {
-        console.log('[useRecentSessions] Fetching sessions, service available:', !!sessionService);
         if (mountedRef.current) {
           setState((prev) => ({
             ...prev,
@@ -171,15 +170,12 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
 
         // Check if session service is available
         if (!sessionService) {
-          console.log('[useRecentSessions] Session service not available');
           throw new Error(
             'Session service not available. Please wait for initialization to complete.',
           );
         }
 
-        console.log('[useRecentSessions] Calling getRecentSessions with limit:', sessionLimit);
         const result = await sessionService.getRecentSessions(sessionLimit);
-        console.log('[useRecentSessions] Got sessions:', result.length);
 
         setState((prev) => {
           // Always deduplicate sessions by ID to prevent duplicates
@@ -200,19 +196,6 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
             !isRefresh && actualNewSessions < expectedNewSessions && !gotFewerThanRequested;
           const hasMore =
             !gotFewerThanRequested && !totalDidNotIncrease && uniqueSessions.length < maxLimit;
-
-          console.log('[useRecentSessions] Session update:', {
-            sessionLimit,
-            resultCount: result.length,
-            previousCount: prev.sessions.length,
-            newTotalCount: uniqueSessions.length,
-            expectedNewSessions,
-            actualNewSessions,
-            gotFewerThanRequested,
-            totalDidNotIncrease,
-            hasMore,
-            isRefresh,
-          });
 
           return {
             ...prev,
@@ -254,24 +237,11 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   const loadMore = useCallback(async () => {
     // Prevent multiple concurrent loadMore calls
     if (isLoadingMoreRef.current) {
-      console.log('[useRecentSessions] loadMore skipped - already loading more');
       return;
     }
 
     // Use ref to get current state and avoid stale closures
     const currentState = stateRef.current;
-    console.log(
-      '[useRecentSessions] loadMore called, loading:',
-      currentState.loading,
-      'refreshing:',
-      currentState.refreshing,
-      'hasMore:',
-      currentState.hasMore,
-      'currentLimit:',
-      currentLimit,
-      'limit:',
-      limit,
-    );
 
     // Enhanced conditions to prevent unnecessary calls
     if (
@@ -285,7 +255,6 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
 
       isLoadingMoreRef.current = true;
       const newLimit = Math.min(currentLimit + limit, maxLimit);
-      console.log('[useRecentSessions] Increasing limit from', currentLimit, 'to', newLimit);
       setCurrentLimit(newLimit);
 
       try {
@@ -296,24 +265,8 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
       } finally {
         isLoadingMoreRef.current = false;
       }
-    } else {
-      if (currentLimit >= maxLimit) {
-        console.log('[useRecentSessions] loadMore skipped - maximum limit reached');
+    } else if (currentLimit >= maxLimit) {
         setState((prev) => ({ ...prev, hasMore: false }));
-      } else if (!currentState.hasMore) {
-        console.log('[useRecentSessions] loadMore skipped - no more sessions available');
-      } else if (currentState.sessions.length === 0) {
-        console.log('[useRecentSessions] loadMore skipped - no sessions to paginate from');
-      } else {
-        console.log('[useRecentSessions] loadMore skipped - conditions not met', {
-          loading: currentState.loading,
-          refreshing: currentState.refreshing,
-          hasMore: currentState.hasMore,
-          currentLimit,
-          maxLimit,
-          sessionCount: currentState.sessions.length,
-        });
-      }
     }
   }, [currentLimit, limit, fetchSessions, maxLimit]);
 

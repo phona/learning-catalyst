@@ -106,23 +106,9 @@ export const SessionList = memo<SessionListProps>(
     // Set up infinite scroll when hasMore sessions
     React.useEffect(() => {
       if (hasMore && !loading && sessions.length > 0) {
-        console.log(
-          '[SessionList] Setting up infinite scroll callback, hasMore:',
-          hasMore,
-          'loading:',
-          loading,
-          'sessionCount:',
-          sessions.length,
-        );
         onNearBottom(async () => {
           console.log('[SessionList] Scroll near bottom detected, triggering loadMore');
           // The actual loadMore logic should be handled by the parent component
-        });
-      } else {
-        console.log('[SessionList] Not setting up infinite scroll:', {
-          hasMore,
-          loading,
-          sessionCount: sessions.length,
         });
       }
     }, [hasMore, loading, onNearBottom, sessions.length]);

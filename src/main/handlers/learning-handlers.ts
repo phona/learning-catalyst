@@ -136,15 +136,8 @@ export const setupLearningHandlers = (
   ipcMainInstance.handle(
     'learning:get-recent-sessions',
     async (_event, options?: Parameters<LearningService['getRecentSessions']>[0]) => {
-      handlerLogger.info('Handling get recent learning sessions request', { options });
-
       try {
         const sessions = await services.learningService.getRecentSessions(options);
-
-        handlerLogger.info('Recent learning sessions retrieved successfully', {
-          count: sessions.length,
-          sampleIds: sessions.slice(0, 3).map((s) => s.id),
-        });
         return ok(sessions);
       } catch (error) {
         handlerLogger.error('Failed to get recent learning sessions', error);

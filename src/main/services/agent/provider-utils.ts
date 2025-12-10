@@ -16,6 +16,7 @@ export type ProviderSettings = {
   temperature: number;
   maxTokens: number;
   embeddingDimensions?: number;
+  timeout: number;
 };
 
 // ============================================================================
@@ -117,6 +118,10 @@ export const resolveProviderSettings = async (
   const maxTokens = clampMaxTokens(desiredMaxTokens, providerType, model);
   const embeddingDimensions = config.ai.embeddingDimensions ?? 1536;
 
+  // Determine timeout: use parsing.chatTimeoutSeconds if available, otherwise performance.requestTimeout
+  const timeoutSeconds = config.parsing?.chatTimeoutSeconds ?? config.performance?.requestTimeout ?? 30;
+  const timeoutMs = timeoutSeconds * 1000;
+
   const settings: ProviderSettings = {
     providerName: providerName!,
     providerType,
@@ -126,6 +131,7 @@ export const resolveProviderSettings = async (
     temperature,
     maxTokens,
     embeddingDimensions,
+    timeout: timeoutMs,
   };
 
   return settings;

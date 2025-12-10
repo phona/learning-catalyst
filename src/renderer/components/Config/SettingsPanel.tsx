@@ -132,6 +132,12 @@ export const SettingsPanel: React.FC = () => {
   );
   const configService = useService('configService');
 
+  // Re-embedding state
+  const [isReembedding, setIsReembedding] = useState(false);
+  const [reembedProgress, setReembedProgress] = useState(0);
+  const [pendingDimensionChange, setPendingDimensionChange] = useState<number | null>(null);
+  const [showDimensionConfirm, setShowDimensionConfirm] = useState(false);
+
   useEffect(() => {
     if (!config) {
       useConfigStore
@@ -488,6 +494,118 @@ export const SettingsPanel: React.FC = () => {
     [localConfig],
   );
 
+  // Handle embedding dimension change with re-embedding
+  const handleEmbeddingDimensionsChange = useCallback(async (newDimensions: number) => {
+    if (!localConfig) return;
+    const currentDimensions = localConfig.ai.embeddingDimensions;
+
+    if (newDimensions === currentDimensions) return;
+
+    // If dimensions changed, show confirmation dialog
+    setPendingDimensionChange(newDimensions);
+    setShowDimensionConfirm(true);
+  }, [localConfig]);
+
+  // Confirm re-embedding process
+  const confirmReembedding = useCallback(async () => {
+    if (!localConfig || pendingDimensionChange === null) return;
+
+    setIsReembedding(true);
+    setReembedProgress(0);
+    setShowDimensionConfirm(false);
+
+    try {
+      // Step 1: Get all knowledge items from the knowledge service
+      setReembedProgress(10);
+      const response = await window.electronAPI.knowledgeGetAll();
+      if (!response.success) {
+        throw new Error('Failed to fetch knowledge data');
+      }
+
+      const knowledgeItems = response.data || [];
+      setReembedProgress(30);
+
+      // Step 2: Delete old collection
+      setReembedProgress(40);
+      await window.electronAPI.qdrantDeleteCollection('knowledge_items');
+
+      // Step 3: Update config
+      setReembedProgress(50);
+      const updatedConfig = {
+        ...localConfig,
+        ai: {
+          ...localConfig.ai,
+          embeddingDimensions: pendingDimensionChange,
+        },
+      };
+      await configService.setConfig(updatedConfig);
+
+      // Step 4: Create new collection
+      setReembedProgress(60);
+      await window.electronAPI.qdrantCreateCollection('knowledge_items', pendingDimensionChange, 'Cosine');
+
+      // Step 5: Re-embed and restore data
+      if (knowledgeItems.length > 0) {
+        setReembedProgress(70);
+        const batchSize = 10;
+        for (let i = 0; i < knowledgeItems.length; i += batchSize) {
+          const batch = knowledgeItems.slice(i, i + batchSize);
+          const points = [];
+
+          for (const item of batch) {
+            // Get embedding for this item
+            const embedResponse = await window.electronAPI.aiEmbedText(
+              item.content || item.name || ''
+            );
+
+            if (embedResponse.success) {
+              points.push({
+                id: item.id,
+                vector: embedResponse.data,
+                payload: {
+                  content: item.content || item.name || '',
+                  metadata: {
+                    ...item.metadata,
+                    reembeddedAt: new Date().toISOString(),
+                    originalDimensions: localConfig.ai.embeddingDimensions,
+                  },
+                },
+              });
+            }
+          }
+
+          if (points.length > 0) {
+            await window.electronAPI.knowledgeAddBatch(points);
+          }
+
+          const progress = 70 + ((i + batch.length) / knowledgeItems.length) * 30;
+          setReembedProgress(Math.min(progress, 99));
+        }
+      }
+
+      // Step 6: Update local config and complete
+      setLocalConfig(updatedConfig);
+      setReembedProgress(100);
+      setIsReembedding(false);
+      setPendingDimensionChange(null);
+
+      settingsToasts.success('Embedding dimensions updated successfully');
+
+    } catch (error) {
+      console.error('Re-embedding failed:', error);
+      setIsReembedding(false);
+      setPendingDimensionChange(null);
+      settingsToasts.error('Failed to update embedding dimensions: ' + (error as Error).message);
+      throw error;
+    }
+  }, [localConfig, pendingDimensionChange, configService]);
+
+  // Cancel re-embedding
+  const cancelReembedding = useCallback(() => {
+    setShowDimensionConfirm(false);
+    setPendingDimensionChange(null);
+  }, []);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem('settings_expanded_sections');
@@ -606,6 +724,41 @@ export const SettingsPanel: React.FC = () => {
                         onModelAssignmentChange={handleModelAssignmentChange}
                       />
                     </ComponentErrorBoundary>
+
+                    {/* Embedding Configuration */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Embedding Configuration
+                      </h3>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Embedding Dimensions
+                          </label>
+                          <Input
+                            type="number"
+                            min="64"
+                            max="4096"
+                            step="64"
+                            value={localConfig.ai.embeddingDimensions}
+                            onChange={(e) =>
+                              handleEmbeddingDimensionsChange(parseInt(e.target.value, 10) || 1024)
+                            }
+                            disabled={isReembedding}
+                            className="w-full"
+                            helperText={
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {isReembedding
+                                  ? `Re-embedding knowledge data... ${reembedProgress.toFixed(0)}%`
+                                  : 'Changing will re-embed all knowledge data with new dimensions'
+                                }
+                              </span>
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     <ComponentErrorBoundary componentName="Response Settings">
                       <ResponseSettings config={localConfig} onConfigChange={handleConfigChange} />
                     </ComponentErrorBoundary>
@@ -656,6 +809,29 @@ export const SettingsPanel: React.FC = () => {
           cancelText="Cancel"
           onConfirm={handleConfirmProviderChange}
           onCancel={handleCancelProviderChange}
+        />
+
+        {/* Embedding Dimensions Re-embedding Confirmation */}
+        <ConfirmDialog
+          isOpen={showDimensionConfirm}
+          title="Re-embed Knowledge Data?"
+          message={
+            <div className="space-y-3">
+              <p>Changing embedding dimensions will re-embed all knowledge data.</p>
+              <p>This process will:</p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                <li>Delete the existing vector collection</li>
+                <li>Re-embed all concepts and knowledge items</li>
+                <li>Take several minutes depending on data size</li>
+                <li>Preserve all your data, only embeddings will change</li>
+              </ul>
+              <p className="font-medium">This action cannot be undone.</p>
+            </div>
+          }
+          confirmText="Continue"
+          cancelText="Cancel"
+          onConfirm={confirmReembedding}
+          onCancel={cancelReembedding}
         />
       </div>
     </SettingsErrorBoundary>

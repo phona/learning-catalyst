@@ -19,11 +19,11 @@ describe('concept parsing vectorization', () => {
   });
 
   it('always vectorizes when a vector DB is provided, even if vectorize flag is false', async () => {
-    const addDocumentWithEmbedding = vi.fn().mockResolvedValue(undefined);
+    const addDocumentBatch = vi.fn().mockResolvedValue(undefined);
     const vectorDatabase = {
       addDocument: vi.fn(),
-      addDocumentWithEmbedding: addDocumentWithEmbedding,
-      addDocumentBatch: vi.fn(),
+      addDocumentWithEmbedding: vi.fn(),
+      addDocumentBatch: addDocumentBatch,
       search: vi.fn(),
       deleteDocument: vi.fn(),
       getStats: vi.fn(),
@@ -36,6 +36,7 @@ describe('concept parsing vectorization', () => {
       })),
       getEmbeddingModel: vi.fn(async () => ({
         embed: vi.fn(async () => Array(1536).fill(0.1)),
+        embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
       })),
     };
     const loggerService: any = {
@@ -59,6 +60,6 @@ describe('concept parsing vectorization', () => {
       { vectorize: false, minSegmentChars: 1, maxSegmentChars: 0 },
     );
 
-    expect(addDocumentWithEmbedding).toHaveBeenCalled();
+    expect(addDocumentBatch).toHaveBeenCalled();
   });
 });

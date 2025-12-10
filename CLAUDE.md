@@ -63,8 +63,10 @@ Targeted iteration scripts:
 - **Main Process** (Node.js): AI services, database, agent orchestration → **provides electronAPI**
 - **Renderer Process** (Browser): React UI, state management → **consumes electronAPI**
 - **IPC Layer**: Secure communication via preload scripts
-- **Storage**: SQLite + Qdrant vector database
+- **Storage**: SQLite (source of truth) + Qdrant (vector index only)
 - **AI**: Multi-provider (OpenAI, ChatGLM, DeepSeek, local models)
+
+**📚 Database Architecture**: [ARCHITECTURE-CLEAN-DATABASE.md](./docs/ARCHITECTURE-CLEAN-DATABASE.md) - Clean separation of SQLite (full data) and Qdrant (vectors + conceptId)
 
 ### Functional Pattern (All Modules)
 
@@ -455,6 +457,10 @@ const response = await window.electronAPI.chat.sendMessage(message);
 
 - `vitest*.config.ts` - Test configurations
 - `src/test/` - Global test utilities
+
+**Documentation:**
+
+- `docs/ARCHITECTURE-CLEAN-DATABASE.md` - Clean database architecture guide (SQLite + Qdrant separation)
 
 ## Assistant UI Integration (Dec 5, 2025)
 

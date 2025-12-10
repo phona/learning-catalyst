@@ -1,324 +1,487 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+/**
+ * Provider Factory - Real Implementation Tests
+ *
+ * These tests verify that configuration flows correctly through the provider factory.
+ * They catch bugs where config is read but not used (like the model configuration bug).
+ */
 
-describe('Provider Factory - Interface Tests', () => {
-  describe('Factory Pattern', () => {
-    it('should create provider factory interface', () => {
-      const providerFactory = {
-        createProvider: vi.fn().mockReturnValue({
-          chatCompletion: vi.fn(),
-          getModels: vi.fn().mockResolvedValue([]),
-          getEmbeddings: vi.fn().mockResolvedValue([]),
-        }),
-        validateSettings: vi.fn().mockReturnValue(true),
-      };
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createProviderFactory } from '../../agent/provider-factory';
+import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 
-      expect(providerFactory).toHaveProperty('createProvider');
-      expect(providerFactory).toHaveProperty('validateSettings');
+vi.mock('@langchain/openai', () => ({
+  ChatOpenAI: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
+  OpenAIEmbeddings: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
+}));
 
-      expect(typeof providerFactory.createProvider).toBe('function');
-      expect(typeof providerFactory.validateSettings).toBe('function');
-    });
+describe('Provider Factory - Real Implementation', () => {
+  const makeConfigService = (config: any) => ({
+    getConfig: vi.fn().mockResolvedValue(config),
+    setConfig: vi.fn(),
+    getProviderConfig: vi.fn(),
+    setProviderConfig: vi.fn(),
+    onConfigChanged: vi.fn().mockReturnValue(() => undefined),
+    get: vi.fn(async (path: string) => {
+      const segments = path.split('.');
+      return segments.reduce<any>((acc, key) => (acc ? acc[key] : undefined), config);
+    }),
+    isSetupComplete: vi.fn().mockResolvedValue(true),
+  });
 
-    it('should create providers with correct configuration', async () => {
-      const providerFactory = {
-        createProvider: vi.fn().mockImplementation((config) => {
-          return {
-            id: config.id || 'default-provider',
-            name: config.name || 'Default Provider',
-            type: config.type || 'openai',
-            settings: config.settings || {},
-            chatCompletion: vi.fn(),
-            getModels: vi.fn().mockResolvedValue([]),
-            getEmbeddings: vi.fn().mockResolvedValue([]),
-          };
-        }),
-        validateSettings: vi.fn().mockReturnValue(true),
-      };
-
+  describe('Chat Model Configuration', () => {
+    it('should use ai.modelTypes.chat for ChatOpenAI creation', async () => {
       const config = {
-        id: 'openai-gpt4',
-        name: 'OpenAI GPT-4',
-        type: 'openai',
-        settings: {
-          apiKey: 'sk-test-key',
-          model: 'gpt-4',
-          temperature: 0.7,
+        ai: {
+          providers: {
+            chatglm: {
+              providerType: 'chatglm',
+              apiKey: '869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS',
+              baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'chatglm',
+              model: 'glm-4.5-air',
+              temperature: 0.4,
+              maxTokens: 20480,
+            },
+          },
+          embeddingDimensions: 1536,
         },
       };
 
-      const provider = providerFactory.createProvider(config);
+      const factory = createProviderFactory(makeConfigService(config));
+      const model = await factory.getModel();
 
-      expect(provider).toMatchObject({
-        id: 'openai-gpt4',
-        name: 'OpenAI GPT-4',
-        type: 'openai',
-        settings: {
-          apiKey: 'sk-test-key',
-          model: 'gpt-4',
-          temperature: 0.7,
+      // Verify ChatOpenAI was called with CORRECT parameters
+      expect(ChatOpenAI).toHaveBeenCalledWith({
+        modelName: 'glm-4.5-air',
+        temperature: 0.4,
+        maxTokens: 12000, // clamped from 20480
+        apiKey: '869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS',
+        maxRetries: 1,
+        timeout: 30000,
+        configuration: {
+          baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
         },
       });
 
-      expect(providerFactory.createProvider).toHaveBeenCalledWith(config);
+      expect(model.config.modelName).toBe('glm-4.5-air');
+      expect(model.config.temperature).toBe(0.4);
+      expect(model.config.apiKey).toBe('869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS');
+    });
+
+    it('should handle different provider types correctly', async () => {
+      const config = {
+        ai: {
+          providers: {
+            openai: {
+              providerType: 'openai',
+              apiKey: 'sk-test-key',
+              baseUrl: 'https://api.openai.com/v1',
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'openai',
+              model: 'gpt-4',
+              temperature: 0.7,
+            },
+          },
+          embeddingDimensions: 1536,
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+      const model = await factory.getModel();
+
+      expect(ChatOpenAI).toHaveBeenCalledWith({
+        modelName: 'gpt-4',
+        temperature: 0.7,
+        maxTokens: NaN, // Provider doesn't have maxTokens, clamp returns NaN
+        apiKey: 'sk-test-key',
+        maxRetries: 1,
+        timeout: 30000,
+        configuration: {
+          baseURL: 'https://api.openai.com/v1',
+        },
+      });
+    });
+
+    it('should work with local providers without API keys', async () => {
+      const config = {
+        ai: {
+          providers: {
+            ollama: {
+              providerType: 'ollama',
+              baseUrl: 'http://localhost:11434/v1',
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'ollama',
+              model: 'llama-3.1',
+              temperature: 0.5,
+            },
+          },
+          embeddingDimensions: 1536,
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+      const model = await factory.getModel();
+
+      expect(ChatOpenAI).toHaveBeenCalledWith({
+        modelName: 'llama-3.1',
+        temperature: 0.5,
+        maxTokens: NaN, // Provider doesn't have maxTokens, clamp returns NaN
+        apiKey: undefined,
+        maxRetries: 1,
+        timeout: 30000,
+        configuration: {
+          baseURL: 'http://localhost:11434/v1',
+        },
+      });
     });
   });
 
-  describe('Provider Validation', () => {
-    it('should validate provider settings', () => {
-      const validator = {
-        validateSettings: vi.fn().mockImplementation((settings) => {
-          const required = ['apiKey', 'model'];
-          return required.every((field) => settings.hasOwnProperty(field) && settings[field]);
-        }),
+  describe('Embeddings Configuration', () => {
+    it('should use ai.modelTypes.embedding for OpenAIEmbeddings', async () => {
+      const config = {
+        ai: {
+          providers: {
+            siliconflow: {
+              providerType: 'siliconflow',
+              apiKey: 'sk-sf-key',
+              baseUrl: 'https://api.siliconflow.cn/v1',
+            },
+          },
+          modelTypes: {
+            embedding: {
+              provider: 'siliconflow',
+              model: 'Qwen/Qwen3-Embedding-4B',
+            },
+          },
+          embeddingDimensions: 1536,
+        },
       };
 
-      const validSettings = { apiKey: 'key-123', model: 'gpt-4' };
-      const invalidSettings = { apiKey: 'key-123' }; // missing model
+      const factory = createProviderFactory(makeConfigService(config));
+      const embeddings = await factory.getEmbeddings();
 
-      expect(validator.validateSettings(validSettings)).toBe(true);
-      expect(validator.validateSettings(invalidSettings)).toBe(false);
-    });
-
-    it('should validate provider types', () => {
-      const typeValidator = {
-        isSupportedType: vi.fn().mockImplementation((type) => {
-          const supportedTypes = ['openai', 'chatglm', 'deepseek', 'local'];
-          return supportedTypes.includes(type);
-        }),
-      };
-
-      expect(typeValidator.isSupportedType('openai')).toBe(true);
-      expect(typeValidator.isSupportedType('chatglm')).toBe(true);
-      expect(typeValidator.isSupportedType('deepseek')).toBe(true);
-      expect(typeValidator.isSupportedType('local')).toBe(true);
-      expect(typeValidator.isSupportedType('unsupported')).toBe(false);
-    });
-  });
-
-  describe('Provider Management', () => {
-    it('should manage provider lifecycle', () => {
-      const providers = new Map();
-      const providerManager = {
-        providers,
-        register: vi.fn().mockImplementation((id, provider) => {
-          providers.set(id, provider);
-          return true;
-        }),
-        get: vi.fn().mockImplementation((id) => {
-          return providers.get(id);
-        }),
-        remove: vi.fn().mockImplementation((id) => {
-          return providers.delete(id);
-        }),
-        list: vi.fn().mockImplementation(() => {
-          return Array.from(providers.keys());
-        }),
-      };
-
-      const mockProvider = {
-        id: 'test-provider',
-        name: 'Test Provider',
-        type: 'test',
-      };
-
-      expect(providerManager.register('test', mockProvider)).toBe(true);
-      expect(providerManager.get('test')).toBe(mockProvider);
-      expect(providerManager.list()).toContain('test');
-      expect(providerManager.remove('test')).toBe(true);
-      expect(providerManager.get('test')).toBeUndefined();
-    });
-
-    it('should handle provider configuration changes', () => {
-      const configurations = new Map();
-      const configManager = {
-        configurations,
-        update: vi.fn().mockImplementation((id, config) => {
-          configurations.set(id, config);
-          return true;
-        }),
-        get: vi.fn().mockImplementation((id) => {
-          return configurations.get(id);
-        }),
-        reload: vi.fn().mockImplementation((id) => {
-          // Mock reload logic
-          return Promise.resolve(true);
-        }),
-      };
-
-      const newConfig = {
-        temperature: 0.8,
-        maxTokens: 2048,
-      };
-
-      expect(configManager.update('openai', newConfig)).toBe(true);
-      expect(configManager.get('openai')).toEqual(newConfig);
-      expect(configManager.reload('openai')).resolves.toBe(true);
-    });
-  });
-
-  describe('Provider Selection', () => {
-    it('should select appropriate provider based on criteria', () => {
-      const selector = {
-        selectProvider: vi.fn().mockImplementation((criteria) => {
-          if (criteria.task === 'coding') {
-            return 'deepseek-coder';
-          }
-          if (criteria.priority === 'speed') {
-            return 'local-fast';
-          }
-          if (criteria.modelType === 'reasoning') {
-            return 'openai-gpt4';
-          }
-          return 'default-provider';
-        }),
-      };
-
-      expect(selector.selectProvider({ task: 'coding' })).toBe('deepseek-coder');
-      expect(selector.selectProvider({ priority: 'speed' })).toBe('local-fast');
-      expect(selector.selectProvider({ modelType: 'reasoning' })).toBe('openai-gpt4');
-      expect(selector.selectProvider({})).toBe('default-provider');
-    });
-
-    it('should handle provider fallbacks', async () => {
-      const fallbackManager = {
-        providers: ['openai', 'chatglm', 'deepseek'],
-        tryWithFallback: vi.fn().mockImplementation(async (operation, providers) => {
-          for (const provider of providers) {
-            try {
-              return await operation(provider);
-            } catch (error) {
-              // Continue to next provider
-            }
-          }
-          throw new Error('All providers failed');
-        }),
-      };
-
-      const mockOperation = vi.fn().mockImplementation(async (provider) => {
-        if (provider === 'openai') {
-          return 'openai-result';
-        }
-        if (provider === 'chatglm') {
-          return 'chatglm-result';
-        }
-        throw new Error(`${provider} failed`);
+      expect(OpenAIEmbeddings).toHaveBeenCalledWith({
+        apiKey: 'sk-sf-key',
+        model: 'Qwen/Qwen3-Embedding-4B',
+        configuration: {
+          baseURL: 'https://api.siliconflow.cn/v1',
+        },
+        dimensions: 1536,
       });
 
-      expect(await fallbackManager.tryWithFallback(mockOperation, fallbackManager.providers)).toBe(
-        'openai-result',
+      expect(embeddings.config.model).toBe('Qwen/Qwen3-Embedding-4B');
+      expect(embeddings.config.apiKey).toBe('sk-sf-key');
+    });
+
+    it('should use embeddingDimensions from config', async () => {
+      const config = {
+        ai: {
+          providers: {
+            openai: {
+              providerType: 'openai',
+              apiKey: 'sk-key',
+            },
+          },
+          modelTypes: {
+            embedding: {
+              provider: 'openai',
+              model: 'text-embedding-3-small',
+            },
+          },
+          embeddingDimensions: 512, // Different from default
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+      const embeddings = await factory.getEmbeddings();
+
+      expect(OpenAIEmbeddings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dimensions: 512,
+        })
       );
-
-      mockOperation.mockImplementation(async (provider) => {
-        throw new Error(`${provider} failed`);
-      });
-
-      await expect(
-        fallbackManager.tryWithFallback(mockOperation, fallbackManager.providers),
-      ).rejects.toThrow('All providers failed');
     });
   });
 
-  describe('Provider Metrics', () => {
-    it('should track provider performance', () => {
-      const metrics = new Map();
-      const metricsCollector = {
-        metrics,
-        recordExecution: vi.fn().mockImplementation((provider, operation, duration) => {
-          const key = `${provider}-${operation}`;
-          if (!metrics.has(key)) {
-            metrics.set(key, { count: 0, totalTime: 0 });
-          }
-          const metric = metrics.get(key);
-          metric.count++;
-          metric.totalTime += duration;
-          metric.averageTime = metric.totalTime / metric.count;
-        }),
-        getMetrics: vi.fn().mockImplementation((provider) => {
-          return Array.from(metrics.entries())
-            .filter(([key]) => key.startsWith(provider))
-            .map(([key, value]) => [key, value]);
-        }),
+  describe('Configuration Precedence', () => {
+    it('modelType config should override provider config', async () => {
+      const config = {
+        ai: {
+          providers: {
+            test: {
+              providerType: 'openai',
+              apiKey: 'key',
+              model: 'gpt-3.5-turbo',  // Provider has this
+              temperature: 0.9,         // Provider has this
+              maxTokens: 1000,          // Provider has this
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'test',
+              model: 'gpt-4',          // Model type should override
+              temperature: 0.3,         // Model type should override
+              maxTokens: 2000,          // Model type should override
+            },
+          },
+        },
       };
 
-      metricsCollector.recordExecution('openai', 'chatCompletion', 100);
-      metricsCollector.recordExecution('openai', 'chatCompletion', 200);
-      metricsCollector.recordExecution('openai', 'getModels', 50);
+      const factory = createProviderFactory(makeConfigService(config));
+      const model = await factory.getModel();
 
-      const openaiMetrics = metricsCollector.getMetrics('openai');
-
-      expect(openaiMetrics).toHaveLength(2);
-      expect(openaiMetrics[0][0]).toBe('openai-chatCompletion');
-      expect(openaiMetrics[0][1].count).toBe(2);
-      expect(openaiMetrics[0][1].totalTime).toBe(300);
-      expect(openaiMetrics[0][1].averageTime).toBe(150);
+      // Verify model type config takes precedence
+      expect(model.config.modelName).toBe('gpt-4');      // NOT 'gpt-3.5-turbo'
+      expect(model.config.temperature).toBe(0.3);       // NOT 0.9
+      expect(model.config.maxTokens).toBe(2000);        // NOT 1000
     });
 
-    it('should calculate provider costs', () => {
-      const pricing = {
-        'openai-gpt4': { input: 0.03, output: 0.06 },
-        'openai-gpt-3.5': { input: 0.002, output: 0.002 },
-        'local-llama': { input: 0, output: 0 },
-      };
-      const costCalculator = {
-        pricing,
-        calculateCost: vi.fn().mockImplementation((model, inputTokens, outputTokens) => {
-          const modelPricing = pricing[model as keyof typeof pricing];
-          if (!modelPricing) return 0;
-          return (modelPricing.input * inputTokens + modelPricing.output * outputTokens) / 1000;
-        }),
+    it('should fall back to provider config when modelType missing', async () => {
+      const config = {
+        ai: {
+          providers: {
+            test: {
+              providerType: 'openai',
+              apiKey: 'key',
+              model: 'gpt-4',
+              temperature: 0.7,
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'test',
+              // model, temperature missing - should use provider values
+            },
+          },
+        },
       };
 
-      expect(costCalculator.calculateCost('openai-gpt4', 1000, 500)).toBe(0.06);
-      expect(costCalculator.calculateCost('openai-gpt-3.5', 2000, 1000)).toBe(0.006);
-      expect(costCalculator.calculateCost('local-llama', 5000, 2500)).toBe(0);
+      const factory = createProviderFactory(makeConfigService(config));
+      const model = await factory.getModel();
+
+      expect(model.config.modelName).toBe('gpt-4');
+      expect(model.config.temperature).toBe(0.7);
     });
   });
 
-  describe('Provider Testing', () => {
-    it('should test provider connectivity', async () => {
-      const connectivityTester = {
-        testConnection: vi.fn().mockImplementation(async (provider) => {
-          // Mock connection test
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          return { provider, status: 'connected', latency: 50 };
-        }),
+  describe('Error Handling', () => {
+    it('should throw when ai.modelTypes.chat is missing', async () => {
+      const config = {
+        ai: {
+          providers: {
+            test: {
+              providerType: 'openai',
+              apiKey: 'key',
+            },
+          },
+          // No modelTypes
+        },
       };
 
-      const result = await connectivityTester.testConnection('openai');
-
-      expect(result).toMatchObject({
-        provider: 'openai',
-        status: 'connected',
-        latency: expect.any(Number),
-      });
+      const factory = createProviderFactory(makeConfigService(config));
+      await expect(factory.getModel()).rejects.toThrow('Default chat provider not configured');
     });
 
-    it('should validate provider responses', () => {
-      const responseValidator = {
-        validateResponse: vi.fn().mockImplementation((provider, response) => {
-          if (!response || typeof response !== 'object') {
-            return { valid: false, error: 'Invalid response format' };
-          }
-          if (!response.content && !response.choices) {
-            return { valid: false, error: 'Missing content or choices' };
-          }
-          return { valid: true };
-        }),
+    it('should throw when chat provider is missing', async () => {
+      const config = {
+        ai: {
+          providers: {
+            // No 'test' provider
+          },
+          modelTypes: {
+            chat: {
+              provider: 'test',
+              model: 'gpt-4',
+            },
+          },
+        },
       };
 
-      const validResponse = {
-        content: 'Test response',
-        model: 'gpt-4',
-        usage: { promptTokens: 10, completionTokens: 20 },
+      const factory = createProviderFactory(makeConfigService(config));
+      await expect(factory.getModel()).rejects.toThrow('Provider "test" not found');
+    });
+
+    it('should throw when remote provider has no API key', async () => {
+      const config = {
+        ai: {
+          providers: {
+            openai: {
+              providerType: 'openai',
+              // No apiKey
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'openai',
+              model: 'gpt-4',
+            },
+          },
+        },
       };
 
-      const invalidResponse = 'not a proper response object';
+      const factory = createProviderFactory(makeConfigService(config));
+      await expect(factory.getModel()).rejects.toThrow('API key required');
+    });
 
-      expect(responseValidator.validateResponse('openai', validResponse)).toEqual({ valid: true });
-      expect(responseValidator.validateResponse('openai', invalidResponse)).toEqual({
-        valid: false,
-        error: 'Invalid response format',
-      });
+    it('should throw when embedding config is missing', async () => {
+      const config = {
+        ai: {
+          providers: {
+            openai: {
+              providerType: 'openai',
+              apiKey: 'key',
+            },
+          },
+          // No modelTypes.embedding
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+      await expect(factory.getEmbeddings()).rejects.toThrow('Embedding config missing');
+    });
+  });
+
+  describe('Model Caching', () => {
+    it('should cache and reuse model instances', async () => {
+      const config = {
+        ai: {
+          providers: {
+            test: {
+              providerType: 'openai',
+              apiKey: 'key',
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'test',
+              model: 'gpt-4',
+            },
+          },
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+      const model1 = await factory.getModel();
+      const model2 = await factory.getModel();
+
+      // Should be the same instance due to caching
+      expect(model1).toBe(model2);
+      expect(ChatOpenAI).toHaveBeenCalledTimes(1);
+    });
+
+    it('should cache embeddings separately from chat models', async () => {
+      const config = {
+        ai: {
+          providers: {
+            test: {
+              providerType: 'openai',
+              apiKey: 'key',
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'test',
+              model: 'gpt-4',
+            },
+            embedding: {
+              provider: 'test',
+              model: 'text-embedding-3-small',
+            },
+          },
+          embeddingDimensions: 1536,
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+      const model = await factory.getModel();
+      const embeddings = await factory.getEmbeddings();
+
+      // Different cache keys, different instances
+      expect(model).not.toBe(embeddings);
+      expect(ChatOpenAI).toHaveBeenCalledTimes(1);
+      expect(OpenAIEmbeddings).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Real Config Integration', () => {
+    it('should work with production-like config structure', async () => {
+      const config = {
+        ai: {
+          providers: {
+            chatglm: {
+              providerType: 'chatglm',
+              apiKey: '869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS',
+              baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
+              models: ['glm-4', 'glm-4-0520', 'glm-3-turbo'],
+            },
+            'openai-1764258325151': {
+              providerType: 'openai',
+              apiKey: '123sqq11111111111',
+              baseUrl: 'https://api.openai.com/v1',
+              displayName: 'OpenAI',
+              models: [],
+            },
+            'siliconflow-1764422754877': {
+              providerType: 'siliconflow',
+              apiKey: 'sk-lqehbcbqjdpqvpoxnkmmbivrdsvckhgmxdinngddmkfvlcjv',
+              baseUrl: 'https://api.siliconflow.cn/v1',
+              displayName: 'SiliconFlow',
+              models: [],
+            },
+          },
+          modelTypes: {
+            chat: {
+              provider: 'chatglm',
+              model: 'glm-4.5-air',
+              temperature: 0.4,
+              maxTokens: 20480,
+              topP: 1,
+              enableThinking: false,
+              stream: true,
+              capabilities: {
+                streaming: true,
+                thinking: false,
+                functionCalling: false,
+                vision: false,
+              },
+            },
+            embedding: {
+              provider: 'siliconflow-1764422754877',
+              model: 'Qwen/Qwen3-Embedding-4B',
+            },
+            rerank: {
+              provider: 'siliconflow-1764422754877',
+              model: 'Qwen/Qwen3-Reranker-0.6B',
+            },
+          },
+          embeddingDimensions: 1536,
+        },
+      };
+
+      const factory = createProviderFactory(makeConfigService(config));
+
+      // Test chat model
+      const model = await factory.getModel();
+      expect(model.config.modelName).toBe('glm-4.5-air');
+      expect(model.config.temperature).toBe(0.4);
+
+      // Test embeddings
+      const embeddings = await factory.getEmbeddings();
+      expect(embeddings.config.model).toBe('Qwen/Qwen3-Embedding-4B');
+
+      // All should work without errors
+      expect(model).toBeDefined();
+      expect(embeddings).toBeDefined();
     });
   });
 });

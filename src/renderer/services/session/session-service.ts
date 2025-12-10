@@ -86,7 +86,6 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
    * Fetch recent sessions for the UI
    */
   const getRecentSessions = async (limit = 10): Promise<SessionDisplay[]> => {
-    console.log('[SessionService] getRecentSessions request', { limit });
     await apiClient.awaitReady();
     const response = await apiClient.sessions.getRecentSessions({ limit });
 
@@ -95,7 +94,6 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     }
 
     const data = response.data || [];
-    console.log('[SessionService] getRecentSessions result', { count: data.length });
     return data;
   };
 

@@ -24,7 +24,7 @@ Start here if you're new to Learning Catalyst:
    - [Learning Sessions](USER-GUIDE/learning-sessions.md)
    - [Settings](USER-GUIDE/settings.md)
 
-3. **[Product Vision](../docs/product-blueprint.md)** - Understand the learning philosophy
+3. **[Product Vision](product-blueprint.md)** - Understand the learning philosophy
 
 ### 🚀 For Developers
 
@@ -128,14 +128,27 @@ docs/
 │   ├── learning-sessions.md            # Save/restore progress
 │   └── settings.md                     # Configuration
 │
-└── DEVELOPER-GUIDE/                    # Technical documentation
-    ├── README.md                       # Developer onboarding
-    ├── architecture.md                 # System design
-    ├── electron-api.md                 # IPC contracts ⭐
-    ├── database.md                     # Schema & migrations ⭐
-    ├── services.md                     # Main process services
-    ├── agents.md                       # Multi-agent system
-    └── performance.md                  # Memory optimization
+├── DEVELOPER-GUIDE/                    # Technical documentation
+│   ├── README.md                       # Developer onboarding
+│   ├── architecture.md                 # System design
+│   ├── electron-api.md                 # IPC contracts ⭐
+│   ├── database.md                     # Schema & migrations ⭐
+│   ├── database-clean-architecture.md  # Clean DB pattern ⭐
+│   ├── services.md                     # Main process services
+│   ├── agents.md                       # Multi-agent system
+│   └── performance.md                  # Memory optimization
+│
+├── TESTING/                            # Testing documentation
+│   ├── README.md                       # Testing overview
+│   ├── status.md                       # Current test status
+│   ├── improvements.md                 # Testing best practices
+│   └── complete-workflow-tests.md      # Workflow testing
+│
+└── WORKFLOW/                           # Workflow documentation
+    ├── README.md                       # Workflow overview
+    ├── workflow-overview.md            # End-to-end flow
+    ├── node-role-usage.md              # Role mapping system
+    └── normalization-usage.md          # Message normalization
 ```
 
 ## Learning Paths

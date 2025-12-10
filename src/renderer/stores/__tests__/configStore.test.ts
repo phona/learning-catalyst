@@ -5,7 +5,7 @@ let useConfigStore: typeof import('../useConfigStore').useConfigStore;
 let setConfigurationService: typeof import('../useConfigStore').setConfigurationService;
 
 const baseConfig: AppConfig = {
-  ai: { providers: {}, modelTypes: {} },
+  ai: { providers: {}, modelTypes: {}, embeddingDimensions: 1024 },
   ui: { theme: 'light', showTokenUsage: false, displayFormat: 'detailed', sessionDuration: 25, fontSize: 'medium', sidebarWidth: 300, autoSave: true, autoScroll: true, showLineNumbers: false, enableMarkdown: true, enableSyntaxHighlighting: true, compactMode: false },
   learning: { autoSave: true, sessionTimeoutMinutes: 60, difficulty: 'intermediate', learningStyle: 'visual', personalizationEnabled: true, checkpointInterval: 15, maxSessionHistory: 100, enableAnalytics: false, preferredExplanationLength: 'detailed' },
   privacy: { storeConversations: true, retentionDays: 90, anonymousAnalytics: false, crashReporting: true, encryptLocalStorage: false, autoCleanup: true, exportFormat: 'json' },

@@ -536,24 +536,37 @@ const addConceptsToVector = async (
 
   try {
     const embeddingModel = await providerFactory.getEmbeddingModel();
+    const startTime = Date.now();
 
-    // Store each concept with its actual ID
-    for (const concept of concepts) {
-      const text = `${concept.name}\n\n${concept.description}`;
-      const embedding = await embeddingModel.embed(text);
+    // FAST: Batch all concept texts and generate embeddings at once
+    const conceptTexts = concepts.map(concept => `${concept.name}\n\n${concept.description}`);
+    const embeddings = await embeddingModel.embedBatch(conceptTexts);
 
-      await vectorDatabase.addDocumentWithEmbedding(
-        {
-          id: `concept:${concept.id}`,
-          content: text,
-          metadata: {
-            conceptId: concept.id,  // ← Link to SQLite (single source of truth)
-            type: 'concept',
-          },
+    // FAST: Prepare all documents for batch insertion
+    const documentsWithEmbeddings = concepts.map((concept, index) => ({
+      doc: {
+        id: `concept:${concept.id}`,
+        content: conceptTexts[index],
+        metadata: {
+          conceptId: concept.id,  // ← Link to SQLite (single source of truth)
+          type: 'concept',
         },
-        embedding,
-      );
-    }
+      },
+      embedding: Array.isArray(embeddings[index]) ? embeddings[index] : embeddings[index] as number[],
+    }));
+
+    // FAST: Store all documents in a single batch operation
+    await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
+
+    const durationMs = Date.now() - startTime;
+    logger?.debug(
+      'Concepts vector storage completed',
+      {
+        conceptCount: concepts.length,
+        durationMs,
+        avgTimePerConcept: durationMs / concepts.length,
+      },
+    );
   } catch (error) {
     logger?.warn(
       'Concept vector storage failed',
@@ -610,6 +623,85 @@ const addRelationshipToVector = async (
   );
 };
 
+const addRelationshipsBatch = async (
+  relationships: ParsedRelationship[],
+  concepts: Map<string, ParsedConcept>,
+  material: ConceptParsingMaterial,
+  providerFactory: ProviderFactory,
+  vectorDatabase: VectorDatabase,
+  logger?: ILogger,
+) => {
+  try {
+    const embeddingModel = await providerFactory.getEmbeddingModel();
+    const startTime = Date.now();
+
+    // FAST: Batch all relationship texts and generate embeddings at once
+    const relationshipTexts = relationships.map(rel => {
+      const sourceConcept = concepts.get(rel.sourceId);
+      const targetConcept = concepts.get(rel.targetId);
+
+      if (!sourceConcept || !targetConcept) {
+        return '';
+      }
+
+      return [
+        `Relationship: ${rel.type}`,
+        `From concept ${rel.sourceId}`,
+        `To concept ${rel.targetId}`,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+    }).filter(text => text.length > 0);
+
+    if (relationshipTexts.length === 0) return;
+
+    const embeddings = await embeddingModel.embedBatch(relationshipTexts);
+
+    // FAST: Prepare all documents for batch insertion
+    const validRelationships = relationships.filter(rel => {
+      const sourceConcept = concepts.get(rel.sourceId);
+      const targetConcept = concepts.get(rel.targetId);
+      return sourceConcept && targetConcept;
+    });
+
+    const documentsWithEmbeddings = validRelationships.map((relationship, index) => ({
+      doc: {
+        id: `rel:${relationship.sourceId}:${relationship.targetId}`,
+        content: relationshipTexts[index],
+        metadata: {
+          type: 'relationship',
+          relationshipId: `${relationship.sourceId}:${relationship.targetId}`,  // ← Link to SQLite
+          sourceConceptId: relationship.sourceId,
+          targetConceptId: relationship.targetId,
+        },
+      },
+      embedding: Array.isArray(embeddings[index]) ? embeddings[index] : embeddings[index] as number[],
+    }));
+
+    // FAST: Store all relationship documents in a single batch operation
+    await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
+
+    const durationMs = Date.now() - startTime;
+    logger?.debug(
+      'Relationships vector storage completed',
+      {
+        relationshipCount: relationships.length,
+        durationMs,
+        avgTimePerRelationship: durationMs / relationships.length,
+      },
+    );
+  } catch (error) {
+    logger?.warn(
+      'Relationship vector storage failed',
+      error instanceof Error ? error : undefined,
+      {
+        relationshipCount: relationships.length,
+        details: toLogError(error),
+      },
+    );
+  }
+};
+
 export const createConceptParsingService = ({
   providerFactory,
   vectorDatabase,
@@ -629,31 +721,68 @@ export const createConceptParsingService = ({
     });
     const previewPayload = previewToPromptPayload(preview);
     const lines = segment.content.split(/\r?\n/).length;
-    const modelEntry = await currentProviderFactory.getModel();
+    const model = await currentProviderFactory.getModel();
+
+    // Validate model before creating chain to provide clearer error messages
+    if (!model || typeof model !== 'object') {
+      throw new Error(`Invalid model type: ${typeof model}. Expected ChatOpenAI instance.`);
+    }
+
+    const payloadSize = previewPayload.length;
     serviceLogger.info('Segment extraction start', {
       segmentId: segment.id,
       segmentTitle: segment.title,
-      chars: segment.content.length,
+      contentChars: segment.content.length,
       lines,
-      promptLength: previewPayload.length,
+      promptLength: payloadSize,
       previewStats: preview.stats,
-      provider: modelEntry.settings.providerName,
-      model: modelEntry.settings.model,
+      promptToContentRatio: (payloadSize / segment.content.length).toFixed(2),
     });
     try {
-      const chain = createSegmentExtractChain(modelEntry.model as any);
+      const chain = createSegmentExtractChain(model as any);
+
+      // DEBUG: Log model configuration for concept parsing
+      const modelConfig = (model as any)?.config || {};
+      serviceLogger.debug('[CONCEPT-PARSING] Model config', {
+        segmentId: segment.id,
+        modelName: modelConfig.modelName || modelConfig.model,
+        timeoutMs: modelConfig.timeout,
+        temperature: modelConfig.temperature,
+        maxTokens: modelConfig.maxTokens,
+        maxRetries: modelConfig.maxRetries,
+        invocationStart: new Date().toISOString(),
+      });
+
+      serviceLogger.info('[CONCEPT-PARSING] LangChain invoke starting', {
+        segmentId: segment.id,
+        payloadSize,
+        timestamp: new Date().toISOString(),
+      });
+
+      const chainInvokeStart = Date.now();
       const result = (await chain.invoke({
         preview_payload: previewPayload,
       })) as SegmentExtractionSchema;
-      // const durationMs = Date.now() - startTs;
-      // serviceLogger.info('Segment extraction end', {
-      //   segmentId: segment.id,
-      //   segmentTitle: segment.title,
-      //   durationMs,
-      //   nodes: (result.nodes ?? []).length,
-      //   relationships: (result.relationships ?? []).length,
-      //   summaryLength: (result.summary ?? '').length,
-      // });
+      const chainInvokeDuration = Date.now() - chainInvokeStart;
+
+      serviceLogger.info('[CONCEPT-PARSING] LangChain invoke completed', {
+        segmentId: segment.id,
+        chainInvokeDurationMs: chainInvokeDuration,
+        chainInvokeDurationSec: (chainInvokeDuration / 1000).toFixed(2),
+        completionTime: new Date().toISOString(),
+        nodesFound: (result.nodes ?? []).length,
+        relationshipsFound: (result.relationships ?? []).length,
+        charsPerSecond: Math.round((segment.content.length / chainInvokeDuration) * 1000),
+      });
+      const durationMs = Date.now() - startTs;
+      serviceLogger.info('Segment extraction completed', {
+        segmentId: segment.id,
+        segmentTitle: segment.title,
+        durationMs,
+        nodes: (result.nodes ?? []).length,
+        relationships: (result.relationships ?? []).length,
+        avgTimePerNode: durationMs / Math.max(1, (result.nodes ?? []).length),
+      });
       return result;
     } catch (error) {
       const durationMs = Date.now() - startTs;
@@ -933,13 +1062,11 @@ export const createConceptParsingService = ({
               .map((relationship) => mapRelationship(relationship, nameToId))
               .filter(Boolean) as ParsedRelationship[];
 
-            // Store relationships in vector database
-            const conceptsMap = new Map(mappedNodes.map(node => [node.id, node]));
-            await Promise.all(
-              mappedRelationships.map(rel =>
-                addRelationshipToVector(rel, conceptsMap, segMaterial, providerFactory, vectorDatabase, serviceLogger)
-              )
-            );
+            // Store relationships in vector database (batched for performance)
+            if (mappedRelationships.length > 0 && vectorDatabase) {
+              const conceptsMap = new Map(mappedNodes.map(node => [node.id, node]));
+              await addRelationshipsBatch(mappedRelationships, conceptsMap, segMaterial, providerFactory, vectorDatabase, serviceLogger);
+            }
 
             mappedNodes.forEach((node) => {
               totalConcepts += 1;

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock agent factories - all agents share the same mock structure for simplicity
 const createMockAgent = (agentType: string, response: string) => ({
-  providerSettings: { providerName: 'openai', model: 'gpt-4o' },
+  providerInfo: { providerName: 'openai', model: 'gpt-4o', timeout: 30000 },
   stream: vi.fn(),
   invoke: vi.fn().mockResolvedValue({
     messages: [
@@ -25,7 +25,7 @@ vi.mock('../tutoring-agent', () => ({
 
 vi.mock('../supervisor-agent', () => ({
   createSupervisorAgent: vi.fn(() => ({
-    providerSettings: { providerName: 'openai', model: 'gpt-4o' },
+    providerInfo: { providerName: 'openai', model: 'gpt-4o', timeout: 30000 },
     stream: vi.fn(),
     invoke: vi.fn(),
   })),

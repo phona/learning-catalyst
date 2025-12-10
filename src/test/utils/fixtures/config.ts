@@ -59,6 +59,7 @@ export const makeEmptyConfig = (overrides: Partial<AppConfig> = {}): AppConfig =
   ai: {
     providers: {},
     modelTypes: {},
+    embeddingDimensions: 1024,
   },
   ui: { ...defaultUIConfig },
   learning: { ...defaultLearningConfig },

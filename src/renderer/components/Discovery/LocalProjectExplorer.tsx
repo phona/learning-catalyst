@@ -341,6 +341,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
           setLastFiles(usedFiles);
         } else if (updatedJob.status === 'failed') {
           clearInterval(checkProgress);
+          showError(`Concept parsing failed: ${updatedJob.errorMessage || 'Unknown error'}`);
         }
       }
     }, 1000);
