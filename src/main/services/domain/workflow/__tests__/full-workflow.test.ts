@@ -319,8 +319,8 @@ const makeDeps = () => {
       userId: request.userId,
       properties: {
         agentType: request.agentType,
-        provider: agent.providerSettings.providerName,
-        model: agent.providerSettings.model,
+        provider: agent.providerInfo.providerName,
+        model: agent.providerInfo.model,
       },
       context: {
         conversationId: request.conversationId,
@@ -330,8 +330,8 @@ const makeDeps = () => {
 
     return {
       content: message.content,
-      model: agent.providerSettings.model,
-      provider: agent.providerSettings.providerName,
+      model: agent.providerInfo.model,
+      provider: agent.providerInfo.providerName,
       agentType: request.agentType,
     };
   });

@@ -158,9 +158,17 @@ export const createVectorDatabase = (
   };
 
   const start = async (): Promise<void> => {
-    // Vector store handles its own initialization
-    // This method exists for interface compatibility
-    return Promise.resolve();
+    // Ensure Qdrant collection exists with correct embedding dimensions
+    const embeddingModel = await providerFactory.getEmbeddingModel();
+    const expectedDimensions = embeddingModel.dimensions;
+
+    const collections = await vectorStore.listCollections();
+    const knowledgeCollection = collections.find((c) => c.name === 'knowledge_items');
+
+    if (!knowledgeCollection) {
+      console.log(`[VectorDatabase] Creating knowledge_items collection with ${expectedDimensions} dimensions`);
+      await vectorStore.createCollection('knowledge_items', expectedDimensions, 'Cosine');
+    }
   };
 
   return {

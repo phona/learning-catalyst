@@ -45,8 +45,8 @@ const makeDeps = () => {
     const message = result.messages[0];
     return {
       content: message.content,
-      model: agent.providerSettings.model,
-      provider: agent.providerSettings.providerName,
+      model: agent.providerInfo.model,
+      provider: agent.providerInfo.providerName,
       agentType: request.agentType,
     };
   });

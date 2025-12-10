@@ -131,15 +131,15 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
       throw new Error('Agent returned no assistant response');
     }
 
-    const providerSettings = agent.providerSettings;
+    const providerInfo = agent.providerInfo;
 
     await deps.analyticsService.trackEvent({
       eventType: 'agent_response',
       userId: request.userId,
       properties: {
         agentType: request.agentType,
-        provider: providerSettings.providerName,
-        model: providerSettings.model,
+        provider: providerInfo.providerName,
+        model: providerInfo.model,
       },
       context: {
         conversationId: request.conversationId,
@@ -148,14 +148,14 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     });
 
     logger.info('Agent response generated', {
-      provider: providerSettings.providerName,
+      provider: providerInfo.providerName,
       conversationId: request.conversationId,
     });
 
     const resultPayload: AgentManagerResult = {
       content: assistantMessage.content,
-      model: providerSettings.model,
-      provider: providerSettings.providerName,
+      model: providerInfo.model,
+      provider: providerInfo.providerName,
       agentType: request.agentType,
     };
 

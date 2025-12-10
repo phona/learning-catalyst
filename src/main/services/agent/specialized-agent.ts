@@ -1,6 +1,6 @@
 import { createAgent } from 'langchain';
 import type { AgentToolDeps, ToolRegistry } from './tool-registry';
-import { buildLearnerPrompt, type ProviderSettings } from './provider-utils';
+import { buildLearnerPrompt } from './provider-utils';
 import type { BaseMessage } from '@langchain/core/messages';
 import { HumanMessage, AIMessage, SystemMessage, ToolMessage } from '@langchain/core/messages';
 
@@ -134,9 +134,19 @@ export const createSpecializedAgent = async (
 ) => {
   const promptBase = options.systemPrompt;
   const prompt = await buildSystemPrompt(promptBase, deps);
-  const modelKey = `ai.${options.agentType}AgentModel`;
-  const { model: chatModel, settings: providerSettings } =
-    await deps.providerFactory.getModel(modelKey);
+
+  // Use default chat provider from ai.modelTypes.chat
+  // All specialized agents share the same underlying model
+  const chatModel = await deps.providerFactory.getModel();
+
+  // Get provider info from config for result metadata
+  const config = await deps.configService.getConfig();
+  const chatConfig = config.ai.modelTypes?.chat;
+  const providerInfo = {
+    providerName: chatConfig?.provider || 'unknown',
+    model: chatConfig?.model || 'unknown',
+  };
+
   const tools = Object.values(options.toolBuilder(deps));
   const agent = createAgent({
     model: chatModel,
@@ -145,12 +155,12 @@ export const createSpecializedAgent = async (
   });
 
   const specializedAgent = agent as SpecializedAgent;
-  specializedAgent.providerSettings = providerSettings;
+  specializedAgent.providerInfo = providerInfo;
 
   return specializedAgent;
 };
 
 type LangChainAgent = ReturnType<typeof createAgent>;
 export type SpecializedAgent = LangChainAgent & {
-  providerSettings: ProviderSettings;
+  providerInfo: { providerName: string; model: string };
 };
