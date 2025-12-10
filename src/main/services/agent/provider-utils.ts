@@ -1,7 +1,11 @@
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { AppConfig, ProviderType } from '@/shared/types';
-import type { IPCErrorPayload, IPCError } from '@/shared/types/ipc-error';
-import { createIPCError, IPCErrorException } from '@/shared/types/ipc-error';
+import type { IPCErrorPayload } from '@/shared/types/ipc-error';
+import { createIPCError } from '@/shared/types/ipc-error';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 export type ProviderSettings = {
   providerName: string;
@@ -11,7 +15,12 @@ export type ProviderSettings = {
   baseUrl?: string;
   temperature: number;
   maxTokens: number;
+  embeddingDimensions?: number;
 };
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
 const PROVIDER_OUTPUT_CAP: Record<ProviderType, number> = {
   openai: 16384,
@@ -20,6 +29,12 @@ const PROVIDER_OUTPUT_CAP: Record<ProviderType, number> = {
   deepseek: 16384,
   siliconflow: 12000,
 };
+
+const SUPPORTED_LANGCHAIN_PROVIDERS: ProviderType[] = ['openai', 'openai-compatible'];
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
 
 const detectModelCap = (model?: string): number | undefined => {
   if (!model) return undefined;
@@ -42,17 +57,9 @@ export const clampMaxTokens = (
   return Math.min(requested, cap);
 };
 
-export const SUPPORTED_LANGCHAIN_PROVIDERS: ProviderType[] = ['openai', 'openai-compatible'];
-
-export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
-  providerName: 'openai',
-  providerType: 'openai',
-  model: 'gpt-4o',
-  apiKey: process.env.OPENAI_API_KEY,
-  baseUrl: 'https://api.openai.com/v1',
-  temperature: 0.4,
-  maxTokens: 10240,
-};
+// ============================================================================
+// ERROR HELPERS
+// ============================================================================
 
 const requireChatConfig = (): IPCErrorPayload => {
   return createIPCError({
@@ -73,6 +80,10 @@ const missingProviderConfigError = (providerName: string): IPCErrorPayload => {
   });
 };
 
+// ============================================================================
+// RESOLVE PROVIDER SETTINGS
+// ============================================================================
+
 export const resolveProviderSettings = async (
   configService: ConfigService,
 ): Promise<ProviderSettings> => {
@@ -82,19 +93,12 @@ export const resolveProviderSettings = async (
   }
 
   const chatConfig = config.ai.modelTypes.chat;
-  if (!chatConfig?.provider) {
-    throw requireChatConfig();
+  const providerName = chatConfig.provider?.toLowerCase();
+  const providerConfig = providerName ? config.ai.providers?.[providerName] : undefined;
+
+  if (!providerConfig || !providerName) {
+    throw missingProviderConfigError(providerName || 'unknown');
   }
-
-  const providerName = chatConfig.provider.toLowerCase();
-  const providerConfig = config.ai.providers?.[providerName];
-
-  if (!providerConfig) {
-    throw missingProviderConfigError(providerName);
-  }
-
-  // apiKey may be empty/undefined; no aliases or env fallback
-  const resolvedApiKey = providerConfig.apiKey;
 
   if (!providerConfig.providerType) {
     throw createIPCError({
@@ -106,24 +110,30 @@ export const resolveProviderSettings = async (
   }
 
   const providerType = providerConfig.providerType as ProviderType;
-  const model = chatConfig.model!; // validated at line 80
+  const model = chatConfig.model!; // validated above
   const baseUrl = providerConfig.baseUrl;
-  const temperature = chatConfig.temperature ?? DEFAULT_PROVIDER_SETTINGS.temperature;
-  const desiredMaxTokens = chatConfig.maxTokens ?? DEFAULT_PROVIDER_SETTINGS.maxTokens;
+  const temperature = chatConfig.temperature ?? 0.7;
+  const desiredMaxTokens = chatConfig.maxTokens ?? 10240;
   const maxTokens = clampMaxTokens(desiredMaxTokens, providerType, model);
+  const embeddingDimensions = config.ai.embeddingDimensions ?? 1536;
 
   const settings: ProviderSettings = {
-    providerName,
+    providerName: providerName!,
     providerType,
     model,
-    apiKey: resolvedApiKey,
+    apiKey: providerConfig.apiKey,
     baseUrl,
     temperature,
     maxTokens,
+    embeddingDimensions,
   };
 
   return settings;
 };
+
+// ============================================================================
+// LEARNING PROMPT BUILDER
+// ============================================================================
 
 export const buildLearnerPrompt = async (
   basePrompt: string,
@@ -147,6 +157,10 @@ export const buildLearnerPrompt = async (
 
   return details ? `${basePrompt}\n${details}` : basePrompt;
 };
+
+// ============================================================================
+// CONFIG CHANGE DETECTION
+// ============================================================================
 
 export const needsAgentRebuild = (oldConfig: AppConfig, newConfig: AppConfig): boolean => {
   const oldChat = oldConfig.ai.modelTypes?.chat;

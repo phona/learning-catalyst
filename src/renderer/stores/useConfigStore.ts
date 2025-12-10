@@ -8,6 +8,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   ai: {
     providers: {},
     modelTypes: {},
+    embeddingDimensions: 1536,
   },
   ui: {
     theme: 'light',

@@ -25,6 +25,9 @@ const DEFAULT_APP_CONFIG: AppConfig = {
         model: 'text-embedding-ada-002',
       },
     },
+    // Default embedding dimensions: 1536 for OpenAI text-embedding-ada-002
+    // Note: Different providers/models may use different dimensions
+    embeddingDimensions: 1536,
     metadata: {
       modelTests: [],
     },
@@ -124,18 +127,27 @@ export const createConfigService = ({
 
   const service = {
     /**
-     * Get the full configuration
+     * Get the full configuration.
+     * Merges loaded config with defaults to ensure all fields are present.
+     * Uses lodash.merge for deep recursive merging of nested objects.
      */
-    getConfig: async (): Promise<AppConfig | null> => {
+    getConfig: async (): Promise<AppConfig> => {
       if (cachedConfig) {
         return cachedConfig;
       }
 
-      cachedConfig = await storage.loadConfig();
-      if (!cachedConfig) {
-        return DEFAULT_APP_CONFIG;
+      const loadedConfig = await storage.loadConfig();
+      if (!loadedConfig) {
+        cachedConfig = DEFAULT_APP_CONFIG;
+        return cachedConfig;
       }
 
+      // Deep merge loaded config with defaults
+      // This ensures:
+      // 1. New defaults are added automatically
+      // 2. Partial configs are completed with defaults
+      // 3. Nested objects are properly merged
+      cachedConfig = merge({}, DEFAULT_APP_CONFIG, loadedConfig);
       return cachedConfig;
     },
 
