@@ -8,7 +8,7 @@ Learning Catalyst is an **AI-powered desktop application** built with Electron, 
 and LangChain. It helps you master any subject through conversational learning, visual knowledge
 maps, and personalized practice.
 
-**Current branch**: `feature-main-process` - Modern service-oriented architecture
+**Current branch**: `feature-main-process-bak2` - Layered Qdrant architecture (Dec 2025)
 
 ## Quick Navigation
 

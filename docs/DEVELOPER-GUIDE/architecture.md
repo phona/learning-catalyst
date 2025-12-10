@@ -76,13 +76,17 @@ src/main/
 │   └── settings-handlers.ts
 └── services/                   # Service layer
     ├── core/                   # Infrastructure
-    │   ├── database/           # Kysely database
+    │   ├── database/           # Kysely + Qdrant infrastructure
+    │   │   ├── kysely-database.ts      # SQLite (relational)
+    │   │   ├── qdrant-process-service.ts  # Qdrant process management
+    │   │   └── vector-store.ts          # Vector operations
     │   ├── config/             # Configuration
     │   └── logger/             # Logging
     ├── domain/                 # Business logic
     │   ├── chat/               # Chat service
     │   ├── learning/           # Learning service
     │   ├── knowledge/          # Knowledge service
+    │   │   └── vector/         # Vector database adapter
     │   └── analytics/          # Analytics service
     └── ai/                     # AI integration
         ├── ai-service.ts       # AI abstraction

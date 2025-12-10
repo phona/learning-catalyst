@@ -954,50 +954,220 @@ const db = createDatabase(driverFactory);
 
 ## Vector Database Integration
 
-### Qdrant Setup
+### Qdrant Architecture
 
-**Purpose**: Semantic search for knowledge discovery
+Learning Catalyst uses **Qdrant** for vector similarity search, integrated through a layered architecture:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    IPC Layer                             │
+│  (knowledge:ingest-concepts, knowledge:search, etc.)    │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│              Domain Layer                                │
+│        (vector-database.ts adapter)                      │
+│     - Domain-specific operations                         │
+│     - Real AI embeddings via providerFactory             │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│              Core Database Layer                         │
+│              (vector-store.ts)                           │
+│     - Generic vector CRUD operations                     │
+│     - Collection management                              │
+│     - Batch operations                                   │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────┐
+│            Infrastructure Layer                          │
+│      (qdrant-process-service.ts)                         │
+│     - Qdrant binary lifecycle                            │
+│     - Process spawn/monitoring                           │
+│     - Health checks                                      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Layer 1: Infrastructure Service
+
+**File**: `src/main/services/core/database/qdrant-process-service.ts`
+
+Manages the Qdrant binary lifecycle:
 
 ```typescript
-// Create Qdrant collection
-await qdrantClient.createCollection('concepts', {
-  vectors: { size: 1536, distance: 'Cosine' },
+// Create and start Qdrant process service
+const qdrantProcessService = createQdrantProcessService({
+  host: '127.0.0.1',
+  port: 6333,
 });
 
-// Store concept embeddings
-await qdrantClient.upsert('concepts', {
-  points: concepts.map((c) => ({
-    id: c.id,
-    vector: c.embedding,
-    payload: { name: c.name, category: c.category },
-  })),
+// Start the service
+await qdrantProcessService.start();
+
+// Check health
+const isHealthy = await qdrantProcessService.getHealth();
+
+// Stop when done
+await qdrantProcessService.stop();
+```
+
+### Layer 2: Vector Store
+
+**File**: `src/main/services/core/database/vector-store.ts`
+
+Generic vector operations:
+
+```typescript
+// Create vector store
+const vectorStore = createVectorStore(qdrantProcessService, {
+  host: '127.0.0.1',
+  port: 6333,
 });
 
-// Search similar concepts
-const results = await qdrantClient.search('concepts', {
-  vector: queryEmbedding,
+// Create collection
+await vectorStore.createCollection('knowledge_items', 1536, 'Cosine');
+
+// Upsert vectors
+await vectorStore.upsert('knowledge_items', [
+  {
+    id: 'concept-1',
+    vector: embedding,
+    payload: { name: 'Machine Learning', category: 'AI' },
+  },
+]);
+
+// Search
+const results = await vectorStore.search('knowledge_items', queryVector, {
   limit: 10,
-  with_payload: true,
+  scoreThreshold: 0.7,
+});
+
+// List collections
+const collections = await vectorStore.listCollections();
+```
+
+### Layer 3: Domain Adapter
+
+**File**: `src/main/services/domain/knowledge/vector/vector-database.ts`
+
+Domain-specific operations with real AI embeddings:
+
+```typescript
+// Create vector database adapter
+const vectorDatabase = createVectorDatabase(vectorStore, providerFactory);
+
+// Search with automatic embedding generation
+const results = await vectorDatabase.search('machine learning concepts', {
+  limit: 10,
+  threshold: 0.7,
+});
+
+// Add document (embedding generated automatically)
+await vectorDatabase.addDocumentWithEmbedding(
+  {
+    id: 'concept-1',
+    content: 'Machine Learning is a subset of AI...',
+    metadata: { category: 'AI', difficulty: 'intermediate' },
+  },
+  embedding // Pre-computed embedding
+);
+
+// Batch add
+await vectorDatabase.addDocumentBatch([
+  { doc: doc1, embedding: emb1 },
+  { doc: doc2, embedding: emb2 },
+]);
+```
+
+### Real AI Embeddings
+
+The vector database integrates with the provider factory to generate real embeddings:
+
+```typescript
+// Embeddings are generated using configured AI providers
+const embeddingModel = await providerFactory.getEmbeddingModel();
+
+// Generate embedding for query
+const queryEmbedding = await embeddingModel.embed('What is machine learning?');
+
+// Or batch embeddings
+const batchEmbeddings = await embeddingModel.embedBatch([
+  'Machine learning basics',
+  'Neural networks explained',
+  'Deep learning concepts',
+]);
+```
+
+### Service Wiring
+
+**File**: `src/main/index.ts`
+
+Services are wired in dependency order:
+
+```typescript
+// 1. Create infrastructure service
+const qdrantProcessService = createQdrantProcessService(config);
+
+// 2. Create core vector store
+const vectorStore = createVectorStore(qdrantProcessService, config);
+
+// 3. Create domain adapter
+const vectorDatabase = createVectorDatabase(vectorStore, providerFactory);
+
+// 4. Start services
+await qdrantProcessService.start();
+await vectorDatabase.start();
+```
+
+### Legacy: Direct Qdrant Client
+
+For advanced use cases, the Qdrant client can be accessed directly:
+
+```typescript
+// Access Qdrant client for custom operations
+const { QdrantClient } = await import('@qdrant/qdrant-js');
+const client = new QdrantClient({
+  host: '127.0.0.1',
+  port: 6333,
+});
+
+// Custom collection configuration
+await client.createCollection('custom_collection', {
+  vectors: {
+    size: 1536,
+    distance: 'Cosine',
+  },
+  hnsw_config: {
+    m: 16,
+    ef_construct: 100,
+  },
 });
 ```
 
-### Hybrid Search
+### Best Practices
 
+1. **Use Domain Layer**: Prefer `vectorDatabase` over direct `vectorStore` for business logic
+2. **Embed Once, Search Many**: Cache embeddings for frequently accessed content
+3. **Batch Operations**: Use `upsert` and `addDocumentBatch` for performance
+4. **Monitor Health**: Check `qdrantProcessService.getHealth()` periodically
+5. **Proper Cleanup**: Always call `stop()` on application shutdown
+
+### Migration from Monolithic Architecture
+
+**Before** (qdrant-manager.ts):
 ```typescript
-// Combine keyword and semantic search
-const keywordResults = await db
-  .selectFrom('concepts')
-  .selectAll()
-  .where('name', 'like', `%${query}%`)
-  .execute();
+const qdrantManager = createQdrantManager();
+await qdrantManager.initialize();
+// Direct IPC exposure, mixed concerns
+```
 
-const semanticResults = await qdrantClient.search('concepts', {
-  vector: embedQuery(query),
-  limit: 10,
-});
-
-// Merge and rank results
-const results = mergeResults(keywordResults, semanticResults);
+**After** (Layered Architecture):
+```typescript
+// Clear separation of concerns
+const qdrantProcessService = createQdrantProcessService(config);
+const vectorStore = createVectorStore(qdrantProcessService, config);
+const vectorDatabase = createVectorDatabase(vectorStore, providerFactory);
+// Domain-specific, testable, maintainable
 ```
 
 ## Backup & Recovery
