@@ -8,6 +8,9 @@
 import type { VectorStore } from '@/main/services/core/database/vector-store';
 import type { ProviderFactory } from '@/main/services/agent/provider-factory';
 
+// Pure separation: Qdrant stores vectors + conceptId, all other data in SQLite
+const DEFAULT_SEARCH_THRESHOLD = 0.5;  // Lowered for pure separation architecture
+
 export interface VectorDocument {
   id: string;
   content: string;
@@ -118,16 +121,25 @@ export const createVectorDatabase = (
     options: VectorSearchOptions = {},
   ): Promise<SearchResult[]> => {
     const limit = options.limit ?? 10;
-    const threshold = options.threshold ?? 0.6;
+    const threshold = options.threshold ?? DEFAULT_SEARCH_THRESHOLD;
+
+    console.log('[VectorDatabase] Search query:', query);
+    console.log('[VectorDatabase] Limit:', limit, 'Threshold:', threshold);
 
     // Generate embedding using provider factory
     const embeddingModel = await providerFactory.getEmbeddingModel();
-    const queryEmbedding = await embeddingModel.embed(query);
+    console.log('[VectorDatabase] Embedding model dimensions:', embeddingModel.dimensions);
 
+    const queryEmbedding = await embeddingModel.embed(query);
+    console.log('[VectorDatabase] Generated embedding length:', queryEmbedding.length);
+
+    console.log('[VectorDatabase] Searching Qdrant collection "knowledge_items"...');
     const rawResults = await vectorStore.search('knowledge_items', queryEmbedding, {
       limit,
       scoreThreshold: threshold,
     });
+
+    console.log('[VectorDatabase] Qdrant returned', rawResults.length, 'results');
 
     return rawResults.map((result) => {
       const document: VectorDocument = {

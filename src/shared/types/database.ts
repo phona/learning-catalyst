@@ -5,6 +5,8 @@
  * main and renderer processes via IPC.
  */
 
+import { RelationshipType } from './relationship-types';
+
 // Individual table row interfaces
 export interface CategoryRow {
   id: number;
@@ -52,13 +54,7 @@ export interface RelationshipRow {
   id: string;
   source_concept_id: string;
   target_concept_id: string;
-  relationship_type:
-    | 'prerequisite'
-    | 'related'
-    | 'contains'
-    | 'example'
-    | 'application'
-    | 'contrasts';
+  relationship_type: RelationshipType;
   strength: number;
   description?: string;
   metadata: string; // JSON object stored as string

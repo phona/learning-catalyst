@@ -77,65 +77,85 @@ describe('findRelatedByPrompt', () => {
   });
 
   it('should search vector database with prompt and return formatted results', async () => {
+    // Mock Qdrant results (only conceptId in metadata - pure separation)
     const mockResults = [
       {
         document: {
-          id: 'doc1',
+          id: 'concept:concept-photo',
           content: 'Photosynthesis is the process by which plants convert light',
           metadata: {
-            type: 'concept',
             conceptId: 'concept-photo',
-            segmentTitle: 'Introduction to Photosynthesis',
-            source: 'concept-parsing',
           },
         },
         score: 0.92,
-        metadata: {
-          type: 'concept',
-          conceptId: 'concept-photo',
-          segmentTitle: 'Introduction to Photosynthesis',
-          source: 'concept-parsing',
-        },
       },
       {
         document: {
-          id: 'doc2',
+          id: 'concept:concept-chlorophyll',
           content: 'Chlorophyll absorbs light energy for photosynthesis',
           metadata: {
-            type: 'relationship',
-            relationshipType: 'related',
-            sourceId: 'concept-chlorophyll',
-            targetId: 'concept-photosynthesis',
-            sourceName: 'Chlorophyll',
-            targetName: 'Photosynthesis',
-            strength: 0.85,
+            conceptId: 'concept-chlorophyll',
           },
         },
         score: 0.88,
-        metadata: {
-          type: 'relationship',
-          relationshipType: 'related',
-          sourceId: 'concept-chlorophyll',
-          targetId: 'concept-photosynthesis',
-          sourceName: 'Chlorophyll',
-          targetName: 'Photosynthesis',
-          strength: 0.85,
-        },
       },
     ];
 
     vectorDatabase.search.mockResolvedValue(mockResults);
 
+    // Mock SQLite query for full concept data
+    testDb.db.selectFrom = vi.fn().mockReturnValue({
+      selectAll: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            execute: vi.fn().mockResolvedValue([
+              {
+                id: 'concept-photo',
+                name: 'Photosynthesis',
+                description: 'The process by which plants convert light energy',
+                concept_type: 'concept',
+                difficulty_level: 3,
+                tags: '["biology", "plants"]',
+                metadata: '{"path": "Biology > Photosynthesis"}',
+                mastery_level: 0.5,
+                review_count: 5,
+                created_at: '2024-01-01',
+                updated_at: '2024-01-01',
+              },
+              {
+                id: 'concept-chlorophyll',
+                name: 'Chlorophyll',
+                description: 'The green pigment in plants',
+                concept_type: 'concept',
+                difficulty_level: 2,
+                tags: '["biology", "plants", "pigments"]',
+                metadata: '{"path": "Biology > Photosynthesis"}',
+                mastery_level: 0.3,
+                review_count: 3,
+                created_at: '2024-01-01',
+                updated_at: '2024-01-01',
+              },
+            ]),
+          }),
+        }),
+      }),
+    });
+
     const result = await service.findRelatedByPrompt('photosynthesis', {
       limit: 10,
-      threshold: 0.6,
+      threshold: 0.5,
     });
 
+    // Verify Qdrant search was called with new thresholds
     expect(vectorDatabase.search).toHaveBeenCalledWith('photosynthesis', {
       limit: 20,
-      threshold: 0.6,
+      threshold: 0.5,
     });
 
+    // Verify SQLite was queried for full concept data
+    expect(testDb.db.selectFrom).toHaveBeenCalledWith('concepts');
+
+    // Verify rerank received full content from SQLite
     expect(rerankModel.rerank).toHaveBeenCalledWith(
       'photosynthesis',
       expect.arrayContaining([
@@ -144,18 +164,19 @@ describe('findRelatedByPrompt', () => {
       ]),
     );
 
+    // Verify results use SQLite data
     expect(result.matches).toHaveLength(2);
     expect(result.matches[0]).toEqual({
       id: 'concept-photo',
-      name: 'Introduction to Photosynthesis',
+      name: 'Photosynthesis',
       score: 1.0,
       type: 'concept',
       relationshipType: undefined,
       metadata: {
-        type: 'concept',
         conceptId: 'concept-photo',
-        segmentTitle: 'Introduction to Photosynthesis',
-        source: 'concept-parsing',
+        type: 'concept',
+        level: 3,
+        path: 'Biology > Photosynthesis',
       },
     });
 
@@ -163,16 +184,13 @@ describe('findRelatedByPrompt', () => {
       id: 'concept-chlorophyll',
       name: 'Chlorophyll',
       score: 0.9,
-      type: 'relationship',
-      relationshipType: 'related',
+      type: 'concept',
+      relationshipType: undefined,
       metadata: {
-        type: 'relationship',
-        relationshipType: 'related',
-        sourceId: 'concept-chlorophyll',
-        targetId: 'concept-photosynthesis',
-        sourceName: 'Chlorophyll',
-        targetName: 'Photosynthesis',
-        strength: 0.85,
+        conceptId: 'concept-chlorophyll',
+        type: 'concept',
+        level: 2,
+        path: 'Biology > Photosynthesis',
       },
     });
 

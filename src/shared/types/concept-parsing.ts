@@ -5,6 +5,8 @@
  * parsing and adaptive learning platform.
  */
 
+import { RelationshipType } from './relationship-types';
+
 export interface Concept {
   id: string;
   name: string;
@@ -37,7 +39,7 @@ export interface ProposedRelationship {
   sourceConceptName?: string;
   targetConceptId?: string;
   targetConceptName?: string;
-  type: 'prerequisite' | 'related' | 'contains' | 'example' | 'application' | 'contrasts';
+  type: RelationshipType;
   strength: number; // 0-1
   confidence: number; // 0-1
   description?: string;
@@ -565,4 +567,59 @@ export interface ImportOptions {
   validateOnImport?: boolean;
   mergeStrategy?: 'skip' | 'overwrite' | 'merge' | 'append';
   updateExisting?: boolean;
+}
+
+/**
+ * ============================================================================
+ * CONCEPT PARSING SEGMENTATION AND EXTRACTION CONFIGURATION
+ * ============================================================================
+ *
+ * These types define the configuration and structure for the AI-powered
+ * concept parsing pipeline. The system optimizes LLM usage through intelligent
+ * segment merging and context limiting.
+ */
+
+// Configuration for concept parsing operation
+export interface ConceptParsingSettings {
+  /** Minimum character threshold for creating a segment */
+  minSegmentChars: number;
+
+  /** Maximum character threshold for splitting content into segments */
+  maxSegmentChars: number;
+
+  /**
+   * Maximum characters to feed to LLM per concept extraction call.
+   * -1 = unlimited (feed entire segment to LLM)
+   * 300-500 = fast processing with limited context
+   * 800-1200 = balanced processing with good context
+   */
+  maxCharPerConcept: number;
+
+  /** Heading depth level to include in segmentation (1=H1, 2=H1+H2, etc.) */
+  includeHeadingDepth: number;
+
+  /** Whether to vectorize extracted concepts */
+  vectorize: boolean;
+
+  /** Whether to store relationships in vector database */
+  storeRelationships: boolean;
+
+  /** Concurrency limit for parallel processing */
+  concurrency: number;
+}
+
+// A segment of content extracted from source material for LLM processing
+export interface ConceptSegment {
+  /** Unique identifier for the segment */
+  id: string;
+
+  /**
+   * Segment content with embedded markdown headings.
+   * Heading structure is preserved (e.g., "# Title\nContent...").
+   * LLM uses headings to identify ROOT TOPIC and relationships.
+   */
+  content: string;
+
+  /** Sequential order of segment in original document */
+  order: number;
 }

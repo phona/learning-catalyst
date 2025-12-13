@@ -49,12 +49,12 @@ vi.mock('../extraction-workflow', () => ({
   })),
 }));
 
-describe('concept parsing relationship vectorization', () => {
+describe('concept parsing relationship storage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should store extracted relationships in vector database', async () => {
+  it('should parse and return relationships without storing them in vector database', async () => {
     const addDocumentBatchMock = vi.fn().mockResolvedValue(undefined);
     const vectorDatabase = {
       addDocument: vi.fn(),
@@ -103,25 +103,45 @@ describe('concept parsing relationship vectorization', () => {
       },
     ];
 
-    await svc.parseMaterials(materials, {
+    const result = await svc.parseMaterials(materials, {
       minSegmentChars: 1,
       maxSegmentChars: 200,
     });
 
-    // Called once with batch: concepts + relationships
+    // Verify parsing was successful
+    expect(result.success).toBe(true);
+    expect(result.concepts.length).toBe(2);
+    expect(result.relationships.length).toBe(1);
+
+    // Verify relationship structure
+    const relationship = result.relationships[0];
+    expect(relationship.sourceId).toBeDefined();
+    expect(relationship.targetId).toBeDefined();
+    expect(relationship.type).toBe('prerequisite');
+    expect(relationship.strength).toBe(0.9);
+    expect(relationship.confidence).toBe(0.85);
+
+    // Verify vector database was called for concepts only (not relationships)
     expect(addDocumentBatchMock).toHaveBeenCalled();
 
     const callArgs = addDocumentBatchMock.mock.calls.map((call) => call[0]);
     const allDocs = callArgs.flatMap((batch: any) => batch);
 
-    const relationshipCall = allDocs.find((doc: any) => doc.doc.id.startsWith('rel:'));
-    expect(relationshipCall).toBeDefined();
-    expect(relationshipCall?.doc.metadata?.type).toBe('relationship');
-    expect(relationshipCall?.doc.metadata?.sourceConceptId).toBeDefined();
-    expect(relationshipCall?.doc.metadata?.targetConceptId).toBeDefined();
-    expect(relationshipCall?.doc.metadata?.relationshipId).toBeDefined();
-    // Content should contain the relationship type
-    expect(relationshipCall?.doc.content).toContain('prerequisite');
+    // Should only have concept documents, not relationship documents
+    const relationshipCalls = allDocs.filter((doc: any) => doc.doc.id.startsWith('rel:'));
+    expect(relationshipCalls.length).toBe(0);
+
+    // Should have concept documents only
+    const conceptCalls = allDocs.filter((doc: any) => doc.doc.id.startsWith('concept:'));
+    expect(conceptCalls.length).toBe(2);
+
+    // Verify concepts have minimal metadata (only conceptId for pure separation)
+    const conceptDoc = conceptCalls[0];
+    expect(conceptDoc.doc.metadata.conceptId).toBeDefined();
+    // Pure separation: Qdrant only stores conceptId, all other metadata in SQLite
+    expect(conceptDoc.doc.metadata.type).toBeUndefined();
+    expect(conceptDoc.doc.metadata.segmentTitle).toBeUndefined();
+    expect(conceptDoc.doc.metadata.topic).toBeUndefined();
 
     expect(embeddingModel.embedBatch).toHaveBeenCalled();
   });
@@ -231,7 +251,7 @@ describe('concept parsing relationship vectorization', () => {
     expect(result.relationships.length).toBeGreaterThan(0);
   });
 
-  it('should create proper relationship text content', async () => {
+  it('should parse relationships without creating vector embeddings for them', async () => {
     const addDocumentBatchMock = vi.fn().mockResolvedValue(undefined);
     const vectorDatabase = {
       addDocument: vi.fn(),
@@ -278,17 +298,33 @@ describe('concept parsing relationship vectorization', () => {
       },
     ];
 
-    await svc.parseMaterials(materials, {
+    const result = await svc.parseMaterials(materials, {
       minSegmentChars: 1,
       maxSegmentChars: 200,
     });
 
+    // Verify relationships are parsed and returned
+    expect(result.success).toBe(true);
+    expect(result.relationships.length).toBeGreaterThan(0);
+
+    // Verify NO relationship documents were sent to vector database
     const callArgs = addDocumentBatchMock.mock.calls.map((call) => call[0]);
     const allDocs = callArgs.flatMap((batch: any) => batch);
     const relationshipCalls = allDocs.filter((doc: any) => doc.doc.id.startsWith('rel:'));
 
-    expect(relationshipCalls[0]?.doc.content).toContain('Relationship:');
-    expect(relationshipCalls[0]?.doc.content).toContain('From concept');
-    expect(relationshipCalls[0]?.doc.content).toContain('To concept');
+    // Relationships should NOT be in vector database
+    expect(relationshipCalls.length).toBe(0);
+
+    // Only concepts should be in vector database
+    const conceptCalls = allDocs.filter((doc: any) => doc.doc.id.startsWith('concept:'));
+    expect(conceptCalls.length).toBeGreaterThan(0);
+
+    // Verify the relationship in result has proper structure
+    const relationship = result.relationships[0];
+    expect(relationship).toHaveProperty('sourceId');
+    expect(relationship).toHaveProperty('targetId');
+    expect(relationship).toHaveProperty('type');
+    expect(relationship).toHaveProperty('strength');
+    expect(relationship).toHaveProperty('confidence');
   });
 });

@@ -16,10 +16,11 @@ import type { ILogger } from '../../../types';
 
 // Performance thresholds (in milliseconds)
 const PERF_THRESHOLDS = {
-  singleSegmentMax: 15000, // 15s max for single segment
-  llmInvokeMax: 10000, // 10s max for LLM call
+  singleSegmentMax: 30000, // 30s max for single segment (increased for real API calls)
+  llmInvokeMax: 25000, // 25s max for LLM call
   validationMax: 100, // 100ms max for validation
   jsonParseMax: 50, // 50ms max for JSON parsing
+  longContentMax: 90000, // 90s max for long content
 };
 
 // Test content samples
@@ -260,7 +261,7 @@ describe('LangGraph Extraction Workflow - Performance Tests', () => {
 
       expect(result.success).toBe(true);
       // Long content may take longer
-      expect(totalTime).toBeLessThan(PERF_THRESHOLDS.singleSegmentMax * 1.5);
+      expect(totalTime).toBeLessThan(PERF_THRESHOLDS.longContentMax);
     }, 180000);
   });
 

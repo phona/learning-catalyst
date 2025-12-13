@@ -19,12 +19,6 @@ export interface ProviderConfig {
   apiKey?: string;
   baseUrl?: string;
   models?: string[]; // Available models for this provider
-  type?: ProviderType;
-  model?: string;
-  temperature?: number;
-  maxTokens?: number;
-  streaming?: boolean;
-  customHeaders?: Record<string, string>;
 }
 
 export interface AppConfig {
@@ -37,8 +31,10 @@ export interface AppConfig {
 }
 
 export interface SelectedModel {
-  provider?: string;
-  model?: string;
+  provider: string;
+  model: string;
+  customHeaders?: Record<string, string>;
+  timeout?: number;
 }
 
 export interface SelectedChatModel extends SelectedModel {
@@ -52,6 +48,17 @@ export interface SelectedChatModel extends SelectedModel {
   defaultProvider?: string;
   defaultModel?: string;
   capabilities?: ModelCapabilities;
+  retry?: number;
+}
+
+export interface SelectedEmbeddingModel extends SelectedModel {
+  dimensions?: number;
+  timeout?: number;
+}
+
+export interface SelectedRerankModel extends SelectedModel {
+  threshold?: number;
+  timeout?: number;
 }
 
 export interface AIConfig {
@@ -59,8 +66,8 @@ export interface AIConfig {
   // Enhanced model type support
   modelTypes?: {
     chat?: SelectedChatModel;
-    embedding?: SelectedModel;
-    rerank?: SelectedModel;
+    embedding?: SelectedEmbeddingModel;
+    rerank?: SelectedRerankModel;
   };
   metadata?: {
     modelTests?: ModelTestResult[];

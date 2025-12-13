@@ -45,6 +45,9 @@ import { createConfigStorage } from './services/core/config/storage';
 // Memory debugging utility for development
 // import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug';
 
+// Enable source map support for better error stack traces
+import './utils/source-map-support';
+
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -330,9 +333,12 @@ async function createWindow(): Promise<void> {
     });
 
     // Create and initialize Qdrant process service (infrastructure layer)
-    const qdrantProcessService = createQdrantProcessService({
+    const qdrantDataPath = path.join(learningCatalystPath, 'qdrant');
+    await mkdir(qdrantDataPath, { recursive: true });
+    const qdrantProcessService = createQdrantProcessService(workspacePath, {
       host: '127.0.0.1',
       port: 6333,
+      dataPath: qdrantDataPath,
     });
 
     // Create vector store (core database layer)

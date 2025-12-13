@@ -544,6 +544,22 @@ export const createConceptParsingService = (
         throw new Error(err);
       }
 
+      activeJob.progress = 0.75;
+      activeJob.status = 'ingesting';
+
+      // Step 2: Ingest parsed concepts into SQLite database
+      const ingestionResult = await apiClient.knowledge.ingestConcepts({
+        result: parsingResult.data,
+        options: {
+          source: 'file-import',
+        },
+      });
+
+      if (!ingestionResult.success) {
+        const err = ingestionResult.error?.message ?? 'Concept ingestion failed';
+        throw new Error(err);
+      }
+
       const interval = progressIntervals.get(jobId);
       if (interval) {
         clearInterval(interval);

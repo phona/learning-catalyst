@@ -1,6 +1,8 @@
 import { z, ZodError } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { ChatOpenAI } from '@langchain/openai';
+import type { AIMessageChunk, UsageMetadata } from '@langchain/core/messages';
+import { RELATIONSHIP_TYPE_VALUES } from '@/shared/types/relationship-types';
 
 /**
  * =====================================================================================
@@ -93,7 +95,7 @@ const ExtractedRelationshipSchema = z
   .object({
     from: z.string().min(1, 'Relationship source cannot be empty'),
     to: z.string().min(1, 'Relationship target cannot be empty'),
-    type: z.string().nullable().optional(),
+    type: z.enum(RELATIONSHIP_TYPE_VALUES).nullable().optional(),
     strength: z.number().min(0).max(1).nullable().optional(),
     confidence: z.number().min(0).max(1).nullable().optional(),
     description: z.string().nullable().optional(),
@@ -144,38 +146,57 @@ export type ConceptExtractionResult = z.infer<typeof ConceptExtractionResultSche
 /**
  * Simple extraction prompt for first attempt.
  * Optimized size: ~350 characters (vs ~1300 with StructuredOutputParser)
+ * Enhanced to treat H1 as ROOT TOPIC concept
  */
-const SIMPLE_EXTRACTION_TEMPLATE = `Extract concepts from educational content.
+const SIMPLE_EXTRACTION_TEMPLATE = `You are an expert educator. Extract ALL learning concepts from educational content.
+
+CRITICAL RULE: The main heading (# X) is ALWAYS the ROOT TOPIC - it MUST be the first concept in your response. This is the foundational concept that encompasses all subtopics.
+
+CONCEPT TYPES:
+- topic: Broad learning area (use for main headings like "# Python Basics")
+- fact: Discrete information to remember
+- skill/procedure: Step-by-step process or how-to
+- principle: Underlying concept or rule
 
 You MUST return ONLY a JSON object with EXACTLY these fields and NO OTHERS:
 - "summary": string
 - "focusAreas": string[]
 - "nodes": array of objects with EXACTLY these fields: "name" (string), "description" (string), "type" (string), "difficulty" ("beginner"|"intermediate"|"advanced"), "confidence" (number 0-1), "tags" (string[])
-- "relationships": array of objects with EXACTLY these fields: "from" (string), "to" (string), "type" (string), "strength" (number 0-1), "confidence" (number 0-1), "description" (string)
+- "relationships": array of objects with EXACTLY these fields: "from" (string), "to" (string), "type" (relationship type), "strength" (number 0-1), "confidence" (number 0-1), "description" (string)
 - "recommendations": string[]
 
-Example format:
+Valid relationship types: ${RELATIONSHIP_TYPE_VALUES.join('|')}
+
+Example format (ROOT TOPIC FIRST!):
 {{
   "summary": "brief overview",
   "focusAreas": ["area1", "area2"],
   "nodes": [
     {{
-      "name": "concept name",
-      "description": "explanation",
-      "type": "topic|fact|skill",
-      "difficulty": "beginner|intermediate|advanced",
-      "confidence": 0.0-1.0,
-      "tags": ["tag1", "tag2"]
+      "name": "Python Basics",
+      "description": "Introduction to Python programming",
+      "type": "topic",
+      "difficulty": "beginner",
+      "confidence": 0.98,
+      "tags": ["programming", "python"]
+    }},
+    {{
+      "name": "Variables",
+      "description": "How Python stores data",
+      "type": "fact",
+      "difficulty": "beginner",
+      "confidence": 0.95,
+      "tags": ["python", "variables"]
     }}
   ],
   "relationships": [
     {{
-      "from": "concept A",
-      "to": "concept B",
-      "type": "prerequisite|related|example",
-      "strength": 0.0-1.0,
-      "confidence": 0.0-1.0,
-      "description": "how they relate"
+      "from": "Python Basics",
+      "to": "Variables",
+      "type": "part_of",
+      "strength": 0.9,
+      "confidence": 0.95,
+      "description": "Variables are part of Python Basics"
     }}
   ],
   "recommendations": ["suggestion1", "suggestion2"]
@@ -188,8 +209,11 @@ Content: {content}
 /**
  * Retry template for second attempt when validation fails.
  * Includes error feedback to help AI correct its response.
+ * Enhanced to emphasize H1 as ROOT TOPIC
  */
 const SIMPLE_RETRY_TEMPLATE = `Fix the JSON response based on validation errors.
+
+REMEMBER: The main heading (# X) MUST be the ROOT TOPIC - the FIRST concept in your response.
 
 Previous JSON: {previousResponse}
 
@@ -199,6 +223,11 @@ Validation Errors:
 CRITICAL FIELD NAME CORRECTIONS:
 - relationships MUST use "from" and "to" (NOT "source" and "target")
 - nodes MUST use "name" and "description" (NOT "id" and "category")
+
+CRITICAL CONCEPT RULE:
+- First concept MUST be the ROOT TOPIC (from main heading # X)
+- Use type: "topic" for root concepts
+- Create "part_of" relationships: root → subtopics
 
 CORRECTIONS NEEDED:
 - Ensure ALL required fields are present: "summary", "focusAreas", "nodes", "relationships", "recommendations"
@@ -210,8 +239,10 @@ You MUST return ONLY a JSON object with EXACTLY these fields:
 - "summary": string
 - "focusAreas": array of strings
 - "nodes": array of concept objects with "name" and "description"
-- "relationships": array of relationship objects with "from" and "to"
+- "relationships": array of relationship objects with "from", "to", and "type" (relationship type)
 - "recommendations": array of strings
+
+Valid relationship types: ${RELATIONSHIP_TYPE_VALUES.join('|')}
 
 Content: {content}
 
@@ -252,7 +283,7 @@ Content: {content}
  * @param llm - The language model to use for extraction
  * @returns Chain object with invoke method
  */
-export const createSimpleExtractChain = (llm: ChatOpenAI) => {
+export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: any) => {
   const prompt = ChatPromptTemplate.fromTemplate(SIMPLE_EXTRACTION_TEMPLATE);
 
   return {
@@ -293,14 +324,28 @@ export const createSimpleExtractChain = (llm: ChatOpenAI) => {
        */
 
       const stream = await llm.stream(messages);
-      let response = '';
+      let finalChunk: AIMessageChunk | undefined;
 
-      // Process streaming chunks from the LLM
-      // Each chunk is either a string or an AIMessageChunk object
+      // Process streaming chunks from the LLM and concat them
       for await (const chunk of stream) {
-        const content = typeof chunk === 'string' ? chunk : chunk.content;
-        response += content;
+        finalChunk = finalChunk
+          ? finalChunk.concat(chunk as AIMessageChunk)
+          : (chunk as AIMessageChunk);
       }
+
+      // Extract response content
+      const response = (finalChunk?.content as string) || '';
+
+      // Extract token usage from FINAL chunk only (ChatGLM/OpenAI compatible)
+      const usage = (finalChunk?.usage_metadata as UsageMetadata) || {};
+      const tokenUsage = {
+        promptTokens: usage.input_tokens || 0,
+        completionTokens: usage.output_tokens || 0,
+        totalTokens: usage.total_tokens || 0,
+      };
+
+      // Emit progress after streaming completes (real-time for OpenAI, end-of-stream for ChatGLM)
+      progressCallback?.onTokenUsageUpdate(tokenUsage, 1, 'extracting');
 
       /**
        * =============================================================================
@@ -345,8 +390,11 @@ export const createSimpleExtractChain = (llm: ChatOpenAI) => {
         cleanedResponse = codeBlockMatch[1].trim();
       }
 
-      // Return the cleaned JSON string for parsing and validation
-      return cleanedResponse;
+      // Return both the cleaned JSON string and token usage
+      return {
+        response: cleanedResponse,
+        usage: tokenUsage,
+      };
     },
   };
 };
@@ -376,7 +424,7 @@ export const createSimpleExtractChain = (llm: ChatOpenAI) => {
  * @param llm - The language model to use for retry
  * @returns Chain object with invoke method
  */
-export const createRetryExtractChain = (llm: ChatOpenAI) => {
+export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: any) => {
   const prompt = ChatPromptTemplate.fromTemplate(SIMPLE_RETRY_TEMPLATE);
 
   return {
@@ -406,13 +454,28 @@ export const createRetryExtractChain = (llm: ChatOpenAI) => {
        */
 
       const stream = await llm.stream(messages);
-      let response = '';
+      let finalChunk: AIMessageChunk | undefined;
 
-      // Same streaming logic as main extraction
+      // Stream chunks and accumulate
       for await (const chunk of stream) {
-        const content = typeof chunk === 'string' ? chunk : chunk.content;
-        response += content;
+        finalChunk = finalChunk
+          ? finalChunk.concat(chunk as AIMessageChunk)
+          : (chunk as AIMessageChunk);
       }
+
+      // Extract response content
+      const response = (finalChunk?.content as string) || '';
+
+      // Extract token usage from FINAL chunk only (ChatGLM/OpenAI compatible)
+      const usage = (finalChunk?.usage_metadata as UsageMetadata) || {};
+      const tokenUsage = {
+        promptTokens: usage.input_tokens || 0,
+        completionTokens: usage.output_tokens || 0,
+        totalTokens: usage.total_tokens || 0,
+      };
+
+      // Emit progress after streaming completes
+      progressCallback?.onTokenUsageUpdate(tokenUsage, 2, 'retrying');
 
       /**
        * =============================================================================
@@ -424,6 +487,7 @@ export const createRetryExtractChain = (llm: ChatOpenAI) => {
        *
        * =============================================================================
        */
+
 
       let cleanedResponse = response;
 
@@ -439,8 +503,11 @@ export const createRetryExtractChain = (llm: ChatOpenAI) => {
         cleanedResponse = codeBlockMatch[1].trim();
       }
 
-      // Return the corrected JSON for validation
-      return cleanedResponse;
+      // Return both the corrected JSON and token usage
+      return {
+        response: cleanedResponse,
+        usage: tokenUsage,
+      };
     },
   };
 };

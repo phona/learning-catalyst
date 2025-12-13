@@ -938,6 +938,51 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                   </div>
                 </div>
 
+                {/* Token Usage */}
+                {statistics.tokenUsage && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
+                      Token Usage
+                    </h3>
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                      <dl className="space-y-2">
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-600 dark:text-gray-400">
+                            Total Tokens:
+                          </dt>
+                          <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {statistics.tokenUsage.total.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-600 dark:text-gray-400">
+                            Prompt Tokens:
+                          </dt>
+                          <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {statistics.tokenUsage.prompt.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-600 dark:text-gray-400">
+                            Completion Tokens:
+                          </dt>
+                          <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {statistics.tokenUsage.completion.toLocaleString()}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-sm text-gray-600 dark:text-gray-400">
+                            Tracking Method:
+                          </dt>
+                          <dd className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                            {statistics.tokenUsage.estimated ? 'Estimated' : 'Native LangChain'}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                )}
+
                 {/* Model Usage */}
                 {Object.keys(statistics.modelUsage).length > 0 && (
                   <div>

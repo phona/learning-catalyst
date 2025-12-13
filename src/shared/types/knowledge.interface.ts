@@ -5,6 +5,8 @@
  * Can be used by both main and renderer processes.
  */
 
+import { RelationshipType } from './relationship-types';
+
 export interface ConceptMapDisplay {
   concepts: ConceptNode[];
   relationships: ConceptRelationship[];
@@ -42,16 +44,6 @@ export interface ConceptRelationship {
   createdAt: Date;
   lastValidated?: Date;
 }
-
-export type RelationshipType =
-  | 'prerequisite'
-  | 'related'
-  | 'similar'
-  | 'application'
-  | 'example'
-  | 'contrast'
-  | 'hierarchy'
-  | 'dependency';
 
 export interface Vector2D {
   x: number;

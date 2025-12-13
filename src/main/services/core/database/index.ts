@@ -5,7 +5,6 @@ export {
   createDatabase,
   createSqliteDriverFactory,
   createDatabaseAtPath,
-  getDefaultDatabasePath,
   runMigrations,
   runMigrationsAtPath,
 } from './kysely-database';

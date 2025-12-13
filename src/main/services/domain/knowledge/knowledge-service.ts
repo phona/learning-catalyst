@@ -27,6 +27,10 @@ type KnowledgeServiceDeps = {
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
 };
 
+// Pure separation: Qdrant has vectors + conceptId, SQLite has all metadata
+const DEFAULT_SEARCH_THRESHOLD = 0.5;  // Lowered for pure separation architecture
+const SEARCH_LIMIT_MULTIPLIER = 2;     // Get more candidates, filter with SQLite
+
 export interface KnowledgeIngestionOptions {
   userId?: string;
   materialId?: string;
@@ -706,25 +710,33 @@ export const createKnowledgeService = ({
     }
 
     try {
-      // 1. Search Qdrant for similar vectors (get conceptIds only)
+      // 1. Search Qdrant for similar vectors (returns conceptId + content)
       const qdrantResults = await vectorDatabase.search(trimmedQuery, {
-        limit,
-        threshold: 0.7,
+        limit: limit * SEARCH_LIMIT_MULTIPLIER,  // Get more to filter after SQLite query
+        threshold: DEFAULT_SEARCH_THRESHOLD,     // Lower threshold for pure separation
       });
+
+      if (qdrantResults.length === 0) {
+        return [];
+      }
 
       // 2. Extract conceptIds from Qdrant results
       const conceptIds = qdrantResults
         .map((result) => result.document.metadata.conceptId)
         .filter(Boolean);
 
-      // 3. Query SQLite for full concept data (single query)
+      if (conceptIds.length === 0) {
+        return [];
+      }
+
+      // 3. Query SQLite for ALL concept data (metadata, descriptions, etc.)
       const rows = await db
         .selectFrom('concepts')
         .selectAll()
         .where('id', 'in', conceptIds)
         .execute();
 
-      // 4. Restore order by relevance score from Qdrant
+      // 4. Restore order by Qdrant scores and filter out missing
       const conceptMap = new Map(rows.map((row) => [row.id, row]));
       const results = qdrantResults
         .map((result) => {
@@ -737,7 +749,8 @@ export const createKnowledgeService = ({
             relevanceScore: result.score,
           };
         })
-        .filter(Boolean) as Array<{ concept: KnowledgeNodeDisplay; relevanceScore: number }>;
+        .filter(Boolean)
+        .slice(0, limit) as Array<{ concept: KnowledgeNodeDisplay; relevanceScore: number }>;
 
       return results;
     } catch (error) {
@@ -922,6 +935,11 @@ export const createKnowledgeService = ({
   };
 
   const getKnowledgeMap = async (sessionId?: string): Promise<KnowledgeMapDisplay> => {
+    const startTime = Date.now();
+    serviceLogger.info('getKnowledgeMap: Starting knowledge map generation', {
+      sessionId,
+    });
+
     const rows = await db
       .selectFrom('concepts')
       .selectAll()
@@ -929,7 +947,17 @@ export const createKnowledgeService = ({
       .limit(40)
       .execute();
 
+    // DEBUG: Log all concept names
+    console.log('DEBUG getKnowledgeMap: Fetched concepts:', rows.length);
+    console.log('DEBUG Concept names:', rows.map(r => r.name));
+
+    serviceLogger.info('getKnowledgeMap: Fetched concepts from database', {
+      conceptCount: rows.length,
+      queryTime: `${Date.now() - startTime}ms`,
+    });
+
     if (!rows.length) {
+      serviceLogger.warn('getKnowledgeMap: No concepts found in database');
       return {
         nodes: [],
         edges: [],
@@ -945,6 +973,10 @@ export const createKnowledgeService = ({
     }
 
     const nodes = rows.map(mapConceptRowToDisplay);
+    serviceLogger.info('getKnowledgeMap: Mapped concept rows to display objects', {
+      mappedCount: nodes.length,
+    });
+
     const positions = nodes.map((node, index) => {
       const angle = (2 * Math.PI * index) / nodes.length;
       const radius = 200;
@@ -961,35 +993,46 @@ export const createKnowledgeService = ({
       };
     });
 
+    serviceLogger.info('getKnowledgeMap: Calculated node positions', {
+      positionCount: positions.length,
+    });
+
     const nodeIds = nodes.map((node) => node.id);
     const edges = await db
       .selectFrom('relationships')
       .selectAll()
+      .where('source_concept_id', 'is not', null)
+      .where('target_concept_id', 'is not', null)
       .where('source_concept_id', 'in', nodeIds)
       .where('target_concept_id', 'in', nodeIds)
       .limit(80)
       .execute();
 
-    // Filter out edges with invalid or missing node references
-    const validNodeIds = new Set(nodeIds);
-    const mappedEdges = edges
-      .filter((edge) => {
-        // Ensure both source and target exist in our node set
-        const hasValidSource = edge.source_concept_id && validNodeIds.has(edge.source_concept_id);
-        const hasValidTarget = edge.target_concept_id && validNodeIds.has(edge.target_concept_id);
-        return hasValidSource && hasValidTarget;
-      })
-      .map((edge) => ({
-        from: edge.source_concept_id,
-        to: edge.target_concept_id,
-        label: edge.relationship_type,
-        strength: edge.strength,
-        type: relationshipTypeToEdgeType(edge.relationship_type) as
-          | 'foundation'
-          | 'related'
-          | 'prerequisite'
-          | 'application',
-      }));
+    serviceLogger.info('getKnowledgeMap: Fetched relationships from database', {
+      rawEdgeCount: edges.length,
+      nodeIdsCount: nodeIds.length,
+    });
+
+    // SQL query already ensures both source and target are in nodeIds
+    // No need for redundant JavaScript filtering
+    const mappedEdges = edges.map((edge) => ({
+      from: edge.source_concept_id,
+      to: edge.target_concept_id,
+      label: edge.relationship_type,
+      strength: edge.strength,
+      type: relationshipTypeToEdgeType(edge.relationship_type) as
+        | 'foundation'
+        | 'related'
+        | 'prerequisite'
+        | 'application',
+    }));
+
+    if (edges.length > 0) {
+      serviceLogger.info('getKnowledgeMap: Successfully mapped edges', {
+        totalEdges: mappedEdges.length,
+        totalFetchedConcepts: nodeIds.length,
+      });
+    }
 
     const clusters = Array.from(new Set(positions.map((node) => node.category)));
     const learningPaths = clusters.map((cluster) => ({
@@ -997,6 +1040,24 @@ export const createKnowledgeService = ({
       nodes: nodeIds.slice(0, 3),
       difficulty: 'intermediate',
     }));
+
+    const totalTime = Date.now() - startTime;
+
+    // DEBUG: Log final return
+    console.log('DEBUG getKnowledgeMap: RETURNING', {
+      nodesCount: positions.length,
+      edgesCount: mappedEdges.length,
+      nodeNames: positions.map(p => p.label).slice(0, 10),
+    });
+
+    serviceLogger.info('getKnowledgeMap: Knowledge map generated successfully', {
+      totalNodes: positions.length,
+      totalEdges: mappedEdges.length,
+      clusterCount: clusters.length,
+      learningPathCount: learningPaths.length,
+      layout: sessionId ? 'circular' : 'force-directed',
+      totalTime: `${totalTime}ms`,
+    });
 
     return {
       nodes: positions,
@@ -1019,11 +1080,15 @@ export const createKnowledgeService = ({
       threshold?: number;
     } = {},
   ) => {
-    const { limit = 10, threshold = 0.6 } = options;
+    const { limit = 10, threshold = DEFAULT_SEARCH_THRESHOLD } = options;
 
     serviceLogger.debug('Finding related concepts by prompt', { prompt, limit, threshold });
 
-    const vectorResults = await vectorDatabase.search(prompt, { limit: limit * 2, threshold });
+    // 1. Vector search in Qdrant (returns conceptIds + content)
+    const vectorResults = await vectorDatabase.search(prompt, {
+      limit: limit * SEARCH_LIMIT_MULTIPLIER,
+      threshold,
+    });
 
     if (vectorResults.length === 0) {
       return {
@@ -1037,29 +1102,92 @@ export const createKnowledgeService = ({
       };
     }
 
-    const rerankModel = await providerFactory.getRerankModel();
-    const documents = vectorResults.map(r => r.document.content);
+    // 2. Extract conceptIds
+    const conceptIds = vectorResults
+      .map(r => r.document.metadata.conceptId)
+      .filter(Boolean);
 
+    console.log('[findRelatedByPrompt] conceptIds:', conceptIds);
+    console.log('[findRelatedByPrompt] conceptIds type:', typeof conceptIds);
+    console.log('[findRelatedByPrompt] conceptIds is array:', Array.isArray(conceptIds));
+
+    if (conceptIds.length === 0) {
+      return {
+        matches: [],
+        query: prompt,
+        timestamp: new Date().toISOString(),
+        stats: {
+          totalResults: 0,
+          vectorCount: 0,
+        },
+      };
+    }
+
+    // 3. Fetch full metadata from SQLite
+    console.log('[findRelatedByPrompt] Executing database query...');
+    const rows = await db
+      .selectFrom('concepts')
+      .selectAll()
+      .where('id', 'in', conceptIds)
+      .execute();
+
+    console.log('[findRelatedByPrompt] Database query result type:', typeof rows);
+    console.log('[findRelatedByPrompt] rows is array:', Array.isArray(rows));
+    console.log('[findRelatedByPrompt] rows:', rows);
+
+    if (!Array.isArray(rows)) {
+      console.error('[findRelatedByPrompt] ERROR: rows is not an array!', rows);
+      return {
+        matches: [],
+        query: prompt,
+        timestamp: new Date().toISOString(),
+        stats: {
+          totalResults: 0,
+          vectorCount: vectorResults.length,
+          error: 'Database query failed - rows is not an array',
+        },
+      };
+    }
+
+    const conceptMap = new Map(rows.map(row => [row.id, row]));
+
+    // 4. Get rerank model
+    const rerankModel = await providerFactory.getRerankModel();
+    const documents = vectorResults.map(r => {
+      const conceptId = r.document.metadata.conceptId;
+      const concept = conceptMap.get(conceptId);
+      // Use SQLite data for reranking (more complete)
+      return concept ? `${concept.name}\n\n${concept.description}` : r.document.content;
+    });
+
+    // 5. Rerank
     const rerankResult = await rerankModel.rerank(prompt, documents);
 
+    // 6. Format results using SQLite data
     const rankedResults = rerankResult.indices
       .slice(0, limit)
       .map((idx, rank) => {
         const result = vectorResults[idx];
+        const conceptId = result.document.metadata.conceptId;
+        const concept = conceptMap.get(conceptId);
+
+        if (!concept) return null;
+
         return {
-          id: result.metadata?.conceptId ||
-              result.metadata?.sourceId ||
-              result.document.id,
-          name: result.metadata?.segmentTitle ||
-                result.metadata?.sourceName ||
-                result.metadata?.conceptName ||
-                result.document.id,
+          id: concept.id,
+          name: concept.name,
           score: rerankResult.scores[rank],
-          type: result.metadata?.type,
-          relationshipType: result.metadata?.relationshipType,
-          metadata: result.metadata,
+          type: concept.concept_type,           // From SQLite
+          relationshipType: undefined,          // Not in this context
+          metadata: {
+            conceptId: concept.id,              // From SQLite
+            type: concept.concept_type,         // From SQLite
+            level: concept.difficulty_level,    // From SQLite
+            path: safeParse<{ path?: string }>(concept.metadata, {}).path,  // From SQLite
+          },
         };
-      });
+      })
+      .filter(Boolean);
 
     return {
       matches: rankedResults,

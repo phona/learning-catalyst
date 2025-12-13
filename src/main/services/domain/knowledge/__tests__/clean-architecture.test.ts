@@ -62,10 +62,17 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       }),
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnValue({
+          where: vi.fn().mockImplementation((column, operator, value) => {
+            return {
               execute: vi.fn().mockResolvedValue([]),
-            }),
+            };
+          }),
+        }),
+      }),
+      updateTable: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            execute: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }),
@@ -113,10 +120,9 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
     expect(storedDoc.metadata.description).toBeUndefined();
     expect(storedDoc.metadata.type).toBeUndefined();
 
-    // ✓ Qdrant should store only minimal metadata for search
+    // ✓ Qdrant should store only minimal metadata for search (pure separation)
     expect(storedDoc.metadata).toEqual({
       conceptId: 'concept-123',
-      type: 'concept',
     });
   });
 
@@ -159,28 +165,36 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnValue({
-              execute: vi.fn().mockResolvedValue([
-                {
-                  id: 'abc-123',
-                  name: 'React',
-                  description: 'A JavaScript library for building UIs',
-                  type: 'concept',
-                  difficulty: 'intermediate',
-                  confidence: 0.9,
-                  tags: ['javascript', 'frontend'],
-                },
-                {
-                  id: 'def-456',
-                  name: 'JavaScript',
-                  description: 'A programming language',
-                  type: 'concept',
-                  difficulty: 'beginner',
-                  confidence: 0.95,
-                  tags: ['programming'],
-                },
-              ]),
-            }),
+            in: vi.fn().mockResolvedValue([
+              {
+                id: 'abc-123',
+                name: 'React',
+                description: 'A JavaScript library for building UIs',
+                concept_type: 'concept',
+                difficulty_level: 3,
+                mastery_level: 0.5,
+                tags: '["javascript", "frontend"]',
+                metadata: '{}',
+                review_count: 0,
+                parent_concept_id: null,
+                created_at: '2024-01-01',
+                updated_at: '2024-01-01',
+              },
+              {
+                id: 'def-456',
+                name: 'JavaScript',
+                description: 'A programming language',
+                concept_type: 'concept',
+                difficulty_level: 2,
+                mastery_level: 0.3,
+                tags: '["programming"]',
+                metadata: '{}',
+                review_count: 0,
+                parent_concept_id: null,
+                created_at: '2024-01-01',
+                updated_at: '2024-01-01',
+              },
+            ]),
           }),
         }),
       }),
@@ -215,8 +229,8 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
     expect(vectorDatabase.search).toHaveBeenCalledWith(
       'React and JavaScript',
       expect.objectContaining({
-        limit: 10,
-        threshold: 0.7,
+        limit: 20,  // limit * 2 for better filtering
+        threshold: 0.5,  // Lower threshold for better recall
       })
     );
 
@@ -260,10 +274,20 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
     };
 
     const mockDb = {
-      insertInto: vi.fn().mockReturnThis(),
-      values: vi.fn().mockReturnThis(),
-      returning: vi.fn().mockReturnThis(),
-      executeTakeFirst: vi.fn().mockResolvedValue({ id: 'concept-789' }),
+      insertInto: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue({
+            executeTakeFirst: vi.fn().mockResolvedValue({ id: 'concept-789' }),
+          }),
+        }),
+      }),
+      selectFrom: vi.fn().mockReturnValue({
+        selectAll: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
     } as any;
 
     const providerFactory = {
@@ -347,9 +371,14 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnValue({
-              execute: vi.fn().mockResolvedValue([]),
-            }),
+            in: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
+      updateTable: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            execute: vi.fn().mockResolvedValue(undefined),
           }),
         }),
       }),
@@ -429,10 +458,20 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
     };
 
     const mockDb = {
-      insertInto: vi.fn().mockReturnThis(),
-      values: vi.fn().mockReturnThis(),
-      returning: vi.fn().mockReturnThis(),
-      executeTakeFirst: vi.fn().mockResolvedValue({ id: 'concept-123' }),
+      insertInto: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockReturnValue({
+            executeTakeFirst: vi.fn().mockResolvedValue({ id: 'concept-123' }),
+          }),
+        }),
+      }),
+      selectFrom: vi.fn().mockReturnValue({
+        selectAll: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      }),
     } as any;
 
     const providerFactory = {

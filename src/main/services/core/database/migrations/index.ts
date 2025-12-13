@@ -22,6 +22,7 @@ import createAgentLifecycleEvents from './20251107_create_agent_lifecycle_events
 import createAgentArchives from './20251107_create_agent_archives';
 import createMemorySystemTables from './20251111_create_memory_system_tables';
 import createPracticeAttempts from './20251204_create_practice_attempts';
+import addPureSeparationIndexes from './20251211_add_pure_separation_indexes';
 
 /**
  * Load all migration files from the migrations directory
@@ -48,6 +49,7 @@ export async function loadAllMigrations(): Promise<Record<string, Migration>> {
     '20251107_create_agent_archives': createAgentArchives,
     '20251111_create_memory_system_tables': createMemorySystemTables,
     '20251204_create_practice_attempts': createPracticeAttempts,
+    '20251211_add_pure_separation_indexes': addPureSeparationIndexes,
   };
 }
 

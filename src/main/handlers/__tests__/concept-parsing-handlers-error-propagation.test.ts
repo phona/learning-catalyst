@@ -28,6 +28,7 @@ describe('concept parsing handlers - error propagation', () => {
     const mockConceptParsingService = {
       parseMaterials: vi.fn().mockRejectedValue(new Error('providerName is undefined')),
       clearJobCache: vi.fn().mockResolvedValue({ removed: 0 }),
+      rebuild: vi.fn().mockResolvedValue(undefined),
     };
 
     const mockLoggerService = {
@@ -90,6 +91,7 @@ describe('concept parsing handlers - error propagation', () => {
     const mockConceptParsingService = {
       parseMaterials: vi.fn().mockRejectedValue('String error'),
       clearJobCache: vi.fn().mockResolvedValue({ removed: 0 }),
+      rebuild: vi.fn().mockResolvedValue(undefined),
     };
 
     const mockLoggerService = {

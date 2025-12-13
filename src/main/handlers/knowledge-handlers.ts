@@ -120,17 +120,68 @@ export const setupKnowledgeHandlers = (
   });
 
   ipcMainInstance.handle('knowledge:get-map', async (_event, sessionId?: string) => {
-    handlerLogger.info('Handling get knowledge map request', { sessionId });
+    const callId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    handlerLogger.info('Handling get knowledge map request', { sessionId, callId });
     try {
       const knowledgeMap: KnowledgeMapDisplay =
         await services.knowledgeService.getKnowledgeMap(sessionId);
-      handlerLogger.info('Knowledge map returned', {
-        nodes: knowledgeMap.nodes.length,
-        edges: knowledgeMap.edges.length,
+
+      // Enhanced logging to trace data structure
+      handlerLogger.info('Knowledge map returned from service', {
+        callId,
+        nodes: knowledgeMap.nodes?.length ?? 0,
+        edges: knowledgeMap.edges?.length ?? 0,
+        nodesIsArray: Array.isArray(knowledgeMap.nodes),
+        edgesIsArray: Array.isArray(knowledgeMap.edges),
+        nodesType: typeof knowledgeMap.nodes,
+        edgesType: typeof knowledgeMap.edges,
+        hasNodes: 'nodes' in knowledgeMap,
+        hasEdges: 'edges' in knowledgeMap,
       });
-      return ok(knowledgeMap);
+
+      // Log first few items to verify structure
+      if (knowledgeMap.nodes && knowledgeMap.nodes.length > 0) {
+        handlerLogger.info('First 3 nodes sample', {
+          callId,
+          nodesSample: knowledgeMap.nodes.slice(0, 3).map(n => ({
+            id: n.id,
+            label: n.label,
+            category: n.category,
+          })),
+        });
+      }
+
+      if (knowledgeMap.edges && knowledgeMap.edges.length > 0) {
+        handlerLogger.info('First 3 edges sample', {
+          callId,
+          edgesSample: knowledgeMap.edges.slice(0, 3).map(e => ({
+            from: e.from,
+            to: e.to,
+            label: e.label,
+            type: e.type,
+          })),
+        });
+      }
+
+      // Verify object structure before sending
+      const responseData = {
+        nodes: knowledgeMap.nodes ?? [],
+        edges: knowledgeMap.edges ?? [],
+      };
+
+      handlerLogger.info('Prepared response data for IPC', {
+        callId,
+        responseNodesCount: responseData.nodes.length,
+        responseEdgesCount: responseData.edges.length,
+        responseNodesIsArray: Array.isArray(responseData.nodes),
+        responseEdgesIsArray: Array.isArray(responseData.edges),
+        responseNodesKeys: Object.keys(responseData),
+        responseEdgesKeys: Object.keys({ edges: responseData.edges }),
+      });
+
+      return ok(responseData);
     } catch (error) {
-      handlerLogger.error('Knowledge map failed', { error, sessionId });
+      handlerLogger.error('Knowledge map failed', { error, sessionId, callId });
       return fail(IPC_ERROR_CODES.knowledge.mapFailed, 'Unable to get knowledge map', error);
     }
   });

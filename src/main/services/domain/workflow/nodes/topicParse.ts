@@ -55,7 +55,11 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
       : typeof error === 'string'
         ? error
         : JSON.stringify(error);
-    console.error(`[TopicParse] Error: ${JSON.stringify(error)}`);
+
+    const errorInfo = error instanceof Error
+      ? `${error.message}\n${error.stack}`
+      : JSON.stringify(error);
+    console.error(`[TopicParse] Error: ${errorInfo}`);
     return {
       messages: [new AIMessage(`Failed to parse topic: ${errorMessage}`)],
       topic: prompt,

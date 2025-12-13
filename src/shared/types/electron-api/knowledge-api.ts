@@ -317,7 +317,12 @@ export interface ConceptParsingResult {
     };
     deduplication?: {
       duplicatesMerged: number;
+      relationshipsSkipped?: number;
       deduplicationStrategy: string;
+      originalCounts?: {
+        concepts: number;
+        relationships: number;
+      };
     };
   };
   errors: string[];
@@ -374,8 +379,8 @@ export interface ParsedRelationship {
   sourceId: string;
   targetId: string;
   type: string;
-  strength: number;
-  confidence: number;
+  strength?: number;
+  confidence?: number;
   description?: string;
 }
 

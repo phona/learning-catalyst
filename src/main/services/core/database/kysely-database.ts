@@ -15,22 +15,6 @@ import { MigrationManager, loadAllMigrations } from './migrations';
 const DATABASE_DIR = '.catalyst';
 const DATABASE_FILE = 'learning_catalyst.db';
 
-function getCatalystDir(): string {
-  return path.join(process.cwd(), DATABASE_DIR);
-}
-
-export function getDefaultDatabasePath(): string {
-  const catalystDir = getCatalystDir();
-  if (!fs.existsSync(catalystDir)) {
-    try {
-      fs.mkdirSync(catalystDir, { recursive: true });
-    } catch (error) {
-      console.warn('Failed to create .catalyst directory:', error);
-    }
-  }
-  return path.join(catalystDir, DATABASE_FILE);
-}
-
 async function ensureDatabasePath(dbPath: string): Promise<void> {
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
@@ -51,8 +35,17 @@ export async function createSqliteDriverFactory(dbPath: string): Promise<() => D
         const normalized = sql.trim().toLowerCase();
         const isSelectLike = normalized.startsWith('select') || normalized.startsWith('with');
 
+        console.log('[Driver] SQL:', sql);
+        console.log('[Driver] Params:', params);
+        console.log('[Driver] isSelectLike:', isSelectLike);
+
         if (isSelectLike) {
-          const rows = (await fetchAll(sql, params)) as R[];
+          console.log('[Driver] Calling fetchAll...');
+          const fetchResult = await fetchAll(sql, params);
+          console.log('[Driver] fetchAll result:', fetchResult);
+          console.log('[Driver] fetchAll type:', typeof fetchResult);
+          const rows = fetchResult as R[];
+          console.log('[Driver] rows:', rows);
           return { rows };
         }
 

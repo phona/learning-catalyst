@@ -28,9 +28,11 @@ vi.mock('../extraction-workflow', () => ({
 }));
 
 describe('concept parsing resume support', () => {
+  // Use temporary directory for tests to avoid affecting workspace .catalyst
   const jobDir = path.join(os.tmpdir(), 'concept-parse-resume-tests');
 
   beforeEach(() => {
+    // Override job directory for testing
     process.env.CONCEPT_PARSE_JOB_DIR = jobDir;
     fs.rmSync(jobDir, { recursive: true, force: true });
     vi.clearAllMocks();

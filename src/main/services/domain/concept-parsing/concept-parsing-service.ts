@@ -20,6 +20,7 @@ import type {
 import { ChatOpenAI } from '@langchain/openai';
 import {
   executeExtractionWorkflow,
+  type ExtractionProgressCallback,
 } from './extraction-workflow';
 
 export interface ConceptParsingMaterial {
@@ -38,6 +39,12 @@ export interface ConceptParsingSettings {
   includeCodeBlocks?: boolean;
   maxSegmentChars?: number;
   minSegmentChars?: number;
+  /** Maximum characters of content to feed to LLM per segment.
+   * -1 = unlimited (default, backward compatible)
+   * 300 = fast processing (limited context)
+   * 1000 = balanced (good context, efficient)
+   */
+  maxCharPerConcept?: number;
   vectorize?: boolean;
   jobId?: string;
   resume?: boolean;
@@ -51,7 +58,6 @@ export interface ConceptParsingSettings {
 
 type ConceptSegment = {
   id: string;
-  title: string;
   content: string;
   order: number;
 };
@@ -88,6 +94,11 @@ type SegmentExtractionSchema = {
   nodes: ExtractedConcept[];
   relationships: ExtractedRelationship[];
   recommendations: string[];
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
 };
 
 type SegmentJobStatus = 'pending' | 'done' | 'failed';
@@ -103,6 +114,7 @@ type SegmentJobRecord = {
     relationships: ParsedRelationship[];
     promptTokens?: number;
     completionTokens?: number;
+    totalTokens?: number;
     processingTime?: number;
   };
   error?: string;
@@ -144,6 +156,7 @@ const DEFAULT_SETTINGS: ConceptParsingSettings = {
   includeCodeBlocks: true,
   maxSegmentChars: 1200,
   minSegmentChars: 80,
+  maxCharPerConcept: -1,
   vectorize: true,
   options: {
     confidenceThreshold: 0.6,
@@ -163,6 +176,7 @@ const deduplicateWithinBatch = (
   deduplicatedConcepts: ParsedConcept[];
   deduplicatedRelationships: ParsedRelationship[];
   duplicatesMerged: number;
+  relationshipsSkipped: number;
 } => {
   const deduplicatedConcepts: ParsedConcept[] = [];
   const canonicalMap = new Map<string, ParsedConcept>();
@@ -257,7 +271,8 @@ const deduplicateWithinBatch = (
     }
   }
 
-  // Update relationships
+  // Update relationships to use canonical concept IDs
+  const relationshipsWithCanonicalIds: ParsedRelationship[] = [];
   for (const rel of relationships) {
     const newSourceId = conceptIdMap.get(rel.sourceId) ?? rel.sourceId;
     const newTargetId = conceptIdMap.get(rel.targetId) ?? rel.targetId;
@@ -267,19 +282,55 @@ const deduplicateWithinBatch = (
       continue;
     }
 
-    deduplicatedRelationships.push({
+    relationshipsWithCanonicalIds.push({
       ...rel,
       sourceId: newSourceId,
       targetId: newTargetId,
     });
   }
 
+  // NEW: Deduplicate relationships by (sourceId, targetId, type)
+  // Keep the relationship with the highest confidence/strength score
+  const relationshipKey = (r: ParsedRelationship): string =>
+    `${r.sourceId}->${r.targetId}->${r.type}`;
+
+  const uniqueRelationships = new Map<string, ParsedRelationship>();
+
+  for (const rel of relationshipsWithCanonicalIds) {
+    const key = relationshipKey(rel);
+    const existing = uniqueRelationships.get(key);
+
+    if (!existing) {
+      // First relationship between these concepts
+      uniqueRelationships.set(key, rel);
+    } else {
+      // Duplicate found - keep the one with higher score
+      // Score = (confidence × 0.7) + (strength × 0.3)
+      const existingScore =
+        (existing.confidence ?? 0.5) * 0.7 + (existing.strength ?? 0.5) * 0.3;
+      const currentScore =
+        (rel.confidence ?? 0.5) * 0.7 + (rel.strength ?? 0.5) * 0.3;
+
+      if (currentScore > existingScore) {
+        uniqueRelationships.set(key, rel);
+      }
+    }
+  }
+
+  // Build final deduplicated relationships array
+  for (const rel of uniqueRelationships.values()) {
+    deduplicatedRelationships.push(rel);
+  }
+
   const duplicatesMerged = concepts.length - deduplicatedConcepts.length;
+  const relationshipsSkipped =
+    relationshipsWithCanonicalIds.length - deduplicatedRelationships.length;
 
   return {
     deduplicatedConcepts,
     deduplicatedRelationships,
     duplicatesMerged,
+    relationshipsSkipped,
   };
 };
 
@@ -287,11 +338,11 @@ const resolveJobStoreDir = (): string => {
   if (process.env.CONCEPT_PARSE_JOB_DIR) {
     return process.env.CONCEPT_PARSE_JOB_DIR;
   }
-  try {
-    return path.join(app.getPath('userData'), 'concept-parse-jobs');
-  } catch {
-    return path.join(process.cwd(), '.concept-parse-jobs');
-  }
+  // Use workspace path (from env var or cwd), then .catalyst subdirectory
+  // This matches the pattern used by SQLite and Qdrant
+  const workspacePath = process.env.WORKSPACE_PATH || process.cwd();
+  const catalystDir = path.join(workspacePath, '.catalyst');
+  return path.join(catalystDir, 'concept-parse-jobs');
 };
 
 const ensureDir = async (dir: string): Promise<void> => {
@@ -318,7 +369,7 @@ const saveJobState = async (state: ConceptParsingJobState): Promise<void> => {
 };
 
 const hashSegment = (segment: ConceptSegment): string =>
-  createHash('sha256').update(segment.title || '').update('\n').update(segment.content).digest('hex');
+  createHash('sha256').update(segment.content).digest('hex');
 
 const bucketizeConfidence = (value: number): string => {
   const clamped = Math.min(1, Math.max(0, value));
@@ -357,22 +408,95 @@ const shouldSkipSegment = (segment: ConceptSegment, settings: ConceptParsingSett
   return false;
 };
 
-const createSegmentsFromText = (
+/**
+ * Merge adjacent segments to reduce LLM calls while respecting maxCharPerConcept.
+ *
+ * This optimization combines small consecutive segments into fewer, larger segments.
+ * Each merged segment's content includes all original headings, preserving context
+ * for the LLM while reducing API calls.
+ *
+ * @param segments - Raw segments from createSegmentsFromText()
+ * @param maxCharPerConcept - Maximum characters per merged segment (-1 = unlimited)
+ * @returns Merged segments ready for LLM processing
+ *
+ * @example
+ * // Without merging: 5 segments → 5 LLM calls
+ * // With merging (limit=500): 5 segments → 2-3 LLM calls
+ */
+const mergeSegments = (
+  segments: ConceptSegment[],
+  maxCharPerConcept: number,
+): ConceptSegment[] => {
+  if (segments.length <= 1 || maxCharPerConcept === 0) {
+    return segments.map((s, i) => ({ ...s, order: i }));
+  }
+
+  const merged: ConceptSegment[] = [];
+  let current: ConceptSegment = segments[0];
+
+  for (let i = 1; i < segments.length; i++) {
+    const next = segments[i];
+    const combinedLength = current.content.length + 1 + next.content.length;
+
+    // Merge if unlimited (-1) or combined size is within limit
+    if (maxCharPerConcept === -1 || combinedLength <= maxCharPerConcept) {
+      current = {
+        id: current.id,
+        content: `${current.content}\n${next.content}`,
+        order: merged.length,
+      };
+    } else {
+      // Can't merge, push current and start new
+      merged.push(current);
+      current = next;
+    }
+  }
+
+  merged.push(current);
+
+  return merged;
+};
+
+/**
+ * Apply context limit to segment content for LLM processing.
+ *
+ * This function enforces a hard limit on how much content the LLM sees per segment.
+ * If unlimited (-1), returns full content. If content exceeds limit, truncates to first N chars.
+ *
+ * @param content - Raw segment content
+ * @param maxCharPerConcept - Maximum characters to feed to LLM (-1 = unlimited)
+ * @returns Limited content for LLM processing
+ *
+ * @example
+ * // Unlimited: 2000 chars → 2000 chars
+ * // Limited (300): 2000 chars → 300 chars
+ */
+const applyContextLimit = (
+  content: string,
+  maxCharPerConcept: number,
+): string => {
+  if (maxCharPerConcept === -1) {
+    return content;
+  }
+
+  if (content.length > maxCharPerConcept) {
+    return content.substring(0, maxCharPerConcept);
+  }
+
+  return content;
+};
+
+const createSegmentsFromText = async (
   content: string,
   settings: ConceptParsingSettings,
   format?: 'markdown' | 'text',
   filePath?: string,
-): ConceptSegment[] => {
+): Promise<ConceptSegment[]> => {
   const normalized = (content ?? '').replace(/\r\n/g, '\n').trim();
   if (!normalized) return [];
 
   const lines = normalized.split('\n');
   const segments: ConceptSegment[] = [];
-  let current: Omit<ConceptSegment, 'order'> = {
-    id: randomUUID(),
-    title: 'Introduction',
-    content: '',
-  };
 
   const clampDepth = (d?: number) => {
     if (!d && d !== 0) return undefined;
@@ -387,139 +511,43 @@ const createSegmentsFromText = (
       maxDepth === undefined ? true : h.level <= maxDepth,
     );
     if (included.length) {
-      let label = 'Introduction';
-      let start = 1;
-      for (const h of included) {
-        const end = h.startLine - 1;
-        const prev = lines
-          .slice(start - 1, Math.max(start - 1, end))
-          .join('\n')
-          .trim();
-        if (prev) {
-          segments.push({ id: randomUUID(), title: label, content: prev, order: segments.length });
-        }
-        label = h.label || 'Section';
-        start = h.startLine;
-      }
-      const tail = lines
-        .slice(start - 1)
-        .join('\n')
-        .trim();
-      if (tail) {
-        segments.push({ id: randomUUID(), title: label, content: tail, order: segments.length });
-      }
-      return segments
-        .filter((segment) => !shouldSkipSegment(segment, settings))
-        .map((segment, index) => ({ ...segment, order: index }));
-    }
-  }
+      const maxChars = settings.maxSegmentChars ?? 0;
 
-  lines.forEach((line) => {
-    current.content += `${line}\n`;
-  });
-
-  if (current.content.trim()) {
-    segments.push({ ...current, content: current.content.trim(), order: segments.length });
-  }
-
-  if (segments.length <= 1 && settings.splitByParagraph !== false) {
-    const paragraphs = normalized
-      .split(/\n\s*\n/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean);
-    if (paragraphs.length > 1) {
-      return paragraphs.map((paragraph, index) => ({
-        id: randomUUID(),
-        title: `Paragraph ${index + 1}`,
-        content: paragraph,
-        order: index,
-      }));
-    }
-  }
-
-  return segments
-    .filter((segment) => !shouldSkipSegment(segment, settings))
-    .map((segment, index) => ({ ...segment, order: index }));
-};
-
-const chunkSegmentsWithLangChain = async (
-  segments: ConceptSegment[],
-  maxChars: number,
-): Promise<ConceptSegment[]> => {
-  if (!maxChars) return segments.map((s, i) => ({ ...s, order: i }));
-  const overlap = Math.max(0, Math.floor(maxChars * 0.1));
-  const splitter = new RecursiveCharacterTextSplitter({
-    chunkSize: maxChars,
-    chunkOverlap: overlap,
-  });
-  const out: ConceptSegment[] = [];
-  for (const [idx, seg] of segments.entries()) {
-    if (seg.content.length <= maxChars) {
-      out.push({ ...seg, order: out.length });
-      continue;
-    }
-    const chunks = await splitter.splitText(seg.content);
-    let part = 1;
-    for (const chunk of chunks) {
-      const trimmed = chunk.trim();
-      if (!trimmed) continue;
-      out.push({
-        id: randomUUID(),
-        title: `${seg.title} (part ${part})`,
-        content: trimmed,
-        order: out.length,
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: maxChars || 1200,
+        chunkOverlap: Math.max(0, Math.floor((maxChars || 1200) * 0.1)),
       });
-      part += 1;
-    }
-  }
-  return out;
-};
 
-/**
- * Merge adjacent short segments to reduce the number of LLM calls while keeping order.
- * Titles are concatenated with " / " to preserve context hints.
- */
-const coalesceSegments = (
-  segments: ConceptSegment[],
-  maxChars: number,
-  minChars: number,
-): ConceptSegment[] => {
-  if (!maxChars || segments.length <= 1) return segments;
+      for (const h of included) {
+        const startLine = h.startLine;
+        const nextHeading = included.find(next => next.startLine > h.startLine);
+        // Include heading line (startLine - 1) but exclude next heading to prevent duplication
+        const endLine = nextHeading ? nextHeading.startLine - 1 : lines.length;
 
-  const merged: ConceptSegment[] = [];
-  let buffer: ConceptSegment | null = null;
+        const contentBlock = lines.slice(startLine - 1, endLine).join('\n').trim();
 
-  const flush = () => {
-    if (buffer) {
-      buffer.order = merged.length;
-      merged.push(buffer);
-      buffer = null;
-    }
-  };
+        const chunks = contentBlock.length > (maxChars || 1200)
+          ? await splitter.splitText(contentBlock)
+          : [contentBlock];
 
-  for (const seg of segments) {
-    if (!buffer) {
-      buffer = { ...seg };
-      continue;
-    }
+        chunks.forEach((chunk) => {
+          if (chunk.trim()) {
+            segments.push({
+              id: randomUUID(),
+              content: chunk,
+              order: segments.length,
+            });
+          }
+        });
+      }
 
-    const combinedLength = buffer.content.length + 1 + seg.content.length;
-    if (combinedLength <= maxChars || buffer.content.length < minChars || seg.content.length < minChars) {
-      buffer = {
-        id: buffer.id,
-        title: `${buffer.title} / ${seg.title}`,
-        content: `${buffer.content}\n\n${seg.content}`,
-        order: buffer.order,
-      };
-    } else {
-      flush();
-      buffer = { ...seg };
+      return segments.filter((segment) => segment.content.trim());
     }
   }
 
-  flush();
-  return merged;
+  throw new Error('Content must be in markdown format with headings');
 };
+
 
 /**
  * Store final concepts in Qdrant with their actual concept IDs
@@ -547,8 +575,7 @@ const addConceptsToVector = async (
         id: `concept:${concept.id}`,
         content: conceptTexts[index],
         metadata: {
-          conceptId: concept.id,  // ← Link to SQLite (single source of truth)
-          type: 'concept',
+          conceptId: concept.id,  // ← PURE SEPARATION: Only conceptId in Qdrant
         },
       },
       embedding: Array.isArray(embeddings[index]) ? embeddings[index] : embeddings[index] as number[],
@@ -578,129 +605,6 @@ const addConceptsToVector = async (
   }
 };
 
-const addRelationshipToVector = async (
-  relationship: ParsedRelationship,
-  concepts: Map<string, ParsedConcept>,
-  material: ConceptParsingMaterial,
-  providerFactory: ProviderFactory,
-  vectorDatabase?: VectorDatabase,
-  logger?: ILogger,
-) => {
-  if (!vectorDatabase) return;
-
-  const sourceConcept = concepts.get(relationship.sourceId);
-  const targetConcept = concepts.get(relationship.targetId);
-
-  if (!sourceConcept || !targetConcept) {
-    return;
-  }
-
-  const relationshipText = [
-    `Relationship: ${relationship.type}`,
-    `From concept ${relationship.sourceId}`,
-    `To concept ${relationship.targetId}`,
-  ]
-    .filter(Boolean)
-    .join(' | ');
-
-  const embeddingModel = await providerFactory.getEmbeddingModel();
-  const embedding = await embeddingModel.embed(relationshipText);
-
-  // Store minimal data - only IDs, no duplicate concept names!
-  await vectorDatabase.addDocumentWithEmbedding(
-    {
-      id: `rel:${relationship.sourceId}:${relationship.targetId}`,
-      content: relationshipText,
-      metadata: {
-        type: 'relationship',
-        relationshipId: `${relationship.sourceId}:${relationship.targetId}`,  // ← Link to SQLite
-        sourceConceptId: relationship.sourceId,
-        targetConceptId: relationship.targetId,
-      },
-    },
-    embedding,
-  );
-};
-
-const addRelationshipsBatch = async (
-  relationships: ParsedRelationship[],
-  concepts: Map<string, ParsedConcept>,
-  material: ConceptParsingMaterial,
-  providerFactory: ProviderFactory,
-  vectorDatabase: VectorDatabase,
-  logger?: ILogger,
-) => {
-  try {
-    const embeddingModel = await providerFactory.getEmbeddingModel();
-    const startTime = Date.now();
-
-    // FAST: Batch all relationship texts and generate embeddings at once
-    const relationshipTexts = relationships.map(rel => {
-      const sourceConcept = concepts.get(rel.sourceId);
-      const targetConcept = concepts.get(rel.targetId);
-
-      if (!sourceConcept || !targetConcept) {
-        return '';
-      }
-
-      return [
-        `Relationship: ${rel.type}`,
-        `From concept ${rel.sourceId}`,
-        `To concept ${rel.targetId}`,
-      ]
-        .filter(Boolean)
-        .join(' | ');
-    }).filter(text => text.length > 0);
-
-    if (relationshipTexts.length === 0) return;
-
-    const embeddings = await embeddingModel.embedBatch(relationshipTexts);
-
-    // FAST: Prepare all documents for batch insertion
-    const validRelationships = relationships.filter(rel => {
-      const sourceConcept = concepts.get(rel.sourceId);
-      const targetConcept = concepts.get(rel.targetId);
-      return sourceConcept && targetConcept;
-    });
-
-    const documentsWithEmbeddings = validRelationships.map((relationship, index) => ({
-      doc: {
-        id: `rel:${relationship.sourceId}:${relationship.targetId}`,
-        content: relationshipTexts[index],
-        metadata: {
-          type: 'relationship',
-          relationshipId: `${relationship.sourceId}:${relationship.targetId}`,  // ← Link to SQLite
-          sourceConceptId: relationship.sourceId,
-          targetConceptId: relationship.targetId,
-        },
-      },
-      embedding: Array.isArray(embeddings[index]) ? embeddings[index] : embeddings[index] as number[],
-    }));
-
-    // FAST: Store all relationship documents in a single batch operation
-    await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
-
-    const durationMs = Date.now() - startTime;
-    logger?.debug(
-      'Relationships vector storage completed',
-      {
-        relationshipCount: relationships.length,
-        durationMs,
-        avgTimePerRelationship: durationMs / relationships.length,
-      },
-    );
-  } catch (error) {
-    logger?.warn(
-      'Relationship vector storage failed',
-      error instanceof Error ? error : undefined,
-      {
-        relationshipCount: relationships.length,
-        details: toLogError(error),
-      },
-    );
-  }
-};
-
 export const createConceptParsingService = ({
   providerFactory,
   vectorDatabase,
@@ -712,17 +616,20 @@ export const createConceptParsingService = ({
   const extractSegment = async (
     segment: ConceptSegment,
     material: ConceptParsingMaterial,
+    maxCharPerConcept: number,
+    progressCallback?: ExtractionProgressCallback,
   ): Promise<SegmentExtractionSchema> => {
     const startTs = Date.now();
-    const preview = createPreparsedMaterial(segment.content, {
+
+    const limitedContent = applyContextLimit(segment.content, maxCharPerConcept);
+    const preview = createPreparsedMaterial(limitedContent, {
       filePath: material.filePath ?? material.title,
       sourceLabel: material.title,
     });
     const previewPayload = previewToPromptPayload(preview);
-    const lines = segment.content.split(/\r?\n/).length;
+    const lines = limitedContent.split(/\r?\n/).length;
     const model = await currentProviderFactory.getModel();
 
-    // Validate model before creating chain to provide clearer error messages
     if (!model || typeof model !== 'object') {
       throw new Error(`Invalid model type: ${typeof model}. Expected ChatOpenAI instance.`);
     }
@@ -730,12 +637,13 @@ export const createConceptParsingService = ({
     const payloadSize = previewPayload.length;
     serviceLogger.info('Segment extraction start', {
       segmentId: segment.id,
-      segmentTitle: segment.title,
-      contentChars: segment.content.length,
+      segmentTitle: segment.content.split('\n')[0].substring(0, 50),
+      originalChars: segment.content.length,
+      limitedChars: limitedContent.length,
       lines,
       promptLength: payloadSize,
       previewStats: preview.stats,
-      promptToContentRatio: (payloadSize / segment.content.length).toFixed(2),
+      promptToContentRatio: (payloadSize / Math.max(1, limitedContent.length)).toFixed(2),
     });
     try {
       // DEBUG: Log model configuration for concept parsing
@@ -758,23 +666,18 @@ export const createConceptParsingService = ({
 
       const chainInvokeStart = Date.now();
 
-      // LANGGRAPH WORKFLOW: Use LangGraph for intelligent extraction with retry
-      // Benefits:
-      // - Visual workflow with nodes and edges
-      // - Automatic state management across retries
-      // - Smart error classification (only retry validation errors)
-      // - Better performance monitoring
       serviceLogger.info('[CONCEPT-PARSING] Starting LangGraph workflow', {
         segmentId: segment.id,
-        contentLength: segment.content.length,
+        contentLength: limitedContent.length,
         timestamp: new Date().toISOString(),
       });
 
       const workflowResult = await executeExtractionWorkflow(
-        segment.content,
+        limitedContent,
         model as ChatOpenAI,
         serviceLogger,
-        2, // max 2 attempts
+        2,
+        progressCallback,
       );
 
       const chainInvokeDuration = Date.now() - chainInvokeStart;
@@ -787,6 +690,7 @@ export const createConceptParsingService = ({
         chainInvokeDurationSec: (chainInvokeDuration / 1000).toFixed(2),
         completionTime: new Date().toISOString(),
         metrics: workflowResult.metrics,
+        tokenUsage: workflowResult.tokenUsage,
       });
 
       if (!workflowResult.success) {
@@ -820,22 +724,29 @@ export const createConceptParsingService = ({
       };
 
       const durationMs = Date.now() - startTs;
+      const segmentTitle = segment.content.split('\n')[0].replace(/^#+\s*/, '').substring(0, 50);
       serviceLogger.info('Segment extraction completed', {
         segmentId: segment.id,
-        segmentTitle: segment.title,
+        segmentTitle,
         attempts: workflowResult.attempt,
         durationMs,
         nodes: typedResult.nodes.length,
         relationships: typedResult.relationships.length,
         avgTimePerNode: durationMs / Math.max(1, typedResult.nodes.length),
+        tokenUsage: workflowResult.tokenUsage,
       });
 
-      return typedResult;
+      // Return both the typed result and token usage
+      return {
+        ...typedResult,
+        tokenUsage: workflowResult.tokenUsage,
+      };
     } catch (error) {
       const durationMs = Date.now() - startTs;
+      const segmentTitle = segment.content.split('\n')[0].replace(/^#+\s*/, '').substring(0, 50);
       serviceLogger.error('Segment extraction error', toLogError(error), {
         segmentId: segment.id,
-        segmentTitle: segment.title,
+        segmentTitle,
         durationMs,
         promptLength: previewPayload.length,
         chars: segment.content.length,
@@ -875,7 +786,7 @@ export const createConceptParsingService = ({
         ...concept.metadata,
         tags: concept.tags ?? [],
         segmentId: segment.id,
-        segmentTitle: segment.title,
+        segmentTitle: segment.content.split('\n')[0].substring(0, 50),
         materialId: material.id,
       },
     };
@@ -909,6 +820,7 @@ export const createConceptParsingService = ({
   const parseMaterials = async (
     materials: ConceptParsingMaterial[],
     settings: ConceptParsingSettings = {},
+    progressCallback?: ExtractionProgressCallback,
   ): Promise<ConceptParsingResult> => {
     if (!materials.length) {
       return {
@@ -1009,25 +921,26 @@ export const createConceptParsingService = ({
     let llmCalls = 0;
 
     for (const material of materials) {
-      let segments = createSegmentsFromText(
+      const rawSegments = await createSegmentsFromText(
         material.content,
         normalizedSettings,
         material.format,
         material.filePath,
       );
-      const maxChars = normalizedSettings.maxSegmentChars ?? 0;
-      const minChars = normalizedSettings.minSegmentChars ?? 64;
 
-      // Merge adjacent short segments to reduce number of LLM calls, then chunk if still long
-      segments = coalesceSegments(segments, maxChars, minChars);
-      if (maxChars > 0) {
-        segments = await chunkSegmentsWithLangChain(segments, maxChars);
-      }
-      processedSegments += segments.length;
-      serviceLogger.debug('Segments prepared', { materialId: material.id, count: segments.length });
+      const maxCharPerConcept = normalizedSettings.maxCharPerConcept ?? -1;
+      const mergedSegments = mergeSegments(rawSegments, maxCharPerConcept);
+      processedSegments += mergedSegments.length;
+
+      serviceLogger.debug('Segments prepared', {
+        materialId: material.id,
+        rawCount: rawSegments.length,
+        mergedCount: mergedSegments.length,
+        maxCharPerConcept,
+      });
 
       const runnableSegments: Array<{ segment: ConceptSegment; material: ConceptParsingMaterial; hash: string }> = [];
-      const filtered = segments.filter((segment) => !shouldSkipSegment(segment, normalizedSettings));
+      const filtered = mergedSegments.filter((segment) => !shouldSkipSegment(segment, normalizedSettings));
 
       for (const segment of filtered) {
         const hash = hashSegment(segment);
@@ -1036,7 +949,7 @@ export const createConceptParsingService = ({
           hash,
           segmentId: segment.id,
           materialId: material.id,
-          title: segment.title,
+          title: segment.content.split('\n')[0].substring(0, 50),
           status: existing?.status ?? 'pending',
           result: existing?.result,
           error: existing?.error,
@@ -1080,6 +993,7 @@ export const createConceptParsingService = ({
           ? normalizedSettings.options.maxConcurrentSegments
           : DEFAULT_SETTINGS.options?.maxConcurrentSegments ?? 2;
 
+      console.log(runnableSegments);
       let cursor = 0;
       const worker = async (): Promise<void> => {
         while (cursor < runnableSegments.length) {
@@ -1089,13 +1003,15 @@ export const createConceptParsingService = ({
           const start = Date.now();
 
           try {
-            const extraction = await extractSegment(segment, segMaterial);
+            const extraction = await extractSegment(segment, segMaterial, maxCharPerConcept, progressCallback);
             llmCalls += 1;
             serviceLogger.info('Segment extraction successful', extraction);
             const segmentConcepts = (extraction.nodes ?? []).slice(0, maxPerSegment);
 
-            const segPromptTokens = Math.ceil(segment.content.length / 4);
-            promptTokens += segPromptTokens;
+            // Use actual token counts from extraction result (native LangChain tracking)
+            const tokenUsage = extraction.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+            promptTokens += tokenUsage.promptTokens;
+            completionTokens += tokenUsage.completionTokens;
 
             const mappedNodes = segmentConcepts.map((node) =>
               mapConcept(node, segment, segMaterial),
@@ -1108,12 +1024,6 @@ export const createConceptParsingService = ({
             const mappedRelationships = (extraction.relationships ?? [])
               .map((relationship) => mapRelationship(relationship, nameToId))
               .filter(Boolean) as ParsedRelationship[];
-
-            // Store relationships in vector database (batched for performance)
-            if (mappedRelationships.length > 0 && vectorDatabase) {
-              const conceptsMap = new Map(mappedNodes.map(node => [node.id, node]));
-              await addRelationshipsBatch(mappedRelationships, conceptsMap, segMaterial, providerFactory, vectorDatabase, serviceLogger);
-            }
 
             mappedNodes.forEach((node) => {
               totalConcepts += 1;
@@ -1132,22 +1042,23 @@ export const createConceptParsingService = ({
             concepts.push(...mappedNodes);
             relationships.push(...mappedRelationships);
 
-            const segCompletionTokens = mappedNodes.length * 60;
-            completionTokens += segCompletionTokens;
+            // Token aggregation is already done above from extraction.tokenUsage
             const duration = Date.now() - start;
             processingTime += duration;
+            const segmentTitle = segment.content.split('\n')[0].replace(/^#+\s*/, '').substring(0, 50);
 
             jobState.segments[hash] = {
               hash,
               segmentId: segment.id,
               materialId: segMaterial.id,
-              title: segment.title,
+              title: segmentTitle,
               status: 'done',
               result: {
                 concepts: mappedNodes,
                 relationships: mappedRelationships,
-                promptTokens: segPromptTokens,
-                completionTokens: segCompletionTokens,
+                promptTokens: tokenUsage.promptTokens, // ← Use actual counts
+                completionTokens: tokenUsage.completionTokens, // ← Use actual counts
+                totalTokens: tokenUsage.totalTokens, // ← Add total
                 processingTime: duration,
               },
               updatedAt: new Date().toISOString(),
@@ -1155,14 +1066,15 @@ export const createConceptParsingService = ({
             jobState.updatedAt = new Date().toISOString();
             await saveJobState(jobState);
           } catch (error) {
+            const segmentTitle = segment.content.split('\n')[0].replace(/^#+\s*/, '').substring(0, 50);
             errors.push(
-              `[${segment.title}] ${error instanceof Error ? error.message : String(error)}`,
+              `[${segmentTitle}] ${error instanceof Error ? error.message : String(error)}`,
             );
             jobState.segments[hash] = {
               hash,
               segmentId: segment.id,
               materialId: segMaterial.id,
-              title: segment.title,
+              title: segmentTitle,
               status: 'failed',
               error: error instanceof Error ? error.message : String(error),
               updatedAt: new Date().toISOString(),
@@ -1171,7 +1083,7 @@ export const createConceptParsingService = ({
             await saveJobState(jobState);
             serviceLogger.error('Concept segment processing failed', error, {
               segmentId: segment.id,
-              segmentTitle: segment.title,
+              segmentTitle,
               details: JSON.stringify(error),
             });
             processingTime += Date.now() - start;
@@ -1209,13 +1121,21 @@ export const createConceptParsingService = ({
 
     // Stage 1: In-batch deduplication (lightweight, name-based)
     const deduplicationResult = deduplicateWithinBatch(concepts, relationships);
-    const { deduplicatedConcepts, deduplicatedRelationships, duplicatesMerged } = deduplicationResult;
+    const {
+      deduplicatedConcepts,
+      deduplicatedRelationships,
+      duplicatesMerged,
+      relationshipsSkipped = 0,
+    } = deduplicationResult;
 
-    if (duplicatesMerged > 0) {
+    if (duplicatesMerged > 0 || relationshipsSkipped > 0) {
       serviceLogger.info('In-batch deduplication completed', {
         duplicatesMerged,
+        relationshipsSkipped,
         originalConcepts: totalConcepts,
+        originalRelationships: relationships.length,
         deduplicatedConcepts: deduplicatedConcepts.length,
+        deduplicatedRelationships: deduplicatedRelationships.length,
       });
     }
 
@@ -1242,12 +1162,17 @@ export const createConceptParsingService = ({
           total: promptTokens + completionTokens,
           prompt: promptTokens,
           completion: completionTokens,
-          estimated: true,
+          estimated: false, // ← Now using native LangChain token tracking!
         },
-        // Deduplication stats
+        // Deduplication stats - ENHANCED
         deduplication: {
           duplicatesMerged,
+          relationshipsSkipped,
           deduplicationStrategy: 'in_batch_name_similarity',
+          originalCounts: {
+            concepts: totalConcepts,
+            relationships: relationships.length,
+          },
         },
       },
       errors,

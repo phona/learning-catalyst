@@ -63,6 +63,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
   const apiClient = useElectronAPIClient();
   const graphRef = useRef<RelationGraphComponent | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const loadRef = useRef<string | null>(null);
   const [rawNodes, setRawNodes] = useState<KnowledgeMapNode[]>([]);
   const [rawEdges, setRawEdges] = useState<KnowledgeMapEdge[]>([]);
   const [, setLoading] = useState(false);
@@ -89,18 +90,52 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
   };
 
   const load = useCallback(async () => {
+    const callId = `frontend_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    console.log(`[KnowledgeGameMap:${callId}] load() called`);
+
+    // Prevent concurrent calls
+    if (loadRef.current) {
+      console.log(`[KnowledgeGameMap:${callId}] Concurrent call detected, skipping`);
+      return;
+    }
+
+    loadRef.current = callId;
     setLoading(true);
     setError(null);
+
     try {
       const resp = await apiClient.knowledge.getKnowledgeMap();
+      console.log(`[KnowledgeGameMap:${callId}] IPC response received`, {
+        success: resp?.success,
+        hasData: !!resp?.data,
+        dataType: typeof resp?.data,
+        dataIsArray: typeof resp?.data === 'object' && resp?.data !== null ? Array.isArray(resp.data) : 'n/a',
+      });
+
       if (!resp?.success) throw new Error(resp.error?.message ?? 'Unable to load knowledge map');
+
       const data = resp.data as KnowledgeMapDisplay;
+      console.log(`[KnowledgeGameMap:${callId}] Knowledge map data structure:`, {
+        nodes: data?.nodes?.length ?? 0,
+        edges: data?.edges?.length ?? 0,
+        nodesIsArray: Array.isArray(data?.nodes),
+        edgesIsArray: Array.isArray(data?.edges),
+        dataKeys: Object.keys(data || {}),
+      });
+
       setRawNodes(data.nodes ?? []);
       setRawEdges(data.edges ?? []);
+      console.log(`[KnowledgeGameMap:${callId}] State updated`, {
+        rawNodesLength: data.nodes?.length ?? 0,
+        rawEdgesLength: data.edges?.length ?? 0,
+      });
     } catch (err) {
+      console.error(`[KnowledgeGameMap:${callId}] Error loading knowledge map`, err);
       setError(err instanceof Error ? err.message : 'Failed to load knowledge map');
     } finally {
       setLoading(false);
+      console.log(`[KnowledgeGameMap:${callId}] load() completed`);
+      loadRef.current = null;
     }
   }, [apiClient]);
 
@@ -150,14 +185,9 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
       size: 30 + (n.mastery ?? 0.3) * 10,
     }));
 
-    // Filter out edges with invalid node references to prevent graph rendering errors
-    const validNodeIds = new Set(nodes.map((n) => n.id));
-    const validEdges = filtered.edges.filter((e) => {
-      const isValid = e.from && e.to && validNodeIds.has(e.from) && validNodeIds.has(e.to);
-      return isValid;
-    });
-
-    const lines: RGLink[] = validEdges.map((e) => ({
+    // Backend already ensures edges have valid from/to IDs
+    // No need for redundant filtering
+    const lines: RGLink[] = filtered.edges.map((e) => ({
       from: e.from,
       to: e.to,
       text: e.label ?? e.type ?? 'related',
@@ -171,6 +201,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
       ],
     }));
 
+    console.log(`[KnowledgeGameMap] Rendering ${nodes.length} nodes and ${lines.length} edges`);
     return { nodes, lines };
   }, [filtered.edges, filtered.nodes]);
 

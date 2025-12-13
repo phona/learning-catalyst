@@ -67,6 +67,32 @@ interface ExtractionStateType {
   success: boolean;
   maxAttempts: number;
   metrics: ExtractionMetrics;
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+}
+
+/**
+ * Progress callback for real-time token usage updates during extraction
+ */
+export interface ExtractionProgressCallback {
+  /**
+   * Called when token usage is available during streaming
+   * @param tokenUsage Current token counts
+   * @param attempt Current attempt number (1, 2, etc.)
+   * @param phase Current extraction phase
+   */
+  onTokenUsageUpdate: (
+    tokenUsage: {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    },
+    attempt: number,
+    phase: 'extracting' | 'validating' | 'retrying'
+  ) => void;
 }
 
 /**
@@ -76,6 +102,7 @@ export interface ExtractionWorkflowOptions {
   model: ChatOpenAI;
   maxAttempts?: number;
   logger?: ILogger;
+  progressCallback?: ExtractionProgressCallback;
 }
 
 /**
@@ -87,6 +114,11 @@ export interface ExtractionWorkflowResult {
   error?: string;
   attempt: number;
   metrics: ExtractionMetrics;
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
 }
 
 /**
@@ -145,6 +177,16 @@ const ExtractionStateAnnotation = Annotation.Root({
       totalMs: 0,
     }),
   }),
+
+  // Token usage from LLM
+  tokenUsage: Annotation<{
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  } | null>({
+    reducer: (_prev, next) => next,
+    default: () => null,
+  }),
 });
 
 // Type helper for state
@@ -165,9 +207,10 @@ type ExtractionState = typeof ExtractionStateAnnotation.State;
  *
  * @param model - The ChatOpenAI model to use
  * @param logger - Optional logger for debugging
+ * @param progressCallback - Optional callback for real-time token usage updates
  * @returns Node function for LangGraph
  */
-function createExtractNode(model: ChatOpenAI, logger?: ILogger) {
+function createExtractNode(model: ChatOpenAI, logger?: ILogger, progressCallback?: ExtractionProgressCallback) {
   return async (state: ExtractionState): Promise<Partial<ExtractionState>> => {
     const { content, attempt, rawResponse, error } = state;
     const startTime = Date.now();
@@ -181,7 +224,7 @@ function createExtractNode(model: ChatOpenAI, logger?: ILogger) {
       // Create the appropriate chain based on attempt number
       const chainCreationStart = Date.now();
       const chain =
-        attempt === 1 ? createSimpleExtractChain(model) : createRetryExtractChain(model);
+        attempt === 1 ? createSimpleExtractChain(model, progressCallback) : createRetryExtractChain(model, progressCallback);
       const chainCreationMs = Date.now() - chainCreationStart;
 
       // Prepare input based on attempt
@@ -202,20 +245,24 @@ function createExtractNode(model: ChatOpenAI, logger?: ILogger) {
 
       // Invoke the chain
       const invokeStart = Date.now();
-      const response = await chain.invoke(input);
+      const chainResult = await chain.invoke(input);
       const llmInvokeMs = Date.now() - invokeStart;
 
-      const responseStr = typeof response === 'string' ? response : JSON.stringify(response);
+      // Extract response string and token usage from chain result
+      const responseStr = chainResult.response;
+      const tokenUsage = chainResult.usage;
 
       logger?.debug('[LANGGRAPH] LLM response received', {
         attempt,
         llmInvokeMs,
         responseLength: responseStr.length,
         responsePreview: responseStr.substring(0, 100),
+        tokenUsage,
       });
 
       return {
         rawResponse: responseStr,
+        tokenUsage,
         metrics: {
           chainCreationMs,
           llmInvokeMs,
@@ -482,11 +529,11 @@ function createFinalizeNode(logger?: ILogger) {
  * @returns Compiled LangGraph workflow
  */
 export function createExtractionWorkflow(opts: ExtractionWorkflowOptions) {
-  const { model, logger, maxAttempts = 2 } = opts;
+  const { model, logger, maxAttempts = 2, progressCallback } = opts;
 
   const workflow = new StateGraph(ExtractionStateAnnotation)
     // Add nodes
-    .addNode('extract', createExtractNode(model, logger))
+    .addNode('extract', createExtractNode(model, logger, progressCallback))
     .addNode('validate', createValidateNode(logger))
     .addNode('increment_attempt', createIncrementAttemptNode(logger))
     .addNode('finalize', createFinalizeNode(logger))
@@ -526,8 +573,9 @@ export async function executeExtractionWorkflow(
   model: ChatOpenAI,
   logger?: ILogger,
   maxAttempts: number = 2,
+  progressCallback?: ExtractionProgressCallback,
 ): Promise<ExtractionWorkflowResult> {
-  const workflow = createExtractionWorkflow({ model, logger, maxAttempts });
+  const workflow = createExtractionWorkflow({ model, logger, maxAttempts, progressCallback });
 
   const initialState = {
     content,
@@ -571,6 +619,7 @@ export async function executeExtractionWorkflow(
       error: finalState.error ?? undefined,
       attempt: finalState.attempt,
       metrics: finalState.metrics,
+      tokenUsage: finalState.tokenUsage ?? undefined,
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
@@ -587,6 +636,7 @@ export async function executeExtractionWorkflow(
       error: err.message,
       attempt: initialState.attempt,
       metrics: initialState.metrics,
+      tokenUsage: undefined,
     };
   }
 }

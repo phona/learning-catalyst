@@ -2,9 +2,18 @@ import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { Embeddings } from '@langchain/core/embeddings';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import type { ConfigService } from '@/main/services/core/config/config-service';
-import type { ProviderType, ProviderConfig } from '@/shared/types/config';
+import type {
+  ProviderType,
+  ProviderConfig,
+  SelectedChatModel,
+  SelectedModel,
+  AppConfig,
+  SelectedEmbeddingModel,
+  SelectedRerankModel,
+} from '@/shared/types/config';
 import { createIPCError, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import { clampMaxTokens, type ProviderSettings } from './provider-utils';
+import { AsyncCaller } from '@langchain/core/utils/async_caller';
 
 // ============================================================================
 // TYPES
@@ -20,16 +29,19 @@ interface SiliconFlowRerankResult {
 }
 
 interface Reranker {
-  rerank: (query: string, documents: string[]) => Promise<{
+  rerank: (
+    query: string,
+    documents: string[],
+  ) => Promise<{
     indices: number[];
     scores: number[];
   }>;
 }
 
 type ProviderImplementation = {
-  createModel: (settings: ProviderSettings) => BaseLanguageModel;
-  createEmbeddings: (settings: ProviderSettings) => Embeddings;
-  createReranker?: (settings: ProviderSettings) => Reranker;
+  createModel: (settings: ProviderConfig, modelId: string, selectedModel: SelectedChatModel) => BaseLanguageModel;
+  createEmbeddings: (settings: ProviderConfig, modelId: string, selectedModel: SelectedEmbeddingModel) => Embeddings;
+  createReranker?: (settings: ProviderConfig, modelId: string, selectedModel: SelectedRerankModel) => Reranker;
 };
 
 // ============================================================================
@@ -69,7 +81,7 @@ const requiresApiKey = (providerType: string) =>
 async function getOrCreate<T>(
   cache: Map<string, T>,
   key: string,
-  factory: () => Promise<T>
+  factory: () => Promise<T>,
 ): Promise<T> {
   if (cache.has(key)) {
     return cache.get(key)!;
@@ -89,115 +101,180 @@ async function getOrCreate<T>(
  * @throws CONFIG_ERROR if the provider is not found
  *
  * @example
- * const { config, provider } = await loadProviderConfig(configService, "openai");
- * // config = full app config
+ * const provider = await loadProviderConfig(configService, "openai");
  * // provider = { providerType: "openai", apiKey: "...", model: "gpt-4o", ... }
  */
 async function loadProviderConfig(
   configService: ConfigService,
-  providerName: string
-): Promise<{ config: any; provider: ProviderConfig }> {
+  providerName: string,
+): Promise<ProviderConfig> {
   const config = await configService.getConfig();
+  console.log(`[loadProviderConfig] Looking for provider: ${providerName}`);
+  console.log(
+    `[loadProviderConfig] Available providers:`,
+    Object.keys(config?.ai?.providers || {}),
+  );
+
   const provider = config?.ai?.providers?.[providerName];
+  console.log(`[loadProviderConfig] Direct lookup result:`, provider);
 
   if (!provider) {
     throw createIPCError({
       type: 'CONFIG_ERROR',
       code: IPC_ERROR_CODES.provider.missingConfig,
       message: `Provider "${providerName}" not found in ai.providers`,
-      details: { providerName },
+      details: { providerName, availableProviders: Object.keys(config?.ai?.providers || {}) },
     });
   }
 
-  return { config, provider };
-}
-
-/**
- * Build ProviderSettings from provider configuration.
- * Consolidates the logic for converting ProviderConfig → ProviderSettings.
- *
- * This is simpler than before because:
- * - ConfigService already merged defaults, so we don't need to handle missing values
- * - We just extract and validate the values we need
- * - Max tokens are clamped to provider limits
- *
- * @param providerName - Name of the provider (for ProviderSettings.providerName)
- * @param provider - The provider config from ai.providers
- * @param config - The full app config (for embeddingDimensions, etc.)
- * @param modelTypeConfig - Optional model type config (chat/embedding/rerank) with model, temperature, maxTokens
- * @param modelOverride - Optional model name override (used for rerank which uses different model)
- * @returns ProviderSettings object ready for creating model instances
- *
- * @example
- * const settings = buildSettings("openai", providerConfig, appConfig, chatConfig);
- * // Returns: { providerName: "openai", providerType: "openai", model: "gpt-4o", ... }
- */
-function buildSettings(
-  providerName: string,
-  provider: ProviderConfig,
-  config: any,
-  modelTypeConfig?: any,
-  modelOverride?: string
-): ProviderSettings {
-  const providerType = provider.providerType as ProviderType;
-  const model = modelOverride || modelTypeConfig?.model || provider.model!;
-  const temperature = modelTypeConfig?.temperature ?? provider.temperature!;
-  const maxTokens = clampMaxTokens(
-    modelTypeConfig?.maxTokens ?? provider.maxTokens!,
-    providerType,
-    model
-  );
-
-  // Determine timeout: use parsing.chatTimeoutSeconds if available, otherwise performance.requestTimeout
-  // Timeout is in seconds in config, but we need milliseconds for ChatOpenAI
-  const timeoutSeconds = config.parsing?.chatTimeoutSeconds ?? config.performance?.requestTimeout ?? 30;
-  const timeoutMs = timeoutSeconds * 1000;
-
-  return {
-    providerName,
-    providerType,
-    model,
-    apiKey: provider.apiKey,
-    baseUrl: provider.baseUrl,
-    temperature,
-    maxTokens,
-    embeddingDimensions: config.ai.embeddingDimensions,
-    timeout: timeoutMs,
-  };
+  console.log(`[loadProviderConfig] Returning provider:`, JSON.stringify(provider, null, 2));
+  return provider;
 }
 
 // ============================================================================
 // MODEL CREATORS
 // ============================================================================
 
-const makeChatModel = (settings: ProviderSettings) =>
+const makeChatModel = (settings: ProviderConfig, modelId: string, selectedModel: SelectedChatModel) =>
   new ChatOpenAI({
-    modelName: settings.model,
-    temperature: settings.temperature,
-    maxTokens: settings.maxTokens,
+    modelName: modelId,
+    temperature: selectedModel.temperature,
+    maxTokens: selectedModel.maxTokens,
     apiKey: settings.apiKey,
     maxRetries: 1,
-    timeout: settings.timeout,
+    streamUsage: true, // ← Enable streaming token usage tracking
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 
-const makeOpenAIEmbeddings = (settings: ProviderSettings) =>
+const makeOpenAIEmbeddings = (settings: ProviderConfig, modelId: string, selectedModel: SelectedEmbeddingModel) =>
   new OpenAIEmbeddings({
     apiKey: settings.apiKey,
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
-    model: settings.model,
-    dimensions: settings.embeddingDimensions,
+    model: modelId,
+    dimensions: selectedModel.dimensions,
   });
 
-const makeSiliconFlowReranker = (settings: ProviderSettings): Reranker => ({
+/**
+ * Custom SiliconFlow embeddings using direct fetch API
+ * This ensures the dimensions parameter is properly sent to SiliconFlow
+ */
+const makeSiliconFlowEmbeddings = (settings: ProviderConfig, modelId: string, selectedModel: SelectedEmbeddingModel ): Embeddings<number[]> => {
+  const baseUrl = settings.baseUrl || 'https://api.siliconflow.cn/v1';
+
+  return {
+    caller: new AsyncCaller({ maxConcurrency: 1 }),
+    // dimensions is not a valid property on Embeddings<number[]>
+    embedQuery: async (text: string): Promise<number[]> => {
+      console.log('[makeSiliconFlowEmbeddings] Generating embedding for:', text.substring(0, 50));
+      console.log(
+        '[makeSiliconFlowEmbeddings] Model:',
+        modelId,
+        'Dimensions:',
+        selectedModel.dimensions,
+      );
+      console.log('[makeSiliconFlowEmbeddings] Base URL:', baseUrl);
+      console.log(
+        '[makeSiliconFlowEmbeddings] API Key:',
+        settings.apiKey ? `${settings.apiKey.substring(0, 10)}...` : 'MISSING',
+      );
+
+      const requestBody = {
+        model: modelId,
+        input: text,
+        encoding_format: 'float',
+        dimensions: selectedModel.dimensions,
+      };
+      console.log('[makeSiliconFlowEmbeddings] Request body:', JSON.stringify(requestBody));
+
+      try {
+        const url = `${baseUrl}/embeddings`;
+        console.log('[makeSiliconFlowEmbeddings] Fetch URL:', url);
+        console.log('[makeSiliconFlowEmbeddings] Fetch headers:', {
+          Authorization: `Bearer ${settings.apiKey?.substring(0, 10)}...`,
+          'Content-Type': 'application/json',
+        });
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${settings.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        console.log(
+          '[makeSiliconFlowEmbeddings] Response status:',
+          response.status,
+          response.statusText,
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('[makeSiliconFlowEmbeddings] API Error:', errorText);
+          throw new Error(`SiliconFlow API error: ${response.statusText} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        console.log(
+          '[makeSiliconFlowEmbeddings] Generated embedding dimensions:',
+          data.data[0].embedding.length,
+        );
+
+        return data.data[0].embedding as number[];
+      } catch (error) {
+        console.error('[makeSiliconFlowEmbeddings] Fetch failed with error:', error);
+        console.error('[makeSiliconFlowEmbeddings] Error name:', error.name);
+        console.error('[makeSiliconFlowEmbeddings] Error message:', error.message);
+        console.error('[makeSiliconFlowEmbeddings] Error stack:', error.stack);
+        throw error;
+      }
+    },
+
+    embedDocuments: async (texts: string[]): Promise<number[][]> => {
+      console.log('[makeSiliconFlowEmbeddings] Batch embedding for', texts.length, 'texts');
+
+      const response = await fetch(`${baseUrl}/embeddings`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${settings.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: modelId,
+          input: texts,
+          encoding_format: 'float',
+          dimensions: selectedModel.dimensions,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[makeSiliconFlowEmbeddings] Batch API Error:', errorText);
+        throw new Error(`SiliconFlow API error: ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log(
+        '[makeSiliconFlowEmbeddings] Generated batch embeddings:',
+        data.data.length,
+        'items',
+      );
+
+      return data.data.map((item: any) => item.embedding);
+    },
+  };
+};
+
+const makeSiliconFlowReranker = (settings: ProviderConfig, modelId: string, selectedModel: SelectedRerankModel): Reranker => ({
   rerank: async (query: string, documents: string[]) => {
-    console.log(`[Reranker] Using ${settings.model} at ${settings.baseUrl}`);
+    console.log(`[Reranker] Using ${modelId} at ${settings.baseUrl}`);
 
     if (!documents.length) {
       throw new Error('No documents provided for reranking');
     }
 
-    const validDocs = documents.filter(doc => doc && doc.trim().length > 0);
+    const validDocs = documents.filter((doc) => doc && doc.trim().length > 0);
     if (!validDocs.length) {
       throw new Error('No valid documents provided for reranking');
     }
@@ -205,11 +282,11 @@ const makeSiliconFlowReranker = (settings: ProviderSettings): Reranker => ({
     const response = await fetch(`${settings.baseUrl}/rerank`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${settings.apiKey}`,
+        Authorization: `Bearer ${settings.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: settings.model,
+        model: modelId,
         query,
         documents: validDocs,
         top_n: validDocs.length,
@@ -223,13 +300,11 @@ const makeSiliconFlowReranker = (settings: ProviderSettings): Reranker => ({
     }
 
     const result: SiliconFlowRerankResult = await response.json();
-    const sortedResults = [...result.results].sort(
-      (a, b) => b.relevance_score - a.relevance_score
-    );
+    const sortedResults = [...result.results].sort((a, b) => b.relevance_score - a.relevance_score);
 
     return {
-      indices: sortedResults.map(r => r.index),
-      scores: sortedResults.map(r => r.relevance_score),
+      indices: sortedResults.map((r) => r.index),
+      scores: sortedResults.map((r) => r.relevance_score),
     };
   },
 });
@@ -253,7 +328,7 @@ const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
   },
   siliconflow: {
     createModel: makeChatModel,
-    createEmbeddings: makeOpenAIEmbeddings,
+    createEmbeddings: makeSiliconFlowEmbeddings,
     createReranker: makeSiliconFlowReranker,
   },
   'openai-compatible': {
@@ -264,6 +339,29 @@ const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
     createModel: makeChatModel,
     createEmbeddings: makeOpenAIEmbeddings,
   },
+};
+
+const validateProviderConfig = (provider: ProviderConfig) => {
+  // Validate API key for providers that need it (cloud providers, not local)
+  if (requiresApiKey(provider.providerType) && !provider.apiKey) {
+    throw createIPCError({
+      type: 'CONFIG_ERROR',
+      code: IPC_ERROR_CODES.provider.authRequired,
+      message: `API key required for ${provider.providerType}. Configure it in Settings.`,
+    });
+  }
+
+  // Create model using the provider's implementation
+  const impl = PROVIDER_IMPLEMENTATIONS[provider.providerType];
+  if (!impl) {
+    throw createIPCError({
+      type: 'CONFIG_ERROR',
+      code: IPC_ERROR_CODES.provider.unsupportedConfig,
+      message: `Unsupported provider: ${provider.providerType}`,
+      details: { providerType: provider.providerType },
+    });
+  }
+  return impl;
 };
 
 // ============================================================================
@@ -346,32 +444,13 @@ export const createProviderFactory = (configService: ConfigService) => {
     const cacheKey = `model:${providerName}`;
     return getOrCreate(modelCache, cacheKey, async () => {
       // Load provider config (throws if not found)
-      const { config: fullConfig, provider } = await loadProviderConfig(configService, providerName!);
-      // Convert to ProviderSettings format using chat config
-      const settings = buildSettings(providerName!, provider, fullConfig, chatConfig);
-
-      // Validate API key for providers that need it (cloud providers, not local)
-      if (requiresApiKey(settings.providerType) && !settings.apiKey) {
-        throw createIPCError({
-          type: 'CONFIG_ERROR',
-          code: IPC_ERROR_CODES.provider.authRequired,
-          message: `API key required for ${providerName}. Configure it in Settings.`,
-        });
-      }
-
-      // Create model using the provider's implementation
-      const impl = PROVIDER_IMPLEMENTATIONS[settings.providerType];
-      if (!impl) {
-        throw createIPCError({
-          type: 'CONFIG_ERROR',
-          code: IPC_ERROR_CODES.provider.unsupportedConfig,
-          message: `Unsupported provider: ${settings.providerType}`,
-          details: { providerType: settings.providerType },
-        });
-      }
-
-      console.log("model", JSON.stringify(settings));
-      return impl.createModel(settings);
+      const provider = await loadProviderConfig(
+        configService,
+        providerName!,
+      );
+      
+      const impl = validateProviderConfig(provider);
+      return impl.createModel(provider, chatConfig.model, chatConfig);
     });
   };
 
@@ -380,49 +459,46 @@ export const createProviderFactory = (configService: ConfigService) => {
    */
   const getEmbeddings = async () => {
     const config = await configService.getConfig();
+    console.log('[getEmbeddings] Full config.ai:', JSON.stringify(config.ai, null, 2));
+    console.log(
+      '[getEmbeddings] config.ai.modelTypes:',
+      JSON.stringify(config.ai.modelTypes, null, 2),
+    );
+
     const embConfig = config.ai.modelTypes?.embedding;
+    console.log('[getEmbeddings] embConfig:', JSON.stringify(embConfig, null, 2));
+    console.log('[getEmbeddings] embConfig type:', typeof embConfig);
+    console.log('[getEmbeddings] embConfig is null:', embConfig === null);
+    console.log('[getEmbeddings] embConfig is undefined:', embConfig === undefined);
 
-    console.log("embConfig", JSON.stringify(embConfig));
-    if (!embConfig?.provider || !embConfig?.model) {
+    if (!embConfig) {
       throw createIPCError({
         type: 'CONFIG_ERROR',
         code: IPC_ERROR_CODES.provider.missingConfig,
-        message: 'Embedding config missing. Set ai.modelTypes.embedding',
+        message: `Embedding config missing. config.ai.modelTypes is ${config.ai.modelTypes}, expected object with embedding config`,
+        details: { configAiModelTypes: config.ai.modelTypes },
       });
     }
 
-    // Validate embeddingDimensions is required
-    if (!config.ai.embeddingDimensions) {
-      throw createIPCError({
-        type: 'CONFIG_ERROR',
-        code: IPC_ERROR_CODES.provider.missingConfig,
-        message: 'embeddingDimensions is required. Set ai.embeddingDimensions',
-      });
-    }
-
+    console.log(
+      '[getEmbeddings] Creating cache key with provider:',
+      embConfig.provider,
+      'model:',
+      embConfig.model,
+    );
     const cacheKey = `emb:${embConfig.provider}:${embConfig.model}`;
+    console.log('[getEmbeddings] Cache key:', cacheKey);
+
     return getOrCreate(embeddingsCache, cacheKey, async () => {
-      const { config: fullConfig, provider } = await loadProviderConfig(configService, embConfig.provider!);
-      const settings = buildSettings(embConfig.provider!, provider, fullConfig, embConfig);
+      console.log('[getEmbeddings] Loading provider config for:', embConfig.provider);
+      const provider = await loadProviderConfig(
+        configService,
+        embConfig.provider!,
+      );
+      console.log('[getEmbeddings] Loaded provider:', JSON.stringify(provider, null, 2));
 
-      if (requiresApiKey(settings.providerType) && !settings.apiKey) {
-        throw createIPCError({
-          type: 'CONFIG_ERROR',
-          code: IPC_ERROR_CODES.provider.authRequired,
-          message: `API key required for embeddings provider ${embConfig.provider}`,
-        });
-      }
-
-      const impl = PROVIDER_IMPLEMENTATIONS[settings.providerType];
-      if (!impl) {
-        throw createIPCError({
-          type: 'CONFIG_ERROR',
-          code: IPC_ERROR_CODES.provider.unsupportedConfig,
-          message: `Unsupported embeddings provider: ${settings.providerType}`,
-        });
-      }
-
-      return impl.createEmbeddings(settings);
+      const impl = validateProviderConfig(provider);
+      return impl.createEmbeddings(provider, embConfig.model, embConfig);
     });
   };
 
@@ -443,16 +519,18 @@ export const createProviderFactory = (configService: ConfigService) => {
 
     const cacheKey = `rerank:${rerankConfig.provider}:${rerankConfig.model}`;
     return getOrCreate(rerankerCache, cacheKey, async () => {
-      const { config: fullConfig, provider } = await loadProviderConfig(configService, rerankConfig.provider!);
-      const settings = buildSettings(rerankConfig.provider!, provider, fullConfig, rerankConfig, rerankConfig.model!);
+      const provider = await loadProviderConfig(
+        configService,
+        rerankConfig.provider!,
+      );
 
-      const impl = PROVIDER_IMPLEMENTATIONS[settings.providerType];
+      const impl = validateProviderConfig(provider);
       if (!impl?.createReranker) {
-        throw new Error(`Provider ${settings.providerType} doesn't support reranking`);
+        throw new Error(`Provider ${provider.providerType} doesn't support reranking`);
       }
 
-      console.log(`[Factory] Initializing reranker: ${settings.model}`);
-      return impl.createReranker(settings);
+      console.log(`[Factory] Initializing reranker: ${rerankConfig.model}`);
+      return impl.createReranker(provider, rerankConfig.model, rerankConfig);
     });
   };
 
