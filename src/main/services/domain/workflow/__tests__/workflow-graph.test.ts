@@ -24,7 +24,7 @@ const makeDeps = () => {
     invoke: vi.fn().mockResolvedValue({
       messages: [{ role: 'assistant', content }],
     }),
-    providerSettings: { providerName: 'mock', model: 'mock-model' },
+    providerInfo: { providerName: 'mock', model: 'mock-model' },
   });
 
   const agentManager = {
@@ -101,6 +101,13 @@ const makeDeps = () => {
   const knowledgeService = {
     searchKnowledge: vi.fn().mockResolvedValue({ results: [{ id: 'c1', title: 'Concept 1' }] }),
     getRelatedConcepts: vi.fn().mockResolvedValue({ relatedConcepts: [{ name: 'Concept 2' }] }),
+    findRelatedByPrompt: vi.fn().mockResolvedValue({
+      matches: [
+        { type: 'concept', name: 'Topic' },
+        { type: 'relationship', name: 'Related 1' },
+        { type: 'relationship', name: 'Related 2' },
+      ],
+    }),
   } as any;
 
   const practiceService = {
@@ -144,19 +151,19 @@ describe('workflow-graph interrupts', () => {
       invoke: vi.fn().mockResolvedValue({
         messages: [{ role: 'assistant', content: 'Confidence: 50%' }],
       }),
-      providerSettings: { providerName: 'mock', model: 'mock' },
+      providerInfo: { providerName: 'mock', model: 'mock' },
     };
     const mockLearning = {
       invoke: vi.fn().mockResolvedValue({
         messages: [{ role: 'assistant', content: 'Teach content' }],
       }),
-      providerSettings: { providerName: 'mock', model: 'mock' },
+      providerInfo: { providerName: 'mock', model: 'mock' },
     };
     const mockTutoring = {
       invoke: vi.fn().mockResolvedValue({
         messages: [{ role: 'assistant', content: 'Practice prompt' }],
       }),
-      providerSettings: { providerName: 'mock', model: 'mock' },
+      providerInfo: { providerName: 'mock', model: 'mock' },
     };
 
     deps.agentManager.getAgent.mockImplementation((type) => {

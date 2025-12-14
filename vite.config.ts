@@ -88,7 +88,20 @@ export default defineConfig(({ command }) => {
               minify: isBuild,
               outDir: 'dist-electron/main',
               rollupOptions: {
-                external: ['sqlite-electron', 'electron'],
+                external: [
+                  'sqlite-electron',
+                  'electron',
+                  'langchain',
+                  '@langchain/core',
+                  '@langchain/openai',
+                  '@langchain/community',
+                  '@langchain/langgraph',
+                  '@langchain/textsplitters',
+                  '@qdrant/js-client-rest',
+                  '@qdrant/qdrant-js',
+                  '@xenova/transformers',
+                  'axios',
+                ],
                 output: {
                   format: 'cjs',
                 },

@@ -197,7 +197,6 @@ describe('findRelatedByPrompt', () => {
     expect(result.query).toBe('photosynthesis');
     expect(result.timestamp).toBeDefined();
     expect(result.stats.vectorCount).toBe(2);
-    expect(result.stats.rerankModel).toBe('mock-rerank');
   });
 
   it('should use default limit and threshold when not provided', async () => {

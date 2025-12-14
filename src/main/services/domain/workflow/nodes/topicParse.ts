@@ -10,7 +10,9 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
   const prompt = text;
 
   if (!prompt) {
-    return { messages: [new AIMessage('No topic provided. Please specify what you want to learn about.')], topic: '' };
+    return {
+      error: 'No topic provided. Please specify what you want to learn about.',
+    };
   }
 
   try {
@@ -19,27 +21,22 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
       threshold: 0.6,
     });
 
-    const conceptMatches = result.matches.filter((m) => m.type === 'concept');
-    const top = conceptMatches[0];
-
-    console.log(`[TopicParse] Query: "${prompt}"`);
-    console.log(`[TopicParse] Total matches: ${result.matches.length}, Concept matches: ${conceptMatches.length}`);
-
-    if (result.matches.length > 0) {
-      console.log(`[TopicParse] Found matches:`, result.matches.map(m => ({
-        type: m.type,
-        name: m.name,
-        score: m.score
-      })));
-    }
-
-    if (!top) {
+    // No matching concepts - topic not in our knowledge base, can't proceed
+    if (result.matches.length === 0 || !result.matches[0]) {
       console.log(`[TopicParse] No concept matches found for query: "${prompt}"`);
-      return { messages: [new AIMessage('No matching concepts found. Try importing learning materials or rephrasing your question.')], topic: prompt };
+      return {
+        messages: [new AIMessage(`Topic "${prompt}" not found in knowledge base. Please try importing learning materials or choose a different topic.`)],
+        topic: undefined,  // Don't set topic - will cause workflow to stop
+      };
     }
 
-    const relationshipMatches = result.matches.filter((m) => m.type === 'relationship');
-    const neighbors = relationshipMatches.slice(0, 3).map((m) => m.name);
+    const top = result.matches[0];
+
+    // Get neighbor concepts (skip the first match which is the main topic)
+    const neighbors = result.matches
+      .slice(1, 4)
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+      .map((m) => m.name);
 
     const msgText = neighbors.length
       ? `Topic: ${top.name}. Related: ${neighbors.join(', ')}`
@@ -61,8 +58,7 @@ export const topicParseNode = (deps: WorkflowDeps) => async (state: typeof Workf
       : JSON.stringify(error);
     console.error(`[TopicParse] Error: ${errorInfo}`);
     return {
-      messages: [new AIMessage(`Failed to parse topic: ${errorMessage}`)],
-      topic: prompt,
+      error: `Failed to parse topic: ${errorMessage}`,
     };
   }
 };

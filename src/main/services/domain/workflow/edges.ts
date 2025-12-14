@@ -10,7 +10,7 @@ export const SIMPLE_EDGES: Array<[any, any]> = [
 
   // Path B: Standard Learning Loop - Initial setup
   // StandardStart([**Orchestrator**]: Start Topic) --> CheckProfile & Analyze([**Assessment Agent**]: Fetch Profile & History)
-  [NodeName.TOPIC_PARSE, NodeName.ASSESS],
+  // Note: TOPIC_PARSE -> ASSESS is now conditional (see CONDITIONALS below)
   // Analyze([**Assessment Agent**]: Analyze Readiness) --> PlanUpdate([**Orchestrator**]: Update Learning Plan)
   [NodeName.ASSESS, NodeName.PLAN],
 
@@ -37,6 +37,13 @@ export const SIMPLE_EDGES: Array<[any, any]> = [
 ];
 
 export const CONDITIONALS: Partial<Record<NodeName, (state: WorkflowState) => NodeName>> = {
+  // Error handling and topic validation: Stop workflow if error or no valid topic
+  [NodeName.TOPIC_PARSE]: (state: WorkflowState) => {
+    if (state.error) return NodeName.COMPLETE;
+    if (!state.topic) return NodeName.COMPLETE;  // No matching concept found - can't proceed
+    return NodeName.ASSESS;
+  },
+
   // Path A vs B decision point: CheckConf[**Orchestrator**]: Confidence High?
   [NodeName.ASSESS]: (state: WorkflowState) => {
     const conf = state.confidence ?? 0.5;

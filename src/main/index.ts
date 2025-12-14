@@ -4,8 +4,6 @@ import { mkdir } from 'fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setupAllIpcHandlers } from './handlers';
-import { setupSessionsHandlers } from './handlers/sessions-handlers';
-import { setupEnhancedAgentHandlers } from './handlers/agent-enhanced-handlers';
 import { setupSettingsHandlers } from './handlers/settings-handlers';
 import {
   serializeIPCError,
@@ -46,7 +44,7 @@ import { createConfigStorage } from './services/core/config/storage';
 // import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug';
 
 // Enable source map support for better error stack traces
-import './utils/source-map-support';
+// import './utils/source-map-support';
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -479,15 +477,11 @@ async function cleanup() {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  console.log('🚀 Learning Catalyst starting with new architecture...');
-
   // Initialize memory debugging for development
   // startMemoryDebug();
 
   // Create the main window
   await createWindow();
-
-  console.log('✅ Learning Catalyst ready with new service architecture!');
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

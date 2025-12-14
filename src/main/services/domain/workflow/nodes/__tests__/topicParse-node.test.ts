@@ -90,9 +90,9 @@ describe('topicParse node', () => {
     } as any);
 
     expect(mockKnowledgeService.findRelatedByPrompt).not.toHaveBeenCalled();
-    expect(result.messages).toHaveLength(1);
-    expect(result.messages[0].content).toBe('No topic provided. Please specify what you want to learn about.');
-    expect(result.topic).toBe('');
+    expect(result.error).toBe('No topic provided. Please specify what you want to learn about.');
+    expect(result.messages).toBeUndefined();
+    expect(result.topic).toBeUndefined();
   });
 
   it('handles topic from last user message', async () => {
@@ -147,8 +147,13 @@ describe('topicParse node', () => {
       topic: 'UnknownTopic',
     } as any);
 
-    expect(result.messages[0].content).toBe('No matching concepts found. Try importing learning materials or rephrasing your question.');
-    expect(result.topic).toBe('UnknownTopic');
+    // No error field - just message that topic not found
+    expect(result.error).toBeUndefined();
+    // Topic is undefined - workflow will stop
+    expect(result.topic).toBeUndefined();
+    // Should have message about topic not found
+    expect(result.messages).toBeDefined();
+    expect(result.messages[0].content).toContain('not found in knowledge base');
   });
 
   it('handles errors gracefully', async () => {
@@ -169,8 +174,8 @@ describe('topicParse node', () => {
       topic: 'React',
     } as any);
 
-    expect(result.messages[0].content).toContain('Failed to parse topic: Database error');
-    expect(result.topic).toBe('React');
+    expect(result.error).toContain('Failed to parse topic: Database error');
+    expect(result.topic).toBeUndefined();
   });
 
   it('normalizes and trims topic text', async () => {

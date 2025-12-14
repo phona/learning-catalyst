@@ -67,7 +67,7 @@ const makeDeps = () => {
     invoke: vi.fn().mockResolvedValue({
       messages: [{ role: 'assistant', content }],
     }),
-    providerSettings: {
+    providerInfo: {
       providerName: config.provider.name,
       model: config.provider.chatModel.model,
     },
@@ -286,6 +286,21 @@ const makeDeps = () => {
   const knowledgeService = {
     searchKnowledge: vi.fn().mockResolvedValue({ results: [{ id: 'c1', title: 'Concept 1' }] }),
     getRelatedConcepts: vi.fn().mockResolvedValue({ relatedConcepts: [{ name: 'Concept 2' }] }),
+    findRelatedByPrompt: vi.fn().mockImplementation((prompt: string) => {
+      // Return matches for common test topics
+      const topic = prompt.toLowerCase();
+      if (topic.includes('machine learning') || topic.includes('python') || topic.includes('javascript') || topic.includes('react')) {
+        return {
+          matches: [
+            { type: 'concept', name: prompt },
+            { type: 'relationship', name: 'Related Concept 1' },
+            { type: 'relationship', name: 'Related Concept 2' },
+          ],
+        };
+      }
+      // Default: no matches
+      return { matches: [] };
+    }),
   };
 
   const practiceService = {

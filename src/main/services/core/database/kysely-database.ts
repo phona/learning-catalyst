@@ -35,17 +35,11 @@ export async function createSqliteDriverFactory(dbPath: string): Promise<() => D
         const normalized = sql.trim().toLowerCase();
         const isSelectLike = normalized.startsWith('select') || normalized.startsWith('with');
 
-        console.log('[Driver] SQL:', sql);
-        console.log('[Driver] Params:', params);
-        console.log('[Driver] isSelectLike:', isSelectLike);
-
         if (isSelectLike) {
-          console.log('[Driver] Calling fetchAll...');
+          console.log('Executing select query:', sql, params);
           const fetchResult = await fetchAll(sql, params);
-          console.log('[Driver] fetchAll result:', fetchResult);
-          console.log('[Driver] fetchAll type:', typeof fetchResult);
           const rows = fetchResult as R[];
-          console.log('[Driver] rows:', rows);
+          console.log('Select query result:', rows);
           return { rows };
         }
 

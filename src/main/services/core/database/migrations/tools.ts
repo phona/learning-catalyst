@@ -22,40 +22,32 @@ export class MigrationTracker {
   private executedMigrations: Set<string> = new Set();
 
   async createMigrationTable(db: Kysely<any>): Promise<void> {
-    console.log('[MigrationTracker] Starting migration table creation...');
     try {
-      console.log('[MigrationTracker] Executing CREATE TABLE for kysely_migration...');
       await db.schema
         .createTable('kysely_migration')
         .addColumn('name', 'text', (col) => col.notNull().primaryKey())
         .addColumn('executed_at', 'text', (col) => col.notNull())
         .execute();
-      console.log('[MigrationTracker] Migration table created successfully');
     } catch (error) {
       // Table might already exist, ignore error
-      console.log('[MigrationTracker] Migration table might already exist:', error);
-      console.log('[MigrationTracker] Continuing with existing migration table...');
+      console.error('[MigrationTracker] Migration table might already exist:', error);
+      throw error;
     }
   }
 
   async loadExecutedMigrations(db: Kysely<any>): Promise<void> {
-    console.log('[MigrationTracker] Loading executed migrations...');
     try {
-      console.log('[MigrationTracker] Executing SELECT FROM kysely_migration...');
       const results = await db.selectFrom('kysely_migration').select('name').execute();
 
-      console.log(`[MigrationTracker] Found ${results.length} executed migrations`);
       this.executedMigrations = new Set(results.map((r) => r.name));
-      console.log('[MigrationTracker] Executed migrations:', Array.from(this.executedMigrations));
     } catch (error) {
       // Table might not exist yet, that's ok
-      console.log('[MigrationTracker] No migration table found, starting fresh:', error);
-      console.log('[MigrationTracker] No executed migrations loaded');
+      console.error('[MigrationTracker] No migration table found, starting fresh:', error);
+      throw error;
     }
   }
 
   async markMigrationAsExecuted(db: Kysely<any>, migrationName: string): Promise<void> {
-    console.log(`[MigrationTracker] Marking migration as executed: ${migrationName}`);
     await db
       .insertInto('kysely_migration')
       .values({
@@ -63,16 +55,11 @@ export class MigrationTracker {
         executed_at: new Date().toISOString(),
       })
       .execute();
-    console.log(`[MigrationTracker] Successfully marked migration as executed: ${migrationName}`);
     this.executedMigrations.add(migrationName);
   }
 
   async markMigrationAsRolledBack(db: Kysely<any>, migrationName: string): Promise<void> {
-    console.log(`[MigrationTracker] Marking migration as rolled back: ${migrationName}`);
     await db.deleteFrom('kysely_migration').where('name', '=', migrationName).execute();
-    console.log(
-      `[MigrationTracker] Successfully marked migration as rolled back: ${migrationName}`,
-    );
     this.executedMigrations.delete(migrationName);
   }
 

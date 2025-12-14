@@ -21,27 +21,10 @@ export const createIpcFetch = (): FetchFunction => async (_input, init) => {
         cancelStream = window.electronAPI.aiSDK.stream(
           { messages, conversationId },
           (stream) => {
-            if (isFirstChunk) {
-              controller.enqueue(
-                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-start' }) + '\n\n'),
-              );
-              isFirstChunk = false;
-            }
-
-            if (stream.content) {
-              controller.enqueue(
-                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-delta', delta: stream.content }) + '\n\n'),
-              );
-            }
+            console.log(JSON.stringify(stream));
+            controller.enqueue(textEncoder.encode(stream));
           },
           () => {
-            // Stream completed callback - send text-end
-            if (!isFirstChunk) {
-              controller.enqueue(
-                textEncoder.encode('data: ' + JSON.stringify({ id: messageId, type: 'text-end' }) + '\n\n'),
-              );
-            }
-            // Delay closing to ensure text-end is received
             setTimeout(() => controller.close(), 100);
           },
         );

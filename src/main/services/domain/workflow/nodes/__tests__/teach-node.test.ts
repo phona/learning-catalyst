@@ -3,6 +3,18 @@ import { teachNode } from '../teach';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
 
+// Mock the interrupt function from LangGraph since it requires a graph execution context
+vi.mock('@langchain/langgraph', async () => {
+  const actual = await vi.importActual('@langchain/langgraph');
+  return {
+    ...actual,
+    interrupt: vi.fn().mockResolvedValue({
+      type: 'user',
+      content: 'I understand the concept',
+    }),
+  };
+});
+
 describe('teach node', () => {
   beforeEach(() => {
     vi.clearAllMocks();

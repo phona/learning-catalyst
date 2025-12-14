@@ -683,6 +683,13 @@ export const createKnowledgeService = ({
     }
 
     const rows = await builder.orderBy('updated_at', 'desc').limit(limit).execute();
+    serviceLogger.info('Knowledge search query', {
+      query: trimmed,
+      tags,
+      limit,
+      rowsReturned: rows.length,
+      rows,
+    });
     const nodes = rows.map(mapConceptRowToDisplay);
     const results = nodes.map(mapNodeToSearchResult);
     const filters = buildFilters(results);
@@ -1089,6 +1096,7 @@ export const createKnowledgeService = ({
       limit: limit * SEARCH_LIMIT_MULTIPLIER,
       threshold,
     });
+    serviceLogger.debug('[KnowledgeService] Vector search results:', vectorResults);
 
     if (vectorResults.length === 0) {
       return {
@@ -1107,9 +1115,7 @@ export const createKnowledgeService = ({
       .map(r => r.document.metadata.conceptId)
       .filter(Boolean);
 
-    console.log('[findRelatedByPrompt] conceptIds:', conceptIds);
-    console.log('[findRelatedByPrompt] conceptIds type:', typeof conceptIds);
-    console.log('[findRelatedByPrompt] conceptIds is array:', Array.isArray(conceptIds));
+    serviceLogger.debug('[findRelatedByPrompt] conceptIds:', conceptIds);
 
     if (conceptIds.length === 0) {
       return {
@@ -1124,37 +1130,20 @@ export const createKnowledgeService = ({
     }
 
     // 3. Fetch full metadata from SQLite
-    console.log('[findRelatedByPrompt] Executing database query...');
     const rows = await db
       .selectFrom('concepts')
       .selectAll()
-      .where('id', 'in', conceptIds)
+      .where('id', 'in', conceptIds as string[])
       .execute();
 
-    console.log('[findRelatedByPrompt] Database query result type:', typeof rows);
-    console.log('[findRelatedByPrompt] rows is array:', Array.isArray(rows));
-    console.log('[findRelatedByPrompt] rows:', rows);
-
-    if (!Array.isArray(rows)) {
-      console.error('[findRelatedByPrompt] ERROR: rows is not an array!', rows);
-      return {
-        matches: [],
-        query: prompt,
-        timestamp: new Date().toISOString(),
-        stats: {
-          totalResults: 0,
-          vectorCount: vectorResults.length,
-          error: 'Database query failed - rows is not an array',
-        },
-      };
-    }
+    serviceLogger.debug('[findRelatedByPrompt] rows:', rows);
 
     const conceptMap = new Map(rows.map(row => [row.id, row]));
 
     // 4. Get rerank model
     const rerankModel = await providerFactory.getRerankModel();
     const documents = vectorResults.map(r => {
-      const conceptId = r.document.metadata.conceptId;
+      const conceptId = r.document.metadata.conceptId as string;
       const concept = conceptMap.get(conceptId);
       // Use SQLite data for reranking (more complete)
       return concept ? `${concept.name}\n\n${concept.description}` : r.document.content;
@@ -1168,7 +1157,7 @@ export const createKnowledgeService = ({
       .slice(0, limit)
       .map((idx, rank) => {
         const result = vectorResults[idx];
-        const conceptId = result.document.metadata.conceptId;
+        const conceptId = result.document.metadata.conceptId as string;
         const concept = conceptMap.get(conceptId);
 
         if (!concept) return null;
@@ -1196,7 +1185,6 @@ export const createKnowledgeService = ({
       stats: {
         totalResults: rankedResults.length,
         vectorCount: vectorResults.length,
-        rerankModel: rerankModel.settings.model,
       },
     };
   };

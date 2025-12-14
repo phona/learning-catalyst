@@ -18,6 +18,7 @@ const messagesStateReducer = (current: BaseMessage[] | undefined, update: BaseMe
 export const WorkflowStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({ reducer: messagesStateReducer }),
   topic: Annotation<string>({ reducer: (current, update) => update ?? current }),
+  error: Annotation<string | null>({ reducer: (current, update) => update ?? current, default: () => null }),
   confidence: Annotation<number>({ reducer: (current, update) => update ?? current }),
   mastery: Annotation<number>({ reducer: (current, update) => update ?? current }),
   attemptCount: Annotation<number>({ reducer: (current, update) => update ?? current, default: () => 0 }),

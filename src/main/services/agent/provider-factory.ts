@@ -14,6 +14,7 @@ import type {
 import { createIPCError, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import { clampMaxTokens, type ProviderSettings } from './provider-utils';
 import { AsyncCaller } from '@langchain/core/utils/async_caller';
+import { formatErrorWithSourceMaps } from '@/main/utils/source-map-support';
 
 // ============================================================================
 // TYPES
@@ -109,14 +110,7 @@ async function loadProviderConfig(
   providerName: string,
 ): Promise<ProviderConfig> {
   const config = await configService.getConfig();
-  console.log(`[loadProviderConfig] Looking for provider: ${providerName}`);
-  console.log(
-    `[loadProviderConfig] Available providers:`,
-    Object.keys(config?.ai?.providers || {}),
-  );
-
   const provider = config?.ai?.providers?.[providerName];
-  console.log(`[loadProviderConfig] Direct lookup result:`, provider);
 
   if (!provider) {
     throw createIPCError({
@@ -127,7 +121,6 @@ async function loadProviderConfig(
     });
   }
 
-  console.log(`[loadProviderConfig] Returning provider:`, JSON.stringify(provider, null, 2));
   return provider;
 }
 
@@ -165,75 +158,33 @@ const makeSiliconFlowEmbeddings = (settings: ProviderConfig, modelId: string, se
     caller: new AsyncCaller({ maxConcurrency: 1 }),
     // dimensions is not a valid property on Embeddings<number[]>
     embedQuery: async (text: string): Promise<number[]> => {
-      console.log('[makeSiliconFlowEmbeddings] Generating embedding for:', text.substring(0, 50));
-      console.log(
-        '[makeSiliconFlowEmbeddings] Model:',
-        modelId,
-        'Dimensions:',
-        selectedModel.dimensions,
-      );
-      console.log('[makeSiliconFlowEmbeddings] Base URL:', baseUrl);
-      console.log(
-        '[makeSiliconFlowEmbeddings] API Key:',
-        settings.apiKey ? `${settings.apiKey.substring(0, 10)}...` : 'MISSING',
-      );
-
       const requestBody = {
         model: modelId,
         input: text,
         encoding_format: 'float',
         dimensions: selectedModel.dimensions,
       };
-      console.log('[makeSiliconFlowEmbeddings] Request body:', JSON.stringify(requestBody));
 
-      try {
-        const url = `${baseUrl}/embeddings`;
-        console.log('[makeSiliconFlowEmbeddings] Fetch URL:', url);
-        console.log('[makeSiliconFlowEmbeddings] Fetch headers:', {
-          Authorization: `Bearer ${settings.apiKey?.substring(0, 10)}...`,
+      const url = `${baseUrl}/embeddings`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${settings.apiKey}`,
           'Content-Type': 'application/json',
-        });
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${settings.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        console.log(
-          '[makeSiliconFlowEmbeddings] Response status:',
-          response.status,
-          response.statusText,
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('[makeSiliconFlowEmbeddings] API Error:', errorText);
-          throw new Error(`SiliconFlow API error: ${response.statusText} - ${errorText}`);
-        }
-
-        const data = await response.json();
-        console.log(
-          '[makeSiliconFlowEmbeddings] Generated embedding dimensions:',
-          data.data[0].embedding.length,
-        );
-
-        return data.data[0].embedding as number[];
-      } catch (error) {
-        console.error('[makeSiliconFlowEmbeddings] Fetch failed with error:', error);
-        console.error('[makeSiliconFlowEmbeddings] Error name:', error.name);
-        console.error('[makeSiliconFlowEmbeddings] Error message:', error.message);
-        console.error('[makeSiliconFlowEmbeddings] Error stack:', error.stack);
-        throw error;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`SiliconFlow API error: ${response.statusText} - ${errorText}`);
       }
+
+      const data = await response.json();
+      return data.data[0].embedding as number[];
     },
 
     embedDocuments: async (texts: string[]): Promise<number[][]> => {
-      console.log('[makeSiliconFlowEmbeddings] Batch embedding for', texts.length, 'texts');
-
       const response = await fetch(`${baseUrl}/embeddings`, {
         method: 'POST',
         headers: {
@@ -250,17 +201,10 @@ const makeSiliconFlowEmbeddings = (settings: ProviderConfig, modelId: string, se
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('[makeSiliconFlowEmbeddings] Batch API Error:', errorText);
         throw new Error(`SiliconFlow API error: ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log(
-        '[makeSiliconFlowEmbeddings] Generated batch embeddings:',
-        data.data.length,
-        'items',
-      );
-
       return data.data.map((item: any) => item.embedding);
     },
   };
@@ -268,8 +212,6 @@ const makeSiliconFlowEmbeddings = (settings: ProviderConfig, modelId: string, se
 
 const makeSiliconFlowReranker = (settings: ProviderConfig, modelId: string, selectedModel: SelectedRerankModel): Reranker => ({
   rerank: async (query: string, documents: string[]) => {
-    console.log(`[Reranker] Using ${modelId} at ${settings.baseUrl}`);
-
     if (!documents.length) {
       throw new Error('No documents provided for reranking');
     }
@@ -459,17 +401,7 @@ export const createProviderFactory = (configService: ConfigService) => {
    */
   const getEmbeddings = async () => {
     const config = await configService.getConfig();
-    console.log('[getEmbeddings] Full config.ai:', JSON.stringify(config.ai, null, 2));
-    console.log(
-      '[getEmbeddings] config.ai.modelTypes:',
-      JSON.stringify(config.ai.modelTypes, null, 2),
-    );
-
     const embConfig = config.ai.modelTypes?.embedding;
-    console.log('[getEmbeddings] embConfig:', JSON.stringify(embConfig, null, 2));
-    console.log('[getEmbeddings] embConfig type:', typeof embConfig);
-    console.log('[getEmbeddings] embConfig is null:', embConfig === null);
-    console.log('[getEmbeddings] embConfig is undefined:', embConfig === undefined);
 
     if (!embConfig) {
       throw createIPCError({
@@ -480,22 +412,13 @@ export const createProviderFactory = (configService: ConfigService) => {
       });
     }
 
-    console.log(
-      '[getEmbeddings] Creating cache key with provider:',
-      embConfig.provider,
-      'model:',
-      embConfig.model,
-    );
     const cacheKey = `emb:${embConfig.provider}:${embConfig.model}`;
-    console.log('[getEmbeddings] Cache key:', cacheKey);
 
     return getOrCreate(embeddingsCache, cacheKey, async () => {
-      console.log('[getEmbeddings] Loading provider config for:', embConfig.provider);
       const provider = await loadProviderConfig(
         configService,
         embConfig.provider!,
       );
-      console.log('[getEmbeddings] Loaded provider:', JSON.stringify(provider, null, 2));
 
       const impl = validateProviderConfig(provider);
       return impl.createEmbeddings(provider, embConfig.model, embConfig);
@@ -529,7 +452,6 @@ export const createProviderFactory = (configService: ConfigService) => {
         throw new Error(`Provider ${provider.providerType} doesn't support reranking`);
       }
 
-      console.log(`[Factory] Initializing reranker: ${rerankConfig.model}`);
       return impl.createReranker(provider, rerankConfig.model, rerankConfig);
     });
   };

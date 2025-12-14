@@ -10,6 +10,6 @@
  *
  * Note: Must use the register.js entry point for ES module compatibility
  */
-import 'source-map-support/register';
+import 'source-map-support/register.js';
 
 export {};

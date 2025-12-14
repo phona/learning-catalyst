@@ -12,8 +12,11 @@ import type { LearningService } from '@/main/services/domain/learning/learning-s
 import { Kysely } from 'kysely';
 import { Database } from '../services/core/database';
 import { BrowserWindow } from 'electron/main';
-import type { NormalizedMessage } from '@/main/services/domain/workflow/utils/normalization';
-import { convertToPlainMessage } from '@/main/services/domain/workflow/utils/normalization';
+import {
+  toAssistantUIStream,
+  createFinishChunk,
+  createErrorChunk
+} from '@/main/services/domain/workflow/utils/assistant-ui-stream';
 
 export type LangGraphHandlerDeps = {
   window: BrowserWindow;
@@ -90,54 +93,22 @@ export const setupLangGraphHandler = ({
           },
         );
 
-        for await (const chunk of stream) {
-          console.log('Adapter chunk:', JSON.stringify(chunk));
-
-          // Check if chunk contains interrupt event
-          if (isInterruptEvent(chunk)) {
-            const interruptData = extractInterrupt(chunk);
-            handlerLogger.info('Workflow interrupted, sending interrupt to UI', { interruptData });
-
-            // Send interrupt event to UI
-            replyPort.postMessage({
-              type: 'interrupt',
-              data: interruptData,
-            });
-
-            // Close the port - workflow is paused at checkpoint
-            // UI will call start-stream again with same conversationId to resume
-            replyPort.close();
-            return; // Exit handler, resume will start a new stream
-          }
-
-          // Normal message streaming
-          for (const [key, value] of Object.entries(chunk)) {
-            const nodeName = key;
-
-            // Type guard for value containing messages
-            if (
-              typeof value === 'object' &&
-              value !== null &&
-              'messages' in value &&
-              Array.isArray(value.messages)
-            ) {
-              // Convert messages using normalization utilities
-              // This replaces the old convertToPlainMessage logic
-              const normalizedMessages: NormalizedMessage[] = value.messages.map((message: unknown) =>
-                convertToPlainMessage(message, nodeName)
-              );
-
-              // Send each normalized message to the UI
-              for (const normalizedMessage of normalizedMessages) {
-                replyPort.postMessage(normalizedMessage);
-              }
-            }
-          }
+        // Convert workflow stream directly to assistant-ui AI SDK Protocol chunks
+        for await (const chunk of toAssistantUIStream(stream)) {
+          handlerLogger.info('Adapter chunk:', chunk);
+          replyPort.postMessage(chunk);
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        handlerLogger.error('chat:start-stream error', { message });
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        // Use AI SDK protocol for stream-level errors (transport/runtime failures)
+        replyPort.postMessage(createErrorChunk(errorMessage));
+        replyPort.postMessage(createFinishChunk());
+        replyPort.close();
+        throw error;
+        // Don't re-throw to ensure finally block executes and stream is properly closed
       } finally {
+        // Send finish event according to AI SDK Protocol
+        replyPort.postMessage(createFinishChunk());
         replyPort.close();
       }
     },

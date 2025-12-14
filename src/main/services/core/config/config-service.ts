@@ -19,6 +19,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
       embedding: {
         provider: 'openai',
         model: 'text-embedding-ada-002',
+        dimensions: 1536,
       },
       rerank: {
         provider: 'openai',

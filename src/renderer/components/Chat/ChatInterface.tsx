@@ -3,7 +3,7 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { Thread } from '@assistant-ui/react-ui';
 import { useChatRuntime, AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
 import { createIpcFetch } from '@/renderer/services/chat/ipcFetch';
-import ToolCard from './ToolCard';
+import { ToolFallback } from './ToolFallback';
 
 export const ChatInterface: React.FC = () => {
   // Initialize chat runtime with LangGraph handler
@@ -23,7 +23,7 @@ export const ChatInterface: React.FC = () => {
         <Thread
           assistantMessage={{
             components: {
-              ToolFallback: ToolCard,
+              ToolFallback: ToolFallback,
             },
           }}
         />
