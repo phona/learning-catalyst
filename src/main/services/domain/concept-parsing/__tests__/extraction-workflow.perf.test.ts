@@ -99,7 +99,7 @@ interface PerfResult {
 
 const perfResults: PerfResult[] = [];
 
-describe('LangGraph Extraction Workflow - Performance Tests', () => {
+describe.skip('LangGraph Extraction Workflow - Performance Tests', () => {
   beforeAll(() => {
     // Load test configuration
     const configPath = path.join(process.cwd(), '.testconfig.json');

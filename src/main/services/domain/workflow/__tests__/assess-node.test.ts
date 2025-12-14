@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { assessNode } from '../nodes/assess';
 import { WorkflowStateAnnotation } from '../state';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
 
 const makeDeps = (score: string = 'Score: 85%') => {
   const knowledgeService = {
@@ -12,8 +17,7 @@ const makeDeps = (score: string = 'Score: 85%') => {
   } as any;
   const providerFactory = {
     getModel: vi.fn(async () => ({
-      model: { invoke: vi.fn().mockResolvedValue({ content: score }) },
-      settings: { providerName: 'mock', model: 'mock-model' }
+      invoke: vi.fn().mockResolvedValue({ content: score })
     }))
   } as any;
   const deps = {
@@ -38,8 +42,8 @@ describe('assess node', () => {
       { content: 'This makes sense', timestamp: now },
     ]);
 
-    const state = { topic: 'Algebra' } as typeof WorkflowStateAnnotation.State;
-    const result = await assessNode(deps)(state);
+    const state = { topic: 'Algebra', messages: [] } as typeof WorkflowStateAnnotation.State;
+    const result = await assessNode(deps)(state, createMockConfig());
     expect(result.confidence).toBeGreaterThanOrEqual(0.75);
     expect(Array.isArray(result.gaps)).toBe(true);
     expect(result.gaps?.includes('edge-cases')).toBe(true);
@@ -58,8 +62,8 @@ describe('assess node', () => {
       { content: "I'm confused", timestamp: old },
     ]);
 
-    const state = { topic: 'Geometry' } as typeof WorkflowStateAnnotation.State;
-    const result = await assessNode(deps)(state);
+    const state = { topic: 'Geometry', messages: [] } as typeof WorkflowStateAnnotation.State;
+    const result = await assessNode(deps)(state, createMockConfig());
     expect(result.confidence).toBeLessThan(0.6);
     expect(String((result.messages?.[0] as any)?.content)).toMatch(/Confidence:\s*\d+%/);
   });

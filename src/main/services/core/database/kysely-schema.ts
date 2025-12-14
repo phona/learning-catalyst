@@ -32,6 +32,9 @@ import type {
 
 // Core Kysely interface for the entire database
 export interface Database extends SharedDatabase {
+  // Kysely migration tracking table
+  kysely_migration: KyselyMigrationRow;
+
   // Multi-layer memory system tables (Phase 8 implementation)
   memory_entries: MemoryEntryRow;
   episodic_memories: EpisodicMemoryRow;
@@ -150,6 +153,12 @@ export interface MemoryAssociationRow {
   updated_at: string;
 }
 
+// Kysely migration tracking row interface
+export interface KyselyMigrationRow {
+  name: string;
+  executed_at: string;
+}
+
 // Agent lifecycle management row interfaces
 export interface AgentRow {
   id: string;
@@ -235,6 +244,9 @@ export type InsertableMemoryAssociation = Omit<
   'id' | 'created_at' | 'updated_at'
 >;
 
+// Kysely migration insertable types
+export type InsertableKyselyMigration = Omit<KyselyMigrationRow, never>;
+
 // Agent lifecycle management insertable types
 export type InsertableAgent = Omit<AgentRow, 'id' | 'created_at' | 'updated_at'>;
 export type InsertableAgentLifecycleEvent = Omit<AgentLifecycleEventRow, 'id' | 'created_at'>;
@@ -276,6 +288,9 @@ export type UpdatableProceduralMemory = Partial<
 export type UpdatableMemoryAssociation = Partial<
   Omit<MemoryAssociationRow, 'id' | 'created_at' | 'updated_at'>
 >;
+
+// Kysely migration updatable types
+export type UpdatableKyselyMigration = Partial<Omit<KyselyMigrationRow, 'name'>>;
 
 // Agent lifecycle management updatable types
 export type UpdatableAgent = Partial<Omit<AgentRow, 'id' | 'created_at'>>;

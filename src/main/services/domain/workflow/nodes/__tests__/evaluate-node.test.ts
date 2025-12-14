@@ -2,6 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { evaluateNode } from '../evaluate';
 import { WorkflowStateAnnotation } from '../state';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+// Mock chunk emitter utilities
+vi.mock('../utils/chunk-emitter', () => ({
+  createChunkEmitter: vi.fn().mockReturnValue({
+    toolInputStart: vi.fn(),
+    toolOutputAvailable: vi.fn(),
+  }),
+  generateId: vi.fn().mockReturnValue('test-id-123'),
+}));
+
+// Mock config writer for chunk emitter
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
 
 describe('evaluate node', () => {
   beforeEach(() => {
@@ -16,10 +31,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -31,15 +43,17 @@ describe('evaluate node', () => {
       userAnswer: 'JSX is a syntax extension for JavaScript',
       mastery: 0.5,
       attemptCount: 0,
-    } as any);
+    }, createMockConfig());
 
-    expect(mockProviderFactory.getModel).toHaveBeenCalledWith('chat');
+    expect(mockProviderFactory.getModel).toHaveBeenCalledWith();
 
-    expect(mockModel.invoke).toHaveBeenCalledWith([
-      expect.objectContaining({
-        content: expect.stringContaining('Grade the user\'s answer'),
-      }),
-    ]);
+    expect(mockModel.invoke).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          content: expect.stringContaining('Grade the user\'s answer'),
+        }),
+      ])
+    );
 
     expect(result.mastery).toBe(0.85);
     expect(result.attemptCount).toBe(1);
@@ -56,10 +70,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -71,7 +82,7 @@ describe('evaluate node', () => {
       userAnswer: 'A closure is...',
       mastery: 0.3,
       attemptCount: 2,
-    } as any);
+    }, createMockConfig());
 
     expect(result.attemptCount).toBe(3);
     expect(result.mastery).toBe(0.7);
@@ -85,10 +96,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -100,7 +108,7 @@ describe('evaluate node', () => {
       userAnswer: 'interface Person { name: string }',
       mastery: 0.0,
       attemptCount: 0,
-    } as any);
+    }, createMockConfig());
 
     expect(result.mastery).toBe(1.0);
     expect(result.attemptCount).toBe(1);
@@ -114,10 +122,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -129,7 +134,7 @@ describe('evaluate node', () => {
       userAnswer: 'I don\'t know',
       mastery: 0.0,
       attemptCount: 0,
-    } as any);
+    }, createMockConfig());
 
     expect(result.mastery).toBe(0.0);
     expect(result.attemptCount).toBe(1);
@@ -143,10 +148,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -158,7 +160,7 @@ describe('evaluate node', () => {
       userAnswer: 'Answer',
       mastery: 0.75,
       attemptCount: 1,
-    } as any);
+    }, createMockConfig());
 
     expect(result.mastery).toBe(0.75); // Falls back to existing mastery
     expect(result.attemptCount).toBe(2);
@@ -172,10 +174,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -187,7 +186,7 @@ describe('evaluate node', () => {
       userAnswer: 'Answer',
       mastery: undefined,
       attemptCount: 0,
-    } as any);
+    }, createMockConfig());
 
     expect(result.mastery).toBe(0.5); // Default mastery
     expect(result.attemptCount).toBe(1);
@@ -201,10 +200,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -216,13 +212,15 @@ describe('evaluate node', () => {
       userAnswer: undefined,
       mastery: 0.0,
       attemptCount: 0,
-    } as any);
+    }, createMockConfig());
 
-    expect(mockModel.invoke).toHaveBeenCalledWith([
-      expect.objectContaining({
-        content: expect.stringContaining('Grade the user\'s answer'),
-      }),
-    ]);
+    expect(mockModel.invoke).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          content: expect.stringContaining('Grade the user\'s answer'),
+        }),
+      ])
+    );
 
     expect(result.mastery).toBe(0.8);
     expect(result.attemptCount).toBe(1);
@@ -236,10 +234,7 @@ describe('evaluate node', () => {
     };
 
     const mockProviderFactory = {
-      getModel: vi.fn().mockResolvedValue({
-        model: mockModel,
-        settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024 },
-      }),
+      getModel: vi.fn().mockResolvedValue(mockModel),
     };
 
     const node = evaluateNode({ providerFactory: mockProviderFactory });
@@ -251,11 +246,12 @@ describe('evaluate node', () => {
       userAnswer: 'A type is...',
       mastery: 0.0,
       attemptCount: 0,
-    } as any);
+    }, createMockConfig());
 
-    const callArgs = mockModel.invoke.mock.calls[0][0][0];
-    expect(callArgs.content).toContain('TypeScript');
-    expect(callArgs.content).toContain('What is a type?');
-    expect(callArgs.content).toContain('A type is...');
+    const callArgs = mockModel.invoke.mock.calls[0][0];
+    const concatenatedContent = callArgs.map((msg: any) => msg.content).join('\n');
+    expect(concatenatedContent).toContain('TypeScript');
+    expect(concatenatedContent).toContain('What is a type?');
+    expect(concatenatedContent).toContain('A type is...');
   });
 });

@@ -1,5 +1,4 @@
 import type { Migration } from 'kysely';
-import { MigrationManager } from './tools';
 
 // Static imports for all migration modules
 import createConcepts from './20251029_create_concepts';
@@ -52,6 +51,3 @@ export async function loadAllMigrations(): Promise<Record<string, Migration>> {
     '20251211_add_pure_separation_indexes': addPureSeparationIndexes,
   };
 }
-
-// Re-export MigrationManager for external use
-export { MigrationManager };

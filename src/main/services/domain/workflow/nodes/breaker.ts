@@ -1,9 +1,13 @@
 /**
- * Workflow Node: BREAKER (Circuit Breaker)
+ * Workflow Node: BREAKER (Circuit Breaker with AI SDK Chunk Emission)
  *
  * Mermaid Mapping (Lines 17, 47, 72): "Orchestrator: Suggest Break / Handoff"
  *                     and (Line 73): "Circuit Breaker / Exit"
  * Part of Path D: Circuit Breaker & Remediation
+ *
+ * PHILOSOPHY:
+ * - Dual emission: chunks for real-time UI streaming + messages for LangGraph history
+ * - Direct AI SDK chunk emission for immediate user feedback
  *
  * Flow Context:
  * - Triggered in three scenarios:
@@ -16,7 +20,8 @@
  * 1. Detecting when user is stuck or failing repeatedly
  * 2. Suggesting a break or handoff to human assistance
  * 3. Using the Tutoring Agent for motivational support
- * 4. Protecting user from frustration and burnout
+ * 4. Emitting supportive chunks for immediate user feedback
+ * 5. Protecting user from frustration and burnout
  *
  * Trigger Conditions:
  * - Multiple timeouts in user input
@@ -24,7 +29,8 @@
  * - User appears stuck or overwhelmed
  *
  * Outputs:
- * - messages: Supportive message from Tutoring Agent
+ * - messages: Supportive message from Tutoring Agent (for LangGraph history)
+ * - chunks: text-start, text-delta, text-end (for real-time UI streaming)
  * - Terminal state: Suggests ending session or seeking help
  *
  * Circuit Breaker Flow:
@@ -42,13 +48,30 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
 
-export const breakerNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
+export const breakerNode = (deps: WorkflowDeps) => async (
+  state: typeof WorkflowStateAnnotation.State,
+  config: LangGraphRunnableConfig
+) => {
+  const emitter = createChunkEmitter(config);
+
   const res = await deps.agentManager.runAgent({
     agentType: 'tutoring',
     conversationId: 'workflow',
     messages: state.messages,
     topic: state.topic,
   });
+
+  /**
+   * EMIT SUPPORTIVE CHUNKS:
+   * Stream motivational support to the user
+   */
+  const messageId = generateId('msg');
+  emitter.textStart(messageId);
+  emitter.textDelta(messageId, res.content);
+  emitter.textEnd(messageId);
+
   return { messages: [new AIMessage(res.content)] };
 };

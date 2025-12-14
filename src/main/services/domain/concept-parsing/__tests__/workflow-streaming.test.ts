@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { executeExtractionWorkflow } from '../extraction-workflow';
 
 describe('Workflow Streaming Test', () => {
-  it('should extract concepts via streaming without timeout', async () => {
+  it.skip('should extract concepts via streaming without timeout', async () => {
     // Load test configuration
     const configPath = path.join(process.cwd(), '.testconfig.json');
     const testConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));

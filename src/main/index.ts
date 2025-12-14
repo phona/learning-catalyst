@@ -34,9 +34,8 @@ import type { IPCErrorPayload, BufferedIPCError } from '@/shared/types/ipc-error
 
 // Import database from existing implementation
 import {
-  createDatabase,
-  createSqliteDriverFactory,
-  runMigrations,
+  createDatabaseAtPath,
+  runMigrationsAtPath,
 } from './services/core/database/kysely-database';
 import { createConfigStorage } from './services/core/config/storage';
 
@@ -289,10 +288,9 @@ async function createWindow(): Promise<void> {
 
     // Persist the database inside the selected workspace (dev:workspace or production)
     const dbPath = path.join(learningCatalystPath, 'learning_catalyst.db');
-    const driverFactory = await createSqliteDriverFactory(dbPath);
-    const database = createDatabase(driverFactory);
+    const database = await createDatabaseAtPath(dbPath);
 
-    await runMigrations(driverFactory);
+    await runMigrationsAtPath(dbPath);
 
     const configStorage = createConfigStorage(learningCatalystPath);
 

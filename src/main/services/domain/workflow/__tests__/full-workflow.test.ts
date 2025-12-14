@@ -330,7 +330,7 @@ const makeDeps = () => {
 
     // Track the agent interaction with analytics (simulating real behavior from agent-manager.ts)
     await analyticsService.trackEvent({
-      eventType: 'agent_response',
+      eventType: 'message_sent',
       userId: request.userId,
       properties: {
         agentType: request.agentType,

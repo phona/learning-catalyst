@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { remediateNode } from '../remediate';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
 
 describe('remediate node', () => {
   beforeEach(() => {
@@ -23,7 +28,7 @@ describe('remediate node', () => {
     const result = await node({
       messages: [new AIMessage('Previous message')],
       topic: 'React',
-    } as any);
+    }, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith({
       agentType: 'learning',
@@ -52,7 +57,7 @@ describe('remediate node', () => {
     const result = await node({
       messages: [],
       topic: 'JavaScript',
-    } as any);
+    }, createMockConfig());
 
     expect(result.messages[0].content).toBe('I see you\'re struggling with this. Let\'s try a simpler explanation using an analogy.');
   });
@@ -77,7 +82,7 @@ describe('remediate node', () => {
     const result = await node({
       messages: inputMessages,
       topic: 'TypeScript',
-    } as any);
+    }, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith({
       agentType: 'learning',
@@ -97,7 +102,7 @@ describe('remediate node', () => {
     await expect(node({
       messages: [],
       topic: 'React',
-    } as any)).rejects.toThrow('Agent unavailable');
+    }, createMockConfig())).rejects.toThrow('Agent unavailable');
   });
 
   it('uses learning agent type (not tutoring)', async () => {
@@ -115,7 +120,7 @@ describe('remediate node', () => {
     await node({
       messages: [],
       topic: 'React',
-    } as any);
+    }, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith(
       expect.objectContaining({

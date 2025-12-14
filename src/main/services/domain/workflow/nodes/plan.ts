@@ -57,6 +57,9 @@ import { StructuredOutputParser } from '@langchain/core/output_parsers';
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
+import { NodeName } from '../types';
 
 /**
  * Single-session learning blueprint schemas
@@ -140,6 +143,16 @@ export type PracticeBlock = z.infer<typeof PracticeBlockSchema>;
 // Re-export for backward compatibility with tools
 export { PracticeBlockSchema, SessionBlueprintSchema };
 
+/**
+ * Confidence thresholds for determining learner level
+ */
+const NOVICE_THRESHOLD = 0.5;
+const INTERMEDIATE_THRESHOLD = 0.8;
+const DEFAULT_TIME_AVAILABLE = 60;
+
+/**
+ * Role definition for the learning plan generator
+ */
 const ROLE_DEFINITION = `
 You are a focused learning designer for a SINGLE session (one sitting, 45–90 minutes).
 You must keep one primary concept, include retrieval + apply + teach-back + one open question,
@@ -176,51 +189,34 @@ OUTPUT FORMAT:
   ],
   [
     'user',
-    `Build a one-session plan for this learner:
-{plan_payload}`,
+    [
+      'Build a one-session plan for this learner:',
+      '',
+      'Topic: {topic}',
+      'Learner Level: {level}',
+      'Time Available: {timeAvailable} minutes',
+      'User Goal: {userGoal}',
+      '',
+      'Strengths to leverage: {strengths}',
+      'Gaps to address: {gaps}',
+      'Constraints: {constraints}',
+      'External Resources Allowed: {allowExternal}',
+    ].join('\n')
   ],
 ]);
-
-const buildPlanPayload = (params: {
-  topic: string;
-  level: LearnerLevel;
-  strengths?: string[];
-  gaps?: string[];
-  timeAvailable: number;
-  constraints?: string[];
-  allowExternal?: boolean;
-  userGoal?: string;
-}) => {
-  const {
-    topic,
-    level,
-    strengths = [],
-    gaps = [],
-    timeAvailable,
-    constraints = [],
-    allowExternal = true,
-    userGoal,
-  } = params;
-
-  const goalText = userGoal || `Master the core concepts of ${topic} at a ${level} level`;
-
-  return `
-Topic: ${topic}
-Learner Level: ${level}
-Time Available: ${timeAvailable} minutes
-User Goal: ${goalText}
-
-Strengths to leverage: ${strengths.join(', ') || 'None specified'}
-Gaps to address: ${gaps.join(', ') || 'None specified'}
-Constraints: ${constraints.join(', ') || 'None specified'}
-External Resources Allowed: ${allowExternal ? 'Yes' : 'No'}
-`;
-};
 
 /**
  * Plan Node - Generates session blueprint based on assessment results
  */
-export const planNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
+export const planNode = (deps: WorkflowDeps) => async (
+  state: typeof WorkflowStateAnnotation.State,
+  config: LangGraphRunnableConfig
+) => {
+  const emitter = createChunkEmitter(config);
+  const nodeName = NodeName.PLAN;
+  const toolCallId = generateId(nodeName);
+  emitter.toolInputStart(toolCallId, nodeName);
+
   // Determine learner level based on assessment confidence
   const confidence = state.confidence ?? 0.5;
   const level: LearnerLevel = confidence >= 0.8 ? 'advanced' : confidence >= 0.5 ? 'intermediate' : 'novice';
@@ -237,13 +233,27 @@ export const planNode = (deps: WorkflowDeps) => async (state: typeof WorkflowSta
     userGoal: undefined,
   };
 
+  emitter.toolInputAvailable(toolCallId, nodeName, {
+    topic: sessionParams.topic,
+    level: sessionParams.level,
+    timeAvailable: sessionParams.timeAvailable,
+    gaps: sessionParams.gaps,
+  });
+
   // Create LLM instance using provider factory
-  const { model: llm } = await deps.providerFactory.getModel('chat');
+  const llm = await deps.providerFactory.getModel();
 
   // Create and invoke chain
   const chain = SESSION_BLUEPRINT_TEMPLATE.pipe(llm).pipe(parser);
   const result = await chain.invoke({
-    plan_payload: buildPlanPayload(sessionParams),
+    topic: sessionParams.topic,
+    level: sessionParams.level,
+    timeAvailable: sessionParams.timeAvailable,
+    userGoal: sessionParams.userGoal || `Master the core concepts of ${sessionParams.topic} at a ${sessionParams.level} level`,
+    strengths: sessionParams.strengths.join(', ') || 'None specified',
+    gaps: sessionParams.gaps.join(', ') || 'None specified',
+    constraints: sessionParams.constraints.join(', ') || 'None specified',
+    allowExternal: sessionParams.allowExternal ? 'Yes' : 'No',
     format_instructions: formatInstructions,
   });
 
@@ -259,11 +269,25 @@ export const planNode = (deps: WorkflowDeps) => async (state: typeof WorkflowSta
   // Additional validation for business rules
   const blueprint = validateSessionBlueprint(parsed.data);
 
+  // Create the message content
+  const content = `Based on your assessment (${Math.round(confidence * 100)}% confidence), I've created a personalized learning plan for "${blueprint.learnerProfile.topic}". The session will focus on ${blueprint.session.primaryConcept} with ${blueprint.session.practiceBlocks.length} practice activities.`;
+
+  /**
+   * EMIT TOOL OUTPUT:
+   * Provide the structured learning plan
+   */
+  emitter.toolOutputAvailable(toolCallId, {
+    ok: true,
+    data: {
+      sessionBlueprint: blueprint,
+      summary: content,
+      topic: sessionParams.topic,
+    },
+  });
+
   // Return state updates
   return {
-    messages: [
-      new AIMessage(`Based on your assessment (${Math.round(confidence * 100)}% confidence), I've created a personalized learning plan for "${blueprint.learnerProfile.topic}". The session will focus on ${blueprint.session.primaryConcept} with ${blueprint.session.practiceBlocks.length} practice activities.`),
-    ],
+    messages: [new AIMessage(content)],
     sessionBlueprint: blueprint,
     topic: sessionParams.topic,
   };

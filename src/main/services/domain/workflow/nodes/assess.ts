@@ -26,65 +26,217 @@ import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
+import { NodeName } from '../types';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
 
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
-const recencyWeight = (ts?: string) => {
-  if (!ts) return 1;
-  const t = new Date(ts).getTime();
-  if (Number.isNaN(t)) return 1;
-  const days = Math.max(0, (Date.now() - t) / (1000 * 60 * 60 * 24));
-  return Math.exp(-days / 30);
-};
+/**
+ * Utility to clamp a number to the range [0, 1]
+ * @param x - The number to clamp
+ * @returns The clamped value between 0 and 1
+ */
+const clamp01 = (x: number): number => Math.max(0, Math.min(1, x));
 
-export const assessNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
-  const search = await deps.knowledgeService.searchKnowledge({ query: state.topic, limit: 5 });
-  const conceptIds = (search?.results ?? []).map((r) => r.id).filter(Boolean);
+/**
+ * Global chat prompt template for confidence assessment
+ * Reused across all assessNode calls for efficiency
+ */
+const ASSESSMENT_PROMPT = ChatPromptTemplate.fromMessages([
+  ['system', 'You are an assessment agent analyzing user readiness for learning topics.'],
+  [
+    'human',
+    [
+      'Assess confidence (0-100%) for topic: {topic}',
+      '',
+      'Practice History:',
+      '- Pass: {passCount}',
+      '- Partial: {partialCount}',
+      '- Fail: {failCount}',
+      '- Average Rubric Score: {rubricAvg}%',
+      '',
+      'Recent Conversation:',
+      '{recentMessages}',
+      '',
+      'Return your response in the format: "Score: NN%"'
+    ].join('\n'),
+  ],
+]);
 
-  const attempts = await deps.learningService.getPracticeHistory({ conceptIds, limit: 100 });
-  const gapsSet = new Set<string>();
-  for (const a of attempts) {
-    const r = a.rubricScores;
-    if (r) {
-      const vals = [r.retrieval, r.application, r.teachBack].filter((v) => typeof v === 'number');
-      if (vals.length) {
-        const avg = vals.reduce((s, v) => s + (v ?? 0), 0) / (vals.length * 100);
-      }
+/**
+ * Practice attempt result types for type safety
+ */
+type PracticeResult = 'pass' | 'partial' | 'fail';
+
+/**
+ * Practice attempt with rubric scores
+ */
+interface PracticeAttempt {
+  result: PracticeResult;
+  rubricScores?: {
+    retrieval?: number;
+    application?: number;
+    teachBack?: number;
+  };
+  errorTags?: string[];
+}
+
+/**
+ * Metrics extracted from practice history for confidence calculation
+ */
+interface PracticeMetrics {
+  passCount: number;
+  partialCount: number;
+  failCount: number;
+  rubricAverage: number;
+  gaps: string[];
+}
+
+/**
+ * Extracts practice metrics from attempts history
+ *
+ * @param attempts - Array of practice attempts
+ * @returns Object containing pass/partial/fail counts, average rubric score, and identified gaps
+ */
+function extractPracticeMetrics(attempts: PracticeAttempt[]): PracticeMetrics {
+  const gaps = new Set<string>();
+
+  // Calculate outcome counts and collect rubric scores
+  const outcomeCounts = { pass: 0, partial: 0, fail: 0 };
+  const allRubricScores: number[] = [];
+
+  for (const attempt of attempts) {
+    // Count outcomes
+    outcomeCounts[attempt.result]++;
+
+    // Collect all rubric scores for averaging
+    const rubric = attempt.rubricScores;
+    if (rubric) {
+      const scores = [rubric.retrieval, rubric.application, rubric.teachBack]
+        .filter((v): v is number => typeof v === 'number');
+      allRubricScores.push(...scores);
     }
-    (a.errorTags ?? []).forEach((tag) => gapsSet.add(tag));
+
+    // Collect error tags as gaps for future remediation
+    (attempt.errorTags ?? []).forEach(tag => gaps.add(tag));
   }
 
-  const stateMsgs = (state.messages ?? []).slice(-20);
+  // Calculate average rubric score (0-1 range)
+  const rubricAverage = allRubricScores.length > 0
+    ? allRubricScores.reduce((sum, score) => sum + score, 0) / (allRubricScores.length * 100)
+    : 0;
 
-  const passCount = attempts.filter((a) => a.result === 'pass').length;
-  const partialCount = attempts.filter((a) => a.result === 'partial').length;
-  const failCount = attempts.filter((a) => a.result === 'fail').length;
-  const rubricVals = attempts
-    .map((a) => a.rubricScores)
-    .filter(Boolean)
-    .map((r) => [r?.retrieval, r?.application, r?.teachBack])
-    .flat()
-    .filter((v): v is number => typeof v === 'number');
-  const rubricAvg = rubricVals.length
-    ? rubricVals.reduce((s: number, v: number) => s + v, 0) / (rubricVals.length * 100)
-    : undefined;
-  const msgsText = stateMsgs
-    .map((m) => {
-      // Use instanceof to identify message type, no need for role property
-      const role = m instanceof HumanMessage ? 'user' : 'assistant';
-      const text = m.content.length > 200 ? m.content.slice(0, 200) : m.content;
-      return `${role}: ${text}`;
+  return {
+    passCount: outcomeCounts.pass,
+    partialCount: outcomeCounts.partial,
+    failCount: outcomeCounts.fail,
+    rubricAverage,
+    gaps: Array.from(gaps),
+  };
+}
+
+/**
+ * Formats recent conversation messages for LLM analysis
+ *
+ * @param messages - Array of LangChain messages
+ * @param maxMessages - Maximum number of recent messages to include
+ * @param maxMessageLength - Maximum length per message
+ * @returns Formatted string of conversation history
+ */
+function formatRecentMessages(
+  messages: Array<HumanMessage | AIMessage>,
+  maxMessages = 20,
+  maxMessageLength = 200
+): string {
+  return messages
+    .slice(-maxMessages)
+    .map(msg => {
+      // Use instanceof for type-safe message type detection
+      const role = msg instanceof HumanMessage ? 'user' : 'assistant';
+      const content = msg.content.length > maxMessageLength
+        ? msg.content.slice(0, maxMessageLength)
+        : msg.content;
+      return `${role}: ${content}`;
     })
     .join('\n');
-  const { model } = await deps.providerFactory.getModel('chat');
-  const prompt = `Assess confidence (0-100%) for topic: ${state.topic}\nPractice: pass=${passCount}, partial=${partialCount}, fail=${failCount}\nRubricAvg: ${typeof rubricAvg === 'number' ? Math.round(rubricAvg * 100) : 'n/a'}%\nMessages:\n${msgsText}\nReturn "Score: NN%".`;
-  const res = await model.invoke([new HumanMessage(prompt)]);
-  const llmOut = String(res.content ?? res ?? '');
-  const llmConfidence = parseScore(llmOut);
-  const confidence = clamp01(llmConfidence ?? 0.5);
-  const content = `Confidence: ${Math.round(confidence * 100)}%`;
+}
+
+export const assessNode = (deps: WorkflowDeps) => async (
+  state: typeof WorkflowStateAnnotation.State,
+  config: LangGraphRunnableConfig
+) => {
+  // Initialize chunk emitter for streaming status updates
+  const emitter = createChunkEmitter(config);
+  const nodeName = NodeName.ASSESS;
+  const toolCallId = generateId(nodeName);
+
+  // Emit input start for observability
+  emitter.toolInputStart(toolCallId, nodeName);
+
+  // Step 1: Fetch related concepts from knowledge graph
+  const knowledgeResult = await deps.knowledgeService.searchKnowledge({
+    query: state.topic,
+    limit: 5,
+  });
+
+  // Extract concept IDs for practice history lookup
+  const conceptIds = (knowledgeResult?.results ?? [])
+    .map(result => result.id)
+    .filter((id): id is string => Boolean(id));
+
+  // Step 2: Retrieve practice history for confidence calculation
+  const practiceHistory = await deps.learningService.getPracticeHistory({
+    conceptIds,
+    limit: 100,
+  });
+
+  // Step 3: Extract metrics from practice history
+  const practiceMetrics = extractPracticeMetrics(practiceHistory);
+
+  // Step 4: Format recent conversation for LLM analysis
+  const recentMessages = formatRecentMessages(state.messages as (HumanMessage | AIMessage)[]);
+
+  // Step 5: Get AI model and generate confidence assessment
+  const model = await deps.providerFactory.getModel();
+
+  // Format the prompt using the global ChatPromptTemplate
+  const messages = await ASSESSMENT_PROMPT.formatMessages({
+    topic: state.topic,
+    passCount: String(practiceMetrics.passCount),
+    partialCount: String(practiceMetrics.partialCount),
+    failCount: String(practiceMetrics.failCount),
+    rubricAvg: String(Math.round(practiceMetrics.rubricAverage * 100)),
+    recentMessages,
+  });
+
+  // Invoke model with the formatted messages
+  const modelResponse = await model.invoke(messages);
+
+  // Extract confidence score from model response
+  const rawResponse = String(modelResponse.content ?? modelResponse ?? '');
+  const parsedConfidence = parseScore(rawResponse);
+
+  // Clamp confidence to valid range [0, 1]
+  const confidence = clamp01(parsedConfidence ?? 0.5);
+
+  // Format confidence message for user
+  const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
+
+  // Step 6: Emit tool output for orchestration
+  emitter.toolOutputAvailable(toolCallId, {
+    ok: true,
+    data: {
+      confidence,
+      gaps: practiceMetrics.gaps,
+      content: confidenceMessage,
+      topic: state.topic,
+    },
+  });
+
+  // Step 7: Return updated state
   return {
-    messages: [new AIMessage(content)],
+    messages: [new AIMessage(confidenceMessage)],
     confidence,
-    gaps: Array.from(gapsSet),
+    gaps: practiceMetrics.gaps,
   };
 };

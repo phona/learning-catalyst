@@ -1,7 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { completeNode } from '../complete';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
 
 describe('complete node', () => {
   it('returns completion summary message', async () => {
@@ -11,7 +16,7 @@ describe('complete node', () => {
       messages: [],
       topic: 'React',
       mastery: 95,
-    } as any);
+    }, createMockConfig());
 
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0]).toBeInstanceOf(AIMessage);
@@ -26,7 +31,7 @@ describe('complete node', () => {
       messages: [new AIMessage('Previous message')],
       topic: 'TypeScript',
       mastery: 98,
-    } as any);
+    }, createMockConfig());
 
     expect(result1.messages).toHaveLength(1);
     expect(result1.messages[0].content).toBeDefined();
@@ -35,7 +40,7 @@ describe('complete node', () => {
       messages: [],
       topic: '',
       mastery: 90,
-    } as any);
+    }, createMockConfig());
 
     expect(result2.messages).toHaveLength(1);
     expect(result2.messages[0].content).toBeDefined();
@@ -48,7 +53,7 @@ describe('complete node', () => {
       messages: [],
       topic: 'React',
       mastery: 92,
-    } as any);
+    }, createMockConfig());
 
     const message = result.messages[0];
     expect(message).toBeInstanceOf(AIMessage);

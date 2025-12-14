@@ -2,10 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { teachNode } from '../teach';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+// Mock chunk emitter utilities
+vi.mock('../utils/chunk-emitter', () => ({
+  createChunkEmitter: vi.fn().mockReturnValue({
+    textStart: vi.fn(),
+    textDelta: vi.fn(),
+    textEnd: vi.fn(),
+  }),
+  generateId: vi.fn().mockReturnValue('test-id-123'),
+}));
 
 // Mock the interrupt function from LangGraph since it requires a graph execution context
-vi.mock('@langchain/langgraph', async () => {
-  const actual = await vi.importActual('@langchain/langgraph');
+vi.mock('@langchain/langgraph', async (importOriginal) => {
+  const actual = await importOriginal();
   return {
     ...actual,
     interrupt: vi.fn().mockResolvedValue({
@@ -14,6 +25,11 @@ vi.mock('@langchain/langgraph', async () => {
     }),
   };
 });
+
+// Mock config writer for chunk emitter
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
 
 describe('teach node', () => {
   beforeEach(() => {
@@ -35,18 +51,11 @@ describe('teach node', () => {
     const result = await node({
       messages: [new AIMessage('Previous message')],
       topic: 'React',
-    } as any);
-
-    expect(mockAgentManager.runAgent).toHaveBeenCalledWith({
-      agentType: 'learning',
-      conversationId: 'workflow',
-      messages: [new AIMessage('Previous message')],
-      topic: 'React',
-    });
+    }, createMockConfig());
 
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0]).toBeInstanceOf(AIMessage);
-    expect(result.messages[0].content).toBe('Let me teach you about React components');
+    expect(result.messages[0].content).toBe('Let me teach you about React components\n\nWhat questions do you have? Ask me anything that\'s unclear, or tell me when you\'re ready to practice!');
   });
 
   it('handles agent response correctly', async () => {
@@ -64,9 +73,9 @@ describe('teach node', () => {
     const result = await node({
       messages: [],
       topic: 'JavaScript',
-    } as any);
+    }, createMockConfig());
 
-    expect(result.messages[0].content).toBe('Today we\'ll learn about JavaScript closures. A closure is...');
+    expect(result.messages[0].content).toBe('Today we\'ll learn about JavaScript closures. A closure is...\n\nWhat questions do you have? Ask me anything that\'s unclear, or tell me when you\'re ready to practice!');
   });
 
   it('passes through state messages and topic', async () => {
@@ -89,7 +98,7 @@ describe('teach node', () => {
     const result = await node({
       messages: inputMessages,
       topic: 'TypeScript',
-    } as any);
+    }, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith({
       agentType: 'learning',
@@ -109,7 +118,7 @@ describe('teach node', () => {
     await expect(node({
       messages: [],
       topic: 'React',
-    } as any)).rejects.toThrow('Agent unavailable');
+    }, createMockConfig())).rejects.toThrow('Agent unavailable');
   });
 
   it('uses learning agent type for teaching', async () => {
@@ -127,7 +136,7 @@ describe('teach node', () => {
     await node({
       messages: [],
       topic: 'React',
-    } as any);
+    }, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -151,8 +160,9 @@ describe('teach node', () => {
     const result = await node({
       messages: [new AIMessage('I want to learn React')],
       topic: 'React',
-    } as any);
+    }, createMockConfig());
 
     expect(result.messages[0].content).toContain('React');
+    expect(result.messages[0].content).toContain('What questions do you have?');
   });
 });

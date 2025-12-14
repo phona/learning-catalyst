@@ -36,5 +36,38 @@
  */
 
 import { WorkflowStateAnnotation } from '../state';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
+import { NodeName } from '../types';
 
-export const masteryCheckNode = () => async (state: typeof WorkflowStateAnnotation.State) => ({ ...state });
+export const masteryCheckNode = () => async (
+  state: typeof WorkflowStateAnnotation.State,
+  config: LangGraphRunnableConfig
+) => {
+  const emitter = createChunkEmitter(config);
+  const nodeName = NodeName.MASTERY_CHECK;
+  const toolCallId = generateId(nodeName);
+  emitter.toolInputStart(toolCallId, nodeName);
+
+  const mastery = state.mastery ?? 0;
+  const threshold = 0.9;
+  const isPassing = mastery >= threshold;
+
+  emitter.toolInputAvailable(toolCallId, nodeName, {
+    mastery,
+    threshold,
+    isPassing,
+  });
+
+  emitter.toolOutputAvailable(toolCallId, {
+    ok: true,
+    data: {
+      mastery,
+      threshold,
+      isPassing,
+      decision: isPassing ? 'advance' : 'continue',
+    },
+  });
+
+  return { ...state };
+};

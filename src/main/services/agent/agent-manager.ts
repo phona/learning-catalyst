@@ -134,7 +134,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
     const providerInfo = agent.providerInfo;
 
     await deps.analyticsService.trackEvent({
-      eventType: 'agent_response',
+      eventType: 'message_sent',
       userId: request.userId,
       properties: {
         agentType: request.agentType,

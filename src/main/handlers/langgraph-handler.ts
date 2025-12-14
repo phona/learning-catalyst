@@ -89,13 +89,12 @@ export const setupLangGraphHandler = ({
           { messages: lcMessages },
           {
             configurable: { thread_id: safeConversationId },
-            streamMode: 'updates',
+            streamMode: ['messages', 'custom'],
           },
         );
 
         // Convert workflow stream directly to assistant-ui AI SDK Protocol chunks
         for await (const chunk of toAssistantUIStream(stream)) {
-          handlerLogger.info('Adapter chunk:', chunk);
           replyPort.postMessage(chunk);
         }
       } catch (error) {

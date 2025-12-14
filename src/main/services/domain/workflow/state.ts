@@ -26,6 +26,9 @@ export const WorkflowStateAnnotation = Annotation.Root({
   gaps: Annotation<string[]>({ reducer: (current, update) => update ?? current }),
   userAnswer: Annotation<string>({ reducer: (current, update) => update ?? current }),
   sessionBlueprint: Annotation<SessionBlueprint | undefined>({ reducer: (current, update) => update ?? current }),
+  interactionCount: Annotation<number>({ reducer: (current, update) => update ?? current, default: () => 0 }),
+  understandingLevel: Annotation<number>({ reducer: (current, update) => update ?? current, default: () => 0 }),
+  readyForPractice: Annotation<boolean>({ reducer: (current, update) => update ?? current, default: () => false }),
 });
 
 export type WorkflowState = typeof WorkflowStateAnnotation.State;

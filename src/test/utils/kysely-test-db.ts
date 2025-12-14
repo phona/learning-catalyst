@@ -4,9 +4,8 @@ import path from 'node:path';
 import type { Kysely } from 'kysely';
 import type { Database } from '@/main/services/core/database/kysely-schema';
 import {
-  createDatabase,
-  createSqliteDriverFactory,
-  runMigrations,
+  createDatabaseAtPath,
+  runMigrationsAtPath,
 } from '@/main/services/core/database/kysely-database';
 
 export interface KyselyTestDb {
@@ -44,9 +43,8 @@ export async function createKyselyTestDb(): Promise<KyselyTestDb> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lc-db-'));
   const dbPath = path.join(tempDir, 'learning_catalyst.db');
 
-  const driverFactory = await createSqliteDriverFactory(dbPath);
-  await runMigrations(driverFactory);
-  const db = createDatabase(driverFactory);
+  const db = await createDatabaseAtPath(dbPath);
+  await runMigrationsAtPath(dbPath);
 
   return {
     db,

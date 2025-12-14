@@ -2,11 +2,9 @@
  * Database Module Exports
  */
 export {
-  createDatabase,
-  createSqliteDriverFactory,
   createDatabaseAtPath,
-  runMigrations,
   runMigrationsAtPath,
+  ensureDatabasePath,
 } from './kysely-database';
 export type { Database } from './kysely-database';
 export type {

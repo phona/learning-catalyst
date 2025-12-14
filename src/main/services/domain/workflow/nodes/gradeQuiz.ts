@@ -1,3 +1,45 @@
+import type { WorkflowDeps } from '../state';
+import { WorkflowStateAnnotation } from '../state';
+import { parseScore } from '../parse-score';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
+import { NodeName } from '../types';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+
+/**
+ * Default mastery score when parsing fails
+ */
+const DEFAULT_MASTERY = 0.5;
+
+/**
+ * Chat prompt template for grading diagnostic quiz responses
+ */
+const GRADING_TEMPLATE = ChatPromptTemplate.fromMessages([
+  [
+    'system',
+    'You are an encouraging learning evaluator. Focus on what the student knows and provide constructive feedback.'
+  ],
+  [
+    'human',
+    [
+      'Grade the user\'s diagnostic quiz response.',
+      '',
+      'Topic: {topic}',
+      'Question: {question}',
+      'Answer: {answer}',
+      '',
+      'Please provide:',
+      '1. A score from 0-100% (return as "Score: NN%")',
+      '2. Brief feedback on what they demonstrated well',
+      '3. Any knowledge gaps identified',
+      '4. Suggestions for improvement',
+      '',
+      'Be encouraging and constructive. Focus on what they know rather than what they missed.'
+    ].join('\n')
+  ]
+]);
+
 /**
  * Grade Quiz Node (ASSISTANT Role)
  *
@@ -60,7 +102,15 @@
  *   - mastery: Numeric score (0.0-1.0)
  *   - messages: Assistant message with feedback
  */
-export const gradeQuizNode = (deps: WorkflowDeps) => async (state: typeof WorkflowStateAnnotation.State) => {
+export const gradeQuizNode = (deps: WorkflowDeps) => async (
+  state: typeof WorkflowStateAnnotation.State,
+  config: LangGraphRunnableConfig
+) => {
+  const emitter = createChunkEmitter(config);
+  const nodeName = NodeName.GRADE_QUIZ;
+  const toolCallId = generateId(nodeName);
+  emitter.toolInputStart(toolCallId, nodeName);
+
   /**
    * EXTRACT QUIZ DATA:
    * Get the quiz content and user's answers from state
@@ -68,6 +118,12 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (state: typeof Workfl
    */
   const question = state.practicePrompt ?? '';
   const answer = state.userAnswer ?? '';
+
+  emitter.toolInputAvailable(toolCallId, nodeName, {
+    topic: state.topic,
+    question,
+    answer,
+  });
 
   /**
    * VALIDATION: Ensure we have data to grade
@@ -88,41 +144,19 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (state: typeof Workfl
    * - Application ability
    *
    * DESIGN:
-   * Simple prompt requesting structured score output
+   * Using ChatPromptTemplate for structured prompt
    * Score format: "Score: NN%" for easy parsing
    */
-  const { model } = await deps.providerFactory.getModel('chat');
+  const model = await deps.providerFactory.getModel();
 
-  /**
-   * GRADING PROMPT DESIGN:
-   * Instructs AI to:
-   * - Evaluate answer quality
-   * - Identify knowledge gaps
-   * - Provide constructive feedback
-   * - Return score in parseable format
-   *
-   * PROMPT STRUCTURE:
-   * 1. Context: topic, question, answer
-   * 2. Task: grade and analyze
-   * 3. Output: score format requirement
-   *
-   * NOTE: Simple prompt works well for this focused task
-   */
-  const gradingPrompt = `Grade the user's diagnostic quiz response.
+  // Format the grading prompt using ChatPromptTemplate
+  const messages = await GRADING_TEMPLATE.formatMessages({
+    topic: state.topic,
+    question,
+    answer,
+  });
 
-Topic: ${state.topic}
-Question: ${question}
-Answer: ${answer}
-
-Please provide:
-1. A score from 0-100% (return as "Score: NN%")
-2. Brief feedback on what they demonstrated well
-3. Any knowledge gaps identified
-4. Suggestions for improvement
-
-Be encouraging and constructive. Focus on what they know rather than what they missed.`;
-
-  const res = await model.invoke([new HumanMessage(gradingPrompt)]);
+  const res = await model.invoke(messages);
 
   /**
    * STEP 2: EXTRACT GRADING CONTENT
@@ -144,10 +178,23 @@ Be encouraging and constructive. Focus on what they know rather than what they m
    * - Handles missing/invalid scores gracefully
    *
    * FALLBACK:
-   * If parsing fails, default to 0.5 (neutral)
+   * If parsing fails, default to DEFAULT_MASTERY (neutral)
    * This prevents workflow from breaking
    */
-  const mastery = parseScore(content) ?? 0.5;
+  const mastery = parseScore(content) ?? DEFAULT_MASTERY;
+
+  /**
+   * EMIT TOOL OUTPUT:
+   * Provide the grading results
+   */
+  emitter.toolOutputAvailable(toolCallId, {
+    ok: true,
+    data: {
+      mastery,
+      feedback: content,
+      topic: state.topic,
+    },
+  });
 
   /**
    * STEP 4: RETURN ASSESSMENT RESULTS

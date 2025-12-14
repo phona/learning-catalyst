@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { topicParseNode } from '../topicParse';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
 
 describe('topicParse node', () => {
   beforeEach(() => {
@@ -31,7 +36,7 @@ describe('topicParse node', () => {
     const result = await node({
       messages: [],
       topic: 'React',
-    } as any);
+    }, createMockConfig());
 
     expect(mockKnowledgeService.findRelatedByPrompt).toHaveBeenCalledWith('React', {
       limit: 10,
@@ -65,7 +70,7 @@ describe('topicParse node', () => {
     const result = await node({
       messages: [],
       topic: 'React',
-    } as any);
+    }, createMockConfig());
 
     expect(result.topic).toBe('React');
     expect(result.messages[0].content).toBe('Topic: React');
@@ -87,7 +92,7 @@ describe('topicParse node', () => {
     const result = await node({
       messages: [],
       topic: '',
-    } as any);
+    }, createMockConfig());
 
     expect(mockKnowledgeService.findRelatedByPrompt).not.toHaveBeenCalled();
     expect(result.error).toBe('No topic provided. Please specify what you want to learn about.');
@@ -117,7 +122,7 @@ describe('topicParse node', () => {
         new HumanMessage('I want to learn TypeScript'),
       ],
       topic: undefined,
-    } as any);
+    }, createMockConfig());
 
     expect(mockKnowledgeService.findRelatedByPrompt).toHaveBeenCalledWith('I want to learn TypeScript', {
       limit: 10,
@@ -145,15 +150,14 @@ describe('topicParse node', () => {
     const result = await node({
       messages: [],
       topic: 'UnknownTopic',
-    } as any);
+    }, createMockConfig());
 
-    // No error field - just message that topic not found
-    expect(result.error).toBeUndefined();
+    // Error field is set with topic not found message
+    expect(result.error).toBe('Topic "UnknownTopic" not found in knowledge base.');
     // Topic is undefined - workflow will stop
     expect(result.topic).toBeUndefined();
-    // Should have message about topic not found
-    expect(result.messages).toBeDefined();
-    expect(result.messages[0].content).toContain('not found in knowledge base');
+    // Messages field is undefined when topic not found
+    expect(result.messages).toBeUndefined();
   });
 
   it('handles errors gracefully', async () => {
@@ -169,13 +173,11 @@ describe('topicParse node', () => {
 
     const node = topicParseNode({ knowledgeService: mockKnowledgeService });
 
-    const result = await node({
+    // Should reject the promise when database error occurs
+    await expect(node({
       messages: [],
       topic: 'React',
-    } as any);
-
-    expect(result.error).toContain('Failed to parse topic: Database error');
-    expect(result.topic).toBeUndefined();
+    }, createMockConfig())).rejects.toThrow('Database error');
   });
 
   it('normalizes and trims topic text', async () => {
@@ -198,7 +200,7 @@ describe('topicParse node', () => {
     const result = await node({
       messages: [],
       topic: '  React  ',
-    } as any);
+    }, createMockConfig());
 
     expect(mockKnowledgeService.findRelatedByPrompt).toHaveBeenCalledWith('React', {
       limit: 10,

@@ -89,6 +89,7 @@ export default defineConfig(({ command }) => {
               outDir: 'dist-electron/main',
               rollupOptions: {
                 external: [
+                  'better-sqlite3',
                   'sqlite-electron',
                   'electron',
                   'langchain',
@@ -101,6 +102,7 @@ export default defineConfig(({ command }) => {
                   '@qdrant/qdrant-js',
                   '@xenova/transformers',
                   'axios',
+                  '@assistant-ui/react-markdown',
                 ],
                 output: {
                   format: 'cjs',

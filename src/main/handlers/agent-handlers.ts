@@ -132,7 +132,7 @@ export const setupAgentHandlers = async (
         // Track the interaction with analytics
         if (params.userId) {
           await services.analyticsService.trackEvent({
-            eventType: 'agent_interaction',
+            eventType: 'message_sent',
             userId: params.userId,
             properties: {
               agentType: result.agentType,

@@ -179,7 +179,7 @@ export function convertToPlainMessage(
   nodeName?: string
 ): NormalizedMessage {
   // Handle LangChain message objects with lc_serializable or lc_kwargs
-  if ('lc_kwargs' in msg && msg.lc_kwargs) {
+  if (msg && typeof msg === 'object' && 'lc_kwargs' in msg && msg.lc_kwargs) {
     const result: NormalizedMessage = {
       role: msg.lc_kwargs.role as 'user' | 'assistant' | 'tool',
       content: typeof msg.lc_kwargs.content === 'string'

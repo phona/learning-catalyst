@@ -1,342 +1,348 @@
-import { describe, it, expect, vi } from 'vitest';
-import {
-  toAssistantUIStream,
-  createFinishChunk,
-  createErrorChunk,
-  createAbortChunk
-} from '../assistant-ui-stream';
-import { AIMessage } from '@langchain/core/messages';
+/**
+ * Integration Tests: Assistant UI Stream Handler
+ *
+ * PURPOSE:
+ * Verify that toAssistantUIStream correctly processes both custom events and messages
+ * from a LangGraph stream with streamMode: ['messages', 'custom'].
+ *
+ * TEST STRATEGY:
+ * 1. Test direct pass-through of custom events
+ * 2. Test conversion of messages to AI SDK chunks
+ * 3. Test mixed stream (custom events + messages)
+ * 4. Test error handling and edge cases
+ * 5. Verify SSE formatting
+ */
 
-describe('assistant-ui-stream', () => {
-  it('converts assistant messages to AI SDK text chunks with envelope', async () => {
-    // Create a workflow stream with a single assistant node
-    const workflowStream = (async function* () {
-      yield {
-        TEACH: {
-          messages: [new AIMessage('Hello, world!')],
-        },
-      } as Record<string, { messages: any[] }>;
-    })();
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { toAssistantUIStream, createFinishChunk, createErrorChunk } from '../assistant-ui-stream';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import type { DataStreamChunk } from '../assistant-ui-stream';
 
-    const chunks: string[] = [];
-    for await (const chunk of toAssistantUIStream(workflowStream)) {
-      chunks.push(chunk);
-    }
+describe('toAssistantUIStream Integration', () => {
+  /**
+   * HELPER: Convert SSE chunks to objects for easier testing
+   */
+  const parseSSE = (sse: string) => {
+    const match = sse.match(/data: (.+)\n\n/s);
+    return match ? JSON.parse(match[1]) : null;
+  };
 
-    // Assistant messages send THREE chunks: text-start, text-delta, text-end
-    expect(chunks).toHaveLength(3);
+  describe('Custom Events (Direct Pass-Through)', () => {
+    it('should pass through tool-input-start chunk', async () => {
+      const stream = async function* () {
+        yield [
+          'tool-input-start',
+          {
+            type: 'tool-input-start',
+            toolCallId: 'tool-1',
+            toolName: 'Practice'
+          }
+        ] as [string, DataStreamChunk];
+      };
 
-    // First chunk: text-start
-    const textStart = JSON.parse(chunks[0].replace('data: ', ''));
-    expect(textStart.type).toBe('text-start');
-    expect(textStart.id).toBe('msg-TEACH-0');
+      const chunks: string[] = [];
+      for await (const chunk of toAssistantUIStream(stream())) {
+        chunks.push(chunk);
+      }
 
-    // Second chunk: text-delta
-    const textDelta = JSON.parse(chunks[1].replace('data: ', ''));
-    expect(textDelta.type).toBe('text-delta');
-    expect(textDelta.id).toBe('msg-TEACH-0');
-    expect(textDelta.delta).toBe('Hello, world!');
+      expect(chunks).toHaveLength(1);
+      const parsed = parseSSE(chunks[0]);
+      expect(parsed.type).toBe('tool-input-start');
+      expect(parsed.toolCallId).toBe('tool-1');
+      expect(parsed.toolName).toBe('Practice');
+    });
 
-    // Third chunk: text-end
-    const textEnd = JSON.parse(chunks[2].replace('data: ', ''));
-    expect(textEnd.type).toBe('text-end');
-    expect(textEnd.id).toBe('msg-TEACH-0');
-  });
+    it('should pass through tool-output-available chunk', async () => {
+      const stream = async function* () {
+        yield [
+          'tool-output-available',
+          {
+            type: 'tool-output-available',
+            toolCallId: 'tool-1',
+            output: {
+              ok: true,
+              data: { exercises: [] }
+            }
+          }
+        ] as [string, DataStreamChunk];
+      };
 
-  it('converts tool messages to AI SDK tool chunks with text envelope', async () => {
-    // Create a workflow stream with a single tool node
-    const workflowStream = (async function* () {
-      yield {
-        Practice: {
-          messages: [
-            new AIMessage(
-              JSON.stringify({
-                type: 'practice_exercises',
-                exercises: [
-                  { title: 'Exercise 1', steps: ['Step 1', 'Step 2'] },
-                ],
-              })
-            ),
-          ],
-          topic: 'JavaScript Basics',
-          practicePrompt: 'Practice exercises for JavaScript Basics',
-        },
-      } as Record<string, { messages: any[]; [key: string]: unknown }>;
-    })();
+      const chunks: string[] = [];
+      for await (const chunk of toAssistantUIStream(stream())) {
+        chunks.push(chunk);
+      }
 
-    const chunks: string[] = [];
-    for await (const chunk of toAssistantUIStream(workflowStream)) {
-      chunks.push(chunk);
-    }
+      expect(chunks).toHaveLength(1);
+      const parsed = parseSSE(chunks[0]);
+      expect(parsed.type).toBe('tool-output-available');
+      expect(parsed.output.ok).toBe(true);
+    });
 
-    // Tool messages send FIVE chunks: text-start, tool-input-start, tool-input-available, tool-output-available, text-end
-    // Note: tool-input-delta is not used (simplified per AI SDK protocol)
-    expect(chunks).toHaveLength(5);
+    it('should pass through error chunk', async () => {
+      const stream = async function* () {
+        yield [
+          'error',
+          {
+            type: 'error',
+            errorText: 'Something went wrong'
+          }
+        ] as [string, DataStreamChunk];
+      };
 
-    // First chunk: text-start
-    const textStart = JSON.parse(chunks[0].replace('data: ', ''));
-    expect(textStart.type).toBe('text-start');
-    expect(textStart.id).toBe('msg-Practice-0');
+      const chunks: string[] = [];
+      for await (const chunk of toAssistantUIStream(stream())) {
+        chunks.push(chunk);
+      }
 
-    // Second chunk: tool-input-start
-    const inputStart = JSON.parse(chunks[1].replace('data: ', ''));
-    expect(inputStart.type).toBe('tool-input-start');
-    expect(inputStart.toolName).toBe('Practice');
+      expect(chunks).toHaveLength(1);
+      const parsed = parseSSE(chunks[0]);
+      expect(parsed.type).toBe('error');
+      expect(parsed.errorText).toBe('Something went wrong');
+    });
 
-    // Third chunk: tool-input-available
-    const inputAvailable = JSON.parse(chunks[2].replace('data: ', ''));
-    expect(inputAvailable.type).toBe('tool-input-available');
-    expect(inputAvailable.toolName).toBe('Practice');
+    it('should ignore invalid custom events', async () => {
+      const stream = async function* () {
+        // Invalid event (no 'type' field)
+        yield ['invalid-event', { data: 'test' }] as [string, unknown];
 
-    // Fourth chunk: tool-output-available
-    const outputAvailable = JSON.parse(chunks[3].replace('data: ', ''));
-    expect(outputAvailable.type).toBe('tool-output-available');
-    expect(outputAvailable.toolCallId).toBe('tool-Practice-0');
-    // Contains extracted output data with ok flag
-    expect(outputAvailable.output).toBeTruthy();
-    const outputResult = outputAvailable.output as { ok: boolean; data: Record<string, unknown> };
-    expect(outputResult.ok).toBe(true);
-    expect(outputResult.data.practiceContent).toBeTruthy();
-    expect(Array.isArray(outputResult.data.exercises)).toBe(true);
+        // Valid event
+        yield [
+          'finish',
+          { type: 'finish' }
+        ] as [string, DataStreamChunk];
+      };
 
-    // Fifth chunk: text-end
-    const textEnd = JSON.parse(chunks[4].replace('data: ', ''));
-    expect(textEnd.type).toBe('text-end');
-    expect(textEnd.id).toBe('msg-Practice-0');
-  });
+      const chunks: string[] = [];
+      for await (const chunk of toAssistantUIStream(stream())) {
+        chunks.push(chunk);
+      }
 
-  it('handles node errors by yielding error chunk with errorText field', async () => {
-    // Create a workflow stream with an error node
-    const workflowStream = (async function* () {
-      yield {
-        TOPIC_PARSE: {
-          error: 'Something went wrong',
-        },
-      } as Record<string, { error: string }>;
-    })();
-
-    const chunks: string[] = [];
-    for await (const chunk of toAssistantUIStream(workflowStream)) {
-      chunks.push(chunk);
-    }
-
-    expect(chunks).toHaveLength(1);
-    const parsed = JSON.parse(chunks[0].replace('data: ', ''));
-    expect(parsed.type).toBe('error');
-    expect(parsed.errorText).toBe('Something went wrong');
-  });
-
-  it('handles empty workflow stream', async () => {
-    // Create an empty workflow stream
-    const workflowStream = (async function* () {
-      return;
-    })();
-
-    const chunks: string[] = [];
-    for await (const chunk of toAssistantUIStream(workflowStream)) {
-      chunks.push(chunk);
-    }
-
-    expect(chunks).toHaveLength(0);
-  });
-
-  it('handles multiple nodes in workflow stream', async () => {
-    // Create a workflow stream with multiple nodes
-    const workflowStream = (async function* () {
-      yield {
-        TEACH: {
-          messages: [new AIMessage('Hello')],
-        },
-      } as Record<string, { messages: any[] }>;
-      yield {
-        Practice: {
-          messages: [new AIMessage(JSON.stringify({ exercises: [] }))],
-        },
-      } as Record<string, { messages: any[] }>;
-    })();
-
-    const chunks: string[] = [];
-    for await (const chunk of toAssistantUIStream(workflowStream)) {
-      chunks.push(chunk);
-    }
-
-    // First node: 3 chunks (text-start, text-delta, text-end) at indices 0, 1, 2
-    // Second node: 5 chunks (text-start, tool-input-start, tool-input-available, tool-output-available, text-end) at indices 3, 4, 5, 6, 7
-    // Total: 8 chunks
-    expect(chunks).toHaveLength(8);
-
-    // Verify first node (TEACH)
-    const textStart1 = JSON.parse(chunks[0].replace('data: ', ''));
-    expect(textStart1.type).toBe('text-start');
-    expect(textStart1.id).toBe('msg-TEACH-0');
-
-    // Verify second node (Practice) has unique IDs
-    const textStart2 = JSON.parse(chunks[3].replace('data: ', ''));
-    expect(textStart2.type).toBe('text-start');
-    expect(textStart2.id).toBe('msg-Practice-1'); // Should be index 1, not 0
-  });
-
-  it('handles tool messages with plain content', async () => {
-    // Create a workflow stream with a tool node containing plain text
-    const workflowStream = (async function* () {
-      yield {
-        Practice: {
-          messages: [
-            new AIMessage('Plain text tool result'),
-          ],
-          topic: 'React Basics',
-        },
-      } as Record<string, { messages: any[]; [key: string]: unknown }>;
-    })();
-
-    const chunks: string[] = [];
-    for await (const chunk of toAssistantUIStream(workflowStream)) {
-      chunks.push(chunk);
-    }
-
-    // Tool messages send FIVE chunks: text-start, tool-input-start, tool-input-available, tool-output-available, text-end
-    // Note: tool-input-delta is not used (simplified per AI SDK protocol)
-    expect(chunks).toHaveLength(5);
-
-    // First chunk: text-start
-    const textStart = JSON.parse(chunks[0].replace('data: ', ''));
-    expect(textStart.type).toBe('text-start');
-    expect(textStart.id).toBe('msg-Practice-0');
-
-    // Second chunk: tool-input-start
-    const inputStart = JSON.parse(chunks[1].replace('data: ', ''));
-    expect(inputStart.type).toBe('tool-input-start');
-    expect(inputStart.toolName).toBe('Practice');
-
-    // Third chunk: tool-input-available
-    const inputAvailable = JSON.parse(chunks[2].replace('data: ', ''));
-    expect(inputAvailable.type).toBe('tool-input-available');
-    expect(inputAvailable.toolName).toBe('Practice');
-
-    // Fourth chunk: tool-output-available
-    const outputAvailable = JSON.parse(chunks[3].replace('data: ', ''));
-    expect(outputAvailable.type).toBe('tool-output-available');
-    expect(outputAvailable.toolCallId).toBe('tool-Practice-0');
-    // Contains extracted output data with ok flag
-    expect(outputAvailable.output).toBeTruthy();
-    const outputResult = outputAvailable.output as { ok: boolean; data: Record<string, unknown> };
-    expect(outputResult.ok).toBe(true);
-
-    // Fifth chunk: text-end
-    const textEnd = JSON.parse(chunks[4].replace('data: ', ''));
-    expect(textEnd.type).toBe('text-end');
-    expect(textEnd.id).toBe('msg-Practice-0');
-  });
-
-  describe('helper functions', () => {
-    it('creates properly formatted finish chunk', () => {
-      const finishChunk = createFinishChunk();
-      expect(finishChunk).toMatch(/^data: /);
-      const parsed = JSON.parse(finishChunk.replace('data: ', ''));
+      // Only the valid event should be passed through
+      expect(chunks).toHaveLength(1);
+      const parsed = parseSSE(chunks[0]);
       expect(parsed.type).toBe('finish');
     });
+  });
 
-    it('creates properly formatted error chunk', () => {
-      const errorChunk = createErrorChunk('Test error message');
-      expect(errorChunk).toMatch(/^data: /);
-      const parsed = JSON.parse(errorChunk.replace('data: ', ''));
-      expect(parsed.type).toBe('error');
-      expect(parsed.errorText).toBe('Test error message');
-    });
-
-    it('creates properly formatted abort chunk', () => {
-      const abortChunk = createAbortChunk();
-      expect(abortChunk).toMatch(/^data: /);
-      const parsed = JSON.parse(abortChunk.replace('data: ', ''));
-      expect(parsed.type).toBe('abort');
+  // Message conversion is NO LONGER NEEDED
+  // All chunks are now emitted directly via config.writer() in each node
+  // The stream only contains custom events (AI SDK chunks), not BaseMessage objects
+  describe.skip('Messages (Conversion) - DEPRECATED', () => {
+    it('should convert assistant message to text chunks', async () => {
+      // This test is deprecated - messages are no longer converted
+      // All chunks are emitted directly via chunk emitter
     });
   });
 
-  describe('node-type-specific extractors', () => {
-    it('extracts PRACTICE node input and output correctly', async () => {
-      const workflowStream = (async function* () {
-        yield {
-          Practice: {
-            messages: [new AIMessage('Practice content')],
-            topic: 'Python Variables',
-            practicePrompt: 'Practice with variables',
-          },
-        } as Record<string, { messages: any[]; [key: string]: unknown }>;
-      })();
+  // Mixed stream handling - custom events only
+  // Messages are no longer in the stream, only custom events (AI SDK chunks)
+  describe.skip('Mixed Stream (Custom Events + Messages) - DEPRECATED', () => {
+    it('should handle interleaved custom events and messages', async () => {
+      // This test is deprecated - messages are no longer in the stream
+      // All chunks are emitted directly via chunk emitter
+    });
+  });
+
+  // Error handling for custom events
+  // All errors should be emitted as custom events via the chunk emitter
+  describe('Error Handling', () => {
+    it('should pass through error chunks', async () => {
+      const stream = async function* () {
+        yield [
+          'error',
+          {
+            type: 'error',
+            errorText: 'Something went wrong'
+          }
+        ] as [string, DataStreamChunk];
+      };
 
       const chunks: string[] = [];
-      for await (const chunk of toAssistantUIStream(workflowStream)) {
+      for await (const chunk of toAssistantUIStream(stream())) {
         chunks.push(chunk);
       }
 
-      // Find the tool-input-available chunk (no tool-input-delta)
-      const inputAvailable = JSON.parse(chunks[2].replace('data: ', ''));
-      expect(inputAvailable.type).toBe('tool-input-available');
-      expect(inputAvailable.toolName).toBe('Practice');
-
-      // Find the tool-output-available chunk
-      const outputAvailable = JSON.parse(chunks[3].replace('data: ', ''));
-      expect(outputAvailable.type).toBe('tool-output-available');
-      const outputResult = outputAvailable.output as { ok: boolean; data: Record<string, unknown> };
-      expect(outputResult.ok).toBe(true);
-      expect(outputResult.data.practiceContent).toBe('Practice with variables');
-      expect(Array.isArray(outputResult.data.exercises)).toBe(true);
-      expect(outputResult.data.exercises).toHaveLength(3);
+      expect(chunks).toHaveLength(1);
+      const parsed = parseSSE(chunks[0]);
+      expect(parsed.type).toBe('error');
+      expect(parsed.errorText).toBe('Something went wrong');
     });
+  });
 
-    it('extracts ASSESS node input and output correctly', async () => {
-      const workflowStream = (async function* () {
-        yield {
-          Assess: {
-            messages: [new AIMessage('Confidence: 75%')],
-            topic: 'JavaScript',
-            confidence: 0.75,
-            gaps: ['closures', 'prototypes'],
-          },
-        } as Record<string, { messages: any[]; [key: string]: unknown }>;
-      })();
+  describe('SSE Formatting', () => {
+    it('should format chunks as SSE with data: prefix and double newline', async () => {
+      const stream = async function* () {
+        yield [
+          'text-start',
+          { type: 'text-start', id: 'msg-1' }
+        ] as [string, DataStreamChunk];
+      };
 
       const chunks: string[] = [];
-      for await (const chunk of toAssistantUIStream(workflowStream)) {
+      for await (const chunk of toAssistantUIStream(stream())) {
         chunks.push(chunk);
       }
 
-      // Find the tool-input-available chunk
-      const inputAvailable = JSON.parse(chunks[2].replace('data: ', ''));
-      expect(inputAvailable.type).toBe('tool-input-available');
-      expect(inputAvailable.toolName).toBe('Assess');
+      // Each chunk should be formatted as "data: {json}\n\n"
+      chunks.forEach(chunk => {
+        expect(chunk).toMatch(/^data: .+\n\n$/);
+      });
 
-      // Find the tool-output-available chunk
-      const outputAvailable = JSON.parse(chunks[3].replace('data: ', ''));
-      expect(outputAvailable.type).toBe('tool-output-available');
-      const outputResult = outputAvailable.output as { ok: boolean; data: Record<string, unknown> };
-      expect(outputResult.ok).toBe(true);
-      expect(outputResult.data.confidence).toBe(0.75);
-      expect(outputResult.data.gaps).toContain('closures');
+      const parsed = parseSSE(chunks[0]);
+      expect(parsed.type).toBe('text-start');
     });
 
-    it('extracts TEACH node input and output correctly', async () => {
-      const workflowStream = (async function* () {
-        yield {
-          Teach: {
-            messages: [new AIMessage('Let me explain variables...')],
-            topic: 'Python Variables',
-            interactionCount: 1,
-            understandingLevel: 0.5,
-            readyForPractice: false,
-          },
-        } as Record<string, { messages: any[]; [key: string]: unknown }>;
-      })();
+    it('should format custom events as SSE', async () => {
+      const stream = async function* () {
+        yield [
+          'finish',
+          { type: 'finish' }
+        ] as [string, DataStreamChunk];
+      };
 
       const chunks: string[] = [];
-      for await (const chunk of toAssistantUIStream(workflowStream)) {
+      for await (const chunk of toAssistantUIStream(stream())) {
         chunks.push(chunk);
       }
 
-      // TEACH is an assistant node, so it should have text-delta, not tool chunks
-      const textDelta = JSON.parse(chunks[1].replace('data: ', ''));
-      expect(textDelta.type).toBe('text-delta');
-      expect(textDelta.delta).toContain('Let me explain variables');
+      expect(chunks[0]).toBe('data: {"type":"finish"}\n\n');
     });
+  });
+
+  describe('Performance', () => {
+    it('should handle large streams efficiently', async () => {
+      const stream = async function* () {
+        // Generate 100 custom events
+        for (let i = 0; i < 100; i++) {
+          yield [
+            'text-delta',
+            { type: 'text-delta', id: `msg-${i}`, delta: `Message ${i}` }
+          ] as [string, DataStreamChunk];
+        }
+      };
+
+      const startTime = Date.now();
+      const chunks: string[] = [];
+      for await (const chunk of toAssistantUIStream(stream())) {
+        chunks.push(chunk);
+      }
+      const endTime = Date.now();
+
+      // Should process 100 custom events
+      expect(chunks).toHaveLength(100);
+
+      // Should complete within reasonable time (less than 1 second)
+      expect(endTime - startTime).toBeLessThan(1000);
+    });
+  });
+});
+
+/**
+ * REAL-WORLD SCENARIO TEST:
+ * Simulates a complete practice node execution flow
+ *
+ * In the new architecture, the practice node emits ALL chunks directly:
+ * 1. tool-input-start
+ * 2. tool-input-available
+ * 3. text-start
+ * 4. text-delta
+ * 5. text-end
+ * 6. tool-output-available
+ */
+describe('Practice Node Scenario', () => {
+  /**
+   * HELPER: Convert SSE chunks to objects for easier testing
+   */
+  const parseSSE = (sse: string) => {
+    const match = sse.match(/data: (.+)\n\n/s);
+    return match ? JSON.parse(match[1]) : null;
+  };
+
+  it('should simulate complete practice node execution', async () => {
+    const stream = async function* () {
+      // 1. Tool input start
+      yield [
+        'tool-input-start',
+        {
+          type: 'tool-input-start',
+          toolCallId: 'tool-123',
+          toolName: 'Practice'
+        }
+      ] as [string, DataStreamChunk];
+
+      // 2. Tool input available
+      yield [
+        'tool-input-available',
+        {
+          type: 'tool-input-available',
+          toolCallId: 'tool-123',
+          toolName: 'Practice',
+          input: { topic: 'Python Functions', limit: 5 }
+        }
+      ] as [string, DataStreamChunk];
+
+      // 3. Conversational message (emitted via chunk emitter)
+      yield [
+        'text-start',
+        { type: 'text-start', id: 'msg-0' }
+      ] as [string, DataStreamChunk];
+
+      yield [
+        'text-delta',
+        { type: 'text-delta', id: 'msg-0', delta: 'I\'ve created some practice exercises for you!' }
+      ] as [string, DataStreamChunk];
+
+      yield [
+        'text-end',
+        { type: 'text-end', id: 'msg-0' }
+      ] as [string, DataStreamChunk];
+
+      // 4. Tool output available
+      yield [
+        'tool-output-available',
+        {
+          type: 'tool-output-available',
+          toolCallId: 'tool-123',
+          output: {
+            ok: true,
+            data: {
+              exercises: [
+                { id: '1', content: 'Define a function that adds two numbers' }
+              ],
+              summary: 'Generated 1 exercise'
+            }
+          }
+        }
+      ] as [string, DataStreamChunk];
+    };
+
+    const chunks: string[] = [];
+    for await (const chunk of toAssistantUIStream(stream())) {
+      chunks.push(chunk);
+    }
+
+    // Verify complete flow (6 chunks total)
+    expect(chunks).toHaveLength(6);
+
+    const parsed0 = parseSSE(chunks[0]);
+    expect(parsed0.type).toBe('tool-input-start');
+
+    const parsed1 = parseSSE(chunks[1]);
+    expect(parsed1.type).toBe('tool-input-available');
+
+    const parsed2 = parseSSE(chunks[2]);
+    expect(parsed2.type).toBe('text-start');
+    expect(parsed2.id).toBe('msg-0');
+
+    const parsed3 = parseSSE(chunks[3]);
+    expect(parsed3.type).toBe('text-delta');
+    expect(parsed3.delta).toBe('I\'ve created some practice exercises for you!');
+
+    const parsed4 = parseSSE(chunks[4]);
+    expect(parsed4.type).toBe('text-end');
+
+    const parsed5 = parseSSE(chunks[5]);
+    expect(parsed5.type).toBe('tool-output-available');
+    expect(parsed5.output.ok).toBe(true);
   });
 });
