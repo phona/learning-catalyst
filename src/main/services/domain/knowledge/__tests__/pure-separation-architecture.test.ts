@@ -20,16 +20,18 @@ const mockLoggerService = {
   child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 };
 
+const mockRerankFn = vi.fn(async (query: string, docs: string[]) => ({
+  indices: docs.map((_, i) => i),
+  scores: docs.map(() => 0.9),
+}));
+
 const mockProviderFactory = {
   getEmbeddingModel: vi.fn(async () => ({
     embed: vi.fn(async () => Array(1536).fill(0.1)),
     embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
   })),
   getRerankModel: vi.fn(async () => ({
-    rerank: vi.fn(async (query: string, docs: string[]) => ({
-      indices: docs.map((_, i) => i),
-      scores: docs.map(() => 0.9),
-    })),
+    rerank: mockRerankFn,
     settings: { model: 'test-rerank' },
   })),
 };
@@ -198,7 +200,7 @@ describe('pure separation architecture', () => {
       expect(result).toHaveLength(2);
       expect(result[0].concept.name).toBe('Variables');
       expect(result[0].concept.type).toBe('concept');
-      expect(result[0].concept.level).toBe(1);
+      expect(result[0].concept.difficultyLevel).toBe(1);
       expect(result[0].relevanceScore).toBe(0.92);
     });
 
@@ -334,9 +336,8 @@ describe('pure separation architecture', () => {
       await service.findRelatedByPrompt('query', { limit: 10 });
 
       // Verify rerank model was called with SQLite-enriched content
-      const rerankModel = await mockProviderFactory.getRerankModel();
-      expect(rerankModel.rerank).toHaveBeenCalled();
-      const rerankCall = rerankModel.rerank.mock.calls[0];
+      expect(mockRerankFn).toHaveBeenCalled();
+      const rerankCall = mockRerankFn.mock.calls[0];
       expect(rerankCall[1][0]).toContain('Variables\n\nDetailed description from SQLite');
     });
   });

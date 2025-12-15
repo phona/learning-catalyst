@@ -228,7 +228,7 @@ describe('Agent Manager - Basic Tests', () => {
       await agentManager.runAgent(mockRequest);
 
       expect(mockAnalyticsService.trackEvent).toHaveBeenCalledWith({
-        eventType: 'agent_response',
+        eventType: 'message_sent',
         userId: 'user-123',
         properties: {
           agentType: 'learning',
@@ -299,7 +299,7 @@ describe('Agent Manager - Basic Tests', () => {
 
       // Should still succeed and track analytics
       expect(mockAnalyticsService.trackEvent).toHaveBeenCalledWith({
-        eventType: 'agent_response',
+        eventType: 'message_sent',
         properties: expect.objectContaining({
           agentType: 'learning',
         }),

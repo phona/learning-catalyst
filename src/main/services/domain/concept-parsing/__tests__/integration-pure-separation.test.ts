@@ -3,7 +3,16 @@ import { createConceptParsingService } from '../concept-parsing-service';
 
 describe('concept parsing integration with pure separation', () => {
   const providerFactory: any = {
-    getModel: vi.fn(async () => ({})),
+    getModel: vi.fn(async () => ({
+      config: {
+        modelName: 'gpt-4o',
+        temperature: 0.2,
+        maxTokens: 4096,
+      },
+      invoke: vi.fn(async () => ({
+        content: '[{"name": "Python Variables", "description": "Variables store data", "type": "concept", "difficulty": "beginner", "confidence": 0.9}]',
+      })),
+    })),
     getEmbeddingModel: vi.fn(async () => ({
       embed: vi.fn(async () => Array(1536).fill(0.1)),
       embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
@@ -44,6 +53,9 @@ Functions are reusable blocks of code that perform specific tasks.`;
       { maxHeadingDepth: 2, maxSegmentChars: 300, minSegmentChars: 1 }
     );
 
+    if (!res.success) {
+      console.log('Parsing errors:', res.errors);
+    }
     expect(res.success).toBe(true);
     expect(res.concepts.length).toBeGreaterThan(0);
 

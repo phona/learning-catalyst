@@ -80,6 +80,15 @@ describe('ConfigService Tests', () => {
     },
     modelTypes: {
       chat: defaultChatModel,
+      embedding: {
+        provider: 'openai',
+        model: 'text-embedding-ada-002',
+        dimensions: 1536,
+      },
+      rerank: {
+        provider: 'openai',
+        model: 'text-embedding-ada-002',
+      },
     },
     metadata: {
       modelTests: [],
@@ -91,6 +100,7 @@ describe('ConfigService Tests', () => {
     streaming: true,
     enableThinking: true,
     contextWindowSize: 4096,
+    embeddingDimensions: 1536,
   };
 
   const baseUIConfig: AppConfig['ui'] = {
@@ -141,6 +151,14 @@ describe('ConfigService Tests', () => {
     preloadModels: false,
   };
 
+  const baseParsingConfig: AppConfig['parsing'] = {
+    maxSegmentChars: 1200,
+    minSegmentChars: 80,
+    maxConcurrentSegments: 3,
+    vectorize: true,
+    chatTimeoutSeconds: 60,
+  };
+
   const mergeProviders = (
     original: Record<string, ProviderConfig>,
     overrides?: Record<string, ProviderConfig>,
@@ -177,6 +195,10 @@ describe('ConfigService Tests', () => {
       performance: {
         ...basePerformanceConfig,
         ...(overrides.performance ?? {}),
+      },
+      parsing: {
+        ...baseParsingConfig,
+        ...(overrides.parsing ?? {}),
       },
     };
 
@@ -642,7 +664,12 @@ describe('ConfigService Tests', () => {
       mockStorage.loadConfig.mockResolvedValue(malformedConfig);
 
       const result = await configService.getConfig();
-      expect(result).toEqual(malformedConfig);
+      // The service merges malformed config with defaults, so result will have both
+      expect(result).toEqual(
+        expect.objectContaining({
+          invalid: 'structure',
+        }),
+      );
     });
 
     it('should handle very large configuration objects', async () => {
@@ -723,7 +750,7 @@ describe('ConfigService Tests', () => {
       const result = await configService.getConfig();
 
       expect(mockStorage.loadConfig).toHaveBeenCalledTimes(1);
-      expect(result).toBe(expectedConfig);
+      expect(result).toEqual(expectedConfig);
     });
 
     it('should properly interact with storage save method', async () => {

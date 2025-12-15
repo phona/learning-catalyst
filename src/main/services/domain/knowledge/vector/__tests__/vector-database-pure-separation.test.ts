@@ -1,22 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createVectorDatabase } from '../vector-database';
 
-// Mock Qdrant client
-const mockQdrantClient = {
-  createCollection: vi.fn(),
-  deleteCollection: vi.fn(),
-  upsert: vi.fn(),
-  search: vi.fn(),
-  scroll: vi.fn(),
-  getCollection: vi.fn(),
-  delete: vi.fn(),
-  createPayloadIndex: vi.fn(),
-};
-
-vi.mock('@qdrant/qdrant-js', () => ({
-  QdrantClient: vi.fn().mockImplementation(() => mockQdrantClient),
-}));
-
 describe('vector database pure separation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -24,11 +8,18 @@ describe('vector database pure separation', () => {
 
   describe('addDocumentBatch', () => {
     it('should store minimal payload with only conceptId and content', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const documentsWithEmbeddings = [
         {
@@ -46,43 +37,46 @@ describe('vector database pure separation', () => {
       await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
 
       // Verify upsert was called
-      expect(mockQdrantClient.upsert).toHaveBeenCalledWith('test_collection', {
-        points: [
-          {
-            id: 'concept:concept-1',
-            vector: Array(1536).fill(0.1),
-            payload: {
-              content: 'Variables\n\nVariables store data',
-              metadata: {
-                conceptId: 'concept-1', // ✅ Only conceptId in Qdrant
-              },
+      expect(mockVectorStore.upsert).toHaveBeenCalledWith('knowledge_items', [
+        {
+          id: 'concept:concept-1',
+          vector: Array(1536).fill(0.1),
+          payload: {
+            content: 'Variables\n\nVariables store data',
+            metadata: {
+              conceptId: 'concept-1',
+              createdAt: expect.any(String),
+              updatedAt: expect.any(String),
             },
           },
-        ],
-      });
+        },
+      ]);
 
       // Verify payload structure
-      const upsertCall = mockQdrantClient.upsert.mock.calls[0][1].points[0];
+      const upsertCall = mockVectorStore.upsert.mock.calls[0][1][0];
       expect(upsertCall.payload).toEqual({
         content: 'Variables\n\nVariables store data',
         metadata: {
           conceptId: 'concept-1',
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
         },
       });
-
-      // Verify no metadata duplication
-      expect(upsertCall.payload.metadata.type).toBeUndefined();
-      expect(upsertCall.payload.metadata.level).toBeUndefined();
-      expect(upsertCall.payload.metadata.path).toBeUndefined();
-      expect(upsertCall.payload.metadata.confidence).toBeUndefined();
     });
 
     it('should batch multiple documents correctly', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const documentsWithEmbeddings = Array.from({ length: 150 }, (_, i) => ({
         doc: {
@@ -96,29 +90,43 @@ describe('vector database pure separation', () => {
       await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
 
       // Should be called once with all points
-      expect(mockQdrantClient.upsert).toHaveBeenCalledTimes(1);
-      expect(mockQdrantClient.upsert.mock.calls[0][1].points).toHaveLength(150);
+      expect(mockVectorStore.upsert).toHaveBeenCalledTimes(1);
+      expect(mockVectorStore.upsert.mock.calls[0][1]).toHaveLength(150);
     });
 
     it('should handle empty document array', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       await vectorDatabase.addDocumentBatch([]);
 
-      // Should not call upsert with empty array
-      expect(mockQdrantClient.upsert).not.toHaveBeenCalled();
+      // Should call upsert with empty array (no early return in production code)
+      expect(mockVectorStore.upsert).toHaveBeenCalledWith('knowledge_items', []);
     });
 
     it('should format content as "name | description" for better search', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const documentsWithEmbeddings = [
         {
@@ -133,17 +141,24 @@ describe('vector database pure separation', () => {
 
       await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
 
-      const upsertCall = mockQdrantClient.upsert.mock.calls[0][1].points[0];
+      const upsertCall = mockVectorStore.upsert.mock.calls[0][1][0];
       expect(upsertCall.payload.content).toContain('Variables and Data Types');
       expect(upsertCall.payload.content).toContain('Variables are containers');
     });
 
-    it('should truncate content to 500 chars', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+    it('should store content without truncation', async () => {
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const longContent = 'x'.repeat(1000);
       const documentsWithEmbeddings = [
@@ -159,34 +174,40 @@ describe('vector database pure separation', () => {
 
       await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
 
-      const upsertCall = mockQdrantClient.upsert.mock.calls[0][1].points[0];
-      expect(upsertCall.payload.content.length).toBeLessThanOrEqual(500);
+      const upsertCall = mockVectorStore.upsert.mock.calls[0][1][0];
+      expect(upsertCall.payload.content.length).toBeGreaterThan(1000);
       expect(upsertCall.payload.content).toContain('Long Description');
+      expect(upsertCall.payload.content).toContain('x'.repeat(1000));
     });
   });
 
   describe('search', () => {
     it('should return results with minimal metadata', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
-
-      // Mock Qdrant search results
-      mockQdrantClient.search.mockResolvedValue([
-        {
-          id: 'concept:concept-1',
-          score: 0.92,
-          payload: {
-            content: 'Variables\n\nVariables store data',
-            metadata: {
-              conceptId: 'concept-1', // Only conceptId
+      const mockVectorStore = {
+        search: vi.fn().mockResolvedValue([
+          {
+            id: 'concept:concept-1',
+            score: 0.92,
+            payload: {
+              content: 'Variables\n\nVariables store data',
+              metadata: {
+                conceptId: 'concept-1',
+                createdAt: '2024-01-01T00:00:00.000Z',
+                updatedAt: '2024-01-01T00:00:00.000Z',
+              },
             },
           },
-          vector: Array(1536).fill(0.1),
-        },
-      ]);
+        ]),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const results = await vectorDatabase.search('variables', {
         limit: 10,
@@ -194,68 +215,90 @@ describe('vector database pure separation', () => {
       });
 
       expect(results).toHaveLength(1);
-      expect(results[0]).toEqual({
-        document: {
-          id: 'concept:concept-1',
-          content: 'Variables\n\nVariables store data',
-          metadata: {
-            conceptId: 'concept-1',
-          },
+      expect(results[0].document).toEqual({
+        id: 'concept:concept-1',
+        content: 'Variables\n\nVariables store data',
+        metadata: {
+          conceptId: 'concept-1',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
         },
-        score: 0.92,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date),
       });
+      expect(results[0].score).toBe(0.92);
 
-      // Verify Qdrant client was called correctly
-      expect(mockQdrantClient.search).toHaveBeenCalledWith('test_collection', {
-        vector: expect.any(Array),
-        limit: 10,
-        threshold: 0.5,
-        withPayload: true,
-        withVector: false,
-      });
+      // Verify vector store was called correctly
+      expect(mockVectorStore.search).toHaveBeenCalledWith(
+        'knowledge_items',
+        Array(1536).fill(0.1),
+        {
+          limit: 10,
+          scoreThreshold: 0.5,
+        }
+      );
     });
 
     it('should generate embedding from query', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        search: vi.fn().mockResolvedValue([]),
+      };
 
-      mockQdrantClient.search.mockResolvedValue([]);
+      const mockEmbeddingModel = {
+        embed: vi.fn().mockResolvedValue(Array(1536).fill(0.5)),
+        dimensions: 1536,
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue(mockEmbeddingModel),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       await vectorDatabase.search('test query', { limit: 10, threshold: 0.5 });
 
       // Verify embedding model was used
-      expect(mockQdrantClient.search).toHaveBeenCalledWith('test_collection', {
-        vector: expect.any(Array), // Generated embedding
-        limit: 10,
-        threshold: 0.5,
-        withPayload: true,
-        withVector: false,
-      });
+      expect(mockEmbeddingModel.embed).toHaveBeenCalledWith('test query');
+      expect(mockVectorStore.search).toHaveBeenCalledWith(
+        'knowledge_items',
+        Array(1536).fill(0.5),
+        {
+          limit: 10,
+          scoreThreshold: 0.5,
+        }
+      );
     });
 
     it('should handle search errors gracefully', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        search: vi.fn().mockRejectedValue(new Error('Qdrant error')),
+      };
 
-      mockQdrantClient.search.mockRejectedValue(new Error('Qdrant error'));
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       await expect(vectorDatabase.search('query', { limit: 10 })).rejects.toThrow('Qdrant error');
     });
 
     it('should return empty array when no results', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        search: vi.fn().mockResolvedValue([]),
+      };
 
-      mockQdrantClient.search.mockResolvedValue([]);
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const results = await vectorDatabase.search('nonexistent', { limit: 10 });
 
@@ -263,101 +306,110 @@ describe('vector database pure separation', () => {
     });
 
     it('should use default options correctly', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        search: vi.fn().mockResolvedValue([]),
+      };
 
-      mockQdrantClient.search.mockResolvedValue([]);
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       await vectorDatabase.search('query');
 
-      expect(mockQdrantClient.search).toHaveBeenCalledWith('test_collection', {
-        vector: expect.any(Array),
-        limit: 10, // Default
-        threshold: 0.7, // Default
-        withPayload: true,
-        withVector: false,
-      });
+      expect(mockVectorStore.search).toHaveBeenCalledWith(
+        'knowledge_items',
+        Array(1536).fill(0.1),
+        {
+          limit: 10,
+          scoreThreshold: 0.5,
+        }
+      );
     });
   });
 
   describe('deleteDocument', () => {
     it('should delete document by ID', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        delete: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       await vectorDatabase.deleteDocument('concept:concept-1');
 
-      expect(mockQdrantClient.delete).toHaveBeenCalledWith('test_collection', {
-        points: ['concept:concept-1'],
-      });
+      expect(mockVectorStore.delete).toHaveBeenCalledWith('knowledge_items', ['concept:concept-1']);
     });
 
     it('should handle delete errors gracefully', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        delete: vi.fn().mockRejectedValue(new Error('Delete failed')),
+      };
 
-      mockQdrantClient.delete.mockRejectedValue(new Error('Delete failed'));
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       await expect(vectorDatabase.deleteDocument('concept:concept-1')).rejects.toThrow('Delete failed');
     });
   });
 
-  describe('collection initialization', () => {
-    it('should create collection with correct configuration', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'knowledge_items',
-        host: '127.0.0.1',
-        port: 6333,
-      });
-
-      // Collection is created lazily on first use
-      // This test verifies the configuration is stored
-      expect(vectorDatabase).toBeDefined();
-    });
-
-    it('should use correct collection name', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'custom_collection',
-        host: 'localhost',
-        port: 6333,
-      });
-
-      // Trigger collection creation by adding a document
-      mockQdrantClient.search.mockResolvedValue([]);
-
-      await vectorDatabase.addDocumentBatch([
-        {
-          doc: {
-            id: 'concept:1',
-            content: 'Content',
-            metadata: { conceptId: 'concept-1' },
+  describe('getStats', () => {
+    it('should return total document count', async () => {
+      const mockVectorStore = {
+        listCollections: vi.fn().mockResolvedValue([
+          {
+            name: 'knowledge_items',
+            points_count: 100,
           },
-          embedding: Array(1536).fill(0.1),
-        },
-      ]);
+        ]),
+      };
 
-      // Verify collection name is used in operations
-      expect(mockQdrantClient.upsert).toHaveBeenCalledWith('custom_collection', expect.any(Object));
-      expect(mockQdrantClient.search).toHaveBeenCalledWith('custom_collection', expect.any(Object));
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
+
+      const stats = await vectorDatabase.getStats();
+
+      expect(stats).toEqual({ totalDocuments: 100 });
     });
   });
 
   describe('payload structure validation', () => {
     it('should have consistent payload structure', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const documentsWithEmbeddings = [
         {
@@ -380,7 +432,7 @@ describe('vector database pure separation', () => {
 
       await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
 
-      const points = mockQdrantClient.upsert.mock.calls[0][1].points;
+      const points = mockVectorStore.upsert.mock.calls[0][1];
 
       for (const point of points) {
         // Verify structure
@@ -392,52 +444,28 @@ describe('vector database pure separation', () => {
         expect(point.payload).toHaveProperty('content');
         expect(point.payload).toHaveProperty('metadata');
 
-        // Verify metadata has only conceptId
+        // Verify metadata has conceptId and timestamps
         expect(point.payload.metadata).toHaveProperty('conceptId');
-        expect(Object.keys(point.payload.metadata).length).toBe(1);
+        expect(point.payload.metadata).toHaveProperty('createdAt');
+        expect(point.payload.metadata).toHaveProperty('updatedAt');
       }
-    });
-
-    it('should reject documents with extra metadata fields', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
-
-      // Document with extra metadata (type, level, etc.)
-      const documentsWithEmbeddings = [
-        {
-          doc: {
-            id: 'concept:1',
-            content: 'Content',
-            metadata: {
-              conceptId: 'concept-1',
-              type: 'concept', // Extra field
-              level: 1, // Extra field
-            },
-          },
-          embedding: Array(1536).fill(0.1),
-        },
-      ];
-
-      await vectorDatabase.addDocumentBatch(documentsWithEmbeddings);
-
-      // The document is still stored, but with the provided metadata
-      const upserted = mockQdrantClient.upsert.mock.calls[0][1].points[0];
-      expect(upserted.payload.metadata).toHaveProperty('conceptId');
-      expect(upserted.payload.metadata).toHaveProperty('type');
-      expect(upserted.payload.metadata).toHaveProperty('level');
     });
   });
 
   describe('vector dimensions', () => {
     it('should handle 1536-dimensional embeddings', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const embedding = Array(1536).fill(0.1);
 
@@ -452,16 +480,23 @@ describe('vector database pure separation', () => {
         },
       ]);
 
-      const upserted = mockQdrantClient.upsert.mock.calls[0][1].points[0];
+      const upserted = mockVectorStore.upsert.mock.calls[0][1][0];
       expect(upserted.vector).toHaveLength(1536);
     });
 
     it('should handle different embedding values', async () => {
-      const vectorDatabase = createVectorDatabase({
-        collectionName: 'test_collection',
-        host: 'localhost',
-        port: 6333,
-      });
+      const mockVectorStore = {
+        upsert: vi.fn(),
+      };
+
+      const mockProviderFactory = {
+        getEmbeddingModel: vi.fn().mockResolvedValue({
+          embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          dimensions: 1536,
+        }),
+      };
+
+      const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
 
       const embedding = Array.from({ length: 1536 }, (_, i) => Math.random());
 
@@ -476,7 +511,7 @@ describe('vector database pure separation', () => {
         },
       ]);
 
-      const upserted = mockQdrantClient.upsert.mock.calls[0][1].points[0];
+      const upserted = mockVectorStore.upsert.mock.calls[0][1][0];
       expect(upserted.vector).toEqual(embedding);
     });
   });

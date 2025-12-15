@@ -49,7 +49,38 @@ describe('Config Service - Interface Tests', () => {
   describe('Configuration Management', () => {
     it('should get config from store', async () => {
       const mockConfig = {
-        ai: { providers: {}, modelTypes: {} },
+        ai: {
+          providers: {},
+          modelTypes: {
+            chat: {
+              provider: 'openai',
+              model: 'gpt-3.5-turbo',
+              temperature: 0.7,
+              maxTokens: 10240,
+              stream: true,
+              enableThinking: false,
+              topP: 1,
+            },
+            embedding: {
+              provider: 'openai',
+              model: 'text-embedding-ada-002',
+              dimensions: 1536,
+            },
+            rerank: {
+              provider: 'openai',
+              model: 'text-embedding-ada-002',
+            },
+          },
+          embeddingDimensions: 1536,
+          metadata: { modelTests: [] },
+        },
+        parsing: {
+          chatTimeoutSeconds: 60,
+          maxConcurrentSegments: 3,
+          maxSegmentChars: 1200,
+          minSegmentChars: 80,
+          vectorize: true,
+        },
         ui: {
           theme: 'light' as const,
           showTokenUsage: true,

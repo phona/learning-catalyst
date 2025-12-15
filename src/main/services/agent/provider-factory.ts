@@ -3,18 +3,13 @@ import type { Embeddings } from '@langchain/core/embeddings';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type {
-  ProviderType,
   ProviderConfig,
   SelectedChatModel,
-  SelectedModel,
-  AppConfig,
   SelectedEmbeddingModel,
   SelectedRerankModel,
 } from '@/shared/types/config';
 import { createIPCError, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
-import { clampMaxTokens, type ProviderSettings } from './provider-utils';
 import { AsyncCaller } from '@langchain/core/utils/async_caller';
-import { formatErrorWithSourceMaps } from '@/main/utils/source-map-support';
 
 // ============================================================================
 // TYPES
