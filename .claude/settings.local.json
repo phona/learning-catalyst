@@ -89,7 +89,8 @@
       "Bash(src/main/services/domain/workflow/nodes/__tests__/topicParse-node.test.ts )",
       "Bash(src/main/services/domain/workflow/__tests__/workflow-graph.test.ts )",
       "Bash(src/main/services/domain/workflow/__tests__/full-workflow.test.ts )",
-      "Bash(src/main/handlers/langgraph-handler.ts)"
+      "Bash(src/main/handlers/langgraph-handler.ts)",
+      "WebFetch(domain:www.assistant-ui.com)"
     ],
     "deny": [],
     "ask": []

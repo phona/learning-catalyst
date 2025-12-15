@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Sidebar } from './Layout/Sidebar';
+import { ThreadListSidebar } from './Layout/ThreadListSidebar';
 import { Header } from './Layout/Header';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
@@ -82,7 +82,7 @@ export const Layout: React.FC = () => {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden min-h-0">
         {/* Sidebar - Hidden in focus mode */}
-        {!focus_mode && <Sidebar open={sidebar_open} />}
+        {!focus_mode && <ThreadListSidebar open={sidebar_open} />}
 
         {/* Main content area */}
         <main

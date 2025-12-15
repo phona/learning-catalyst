@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { AssistantRuntimeProvider } from '@assistant-ui/react';
+import { useChatRuntime, AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
 import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import SetupScreen from '@/renderer/components/SetupScreen';
 import { Layout } from '@/renderer/components/Layout';
@@ -10,6 +12,7 @@ import { SettingsPanel } from '@/renderer/components/Config/SettingsPanel';
 import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
 import { KnowledgeMap } from '@/renderer/components/Dashboard/KnowledgeMap';
 import { useAgentService, useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
+import { createIpcFetch } from '@/renderer/services/chat/ipcFetch';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
@@ -49,7 +52,22 @@ const AppContent: React.FC<{ status: AppState; message: string | null }> = ({
     return <SetupScreen message={message ?? undefined} />;
   }
 
-  return <MainRoutes />;
+  // Create runtime for Assistant UI at app level so ThreadListSidebar can access it
+  const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      fetch: createIpcFetch(),
+    }),
+    onMessage: (message) => console.log('[App] Message received:', message),
+    onThreadStart: (thread) => console.log('[App] Thread started:', thread),
+    onError: (error) => console.error('[App] Chat runtime error:', error),
+    onFinish: (message) => console.log('[App] Message completed:', message),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <MainRoutes />
+    </AssistantRuntimeProvider>
+  );
 };
 
 export default function App(): JSX.Element {
