@@ -18,8 +18,23 @@ import {
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 
+interface ModuleIssue {
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  timestamp?: string;
+  module?: string;
+}
+
+interface SystemHealth {
+  overall: string;
+  modules?: Record<string, unknown>;
+  issues: ModuleIssue[];
+  status?: string;
+  [key: string]: unknown;
+}
+
 interface ModuleStatusIndicatorProps {
-  systemHealth: any;
+  systemHealth: SystemHealth | null;
   onRefresh?: () => void;
   compact?: boolean;
 }
@@ -176,7 +191,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
             Recent Issues
           </h4>
           <div className="space-y-1">
-            {systemHealth.issues.slice(0, 3).map((issue: any, index: number) => (
+            {systemHealth.issues.slice(0, 3).map((issue: ModuleIssue, index: number) => (
               <div key={index} className="flex items-center space-x-2 text-xs">
                 <span
                   className={`w-2 h-2 rounded-full ${

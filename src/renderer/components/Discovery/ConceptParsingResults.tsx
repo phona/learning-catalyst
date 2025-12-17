@@ -235,9 +235,9 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
     });
 
     // relationships already structured with source/target (if present)
-    result.relationships?.forEach((rel: any) => {
-      const sourceId: string | undefined = rel.sourceId ?? rel.sourceConceptId;
-      const targetId: string | undefined = rel.targetId ?? rel.targetConceptId;
+    result.relationships?.forEach((rel: ProposedRelationship) => {
+      const sourceId: string | undefined = rel.sourceConceptId;
+      const targetId: string | undefined = rel.targetConceptId;
       if (!sourceId || !targetId) return;
       if (!conceptIdSet.has(sourceId) || !conceptIdSet.has(targetId)) return;
       filteredRelationships.push({

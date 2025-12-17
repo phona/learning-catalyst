@@ -69,8 +69,7 @@ Learning session management components.
 - **SessionManager** - Main session management interface with start/stop/pause controls
 
 #### Timeline (`Timeline/`)
-Conversation timeline and thought visualization.
-- **ThoughtBubble** - Visual representation of AI reasoning and thought processes
+Conversation timeline and event visualization.
 - **ToolCall** - Display of tool invocations and results in conversation flow
 
 ### UI Components

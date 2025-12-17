@@ -11,7 +11,7 @@ export interface Concept {
   difficultyLevel: 1 | 2 | 3 | 4 | 5;
   masteryLevel: 0 | 1 | 2 | 3 | 4 | 5;
   tags: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   lastReviewed?: Date;
@@ -26,25 +26,12 @@ export interface ConceptRelationship {
   strength: number; // 0-1
   bidirectional: boolean;
   description?: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
   createdBySession?: string;
 }
 
-export interface LearningPath {
-  id: string;
-  title: string;
-  description: string;
-  estimatedDuration: number; // in minutes
-  difficulty: number; // 0-1
-  concepts: LearningPathConcept[];
-  tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-  isActive?: boolean;
-  popularity?: number;
-}
 
 export interface LearningPathConcept {
   id: string;

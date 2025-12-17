@@ -3,38 +3,22 @@
  */
 
 import { ipcMain, app } from 'electron';
-import type { APIResponse } from '@/shared/types/electron-api';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
-const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
-  success: true,
-  data,
-  metadata,
-});
-
-const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
-  success: false,
-  error: { code, message, details },
-});
-
-export function setupSystemHandlers(): void {
-  ipcMain.handle('system:report-error', async (_event, errorData) => {
-    try {
-      // placeholder for forwarding to telemetry
-      const payload = {
-        errorId: `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString(),
-        acknowledged: true,
-        details: errorData,
-      };
-      return ok(payload);
-    } catch (error) {
-      return fail(IPC_ERROR_CODES.system.reportErrorFailed, 'Unable to report error', error);
-    }
+export function setupSystemHandlers(
+  ipcMainInstance: typeof ipcMain,
+): void {
+  ipcMainInstance.handle('system:report-error', async (_event, errorData) => {
+    const payload = {
+      errorId: `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      acknowledged: true,
+      details: errorData,
+    };
+    return payload;
   });
 
-  ipcMain.handle('system:health-check', async () => {
-    try {
+  ipcMainInstance.handle('system:health-check', async () => {
       const healthStatus = {
         status: 'healthy' as const,
         timestamp: new Date().toISOString(),
@@ -49,22 +33,15 @@ export function setupSystemHandlers(): void {
           sessions: { status: 'healthy' },
         },
       };
-      return ok(healthStatus);
-    } catch (error) {
-      return fail(IPC_ERROR_CODES.system.healthCheckFailed, 'Unable to perform health check', error);
-    }
+      return healthStatus;
   });
 
-  ipcMain.handle('system:get-version', async () => {
-    try {
-      const version = {
-        version: app.getVersion(),
-        build: 'dev',
-        platform: process.platform,
-      };
-      return ok(version);
-    } catch (error) {
-      return fail(IPC_ERROR_CODES.system.versionFailed, 'Unable to retrieve version', error);
-    }
+  ipcMainInstance.handle('system:get-version', async () => {
+    const version = {
+      version: app.getVersion(),
+      build: 'dev',
+      platform: process.platform,
+    };
+    return version;
   });
 }

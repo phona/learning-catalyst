@@ -106,12 +106,12 @@ const PATH_PREFIX = 'learning_path:';
 
 const difficultyToLevel = (value: string | undefined): number => {
   switch ((value ?? 'intermediate').toLowerCase()) {
-  case 'beginner':
-    return 1;
-  case 'advanced':
-    return 3;
-  default:
-    return 2;
+    case 'beginner':
+      return 1;
+    case 'advanced':
+      return 3;
+    default:
+      return 2;
   }
 };
 
@@ -231,14 +231,11 @@ const buildLearningPathFromModules = ({
 export const createLearningService = ({
   db,
   loggerService,
-  learningAgent,
 }: {
   db: Kysely<CoreDatabase>;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
-  learningAgent?: LearningAgent;
 }) => {
   const serviceLogger = loggerService.child({ service: 'learning' });
-  let currentLearningAgent = learningAgent;
   const normalizeJsonText = (raw: string) => {
     const trimmed = raw?.trim() ?? '';
     const fenceMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -317,8 +314,6 @@ export const createLearningService = ({
     return nextMetadata;
   };
 
-  
-
   const persistLearningPath = async (path: LearningPath): Promise<LearningPath> => {
     const key = `${PATH_PREFIX}${path.id}`;
     await db.deleteFrom('settings').where('key', '=', key).execute();
@@ -356,57 +351,6 @@ export const createLearningService = ({
     return rows
       .map((row) => safeParseJson<LearningPath>(row.value, undefined))
       .filter((path): path is LearningPath => Boolean(path?.userId === userId));
-  };
-
-  const generateRecommendedPaths = async (
-    userId: string,
-    context?: Record<string, unknown>,
-  ): Promise<LearningPath[]> => {
-    const payload = JSON.stringify(
-      {
-        userId,
-        context,
-      },
-      null,
-      2,
-    );
-
-    try {
-      if (!currentLearningAgent) {
-        throw new Error('agent');
-      }
-      const prompt = `Return JSON array of learning paths with title, description, rationale, modules (title, description, type).\n${payload}`;
-      const result = await currentLearningAgent.invoke({
-        messages: formatMessages([new HumanMessage(prompt)]),
-      } as any);
-      const assistant = pickAssistantMessage((result as any)?.messages ?? []);
-      const text = assistant?.content ?? '';
-      const suggestions = parseJsonPayload<
-        Array<{
-          title: string;
-          description: string;
-          rationale?: string;
-          modules: Array<{ title: string; description: string; type: LearningModule['type'] }>;
-        }>
-      >(text);
-      return suggestions.map((suggestion, index) =>
-        buildLearningPathFromModules({
-          pathId: `rec_${Date.now()}_${index}`,
-          params: {
-            title: suggestion.title,
-            description: suggestion.description,
-            userId,
-            metadata: { context, rationale: suggestion.rationale },
-          },
-          modules: suggestion.modules.map((module, order) => ({
-            ...module,
-            order,
-          })),
-        }),
-      );
-    } catch {
-      return [];
-    }
   };
 
   return {
@@ -463,22 +407,13 @@ export const createLearningService = ({
       };
     },
 
-    getRecommendedPaths: async (userId: string, context?: Record<string, unknown>) => {
-      serviceLogger.info('Generating recommended learning paths', { userId });
-      const stored = await listLearningPathsForUser(userId);
-      if (stored.length) {
-        return stored;
-      }
-      return generateRecommendedPaths(userId, context);
-    },
-
     startLearningSession: async (params: {
       topic: string;
       goals: string[];
       difficulty: 'beginner' | 'intermediate' | 'advanced';
       agentType: string;
       learningStyle: LearningSession['learningStyle'];
-      userId?: string;
+      sessionId?: string;
     }): Promise<LearningSession> => {
       const metadata: LearningSessionMetadata = {
         goals: params.goals ?? [],
@@ -488,7 +423,6 @@ export const createLearningService = ({
         learningStyle: params.learningStyle ?? 'visual',
         status: 'active',
         progress: 10,
-        userId: params.userId,
         blueprint: {
           summary: 'Session initialized with starter blueprint',
           timeline: ['Session created'],
@@ -508,7 +442,7 @@ export const createLearningService = ({
 
       const now = new Date().toISOString();
       const row: LearningSessionRow = {
-        id: `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        id: params.sessionId ?? `session_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         title: params.topic,
         description: '',
         start_time: now,
@@ -548,110 +482,6 @@ export const createLearningService = ({
       return snapshot;
     },
 
-    pauseSession: async (sessionId: string) => {
-      const metadata = await updateSessionMetadata(sessionId, (current) => ({
-        ...current,
-        status: 'paused',
-        pausedAt: new Date().toISOString(),
-      }));
-      serviceLogger.info('Session paused', { sessionId });
-      return {
-        success: true,
-        resumeData: {
-          sessionId,
-          lastProgress: metadata.progress ?? 0,
-          pausedAt: metadata.pausedAt,
-        },
-      };
-    },
-
-    resumeSession: async (sessionId: string) => {
-      const metadata = await updateSessionMetadata(sessionId, (current) => ({
-        ...current,
-        status: 'active',
-        resumeAt: new Date().toISOString(),
-      }));
-      serviceLogger.info('Session resumed', { sessionId });
-      return {
-        success: true,
-        context: {
-          sessionId,
-          topic: metadata.topic,
-          progress: metadata.progress ?? 0,
-          resumeAt: metadata.resumeAt,
-        },
-      };
-    },
-
-    completeSession: async (sessionId: string) => {
-      const row = await ensureSessionRow(sessionId);
-      const session = mapSessionRow(row);
-      const blueprint = session.metadata?.blueprint;
-
-      const fallbackSummary = {
-        summary: {
-          topicsCovered: session.goals.length ? session.goals : [session.topic],
-          keyTakeaways: ['Documented understanding', 'Applied concepts', 'Identified next steps'],
-          strengths: ['Consistency', 'Reflection'],
-          areasForImprovement: ['Deeper practice'],
-          nextSteps: ['Schedule advanced session', 'Review notes tomorrow'],
-        },
-        performance: {
-          accuracy: 0.85,
-          engagement: 0.92,
-          retention: 0.81,
-        },
-      };
-
-      const payload = JSON.stringify(
-        {
-          session,
-          blueprint,
-        },
-        null,
-        2,
-      );
-
-      let summary: typeof fallbackSummary;
-      try {
-        if (!currentLearningAgent) {
-          throw new Error('agent');
-        }
-        const prompt = `You are a learning reflection coach. Return JSON { summary: { topicsCovered: string[], keyTakeaways: string[], strengths: string[], areasForImprovement: string[], nextSteps: string[] }, performance: { accuracy: number, engagement: number, retention: number } }\n${payload}`;
-        const result = await currentLearningAgent.invoke({
-          messages: formatMessages([new HumanMessage(prompt)]),
-        } as any);
-        const assistant = pickAssistantMessage((result as any)?.messages ?? []);
-        const text = assistant?.content ?? '';
-        summary = parseJsonPayload<typeof fallbackSummary>(text);
-      } catch {
-        summary = fallbackSummary;
-      }
-
-      await updateSessionMetadata(
-        sessionId,
-        (current) => ({
-          ...current,
-          status: 'completed',
-          progress: 100,
-          summary: summary.summary,
-        }),
-        {
-          end_time: new Date().toISOString(),
-          duration_seconds: session.duration,
-          updated_at: new Date().toISOString(),
-        },
-      );
-
-      serviceLogger.info('Session completed', { sessionId });
-      return {
-        sessionId,
-        title: session.topic,
-        summary: summary.summary,
-        performance: summary.performance,
-      };
-    },
-
     getRecentSessions: async (options?: SessionFilters) => {
       try {
         const limit = options?.limit ?? 5;
@@ -663,18 +493,18 @@ export const createLearningService = ({
           .execute();
         const rows = Array.isArray(raw)
           ? raw
-          : Array.isArray((raw as any)?.rows)
-            ? (raw as any).rows
+          : Array.isArray((raw as unknown)?.rows)
+            ? (raw as unknown).rows
             : [];
         if (!Array.isArray(raw)) {
           serviceLogger.warn('getRecentSessions unexpected result shape', {
             type: typeof raw,
-            keys: raw && typeof raw === 'object' ? Object.keys(raw as any) : [],
+            keys: raw && typeof raw === 'object' ? Object.keys(raw as unknown) : [],
           });
         }
         return rows.map(mapSessionRow);
       } catch (error) {
-        serviceLogger.error('getRecentSessions failed', error as any);
+        serviceLogger.error('getRecentSessions failed', error as unknown);
         throw error;
       }
     },
@@ -719,66 +549,7 @@ export const createLearningService = ({
         limit: filters?.limit ?? sessions.length,
       };
     },
-    addMessage: async (params: {
-      sessionId: string;
-      role: 'user' | 'assistant' | 'system' | 'tool';
-      content: string;
-      provider?: string;
-      model?: string;
-      tokensUsed?: { prompt?: number; completion?: number; total?: number };
-      timestamp?: string;
-    }): Promise<void> => {
-      const session = await ensureSessionRow(params.sessionId);
-      const countRow = await db
-        .selectFrom('messages')
-        .select((eb) => eb.fn.count('id').as('count'))
-        .where('session_id', '=', params.sessionId)
-        .executeTakeFirst();
-      const order = Number((countRow as any)?.count ?? 0) + 1;
-      const now = new Date().toISOString();
-      await db
-        .insertInto('messages')
-        .values({
-          id: randomUUID(),
-          session_id: params.sessionId,
-          role: params.role,
-          content: params.content,
-          thinking_content: undefined,
-          provider: params.provider ?? undefined,
-          model: params.model ?? undefined,
-          tokens_used: JSON.stringify(params.tokensUsed ?? {}),
-          timestamp: params.timestamp ?? now,
-          message_order: order,
-          created_at: now,
-        })
-        .execute();
-      await db
-        .updateTable('learning_sessions')
-        .set({
-          total_messages: (session.total_messages ?? 0) + 1,
-          updated_at: now,
-        })
-        .where('id', '=', params.sessionId)
-        .execute();
-    },
-    listMessages: async (params?: {
-      sessionId?: string;
-      limit?: number;
-      onlyNonEmpty?: boolean;
-      order?: 'asc' | 'desc';
-    }): Promise<Array<{ content: string; timestamp: string }>> => {
-      const limit = Math.min(params?.limit ?? 15, 200);
-      let builder = db.selectFrom('messages').select(['content', 'timestamp']);
-      if (params?.sessionId) {
-        builder = builder.where('session_id', '=', params.sessionId);
-      }
-      if (params?.onlyNonEmpty) {
-        builder = builder.where('content', '!=', '');
-      }
-      builder = builder.orderBy('timestamp', params?.order ?? 'desc').limit(limit);
-      const rows = await builder.execute();
-      return rows.map((r) => ({ content: r.content, timestamp: r.timestamp }));
-    },
+
     getPracticeHistory: async (params?: {
       conceptIds?: string[];
       since?: string;
@@ -822,7 +593,7 @@ export const createLearningService = ({
         }
       };
       const toObject = <T extends Record<string, number>>(json?: string): T | undefined => {
-        if (!json) return undefined as any;
+        if (!json) return undefined as unknown;
         try {
           const v = JSON.parse(json) as T;
           return typeof v === 'object' && v ? v : undefined;
@@ -831,7 +602,7 @@ export const createLearningService = ({
         }
       };
       return raw
-        .map((row: any) => {
+        .map((row: unknown) => {
           const conceptIds = toArray(row.concept_ids);
           const errorTags = toArray(row.error_tags);
           const rubric = toObject<Record<string, number>>(row.rubric_scores);
@@ -841,26 +612,132 @@ export const createLearningService = ({
               : 'partial';
           return {
             taskId: row.task_id,
-            conceptIds: conceptIds.length ? conceptIds : params?.conceptIds ?? [],
+            conceptIds: conceptIds.length ? conceptIds : (params?.conceptIds ?? []),
             result: normalized,
             answer: row.answer ?? undefined,
             errorTags: errorTags.length ? errorTags : undefined,
             rubricScores: rubric
               ? {
-                retrieval: rubric.retrieval,
-                application: rubric.application,
-                teachBack: rubric.teachBack,
-              }
+                  retrieval: rubric.retrieval,
+                  application: rubric.application,
+                  teachBack: rubric.teachBack,
+                }
               : undefined,
             timestamp: row.timestamp ?? undefined,
           };
         })
-        .filter((a: any) => Array.isArray(a.conceptIds) ? a.conceptIds.length > 0 : true);
+        .filter((a: unknown) => (Array.isArray(a.conceptIds) ? a.conceptIds.length > 0 : true));
     },
-    rebuild: async (agent?: LearningAgent) => {
-      if (agent) {
-        currentLearningAgent = agent;
-      }
+
+    getSession: async (sessionId: string): Promise<LearningSession | null> => {
+      const row = await db
+        .selectFrom('learning_sessions')
+        .selectAll()
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      if (!row) return null;
+      return mapSessionRow(row);
+    },
+
+    updateSession: async (
+      sessionId: string,
+      updates: { title?: string; description?: string; status?: LearningSession['status'] },
+    ): Promise<LearningSession | null> => {
+      const row = await db
+        .selectFrom('learning_sessions')
+        .selectAll()
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      if (!row) return null;
+
+      const currentMetadata = safeParseJson<LearningSessionMetadata>(row.metadata, {});
+      const nextMetadata = { ...currentMetadata };
+      if (updates.status) nextMetadata.status = updates.status;
+
+      await db
+        .updateTable('learning_sessions')
+        .set({
+          title: updates.title ?? row.title,
+          description: updates.description ?? row.description,
+          metadata: JSON.stringify(nextMetadata),
+          updated_at: new Date().toISOString(),
+        })
+        .where('id', '=', sessionId)
+        .execute();
+
+      serviceLogger.info('Session updated', { sessionId });
+      const updated = await db
+        .selectFrom('learning_sessions')
+        .selectAll()
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      return updated ? mapSessionRow(updated) : null;
+    },
+
+    deleteSession: async (sessionId: string): Promise<boolean> => {
+      // Delete messages first (foreign key constraint)
+      await db.deleteFrom('messages').where('session_id', '=', sessionId).execute();
+      const result = await db
+        .deleteFrom('learning_sessions')
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      const deleted = (result?.numDeletedRows ?? 0) > 0;
+      serviceLogger.info('Session deleted', { sessionId, deleted });
+      return deleted;
+    },
+
+    updateSessionTitle: async (sessionId: string, title: string): Promise<boolean> => {
+      const result = await db
+        .updateTable('learning_sessions')
+        .set({ title, updated_at: new Date().toISOString() })
+        .where('id', '=', sessionId)
+        .executeTakeFirst();
+      const updated = (result?.numUpdatedRows ?? 0) > 0;
+      serviceLogger.info('Session title updated', { sessionId, title, updated });
+      return updated;
+    },
+
+    getSessionStatistics: async (): Promise<{
+      totalSessions: number;
+      totalMessages: number;
+      totalUserMessages: number;
+      totalAssistantMessages: number;
+      averageMessagesPerSession: number;
+    }> => {
+      const sessionCount = await db
+        .selectFrom('learning_sessions')
+        .select((eb) => eb.fn.count('id').as('count'))
+        .executeTakeFirst();
+      const totalSessions = Number(sessionCount?.count ?? 0);
+
+      const msgCount = await db
+        .selectFrom('messages')
+        .select((eb) => eb.fn.count('id').as('count'))
+        .executeTakeFirst();
+      const totalMessages = Number(msgCount?.count ?? 0);
+
+      const userMsgCount = await db
+        .selectFrom('messages')
+        .select((eb) => eb.fn.count('id').as('count'))
+        .where('role', '=', 'user')
+        .executeTakeFirst();
+      const totalUserMessages = Number(userMsgCount?.count ?? 0);
+
+      const assistantMsgCount = await db
+        .selectFrom('messages')
+        .select((eb) => eb.fn.count('id').as('count'))
+        .where('role', '=', 'assistant')
+        .executeTakeFirst();
+      const totalAssistantMessages = Number(assistantMsgCount?.count ?? 0);
+
+      return {
+        totalSessions,
+        totalMessages,
+        totalUserMessages,
+        totalAssistantMessages,
+        averageMessagesPerSession:
+          totalSessions > 0 ? Math.round(totalMessages / totalSessions) : 0,
+      };
     },
   };
 };

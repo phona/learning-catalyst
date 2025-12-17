@@ -66,6 +66,15 @@ type ConceptParsingDeps = {
   providerFactory: ProviderFactory;
   vectorDatabase?: VectorDatabase;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
+  // DI support for testing and flexibility
+  fileSystem?: {
+    readFile: (path: string, encoding: string) => Promise<string>;
+    writeFile: (path: string, data: string, encoding: string) => Promise<void>;
+    mkdir: (path: string, options: { recursive: boolean }) => Promise<void>;
+    readdir: (path: string) => Promise<string[]>;
+    rm: (path: string, options: { recursive: boolean; force: boolean }) => Promise<void>;
+  };
+  jobStoreDir?: string;
 };
 
 type ExtractedConcept = {
@@ -334,38 +343,72 @@ const deduplicateWithinBatch = (
   };
 };
 
-const resolveJobStoreDir = (): string => {
-  if (process.env.CONCEPT_PARSE_JOB_DIR) {
-    return process.env.CONCEPT_PARSE_JOB_DIR;
-  }
-  // Use workspace path (from env var or cwd), then .catalyst subdirectory
-  // This matches the pattern used by SQLite and Qdrant
-  const workspacePath = process.env.WORKSPACE_PATH || process.cwd();
-  const catalystDir = path.join(workspacePath, '.catalyst');
-  return path.join(catalystDir, 'concept-parse-jobs');
-};
+const createFileSystem = (deps?: ConceptParsingDeps) => {
+  const fsImpl = deps?.fileSystem ?? {
+    readFile: (path: string, encoding: string) => fs.readFile(path, encoding),
+    writeFile: (path: string, data: string, encoding: string) => fs.writeFile(path, data, encoding),
+    mkdir: (path: string, options: { recursive: boolean }) => fs.mkdir(path, options),
+    readdir: (path: string) => fs.readdir(path),
+    rm: (path: string, options: { recursive: boolean; force: boolean }) => fs.rm(path, options),
+  };
 
-const ensureDir = async (dir: string): Promise<void> => {
-  await fs.mkdir(dir, { recursive: true });
-};
+  const resolveJobStoreDir = (): string => {
+    if (deps?.jobStoreDir) {
+      return deps.jobStoreDir;
+    }
+    if (process.env.CONCEPT_PARSE_JOB_DIR) {
+      return process.env.CONCEPT_PARSE_JOB_DIR;
+    }
+    // Use workspace path (from env var or cwd), then .catalyst subdirectory
+    // This matches the pattern used by SQLite and Qdrant
+    const workspacePath = process.env.WORKSPACE_PATH || process.cwd();
+    const catalystDir = path.join(workspacePath, '.catalyst');
+    return path.join(catalystDir, 'concept-parse-jobs');
+  };
 
-const loadJobState = async (jobId: string): Promise<ConceptParsingJobState | null> => {
-  const dir = resolveJobStoreDir();
-  const file = path.join(dir, `${jobId}.json`);
-  try {
-    const raw = await fs.readFile(file, 'utf8');
-    return JSON.parse(raw) as ConceptParsingJobState;
-  } catch {
-    return null;
-  }
-};
+  const ensureDir = async (dir: string): Promise<void> => {
+    await fsImpl.mkdir(dir, { recursive: true });
+  };
 
-const saveJobState = async (state: ConceptParsingJobState): Promise<void> => {
-  const dir = resolveJobStoreDir();
-  await ensureDir(dir);
-  const file = path.join(dir, `${state.jobId}.json`);
-  const payload = JSON.stringify(state, null, 2);
-  await fs.writeFile(file, payload, 'utf8');
+  const loadJobState = async (jobId: string): Promise<ConceptParsingJobState | null> => {
+    const dir = resolveJobStoreDir();
+    const file = path.join(dir, `${jobId}.json`);
+    try {
+      const raw = await fsImpl.readFile(file, 'utf8');
+      return JSON.parse(raw) as ConceptParsingJobState;
+    } catch {
+      return null;
+    }
+  };
+
+  const saveJobState = async (state: ConceptParsingJobState): Promise<void> => {
+    const dir = resolveJobStoreDir();
+    await ensureDir(dir);
+    const file = path.join(dir, `${state.jobId}.json`);
+    const payload = JSON.stringify(state, null, 2);
+    await fsImpl.writeFile(file, payload, 'utf8');
+  };
+
+  const clearJobCache = async (): Promise<{ removed: number }> => {
+    const dir = fsApi.resolveJobStoreDir();
+    try {
+      const entries = await fsApi.fsImpl.readdir(dir).catch(() => []);
+      await fsApi.fsImpl.rm(dir, { recursive: true, force: true });
+      await fsApi.fsImpl.mkdir(dir, { recursive: true });
+      return { removed: entries.length };
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  return {
+    resolveJobStoreDir,
+    ensureDir,
+    loadJobState,
+    saveJobState,
+    clearJobCache,
+    fsImpl,
+  };
 };
 
 const hashSegment = (segment: ConceptSegment): string =>
@@ -605,13 +648,13 @@ const addConceptsToVector = async (
   }
 };
 
-export const createConceptParsingService = ({
-  providerFactory,
-  vectorDatabase,
-  loggerService,
-}: ConceptParsingDeps) => {
+export const createConceptParsingService = (deps: ConceptParsingDeps) => {
+  const { providerFactory, vectorDatabase, loggerService, fileSystem, jobStoreDir } = deps;
   const serviceLogger = loggerService.child({ service: 'concept-parsing' });
   let currentProviderFactory = providerFactory;
+
+  // Create file system abstraction with DI support
+  const fsApi = createFileSystem(deps);
 
   const extractSegment = async (
     segment: ConceptSegment,
@@ -876,7 +919,7 @@ export const createConceptParsingService = ({
     };
 
     const jobState =
-      (resume ? await loadJobState(jobId) : null) ?? initialJobState;
+      (resume ? await fsApi.loadJobState(jobId) : null) ?? initialJobState;
 
     const isCompatible = (state: ConceptParsingJobState): boolean => {
       const snap = state.settingsSnapshot ?? {};
@@ -1064,7 +1107,7 @@ export const createConceptParsingService = ({
               updatedAt: new Date().toISOString(),
             };
             jobState.updatedAt = new Date().toISOString();
-            await saveJobState(jobState);
+            await fsApi.saveJobState(jobState);
           } catch (error) {
             const segmentTitle = segment.content.split('\n')[0].replace(/^#+\s*/, '').substring(0, 50);
             errors.push(
@@ -1080,7 +1123,7 @@ export const createConceptParsingService = ({
               updatedAt: new Date().toISOString(),
             };
             jobState.updatedAt = new Date().toISOString();
-            await saveJobState(jobState);
+            await fsApi.saveJobState(jobState);
             serviceLogger.error('Concept segment processing failed', error, {
               segmentId: segment.id,
               segmentTitle,
@@ -1097,7 +1140,7 @@ export const createConceptParsingService = ({
 
     jobState.totalSegments = Object.keys(jobState.segments).length;
     jobState.updatedAt = new Date().toISOString();
-    await saveJobState(jobState);
+    await fsApi.saveJobState(jobState);
 
     const metadata = {
       processingTime,
@@ -1184,16 +1227,7 @@ export const createConceptParsingService = ({
     parseMaterials,
     rebuild: async () => {},
     clearJobCache: async (): Promise<{ removed: number }> => {
-      const dir = resolveJobStoreDir();
-      try {
-        const entries = await fs.readdir(dir).catch(() => []);
-        await fs.rm(dir, { recursive: true, force: true });
-        await fs.mkdir(dir, { recursive: true });
-        return { removed: entries.length };
-      } catch (error) {
-        serviceLogger.warn('Failed to clear concept parse job cache', toLogError(error));
-        throw error;
-      }
+      return fsApi.clearJobCache();
     },
   };
 };

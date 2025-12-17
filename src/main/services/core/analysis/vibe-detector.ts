@@ -45,7 +45,7 @@ export class VibeDetector {
   /**
    * Update configuration
    */
-  updateConfig(newConfig: any) {
+  updateConfig(newConfig: Partial<ReturnType<VibeDetector['getConfig']>>) {
     // This is a simplified implementation - in a real implementation,
     // you would update the actual configuration values
     this.logger.info('VibeDetector configuration updated', newConfig);
@@ -192,7 +192,7 @@ User Context:
 - Confidence Level: ${userContext.confidenceLevel}
 - Learning Velocity: ${userContext.learningVelocity}
 - Stuck Points: ${userContext.stuckPoints.join(', ') || 'None'}
-- Recent Concepts: ${userContext.recentConcepts.map((c) => (typeof c === 'string' ? c : (c as any).concept || c)).join(', ') || 'None'}
+- Recent Concepts: ${userContext.recentConcepts.map((c) => (typeof c === 'string' ? c : c?.concept || c)).join(', ') || 'None'}
 
 Analyze the conversation and determine the user's learning vibe. Consider:
 1. Language patterns and emotional indicators
@@ -266,13 +266,18 @@ Provide your analysis in JSON format:
       const keyIndicators = Array.isArray(parsed.keyIndicators)
         ? parsed.keyIndicators
         : indicators
-          .map((indicator: any) =>
-            typeof indicator === 'string'
-              ? indicator
-              : indicator?.value !== undefined
-                ? String(indicator.value)
-                : (indicator?.type ?? ''),
-          )
+          .map((indicator: unknown) => {
+            if (typeof indicator === 'string') {
+              return indicator;
+            }
+            if (indicator && typeof indicator === 'object' && 'value' in indicator) {
+              return String((indicator as { value: unknown }).value);
+            }
+            if (indicator && typeof indicator === 'object' && 'type' in indicator) {
+              return String((indicator as { type: unknown }).type);
+            }
+            return '';
+          })
           .filter(Boolean);
 
       return {
@@ -678,7 +683,7 @@ Provide your analysis in JSON format:
     return 0.2 * Math.random(); // 0.0-0.2
   }
 
-  private validateVibeType(vibe: any): VibeType {
+  private validateVibeType(vibe: unknown): VibeType {
     const validVibes: VibeType[] = [
       'understanding',
       'confused',
@@ -686,7 +691,7 @@ Provide your analysis in JSON format:
       'practicing',
       'misunderstanding',
     ];
-    return validVibes.includes(vibe) ? vibe : 'understanding';
+    return validVibes.includes(vibe as VibeType) ? (vibe as VibeType) : 'understanding';
   }
 
   private createInsufficientDataResponse(

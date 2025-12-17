@@ -5,7 +5,7 @@
  * Focuses on expanding the knowledge base with relevant content.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 
 export interface ContentAPI {
   /**

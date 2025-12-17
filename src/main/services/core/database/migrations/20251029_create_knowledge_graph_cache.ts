@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Knowledge graph cache for visualization
     await db.schema
       .createTable('knowledge_graph_cache')
@@ -16,7 +16,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     await db.schema.dropTable('knowledge_graph_cache').execute();
   },
 };

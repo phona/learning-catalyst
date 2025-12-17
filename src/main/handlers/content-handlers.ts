@@ -47,88 +47,49 @@ export const setupContentHandlers = (
   services: ContentHandlersDeps,
 ): void => {
   const handlerLogger = services.loggerService.child({ handler: 'content' });
-  const ok = <T>(data: T, metadata?: APIResponse<T>['metadata']): APIResponse<T> => ({
-    success: true,
-    data,
-    metadata,
-  });
-  const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
-    success: false,
-    error: { code, message, details },
-  });
 
   ipcMainInstance.handle('content:explore-projects', async () => {
     handlerLogger.info('Handling explore projects request');
-    try {
-      const projects = await services.contentService.exploreLocalProjects();
-      handlerLogger.info('Project exploration completed', { count: projects.length });
-      return ok(projects);
-    } catch (error) {
-      handlerLogger.error('Failed to explore projects', error);
-      return fail(IPC_ERROR_CODES.content.exploreFailed, 'Unable to explore projects', error);
-    }
+    const projects = await services.contentService.exploreLocalProjects();
+    handlerLogger.info('Project exploration completed', { count: projects.length });
+    return projects;
   });
 
   ipcMainInstance.handle('content:import-content', async (_event, params: ImportParams) => {
     const fileCount = params.files?.length ?? 0;
     handlerLogger.info('Handling import content request', { fileCount });
-    try {
-      const importResults = await services.contentService.importLearningContent(params.files);
-      handlerLogger.info('Content import completed', {
-        processed: importResults.processedFiles,
-      });
-      return ok(importResults);
-    } catch (error) {
-      handlerLogger.error('Failed to import content', { error, fileCount });
-      return fail(IPC_ERROR_CODES.content.importFailed, 'Unable to import content', error);
-    }
+    const importResults = await services.contentService.importLearningContent(params.files);
+    handlerLogger.info('Content import completed', {
+      processed: importResults.processedFiles,
+    });
+    return importResults;
   });
 
   ipcMainInstance.handle(
     'content:get-recommendations',
     async (_event, params: Parameters<ContentAPI['getRecommendedContent']>[0]) => {
       handlerLogger.info('Handling get recommended content request', params);
-      try {
-        const recommendedContent = await services.contentService.getRecommendedContent(params);
-        return ok(recommendedContent);
-      } catch (error) {
-        handlerLogger.error('Failed to get recommended content', error);
-        return fail(IPC_ERROR_CODES.content.recommendFailed, 'Unable to get recommended content', error);
-      }
+      const recommendedContent = await services.contentService.getRecommendedContent(params);
+      return recommendedContent;
     },
   );
 
   ipcMainInstance.handle('content:search-resources', async (_event, query: string) => {
     handlerLogger.info('Handling search resources request', { query });
-    try {
-      const searchResults = await services.contentService.searchLearningResources(query);
-      return ok(searchResults);
-    } catch (error) {
-      handlerLogger.error('Failed to search learning resources', error);
-      return fail(IPC_ERROR_CODES.content.searchFailed, 'Unable to search learning resources', error);
-    }
+    const searchResults = await services.contentService.searchLearningResources(query);
+    return searchResults;
   });
 
   ipcMainInstance.handle('content:analyze-document', async (_event, filePath: string) => {
     handlerLogger.info('Handling analyze document request', { filePath });
-    try {
       const documentAnalysis = await services.contentService.analyzeDocument(filePath);
-      return ok(documentAnalysis);
-    } catch (error) {
-      handlerLogger.error('Failed to analyze document', error);
-      return fail(IPC_ERROR_CODES.content.analyzeFailed, 'Unable to analyze document', error);
-    }
+      return documentAnalysis;
   });
 
   ipcMainInstance.handle('content:extract-concepts', async (_event, content: string) => {
     handlerLogger.info('Handling extract concepts request', { contentLength: content.length });
-    try {
       const conceptExtraction = await services.contentService.extractConcepts(content);
-      return ok(conceptExtraction);
-    } catch (error) {
-      handlerLogger.error('Failed to extract concepts', error);
-      return fail(IPC_ERROR_CODES.content.extractFailed, 'Unable to extract concepts', error);
-    }
+      return conceptExtraction;
   });
 
   handlerLogger.info('Content handlers registered successfully');

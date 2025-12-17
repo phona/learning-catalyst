@@ -84,7 +84,7 @@ describe('Type Utils - Interface Tests', () => {
         // missing optional fields
       };
 
-      const withDefaults = (data: any) => ({
+      const withDefaults = (data?: unknown) => ({
         id: data.id,
         title: data.title,
         description: data.description || 'Default description',

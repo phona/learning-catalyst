@@ -69,7 +69,7 @@
  * @param state - Current workflow state
  *   - topic: The learning topic
  *   - messages: Conversation history
- *   - userAnswer: User's latest response (if any)
+ *   - userAnswer: User's latest response (if unknown)
  *   - interactionCount: Previous interaction count
  *   - understandingLevel: Previous assessment
  *
@@ -154,8 +154,18 @@ async function analyzeUserResponse(
   userAnswer: string,
   previousLevel: number,
   topic: string,
-  model: any
+  model: unknown
 ): Promise<ResponseAnalysis> {
+  // Validate required parameters
+  if (!topic || !userAnswer) {
+    // Return default analysis if parameters are missing
+    return {
+      isReady: false,
+      isConfused: false,
+      understandingLevel: previousLevel,
+    };
+  }
+
   // Format the assessment prompt
   const messages = await UNDERSTANDING_ASSESSMENT_PROMPT.formatMessages({
     topic,
@@ -251,7 +261,7 @@ export const teachNode = (deps: WorkflowDeps) => async (
      * WHY: Transmit one-way explanation into two-way dialogue
      *
      * PROMPT DESIGN:
-     * - Invites questions (any topic, no wrong questions)
+     * - Invites questions (unknown topic, no wrong questions)
      * - Offers alternative explanations
      * - Asks for readiness signal
      * - Builds confidence
@@ -318,6 +328,19 @@ export const teachNode = (deps: WorkflowDeps) => async (
    * - Readiness signals ("ready to practice", "I think I understand")
    */
   const userAnswer = state.userAnswer;
+
+  // If no user answer to analyze, skip assessment
+  if (!userAnswer) {
+    return {
+      messages: [
+        new AIMessage(`Let's continue exploring ${state.topic}! Feel free to ask any questions or let me know when you're ready to practice.`),
+      ],
+      understandingLevel,
+      userAnswer: undefined,
+      interactionCount,
+      isComplete: false,
+    };
+  }
 
   /**
    * ASSESS UNDERSTANDING:

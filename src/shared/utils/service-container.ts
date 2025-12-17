@@ -197,7 +197,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
         typeof definition.instance.dispose === 'function'
       ) {
         try {
-          (definition.instance as any).dispose();
+          (definition.instance as unknown).dispose();
         } catch (error) {
           console.warn('Error disposing service:', error);
         }
@@ -226,7 +226,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
         typeof definition.instance.dispose === 'function'
       ) {
         try {
-          (definition.instance as any).dispose();
+          (definition.instance as unknown).dispose();
         } catch (error) {
           console.warn('Error disposing service:', error);
         }
@@ -349,7 +349,7 @@ export class ServiceContainerBuilder<
     singleton?: boolean,
   ): ServiceContainerBuilder<TServices & { [P in K]: TServices[K] }> {
     this.container.register(name, factory as ServiceFactory<TServices[K]>, singleton);
-    return this as any;
+    return this as unknown;
   }
 
   /**
@@ -360,7 +360,7 @@ export class ServiceContainerBuilder<
     instance: TServices[K],
   ): ServiceContainerBuilder<TServices & { [P in K]: TServices[K] }> {
     this.container.registerInstance(name, instance);
-    return this as any;
+    return this as unknown;
   }
 
   /**
@@ -383,7 +383,7 @@ export function createServiceContainer<
 /**
  * Decorator for automatic service registration
  */
-export function Injectable<T extends new (...args: any[]) => any>(
+export function Injectable<T extends new (...args: unknown[]) => unknown>(
   container: ServiceContainer,
   name?: string,
 ) {
@@ -391,9 +391,9 @@ export function Injectable<T extends new (...args: any[]) => any>(
     const serviceName = name || target.name;
 
     container.register(
-      serviceName as any,
+      serviceName as unknown,
       () => {
-        const dependencies: any[] = [];
+        const dependencies: unknown[] = [];
 
         // Simple dependency injection based on constructor parameters
         // In a real implementation, you might use reflect-metadata or similar
@@ -401,8 +401,8 @@ export function Injectable<T extends new (...args: any[]) => any>(
 
         for (const paramType of paramTypes) {
           const paramServiceName = paramType.name.toLowerCase();
-          if (container.has(paramServiceName as any)) {
-            dependencies.push(container.get(paramServiceName as any));
+          if (container.has(paramServiceName as unknown)) {
+            dependencies.push(container.get(paramServiceName as unknown));
           } else {
             dependencies.push(undefined);
           }

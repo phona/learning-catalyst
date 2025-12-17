@@ -8,7 +8,7 @@
 /**
  * Generic IPC request with type safety and metadata
  */
-export interface IPCRequest<T = any> {
+export interface IPCRequest<T = unknown> {
   id: string;
   method: string;
   params: T;
@@ -20,7 +20,7 @@ export interface IPCRequest<T = any> {
 /**
  * Generic IPC response with comprehensive error handling
  */
-export interface IPCResponse<T = any> {
+export interface IPCResponse<T = unknown> {
   id: string;
   success: boolean;
   data?: T;
@@ -48,7 +48,7 @@ export interface ResponseMetadata {
 export interface ServiceError {
   code: string;
   message: string;
-  details?: any;
+  details?: unknown;
   stack?: string; // Only in development
   timestamp?: string;
   requestId?: string;
@@ -57,7 +57,7 @@ export interface ServiceError {
 /**
  * Type-safe IPC handler function signature
  */
-export type IPCHandler<TParams = any, TResult = any> = (
+export type IPCHandler<TParams = unknown, TResult = unknown> = (
   request: IPCRequest<TParams>,
 ) => Promise<IPCResponse<TResult>>;
 
@@ -85,7 +85,7 @@ export interface ValidationOptions {
 /**
  * Batch IPC request for multiple operations
  */
-export interface BatchIPCRequest<T = any> {
+export interface BatchIPCRequest<T = unknown> {
   requests: Array<{
     id: string;
     method: string;
@@ -98,7 +98,7 @@ export interface BatchIPCRequest<T = any> {
 /**
  * Batch IPC response
  */
-export interface BatchIPCResponse<T = any> {
+export interface BatchIPCResponse<T = unknown> {
   responses: Array<IPCResponse<T>>;
   errors: ServiceError[];
   summary: {
@@ -112,7 +112,7 @@ export interface BatchIPCResponse<T = any> {
 /**
  * Streaming IPC request for real-time data
  */
-export interface StreamingIPCRequest<T = any> extends IPCRequest<T> {
+export interface StreamingIPCRequest<T = unknown> extends IPCRequest<T> {
   stream?: boolean;
   streamOptions?: StreamOptions;
 }
@@ -131,7 +131,7 @@ export interface StreamOptions {
 /**
  * IPC event for push-based communication
  */
-export interface IPCEvent<T = any> {
+export interface IPCEvent<T = unknown> {
   id: string;
   event: string;
   data: T;
@@ -235,14 +235,14 @@ export interface RegistryStats {
 }
 
 // Utility types for better type inference
-export type ExtractParams<T> = T extends IPCHandler<infer P, any> ? P : never;
-export type ExtractResult<T> = T extends IPCHandler<any, infer R> ? R : never;
-export type ExtractMethod<T> = T extends IPCHandler<any, any> ? string : never;
+export type ExtractParams<T> = T extends IPCHandler<infer P, unknown> ? P : never;
+export type ExtractResult<T> = T extends IPCHandler<unknown, infer R> ? R : never;
+export type ExtractMethod<T> = T extends IPCHandler<unknown, unknown> ? string : never;
 
 /**
  * Type-safe event emitter for IPC events
  */
-export interface IPCEventEmitter<TEvents extends Record<string, any>> {
+export interface IPCEventEmitter<TEvents extends Record<string, unknown>> {
   on<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 
   off<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
@@ -262,13 +262,13 @@ export interface RequestContext {
   traceId?: string;
   timestamp: number;
   source: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
  * Enhanced IPC request with context
  */
-export interface ContextualIPCRequest<T = any> extends IPCRequest<T> {
+export interface ContextualIPCRequest<T = unknown> extends IPCRequest<T> {
   context: RequestContext;
 }
 
@@ -337,7 +337,7 @@ export function createErrorResponse<T>(
 /**
  * Create a service error
  */
-export function createServiceError(code: string, message: string, details?: any): ServiceError {
+export function createServiceError(code: string, message: string, details?: unknown): ServiceError {
   return {
     code,
     message,

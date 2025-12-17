@@ -1,7 +1,66 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createKnowledgeService } from '../knowledge-service';
-import { createKyselyTestDb } from '@/test/utils/kysely-test-db';
 import type { ConceptParsingResult } from '@/shared/types/electron-api/knowledge-api';
+
+// Mock database following DI pattern (like find-related-by-prompt.test.ts)
+const createMockDatabase = () => {
+  const createQueryBuilder = (executeMock: any) => {
+    // Create mock functions first
+    const selectAll = vi.fn().mockReturnValue({
+      where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+        if (operator === 'in' && Array.isArray(value)) {
+          return {
+            execute: vi.fn().mockResolvedValue(executeMock),
+          };
+        }
+        return queryBuilder;
+      }),
+    });
+
+    const execute = vi.fn().mockResolvedValue(executeMock);
+    const executeTakeFirst = vi.fn().mockResolvedValue(executeMock[0] || null);
+
+    const where = vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+      if (operator === 'in' && Array.isArray(value)) {
+        return {
+          execute: vi.fn().mockResolvedValue(executeMock),
+        };
+      }
+      return queryBuilder;
+    });
+
+    // Create queryBuilder object with the mock functions
+    const queryBuilder = {
+      selectAll,
+      where,
+      execute,
+      executeTakeFirst,
+    };
+
+    return queryBuilder;
+  };
+
+  return {
+    selectFrom: vi.fn().mockImplementation(() => createQueryBuilder([])),
+    insertInto: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
+    updateTable: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          execute: vi.fn().mockResolvedValue(undefined),
+        }),
+      }),
+    }),
+    deleteFrom: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue(undefined),
+      }),
+    }),
+  };
+};
 
 const createLoggerService = () => {
   const createLogger = () => ({
@@ -70,11 +129,17 @@ const buildParsingResult = (): ConceptParsingResult => ({
 });
 
 describe('concept graph knowledge service', () => {
-  let testDb: Awaited<ReturnType<typeof createKyselyTestDb>>;
+  let mockDb: ReturnType<typeof createMockDatabase>;
   let service: ReturnType<typeof createKnowledgeService>;
+  let databaseTables: { [tableName: string]: any[] } = {};
 
-  beforeEach(async () => {
-    testDb = await createKyselyTestDb();
+  beforeEach(() => {
+    // Reset tables for each test
+    databaseTables = {
+      concepts: [],
+      relationships: [],
+    };
+
     const vectorDatabase = {
       addDocument: vi.fn(),
       addDocumentWithEmbedding: vi.fn(),
@@ -91,16 +156,113 @@ describe('concept graph knowledge service', () => {
       getEmbeddingModel: vi.fn(),
       getRerankModel: vi.fn(),
     };
+
+    // Create stateful mock database with table support
+    mockDb = {
+      selectFrom: vi.fn().mockImplementation((tableName: string) => {
+        const tableData = databaseTables[tableName] || [];
+        const createQueryBuilder = (data: any[] = tableData) => ({
+          selectAll: vi.fn().mockReturnValue({
+            where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+              if (operator === 'in' && Array.isArray(value)) {
+                return createQueryBuilder(data);
+              }
+              if (operator === '=' && typeof value === 'string') {
+                const filtered = data.filter(c => c[column] === value);
+                return {
+                  ...createQueryBuilder(filtered),
+                  execute: vi.fn().mockResolvedValue(filtered),
+                  executeTakeFirst: vi.fn().mockResolvedValue(filtered[0] || undefined),
+                };
+              }
+              return createQueryBuilder(data);
+            }),
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                execute: vi.fn().mockResolvedValue(data),
+              }),
+            }),
+            execute: vi.fn().mockResolvedValue(data),
+            executeTakeFirst: vi.fn().mockResolvedValue(data[0] || undefined),
+          }),
+          where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+            if (operator === 'in' && Array.isArray(value)) {
+              return createQueryBuilder(data);
+            }
+            if (operator === '=' && typeof value === 'string') {
+              const filtered = data.filter(c => c[column] === value);
+              return {
+                ...createQueryBuilder(filtered),
+                execute: vi.fn().mockResolvedValue(filtered),
+                executeTakeFirst: vi.fn().mockResolvedValue(filtered[0] || undefined),
+              };
+            }
+            return createQueryBuilder(data);
+          }),
+          orderBy: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              execute: vi.fn().mockResolvedValue(data),
+            }),
+          }),
+          execute: vi.fn().mockResolvedValue(data),
+          executeTakeFirst: vi.fn().mockResolvedValue(data[0] || undefined),
+        });
+
+        return createQueryBuilder();
+      }),
+      insertInto: vi.fn().mockImplementation((tableName: string) => ({
+        values: vi.fn().mockImplementation((values: any) => ({
+          execute: vi.fn().mockImplementation(() => {
+            if (!databaseTables[tableName]) {
+              databaseTables[tableName] = [];
+            }
+            if (Array.isArray(values)) {
+              databaseTables[tableName].push(...values);
+            } else {
+              databaseTables[tableName].push(values);
+            }
+            return Promise.resolve();
+          }),
+        })),
+      })),
+      updateTable: vi.fn().mockImplementation((tableName: string) => ({
+        set: vi.fn().mockImplementation((updates: any) => ({
+          where: vi.fn().mockImplementation((column: string, operator: string, value: any) => ({
+            execute: vi.fn().mockImplementation(() => {
+              const tableData = databaseTables[tableName] || [];
+              const index = tableData.findIndex(c => c[column] === value);
+              if (index !== -1) {
+                tableData[index] = { ...tableData[index], ...updates };
+              }
+              return Promise.resolve();
+            }),
+          })),
+        })),
+      })),
+      deleteFrom: vi.fn().mockImplementation((tableName: string) => ({
+        where: vi.fn().mockImplementation((column: string, operator: string, value: any) => ({
+          execute: vi.fn().mockImplementation(() => {
+            const tableData = databaseTables[tableName] || [];
+            const index = tableData.findIndex(c => c[column] === value);
+            if (index !== -1) {
+              tableData.splice(index, 1);
+            }
+            return Promise.resolve();
+          }),
+        })),
+      })),
+    };
+
     service = createKnowledgeService({
-      db: testDb.db,
+      db: mockDb,
       vectorDatabase,
       providerFactory,
       loggerService: createLoggerService(),
     });
   });
 
-  afterEach(async () => {
-    await testDb.cleanup();
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   it('ingests parsed concepts and relationships', async () => {
@@ -126,7 +288,7 @@ describe('concept graph knowledge service', () => {
   it('persists normalized tags and metadata for concepts and relationships', async () => {
     await service.ingestConceptParsingResult(buildParsingResult());
 
-    const alphaRow = await testDb.db
+    const alphaRow = await mockDb
       .selectFrom('concepts')
       .selectAll()
       .where('name', '=', 'Concept Alpha')
@@ -141,14 +303,14 @@ describe('concept graph knowledge service', () => {
     expect((alphaMetadata.tags as string[]).includes('alpha')).toBe(true);
     expect(alphaMetadata.source).toBe('concept-parsing');
 
-    const betaRow = await testDb.db
+    const betaRow = await mockDb
       .selectFrom('concepts')
       .selectAll()
       .where('name', '=', 'Concept Beta')
       .executeTakeFirst();
     expect(betaRow).toBeDefined();
 
-    const relationshipRow = await testDb.db
+    const relationshipRow = await mockDb
       .selectFrom('relationships')
       .selectAll()
       .where('source_concept_id', '=', alphaRow!.id)
@@ -178,7 +340,7 @@ describe('concept graph knowledge service', () => {
     });
 
     expect(ingestion.conceptsUpdated).toBeGreaterThan(0);
-    const alphaRow = await testDb.db
+    const alphaRow = await mockDb
       .selectFrom('concepts')
       .selectAll()
       .where('name', '=', 'Concept Alpha')
@@ -215,14 +377,14 @@ describe('concept graph knowledge service', () => {
     expect(ingestion.conceptsInserted).toBe(2);
     expect(ingestion.conceptsSkipped).toBe(1);
     expect(ingestion.lowConfidenceSkipped).toBe(1);
-    const lowRow = await testDb.db
+    const lowRow = await mockDb
       .selectFrom('concepts')
       .selectAll()
       .where('name', '=', 'Low Confidence Concept')
       .executeTakeFirst();
     expect(lowRow).toBeUndefined();
 
-    const relationships = await testDb.db.selectFrom('relationships').selectAll().execute();
+    const relationships = await mockDb.selectFrom('relationships').selectAll().execute();
     expect(relationships.length).toBe(1);
   });
 });

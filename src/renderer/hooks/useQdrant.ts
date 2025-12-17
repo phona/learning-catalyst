@@ -45,7 +45,7 @@ export interface KnowledgeSearchResult {
 export interface QdrantStatus {
   ready: boolean;
   health: boolean;
-  metrics: any;
+  metrics: unknown;
   collections: Array<{
     name: string;
     points: number;
@@ -125,7 +125,7 @@ export function useQdrant(): UseQdrantReturn {
 
   // Helper function to handle IPC calls
   const handleIpcCall = useCallback(
-    async <T>(callName: string, ...args: any[]): Promise<T | null> => {
+    async <T>(callName: string, ...args: unknown[]): Promise<T | null> => {
       setIsLoading(true);
       setError(null);
 

@@ -13,7 +13,7 @@ import { totalmem } from 'os';
 interface PerformanceMetrics {
   timestamp: number;
   value: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // ============================================================================
@@ -76,11 +76,11 @@ export const createAppPerformanceMonitor = () => {
   };
 
   const checkPerformanceAlerts = (metric: PerformanceMetrics): void => {
-    const threshold = alertThresholds.get((metric as any).operation);
-    if (threshold && (metric as any).duration > threshold) {
+    const threshold = alertThresholds.get((metric as unknown).operation);
+    if (threshold && (metric as unknown).duration > threshold) {
       events.emit('operation:slow', {
-        operation: (metric as any).operation,
-        duration: (metric as any).duration,
+        operation: (metric as unknown).operation,
+        duration: (metric as unknown).duration,
         threshold,
       });
     }
@@ -92,7 +92,7 @@ export const createAppPerformanceMonitor = () => {
     end: number,
   ): PerformanceMetrics[] => {
     const metrics: PerformanceMetrics[] = [];
-    const allMetrics = (cache.getStats() as any).entries || {};
+    const allMetrics = (cache.getStats() as unknown).entries || {};
     for (const [key, value] of Object.entries(allMetrics)) {
       const parts = key.split('_');
       const ts = parseInt(parts[1]);
@@ -112,7 +112,7 @@ export const createAppPerformanceMonitor = () => {
     return 1;
   };
 
-  const getRecommendation = (operation: string, stats: any): string => {
+  const getRecommendation = (operation: string, stats: unknown): string => {
     const recommendations: Record<string, string> = {
       database_query: 'Consider adding indexes or optimizing query structure',
       ai_response: 'Check model performance or consider caching responses',
@@ -126,9 +126,9 @@ export const createAppPerformanceMonitor = () => {
     );
   };
 
-  const recordMetric = (name: string, duration: number, metadata?: any): void => {
+  const recordMetric = (name: string, duration: number, metadata?: unknown): void => {
     monitor.recordMetric(name, duration, metadata);
-    const metric: any = {
+    const metric: unknown = {
       operation: name,
       startTime: Date.now() - duration,
       endTime: Date.now(),
@@ -144,7 +144,7 @@ export const createAppPerformanceMonitor = () => {
   const measureOperation = async <T>(
     operation: string,
     fn: () => Promise<T>,
-    _metadata?: any,
+    _metadata?: unknown,
   ): Promise<T> => {
     return monitor.measureAsync(operation, fn);
   };
@@ -164,9 +164,9 @@ export const createAppPerformanceMonitor = () => {
       const bucketMetrics = getMetricsInTimeRange(operation, bucketStart, bucketEnd);
       if (bucketMetrics.length > 0) {
         const avgDuration =
-          bucketMetrics.reduce((sum, m: any) => sum + m.duration, 0) / bucketMetrics.length;
+          bucketMetrics.reduce((sum, m: unknown) => sum + m.duration, 0) / bucketMetrics.length;
         const errorRate =
-          bucketMetrics.filter((m: any) => !m.success).length / bucketMetrics.length;
+          bucketMetrics.filter((m: unknown) => !m.success).length / bucketMetrics.length;
         trends.push({
           timestamp: bucketStart,
           averageDuration: avgDuration,
@@ -185,13 +185,13 @@ export const createAppPerformanceMonitor = () => {
       const stats = monitor.getStats(operation);
       if (!stats) continue;
       const threshold = alertThresholds.get(operation) || 1000;
-      if ((stats as any).averageDuration > threshold) {
+      if ((stats as unknown).averageDuration > threshold) {
         bottlenecks.push({
           operation,
-          severity: calculateSeverity((stats as any).averageDuration, threshold),
-          averageDuration: (stats as any).averageDuration,
-          maxDuration: (stats as any).maxDuration,
-          errorRate: (stats as any).errorRate,
+          severity: calculateSeverity((stats as unknown).averageDuration, threshold),
+          averageDuration: (stats as unknown).averageDuration,
+          maxDuration: (stats as unknown).maxDuration,
+          errorRate: (stats as unknown).errorRate,
           threshold,
           recommendation: getRecommendation(operation, stats),
         });
@@ -205,8 +205,8 @@ export const createAppPerformanceMonitor = () => {
   };
 
   const triggerGarbageCollection = (): boolean => {
-    if ((global as any).gc) {
-      (global as any).gc();
+    if ((global as unknown).gc) {
+      (global as unknown).gc();
       return true;
     }
     return false;
@@ -340,7 +340,7 @@ class MemoryMonitor {
     };
   }
 
-  on(event: 'warning' | 'critical', listener: (data: any) => void): void {
+  on(event: 'warning' | 'critical', listener: (data: unknown) => void): void {
     this.events.on(event, listener);
   }
 

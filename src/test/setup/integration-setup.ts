@@ -105,7 +105,7 @@ export async function setupIPCIntegrationTest() {
   // Set up mock invoke method for renderer
   (mockRendererProcess as any).invoke = vi
     .fn()
-    .mockImplementation(async (channel: string, data: any) => {
+    .mockImplementation(async (channel: string, data?: unknown) => {
       const handler = ipcHandlers.get(channel);
       if (handler) {
         try {
@@ -130,7 +130,7 @@ export async function setupIPCIntegrationTest() {
 
   (mockRendererProcess as any).invokeWithTimeout = vi
     .fn()
-    .mockImplementation(async (channel: string, data: any, timeout: number) => {
+    .mockImplementation(async (channel: string, data?: unknown, timeout: number) => {
       const handler = ipcHandlers.get(channel);
       if (handler) {
         try {
@@ -162,7 +162,7 @@ export async function setupIPCIntegrationTest() {
   // Mock postMessage method for IPC communication
   (mockRendererProcess as any).postMessage = vi
     .fn()
-    .mockImplementation((channel: string, data: any, transfer?: any[]) => {
+    .mockImplementation((channel: string, data?: unknown, transfer?: any[]) => {
       // Emit the message so tests can listen for it
       // The event should be the first parameter, data the second
       console.log(`📤 postMessage called: channel=${channel}, data=${JSON.stringify(data)}`);

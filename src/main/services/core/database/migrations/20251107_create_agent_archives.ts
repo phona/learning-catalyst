@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Agent archives table - data archival and backup
     await db.schema
       .createTable('agent_archives')
@@ -25,7 +25,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     await db.schema.dropTable('agent_archives').execute();
   },
 };

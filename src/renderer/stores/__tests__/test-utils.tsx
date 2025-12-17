@@ -242,7 +242,7 @@ export function createMockChatService(electron: { chat: ChatAPI; sessions: Sessi
         conversationId: sessionId,
         message: content,
       });
-      const data = (response as any)?.data ?? {};
+      const data = response?.data ?? {};
       return {
         id: data.id ?? `assistant_${Date.now()}`,
         role: (data.role as Message['role']) ?? 'assistant',
@@ -267,7 +267,7 @@ export function createMockChatService(electron: { chat: ChatAPI; sessions: Sessi
         },
       );
       let aggregated = '';
-      const data = (started as any)?.data;
+      const data = started?.data;
       const isAsyncIterable = data && typeof data[Symbol.asyncIterator] === 'function';
       if (isAsyncIterable) {
         for await (const chunk of data as AsyncIterable<string>) {
@@ -287,7 +287,8 @@ export function createMockChatService(electron: { chat: ChatAPI; sessions: Sessi
         provider: sessionId,
       };
     },
-    checkPracticeOpportunity: async () => ({ hasOpportunity: false, reason: '', suggestions: [] } as any),
+    checkPracticeOpportunity: async () =>
+      ({ hasOpportunity: false, reason: '', suggestions: [] }) as unknown,
   };
 }
 
@@ -296,9 +297,7 @@ export function createTestChatStore(
   overrides?: Partial<ChatStoreDependencies>,
 ): ReturnType<typeof createChatStore> {
   const defaultDeps: ChatStoreDependencies = {
-    sessionService: createMockSessionService(),
     electronAPI: createMockElectronAPI(),
-    chatService: createMockChatService(createMockElectronAPI()),
   };
 
   return createChatStore({ ...defaultDeps, ...overrides });
@@ -315,10 +314,13 @@ export function useTestChatStore(
 export const testScenarios = {
   withError: (error: string): ReturnType<typeof createTestChatStore> =>
     createTestChatStore({
-      sessionService: {
-        ...createMockSessionService(),
-        createSession: async () => {
-          throw new Error(error);
+      electronAPI: {
+        ...createMockElectronAPI(),
+        sessions: {
+          ...createMockElectronAPI().sessions,
+          get: async () => {
+            throw new Error(error);
+          },
         },
       },
     }),

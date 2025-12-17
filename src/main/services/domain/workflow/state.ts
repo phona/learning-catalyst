@@ -1,14 +1,13 @@
-import { Annotation } from '@langchain/langgraph';
-import type { BaseMessage, BaseMessageLike } from '@langchain/core/messages';
+import { Annotation, BaseCheckpointSaver } from '@langchain/langgraph';
+import type { BaseMessage } from '@langchain/core/messages';
 import type { AgentManager } from '../../agent/agent-manager';
 import type { LoggerService } from '../../core/logger/logger-service';
-import type { SQLiteCheckpointSaver } from '../../core/checkpoints/SQLiteCheckpointSaver';
 import type { ConfigService } from '../../core/config/config-service';
 import type { ProviderFactory } from '../../agent/provider-factory';
 import type { LearningService } from '../learning/learning-service';
 import type { KnowledgeService } from '../knowledge/knowledge-service';
 import type { PracticeService } from '../practice/practice-service';
-import type { SessionBlueprint } from './nodes/plan';
+import { SessionBlueprint } from './nodes/plan';
 
 const messagesStateReducer = (current: BaseMessage[] | undefined, update: BaseMessage[]): BaseMessage[] => {
   const curr = current ?? [];
@@ -29,6 +28,10 @@ export const WorkflowStateAnnotation = Annotation.Root({
   interactionCount: Annotation<number>({ reducer: (current, update) => update ?? current, default: () => 0 }),
   understandingLevel: Annotation<number>({ reducer: (current, update) => update ?? current, default: () => 0 }),
   readyForPractice: Annotation<boolean>({ reducer: (current, update) => update ?? current, default: () => false }),
+  sessionMetadata: Annotation<{ title?: string; threadId?: string }>({
+    reducer: (current, update) => ({ ...current, ...update }),
+    default: () => ({}),
+  }),
 });
 
 export type WorkflowState = typeof WorkflowStateAnnotation.State;
@@ -36,7 +39,7 @@ export type WorkflowState = typeof WorkflowStateAnnotation.State;
 export type WorkflowDeps = {
   agentManager: AgentManager;
   loggerService: LoggerService;
-  checkpointer: SQLiteCheckpointSaver;
+  checkpointer: BaseCheckpointSaver;
   configService: ConfigService;
   providerFactory: ProviderFactory;
   knowledgeService: KnowledgeService;

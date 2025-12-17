@@ -9,7 +9,7 @@
 // Import related types from other APIs
 import type { AgentDisplay } from './agent-api';
 import type { SessionDisplay } from './learning-api';
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 
 /**
  * Main Catalyst API interface for renderer-main communication
@@ -120,14 +120,14 @@ export interface AgentExecutionRequest {
     userId: string;
     timestamp: number;
     correlationId: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   options: {
     stream?: boolean;
     timeout?: number;
     maxTokens?: number;
     temperature?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -144,7 +144,7 @@ export interface AgentExecutionResult {
     model: string;
     tokensUsed: number;
     processingTime: number;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -160,7 +160,7 @@ export interface AgentExecutionStatus {
     startTime: number;
     endTime?: number;
     progress?: number;
-    result?: any;
+    result?: unknown;
     error?: string;
   };
 }
@@ -192,7 +192,7 @@ export interface AgentRegistrationRequest {
     temperature?: number;
     maxTokens?: number;
   };
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 /**
@@ -204,7 +204,7 @@ export interface CatalystRequest {
   agentId?: string;
   executionId?: string;
   onChunk?: (chunk: StreamChunk) => void;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -215,9 +215,9 @@ export interface CatalystResponse {
   messageId?: string;
   response?: string;
   error?: string;
-  session?: any;
-  agents?: any[];
-  metadata?: Record<string, any>;
+  session?: unknown;
+  agents?: unknown[];
+  metadata?: Record<string, unknown>;
 }
 
 /**

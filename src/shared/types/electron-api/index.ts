@@ -33,7 +33,14 @@ import type { Message as AIMessage } from '../ai';
 import type { SessionsAPI } from './sessions-api';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
 import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
-import type { AppConfig } from '../config'; // Re-export individual API interfaces
+import type { AppConfig } from '../config';
+// Import base types to re-export
+import type { SystemReadyPayload, ConfigChangedPayload, IPCError } from './base';
+
+// Re-export base types
+export type { SystemReadyPayload, ConfigChangedPayload, IPCError };
+
+// Re-export individual API interfaces
 export type {
   ChatAPI,
   LearningAPI,
@@ -81,7 +88,7 @@ export type AISDKAPI = {
       messages: Array<Pick<AIMessage, 'role' | 'content'>>;
       conversationId?: string;
     },
-    callback: (data: any) => void,
+    callback: (data: unknown) => void,
     onComplete?: () => void,
   ) => () => void;
 };
@@ -221,17 +228,6 @@ export interface ElectronAPI {
   getErrorBuffer: () => Promise<BufferedIPCError[]>;
   clearErrorBuffer: () => Promise<{ cleared: boolean }>;
   relaunchApp: () => Promise<{ relaunching: boolean }>;
-}
-
-export interface SystemReadyPayload {
-  status: 'ready' | 'loading';
-  ready: { ipcHandlersRegistered: boolean };
-}
-
-export interface ConfigChangedPayload {
-  changedKeys?: string[];
-  config?: Partial<AppConfig>;
-  timestamp?: number;
 }
 
 export const READY_TIMEOUT_MS = 30000;

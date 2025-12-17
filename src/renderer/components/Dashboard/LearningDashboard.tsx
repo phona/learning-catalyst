@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  ProgressChart,
-  StudyStreak,
-  LearningTrends,
-  Achievements,
-  SessionTracking,
-} from '../Analytics';
+import { ProgressChart } from '../Analytics/ProgressChart';
+import { StudyStreak } from '../Analytics/StudyStreak';
+import { LearningTrends } from '../Analytics/LearningTrends';
+import { Achievements } from '../Analytics/Achievements';
+import { SessionTracking } from '../Analytics/SessionTracking';
 import type { StudyMetrics, LearningSession } from '@/shared/utils/simple-analytics';
 import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
 import type { ActiveExecution } from '@/shared/types/electron-api/catalyst-api';

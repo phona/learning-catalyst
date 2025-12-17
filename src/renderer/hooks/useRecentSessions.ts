@@ -206,7 +206,7 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
             hasMore,
           };
         });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[useRecentSessions] Failed to fetch recent sessions:', error);
         const errorMessage = await mapErrorToFriendlyMessage(error);
         if (mountedRef.current) {

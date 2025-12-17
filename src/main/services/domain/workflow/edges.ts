@@ -38,10 +38,11 @@ export const SIMPLE_EDGES: Array<[any, any]> = [
 
 export const CONDITIONALS: Partial<Record<NodeName, (state: WorkflowState) => NodeName>> = {
   // Error handling and topic validation: Stop workflow if error or no valid topic
+  // Direct routing from TOPIC_PARSE to ASSESS (title generation moved outside workflow)
   [NodeName.TOPIC_PARSE]: (state: WorkflowState) => {
     if (state.error) return NodeName.COMPLETE;
     if (!state.topic) return NodeName.COMPLETE;  // No matching concept found - can't proceed
-    return NodeName.ASSESS;
+    return NodeName.ASSESS;  // Direct to ASSESS - title gen runs in parallel
   },
 
   // Path A vs B decision point: CheckConf[**Orchestrator**]: Confidence High?

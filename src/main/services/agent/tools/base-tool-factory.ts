@@ -6,12 +6,13 @@
  */
 
 import { LoggerService } from '../../core/logger/logger-service';
+import type { ToolParams, ToolResult, ToolServices } from './types';
 
 export interface ToolConfig {
   name: string;
   requiredParams: string[];
   configKey: string;
-  operation: (params: any, services: any) => Promise<any>;
+  operation: (params: ToolParams, services: ToolServices) => Promise<ToolResult>;
 }
 
 /**
@@ -20,7 +21,7 @@ export interface ToolConfig {
 export const createTool = (config: ToolConfig) => (services: { loggerService?: LoggerService }) => {
   const logger = services.loggerService?.child({ tool: config.name }) || console;
 
-  return async (params: any): Promise<any> => {
+  return async (params: ToolParams): Promise<ToolResult> => {
     logger.info(`${config.name} operation requested`);
 
     try {
@@ -67,12 +68,15 @@ export const toolConfigs = {
     name: 'content-analysis',
     requiredParams: ['content', 'analysisType'],
     configKey: 'ai.modelTypes.chat',
-    operation: async (params: any, services: any) => {
+    operation: async (params: ToolParams, _services: ToolServices): Promise<ToolResult> => {
       return {
-        analysisType: params.analysisType,
-        content: params.content,
-        analysis: `Mock ${params.analysisType} analysis of content`,
-        model: params.modelConfig?.model,
+        success: true,
+        data: {
+          analysisType: params.analysisType,
+          content: params.content,
+          analysis: `Mock ${params.analysisType} analysis of content`,
+          model: (params as any).modelConfig?.model,
+        },
       };
     },
   },
@@ -81,16 +85,19 @@ export const toolConfigs = {
     name: 'learning-path',
     requiredParams: ['action'],
     configKey: 'ai.modelTypes.chat',
-    operation: async (params: any, services: any) => {
+    operation: async (params: ToolParams, _services: ToolServices): Promise<ToolResult> => {
       if (params.action === 'create') {
         return {
-          pathId: `path_${Date.now()}`,
-          title: params.title,
-          description: params.description,
-          modules: params.modules?.length || 0,
+          success: true,
+          data: {
+            pathId: `path_${Date.now()}`,
+            title: params.title,
+            description: params.description,
+            modules: Array.isArray(params.modules) ? params.modules.length : 0,
+          },
         };
       }
-      return { action: params.action, result: 'Mock result' };
+      return { success: true, data: { action: params.action, result: 'Mock result' } };
     },
   },
 
@@ -98,12 +105,15 @@ export const toolConfigs = {
     name: 'assessment',
     requiredParams: ['action', 'type'],
     configKey: 'ai.modelTypes.chat',
-    operation: async (params: any, services: any) => {
+    operation: async (params: ToolParams, _services: ToolServices): Promise<ToolResult> => {
       return {
-        action: params.action,
-        type: params.type,
-        feedback: `Mock ${params.action} feedback for ${params.type}`,
-        model: params.modelConfig?.model,
+        success: true,
+        data: {
+          action: params.action,
+          type: params.type,
+          feedback: `Mock ${params.action} feedback for ${params.type}`,
+          model: (params as any).modelConfig?.model,
+        },
       };
     },
   },
@@ -112,15 +122,18 @@ export const toolConfigs = {
     name: 'knowledge-extraction',
     requiredParams: ['content'],
     configKey: 'ai.modelTypes.chat',
-    operation: async (params: any, services: any) => {
+    operation: async (params: ToolParams, _services: ToolServices): Promise<ToolResult> => {
       return {
-        concepts: [
-          { name: 'Mock Concept 1', confidence: 0.8 },
-          { name: 'Mock Concept 2', confidence: 0.7 },
-        ],
-        relationships: [],
-        metadata: {
-          extractedAt: new Date().toISOString(),
+        success: true,
+        data: {
+          concepts: [
+            { name: 'Mock Concept 1', confidence: 0.8 },
+            { name: 'Mock Concept 2', confidence: 0.7 },
+          ],
+          relationships: [],
+          metadata: {
+            extractedAt: new Date().toISOString(),
+          },
         },
       };
     },
@@ -130,14 +143,18 @@ export const toolConfigs = {
     name: 'concept-mapping',
     requiredParams: ['concepts'],
     configKey: 'ai.modelTypes.chat',
-    operation: async (params: any, services: any) => {
+    operation: async (params: ToolParams, _services: ToolServices): Promise<ToolResult> => {
+      const concepts = params.concepts as string[];
       return {
-        nodes: params.concepts.map((concept: string) => ({
-          id: concept,
-          title: concept,
-          status: 'unmapped',
-        })),
-        relationshipSuggestions: [],
+        success: true,
+        data: {
+          nodes: concepts.map((concept) => ({
+            id: concept,
+            title: concept,
+            status: 'unmapped',
+          })),
+          relationshipSuggestions: [],
+        },
       };
     },
   },

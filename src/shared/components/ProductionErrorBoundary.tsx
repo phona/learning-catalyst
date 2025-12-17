@@ -240,7 +240,7 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
     this.events.emit('health:changed', healthStatus);
   }
 
-  private calculateHealthStatus(memoryStats: any): HealthStatus {
+  private calculateHealthStatus(memoryStats: unknown): HealthStatus {
     const uptime = Date.now() - this.startTime;
     const memoryUsage = memoryStats.percentage || 0;
 

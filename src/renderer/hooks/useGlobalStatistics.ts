@@ -114,7 +114,7 @@ export function useGlobalStatistics(
           error: null,
           lastUpdated: new Date(),
         }));
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('[useGlobalStatistics] Failed to fetch global statistics:', error);
 
         // Provide more user-friendly error messages
@@ -201,7 +201,7 @@ export function useGlobalStatistics(
  * Simplified hook for just getting the global message count
  * Use this when you only need the total message count for performance
  */
-export function useGlobalMessageCount(): {
+function useGlobalMessageCount(): {
   count: number;
   loading: boolean;
   error: string | null;

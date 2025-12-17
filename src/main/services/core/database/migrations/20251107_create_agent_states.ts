@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Agent states table - state persistence with upsert capability
     await db.schema
       .createTable('agent_states')
@@ -21,7 +21,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     await db.schema.dropTable('agent_states').execute();
   },
 };

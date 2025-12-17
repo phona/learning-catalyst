@@ -15,11 +15,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setupLearningHandlers } from '../learning-handlers';
 import { ipcMain } from 'electron';
 
-const handlerMap = new Map<string, (...args: any[]) => any>();
+const handlerMap = new Map<string, (...args: unknown[]) => any>();
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: (channel: string, handler: (...args: any[]) => any) => {
+    handle: (channel: string, handler: (...args: unknown[]) => any) => {
       handlerMap.set(channel, handler);
     },
   },

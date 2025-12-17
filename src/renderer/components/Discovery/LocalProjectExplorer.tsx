@@ -555,7 +555,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     }
   };
 
-  const testProviderConnectivity = async (providerInfo: any): Promise<boolean> => {
+  const testProviderConnectivity = async (providerInfo: { name?: string; provider?: string } | null): Promise<boolean> => {
     try {
       // Simple config validation - no network call for now
       // Can be enhanced to include actual connectivity testing later
@@ -970,7 +970,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
 };
 
 const buildTreeStructure = (
-  items: any[],
+  items: DirectoryScanResult[],
   rootPath: string,
   currentDepth: number,
 ): DirectoryScanResult[] => {

@@ -5,7 +5,7 @@
  * Focuses on personalizing the AI learning experience.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 
 export interface AgentsAPI {
   /**

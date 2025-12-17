@@ -69,4 +69,3 @@ export const getKnowledgeGraph = () => appServices.getKnowledgeGraph();
 export const getVectorDatabase = () => appServices.getVectorDatabase();
 export const getSessionService = () => appServices.getSessionService();
 export const getAgentManager = () => appServices.getAgentManager();
-export const getServiceFactory = () => appServices;

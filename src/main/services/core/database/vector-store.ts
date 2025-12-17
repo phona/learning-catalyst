@@ -12,13 +12,13 @@ import type { ChildProcess } from 'node:child_process';
 export interface VectorPoint {
   id: string | number;
   vector: number[];
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }
 
 export interface VectorSearchResult {
   id: string | number;
   score: number;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }
 
 export interface VectorStore {
@@ -41,7 +41,7 @@ export interface VectorStore {
     options?: {
       limit?: number;
       scoreThreshold?: number;
-      filter?: any;
+      filter?: unknown;
     }
   ): Promise<VectorSearchResult[]>;
   getVectors(collectionName: string, ids: Array<string | number>): Promise<VectorPoint[]>;
@@ -53,13 +53,13 @@ export interface VectorStore {
     collectionName: string,
     options?: {
       limit?: number;
-      offset?: any;
+      offset?: unknown;
       withPayload?: boolean;
       withVector?: boolean;
     }
   ): Promise<{
     points: VectorPoint[];
-    nextPageOffset?: any;
+    nextPageOffset?: unknown;
   }>;
 }
 
@@ -116,7 +116,7 @@ export function createVectorStore(
   /**
    * Normalize point ID to appropriate format
    */
-  function normalizePointId(id: any): any {
+  function normalizePointId(id: unknown): string | number {
     if (typeof id === 'number' && Number.isInteger(id) && id >= 0) {
       return id;
     }
@@ -166,7 +166,7 @@ export function createVectorStore(
   }>> {
     await ensureReady();
     const res = await getClient().getCollections();
-    return res.collections.map((col: any) => ({
+    return res.collections.map((col: { name: string; vectors_count?: number; points_count?: number; status: string; optimizer_status?: { status?: string } }) => ({
       name: col.name,
       vectors_count: col.vectors_count || 0,
       points_count: col.points_count || 0,
@@ -187,7 +187,7 @@ export function createVectorStore(
     const payload = { points: normalized };
     const maxAttempts = 3;
     let attempt = 0;
-    let lastError: any = null;
+    let lastError: unknown = null;
 
     while (attempt < maxAttempts) {
       try {
@@ -197,7 +197,7 @@ export function createVectorStore(
         }
         await getClient().upsert(collectionName, payload);
         return;
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
         attempt += 1;
         await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
@@ -216,11 +216,11 @@ export function createVectorStore(
     options: {
       limit?: number;
       scoreThreshold?: number;
-      filter?: any;
+      filter?: unknown;
     } = {}
   ): Promise<VectorSearchResult[]> {
     await ensureReady();
-    const payload: any = {
+    const payload: unknown = {
       vector: queryVector,
       limit: options.limit || 10,
       score_threshold: options.scoreThreshold || 0.7,
@@ -232,7 +232,7 @@ export function createVectorStore(
     }
 
     const result = await getClient().search(collectionName, payload);
-    return result.map((r: any) => ({
+    return result.map((r: unknown) => ({
       id: r.id,
       score: r.score,
       payload: r.payload,
@@ -254,7 +254,7 @@ export function createVectorStore(
     };
 
     const result = await getClient().retrieve(collectionName, payload);
-    return result.map((point: any) => ({
+    return result.map((point: unknown) => ({
       id: point.id,
       vector: point.vector,
       payload: point.payload,
@@ -279,7 +279,7 @@ export function createVectorStore(
   async function clearCollection(collectionName: string): Promise<void> {
     await ensureReady();
     const batchSize = 1000;
-    let offset: any = undefined;
+    let offset: unknown = undefined;
     let done = false;
 
     while (!done) {
@@ -289,7 +289,7 @@ export function createVectorStore(
         with_vector: false,
         offset,
       });
-      const ids = page.points?.map((p: any) => p.id) ?? [];
+      const ids = page.points?.map((p: unknown) => p.id) ?? [];
 
       if (ids.length > 0) {
         await getClient().delete(collectionName, { points: ids });
@@ -310,13 +310,13 @@ export function createVectorStore(
     collectionName: string,
     options: {
       limit?: number;
-      offset?: any;
+      offset?: unknown;
       withPayload?: boolean;
       withVector?: boolean;
     } = {}
   ): Promise<{
     points: VectorPoint[];
-    nextPageOffset?: any;
+    nextPageOffset?: unknown;
   }> {
     await ensureReady();
     const page = await getClient().scroll(collectionName, {
@@ -327,7 +327,7 @@ export function createVectorStore(
     });
 
     return {
-      points: page.points?.map((p: any) => ({
+      points: page.points?.map((p: unknown) => ({
         id: p.id,
         vector: p.vector,
         payload: p.payload,

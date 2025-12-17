@@ -5,7 +5,7 @@
  * Focuses on educational outcomes and learning analytics.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 
 export interface LearningAPI {
   /**
@@ -46,9 +46,9 @@ export interface LearningAPI {
    * Pauses an active learning session
    * Saves current state and stops progress tracking
    * @param sessionId - Active learning session ID
-   * @returns Promise<{ success: boolean; resumeData: any }>
+   * @returns Promise<{ success: boolean; resumeData: unknown }>
    */
-  pauseSession: (sessionId: string) => Promise<APIResponse<{ resumeData: any }>>;
+  pauseSession: (sessionId: string) => Promise<APIResponse<{ resumeData: unknown }>>;
 
   /**
    * Resumes a paused learning session
@@ -242,7 +242,7 @@ export interface SessionSearchResultDisplay {
   totalResults: number;
   sessions: SessionDisplay[];
   filters: {
-    appliedFilters: Record<string, any>;
+    appliedFilters: Record<string, unknown>;
     availableFilters: Record<string, string[]>;
   };
   suggestions: string[];

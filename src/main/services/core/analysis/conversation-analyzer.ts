@@ -34,6 +34,25 @@ export interface ConversationAnalysisResult {
 }
 
 /**
+ * Message type for conversation analysis
+ */
+type ConversationMessage = {
+  id: string;
+  role: 'user' | 'assistant' | 'system' | 'tool';
+  content: string;
+  timestamp: number;
+};
+
+/**
+ * Analysis options
+ */
+interface AnalysisOptions {
+  maxMessages?: number;
+  includeSystemMessages?: boolean;
+  analyzeSentiment?: boolean;
+}
+
+/**
  * Message Analysis
  */
 interface MessageAnalysis {
@@ -79,18 +98,9 @@ export class ConversationAnalyzer {
    * Analyze conversation for practice opportunities
    */
   async analyzeConversation(
-    messages: Array<{
-      id: string;
-      role: 'user' | 'assistant' | 'system' | 'tool';
-      content: string;
-      timestamp: number;
-    }>,
+    messages: ConversationMessage[],
     userContext: UserContext,
-    options: {
-      maxMessages?: number;
-      includeSystemMessages?: boolean;
-      analyzeSentiment?: boolean;
-    } = {},
+    options: AnalysisOptions = {},
   ): Promise<ConversationAnalysisResult> {
     try {
       const startTime = Date.now();
@@ -171,7 +181,7 @@ export class ConversationAnalyzer {
   /**
    * Analyze individual message
    */
-  private async analyzeMessage(message: any, analyzeSentiment: boolean): Promise<MessageAnalysis> {
+  private async analyzeMessage(message: ConversationMessage, analyzeSentiment: boolean): Promise<MessageAnalysis> {
     const content = message.content || '';
     const isUserMessage = message.role === 'user';
 
@@ -585,7 +595,7 @@ export class ConversationAnalyzer {
    * Detect topic transitions
    */
   private detectTopicTransitions(
-    messages: any[],
+    messages: ConversationMessage[],
     keyConcepts: ConversationContext['keyConcepts'],
   ): ConversationContext['topicTransitions'] {
     const transitions: ConversationContext['topicTransitions'] = [];
@@ -884,7 +894,7 @@ export class ConversationAnalyzer {
   /**
    * Filter messages based on options
    */
-  private filterMessages(messages: any[], includeSystemMessages: boolean): any[] {
+  private filterMessages(messages: ConversationMessage[], includeSystemMessages: boolean): ConversationMessage[] {
     return messages.filter((msg) => {
       if (!includeSystemMessages && msg.role === 'system') {
         return false;
@@ -896,7 +906,7 @@ export class ConversationAnalyzer {
   /**
    * Generate cache key
    */
-  private generateCacheKey(messages: any[], userContext: UserContext, options: any): string {
+  private generateCacheKey(messages: ConversationMessage[], userContext: UserContext, options: AnalysisOptions): string {
     const messageHash = messages
       .slice(-10)
       .map((m) => `${m.role}:${m.content.substring(0, 50)}`)

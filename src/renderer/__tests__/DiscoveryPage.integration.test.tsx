@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { vi } from 'vitest';
-import { DiscoveryPage } from '@/renderer/DiscoveryPage';
+import { DiscoveryPage } from '@/renderer/components/Discovery';
 
 // Render real ContentDiscovery but stub the heavy explorer inside it
 vi.mock('@/renderer/components/Discovery/LocalProjectExplorer', () => ({

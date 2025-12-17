@@ -108,11 +108,6 @@ export const setupConceptParsingHandlers = (
   services: ConceptParsingHandlersDeps,
 ): void => {
   const handlerLogger = services.loggerService.child({ handler: 'concept-parsing' });
-  const ok = <T>(data: T): APIResponse<T> => ({ success: true, data });
-  const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
-    success: false,
-    error: { code, message, details },
-  });
 
   ipcMainInstance.handle(
     'knowledge:parse-concepts',
@@ -135,34 +130,20 @@ export const setupConceptParsingHandlers = (
         });
       }
 
-      try {
-        const settings = await buildParsingSettings(params, services.configService);
-        const result = await services.conceptParsingService.parseMaterials(materials, settings);
-        handlerLogger.info('Concept parsing completed', {
-          success: result.success,
-          concepts: result.concepts.length,
-          relationships: result.relationships.length,
-        });
-        return ok(result);
-      } catch (error) {
-        const normalized =
-          error instanceof Error
-            ? { message: error.message, name: error.name, stack: error.stack }
-            : { message: String(error) };
-        handlerLogger.error('Concept parsing failed', normalized);
-        return fail(IPC_ERROR_CODES.knowledge.parseFailed, 'Unable to parse concepts', normalized);
-      }
+      const settings = await buildParsingSettings(params, services.configService);
+      const result = await services.conceptParsingService.parseMaterials(materials, settings);
+      handlerLogger.info('Concept parsing completed', {
+        success: result.success,
+        concepts: result.concepts.length,
+        relationships: result.relationships.length,
+      });
+      return result;
     },
   );
 
   ipcMainInstance.handle('knowledge:clear-parsing-jobs', async () => {
-    try {
-      const result = await services.conceptParsingService.clearJobCache();
-      handlerLogger.info('Cleared parsing job cache', result);
-      return ok(result);
-    } catch (error) {
-      handlerLogger.error('Failed to clear parsing job cache', error);
-      return fail(IPC_ERROR_CODES.knowledge.parseFailed, 'Unable to clear parsing cache', error);
-    }
+    const result = await services.conceptParsingService.clearJobCache();
+    handlerLogger.info('Cleared parsing job cache', result);
+    return result;
   });
 };

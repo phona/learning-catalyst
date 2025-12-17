@@ -9,34 +9,8 @@ import { useConfigStore } from '@/renderer/stores/useConfigStore';
  * 🏗️ Application Layout Component
  *
  * Main application layout that orchestrates header, sidebar, and content areas.
- * Handles theme management, focus mode, and responsive layout behavior.
- *
- * 🎯 What It Does:
- * - Manages theme application and system theme detection
- * - Controls focus mode for distraction-free learning
- * - Coordinates header, sidebar, and main content layout
- * - Handles responsive behavior and conditional component visibility
- *
- * 🔧 Features:
- * - Optimized theme calculations with useMemo to prevent unnecessary re-renders
- * - System theme detection with automatic theme switching in auto mode
- * - Focus mode that hides header and sidebar for concentrated learning
- * - Conditional status bar with token usage information
- * - Smooth transitions and responsive design
- *
- * 💡 Performance Optimizations:
- * - Theme calculation memoized to prevent DOM manipulation on every render
- * - System theme listener only attached when in auto mode
- * - Conditional rendering based on focus mode state
- *
- * @example
- * ```tsx
- * <Layout>
- *   <Routes>
- *     <Route path="/chat" element={<ChatInterface />} />
- *   </Routes>
- * </Layout>
- * ```
+ * ThreadListSidebar and content (via Outlet) are siblings under the same
+ * AssistantRuntimeProvider - no extra wrappers needed.
  */
 export const Layout: React.FC = () => {
   const { sidebar_open, theme, focus_mode } = useAppStore();

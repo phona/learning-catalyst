@@ -174,8 +174,8 @@ export class LRUCache<TKey, TValue> {
  * Memory-optimized promise cache with automatic cleanup
  */
 export class PromiseCache {
-  private readonly cache = new LRUCache<string, Promise<any>>();
-  private readonly loadingPromises = new Map<string, Promise<any>>();
+  private readonly cache = new LRUCache<string, Promise<unknown>>();
+  private readonly loadingPromises = new Map<string, Promise<unknown>>();
 
   /**
    * Get or create a cached promise
@@ -233,7 +233,7 @@ export class PromiseCache {
   /**
    * Get cache statistics
    */
-  getStats(): any {
+  getStats(): unknown {
     return this.cache.getStats();
   }
 
@@ -261,7 +261,7 @@ export class PerformanceMonitor {
   /**
    * Record a performance metric
    */
-  recordMetric(name: string, duration: number, metadata?: any): void {
+  recordMetric(name: string, duration: number, metadata?: unknown): void {
     const metric: PerformanceMetric = {
       name,
       duration,
@@ -460,7 +460,7 @@ interface PerformanceMetric {
   name: string;
   duration: number;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -550,7 +550,7 @@ export class MemoryPool<T> {
 /**
  * Debounce utility with cancellation support
  */
-export class Debounced<T extends (...args: any[]) => any> {
+export class Debounced<T extends (...args: unknown[]) => unknown> {
   private timeout: NodeJS.Timeout | null = null;
   private lastArgs: Parameters<T> | null = null;
   private lastCallTime = 0;
@@ -631,7 +631,7 @@ export class Debounced<T extends (...args: any[]) => any> {
 /**
  * Throttle utility
  */
-export class Throttled<T extends (...args: any[]) => any> {
+export class Throttled<T extends (...args: unknown[]) => unknown> {
   private lastCall = 0;
   private lastArgs: Parameters<T> | null = null;
   private timeout: NodeJS.Timeout | null = null;
@@ -676,7 +676,7 @@ export class Throttled<T extends (...args: any[]) => any> {
 /**
  * Create a memoized async function with caching
  */
-export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
+export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(
   func: T,
   options?: {
     ttl?: number;

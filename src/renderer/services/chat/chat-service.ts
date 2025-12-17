@@ -124,11 +124,11 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     const startTime = Date.now();
     const streamData = {
       reasoning: '',
-      tools: [] as NonNullable<typeof pendingStreams extends Map<any, infer V> ? V : any>['tools'],
+      tools: [] as NonNullable<typeof pendingStreams extends Map<string, infer V> ? V : unknown>['tools'],
       performance: {
         responseTime: 0,
-      } as NonNullable<typeof pendingStreams extends Map<any, infer V> ? V : any>['performance'],
-      timeline: [] as NonNullable<typeof pendingStreams extends Map<any, infer V> ? V : any>['timeline'],
+      } as NonNullable<typeof pendingStreams extends Map<string, infer V> ? V : unknown>['performance'],
+      timeline: [] as NonNullable<typeof pendingStreams extends Map<string, infer V> ? V : unknown>['timeline'],
     };
 
     try {

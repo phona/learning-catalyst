@@ -60,11 +60,7 @@ export interface SessionSearchFilters {
 
 export interface SessionCreateRequest {
   title?: string;
-  description?: string;
-  agentType?: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
-  tags?: string[];
-  learningObjectives?: string[];
+  threadId?: string;
 }
 
 export interface SessionUpdateRequest {
@@ -73,4 +69,5 @@ export interface SessionUpdateRequest {
   tags?: string[];
   isBookmarked?: boolean;
   isArchived?: boolean;
+  status?: 'active' | 'paused' | 'completed';
 }

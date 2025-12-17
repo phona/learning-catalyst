@@ -8,11 +8,12 @@
  */
 
 import { createProviderService, providerConfigs } from './base-provider-factory';
+import type { LoggerService } from '@/main/services/core/logger/logger-service';
 
 /**
  * ChatGLM service factory using base provider factory
  * Eliminated 95% of duplicated code while maintaining identical functionality
  */
-export const createChatGLMService = ({ loggerService }: { loggerService: any }) => {
+export const createChatGLMService = ({ loggerService }: { loggerService: LoggerService }) => {
   return createProviderService(providerConfigs.chatglm)({ loggerService });
 };

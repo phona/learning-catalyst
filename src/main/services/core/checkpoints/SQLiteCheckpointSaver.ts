@@ -24,11 +24,11 @@ export interface RunnableConfig {
     thread_id?: string;
     checkpoint_ns?: string;
     checkpoint_id?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   recursion_limit?: number;
   tags?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -239,7 +239,7 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
    */
   async listW(
     config: RunnableConfig,
-    filter?: Record<string, any>,
+    filter?: Record<string, unknown>,
     before?: RunnableConfig,
     limit?: number,
   ): Promise<CheckpointTuple[]> {
@@ -492,7 +492,7 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
     config: RunnableConfig,
     taskId: string,
     channel: string,
-    blobs: { type: 'input' | 'output'; data: any }[],
+    blobs: { type: 'input' | 'output'; data: unknown }[],
   ): Promise<void> {
     const threadId = this.getThreadId(config);
     const checkpointId = config.configurable?.checkpoint_id;

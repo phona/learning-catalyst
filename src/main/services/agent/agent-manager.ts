@@ -108,7 +108,7 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
 
   const runAgent = async (
     request: AgentManagerRequest,
-    options?: { callbacks?: any[] },
+    options?: { callbacks?: Array<{ onLog?: unknown; onError?: unknown }> },
   ): Promise<AgentManagerResult> => {
     const agent =
       request.agentType === 'supervisor' ? supervisorAgent : agentInstances[request.agentType];

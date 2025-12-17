@@ -353,13 +353,3 @@ export const Spacer: React.FC<SpacerProps> = ({
 
   return <div className={sizeClasses[size]} />;
 };
-
-// Export all primitives as a named export for easy importing
-export {
-  PageScaffold,
-  Section,
-  Toolbar,
-  EmptyState,
-  ContentGrid,
-  Spacer,
-};

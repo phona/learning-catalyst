@@ -164,7 +164,7 @@ export interface LearningSession {
   endTime?: Date;
   duration?: number;
   concepts: string[];
-  messages?: any[];
+  messages?: unknown[];
   achievements?: string[];
   notes?: string;
 }
@@ -188,7 +188,7 @@ export class AnalyticsError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any,
+    public details?: unknown,
   ) {
     super(message);
     this.name = 'AnalyticsError';
@@ -208,7 +208,7 @@ export class ConceptNotFoundError extends AnalyticsError {
 }
 
 export class DataValidationError extends AnalyticsError {
-  constructor(field: string, value: any, expectedType: string) {
+  constructor(field: string, value: unknown, expectedType: string) {
     super(
       `Invalid data for field ${field}: expected ${expectedType}, got ${typeof value}`,
       'DATA_VALIDATION_ERROR',

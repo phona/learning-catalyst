@@ -14,7 +14,7 @@ vi.mock('@langchain/openai', () => ({
 }));
 
 describe('Provider Reranker Configuration', () => {
-  const makeConfigService = (config: any) => ({
+  const makeConfigService = (config: unknown) => ({
     getConfig: vi.fn().mockResolvedValue(config),
     setConfig: vi.fn(),
     getProviderConfig: vi.fn(),

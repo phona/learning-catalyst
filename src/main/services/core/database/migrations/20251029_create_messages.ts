@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Messages in sessions
     await db.schema
       .createTable('messages')
@@ -28,7 +28,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     await db.schema.dropTable('messages').execute();
   },
 };

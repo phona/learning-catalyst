@@ -90,7 +90,10 @@
       "Bash(src/main/services/domain/workflow/__tests__/workflow-graph.test.ts )",
       "Bash(src/main/services/domain/workflow/__tests__/full-workflow.test.ts )",
       "Bash(src/main/handlers/langgraph-handler.ts)",
-      "WebFetch(domain:www.assistant-ui.com)"
+      "WebFetch(domain:www.assistant-ui.com)",
+      "Bash(tee:*)",
+      "Bash(bash:*)",
+      "mcp__chrome-devtools__navigate_page"
     ],
     "deny": [],
     "ask": []

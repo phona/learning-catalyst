@@ -8,11 +8,12 @@
  */
 
 import { createProviderService, providerConfigs } from './base-provider-factory';
+import type { LoggerService } from '@/main/services/core/logger/logger-service';
 
 /**
  * Local Model service factory using base provider factory
  * Eliminated 95% of duplicated code while maintaining identical functionality
  */
-export const createLocalModelService = ({ loggerService }: { loggerService: any }) => {
+export const createLocalModelService = ({ loggerService }: { loggerService: LoggerService }) => {
   return createProviderService(providerConfigs.localModel)({ loggerService });
 };

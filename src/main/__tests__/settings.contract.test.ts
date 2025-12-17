@@ -3,18 +3,18 @@ import { setupSettingsHandlers } from "../handlers/settings-handlers";
 import { IPC_ERROR_CODES } from "@/shared/types/ipc-error";
 
 // Lightweight IPC + app mock so we don't need real Electron
-const handlerMap = new Map<string, (...args: any[]) => any>();
+const handlerMap = new Map<string, (...args: unknown[]) => any>();
 
 vi.mock('electron', () => {
   const ipcMain = {
-    handle: (channel: string, handler: (...args: any[]) => any) => {
+    handle: (channel: string, handler: (...args: unknown[]) => any) => {
       handlerMap.set(channel, handler);
     },
     removeHandler: (channel: string) => handlerMap.delete(channel),
   };
 
   const ipcRenderer = {
-    invoke: async (channel: string, ...args: any[]) => {
+    invoke: async (channel: string, ...args: unknown[]) => {
       const handler = handlerMap.get(channel);
       if (!handler) throw new Error(`No handler for ${channel}`);
       return handler({ sender: ipcRenderer }, ...args);

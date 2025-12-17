@@ -114,11 +114,81 @@ const mockFeatureDemo: FeatureDemoDisplay = {
 
 export function createMockElectronAPIClient(): ElectronAPI {
   const mockStreamState = new Map<string, { aborted: boolean }>();
+  // In-memory storage for dev mode
+  const mockSessions = new Map<string, { id: string; title: string; status: string }>();
+  const mockMessages = new Map<string, Array<{ id: string; role: string; content: string; timestamp: string }>>();
+
   const partial: Partial<ElectronAPI> = {
     aiSDK: {
-      stream: async () => {
-        const channel = new MessageChannel();
-        return channel.port1;
+      stream: (
+        params: {
+          messages: Array<Pick<AIMessage, 'role' | 'content'>>;
+          conversationId?: string;
+        },
+        callback: (data: unknown) => void,
+        onComplete?: () => void,
+      ) => {
+        const { port1, port2 } = new MessageChannel();
+        const streamId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const threadId = params.conversationId || `thread_${Date.now()}`;
+
+        console.log('[Mock aiSDK] stream called with conversationId:', params.conversationId);
+
+        // Store the user message
+        const userMessage = params.messages[params.messages.length - 1];
+        if (userMessage) {
+          const existingMessages = mockMessages.get(threadId) || [];
+          existingMessages.push({
+            id: `${threadId}-${existingMessages.length}`,
+            role: 'user',
+            content: userMessage.content,
+            timestamp: new Date().toISOString(),
+          });
+          mockMessages.set(threadId, existingMessages);
+        }
+
+        // Set up message handling
+        port1.onmessage = (event) => {
+          callback(event.data);
+        };
+        port1.onclose = () => {
+          console.log('[Mock aiSDK] Stream ended:', streamId);
+          onComplete?.();
+        };
+
+        // Simulate a response
+        setTimeout(() => {
+          const responseMessage = {
+            id: `${threadId}-${(mockMessages.get(threadId) || []).length}`,
+            role: 'assistant',
+            content: 'This is a mock response. Chat functionality is not available in dev mode.',
+            timestamp: new Date().toISOString(),
+          };
+
+          // Add assistant message to storage
+          const messages = mockMessages.get(threadId) || [];
+          messages.push(responseMessage);
+          mockMessages.set(threadId, messages);
+
+          callback({
+            type: 'text-delta',
+            content: [{ type: 'text', text: responseMessage.content }],
+          });
+
+          // Send finish event
+          callback({
+            type: 'finish',
+            content: [{ type: 'text', text: responseMessage.content }],
+          });
+
+          port1.close();
+          onComplete?.();
+        }, 100);
+
+        // Return cleanup function
+        return () => {
+          port1.close();
+        };
       },
     },
     awaitReady: async () => ({ status: 'ready', ready: { ipcHandlersRegistered: true } }),
@@ -302,65 +372,53 @@ export function createMockElectronAPIClient(): ElectronAPI {
       importData: () => Promise.resolve({ success: true }),
     },
     sessions: {
-      list: () =>
-        Promise.resolve({
+      list: () => {
+        const sessions = Array.from(mockSessions.values());
+        return Promise.resolve({
           success: true,
-          data: { sessions: [], total: 0, hasMore: false },
-        }),
-      create: () =>
-        Promise.resolve({
+          data: { sessions, total: sessions.length, hasMore: false },
+        });
+      },
+      create: (params: { title: string; threadId: string }) => {
+        const sessionId = params.threadId;
+        const session = {
+          id: sessionId,
+          title: params.title || 'New Chat',
+          status: 'active' as const,
+        };
+        mockSessions.set(sessionId, session);
+        return Promise.resolve({
           success: true,
-          data: { sessionId: 'test-session-id' },
-        }),
-      get: () =>
-        Promise.resolve({
+          data: session,
+        });
+      },
+      get: (id: string) => {
+        const session = mockSessions.get(id);
+        if (!session) {
+          return Promise.resolve({
+            success: false,
+            error: 'Session not found',
+          });
+        }
+        return Promise.resolve({
           success: true,
-          data: {
-            id: 'mock-session',
-            title: 'Mock Session',
-            topic: 'mock-topic',
-            difficulty: 'beginner',
-            status: 'active',
-            progress: 0,
-            agent: mockAgent,
-            lastActivity: new Date().toISOString(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            duration: '0m',
-            messageCount: 0,
-            conceptsExplored: [],
-            masteryLevel: 0,
-            tags: [],
-            summary: 'Mock session summary',
-          },
-        }),
-      update: () =>
-        Promise.resolve({
+          data: session,
+        });
+      },
+      update: (id: string, updates: { title?: string; status?: string }) => {
+        const session = mockSessions.get(id);
+        if (!session) {
+          return Promise.resolve({
+            success: false,
+            error: 'Session not found',
+          });
+        }
+        Object.assign(session, updates);
+        return Promise.resolve({
           success: true,
-          data: {
-            id: 'mock-session',
-            title: 'Mock Session',
-            topic: 'mock-topic',
-            difficulty: 'beginner',
-            status: 'active',
-            progress: 0,
-            agent: mockAgent,
-            lastActivity: new Date().toISOString(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            duration: '0m',
-            messageCount: 0,
-            conceptsExplored: [],
-            masteryLevel: 0,
-            tags: [],
-            summary: 'Mock session summary',
-          },
-        }),
-      delete: () => Promise.resolve({ success: true, data: { deleted: true } }),
-      saveMessage: () => Promise.resolve({ success: true, data: undefined }),
-      saveSessionWithMessages: () =>
-        Promise.resolve({ success: true, data: { sessionId: 'test-session-id' } }),
-      updateTitle: () => Promise.resolve({ success: true, data: undefined }),
+          data: session,
+        });
+      },
       getRecentSessions: () => Promise.resolve({ success: true, data: [] }),
       search: () =>
         Promise.resolve({
@@ -381,6 +439,32 @@ export function createMockElectronAPIClient(): ElectronAPI {
         }),
     },
     chat: {
+      generateTitle: (messageText: string) =>
+        Promise.resolve({
+          success: true,
+          data: messageText.split(' ').slice(0, 5).join(' ') || 'Mock Title',
+        }),
+      getMessages: (threadId: string, options?: { limit?: number; offset?: number }) => {
+        const messages = mockMessages.get(threadId) || [];
+        return Promise.resolve({
+          success: true,
+          data: messages,
+        });
+      },
+      saveCheckpoint: (threadId: string, checkpoint: { messages: Array<{ id: string; role: string; content: string }> }) => {
+        // Store messages for this thread
+        mockMessages.set(threadId, checkpoint.messages);
+        return Promise.resolve({
+          success: true,
+        });
+      },
+      getCheckpoint: (threadId: string) => {
+        const messages = mockMessages.get(threadId) || [];
+        return Promise.resolve({
+          success: true,
+          data: { messages },
+        });
+      },
       startConversation: () =>
         Promise.resolve({
           success: true,
@@ -543,7 +627,7 @@ export function createMockElectronAPIClient(): ElectronAPI {
       tryAgentFeature: () => Promise.resolve({ success: true, data: mockFeatureDemo }),
     },
     knowledge: {
-      ingestConcepts: (_params?: any) =>
+      ingestConcepts: (_params?: unknown) =>
         Promise.resolve({
           success: true,
           data: {

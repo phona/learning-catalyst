@@ -13,6 +13,7 @@ import { createChatGLMService } from './providers/chatglm-provider';
 import { createDeepSeekService } from './providers/deepseek-provider';
 import { createLocalModelService } from './providers/local-model-provider';
 import { createIPCError } from '@/shared/types/ipc-error';
+import type { LoggerService } from '@/main/services/core/logger/logger-service';
 
 export type AiService = {
   chatCompletion: (params: ChatCompletionParams) => Promise<ChatCompletionResult>;
@@ -22,7 +23,7 @@ export type AiService = {
 };
 
 type AiServiceDeps = {
-  loggerService: any;
+  loggerService: LoggerService;
   config: AppConfig;
 };
 

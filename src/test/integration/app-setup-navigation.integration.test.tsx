@@ -6,6 +6,7 @@ import { Providers, renderWithServices, screen, waitFor, fireEvent } from '@/tes
 import App from '@/renderer/App';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 import SetupScreen from '@/renderer/components/SetupScreen';
+import { ConfigChangedPayload, SystemReadyPayload } from '@/shared/types/electron-api';
 
 describe('Integration: setup + loading to chat navigation', () => {
   it('SetupScreen waits for config change + ready before navigating to chat', async () => {
@@ -15,13 +16,13 @@ describe('Integration: setup + loading to chat navigation', () => {
 
     electronAPI.awaitConfigChange = vi.fn(
       () =>
-        new Promise((resolve) => {
+        new Promise<ConfigChangedPayload>((resolve) => {
           resolveConfig = resolve;
         }),
     );
     electronAPI.awaitReady = vi.fn(
       () =>
-        new Promise((resolve) => {
+        new Promise<SystemReadyPayload>((resolve) => {
           resolveReady = resolve;
         }),
     );
@@ -75,7 +76,7 @@ describe('Integration: setup + loading to chat navigation', () => {
     const electronAPI = createMockElectronAPIClient();
     electronAPI.awaitReady = vi.fn().mockImplementation(
       () =>
-        new Promise((resolve) => {
+        new Promise<SystemReadyPayload>((resolve) => {
           setTimeout(
             () => resolve({ status: 'ready', ready: { ipcHandlersRegistered: true } }),
             20,

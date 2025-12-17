@@ -42,11 +42,6 @@ export const IPC_ERROR_CODES = {
     missingConfig: 'provider.config.missing',
     missingProviderType: 'provider.config.missing_provider_type',
   },
-  chat: {
-    unavailable: 'chat.unavailable',
-    cancelFailed: 'chat.cancel_failed',
-    practiceMissingOpportunity: 'chat.practice_missing_opportunity',
-  },
   learning: {
     pathNotFound: 'learning.path_not_found',
     pathError: 'learning.path_error',
@@ -57,6 +52,9 @@ export const IPC_ERROR_CODES = {
     completeFailed: 'learning.complete_failed',
     recentFailed: 'learning.recent_failed',
     searchFailed: 'learning.search_failed',
+  },
+  chat: {
+    generateTitleFailed: 'chat.generate_title_failed',
   },
   sessions: {
     createFailed: 'sessions.create_failed',

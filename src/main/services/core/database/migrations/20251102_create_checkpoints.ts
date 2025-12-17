@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Checkpoints table - stores main checkpoint data
     await db.schema
       .createTable('checkpoints')
@@ -79,7 +79,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     // Drop indexes first
     await db.schema.dropIndex('idx_checkpoint_blobs_task_id').execute();
     await db.schema.dropIndex('idx_checkpoint_blobs_checkpoint_id').execute();

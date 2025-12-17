@@ -1,7 +1,7 @@
 import React from 'react';
-import { ContentDiscovery } from './components/Discovery/ContentDiscovery';
+import { ContentDiscovery } from './ContentDiscovery';
 
-export const DiscoveryPage: React.FC = () => {
+export const DiscoveryPage: React.FC = (): React.ReactElement => {
   return (
     <div className="h-full flex">
       <div className="flex-1 overflow-auto">

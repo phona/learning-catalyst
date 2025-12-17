@@ -80,7 +80,7 @@ export const mockHandlers = {
   // Prevent console.error from failing tests
   suppressConsoleErrors: () => {
     originalConsoleError = console.error;
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       if (
         typeof args[0] === 'string' &&
         args[0].includes('Warning: ReactDOM.render is deprecated')

@@ -5,14 +5,8 @@
  * with explicit dependencies following the functional factory pattern
  */
 
-import type {
-  APIResponse,
-  ElectronAPI,
-  ChatAPI,
-  KnowledgeAPI,
-  LearningAPI,
-  AnalyticsAPI,
-} from '@/shared/types';
+import type { ElectronAPI, ChatAPI, KnowledgeAPI, LearningAPI, AnalyticsAPI } from '@/shared/types';
+import type { APIResponse, SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api/base';
 
 import type {
   ConversationDisplay,
@@ -28,8 +22,6 @@ import type {
 
 import type {
   SessionSearchQuery,
-  MemorySession,
-  ConversationMessage,
 } from '@/shared/types/session';
 import type { SessionCreateRequest, SessionUpdateRequest } from '@/renderer/types/session';
 
@@ -178,13 +170,17 @@ export function createTestServiceContainer(
           relativeTime: 'just now',
         } as MessageDisplay,
       }),
-      sendMessageStream: async (params: {
-        conversationId: string;
-        message: string;
-        attachments?: File[];
-      }): Promise<APIResponse<AsyncIterable<string>>> => ({
+      sendMessageStream: async (
+        params: {
+          conversationId: string;
+          message: string;
+          attachments?: File[];
+          includeStatus?: boolean;
+        },
+        onEvent: (evt: unknown) => void,
+      ): Promise<APIResponse<{ started: boolean }>> => ({
         success: true,
-        data: (async function* () {})(),
+        data: { started: true },
       }),
       getTypingIndicator: async (
         conversationId: string,
@@ -297,6 +293,48 @@ export function createTestServiceContainer(
           metadata: { concept: '', relatedTopics: [], prerequisites: [], nextSteps: [] },
         } as NaturalPracticeSuggestion,
       }),
+      searchPrompts: async (params: {
+        sessionId?: string;
+        role?: 'user' | 'assistant';
+        query?: string;
+        limit?: number;
+        offset?: number;
+      }): Promise<APIResponse<{
+        prompts: Array<{
+          id: string;
+          sessionId: string;
+          role: 'user' | 'assistant';
+          text: string;
+          createdAt: string;
+        }>;
+        pagination: {
+          total?: number;
+          limit: number;
+          offset: number;
+          hasMore: boolean;
+        };
+      }>> => ({
+        success: true,
+        data: {
+          prompts: [],
+          pagination: {
+            total: 0,
+            limit: params.limit || 50,
+            offset: params.offset || 0,
+            hasMore: false,
+          },
+        },
+      }),
+      resumeWorkflow: async (params: {
+        conversationId: string;
+        checkpointId: string;
+        questionId?: string;
+        action: 'answer' | 'skip' | 'resume_later';
+        input?: string;
+      }): Promise<APIResponse<{ success: boolean; resumed: boolean }>> => ({
+        success: true,
+        data: { success: true, resumed: true },
+      }),
     },
     sessions: {
       list: async (options?: { query?: string; limit?: number; offset?: number }) => ({
@@ -318,13 +356,6 @@ export function createTestServiceContainer(
       update: async (sessionId: string, updates: SessionUpdateRequest) => ({
         success: true,
         data: undefined,
-      }),
-      saveMessage: async (sessionId: string, message: ConversationMessage) => ({
-        success: true,
-      }),
-      saveSessionWithMessages: async (session: MemorySession, messages: ConversationMessage[]) => ({
-        success: true,
-        data: { sessionId: 'mock-session-id' },
       }),
       updateTitle: async (sessionId: string, title: string) => ({
         success: true,
@@ -717,6 +748,10 @@ export function createTestServiceContainer(
           },
         } as KnowledgeMapDisplay,
       }),
+      clearParsingJobs: async (): Promise<APIResponse<{ removed: number }>> => ({
+        success: true,
+        data: { removed: 0 },
+      }),
     },
     learning: {
       getLearningPath: async (sessionId: string): Promise<APIResponse<LearningPathDisplay>> => ({
@@ -780,7 +815,7 @@ export function createTestServiceContainer(
           progressByGoal: [],
         } as LearningProgressDisplay,
       }),
-      pauseSession: async (sessionId: string): Promise<APIResponse<{ resumeData: any }>> => ({
+      pauseSession: async (sessionId: string): Promise<APIResponse<{ resumeData: unknown }>> => ({
         success: true,
         data: { resumeData: {} },
       }),
@@ -868,6 +903,16 @@ export function createTestServiceContainer(
         } as SessionSearchResultDisplay,
       }),
     },
+    aiSDK: {
+      stream: (
+        params: {
+          messages: Array<{ role: string; content: string }>;
+          conversationId?: string;
+        },
+        callback: (data?: unknown) => void,
+        onComplete?: () => void,
+      ) => () => {},
+    },
     // Include other required API domains with minimal mocks
     agents: {} as any,
     content: {} as any,
@@ -889,6 +934,14 @@ export function createTestServiceContainer(
     getErrorBuffer: async () => [],
     clearErrorBuffer: async () => ({ cleared: true }),
     relaunchApp: async () => ({ relaunching: false }),
+    awaitReady: async (options?: { timeoutMs?: number }): Promise<SystemReadyPayload> => ({
+      status: 'ready' as const,
+      ready: { ipcHandlersRegistered: true },
+    }),
+    awaitConfigChange: async (options?: { timeoutMs?: number }): Promise<ConfigChangedPayload> => ({
+      changedKeys: [],
+      timestamp: Date.now(),
+    }),
     ...mockElectronAPI,
   };
 

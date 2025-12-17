@@ -22,7 +22,7 @@ export interface ServiceMockSuite {
   database: Kysely<Database>;
   logger: any;
   asyncLocalStorage: any;
-  config: any;
+  config: unknown;
 }
 
 /**
@@ -265,7 +265,7 @@ export abstract class MainProcessTestBase {
   /**
    * Helper to create mock function with performance tracking
    */
-  protected createTrackedMock<T extends (...args: any[]) => any>(
+  protected createTrackedMock<T extends (...args: unknown[]) => any>(
     name: string,
     implementation?: T,
   ): T & MockInstance {

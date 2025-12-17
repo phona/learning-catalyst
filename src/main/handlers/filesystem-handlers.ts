@@ -82,57 +82,27 @@ export const setupFilesystemHandlers = (
         return results;
       };
 
-      try {
-        const items = await visit(targetPath, 0);
-        return items;
-      } catch (error) {
-        logger.error('Failed to read directory', { targetPath, error });
-        throw error;
-      }
+      const items = await visit(targetPath, 0);
+      return items;
     },
   );
 
   ipcMainInstance.handle(
     'fs:read-file',
     async (_event, filePath: string, encoding: BufferEncoding = 'utf-8') => {
-      try {
-        return await fs.readFile(filePath, encoding);
-      } catch (error) {
-        logger.error('Failed to read file', { filePath, error });
-        throw error;
-      }
+      return await fs.readFile(filePath, encoding);
     },
   );
 
   ipcMainInstance.handle(
     'fs:write-file',
     async (_event, filePath: string, content: string, encoding: BufferEncoding = 'utf-8') => {
-      try {
-        await fs.writeFile(filePath, content, { encoding });
-      } catch (error) {
-        logger.error('Failed to write file', { filePath, error });
-        throw error;
-      }
+      await fs.writeFile(filePath, content, { encoding });
     },
   );
 
   ipcMainInstance.handle('fs:exists-file', async (_event, filePath: string) => {
-    try {
-      await fs.access(filePath);
-      return true;
-    } catch {
-      return false;
-    }
-  });
-
-  ipcMainInstance.handle('dialog:show-open-dialog', async (_event, options?: OpenDialogOptions) => {
-    logger.info('Opening file dialog');
-    return dialog.showOpenDialog(options ?? ({} as OpenDialogOptions));
-  });
-
-  ipcMainInstance.handle('dialog:show-save-dialog', async (_event, options?: SaveDialogOptions) => {
-    logger.info('Opening save dialog');
-    return dialog.showSaveDialog(options ?? ({} as SaveDialogOptions));
+    await fs.access(filePath);
   });
 
   logger.info('Filesystem handlers registered');

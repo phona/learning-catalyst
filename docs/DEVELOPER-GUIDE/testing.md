@@ -414,6 +414,281 @@ expect(res.data?.[0].id).toBe('s1');
 - Avoid global state; use test setups under `src/test/setup/*` to configure environment.
 - Keep side-effects behind interfaces to simplify mocking (see `docs/DEVELOPER-GUIDE/architecture.md`).
 
+## LangGraph Workflow Node Testing Best Practices
+
+The Learning Catalyst uses LangGraph for AI workflow orchestration. This section documents proven patterns for testing workflow nodes effectively.
+
+### Test Organization
+
+- **Location**: Node tests live in `src/main/services/domain/workflow/nodes/__tests__/`
+- **Pattern**: `{node-name}-node.test.ts` (e.g., `assess-node.test.ts`, `evaluate-node.test.ts`)
+- **Rationale**: Keep node tests close to implementation for easy navigation and maintenance
+
+### Core Testing Principles
+
+1. **Dependency Injection (DI) Pattern**
+   - Only mock **stateful dependencies** (e.g., LLM, agent manager, database)
+   - Use **real packages** for stateless utilities (e.g., ChatPromptTemplate, StructuredOutputParser)
+   - Pass mocked dependencies via factory functions
+
+2. **LangChain Chain Testing**
+   - Nodes using `.pipe()` chains need `RunnableLambda` with correct constructor signature
+   - Return `AIMessage` with JSON string content for structured output parsers
+
+3. **Chunk Emitter Testing**
+   - Nodes using streaming need `LangGraphRunnableConfig` with `writer` function
+   - Provide minimal config: `{ writer: vi.fn() }` (mock writer only)
+
+### Example 1: Testing a Node with .pipe() Chain (titleGenerateNode)
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { titleGenerateNode } from '../titleGenerate';
+import { RunnableLambda } from '@langchain/core/runnables';
+import { AIMessage } from '@langchain/core/messages';
+
+describe('Title Generation Worknode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should generate title from user message', async () => {
+    // Use RunnableLambda with correct constructor signature for .pipe() chains
+    const mockLlm = new RunnableLambda({
+      func: async (_input) => {
+        // Parser expects JSON matching Zod schema
+        return new AIMessage(JSON.stringify({ title: 'Test Title' }));
+      },
+    });
+
+    const mockDeps = {
+      providerFactory: {
+        getModel: vi.fn().mockResolvedValue(mockLlm),
+      },
+    } as any;
+
+    const node = titleGenerateNode(mockDeps);
+
+    const state = {
+      messages: [{ role: 'user', content: 'Test message' }],
+      sessionMetadata: { title: 'New Chat' },
+    } as any;
+
+    const result = await node(state);
+
+    expect(result.sessionMetadata.title).toBe('Test Title');
+    expect(mockDeps.providerFactory.getModel).toHaveBeenCalled();
+  });
+});
+```
+
+**Key Points:**
+- ✅ Use `RunnableLambda` with `{ func: ... }` constructor (not bare function)
+- ✅ Return `AIMessage(JSON.stringify({...}))` for structured output
+- ✅ Mock only the LLM via `providerFactory.getModel()`
+- ✅ Use real `ChatPromptTemplate` and `StructuredOutputParser` (not mocked)
+
+### Example 2: Testing a Node with Chunk Emitter (planNode)
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { planNode } from '../plan';
+import { RunnableLambda } from '@langchain/core/runnables';
+import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+// DI pattern - only mock writer, use real chunk-emitter
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(), // Mock writer function only
+} as any);
+
+describe('plan node', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('generates session blueprint based on assessment confidence', async () => {
+    const mockBlueprint = {
+      learnerProfile: {
+        topic: 'JavaScript Basics',
+        level: 'intermediate',
+        timeAvailable: 60,
+      },
+      goal: {
+        userGoal: 'Master JavaScript',
+        successCriteria: ['Understand concepts'],
+      },
+      session: {
+        primaryConcept: 'JavaScript',
+        practiceBlocks: [
+          { type: 'retrieval', prompt: 'Test', minutes: 10, scoring: 'manual' },
+          { type: 'apply', prompt: 'Test', minutes: 10, scoring: 'auto' },
+          { type: 'teach_back', prompt: 'Test', minutes: 10, scoring: 'manual' },
+          { type: 'open_question', prompt: 'Test', minutes: 10, scoring: 'manual' },
+        ],
+        checks: { targetRetrievalScore: 80 },
+      },
+      tacticsApplied: {
+        retrieval: true,
+        feynmanTeachBack: true,
+        spaced: false,
+      },
+    };
+
+    const mockLlm = new RunnableLambda({
+      func: async (_input) => {
+        return new AIMessage(JSON.stringify(mockBlueprint));
+      },
+    });
+
+    const mockDeps = {
+      providerFactory: {
+        getModel: vi.fn().mockResolvedValue(mockLlm),
+      },
+      loggerService: {
+        warn: vi.fn(),
+      },
+    } as any;
+
+    const node = planNode(mockDeps);
+
+    const state = {
+      topic: 'JavaScript Basics',
+      confidence: 0.6,
+      gaps: ['Array methods'],
+      messages: [],
+      sessionMetadata: {},
+    } as any;
+
+    // Provide config with writer function for chunk-emitter
+    const config = createMockConfig();
+    const result = await node(state, config);
+
+    expect(result.sessionBlueprint).toBeDefined();
+    expect(result.sessionBlueprint.learnerProfile.level).toBe('intermediate');
+  });
+});
+```
+
+**Key Points:**
+- ✅ Provide `LangGraphRunnableConfig` with `writer: vi.fn()`
+- ✅ Use **real chunk-emitter** (don't mock it with vi.mock)
+- ✅ Only mock the **stateful writer function**
+- ✅ Follows DI principle: mock stateful, use real stateless
+
+### Example 3: Testing a Node with Direct LLM Invocation (assessNode)
+
+```typescript
+import { describe, it, expect, vi } from 'vitest';
+import { assessNode } from '../assess';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
+
+const makeDeps = (score: string = 'Score: 85%') => {
+  const knowledgeService = {
+    searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
+  } as any;
+
+  const learningService = {
+    getPracticeHistory: vi.fn(),
+    listMessages: vi.fn(),
+  } as any;
+
+  const providerFactory = {
+    getModel: vi.fn(async () => ({
+      invoke: vi.fn().mockResolvedValue({ content: score }) // Direct invoke, not .pipe()
+    }))
+  } as any;
+
+  return { knowledgeService, learningService, providerFactory };
+};
+
+describe('assess node', () => {
+  it('calculates confidence based on practice history', async () => {
+    const { learningService } = makeDeps();
+    const now = new Date().toISOString();
+
+    learningService.getPracticeHistory.mockResolvedValue([
+      { result: 'pass', rubricScores: { retrieval: 90 }, timestamp: now },
+    ]);
+
+    const deps = {
+      knowledgeService: { searchKnowledge: vi.fn().mockResolvedValue({ results: [] }) },
+      learningService,
+      providerFactory: {
+        getModel: vi.fn(async () => ({
+          invoke: vi.fn().mockResolvedValue({ content: 'Score: 85%' })
+        }))
+      },
+    } as any;
+
+    const node = assessNode(deps);
+    const state = { topic: 'Algebra', messages: [] } as any;
+
+    const result = await node(state, createMockConfig());
+    expect(result.confidence).toBeGreaterThanOrEqual(0.75);
+  });
+});
+```
+
+**Key Points:**
+- ✅ Use plain mock object for LLM when using direct `invoke()` (not `.pipe()`)
+- ✅ Pattern: `{ invoke: vi.fn().mockResolvedValue({ content: '...' }) }`
+- ✅ Works because node calls `model.invoke()` directly, not through chain
+
+### When to Use Which Pattern
+
+| Node Pattern | Test Approach | Example |
+| --- | --- | --- |
+| `.pipe()` chain: `template.pipe(llm).pipe(parser)` | `RunnableLambda` with `{ func: ... }` returning `AIMessage(JSON.stringify(...))` | titleGenerateNode, planNode |
+| Direct LLM: `model.invoke()` | Plain mock: `{ invoke: vi.fn().mockResolvedValue({...}) }` | assessNode, evaluateNode |
+| Uses chunk-emitter | Provide config: `{ writer: vi.fn() }` | planNode, assessNode, evaluateNode |
+| Stateless utilities | Use **real packages** (don't mock) | ChatPromptTemplate, StructuredOutputParser, chunk-emitter |
+
+### Common Patterns Reference
+
+```typescript
+// 1. Create mock config for chunk-emitter
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(),
+} as any);
+
+// 2. Mock LLM with .pipe() support (for chain nodes)
+const mockLlm = new RunnableLambda({
+  func: async (input) => {
+    return new AIMessage(JSON.stringify({ data: 'value' }));
+  },
+});
+
+// 3. Mock LLM with direct invoke (for simple nodes)
+const mockLlm = {
+  invoke: vi.fn().mockResolvedValue({ content: 'response' }),
+};
+
+// 4. Factory for common dependencies
+const makeDeps = () => ({
+  providerFactory: {
+    getModel: vi.fn(async () => mockLlm),
+  },
+  knowledgeService: {
+    searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
+  },
+  // ... other dependencies
+});
+```
+
+### Testing Checklist for Workflow Nodes
+
+- [ ] Is the node's LLM mocked correctly? (RunnableLambda vs plain mock)
+- [ ] Does the test provide `LangGraphRunnableConfig` with `writer` if node uses chunk-emitter?
+- [ ] Are stateless utilities tested with **real packages**, not mocks?
+- [ ] Does the test file live in `src/main/services/domain/workflow/nodes/__tests__/`?
+- [ ] Are only stateful dependencies mocked?
+- [ ] Does the test verify the node's **output state**, not just internal behavior?
+
 ## AI-Assisted Testing
 
 - Use consistent Case IDs `[TC-XXX]` and structured tables so AI tools can generate/augment cases.
@@ -432,5 +707,6 @@ expect(res.data?.[0].id).toBe('s1');
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.2.0 | 2025-12-16 | Added LangGraph Workflow Node Testing Best Practices section with DI pattern, RunnableLambda for .pipe() chains, chunk-emitter testing, and comprehensive code examples from actual implementations. |
 | 1.1.1 | 2025-11-24 | Added fake IPC E2E guidance and corrected contract example. |
 | 1.1.0 | 2025-11-24 | Added comprehensive test strategy, templates, execution, and metrics; AI-friendly and design-for-testability guidance; expanded troubleshooting and references. |

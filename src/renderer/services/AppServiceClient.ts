@@ -33,7 +33,7 @@ export function setupMenuHandlers(handlers: MenuHandlers): void {
     return;
   }
 
-  window.electronAPI.onMenuAction((action: string, data?: any) => {
+  window.electronAPI.onMenuAction((action: string, data?: unknown) => {
     const handler = handlers[action];
     if (handler) {
       handler();
@@ -160,7 +160,7 @@ export async function existsFile(path: string): Promise<boolean> {
 /**
  * Validate configuration
  */
-export function validateConfig(config: any): config is AppConfig {
+export function validateConfig(config: unknown): config is AppConfig {
   if (!config || typeof config !== 'object') {
     return false;
   }

@@ -21,7 +21,7 @@ describe('IPC contract skeleton (no real Electron)', () => {
     });
 
     const chunks: string[] = [];
-    bus.ipcRenderer.on(IPC_EVENTS.CHAT_STREAM_CHUNK, (_event, data: any) => {
+    bus.ipcRenderer.on(IPC_EVENTS.CHAT_STREAM_CHUNK, (_event, data?: unknown) => {
       chunks.push(data?.content ?? '');
     });
 

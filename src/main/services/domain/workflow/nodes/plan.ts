@@ -54,6 +54,7 @@
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StructuredOutputParser } from '@langchain/core/output_parsers';
+import { ChatOpenAI } from '@langchain/openai';
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
@@ -62,19 +63,25 @@ import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
 import { NodeName } from '../types';
 
 /**
- * Single-session learning blueprint schemas
+ * Session Blueprint Schemas and Types
  */
-const LearnerLevelSchema = z.enum(['novice', 'intermediate', 'advanced']);
 
-const PracticeBlockSchema = z.object({
+// Learner level enum
+export const LearnerLevelSchema = z.enum(['novice', 'intermediate', 'advanced']);
+export type LearnerLevel = z.infer<typeof LearnerLevelSchema>;
+
+// Practice block schema
+export const PracticeBlockSchema = z.object({
   type: z.enum(['retrieval', 'apply', 'teach_back', 'open_question']),
   prompt: z.string(),
   minutes: z.number().int().positive(),
   expectedAnswer: z.string().optional(),
   scoring: z.enum(['auto', 'manual', 'hybrid']),
 });
+export type PracticeBlock = z.infer<typeof PracticeBlockSchema>;
 
-const SessionBlueprintSchema = z
+// Main session blueprint schema
+export const SessionBlueprintSchema = z
   .object({
     learnerProfile: z.object({
       topic: z.string(),
@@ -113,35 +120,30 @@ const SessionBlueprintSchema = z
       })
       .optional(),
   })
-  .strict();
-
-// Validation function to be called after parsing
-function validateSessionBlueprint(value: unknown) {
-  const parsed = value as SessionBlueprint;
-
-  const requiredTypes = ['retrieval', 'apply', 'teach_back', 'open_question'] as const;
-  const present = new Set(parsed.session.practiceBlocks.map((b) => b.type));
-
-  for (const t of requiredTypes) {
-    if (!present.has(t)) {
-      throw new Error(`practiceBlocks must include at least one "${t}" block`);
+  .strict()
+  .superRefine((value, ctx) => {
+    const requiredTypes = ['retrieval', 'apply', 'teach_back', 'open_question'] as const;
+    const present = new Set(value.session.practiceBlocks.map((b) => b.type));
+    for (const t of requiredTypes) {
+      if (!present.has(t)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `practiceBlocks must include at least one "${t}" block`,
+          path: ['session', 'practiceBlocks'],
+        });
+      }
     }
-  }
-
-  const totalMinutes = parsed.session.practiceBlocks.reduce((sum, b) => sum + b.minutes, 0);
-  if (totalMinutes > parsed.learnerProfile.timeAvailable) {
-    throw new Error('Total practice minutes exceed timeAvailable');
-  }
-
-  return parsed;
-}
+    const totalMinutes = value.session.practiceBlocks.reduce((sum, b) => sum + b.minutes, 0);
+    if (totalMinutes > value.learnerProfile.timeAvailable) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Total practice minutes exceed timeAvailable',
+        path: ['session', 'practiceBlocks'],
+      });
+    }
+  });
 
 export type SessionBlueprint = z.infer<typeof SessionBlueprintSchema>;
-export type LearnerLevel = z.infer<typeof LearnerLevelSchema>;
-export type PracticeBlock = z.infer<typeof PracticeBlockSchema>;
-
-// Re-export for backward compatibility with tools
-export { PracticeBlockSchema, SessionBlueprintSchema };
 
 /**
  * Confidence thresholds for determining learner level
@@ -266,8 +268,8 @@ export const planNode = (deps: WorkflowDeps) => async (
     throw new Error('Failed to generate valid session blueprint');
   }
 
-  // Additional validation for business rules
-  const blueprint = validateSessionBlueprint(parsed.data);
+  // Additional validation is handled by the schema's superRefine
+  const blueprint = parsed.data;
 
   // Create the message content
   const content = `Based on your assessment (${Math.round(confidence * 100)}% confidence), I've created a personalized learning plan for "${blueprint.learnerProfile.topic}". The session will focus on ${blueprint.session.primaryConcept} with ${blueprint.session.practiceBlocks.length} practice activities.`;

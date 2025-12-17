@@ -4,7 +4,6 @@ import { mkdir } from 'fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setupAllIpcHandlers } from './handlers';
-import { setupSettingsHandlers } from './handlers/settings-handlers';
 import {
   serializeIPCError,
   applyStructuredErrorHandling,
@@ -23,7 +22,7 @@ import { createPracticeService } from '@/main/services/domain/practice/practice-
 import { createContentService } from '@/main/services/domain/content/content-service';
 import { createAnalyticsService } from '@/main/services/domain/analytics/analytics-service';
 import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager';
-import { createAgentManager, type AgentManager } from '@/main/services/agent/agent-manager';
+import { createAgentManager } from '@/main/services/agent/agent-manager';
 import { createProviderFactory } from '@/main/services/agent/provider-factory';
 import { IPC_ERROR_CHANNEL, MAX_ERROR_BUFFER_SIZE } from '@/shared/types/ipc-error';
 import { createVectorDatabase } from './services/domain/knowledge/vector/vector-database';
@@ -31,6 +30,7 @@ import { createQdrantProcessService } from './services/core/database/qdrant-proc
 import { createVectorStore } from './services/core/database/vector-store';
 
 import type { IPCErrorPayload, BufferedIPCError } from '@/shared/types/ipc-error';
+import type { SystemReadyPayload } from '@/shared/types/electron-api/base';
 
 // Import database from existing implementation
 import {
@@ -38,6 +38,8 @@ import {
   runMigrationsAtPath,
 } from './services/core/database/kysely-database';
 import { createConfigStorage } from './services/core/config/storage';
+import { createChatService } from './services/domain/chat';
+import { SQLiteCheckpointSaver } from './services/core/checkpoints';
 
 // Memory debugging utility for development
 // import { startMemoryDebug, cleanupMemoryDebug } from '../shared/utils/memory-debug';
@@ -79,7 +81,7 @@ try {
 let win: BrowserWindow | null = null;
 let isShuttingDown = false;
 let readySnapshotSent = false;
-let lastSystemReadyPayload: any | null = null;
+let lastSystemReadyPayload: SystemReadyPayload | null = null;
 const pendingIpcErrors: IPCErrorPayload[] = [];
 const globalErrorBuffer: BufferedIPCError[] = [];
 
@@ -310,7 +312,6 @@ async function createWindow(): Promise<void> {
     });
 
     applyStructuredErrorHandling();
-    setupSettingsHandlers({ configService });
 
     const aiServiceManager = createAiServiceManager({
       loggerService,
@@ -323,10 +324,6 @@ async function createWindow(): Promise<void> {
     }
     const aiService = aiServiceManager;
 
-    const learningService = createLearningService({
-      db: database,
-      loggerService,
-    });
 
     // Create and initialize Qdrant process service (infrastructure layer)
     const qdrantDataPath = path.join(learningCatalystPath, 'qdrant');
@@ -372,6 +369,11 @@ async function createWindow(): Promise<void> {
 
     const contentService = createContentService({ loggerService, aiService });
 
+    const learningService = createLearningService({
+      db: database,
+      loggerService,
+    });
+
     const agentManager = await createAgentManager({
       aiService,
       analyticsService,
@@ -381,13 +383,20 @@ async function createWindow(): Promise<void> {
       configService,
     });
 
-    const learningAgent = agentManager.getAgent('learning');
-    await learningService.rebuild(learningAgent);
     // const practiceAgent - REMOVED (practice agent deleted, migrated to workflow node)
     const practiceService = createPracticeService({
       loggerService,
       knowledgeService,
       db: database,
+    });
+
+    // Create checkpoint saver for chat service
+    const checkpointSaver = new SQLiteCheckpointSaver(database);
+
+    const chatService = createChatService({
+      loggerService,
+      providerFactory,
+      checkpointSaver,
     });
 
     console.log('[Main] setupAllIpcHandlers begin', { workspacePath });
@@ -404,6 +413,8 @@ async function createWindow(): Promise<void> {
       loggerService,
       configService,
       providerFactory,
+      chatService,
+      checkpointSaver,
     });
     console.log('[Main] setupAllIpcHandlers complete');
 
@@ -431,7 +442,7 @@ async function createWindow(): Promise<void> {
 
 function sendReadySnapshot({ error, startMs }: { error?: unknown; startMs?: number }) {
   if (!win || !win.webContents || win.webContents.isDestroyed()) return;
-  const payload: any = {
+  const payload: SystemReadyPayload & { error?: { message: string; code?: string; type?: string }; ready: SystemReadyPayload['ready'] & { startMs?: number } } = {
     status: 'ready',
     ready: { ipcHandlersRegistered: true },
   };
@@ -441,8 +452,8 @@ function sendReadySnapshot({ error, startMs }: { error?: unknown; startMs?: numb
   if (error) {
     payload.error = {
       message: error instanceof Error ? error.message : String(error),
-      code: (error as any)?.code,
-      type: (error as any)?.type,
+      code: (error as { code?: string })?.code,
+      type: (error as { type?: string })?.type,
     };
   }
   const elapsed = startMs ? Date.now() - startMs : undefined;

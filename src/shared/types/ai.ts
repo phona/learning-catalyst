@@ -37,8 +37,8 @@ export interface ToolDefinition {
           type: string;
           description?: string;
           enum?: string[];
-          items?: Record<string, any>;
-          properties?: Record<string, any>;
+          items?: Record<string, unknown>;
+          properties?: Record<string, unknown>;
           required?: string[];
         }
       >;

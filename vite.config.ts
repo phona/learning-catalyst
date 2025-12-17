@@ -199,19 +199,14 @@ export default defineConfig(({ command }) => {
           if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
           warn(warning);
         },
-        // Memory optimization for build chunks
-        ...(isServe && {
-          output: {
-            // Split code into smaller chunks to reduce memory usage
-            manualChunks: {
-              vendor: ['react', 'react-dom'],
-              state: ['zustand'],
-              electron: ['electron'],
-            },
-            // Limit chunk sizes in development
-            maxChunkSize: 500000, // 500KB
+        output: {
+          // Code splitting for both development and production
+          manualChunks: {
+            // Vendor chunks only (non-external dependencies)
+            vendor: ['react', 'react-dom'],
+            state: ['zustand'],
           },
-        }),
+        },
       },
       // Development-specific build optimizations
       ...(isServe && {

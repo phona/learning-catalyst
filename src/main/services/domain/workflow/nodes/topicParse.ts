@@ -13,6 +13,9 @@ export const topicParseNode =
     const toolCallId = generateId(nodeName);
     emitter.toolInputStart(toolCallId, nodeName);
 
+    // Extract threadId from config (passed from Assistant UI)
+    const threadId = config.configurable?.thread_id;
+
     const messages = state.messages ?? [];
     const lastUserMsg = [...messages].reverse().find((m) => m instanceof HumanMessage);
     const raw = lastUserMsg?.content ?? state.topic ?? '';
@@ -24,6 +27,7 @@ export const topicParseNode =
     emitter.toolInputAvailable(toolCallId, nodeName, {
       prompt,
       hasTopic: !!prompt,
+      threadId,
     });
 
     if (!prompt) {
@@ -80,5 +84,10 @@ export const topicParseNode =
     return {
       messages: [new AIMessage(msgText)],
       topic: top.name,
+      sessionMetadata: {
+        ...state.sessionMetadata,
+        threadId,
+        title: state.sessionMetadata?.title || 'New Chat',
+      },
     };
   };

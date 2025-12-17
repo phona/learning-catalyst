@@ -366,7 +366,7 @@ export const mockKyselyDatabase = {
 
   // Mock insert operations
   insertInto: vi.fn().mockImplementation((table: string) => ({
-    values: vi.fn().mockImplementation((data: any) => ({
+    values: vi.fn().mockImplementation((data?: unknown) => ({
       execute: vi.fn().mockImplementation(async () => {
         return mockDatabase.executeQuery(`INSERT INTO ${table} ...`, data);
       }),
@@ -376,7 +376,7 @@ export const mockKyselyDatabase = {
 
   // Mock update operations
   updateTable: vi.fn().mockImplementation((table: string) => ({
-    set: vi.fn().mockImplementation((data: any) => ({
+    set: vi.fn().mockImplementation((data?: unknown) => ({
       where: vi.fn().mockImplementation((condition: any) => ({
         execute: vi.fn().mockImplementation(async () => {
           return mockDatabase.executeQuery(`UPDATE ${table} SET ...`, data);
@@ -519,7 +519,7 @@ export const mockMigrations = {
 export const mockDatabaseFactory = {
   instances: new Map(),
 
-  create: vi.fn().mockImplementation(async (config: any) => {
+  create: vi.fn().mockImplementation(async (config: unknown) => {
     const instanceId = config.filename || 'default';
 
     if (mockDatabaseFactory.instances.has(instanceId)) {

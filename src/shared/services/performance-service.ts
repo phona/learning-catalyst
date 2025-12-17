@@ -122,7 +122,7 @@ export class ProductionPerformanceService {
   /**
    * Measure and record performance for operations
    */
-  async measureOperation<T>(operation: string, fn: () => Promise<T>, metadata?: any): Promise<T> {
+  async measureOperation<T>(operation: string, fn: () => Promise<T>, metadata?: unknown): Promise<T> {
     const result = await this.monitor.measureOperation(operation, fn, metadata);
 
     // Record in performance reporter
@@ -138,7 +138,7 @@ export class ProductionPerformanceService {
   /**
    * Record a performance metric (public API)
    */
-  recordMetric(name: string, duration: number, metadata?: any): void {
+  recordMetric(name: string, duration: number, metadata?: unknown): void {
     // Use the underlying monitor
     this.monitor.recordMetric(name, duration, metadata);
 
@@ -164,7 +164,7 @@ export class ProductionPerformanceService {
   /**
    * Memoize expensive operations with automatic caching
    */
-  memoizeOperation<T extends (...args: any[]) => Promise<any>>(
+  memoizeOperation<T extends (...args: unknown[]) => Promise<any>>(
     func: T,
     cacheKey: string,
     options?: {
@@ -182,7 +182,7 @@ export class ProductionPerformanceService {
   /**
    * Debounced operations for UI optimization
    */
-  createDebouncedOperation<T extends (...args: any[]) => any>(
+  createDebouncedOperation<T extends (...args: unknown[]) => any>(
     func: T,
     wait: number,
     options?: {
@@ -198,7 +198,7 @@ export class ProductionPerformanceService {
   // Private Helper Methods
   // ============================================================================
 
-  private checkPerformanceAlerts(metric: any): void {
+  private checkPerformanceAlerts(metric: unknown): void {
     const threshold = this.alertThresholds.get(metric.operation);
     if (threshold && metric.duration > threshold) {
       this.events.emit('operation:slow' as any, {
@@ -209,7 +209,7 @@ export class ProductionPerformanceService {
     }
   }
 
-  private handlePerformanceReport(reports: any[]): void {
+  private handlePerformanceReport(reports: unknown[]): void {
     // Aggregate and send performance reports
     // In production, this would send to monitoring service
     console.debug('[Performance] Handling performance reports:', reports.length);

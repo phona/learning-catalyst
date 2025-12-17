@@ -71,7 +71,7 @@ export interface AIConfig {
   };
   metadata?: {
     modelTests?: ModelTestResult[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
   defaultProvider?: string;
   defaultModel?: string;
@@ -201,7 +201,7 @@ export interface ModelValidationResult {
 export interface ValidationError {
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ValidationResult {
@@ -219,7 +219,7 @@ export interface ProviderValidationResult {
 export interface ConfigMigration {
   version: string;
   description: string;
-  migrate: (config: any) => any;
+  migrate: (config: unknown) => unknown;
 }
 
 // Default provider configurations for ModelFactory compatibility
@@ -317,7 +317,7 @@ export const AVAILABLE_PROVIDERS: ProviderConfig[] = [
 // Configuration schema for validation
 export interface ConfigSchema {
   type: 'object';
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   required: string[];
   additionalProperties: boolean;
 }
@@ -367,7 +367,7 @@ export interface ConfigPreset {
 // Configuration events
 export interface ConfigChangeEvent {
   key: string;
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   timestamp: Date;
 }

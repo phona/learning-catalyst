@@ -15,7 +15,11 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_EVENTS } from '@/shared/types/ipc';
-import type { SystemReadyPayload, ConfigChangedPayload, AISDKAPI } from '@/shared/types/electron-api';
+import type {
+  SystemReadyPayload,
+  ConfigChangedPayload,
+  AISDKAPI,
+} from '@/shared/types/electron-api';
 import type { IpcRendererEvent } from 'electron';
 import {
   ElectronAPI,
@@ -39,16 +43,31 @@ import { IPC_ERROR_CHANNEL } from '@/shared/types/ipc-error';
 import type { AppConfig } from '@/shared/types/config';
 import { Chan } from 'ts-chan';
 import type { Message as AIMessage } from '@/shared/types/ai';
+import { SessionSearchQuery } from '@/shared/types';
 
 // ============================================================================
 // 1. Chat & Conversation API
 // ============================================================================
 
 /**
- * Chat API (legacy)
- * Replaced by aiSDK.stream; kept as stub for backward compatibility.
+ * Chat API
+ *
+ * Provides methods for generating session titles and streaming AI conversations.
  */
-const chatAPI = {} as ChatAPI;
+const chatAPI: ChatAPI = {
+  /**
+   * Generate session title asynchronously with AI
+   * Updates the database with the generated title
+   */
+  generateTitle: async (messageText: string) => 
+    ipcRenderer.invoke('chat:generate-title', messageText),
+
+  /**
+   * Get complete message history for a chat session
+   */
+  getMessages: async (threadId: string, options?: { limit?: number; offset?: number }) =>
+    ipcRenderer.invoke('chat:get-messages', threadId, options),
+};
 
 /**
  * AI SDK bridge for Assistant UI
@@ -60,12 +79,13 @@ const aiSDK: AISDKAPI = {
       messages: Array<Pick<AIMessage, 'role' | 'content'>>;
       conversationId?: string;
     },
-    callback: (data: any) => void,
+    callback: (data: unknown) => void,
     onComplete?: () => void,
   ) => {
     const { port1, port2 } = new MessageChannel();
     const streamId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+    console.log('[Preload] DEBUG - params:', JSON.stringify(params, null, 2));
     console.log('[Preload] Creating stream interface:', streamId);
 
     ipcRenderer.postMessage('chat:start-stream', { streamId, ...params }, [port2]);
@@ -130,7 +150,7 @@ const learningAPI: LearningAPI = {
    * Pauses an active learning session
    * Saves current state and stops progress tracking
    * @param sessionId - Active learning session ID
-   * @returns Promise<{ success: boolean; resumeData: any }>
+   * @returns Promise<{ success: boolean; resumeData: unknown }>
    */
   pauseSession: (sessionId: string) => ipcRenderer.invoke('learning:pause-session', sessionId),
 
@@ -157,7 +177,8 @@ const learningAPI: LearningAPI = {
    * @param options - Optional filter and limit options
    * @returns Promise<SessionDisplay[]> - Array of recent sessions
    */
-  getRecentSessions: (options?: any) => ipcRenderer.invoke('learning:get-recent-sessions', options),
+  getRecentSessions: (options?: unknown) =>
+    ipcRenderer.invoke('learning:get-recent-sessions', options),
 
   /**
    * Searches learning sessions with advanced filters
@@ -166,7 +187,7 @@ const learningAPI: LearningAPI = {
    * @param filters - Filter options
    * @returns Promise<SessionSearchResultDisplay> - Search results with pagination
    */
-  searchSessions: (query: string, filters?: any) =>
+  searchSessions: (query: string, filters?: unknown) =>
     ipcRenderer.invoke('learning:search-sessions', query, filters),
 };
 
@@ -319,7 +340,7 @@ const analyticsAPI: AnalyticsAPI = {
    * @param session - Session data to track
    * @returns Promise<string> - Session ID
    */
-  trackSession: (session: any) => ipcRenderer.invoke('analytics:track-session', session),
+  trackSession: (session: unknown) => ipcRenderer.invoke('analytics:track-session', session),
 
   /**
    * Updates concept progress
@@ -328,7 +349,7 @@ const analyticsAPI: AnalyticsAPI = {
    * @param update - Progress update data
    * @returns Promise<void> - Update confirmation
    */
-  updateConceptProgress: (conceptId: string, update: any) =>
+  updateConceptProgress: (conceptId: string, update: unknown) =>
     ipcRenderer.invoke('analytics:update-concept-progress', conceptId, update),
 
   exportData: (params: { format: 'json' | 'csv'; include?: string[] }) =>
@@ -464,7 +485,7 @@ const agentsAPI: AgentsAPI = {
    * @param params.style - Response style configuration
    * @returns Promise<{ success: boolean; appliedSettings: ResponseStyleSettings }>
    */
-  setResponseStyle: (params: { sessionId: string; style: any }) =>
+  setResponseStyle: (params: { sessionId: string; style: unknown }) =>
     ipcRenderer.invoke('agents:set-response-style', params),
 
   /**
@@ -554,19 +575,18 @@ const contentAPI: ContentAPI = {
 // ============================================================================
 
 const sessionsAPI: SessionsAPI = {
-  list: (options) => ipcRenderer.invoke('sessions:list', options),
-  create: (payload) => ipcRenderer.invoke('sessions:create', payload),
+  list: (options: unknown) => ipcRenderer.invoke('sessions:list', options),
+  create: (payload: unknown) => ipcRenderer.invoke('sessions:create', payload),
   get: (sessionId: string) => ipcRenderer.invoke('sessions:get', sessionId),
-  update: (sessionId, updates) => ipcRenderer.invoke('sessions:update', sessionId, updates),
+  update: (sessionId: string, updates: unknown) =>
+    ipcRenderer.invoke('sessions:update', sessionId, updates),
   delete: (sessionId: string) => ipcRenderer.invoke('sessions:delete', sessionId),
-  saveMessage: (sessionId, message) =>
-    ipcRenderer.invoke('sessions:save-message', sessionId, message),
-  saveSessionWithMessages: (session, messages) =>
-    ipcRenderer.invoke('sessions:save-session-with-messages', session, messages),
-  updateTitle: (sessionId, title) => ipcRenderer.invoke('sessions:update-title', sessionId, title),
+  updateTitle: (sessionId: string, title: string) =>
+    ipcRenderer.invoke('sessions:update-title', sessionId, title),
   // Use learning:get-recent-sessions (the registered handler) for recent sessions
-  getRecentSessions: (options) => ipcRenderer.invoke('learning:get-recent-sessions', options),
-  search: (query) => ipcRenderer.invoke('sessions:search', query),
+  getRecentSessions: (options: unknown) =>
+    ipcRenderer.invoke('learning:get-recent-sessions', options),
+  search: (query: SessionSearchQuery) => ipcRenderer.invoke('sessions:search', query),
   getStatistics: () => ipcRenderer.invoke('sessions:get-statistics'),
 };
 
@@ -575,19 +595,21 @@ const sessionsAPI: SessionsAPI = {
 // ============================================================================
 
 const catalystAPI: CatalystAPI = {
-  executeAgent: (params) => ipcRenderer.invoke('catalyst:execute-agent', params),
-  executeAgentStream: (params, port) =>
+  executeAgent: (params: unknown) => ipcRenderer.invoke('catalyst:execute-agent', params),
+  executeAgentStream: (params: unknown, port: MessagePort) =>
     ipcRenderer.invoke('catalyst:execute-agent-stream', params, port),
-  cancelAgent: (executionId) => ipcRenderer.invoke('catalyst:cancel-agent', executionId),
-  getAgentStatus: (executionId) => ipcRenderer.invoke('catalyst:get-agent-status', executionId),
+  cancelAgent: (executionId: string) => ipcRenderer.invoke('catalyst:cancel-agent', executionId),
+  getAgentStatus: (executionId: string) =>
+    ipcRenderer.invoke('catalyst:get-agent-status', executionId),
   listAgents: () => ipcRenderer.invoke('catalyst:list-agents'),
   getActiveExecutions: () => ipcRenderer.invoke('catalyst:get-active-executions'),
-  registerAgent: (agentConfig) => ipcRenderer.invoke('catalyst:register-agent', agentConfig),
-  unregisterAgent: (agentId) => ipcRenderer.invoke('catalyst:unregister-agent', agentId),
-  sendChat: (params) => ipcRenderer.invoke('catalyst:send-chat', params),
-  sendChatStream: (params) => ipcRenderer.invoke('catalyst:send-chat-stream', params),
-  getSession: (params) => ipcRenderer.invoke('catalyst:get-session', params),
-  cancelExecution: (params) => ipcRenderer.invoke('catalyst:cancel-execution', params),
+  registerAgent: (agentConfig: unknown) =>
+    ipcRenderer.invoke('catalyst:register-agent', agentConfig),
+  unregisterAgent: (agentId: string) => ipcRenderer.invoke('catalyst:unregister-agent', agentId),
+  sendChat: (params: unknown) => ipcRenderer.invoke('catalyst:send-chat', params),
+  sendChatStream: (params: unknown) => ipcRenderer.invoke('catalyst:send-chat-stream', params),
+  getSession: (params: unknown) => ipcRenderer.invoke('catalyst:get-session', params),
+  cancelExecution: (params: unknown) => ipcRenderer.invoke('catalyst:cancel-execution', params),
 };
 // ============================================================================
 // 7. Settings & Configuration API
@@ -611,9 +633,9 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
    * Updates user preferences
    * Applies changes to user configuration settings
    * @param preferences - Partial preferences object to update
-   * @returns Promise<{ success: boolean, updatedSettings: any, changes: string[] }>
+   * @returns Promise<{ success: boolean, updatedSettings: unknown, changes: string[] }>
    */
-  updatePreferences: (preferences: any) =>
+  updatePreferences: (preferences: unknown) =>
     ipcRenderer.invoke('settings:update-preferences', preferences),
 
   /**
@@ -628,7 +650,7 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
    * @param params.provider - Provider ID to configure
    * @param params.config - Provider configuration object
    */
-  configureProvider: (params: { provider: string; config: any }) =>
+  configureProvider: (params: { provider: string; config: unknown }) =>
     ipcRenderer.invoke('settings:configureProvider', params),
 
   /**
@@ -642,9 +664,9 @@ const settingsAPI: SettingsAPI & SettingsUtility = {
    * Updates learning-specific settings
    * Modifies learning preferences, goals, and tracking settings
    * @param settings - Learning settings to update
-   * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
+   * @returns Promise<{ success: boolean; updatedSettings: unknown; impact: string[] }>
    */
-  updateLearningSettings: (settings: any) =>
+  updateLearningSettings: (settings: unknown) =>
     ipcRenderer.invoke('settings:update-learning-settings', settings),
   getAppVersion: () => ipcRenderer.invoke('settings:getAppVersion'),
   quit: () => ipcRenderer.invoke('settings:quitApp'),
@@ -703,13 +725,19 @@ const pushConfigChange = (payload: ConfigChangedPayload) => {
   }
 };
 
-ipcRenderer.on(IPC_EVENTS.SYSTEM_READY, (_event: any, snapshot: SystemReadyPayload) => {
-  pushSystemSnapshot(snapshot);
-});
+ipcRenderer.on(
+  IPC_EVENTS.SYSTEM_READY,
+  (_event: IpcRendererEvent, snapshot: SystemReadyPayload) => {
+    pushSystemSnapshot(snapshot);
+  },
+);
 
-ipcRenderer.on('settings:config:changed', (_event: any, payload: ConfigChangedPayload) => {
-  pushConfigChange(payload);
-});
+ipcRenderer.on(
+  'settings:config:changed',
+  (_event: IpcRendererEvent, payload: ConfigChangedPayload) => {
+    pushConfigChange(payload);
+  },
+);
 
 const recvWithTimeout = async <T>(
   channel: Chan<T>,
@@ -724,8 +752,8 @@ const recvWithTimeout = async <T>(
       throw new Error(`${label} channel closed`);
     }
     return result.value as T;
-  } catch (error: any) {
-    if (error?.name === 'AbortError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error?.name === 'AbortError') {
       throw new Error(`${label} timeout`);
     }
     throw error;
@@ -747,15 +775,15 @@ const electronAPI = {
   sessions: sessionsAPI,
   catalyst: catalystAPI,
   getWorkspacePath: () => ipcRenderer.invoke('fs:get-workspace-path'),
-  readDirectory: (path: string, recursive?: boolean, maxDepth?: number, filterConfig?: any) =>
+  readDirectory: (path: string, recursive?: boolean, maxDepth?: number, filterConfig?: unknown) =>
     ipcRenderer.invoke('fs:read-directory', path, recursive, maxDepth, filterConfig),
   readFile: (filePath: string, encoding?: BufferEncoding) =>
     ipcRenderer.invoke('fs:read-file', filePath, encoding),
   writeFile: (filePath: string, content: string, encoding?: BufferEncoding) =>
     ipcRenderer.invoke('fs:write-file', filePath, content, encoding),
   existsFile: (filePath: string) => ipcRenderer.invoke('fs:exists-file', filePath),
-  showOpenDialog: (options?: any) => ipcRenderer.invoke('dialog:show-open-dialog', options),
-  showSaveDialog: (options?: any) => ipcRenderer.invoke('dialog:show-save-dialog', options),
+  showOpenDialog: (options?: unknown) => ipcRenderer.invoke('dialog:show-open-dialog', options),
+  showSaveDialog: (options?: unknown) => ipcRenderer.invoke('dialog:show-save-dialog', options),
   onMenuAction: (handler: (action: string, data?: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, action: string, payload?: unknown) => {
       handler(action, payload);

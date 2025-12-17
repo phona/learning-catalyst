@@ -34,17 +34,16 @@ export default defineConfig({
     testTimeout: 60000, // 60 seconds for async operations (increased for workflow tests)
     hookTimeout: 10000,
     bail: 5, // Stop after 5 test failures
-    isolate: true,
+    isolate: false, // Disable isolation to reduce memory usage
     passWithNoTests: false,
 
-    // Concurrency configuration
+    // Concurrency configuration - Single threaded to reduce memory
     pool: 'threads',
     poolOptions: {
       threads: {
-        isolate: true,
-        singleThread: false,
+        singleThread: true, // Force single-threaded to reduce memory
         minThreads: 1,
-        maxThreads: 4,
+        maxThreads: 1,
       },
     },
 
@@ -117,8 +116,11 @@ export default defineConfig({
     },
 
     // Performance and memory monitoring
-    logHeapUsage: true,
+    logHeapUsage: false, // Disable heap logging to reduce memory overhead
     dangerouslyIgnoreUnhandledErrors: false,
+
+    // Memory optimization
+    maxWorkers: 1, // Limit to 1 worker to reduce memory usage
 
     // TypeScript checking (temporarily disabled to allow test execution)
     typecheck: {

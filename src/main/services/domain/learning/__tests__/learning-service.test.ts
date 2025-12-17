@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createLearningService } from '../learning-service';
-import { createKyselyTestDb } from '@/test/utils/kysely-test-db';
 
 const createLoggerService = () => {
   const createLogger = () => ({
@@ -13,6 +12,151 @@ const createLoggerService = () => {
 
   return {
     child: (meta: Record<string, unknown>) => createLogger(),
+  };
+};
+
+// Create mock database with DI pattern
+const createMockDatabase = () => {
+  const databaseTables: { [tableName: string]: any[] } = {};
+
+  const createQueryBuilder = (tableName: string, data: any[] = []) => ({
+    insertInto: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        execute: vi.fn().mockImplementation((values: any) => {
+          if (!databaseTables[tableName]) {
+            databaseTables[tableName] = [];
+          }
+          if (Array.isArray(values)) {
+            databaseTables[tableName].push(...values);
+          } else {
+            databaseTables[tableName].push(values);
+          }
+          return Promise.resolve();
+        }),
+      }),
+    }),
+    selectAll: vi.fn().mockReturnValue({
+      where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+        if (operator === '=') {
+          const filtered = data.filter((c: any) => c[column] === value);
+          return {
+            ...createQueryBuilder(tableName, filtered),
+            execute: vi.fn().mockResolvedValue(filtered),
+            executeTakeFirst: vi.fn().mockResolvedValue(filtered[0] || undefined),
+          };
+        }
+        if (operator === 'in' && Array.isArray(value)) {
+          const filtered = data.filter((c: any) => value.includes(c[column]));
+          return {
+            ...createQueryBuilder(tableName, filtered),
+            execute: vi.fn().mockResolvedValue(filtered),
+            executeTakeFirst: vi.fn().mockResolvedValue(filtered[0] || undefined),
+          };
+        }
+        return createQueryBuilder(tableName, data);
+      }),
+      orderBy: vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue({
+          execute: vi.fn().mockResolvedValue(data),
+        }),
+      }),
+      execute: vi.fn().mockResolvedValue(data),
+      executeTakeFirst: vi.fn().mockResolvedValue(data[0] || undefined),
+    }),
+    select: vi.fn().mockReturnValue({
+      where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+        if (operator === '=') {
+          const filtered = data.filter((c: any) => c[column] === value);
+          return {
+            ...createQueryBuilder(tableName, filtered),
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                execute: vi.fn().mockResolvedValue(filtered),
+              }),
+            }),
+            execute: vi.fn().mockResolvedValue(filtered),
+            executeTakeFirst: vi.fn().mockResolvedValue(filtered[0] || undefined),
+          };
+        }
+        if (operator === 'in' && Array.isArray(value)) {
+          const filtered = data.filter((c: any) => value.includes(c[column]));
+          return {
+            ...createQueryBuilder(tableName, filtered),
+            orderBy: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                execute: vi.fn().mockResolvedValue(filtered),
+              }),
+            }),
+            execute: vi.fn().mockResolvedValue(filtered),
+            executeTakeFirst: vi.fn().mockResolvedValue(filtered[0] || undefined),
+          };
+        }
+        return createQueryBuilder(tableName, data);
+      }),
+      orderBy: vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue({
+          execute: vi.fn().mockResolvedValue(data),
+        }),
+      }),
+      execute: vi.fn().mockResolvedValue(data),
+      executeTakeFirst: vi.fn().mockResolvedValue(data[0] || undefined),
+    }),
+    update: vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          execute: vi.fn().mockImplementation(() => {
+            return Promise.resolve();
+          }),
+        }),
+      }),
+    }),
+    deleteFrom: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        execute: vi.fn().mockImplementation(() => {
+          return Promise.resolve();
+        }),
+      }),
+    }),
+    execute: vi.fn().mockResolvedValue(data),
+    executeTakeFirst: vi.fn().mockResolvedValue(data[0] || undefined),
+  });
+
+  return {
+    selectFrom: vi.fn().mockImplementation((tableName: string) => {
+      const tableData = databaseTables[tableName] || [];
+      return createQueryBuilder(tableName, tableData);
+    }),
+    insertInto: vi.fn().mockImplementation((tableName: string) => ({
+      values: vi.fn().mockImplementation((values: any) => ({
+        execute: vi.fn().mockImplementation(() => {
+          if (!databaseTables[tableName]) {
+            databaseTables[tableName] = [];
+          }
+          if (Array.isArray(values)) {
+            databaseTables[tableName].push(...values);
+          } else {
+            databaseTables[tableName].push(values);
+          }
+          return Promise.resolve();
+        }),
+      })),
+    })),
+    updateTable: vi.fn().mockImplementation((tableName: string) => ({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          execute: vi.fn().mockImplementation(() => {
+            return Promise.resolve();
+          }),
+        }),
+      }),
+    })),
+    deleteFrom: vi.fn().mockImplementation((tableName: string) => ({
+      where: vi.fn().mockReturnValue({
+        execute: vi.fn().mockImplementation(() => {
+          return Promise.resolve();
+        }),
+      }),
+    })),
   };
 };
 
@@ -53,8 +197,8 @@ const createLearningAgent = () => {
   return mockAgent;
 };
 
-describe('learning service (kysely)', () => {
-  let testDb: Awaited<ReturnType<typeof createKyselyTestDb>>;
+describe('learning service (mocked database)', () => {
+  let mockDb: ReturnType<typeof createMockDatabase>;
   let service: ReturnType<typeof createLearningService>;
   const loggerService = createLoggerService();
   const learningAgent = createLearningAgent();
@@ -92,16 +236,16 @@ describe('learning service (kysely)', () => {
       },
     });
 
-    testDb = await createKyselyTestDb();
+    mockDb = createMockDatabase();
     service = createLearningService({
-      db: testDb.db,
+      db: mockDb,
       loggerService,
       learningAgent,
     });
   });
 
-  afterEach(async () => {
-    await testDb.cleanup();
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   it('creates sessions with LangChain blueprint metadata and reports progress', async () => {
@@ -162,7 +306,7 @@ describe('learning service (kysely)', () => {
 
   it('returns structured practice history', async () => {
     const now = new Date().toISOString();
-    await testDb.db
+    await mockDb
       .insertInto('practice_attempts')
       .values({
         id: 'p1',

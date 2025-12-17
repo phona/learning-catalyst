@@ -80,7 +80,7 @@ class MemoryDebugLogger {
       const heapUsed = Math.round(usage.heapUsed / 1024 / 1024);
       const heapTotal = Math.round(usage.heapTotal / 1024 / 1024);
       const external = Math.round(usage.external / 1024 / 1024);
-      const arrayBuffers = Math.round((usage as any).arrayBuffers / 1024 / 1024);
+      const arrayBuffers = Math.round((usage as unknown).arrayBuffers / 1024 / 1024);
 
       console.log(`🧠 Memory Debug [${timestamp}]:`);
       console.log(
@@ -118,7 +118,7 @@ class MemoryDebugLogger {
       heapUsed: usage.heapUsed,
       heapTotal: usage.heapTotal,
       external: usage.external,
-      arrayBuffers: (usage as any).arrayBuffers || 0,
+      arrayBuffers: (usage as unknown).arrayBuffers || 0,
     };
   }
 

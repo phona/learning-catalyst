@@ -9,12 +9,12 @@ import type { LearningService } from '@/main/services/domain/learning/learning-s
 import type { ConfigService } from '@/main/services/core/config/config-service';
 
 export interface ToolParams {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ToolResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 

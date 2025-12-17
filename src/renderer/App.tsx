@@ -1,37 +1,41 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { AssistantRuntimeProvider } from '@assistant-ui/react';
+import { Routes, Route } from 'react-router-dom';
+import {
+  AssistantRuntimeProvider,
+  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
+} from '@assistant-ui/react';
 import { useChatRuntime, AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
 import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import SetupScreen from '@/renderer/components/SetupScreen';
 import { Layout } from '@/renderer/components/Layout';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
 import { SessionManager } from '@/renderer/components/Session/SessionManager';
-import { DiscoveryPage } from '@/renderer/DiscoveryPage';
+import { DiscoveryPage } from '@/renderer/components/Discovery';
 import { SettingsPanel } from '@/renderer/components/Config/SettingsPanel';
 import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
 import { KnowledgeMap } from '@/renderer/components/Dashboard/KnowledgeMap';
-import { useAgentService, useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
+import { useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
 import { createIpcFetch } from '@/renderer/services/chat/ipcFetch';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
-import { setAgentService, useAgentStore } from '@/renderer/stores/agents/agentStore';
 import { LoadingScreen } from '@/renderer/components/UI/LoadingScreen';
+import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
+import { ThreadAdapterProvider } from '@/renderer/contexts/ThreadAdapterContext';
 
 const MainRoutes = () => (
   <Routes>
     <Route element={<Layout />}>
       <Route index element={<ChatInterface />} />
-    <Route path="chat/:sessionId" element={<ChatInterface />} />
-    <Route path="sessions" element={<SessionManager />} />
-    <Route path="discovery" element={<DiscoveryPage />} />
-    <Route path="progress" element={<LearningDashboard />} />
-    <Route path="knowledge" element={<KnowledgeMap />} />
-    <Route path="settings" element={<SettingsPanel />} />
-    <Route path="*" element={<ChatInterface />} />
-  </Route>
-</Routes>
+      <Route path="chat/:sessionId" element={<ChatInterface />} />
+      <Route path="sessions" element={<SessionManager />} />
+      <Route path="discovery" element={<DiscoveryPage />} />
+      <Route path="progress" element={<LearningDashboard />} />
+      <Route path="knowledge" element={<KnowledgeMap />} />
+      <Route path="settings" element={<SettingsPanel />} />
+      <Route path="*" element={<ChatInterface />} />
+    </Route>
+  </Routes>
 );
 
 type AppState = 'loading' | 'setup' | 'ready';
@@ -44,6 +48,17 @@ const formatIPCError = (payload: IPCErrorPayload): string => {
   return `${payload.message}${guidance}`;
 };
 
+/**
+ * Custom hook that creates the chat runtime with IPC transport
+ */
+function useIpcChatRuntime() {
+  return useChatRuntime({
+    transport: new AssistantChatTransport({
+      fetch: createIpcFetch(),
+    }),
+  });
+}
+
 const AppContent: React.FC<{ status: AppState; message: string | null }> = ({
   status,
   message,
@@ -52,21 +67,22 @@ const AppContent: React.FC<{ status: AppState; message: string | null }> = ({
     return <SetupScreen message={message ?? undefined} />;
   }
 
-  // Create runtime for Assistant UI at app level so ThreadListSidebar can access it
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({
-      fetch: createIpcFetch(),
-    }),
-    onMessage: (message) => console.log('[App] Message received:', message),
-    onThreadStart: (thread) => console.log('[App] Thread started:', thread),
-    onError: (error) => console.error('[App] Chat runtime error:', error),
-    onFinish: (message) => console.log('[App] Message completed:', message),
+  // Create thread list adapter for SQLite persistence
+  const threadListAdapter = React.useMemo(() => createThreadListAdapter(), []);
+
+  // Create runtime with thread list support
+  // useRemoteThreadListRuntime combines chat runtime with thread persistence
+  const runtime = useRemoteThreadListRuntime({
+    runtimeHook: useIpcChatRuntime,
+    adapter: threadListAdapter,
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <MainRoutes />
-    </AssistantRuntimeProvider>
+    <ThreadAdapterProvider adapter={threadListAdapter}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <MainRoutes />
+      </AssistantRuntimeProvider>
+    </ThreadAdapterProvider>
   );
 };
 
@@ -75,29 +91,14 @@ export default function App(): JSX.Element {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
-  const location = useLocation();
-  const navigate = useNavigate();
   const configService = useConfigurationService();
   const { ipcErrors, needsSetup, setupMessage } = useServiceContext();
-  const agentService = useAgentService();
   const electronAPI = useElectronAPIClient();
   const [processedErrors, setProcessedErrors] = useState<number>(0);
 
   useEffect(() => {
     setConfigurationService(configService);
   }, [configService]);
-
-  useEffect(() => {
-    setAgentService(agentService);
-    if (status === 'ready') {
-      useAgentStore
-        .getState()
-        .loadAgents()
-        .catch((error) => {
-          console.error('Failed to load agents:', error);
-        });
-    }
-  }, [agentService, status]);
 
   useEffect(() => {
     let mounted = true;
@@ -107,7 +108,7 @@ export default function App(): JSX.Element {
       try {
         const config = await configService.getConfig();
         console.log('[App] Loaded config', config);
-        
+
         if (!mounted) return;
 
         if (!config) {
@@ -119,7 +120,7 @@ export default function App(): JSX.Element {
 
         const chatConfig = config?.ai?.modelTypes?.chat;
         console.log('[App] Chat config', chatConfig);
-        
+
         if (!chatConfig?.provider || !chatConfig?.model) {
           console.log('[App] status -> setup: chat assignment missing');
           setStatus('setup');
@@ -167,7 +168,7 @@ export default function App(): JSX.Element {
   // Monitor for external setup requirements
   useEffect(() => {
     if (status === 'ready') return;
-    
+
     if (needsSetup) {
       console.log('[App] status -> setup due to needsSetup', setupMessage);
       setStatus('setup');

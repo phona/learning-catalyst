@@ -1,5 +1,4 @@
 import { createSessionId as _createSessionId } from '@/shared/utils/helpers';
-import type { ConversationMessage, MemorySession } from '@/shared/types/session';
 import type {
   SessionStatistics,
   SessionListResponse,
@@ -9,7 +8,6 @@ import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
 import type { SessionCreateRequest } from '@/renderer/types/session';
 
 export interface SessionService {
-  saveSessionWithMessages(session: MemorySession, messages: ConversationMessage[]): Promise<string>;
   getRecentSessions(limit?: number): Promise<SessionDisplay[]>;
   getGlobalStatistics(): Promise<SessionStatistics>;
   listSessions(options?: {
@@ -20,7 +18,6 @@ export interface SessionService {
   getSession(sessionId: string): Promise<SessionDisplay | null>;
   generateAITitle(userMessage: string, provider?: string, model?: string): Promise<string>;
   generateSessionId(): string;
-  saveMessage(sessionId: string, message: ConversationMessage): Promise<void>;
   updateSessionTitle(sessionId: string, title: string): Promise<void>;
   createSession(payload: SessionCreateRequest): Promise<SessionDisplay>;
   deleteSession(sessionId: string): Promise<void>;
@@ -44,32 +41,6 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const title = words.slice(0, 8).join(' ');
     return title.length > 0 ? title : 'New Session';
   };
-  /**
-   * Persist all messages for a session via IPC
-   */
-  const saveSessionWithMessages = async (
-    memorySession: MemorySession,
-    messages: ConversationMessage[],
-  ): Promise<string> => {
-    const response = await apiClient.sessions.saveSessionWithMessages(memorySession, messages);
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Session API request failed');
-    }
-
-    return response.data?.sessionId || memorySession.id || _createSessionId();
-  };
-
-  /**
-   * Save a single message for streaming updates
-   */
-  const saveMessage = async (sessionId: string, message: ConversationMessage): Promise<void> => {
-    const response = await apiClient.sessions.saveMessage(sessionId, message);
-
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Session API request failed');
-    }
-  };
 
   /**
    * Update the session title
@@ -78,7 +49,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.updateTitle(sessionId, title);
 
     if (!response.success) {
-      throw new Error(response.error?.message || 'Session API request failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
     }
   };
 
@@ -90,7 +61,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.getRecentSessions({ limit });
 
     if (!response.success) {
-      throw new Error(response.error?.message || 'Session API request failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
     }
 
     const data = response.data || [];
@@ -104,7 +75,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.getStatistics();
 
     if (!response.success) {
-      throw new Error(response.error?.message || 'Session API request failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
     }
 
     return response.data as SessionStatistics;
@@ -121,7 +92,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.list(options);
 
     if (!response.success) {
-      throw new Error(response.error?.message || 'Session API request failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
     }
 
     return (
@@ -152,9 +123,9 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     const response = await apiClient.sessions.create(payload);
     if (!response.success || !response.data?.sessionId) {
       console.warn('[SessionService] createSession failed', {
-        error: response.error?.message,
+        error: response.error,
       });
-      throw new Error(response.error?.message || 'Session API request failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
     }
 
     // Fetch full session details if returned
@@ -187,7 +158,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
   const deleteSession = async (sessionId: string): Promise<void> => {
     const response = await apiClient.sessions.delete(sessionId);
     if (!response.success) {
-      throw new Error(response.error?.message || 'Session delete failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session delete failed');
     }
   };
 
@@ -197,7 +168,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
   ): Promise<SessionListData> => {
     const response = await apiClient.sessions.search({ query, ...(filters ?? {}) });
     if (!response.success) {
-      throw new Error(response.error?.message || 'Session search failed');
+      throw new Error(typeof response.error === 'string' ? response.error : 'Session search failed');
     }
     const data = response.data as
       | Partial<{
@@ -233,14 +204,12 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
   };
 
   return {
-    saveSessionWithMessages,
     getRecentSessions,
     getGlobalStatistics,
     listSessions,
     getSession,
     generateAITitle,
     generateSessionId,
-    saveMessage,
     updateSessionTitle,
     createSession,
     deleteSession,

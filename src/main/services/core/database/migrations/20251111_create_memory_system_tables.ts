@@ -1,7 +1,7 @@
 import { Kysely, sql } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Memory entries table - core table for multi-layer memory system
     await db.schema
       .createTable('memory_entries')
@@ -183,7 +183,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     // Drop indexes first
     await db.schema.dropIndex('idx_memory_associations_target_id').execute();
     await db.schema.dropIndex('idx_memory_associations_source_id').execute();

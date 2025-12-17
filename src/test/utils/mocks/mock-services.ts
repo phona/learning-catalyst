@@ -172,7 +172,7 @@ export const mockCatalystService = () => {
       }
 
       // Add sessionRestored flag for restored sessions
-      const metadata: any = {
+      const metadata = {
         tokensUsed: 50,
         agentId,
         timestamp: Date.now(),
@@ -444,7 +444,7 @@ export const mockSystemHealthMonitor = {
 
 // Mock Electron IPC
 export const mockElectronIPC = {
-  invoke: vi.fn().mockImplementation(async (channel: string, data: any) => {
+  invoke: vi.fn().mockImplementation(async (channel: string, data?: unknown) => {
     // Provide mock responses for specific IPC channels
     if (channel === 'catalyst:process-input') {
       return {

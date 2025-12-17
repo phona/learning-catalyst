@@ -98,9 +98,9 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
         return `Knowledge extraction failed: ${result.error}`;
       }
 
-      const data = result.data;
+      const data = result.data as { concepts?: Array<{ name?: string }>; relationships?: unknown; metadata?: unknown };
       const nodes =
-        data?.concepts?.slice(0, 5).map((concept: any) => concept.name ?? 'unknown') ?? [];
+        data?.concepts?.slice(0, 5).map((concept) => concept.name ?? 'unknown') ?? [];
       return JSON.stringify({
         summary: nodes.length ? `Key concepts: ${nodes.join(', ')}` : 'No concepts detected',
         nodes,

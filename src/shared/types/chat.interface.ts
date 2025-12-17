@@ -37,7 +37,7 @@ export interface ToolCallDisplay {
   id: string;
   name: string;
   arguments: string;
-  result?: any;
+  result?: unknown;
   status: 'pending' | 'completed' | 'failed';
   error?: string;
   duration?: number;
@@ -201,7 +201,7 @@ export interface ConversationUpdate {
   type: 'message' | 'status' | 'metadata' | 'typing';
   conversationId: string;
   timestamp: Date;
-  data: any;
+  data: unknown;
 }
 
 // Error types specific to chat service
@@ -209,7 +209,7 @@ export class ChatError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any,
+    public details?: unknown,
   ) {
     super(message);
     this.name = 'ChatError';

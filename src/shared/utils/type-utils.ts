@@ -22,7 +22,7 @@ export type ExtractArrayElement<T> = T extends (infer U)[] ? U : never;
 /**
  * Extract service method type
  */
-export type ServiceMethod<T> = T extends (...args: any[]) => any ? T : never;
+export type ServiceMethod<T> = T extends (...args: unknown[]) => unknown ? T : never;
 
 /**
  * Extract service return type
@@ -88,7 +88,7 @@ export type ExtractServiceInterfaces<T> = {
 /**
  * Enhanced service factory with better type inference
  */
-export function createServiceClient<T extends Record<string, (...args: any[]) => any>>(
+export function createServiceClient<T extends Record<string, (...args: unknown[]) => unknown>>(
   api: T,
   options?: {
     timeout?: number;
@@ -98,11 +98,11 @@ export function createServiceClient<T extends Record<string, (...args: any[]) =>
 ): {
   [K in keyof T]: (...args: Parameters<T[K]>) => Promise<ExtractPromiseType<ReturnType<T[K]>>>;
 } {
-  const client = {} as any;
+  const client = {} as unknown;
   const { timeout = 30000, retryCount = 3, onError } = options || {};
 
   for (const [key, method] of Object.entries(api)) {
-    client[key] = async (...args: any[]) => {
+    (client as any)[key] = async (...args: unknown[]) => {
       let lastError: Error;
 
       for (let attempt = 0; attempt <= retryCount; attempt++) {
@@ -238,7 +238,7 @@ export function createTimeoutPromise<T>(
 }
 
 /**
- * Add timeout to any promise
+ * Add timeout to unknown promise
  */
 export function withTimeout<T>(
   promise: Promise<T>,
@@ -284,7 +284,7 @@ export async function retryAsync<T>(
 /**
  * Type-safe event emitter interface
  */
-export interface TypedEventEmitter<TEvents extends Record<string, any>> {
+export interface TypedEventEmitter<TEvents extends Record<string, unknown>> {
   on<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
 
   off<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void;
@@ -298,9 +298,9 @@ export interface TypedEventEmitter<TEvents extends Record<string, any>> {
  * Create a typed event emitter
  */
 export function createTypedEventEmitter<
-  TEvents extends Record<string, any>,
+  TEvents extends Record<string, unknown>,
 >(): TypedEventEmitter<TEvents> {
-  const listeners = new Map<keyof TEvents, Set<(data: any) => void>>();
+  const listeners = new Map<keyof TEvents, Set<(data: unknown) => void>>();
 
   return {
     on(event, listener) {
@@ -334,9 +334,9 @@ export function createTypedEventEmitter<
     },
 
     once(event, listener) {
-      const onceListener = (data: any) => {
+      const onceListener = (data: unknown) => {
         this.off(event, onceListener);
-        listener(data);
+        listener(data as TEvents[typeof event]);
       };
       this.on(event, onceListener);
     },
@@ -393,7 +393,7 @@ export function createTypeSafeCache<TKey, TValue>(options?: {
 
   const cleanup = () => {
     const now = Date.now();
-    for (const [key, entry] of cache.entries()) {
+    for (const [key, entry] of Array.from(cache.entries())) {
       if (entry.expiresAt && now > entry.expiresAt) {
         cache.delete(key);
       }
@@ -499,7 +499,7 @@ export interface PerformanceMetrics {
   duration: number;
   success: boolean;
   error?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -528,7 +528,7 @@ export function createPerformanceMonitor() {
     async measure<T>(
       operation: string,
       fn: () => Promise<T>,
-      metadata?: Record<string, any>,
+      metadata?: Record<string, unknown>,
     ): Promise<T> {
       const startTime = Date.now();
       let success = true;

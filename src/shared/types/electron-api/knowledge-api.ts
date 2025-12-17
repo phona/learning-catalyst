@@ -5,7 +5,7 @@
  * Focuses on conceptual understanding and knowledge exploration.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 
 export interface KnowledgeAPI {
   /**
@@ -369,7 +369,7 @@ export interface ParsedConcept {
     text: string;
     relevance: number;
   }>;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 /**

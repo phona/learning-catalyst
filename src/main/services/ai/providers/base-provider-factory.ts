@@ -16,6 +16,35 @@ import type {
   ModelConfig,
 } from '@/main/services/ai/ai-types';
 
+// Raw API response types
+interface RawChatCompletionResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+interface RawEmbeddingResponse {
+  data: Array<{
+    object: string;
+    embedding: number[];
+    index: number;
+  }>;
+}
+
 export interface ProviderDefinition {
   name: string;
   apiUrl?: string; // Optional for local models that don't need external APIs
@@ -24,8 +53,8 @@ export interface ProviderDefinition {
   supportedModels: string[];
   defaultCompletionTokens: number;
   responseTransformer?: {
-    chatCompletion?: (rawResponse: any, params: ChatCompletionParams) => ChatCompletionResult;
-    embedding?: (rawResponse: any, params: EmbeddingParams) => EmbeddingResult;
+    chatCompletion?: (rawResponse: RawChatCompletionResponse, params: ChatCompletionParams) => ChatCompletionResult;
+    embedding?: (rawResponse: RawEmbeddingResponse, params: EmbeddingParams) => EmbeddingResult;
   };
 }
 
@@ -135,10 +164,10 @@ export const createProviderService =
         };
 
         const result = config.responseTransformer?.embedding
-          ? config.responseTransformer.embedding(rawResponse, params)
+          ? config.responseTransformer.embedding(rawResponse as RawEmbeddingResponse, params)
           : {
               embeddings: Array.isArray(params.input)
-                ? rawResponse.data.map((item: any) => item.embedding)
+                ? rawResponse.data.map((item) => item.embedding)
                 : rawResponse.data[0].embedding,
               model: rawResponse.model,
               usage: {
@@ -205,7 +234,7 @@ export const providerConfigs = {
     supportedModels: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-32k'],
     defaultCompletionTokens: 50,
     responseTransformer: {
-      chatCompletion: (rawResponse: any, params: ChatCompletionParams): ChatCompletionResult => ({
+      chatCompletion: (rawResponse: RawChatCompletionResponse, _params: ChatCompletionParams): ChatCompletionResult => ({
         content: rawResponse.choices[0].message.content,
         model: rawResponse.model,
         usage: {
@@ -215,14 +244,14 @@ export const providerConfigs = {
         },
         finishReason: rawResponse.choices[0].finish_reason,
       }),
-      embedding: (rawResponse: any, params: EmbeddingParams): EmbeddingResult => ({
+      embedding: (rawResponse: RawEmbeddingResponse, params: EmbeddingParams): EmbeddingResult => ({
         embeddings: Array.isArray(params.input)
-          ? rawResponse.data.map((item: any) => item.embedding)
+          ? rawResponse.data.map((item) => item.embedding)
           : rawResponse.data[0].embedding,
         model: rawResponse.model,
         usage: {
-          promptTokens: rawResponse.usage.prompt_tokens,
-          totalTokens: rawResponse.usage.total_tokens,
+          promptTokens: rawResponse.usage?.prompt_tokens || 0,
+          totalTokens: rawResponse.usage?.total_tokens || 0,
         },
       }),
     },
@@ -236,7 +265,7 @@ export const providerConfigs = {
     supportedModels: ['deepseek-chat', 'deepseek-coder'],
     defaultCompletionTokens: 55,
     responseTransformer: {
-      chatCompletion: (rawResponse: any, params: ChatCompletionParams): ChatCompletionResult => ({
+      chatCompletion: (rawResponse: RawChatCompletionResponse, _params: ChatCompletionParams): ChatCompletionResult => ({
         content: `DeepSeek: ${rawResponse.choices[0].message.content}`,
         model: rawResponse.model,
         usage: {
@@ -257,7 +286,7 @@ export const providerConfigs = {
     supportedModels: ['chatglm_pro', 'chatglm_std', 'chatglm_lite', 'glm-4', 'glm-4v', 'charglm-3'],
     defaultCompletionTokens: 60,
     responseTransformer: {
-      chatCompletion: (rawResponse: any, params: ChatCompletionParams): ChatCompletionResult => ({
+      chatCompletion: (rawResponse: RawChatCompletionResponse, _params: ChatCompletionParams): ChatCompletionResult => ({
         content: `ChatGLM: ${rawResponse.choices[0].message.content}`,
         model: rawResponse.model,
         usage: {

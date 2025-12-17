@@ -283,7 +283,7 @@ Content: {content}
  * @param llm - The language model to use for extraction
  * @returns Chain object with invoke method
  */
-export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: any) => {
+export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: { onTokenUsageUpdate?: (usage: UsageMetadata, phase: number, status: string) => void }) => {
   const prompt = ChatPromptTemplate.fromTemplate(SIMPLE_EXTRACTION_TEMPLATE);
 
   return {
@@ -424,7 +424,7 @@ export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: any
  * @param llm - The language model to use for retry
  * @returns Chain object with invoke method
  */
-export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: any) => {
+export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: { onTokenUsageUpdate?: (usage: UsageMetadata, phase: number, status: string) => void }) => {
   const prompt = ChatPromptTemplate.fromTemplate(SIMPLE_RETRY_TEMPLATE);
 
   return {
@@ -537,8 +537,8 @@ export const validateExtractionResult = (data: unknown): ConceptExtractionResult
     // Enhance error context
     if (error instanceof ZodError) {
       const formattedErrors = formatZodErrors(error);
-      const enhancedError = new Error(`Validation failed:\n${formattedErrors}`);
-      (enhancedError as any).zodError = error;
+      const enhancedError = new Error(`Validation failed:\n${formattedErrors}`) as Error & { zodError?: ZodError };
+      enhancedError.zodError = error;
       throw enhancedError;
     }
     throw error;

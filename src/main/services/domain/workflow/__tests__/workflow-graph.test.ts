@@ -64,7 +64,7 @@ const makeDeps = () => {
   } as any;
 
   const providerFactory = {
-    getModel: vi.fn().mockImplementation((modelType: string) => {
+    getModel: vi.fn().mockImplementation((modelType?: string) => {
       // Always return a valid model that can handle invoke calls
       const invokeMock = vi.fn().mockResolvedValue(
         JSON.stringify({
@@ -85,10 +85,9 @@ const makeDeps = () => {
         })
       );
 
+      // Return the model directly, not wrapped
       return {
-        model: {
-          invoke: invokeMock,
-        },
+        invoke: invokeMock,
         settings: { providerName: 'mock', model: 'mock', temperature: 0.7, maxTokens: 1024, apiKey: 'key' },
       };
     }),
@@ -121,7 +120,8 @@ const makeDeps = () => {
       { result: 'pass' },
     ]),
     listMessages: vi.fn().mockResolvedValue([{ content: 'I understand basics' }]),
-  } as any;
+    updateSessionTitle: vi.fn().mockResolvedValue(true),
+  };
 
   const analyticsService = {
     trackEvent: vi.fn().mockResolvedValue(undefined),

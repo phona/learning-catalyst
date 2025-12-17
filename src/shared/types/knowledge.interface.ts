@@ -198,7 +198,7 @@ export interface ExerciseQuestion {
   question: string;
   type: 'multiple-choice' | 'text' | 'code' | 'drag-drop';
   options?: string[];
-  correctAnswer?: any;
+  correctAnswer?: unknown;
   explanation?: string;
   points: number;
   hints?: string[];
@@ -212,17 +212,6 @@ export interface ExerciseSolution {
   commonMistakes?: string[];
 }
 
-export interface LearningPath {
-  id: string;
-  title: string;
-  description: string;
-  concepts: string[];
-  steps: LearningPathStep[];
-  estimatedTime: number;
-  difficulty: string;
-  prerequisites: string[];
-  objectives: string[];
-}
 
 export interface LearningPathStep {
   order: number;
@@ -316,7 +305,7 @@ export class KnowledgeError extends Error {
   constructor(
     message: string,
     public code: string,
-    public details?: any,
+    public details?: unknown,
   ) {
     super(message);
     this.name = 'KnowledgeError';

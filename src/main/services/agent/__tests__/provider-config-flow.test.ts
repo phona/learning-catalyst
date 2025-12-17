@@ -15,7 +15,7 @@ vi.mock('@langchain/openai', () => ({
 }));
 
 describe('Provider Configuration Flow', () => {
-  const makeConfigService = (config: any) => ({
+  const makeConfigService = (config: unknown) => ({
     getConfig: vi.fn().mockResolvedValue(config),
     setConfig: vi.fn(),
     getProviderConfig: vi.fn(),
@@ -71,10 +71,10 @@ describe('Provider Configuration Flow', () => {
       expect(ChatOpenAI).toHaveBeenCalledWith({
         modelName: 'glm-4.5-air',  // ← MUST come from modelTypes.chat
         temperature: 0.4,           // ← MUST come from modelTypes.chat
-        maxTokens: 12000,           // ← clamped from 20480 to provider limit
+        maxTokens: 20480,           // ← Uses modelTypes.chat value directly (no clamping)
         apiKey: '869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS',  // ← from providers
         maxRetries: 1,
-        timeout: 30000,
+        streamUsage: true,          // ← Always enabled for token tracking
         configuration: {
           baseURL: 'https://open.bigmodel.cn/api/paas/v4/',
         },
@@ -83,7 +83,7 @@ describe('Provider Configuration Flow', () => {
       // Verify model object has expected properties
       expect(model.config.modelName).toBe('glm-4.5-air');
       expect(model.config.temperature).toBe(0.4);
-      expect(model.config.maxTokens).toBe(12000);  // clamped value
+      expect(model.config.maxTokens).toBe(20480);  // actual value from modelTypes.chat
     });
 
     it('should handle embedding configuration correctly', async () => {

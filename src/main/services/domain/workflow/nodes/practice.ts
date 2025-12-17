@@ -138,7 +138,7 @@ const PRACTICE_GENERATION_TEMPLATE = ChatPromptTemplate.fromMessages([
  */
 export const practiceNode = (deps: WorkflowDeps) => async (
   state: typeof WorkflowStateAnnotation.State,
-  config: any
+  config: unknown
 ) => {
   // Create chunk emitter for direct AI SDK chunk emission
   const emitter = createChunkEmitter(config);

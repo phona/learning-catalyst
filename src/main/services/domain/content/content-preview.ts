@@ -61,9 +61,9 @@ const detectHeading = (line: string): DetectedHeading => {
 export const extractMarkdownHeadings = (
   content: string,
 ): Array<{ label: string; level: number; startLine: number }> => {
-  const tree = unified().use(remarkParse).parse(content) as any;
+  const tree = unified().use(remarkParse).parse(content) as unknown;
   const result: Array<{ label: string; level: number; startLine: number }> = [];
-  const stack: any[] = [tree];
+  const stack: unknown[] = [tree];
   while (stack.length) {
     const node = stack.pop();
     if (node && node.type === 'heading' && node.depth && node.position?.start?.line) {

@@ -5,7 +5,7 @@
  * Focuses on personalizing the learning experience and managing technical configurations.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 import type { AppConfig, ProviderConfig } from '@/shared/types';
 export type { ProviderConfig } from '@/shared/types';
 
@@ -21,11 +21,11 @@ export interface SettingsAPI {
    * Updates user preferences
    * Applies changes to user configuration settings
    * @param preferences - Partial preferences object to update
-   * @returns Promise<{ success: boolean; updatedSettings: any; changes: string[] }>
+   * @returns Promise<{ success: boolean; updatedSettings: unknown; changes: string[] }>
    */
   updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<
     APIResponse<{
-      updatedSettings: any;
+      updatedSettings: unknown;
       changes: string[];
     }>
   >;
@@ -69,11 +69,11 @@ export interface SettingsAPI {
    * Updates learning-specific settings
    * Modifies learning preferences, goals, and tracking settings
    * @param settings - Learning settings to update
-   * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
+   * @returns Promise<{ success: boolean; updatedSettings: unknown; impact: string[] }>
    */
   updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<
     APIResponse<{
-      updatedSettings: any;
+      updatedSettings: unknown;
       impact: string[];
     }>
   >;

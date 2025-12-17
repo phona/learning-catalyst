@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely';
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     // Insert default categories
     await db
       .insertInto('categories')
@@ -95,7 +95,7 @@ export default {
       .execute();
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     // Remove default data
     await db.deleteFrom('settings').where('id', 'in', ['1', '2', '3', '4']).execute();
     await db.deleteFrom('user_stats').where('id', '=', 'user').execute();

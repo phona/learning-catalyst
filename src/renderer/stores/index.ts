@@ -29,18 +29,5 @@ export {
   useSessionActions,
 } from './sessions/sessionStore';
 
-// Agent Store - Agent management state
-export {
-  useAgentStore,
-  useAgents,
-  useAvailableAgents,
-  useSelectedAgent,
-  useAgentsLoading,
-  useAgentError,
-  useFilteredAgents,
-  useAgentStatus,
-  useAgentActions,
-} from './agents/agentStore';
-
 // Legacy stores (for compatibility during migration)
 export { useConfigStore } from '../stores/useConfigStore';

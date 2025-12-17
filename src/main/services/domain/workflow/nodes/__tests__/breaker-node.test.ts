@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { breakerNode } from '../breaker';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
+// Mock config writer for chunk emitter (DI pattern - only mock writer, use real chunk-emitter)
+const createMockConfig = (): LangGraphRunnableConfig => ({
+  writer: vi.fn(), // Mock writer function only
+} as any);
 
 describe('breaker node', () => {
   beforeEach(() => {
@@ -24,7 +30,7 @@ describe('breaker node', () => {
       messages: [new AIMessage('Previous message')],
       topic: 'React',
       failCount: 4,
-    } as any);
+    } as any, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith({
       agentType: 'tutoring',
@@ -54,7 +60,7 @@ describe('breaker node', () => {
       messages: [],
       topic: 'JavaScript',
       failCount: 5,
-    } as any);
+    } as any, createMockConfig());
 
     expect(result.messages[0].content).toBe('You\'ve been working hard. Consider taking a break!');
   });
@@ -80,7 +86,7 @@ describe('breaker node', () => {
       messages: inputMessages,
       topic: 'TypeScript',
       failCount: 3,
-    } as any);
+    } as any, createMockConfig());
 
     expect(mockAgentManager.runAgent).toHaveBeenCalledWith({
       agentType: 'tutoring',
@@ -101,6 +107,6 @@ describe('breaker node', () => {
       messages: [],
       topic: 'React',
       failCount: 4,
-    } as any)).rejects.toThrow('Agent unavailable');
+    } as any, createMockConfig())).rejects.toThrow('Agent unavailable');
   });
 });

@@ -477,7 +477,7 @@ export class TestDatabaseFactory {
   /**
    * Import database data for testing
    */
-  static async importDatabaseData(name: string, data: any): Promise<void> {
+  static async importDatabaseData(name: string, data?: unknown): Promise<void> {
     const database = this.instances.get(name);
     if (!database) {
       throw new Error(`Test database '${name}' not found`);

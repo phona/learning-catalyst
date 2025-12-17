@@ -9,6 +9,7 @@ import React, { memo, useMemo, useCallback } from 'react';
 import { DocumentTextIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { SessionItem } from './SessionItem';
 import type { SessionListProps } from './Sidebar.types';
+import type { Session } from '@/shared/types/session';
 import { formatRelativeTime as sharedFormatRelativeTime } from '@/renderer/utils/timeUtils';
 
 // Default empty state component
@@ -97,7 +98,7 @@ export const SessionList = memo<SessionListProps>(
 
     // Handle session item click
     const handleSessionClick = useCallback(
-      (session: any) => {
+      (session: Session) => {
         onOpenSession(session);
       },
       [onOpenSession],

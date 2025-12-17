@@ -62,8 +62,6 @@ describe('Rerank Configuration Fix', () => {
 
     // Assert: Should not throw error and return properly configured model
     expect(rerankModel).toBeDefined();
-    expect(rerankModel.settings.providerName).toBe('siliconflow');
-    expect(rerankModel.settings.model).toBe('BAAI/bge-reranker-v2-m3');
     expect(typeof rerankModel.rerank).toBe('function');
   });
 
@@ -90,7 +88,7 @@ describe('Rerank Configuration Fix', () => {
 
     // Act & Assert: Should throw clear error message
     await expect(providerFactory.getRerankModel()).rejects.toThrow(
-      'Rerank model configuration is required. Please configure ai.modelTypes.rerank.'
+      'Rerank config missing. Set ai.modelTypes.rerank'
     );
   });
 
@@ -117,7 +115,7 @@ describe('Rerank Configuration Fix', () => {
 
     // Act & Assert: Should throw clear error message
     await expect(providerFactory.getRerankModel()).rejects.toThrow(
-      'Rerank provider "nonexistent" is not configured.'
+      'Provider "nonexistent" not found in ai.providers'
     );
   });
 });

@@ -539,7 +539,7 @@ export const createUserContextTracker = (
 
     const primaryConcept = concepts[0] ?? 'general';
     recentActivity.push({
-      type: request.messageType as any,
+      type: request.messageType,
       concept: primaryConcept,
       timestamp: request.timestamp,
       outcome: undefined,
@@ -620,7 +620,7 @@ export const createUserContextTracker = (
 
         handleLearningPatternDetected(request, {
           ...changes,
-          newConcepts: patternResult.patterns.map((p) => (p as any).concept || 'general'),
+          newConcepts: patternResult.patterns.map((p) => (p as { concept?: string }).concept || 'general'),
           confidenceChanges: {},
           newStuckPoints: [],
           resolvedStuckPoints: [],

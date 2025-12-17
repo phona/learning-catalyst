@@ -115,7 +115,7 @@ describe('SetupScreen', () => {
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
       setConfig: vi.fn().mockRejectedValue(new Error('persist failed')),
-      saveConfig: async (config: any) => {
+      saveConfig: async (config: unknown) => {
         await electronAPI.settings.setConfig(config);
       },
       validateProvider: vi.fn(),
@@ -242,7 +242,7 @@ describe('SetupScreen', () => {
         return { success: true, providerId: resp.data.providerId, status: resp.data.status };
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
-      saveConfig: async (config: any) => {
+      saveConfig: async (config: unknown) => {
         await electronAPI.settings.setConfig(config);
       },
       setConfig: vi.fn(),
@@ -303,7 +303,7 @@ describe('SetupScreen', () => {
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
       setConfig: vi.fn(),
-      saveConfig: async (config: any) => {
+      saveConfig: async (config: unknown) => {
         await electronAPI.settings.setConfig(config);
       },
       validateProvider: vi.fn(),

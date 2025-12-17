@@ -27,7 +27,7 @@ describe('shared/utils/helpers', () => {
     const value = createUUID();
 
     expect(value).toBe(mockUuid);
-    expect((globalThis.crypto as any).randomUUID).toHaveBeenCalled();
+    expect((globalThis.crypto as unknown).randomUUID).toHaveBeenCalled();
   });
 
   it('falls back to manual UUID generation when crypto is missing', () => {

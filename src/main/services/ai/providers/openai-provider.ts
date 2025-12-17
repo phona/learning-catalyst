@@ -8,11 +8,12 @@
  */
 
 import { createProviderService, providerConfigs } from './base-provider-factory';
+import type { LoggerService } from '@/main/services/core/logger/logger-service';
 
 /**
  * OpenAI service factory using base provider factory
  * Eliminated 95% of duplicated code while maintaining identical functionality
  */
-export const createOpenAIService = ({ loggerService }: { loggerService: any }) => {
+export const createOpenAIService = ({ loggerService }: { loggerService: LoggerService }) => {
   return createProviderService(providerConfigs.openai)({ loggerService });
 };

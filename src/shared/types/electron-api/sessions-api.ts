@@ -1,14 +1,12 @@
 import type {
   SessionSearchResult,
   SessionSearchQuery,
-  MemorySession,
-  ConversationMessage,
 } from '@/shared/types/session';
 
 import type { SessionDisplay } from './learning-api';
 
 import type { SessionUpdateRequest, SessionCreateRequest } from '@/renderer/types/session';
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 
 export interface SessionStatistics {
   totalSessions: number;
@@ -47,11 +45,6 @@ export interface SessionsAPI {
     updates: SessionUpdateRequest,
   ) => Promise<APIResponse<SessionDisplay | undefined>>;
   delete: (sessionId: string) => Promise<APIResponse<{ deleted: boolean }>>;
-  saveMessage: (sessionId: string, message: ConversationMessage) => Promise<APIResponse<void>>;
-  saveSessionWithMessages: (
-    session: MemorySession,
-    messages: ConversationMessage[],
-  ) => Promise<APIResponse<{ sessionId: string }>>;
   updateTitle: (sessionId: string, title: string) => Promise<APIResponse<void>>;
   getRecentSessions: (options?: { limit?: number }) => Promise<APIResponse<SessionDisplay[]>>;
   search: (query: SessionSearchQuery) => Promise<APIResponse<SessionSearchResult>>;

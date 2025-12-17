@@ -117,7 +117,7 @@ describe('Logger Service - Interface Tests', () => {
     it('should handle circular references in metadata', () => {
       const childLogger = loggerService.child({ service: 'test' });
 
-      const circularMetadata: any = { prop: 'value' };
+      const circularMetadata = { prop: 'value' } as { prop: string; self?: unknown };
       circularMetadata.self = circularMetadata;
 
       expect(() => childLogger.info('Circular reference', circularMetadata)).not.toThrow();

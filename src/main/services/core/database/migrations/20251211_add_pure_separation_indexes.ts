@@ -14,7 +14,7 @@ import { Kysely, sql } from 'kysely';
  */
 
 export default {
-  async up(db: Kysely<any>): Promise<void> {
+  async up(db: Kysely<unknown>): Promise<void> {
     console.log('[Migration] Adding pure separation architecture indexes...');
 
     // Index on concept_type for filtering concepts by type
@@ -44,7 +44,7 @@ export default {
     console.log('[Migration] ✅ Pure separation indexes added successfully');
   },
 
-  async down(db: Kysely<any>): Promise<void> {
+  async down(db: Kysely<unknown>): Promise<void> {
     console.log('[Migration] Removing pure separation architecture indexes...');
 
     await db.schema.dropIndex('idx_concepts_type').ifExists().execute();

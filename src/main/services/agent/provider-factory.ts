@@ -199,8 +199,8 @@ const makeSiliconFlowEmbeddings = (settings: ProviderConfig, modelId: string, se
         throw new Error(`SiliconFlow API error: ${response.statusText} - ${errorText}`);
       }
 
-      const data = await response.json();
-      return data.data.map((item: any) => item.embedding);
+      const data = await response.json() as { data: Array<{ embedding: number[] }> };
+      return data.data.map((item) => item.embedding);
     },
   };
 };

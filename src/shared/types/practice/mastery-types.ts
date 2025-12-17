@@ -101,25 +101,3 @@ export interface MasteryAssessment {
   assessedAt: Date;
 }
 
-export interface LearningPath {
-  id: string;
-  title: string;
-  description: string;
-  concepts: Array<{
-    id: string;
-    name: string;
-    masteryRequired: number;
-    estimatedTime: number;
-    prerequisites: string[];
-    resources: PracticeRecommendation[];
-  }>;
-  totalEstimatedTime: number;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  tags: string[];
-  progress: {
-    completedConcepts: number;
-    totalConcepts: number;
-    averageMastery: number;
-    timeSpent: number;
-  };
-}

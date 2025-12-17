@@ -2,12 +2,12 @@
 import React, { Suspense, lazy } from 'react';
 
 interface SyntaxHighlighterWrapperProps {
-  style?: any;
+  style?: React.CSSProperties;
   language?: string;
   PreTag?: React.ElementType;
   className?: string;
   children?: React.ReactNode;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Lazy load SyntaxHighlighter to reduce initial bundle size

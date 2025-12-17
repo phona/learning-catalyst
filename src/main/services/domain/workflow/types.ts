@@ -1,5 +1,6 @@
 export enum NodeName {
   TOPIC_PARSE = 'TopicParse',
+  TITLE_GENERATE = 'TitleGenerate',
   PLAN = 'Plan',
   ASSESS = 'Assess',
   FAST_TRACK_QUIZ = 'FastTrackQuiz',

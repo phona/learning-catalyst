@@ -6,7 +6,7 @@ const hoisted = vi.hoisted(() => {
   return {
     listeners,
     invoke: vi.fn(),
-    emit: (channel: string, payload: any) => {
+    emit: (channel: string, payload: unknown) => {
       const set = listeners.get(channel);
       if (!set) return;
       for (const fn of Array.from(set)) {
@@ -29,9 +29,9 @@ vi.mock('electron', () => {
   const exposeInMainWorld = vi.fn((key: string, api: any) => {
     (globalThis as any)[key] = api;
   });
-  const on = vi.fn((channel: string, fn: (evt: any, payload: any) => void) => hoisted.add(channel, fn));
-  const once = vi.fn((channel: string, fn: (evt: any, payload: any) => void) => {
-    const wrapper = (evt: any, payload: any) => {
+  const on = vi.fn((channel: string, fn: (evt: any, payload: unknown) => void) => hoisted.add(channel, fn));
+  const once = vi.fn((channel: string, fn: (evt: any, payload: unknown) => void) => {
+    const wrapper = (evt: any, payload: unknown) => {
       try {
         (fn as any)(evt, payload);
       } finally {
@@ -40,13 +40,13 @@ vi.mock('electron', () => {
     };
     hoisted.add(channel, wrapper);
   });
-  const removeListener = vi.fn((channel: string, fn: (evt: any, payload: any) => void) =>
+  const removeListener = vi.fn((channel: string, fn: (evt: any, payload: unknown) => void) =>
     hoisted.remove(channel, fn),
   );
 
   return {
     contextBridge: { exposeInMainWorld },
-    ipcRenderer: { on, once, removeListener, invoke: (...args: any[]) => hoisted.invoke(...args) },
+    ipcRenderer: { on, once, removeListener, invoke: (...args: unknown[]) => hoisted.invoke(...args) },
   };
 });
 

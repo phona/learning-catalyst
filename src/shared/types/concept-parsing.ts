@@ -6,6 +6,7 @@
  */
 
 import { RelationshipType } from './relationship-types';
+import { LearningPath } from './learning';
 
 export interface Concept {
   id: string;
@@ -73,7 +74,7 @@ export interface LearningMaterial {
   estimatedDuration: number;
   difficultyLevel: number;
   tags: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   processedAt: Date;
 }
 
@@ -86,21 +87,9 @@ export interface LearningSection {
   concepts: string[]; // concept IDs
   prerequisites: string[]; // concept IDs
   estimatedTime: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
-export interface LearningPath {
-  id: string;
-  title: string;
-  description: string;
-  estimatedDuration: number;
-  difficulty: number;
-  modules: LearningModule[];
-  prerequisites: string[];
-  targetMastery: number;
-  adaptations: PathAdaptation[];
-  progress: PathProgress;
-}
 
 export interface LearningModule {
   id: string;
@@ -138,8 +127,8 @@ export interface PathAdaptation {
   id: string;
   userId: string;
   type: 'difficulty' | 'pace' | 'content' | 'prerequisite';
-  originalValue: any;
-  adaptedValue: any;
+  originalValue: unknown;
+  adaptedValue: unknown;
   reason: string;
   appliedAt: Date;
   performance: PerformanceMetric[];
@@ -180,7 +169,7 @@ export interface Assessment {
   passingScore: number;
   concepts: string[];
   prerequisites: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface Question {
@@ -188,7 +177,7 @@ export interface Question {
   type: 'multiple-choice' | 'true-false' | 'short-answer' | 'coding' | 'essay';
   question: string;
   options?: string[]; // for multiple choice
-  correctAnswer: any;
+  correctAnswer: unknown;
   explanation?: string;
   hints: string[];
   difficulty: number;
@@ -307,7 +296,7 @@ export interface ParsingStage {
   startedAt?: Date;
   completedAt?: Date;
   errorMessage?: string;
-  result?: any;
+  result?: unknown;
 }
 
 export interface ParsingResult {
@@ -412,7 +401,7 @@ export interface LangChainConfig {
 
 export interface DocumentLoaderConfig {
   type: 'text' | 'pdf' | 'markdown' | 'html' | 'json';
-  options: Record<string, any>;
+  options: Record<string, unknown>;
   enabled: boolean;
 }
 
@@ -507,7 +496,7 @@ export class ValidationError extends ConceptParsingError {
   constructor(
     message: string,
     public field: string,
-    public value: any,
+    public value: unknown,
     context?: string,
   ) {
     super(message, 'validation', context);

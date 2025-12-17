@@ -51,7 +51,6 @@ Learning Catalyst uses a sophisticated **event-driven architecture** to broadcas
 │  │ UI Components                                             │ │
 │  │                                                          │ │
 │  │ • TimelineView - Agent processing visualization          │ │
-│  │ • ThoughtBubble - AI reasoning display                   │ │
 │  │ • ToolCall - Tool execution tracking                     │ │
 │  │ • ChatProcessingOverlay - Inline trace                   │ │
 │  └──────────────────────────────────────────────────────────┘ │
@@ -516,51 +515,11 @@ export function TimelineView({ conversationId }: TimelineViewProps) {
 
       <div className="timeline-events">
         {events.map((event) => {
-          if (event.type === 'thought') {
-            return <ThoughtBubble key={event.id} event={event} />;
-          }
           if (event.type === 'tool') {
             return <ToolCall key={event.id} event={event} />;
           }
           return null;
         })}
-      </div>
-    </div>
-  );
-}
-```
-
-### ThoughtBubble Component
-**Location:** `src/renderer/components/Timeline/ThoughtBubble.tsx`
-
-Renders AI reasoning:
-
-```typescript
-export function ThoughtBubble({ event }: ThoughtBubbleProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="timeline-event thought-bubble">
-      <div className="event-header">
-        <span className="icon">💭</span>
-        <span className="agent-name">{event.agent}</span>
-        <span className="timestamp">
-          {new Date(event.timestamp).toLocaleTimeString()}
-        </span>
-      </div>
-
-      <div className="thought-content">
-        <p>{event.text}</p>
-
-        {event.expandable && event.detail && (
-          <button onClick={() => setExpanded(!expanded)}>
-            {expanded ? '▼ Hide details' : '▶ Show details'}
-          </button>
-        )}
-
-        {expanded && event.detail && (
-          <pre className="thought-detail">{event.detail}</pre>
-        )}
       </div>
     </div>
   );

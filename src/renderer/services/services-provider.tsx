@@ -83,12 +83,12 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
-    const api: any = client as any;
+    const api = client as unknown;
     let active = true;
     (async () => {
       try {
-        if (api?.getErrorBuffer) {
-          const errors: any[] = await api.getErrorBuffer();
+        if (api && typeof api === 'object' && 'getErrorBuffer' in api) {
+          const errors = await (api as { getErrorBuffer: () => Promise<unknown[]> }).getErrorBuffer();
           if (Array.isArray(errors) && errors.length > 0) {
             setIpcErrors((prev) => [...prev, ...errors as IPCErrorPayload[]]);
             console.log('[ServicesProvider] loaded IPC error buffer', { count: errors.length });
@@ -111,7 +111,7 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
       } catch {}
       try {
         if (active && api?.onIPCError) {
-          unsubscribe = api.onIPCError((payload: any) => {
+          unsubscribe = api.onIPCError((payload: unknown) => {
             const typed = payload as IPCErrorPayload;
             setIpcErrors((prev) => [...prev, typed]);
             console.log('[ServicesProvider] IPC error received');
@@ -164,10 +164,10 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
 
   const markSetupComplete = async (): Promise<void> => {
     try {
-      const api: any = client as any;
-      if (api?.clearErrorBuffer) {
+      const api = client as unknown;
+      if (api && typeof api === 'object' && 'clearErrorBuffer' in api) {
         console.log('[ServicesProvider] markSetupComplete: clearing IPC error buffer');
-        await api.clearErrorBuffer();
+        await (api as { clearErrorBuffer: () => Promise<void> }).clearErrorBuffer();
       }
     } catch {}
     console.log('[ServicesProvider] markSetupComplete: needsSetup=false');

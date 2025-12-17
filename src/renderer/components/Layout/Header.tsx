@@ -12,7 +12,7 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { useAppStore } from '@/renderer/stores/useAppStore';
-import { useChatStore } from '@/renderer/hooks/useChatStore';
+import { useThreadListItemRuntime } from '@assistant-ui/react';
 
 export const Header: React.FC = () => {
   const {
@@ -24,7 +24,11 @@ export const Header: React.FC = () => {
     setTheme,
     toggleFocusMode,
   } = useAppStore();
-  const { currentSession, updateCurrentSessionTitle } = useChatStore();
+
+  // Get thread info from assistant-ui (may be null if not in a thread context)
+  const threadRuntime = useThreadListItemRuntime({ optional: true });
+  const threadState = threadRuntime?.getState();
+  const threadTitle = threadState?.title ?? null;
 
   // State for inline editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -94,26 +98,23 @@ export const Header: React.FC = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [focus_mode, toggleFocusMode]);
 
-  // Handle start editing title
+  // Start inline title editing mode
   const handleStartEditingTitle = () => {
-    if (currentSession) {
-      setEditingTitle(currentSession.metadata.title || currentSession.title);
-      setIsEditingTitle(true);
-    }
+    if (!threadRuntime) return;
+    setEditingTitle(threadTitle ?? 'New Chat');
+    setIsEditingTitle(true);
   };
 
-  // Handle save title
+  // Save the edited title via Assistant UI thread API
   const handleSaveTitle = async () => {
-    if (
-      editingTitle.trim() &&
-      editingTitle.trim() !== (currentSession?.metadata.title || currentSession?.title)
-    ) {
-      try {
-        await updateCurrentSessionTitle(editingTitle.trim());
-      } catch (error) {
-        console.error('Failed to update session title:', error);
-      }
+    const newTitle = editingTitle.trim();
+    if (!newTitle || !threadRuntime || newTitle === threadTitle) {
+      setIsEditingTitle(false);
+      setEditingTitle('');
+      return;
     }
+
+    await threadRuntime.rename(newTitle);
     setIsEditingTitle(false);
     setEditingTitle('');
   };
@@ -154,7 +155,7 @@ export const Header: React.FC = () => {
                 Learning Catalyst
               </h1>
             </div>
-            {currentSession && !isEditingTitle && (
+            {threadTitle && !isEditingTitle && (
               <div className="group flex items-center space-x-2 mt-1">
                 <div className="w-1.5 h-1.5 bg-gradient-to-br from-emerald-500 to-accent-emerald-500 rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-200"></div>
                 <p
@@ -162,7 +163,7 @@ export const Header: React.FC = () => {
                   onClick={handleStartEditingTitle}
                   title="Click to edit title"
                 >
-                  {currentSession.metadata.title || currentSession.title}
+                  {threadTitle ?? 'New Chat'}
                 </p>
                 <PencilIcon className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:scale-110" />
               </div>

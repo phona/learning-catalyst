@@ -8,11 +8,12 @@
  */
 
 import { createProviderService, providerConfigs } from './base-provider-factory';
+import type { LoggerService } from '@/main/services/core/logger/logger-service';
 
 /**
  * DeepSeek service factory using base provider factory
  * Eliminated 95% of duplicated code while maintaining identical functionality
  */
-export const createDeepSeekService = ({ loggerService }: { loggerService: any }) => {
+export const createDeepSeekService = ({ loggerService }: { loggerService: LoggerService }) => {
   return createProviderService(providerConfigs.deepseek)({ loggerService });
 };

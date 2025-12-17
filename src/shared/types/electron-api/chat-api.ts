@@ -5,8 +5,11 @@
  * All methods return display-optimized data wrapped in APIResponse.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 import type { StreamChunk } from '../ai';
+
+// Re-export APIResponse for convenience
+export type { APIResponse };
 
 export type ErrorCategory =
   | 'rate_limit'
@@ -85,171 +88,34 @@ export interface PromptSearchResponse {
   };
 }
 
+/**
+ * Display-ready message from chat history
+ */
+export interface ChatHistoryMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+  metadata?: {
+    checkpoint_id?: string;
+    message_index: number;
+  };
+}
+
 export interface ChatAPI {
   /**
-   * Starts a new conversation with an AI agent
-   * @param params.agentType - Type of agent ('learning', 'tutoring', 'assessment', 'practice')
-   * @param params.topic - Optional topic to focus the conversation
-   * @param params.preferences - User preferences for response style, difficulty, etc.
-   * @returns Promise<ConversationDisplay> - Display-ready conversation object
+   * Generate a session title using heuristics (no IPC required)
    */
-  startConversation: (params: {
-    agentType: 'learning' | 'tutoring' | 'assessment' | 'practice';
-    topic?: string;
-    preferences?: {
-      responseStyle?: 'conversational' | 'structured' | 'detailed' | 'concise';
-      difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
-      language?: string;
-      enableAnimations?: boolean;
-    };
-  }) => Promise<APIResponse<ConversationDisplay>>;
+  generateTitle: (messageText: string) => Promise<APIResponse<string>>;
 
   /**
-   * Sends a message and gets response (non-streaming)
-   * Use this for simple Q&A where streaming isn't needed
-   * @param params.conversationId - Active conversation ID
-   * @param params.message - Message content to send
-   * @param params.attachments - Optional file attachments
-   * @returns Promise<MessageDisplay> - Complete response message
+   * Retrieve complete message history for a chat session
+   * Messages are read from LangGraph checkpoints (accumulated state)
    */
-  sendMessage: (params: {
-    conversationId: string;
-    message: string;
-    attachments?: File[];
-  }) => Promise<APIResponse<MessageDisplay>>;
-
-  /**
-   * Sends a message with streaming response
-   * Use this for long responses or when you want real-time feedback
-   * @param params.conversationId - Active conversation ID
-   * @param params.message - Message content to send
-   * @param params.attachments - Optional file attachments
-   * @returns Promise<AsyncIterable<string>> - Stream of response chunks
-   */
-  sendMessageStream: (
-    params: {
-      conversationId: string;
-      message: string;
-      attachments?: File[];
-      includeStatus?: boolean;
-    },
-    onEvent: (evt: ChatStreamEvent) => void,
-  ) => Promise<APIResponse<{ started: boolean }>>;
-
-  /**
-   * Gets real-time typing indicator
-   * Use this to show when the AI is typing or processing
-   * @param conversationId - Active conversation ID
-   * @returns Promise<TypingIndicator> - Typing status and agent info
-   */
-  getTypingIndicator: (conversationId: string) => Promise<APIResponse<TypingIndicator>>;
-
-  /**
-   * Gets conversation history with display optimization
-   * Returns messages formatted for UI display with relative timestamps
-   * @param conversationId - Conversation ID
-   * @param options.limit - Number of messages to retrieve (default: 50)
-   * @param options.before - Get messages before this message ID (for pagination)
-   * @param options.filter - Filter by message type or content
-   * @returns Promise<ConversationHistory> - Paginated message history
-   */
-  getConversationHistory: (
-    conversationId: string,
-    options?: {
-      limit?: number;
-      before?: string;
-      filter?: {
-        messageType?: 'user' | 'assistant' | 'all';
-        dateRange?: { start: Date; end: Date };
-        hasAttachments?: boolean;
-      };
-    },
-  ) => Promise<APIResponse<ConversationHistory>>;
-
-  /**
-   * Pauses an active conversation
-   * Use this when user wants to temporarily stop the conversation
-   * @param conversationId - Active conversation ID
-   * @returns Promise<{ success: boolean; message: string }>
-   */
-  pauseConversation: (conversationId: string) => Promise<APIResponse<{ message: string }>>;
-
-  /**
-   * Resumes a paused conversation
-   * Restores the conversation context and continues
-   * @param conversationId - Paused conversation ID
-   * @returns Promise<{ success: boolean; context: ConversationContext }>
-   */
-  resumeConversation: (conversationId: string) => Promise<APIResponse<ConversationContext>>;
-
-  /**
-   * Ends a conversation and generates summary
-   * Returns a summary of key points covered in the conversation
-   * @param conversationId - Conversation to end
-   * @returns Promise<ConversationSummary> - Summary and key takeaways
-   */
-  endConversation: (conversationId: string) => Promise<APIResponse<ConversationSummary>>;
-
-  /**
-   * Cancels an active streaming response
-   * Stops the current stream and cleans up resources
-   * @param conversationId - Active conversation ID
-   * @returns Promise<{ canceled: boolean }>
-   */
-  cancelStream?: (conversationId: string) => Promise<APIResponse<{ canceled: boolean }>>;
-
-  /**
-   * Checks for practice opportunities in conversation
-   * Analyzes conversation context to suggest relevant practice moments
-   * @param params.conversationId - Active conversation ID
-   * @param params.userMessage - Latest user message for context
-   * @returns Promise<PracticeOpportunityResult> - Practice suggestion or null
-   */
-  checkPracticeOpportunity: (params: {
-    conversationId: string;
-    userMessage: string;
-  }) => Promise<APIResponse<PracticeOpportunityResult>>;
-
-  /**
-   * Gets natural practice suggestion based on conversation context
-   * Returns a conversational practice suggestion that feels natural
-   * @param params.opportunity - Practice opportunity from checkPracticeOpportunity
-   * @param params.userContext - User's learning context and preferences
-   * @returns Promise<NaturalPracticeSuggestion> - Contextual practice suggestion
-   */
-  getPracticeSuggestion: (params: {
-    conversationId: string;
-    userMessage: string;
-    userContext?: UserLearningContext;
-  }) => Promise<APIResponse<NaturalPracticeSuggestion>>;
-
-  /**
-   * Cross-session prompt search for history recall
-   * @param params.role - 'user' | 'assistant' (default 'user')
-   * @param params.sessionId - optional session filter
-   * @param params.query - optional text search
-   * @param params.limit - default 50
-   * @param params.offset - default 0
-   */
-  searchPrompts: (params: PromptSearchRequest) => Promise<APIResponse<PromptSearchResponse>>;
-
-  /**
-   * Resume workflow after await_user_input checkpoint
-   * Used to continue workflow after user provides input, skips, or chooses to resume later
-   * @param params.conversationId - Active conversation ID
-   * @param params.checkpointId - Checkpoint ID from await_user_input
-   * @param params.questionId - Question ID if applicable
-   * @param params.action - Action to take: 'answer', 'skip', or 'resume_later'
-   * @param params.input - User input when action is 'answer'
-   * @returns Promise<{ success: boolean; resumed: boolean }>
-   */
-  resumeWorkflow: (params: {
-    conversationId: string;
-    checkpointId: string;
-    questionId?: string;
-    action: 'answer' | 'skip' | 'resume_later';
-    input?: string;
-  }) => Promise<APIResponse<{ success: boolean; resumed: boolean }>>;
+  getMessages: (
+    threadId: string,
+    options?: { limit?: number; offset?: number },
+  ) => Promise<APIResponse<{sessions: ChatHistoryMessage[], hasMore: boolean, total: number}>>;
 }
 
 // ============================================================================
@@ -322,7 +188,7 @@ export interface AttachmentDisplay {
   size: string; // Human-readable size
   url?: string;
   thumbnail?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -366,7 +232,7 @@ export interface ConversationContext {
   agentState: {
     currentTopic?: string;
     contextPoints: string[];
-    userPreferences: Record<string, any>;
+    userPreferences: Record<string, unknown>;
   };
   suggestedReopenings: string[];
 }
