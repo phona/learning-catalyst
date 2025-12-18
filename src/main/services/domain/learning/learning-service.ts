@@ -134,7 +134,7 @@ const mapSessionRow = (row: LearningSessionRow): LearningSession => {
   const metadata = safeParseJson<LearningSessionMetadata>(row.metadata, {});
   return {
     id: row.id,
-    topic: metadata.topic ?? row.title,
+    topic: row.title, // Use row.title as the source of truth (updated by generateTitle)
     goals: metadata.goals ?? [],
     difficulty: metadata.difficulty ?? levelToDifficulty(row.difficulty_level),
     agentType: metadata.agentType ?? 'learning',
