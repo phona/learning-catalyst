@@ -114,6 +114,52 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
         // Get the current thread's state to extract the remoteId (SQLite session ID)
         const threadState = store.threadListItem().getState();
         const remoteId = threadState.remoteId;
+        const localId = threadState.id; // Assistant UI's local ID
+
+        // If no remoteId but we have a localId, this is an uninitialized thread
+        // We need to initialize it to get a remoteId (SQLite session ID)
+        if (!remoteId && localId) {
+          console.log('[ThreadHistoryAdapter.load] Thread not initialized, creating SQLite session for localId:', localId);
+          try {
+            // Initialize the thread in SQLite
+            const initResult = await unwrapAPI(api.sessions.create({ title: 'New Chat', threadId: localId }));
+            const { sessionId } = initResult;
+            console.log('[ThreadHistoryAdapter.load] Created SQLite session:', sessionId);
+
+            // TODO: We need to update the thread state with the new remoteId
+            // However, Assistant UI doesn't provide a way to update thread state from the adapter
+            // For now, we'll use the sessionId directly as the remoteId
+            const actualRemoteId = sessionId;
+
+            // Now load messages using the actual remoteId
+            const response = await unwrapAPI(api.chat.getMessages(actualRemoteId));
+
+            if (!response || !response.sessions) {
+              return { messages: [] };
+            }
+
+            const messages = response.sessions.map(
+              (msg: ChatHistoryMessage, idx: number, arr: ChatHistoryMessage[]) =>
+                ({
+                  message: {
+                    id: msg.id,
+                    role: msg.role as 'user' | 'assistant' | 'system',
+                    content: [{ type: 'text' as const, text: msg.content }],
+                    createdAt: new Date(msg.timestamp),
+                    status: { type: 'complete' as const, reason: 'stop' },
+                    metadata: { custom: {} },
+                    attachments: [] as const,
+                  } as ThreadMessage,
+                  parentId: idx > 0 ? arr[idx - 1].id : null,
+                }),
+            );
+
+            return { messages };
+          } catch (error) {
+            console.error('[ThreadHistoryAdapter.load] Failed to initialize thread:', error);
+            return { messages: [] };
+          }
+        }
 
         // New threads without remoteId haven't been persisted yet - return empty
         if (!remoteId) {
@@ -222,14 +268,16 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
         return;
       }
 
-      // Skip if we've already loaded for this thread
-      if (loadedThreadRef.current === threadId) {
-        return;
-      }
+      // Clear any cached state from previous thread
+      console.log('[ThreadHistoryProvider] Thread changed, clearing cache for:', threadId);
+      loadedThreadRef.current = null;
+      messagesCacheRef.current = null;
 
       // Load messages from SQLite
       try {
+        console.log('[ThreadHistoryProvider] Loading messages for thread:', threadId);
         const result = await history.load();
+        console.log('[ThreadHistoryProvider] Loaded', result.messages.length, 'messages');
 
         // Mark this thread as loaded
         loadedThreadRef.current = threadId;
@@ -238,9 +286,11 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
         if (threadRuntime && result.messages.length > 0) {
           threadRuntime.import(result);
           messagesCacheRef.current = null; // Clear cache - already imported
+          console.log('[ThreadHistoryProvider] Messages imported immediately');
         } else {
           // Cache the result for later import
           messagesCacheRef.current = result;
+          console.log('[ThreadHistoryProvider] Messages cached for later import');
         }
       } catch (error) {
         console.error('[ThreadHistoryProvider] Failed to load messages:', error);
@@ -262,7 +312,18 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
       messagesCacheRef.current = null; // Clear cache after import
       console.log('[ThreadHistoryProvider] Cached import complete');
     }
-  }, [threadRuntime]); // Only re-run when threadRuntime changes
+  }, [threadRuntime, threadId]); // Include threadId to ensure fresh check on thread switch
+
+  /**
+   * Cleanup when provider unmounts or threadId changes
+   */
+  useEffect(() => {
+    return () => {
+      console.log('[ThreadHistoryProvider] Cleaning up provider for thread:', threadId);
+      loadedThreadRef.current = null;
+      messagesCacheRef.current = null;
+    };
+  }, [threadId]); // Cleanup when threadId changes or component unmounts
 
   // Provide the history adapter to Assistant UI via RuntimeAdapterProvider
   const adapters = useMemo(() => ({ history }), [history]);
@@ -307,6 +368,7 @@ export function createThreadListAdapter(api: ReturnType<typeof useElectronAPI>):
     async list() {
       try {
         const data = await unwrapAPI(api.sessions.list({ limit: 100 }));
+        console.log('[ThreadListAdapter.list] Sessions from SQLite:', data.sessions.length, data.sessions);
         return {
           threads: data.sessions.map((session: { id: string; status: string; title?: string; topic?: string }) => ({
             remoteId: session.id,
@@ -315,7 +377,8 @@ export function createThreadListAdapter(api: ReturnType<typeof useElectronAPI>):
             title: session.title || session.topic || 'New Chat',
           })),
         };
-      } catch {
+      } catch (error) {
+        console.error('[ThreadListAdapter.list] Error:', error);
         // Graceful degradation: show empty list rather than crash
         return { threads: [] };
       }
@@ -327,9 +390,16 @@ export function createThreadListAdapter(api: ReturnType<typeof useElectronAPI>):
      * @throws IPCError if session creation fails
      */
     async initialize(localId: string) {
-      const result = await unwrapAPI(api.sessions.create({ title: 'New Chat', threadId: localId }));
-      const { sessionId } = result;
-      return { remoteId: sessionId, externalId: sessionId };
+      console.log('[ThreadListAdapter.initialize] Called with localId:', localId);
+      try {
+        const result = await unwrapAPI(api.sessions.create({ title: 'New Chat', threadId: localId }));
+        const { sessionId } = result;
+        console.log('[ThreadListAdapter.initialize] Created session with sessionId:', sessionId);
+        return { remoteId: sessionId, externalId: sessionId };
+      } catch (error) {
+        console.error('[ThreadListAdapter.initialize] Failed to create session:', error);
+        throw error;
+      }
     },
 
     /** Rename a thread's title in SQLite. */

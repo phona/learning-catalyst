@@ -11,10 +11,12 @@ import {
 } from './handlers/ipc-error-handler';
 import { createAppMenu } from './menu';
 import { MainThreadLogger } from './services/logger';
+import { AsyncLocalStorage } from 'async_hooks';
 
 // Import the new service factories
 import { createConfigService } from '@/main/services/core/config/config-service';
 import { createLoggerService } from '@/main/services/core/logger/logger-service';
+import { createWinstonLoggerService } from './services/core/logger/winston-logger';
 import { createLearningService } from '@/main/services/domain/learning/learning-service';
 import { createKnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
 import { createConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
@@ -285,8 +287,24 @@ async function createWindow(): Promise<void> {
   try {
     readyStart = Date.now();
     console.log('[Main] createWindow start service initialization');
-    const baseLogger = new MainThreadLogger('info', true, 1000);
-    const loggerService = createLoggerService({ logger: baseLogger });
+
+    // Setup Winston file logger
+    const logDirectory = path.join(learningCatalystPath, 'logs');
+    const als = new AsyncLocalStorage<any>();
+    const winstonLogger = createWinstonLoggerService({
+      logDirectory,
+      als,
+    });
+    const loggerService = createLoggerService({ logger: winstonLogger });
+
+    // Log startup information
+    loggerService.info('Learning Catalyst starting', {
+      environment: winstonLogger.getEnvironment(),
+      workspacePath: learningCatalystPath,
+      logDirectory,
+      nodeVersion: process.version,
+      electronVersion: process.versions.electron,
+    });
 
     // Persist the database inside the selected workspace (dev:workspace or production)
     const dbPath = path.join(learningCatalystPath, 'learning_catalyst.db');

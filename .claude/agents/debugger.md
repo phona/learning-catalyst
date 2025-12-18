@@ -108,6 +108,22 @@ For web applications, use Chrome DevTools:
 - **Bash git commands**: Examine history, diffs, and changes
 - Track down when issues were introduced
 
+### Main Process Log Files ⭐
+- **Location**: `.catalyst/logs/` directory in workspace
+- **Files**:
+  - `app.log` - Combined logs (all levels: debug, info, warn, error)
+  - `error.log` - Error-only logs for quick issue identification
+- **Format**: JSON (production) or text (development)
+- **Use Cases**:
+  - Debug main process crashes and errors
+  - Trace IPC communication issues
+  - Review service initialization logs
+  - Analyze AI service calls and responses
+- **Commands**:
+  - `cat test_workspace/.catalyst/logs/app.log | tail -50` - Recent logs
+  - `cat test_workspace/.catalyst/logs/error.log` - All errors
+  - `grep "error" test_workspace/.catalyst/logs/app.log` - Filter errors
+
 ---
 
 ## COMMUNICATION GUIDELINES
