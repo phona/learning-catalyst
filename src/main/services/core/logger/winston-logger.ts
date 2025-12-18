@@ -153,19 +153,7 @@ export const createWinstonLoggerService = ({
 
     transports.push(
       new winston.transports.Console({
-        format: devMode
-          ? winston.format.combine(
-              winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-              winston.format.colorize({ all: true }),
-              winston.format.prettyPrint(),
-              winston.format.printf(({ timestamp, level, message, ...meta }) => {
-                const metaStr = Object.keys(meta).length > 0
-                  ? ` ${JSON.stringify(meta, null, 2)}`
-                  : '';
-                return `[${timestamp}] ${level}: ${message}${metaStr}`;
-              })
-            )
-          : winston.format.simple(),
+        format: winston.format.simple(),
         level: consoleLevel,
       })
     );
