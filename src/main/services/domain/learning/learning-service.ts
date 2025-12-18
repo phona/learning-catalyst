@@ -231,9 +231,11 @@ const buildLearningPathFromModules = ({
 export const createLearningService = ({
   db,
   loggerService,
+  checkpointSaver,
 }: {
   db: Kysely<CoreDatabase>;
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
+  checkpointSaver: import('@/main/services/core/checkpoints/SQLiteCheckpointSaver').SQLiteCheckpointSaver;
 }) => {
   const serviceLogger = loggerService.child({ service: 'learning' });
   const normalizeJsonText = (raw: string) => {

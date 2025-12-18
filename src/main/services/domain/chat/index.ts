@@ -65,14 +65,14 @@ export const createChatService = ({
 
       // Collect all checkpoints for this thread
       const checkpoints: Array<{
-        checkpoint: { messages: BaseMessage[] };
+        checkpoint: { channel_values?: { messages?: BaseMessage[] } };
         metadata: Record<string, unknown>;
         config: { configurable: { checkpoint_id?: string } };
       }> = [];
 
       for await (const checkpoint of checkpointSaver.list(checkpointConfig)) {
         checkpoints.push({
-          checkpoint: { messages: checkpoint.checkpoint.messages ?? [] },
+          checkpoint: checkpoint.checkpoint as { channel_values?: { messages?: BaseMessage[] } },
           metadata: checkpoint.metadata,
           config: checkpoint.config,
         });
@@ -85,8 +85,9 @@ export const createChatService = ({
       }
 
       // Messages accumulate via reducer - latest checkpoint has complete history
+      // Messages are stored in channel_values.messages (LangGraph state structure)
       const latestCheckpoint = checkpoints[0];
-      const messages = latestCheckpoint.checkpoint.messages;
+      const messages = latestCheckpoint.checkpoint.channel_values?.messages ?? [];
 
       // Convert LangChain messages to display format
       const formattedMessages: ChatMessage[] = messages.map((msg, index) => {

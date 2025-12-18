@@ -4,31 +4,30 @@ import {
   AssistantRuntimeProvider,
   unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
 } from '@assistant-ui/react';
-import { useChatRuntime, AssistantChatTransport } from '@assistant-ui/react-ai-sdk';
+import { useChatRuntime } from '@assistant-ui/react-ai-sdk';
 import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import SetupScreen from '@/renderer/components/SetupScreen';
 import { Layout } from '@/renderer/components/Layout';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
-import { SessionManager } from '@/renderer/components/Session/SessionManager';
 import { DiscoveryPage } from '@/renderer/components/Discovery';
 import { SettingsPanel } from '@/renderer/components/Config/SettingsPanel';
 import { LearningDashboard } from '@/renderer/components/Dashboard/LearningDashboard';
 import { KnowledgeMap } from '@/renderer/components/Dashboard/KnowledgeMap';
 import { useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
-import { createIpcFetch } from '@/renderer/services/chat/ipcFetch';
 import { showError } from '@/renderer/utils/toast';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
 import { LoadingScreen } from '@/renderer/components/UI/LoadingScreen';
 import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
 import { ThreadAdapterProvider } from '@/renderer/contexts/ThreadAdapterContext';
+import { useElectronAPI } from '@/renderer/hooks/useElectronAPI';
+import { IpcChatTransport } from '@/renderer/services/chat/IpcChatTransport';
 
 const MainRoutes = () => (
   <Routes>
     <Route element={<Layout />}>
       <Route index element={<ChatInterface />} />
       <Route path="chat/:sessionId" element={<ChatInterface />} />
-      <Route path="sessions" element={<SessionManager />} />
       <Route path="discovery" element={<DiscoveryPage />} />
       <Route path="progress" element={<LearningDashboard />} />
       <Route path="knowledge" element={<KnowledgeMap />} />
@@ -50,12 +49,16 @@ const formatIPCError = (payload: IPCErrorPayload): string => {
 
 /**
  * Custom hook that creates the chat runtime with IPC transport
+ *
+ * Uses our custom IpcChatTransport that pre-initializes threads to ensure
+ * the remoteId is available before any messages are sent.
  */
-function useIpcChatRuntime() {
+function useIpcChatRuntime(api: ReturnType<typeof useElectronAPI>) {
+  // Create a stable transport instance using useMemo
+  const transport = React.useMemo(() => new IpcChatTransport(api), [api]);
+
   return useChatRuntime({
-    transport: new AssistantChatTransport({
-      fetch: createIpcFetch(),
-    }),
+    transport,
   });
 }
 
@@ -63,17 +66,19 @@ const AppContent: React.FC<{ status: AppState; message: string | null }> = ({
   status,
   message,
 }) => {
+  const api = useElectronAPI();
+
   if (status === 'setup') {
     return <SetupScreen message={message ?? undefined} />;
   }
 
   // Create thread list adapter for SQLite persistence
-  const threadListAdapter = React.useMemo(() => createThreadListAdapter(), []);
+  const threadListAdapter = React.useMemo(() => createThreadListAdapter(api), [api]);
 
   // Create runtime with thread list support
   // useRemoteThreadListRuntime combines chat runtime with thread persistence
   const runtime = useRemoteThreadListRuntime({
-    runtimeHook: useIpcChatRuntime,
+    runtimeHook: () => useIpcChatRuntime(api),
     adapter: threadListAdapter,
   });
 

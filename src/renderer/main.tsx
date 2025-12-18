@@ -12,6 +12,7 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { ServicesProvider } from './services/services-provider';
 import { createElectronAPIClient } from './services/api/electron-api-client';
+import { ElectronAPIProvider } from './hooks/useElectronAPI';
 import { ChatStoreProvider } from './stores/chat/ChatStoreProvider';
 import '../index.css';
 import '@assistant-ui/react-ui/styles/index.css';
@@ -82,15 +83,18 @@ class ErrorBoundary extends React.Component<
 }
 
 // Render the app
+const electronAPI = createElectronAPIClient();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <ServicesProvider apiClient={createElectronAPIClient()}>
-            <ChatStoreProvider>
-              <App />
-              <Toaster
+          <ElectronAPIProvider api={electronAPI}>
+            <ServicesProvider apiClient={electronAPI}>
+              <ChatStoreProvider>
+                <App />
+                <Toaster
                 position="top-right"
                 toastOptions={{
                   duration: 4000,
@@ -116,6 +120,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               />
             </ChatStoreProvider>
           </ServicesProvider>
+          </ElectronAPIProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>

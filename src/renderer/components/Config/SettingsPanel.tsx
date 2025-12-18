@@ -20,6 +20,7 @@ import type {
   SelectedModel,
 } from '@/shared/types';
 import { useService } from '@/renderer/services/services-provider';
+import { useElectronAPI, unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 const modelTypes: ModelType[] = [ModelType.CHAT, ModelType.EMBEDDING, ModelType.RERANK];
 
@@ -131,6 +132,7 @@ export const SettingsPanel: React.FC = () => {
     ),
   );
   const configService = useService('configService');
+  const api = useElectronAPI();
 
   // Re-embedding state
   const [isReembedding, setIsReembedding] = useState(false);
@@ -517,17 +519,12 @@ export const SettingsPanel: React.FC = () => {
     try {
       // Step 1: Get all knowledge items from the knowledge service
       setReembedProgress(10);
-      const response = await window.electronAPI.knowledgeGetAll();
-      if (!response.success) {
-        throw new Error('Failed to fetch knowledge data');
-      }
-
-      const knowledgeItems = response.data || [];
+      const knowledgeItems = await unwrapAPI(api.knowledge.getAll());
       setReembedProgress(30);
 
       // Step 2: Delete old collection
       setReembedProgress(40);
-      await window.electronAPI.qdrantDeleteCollection('knowledge_items');
+      await unwrapAPI(api.knowledge.qdrantDeleteCollection('knowledge_items'));
 
       // Step 3: Update config
       setReembedProgress(50);
@@ -542,7 +539,7 @@ export const SettingsPanel: React.FC = () => {
 
       // Step 4: Create new collection
       setReembedProgress(60);
-      await window.electronAPI.qdrantCreateCollection('knowledge_items', pendingDimensionChange, 'Cosine');
+      await unwrapAPI(api.knowledge.qdrantCreateCollection('knowledge_items', pendingDimensionChange, 'Cosine'));
 
       // Step 5: Re-embed and restore data
       if (knowledgeItems.length > 0) {
@@ -554,28 +551,24 @@ export const SettingsPanel: React.FC = () => {
 
           for (const item of batch) {
             // Get embedding for this item
-            const embedResponse = await window.electronAPI.aiEmbedText(
-              item.content || item.name || ''
-            );
+            const embedding = await unwrapAPI(api.ai.embedText(item.content || item.name || ''));
 
-            if (embedResponse.success) {
-              points.push({
-                id: item.id,
-                vector: embedResponse.data,
-                payload: {
-                  content: item.content || item.name || '',
-                  metadata: {
-                    ...item.metadata,
-                    reembeddedAt: new Date().toISOString(),
-                    originalDimensions: localConfig.ai.embeddingDimensions,
-                  },
+            points.push({
+              id: item.id,
+              vector: embedding,
+              payload: {
+                content: item.content || item.name || '',
+                metadata: {
+                  ...item.metadata,
+                  reembeddedAt: new Date().toISOString(),
+                  originalDimensions: localConfig.ai.embeddingDimensions,
                 },
-              });
-            }
+              },
+            });
           }
 
           if (points.length > 0) {
-            await window.electronAPI.knowledgeAddBatch(points);
+            await unwrapAPI(api.knowledge.addBatch(points));
           }
 
           const progress = 70 + ((i + batch.length) / knowledgeItems.length) * 30;

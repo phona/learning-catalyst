@@ -51,8 +51,9 @@ export const setupChatHandlers = (
 
   ipcMainInstance.handle('chat:get-messages', async (_event, sessionId: string) => {
     const messages = await services.chatService.getMessages(sessionId);
-    logger.info('Get messages requested', { sessionId });
-    return { messages };
+    logger.info('Get messages requested', { sessionId, count: messages.length });
+    // Return format expected by useThreadHistoryAdapter: { sessions: ChatHistoryMessage[] }
+    return { sessions: messages, hasMore: false, total: messages.length };
   });
 
   // Keep old IPC streaming API as fallback (to be removed later)

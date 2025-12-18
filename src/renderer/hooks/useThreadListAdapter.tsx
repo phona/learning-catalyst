@@ -67,7 +67,8 @@ import {
   type ExportedMessageRepository,
 } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
-import { showError } from '@/renderer/utils/toast';
+import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
+import { useElectronAPI, unwrapAPI } from './useElectronAPI';
 
 /**
  * Creates a ThreadHistoryAdapter that loads messages from SQLite.
@@ -100,6 +101,7 @@ import { showError } from '@/renderer/utils/toast';
  */
 function useThreadHistoryAdapter(): ThreadHistoryAdapter {
   const store = useAssistantApi();
+  const api = useElectronAPI();
 
   return useMemo(
     () => ({
@@ -118,30 +120,38 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
           return { messages: [] };
         }
 
-        const response = await window.electronAPI.chat.getMessages(remoteId);
-        console.log('[ThreadHistoryAdapter] load - raw response:', remoteId, response);
+        try {
+          const response = await unwrapAPI(api.chat.getMessages(remoteId));
 
-        // Handle empty or failed responses gracefully
-        if (!response.data || !response.data.sessions) {
+          // Handle empty responses gracefully
+          if (!response || !response.sessions) {
+            return { messages: [] };
+          }
+
+          // Convert SQLite message format to Assistant UI's ExportedMessageRepository format
+          // Each message needs: message object, parentId for threading
+          const messages = response.sessions.map(
+            (msg: ChatHistoryMessage, idx: number, arr: ChatHistoryMessage[]) =>
+              ({
+                message: {
+                  id: msg.id,
+                  role: msg.role as 'user' | 'assistant' | 'system',
+                  content: [{ type: 'text' as const, text: msg.content }],
+                  createdAt: new Date(msg.timestamp),
+                  status: { type: 'complete' as const, reason: 'stop' },
+                  metadata: { custom: {} },
+                  attachments: [] as const,
+                } as ThreadMessage,
+                // Link messages in sequence: first message has null parent, rest link to previous
+                parentId: idx > 0 ? arr[idx - 1].id : null,
+              }),
+          );
+
+          return { messages };
+        } catch (error) {
+          console.error('[ThreadHistoryAdapter.load] Error:', error);
           return { messages: [] };
         }
-
-        // Convert SQLite message format to Assistant UI's ExportedMessageRepository format
-        // Each message needs: message object, parentId for threading
-        const messages = response.data.sessions.map((msg, idx, arr) => ({
-          message: {
-            id: msg.id,
-            role: msg.role as 'user' | 'assistant' | 'system',
-            content: [{ type: 'text' as const, text: msg.content }],
-            createdAt: new Date(msg.timestamp),
-            status: { type: 'complete' as const, reason: 'stop' },
-            metadata: { custom: {} },
-          },
-          // Link messages in sequence: first message has null parent, rest link to previous
-          parentId: idx > 0 ? arr[idx - 1].id : null,
-        }));
-
-        return { messages };
       },
 
       /**
@@ -152,7 +162,7 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
         return;
       },
     }),
-    [store],
+    [store, api],
   );
 }
 
@@ -196,23 +206,14 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
 
   // Track which thread we've loaded to prevent duplicate calls
   const loadedThreadRef = React.useRef<string | null>(null);
+  const messagesCacheRef = React.useRef<any>(null);
 
   // Get thread ID for dependency tracking
-  const threadId = store.threadListItem().getState().remoteId;
+  const threadState = store.threadListItem().getState();
+  const threadId = threadState.remoteId;
 
   /**
-   * Explicitly trigger history loading on provider mount.
-   *
-   * PREVENTING DUPLICATE CALLS:
-   * We use BOTH:
-   * 1. A ref to track which remoteId we've already loaded
-   * 2. An empty dependency array [] (runs only once on mount)
-   *
-   * WHY THIS WORKS:
-   * - Each ThreadHistoryProvider instance is created fresh for a thread (via key={threadId})
-   * - Empty dependency array means useEffect runs once when provider mounts
-   * - Ref check prevents accidental duplicate calls
-   * - When thread switches, old provider unmounts and new one mounts (fresh ref)
+   * Load messages from SQLite and import them into Assistant UI
    */
   useEffect(() => {
     const loadMessages = async () => {
@@ -221,31 +222,47 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
         return;
       }
 
-      // Skip if we already loaded for this thread (prevent duplicates)
+      // Skip if we've already loaded for this thread
       if (loadedThreadRef.current === threadId) {
         return;
       }
 
+      // Load messages from SQLite
       try {
-        // Fetch messages from SQLite via Electron IPC
-        const { messages } = await history.load();
-
-        // Import into Assistant UI's thread runtime
-        if (messages.length > 0 && threadRuntime) {
-          threadRuntime.import(messages);
-        }
+        const result = await history.load();
 
         // Mark this thread as loaded
         loadedThreadRef.current = threadId;
+
+        // Import immediately if threadRuntime is available
+        if (threadRuntime && result.messages.length > 0) {
+          threadRuntime.import(result);
+          messagesCacheRef.current = null; // Clear cache - already imported
+        } else {
+          // Cache the result for later import
+          messagesCacheRef.current = result;
+        }
       } catch (error) {
         console.error('[ThreadHistoryProvider] Failed to load messages:', error);
       }
     };
 
     // Execute immediately on mount
-    // Empty dependency array: runs once when component mounts
     loadMessages();
-  }, []); // <-- EMPTY: Only runs once per provider instance
+  }, [threadId]); // Re-run if threadId changes (removed threadRuntime to prevent loops)
+
+  /**
+   * Separate useEffect for importing cached messages when threadRuntime becomes available
+   */
+  useEffect(() => {
+    // Try to import cached messages if we have them and runtime is available
+    if (threadRuntime && messagesCacheRef.current?.messages?.length > 0 && loadedThreadRef.current === threadId) {
+      console.log('[ThreadHistoryProvider] Importing cached messages now that runtime is available');
+      threadRuntime.import(messagesCacheRef.current);
+      messagesCacheRef.current = null; // Clear cache after import
+      console.log('[ThreadHistoryProvider] Cached import complete');
+    }
+  }, [threadRuntime]); // Only re-run when threadRuntime changes
 
   // Provide the history adapter to Assistant UI via RuntimeAdapterProvider
   const adapters = useMemo(() => ({ history }), [history]);
@@ -281,175 +298,108 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
  * - Enables per-thread history loading context
  * - See ThreadHistoryProvider documentation for details
  */
-export function createThreadListAdapter(): RemoteThreadListAdapter {
-  const api = window.electronAPI;
-
+export function createThreadListAdapter(api: ReturnType<typeof useElectronAPI>): RemoteThreadListAdapter {
   return {
     /**
      * List all threads from SQLite learning_sessions table.
-     * Maps session status to Assistant UI's thread status format.
+     * Returns empty list on error for graceful degradation.
      */
     async list() {
-      const response = await api.sessions.list({ limit: 100 });
-      if (!response.success || !response.data) {
-        console.error('[ThreadListAdapter] Failed to list sessions:', response.error);
+      try {
+        const data = await unwrapAPI(api.sessions.list({ limit: 100 }));
+        return {
+          threads: data.sessions.map((session: { id: string; status: string; title?: string; topic?: string }) => ({
+            remoteId: session.id,
+            externalId: session.id,
+            status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
+            title: session.title || session.topic || 'New Chat',
+          })),
+        };
+      } catch {
+        // Graceful degradation: show empty list rather than crash
         return { threads: [] };
       }
-
-      const threads = response.data.sessions.map((session) => ({
-        remoteId: session.id,
-        externalId: session.id,
-        status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
-        title: session.title || session.topic || 'New Chat',
-      }));
-
-      return { threads };
     },
 
     /**
      * Initialize a new thread in SQLite.
-     * Called when user creates a new chat - creates the session record.
-     *
      * @param localId - Assistant UI's local thread ID, used as the session ID
+     * @throws IPCError if session creation fails
      */
     async initialize(localId: string) {
-      console.log('[ThreadListAdapter] Initializing thread with localId:', localId);
-
-      const response = await api.sessions.create({
-        title: 'New Chat',
-        threadId: localId, // Use the localId as the session ID
-      });
-
-      if (!response.success || !response.data) {
-        console.error('[ThreadListAdapter] Failed to create session:', response.error);
-        throw new Error('Failed to create session');
-      }
-
-      console.log('[ThreadListAdapter] Session created with ID:', response.data.sessionId);
-
-      return {
-        remoteId: localId, // Return the localId as remoteId
-        externalId: localId,
-      };
+      const result = await unwrapAPI(api.sessions.create({ title: 'New Chat', threadId: localId }));
+      const { sessionId } = result;
+      return { remoteId: sessionId, externalId: sessionId };
     },
 
-    /**
-     * Rename a thread's title in SQLite.
-     */
+    /** Rename a thread's title in SQLite. */
     async rename(remoteId: string, title: string) {
-      const response = await api.sessions.updateTitle(remoteId, title);
-      if (!response.success) {
-        console.error('[ThreadListAdapter] Failed to rename session:', response.error);
-        throw new Error('Failed to rename session');
-      }
+      await unwrapAPI(api.sessions.updateTitle(remoteId, title));
     },
 
-    /**
-     * Archive a thread by setting its status to 'completed'.
-     */
+    /** Archive a thread by setting status to 'completed'. */
     async archive(remoteId: string) {
-      const response = await api.sessions.update(remoteId, { status: 'completed' });
-      if (!response.success) {
-        console.error('[ThreadListAdapter] Failed to archive session:', response.error);
-        throw new Error('Failed to archive session');
-      }
+      await unwrapAPI(api.sessions.update(remoteId, { status: 'completed' }));
     },
 
-    /**
-     * Unarchive a thread by setting its status back to 'active'.
-     */
+    /** Unarchive a thread by setting status back to 'active'. */
     async unarchive(remoteId: string) {
-      const response = await api.sessions.update(remoteId, { status: 'active' });
-      if (!response.success) {
-        console.error('[ThreadListAdapter] Failed to unarchive session:', response.error);
-        throw new Error('Failed to unarchive session');
-      }
+      await unwrapAPI(api.sessions.update(remoteId, { status: 'active' }));
     },
 
-    /**
-     * Permanently delete a thread from SQLite.
-     */
+    /** Permanently delete a thread from SQLite. */
     async delete(remoteId: string) {
-      const response = await api.sessions.delete(remoteId);
-      if (!response.success) {
-        console.error('[ThreadListAdapter] Failed to delete session:', response.error);
-        throw new Error('Failed to delete session');
-      }
+      await unwrapAPI(api.sessions.delete(remoteId));
     },
 
     /**
-     * Generate an AI-powered title for a thread based on the first user message.
-     *
-     * Returns a stream that immediately provides "New Chat" as placeholder,
-     * then asynchronously generates and saves the real title in the background.
+     * Generate AI title in background. Returns placeholder immediately,
+     * then updates the title asynchronously without blocking UI.
      */
     async generateTitle(remoteId: string, messages: readonly ThreadMessage[]) {
       const firstUserMessage = messages.find((m) => m.role === 'user');
-
-      // Extract text content from the first user message
-      let textContent = '';
-      if (firstUserMessage) {
-        textContent = firstUserMessage.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map((c) => c.text)
-          .join(' ');
-      }
+      const textContent = firstUserMessage?.content
+        .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
+        .map((c) => c.text)
+        .join(' ') ?? '';
 
       return createAssistantStream(async (controller) => {
-        // Immediately return placeholder title
         controller.appendText('New Chat');
         controller.close();
 
-        // Generate AI title in background (doesn't block the UI)
-        if (firstUserMessage && textContent) {
-          try {
-            const generatedTitle = await api.chat.generateTitle(textContent);
-            let finalTitle = 'New Chat';
+        if (!textContent) return;
 
-            if (generatedTitle.success && generatedTitle.data) {
-              finalTitle = generatedTitle.data.trim();
-              // Truncate long titles with ellipsis
-              if (finalTitle.length > 47) {
-                finalTitle = finalTitle.slice(0, 47) + '...';
-              }
-            }
-
-            await api.sessions.updateTitle(remoteId, finalTitle);
-          } catch (error) {
-            console.error('[ThreadListAdapter] Title generation failed:', error);
-            showError('Failed to generate title');
-          }
+        // Background title generation - silent to avoid toast spam
+        try {
+          const title = await unwrapAPI(api.chat.generateTitle(textContent));
+          const finalTitle = title.length > 47 ? title.slice(0, 47) + '...' : title;
+          await unwrapAPI(api.sessions.updateTitle(remoteId, finalTitle));
+        } catch {
+          // Title generation is non-critical, fail silently
         }
       });
     },
 
     /**
-     * Fetch metadata for a specific thread from SQLite.
-     * Used by Assistant UI to get thread info when needed.
+     * Fetch thread metadata. Returns default on error for graceful degradation.
      */
     async fetch(threadId: string) {
-      const response = await api.sessions.get(threadId);
-
-      if (!response.success || !response.data) {
+      try {
+        const data = await unwrapAPI(api.sessions.get(threadId));
+        // Type assertion: unwrapAPI guarantees data exists on success
+        const session = data!;
         return {
-          status: 'regular' as const,
+          status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
           remoteId: threadId,
-          title: 'New Chat',
+          externalId: threadId,
+          title: session.title || 'New Chat',
         };
+      } catch {
+        return { status: 'regular' as const, remoteId: threadId, title: 'New Chat' };
       }
-
-      return {
-        status: response.data.status === 'completed' ? ('archived' as const) : ('regular' as const),
-        remoteId: threadId,
-        externalId: threadId,
-        title: response.data.title || 'New Chat',
-      };
     },
 
-    /**
-     * Provider component that wraps each thread to enable history loading.
-     * Assistant UI calls this provider when rendering thread content.
-     */
+    /** Provider component that wraps each thread to enable history loading. */
     unstable_Provider: ThreadHistoryProvider,
   };
 }

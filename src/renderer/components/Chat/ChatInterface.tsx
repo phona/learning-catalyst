@@ -20,8 +20,6 @@ export const ChatInterface: React.FC = () => {
   const threadState = threadRuntime?.getState();
   const threadKey = threadState?.remoteId || threadState?.id || 'default';
 
-  console.log('[ChatInterface] threadKey:', threadKey, 'threadState:', threadState);
-
   return (
     <div className="h-full bg-gray-50">
       <ThreadHistoryProvider key={threadKey}>

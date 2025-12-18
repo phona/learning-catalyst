@@ -82,14 +82,18 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle(
     'sessions:create',
     async (_event, payload: { title?: string; threadId?: string }) => {
+      console.log('[sessions:create] Received payload:', payload);
       const session = await services.learningService.startLearningSession({
         topic: payload.title ?? 'New Chat',
         goals: [],
         difficulty: 'intermediate',
         agentType: 'learning',
         learningStyle: 'visual',
+        sessionId: payload.threadId, // ✅ Pass threadId from Assistant UI
       });
-      return { sessionId: session.id, session: toSessionDisplay(session) };
+      const result = { sessionId: session.id, session: toSessionDisplay(session) };
+      console.log('[sessions:create] Returning result:', result);
+      return result;
     },
   );
 
