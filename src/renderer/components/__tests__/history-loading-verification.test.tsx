@@ -1,109 +1,73 @@
 /**
  * @fileoverview Verification Test - History Loading Fix
  *
- * This test verifies that the history loading fix is working correctly.
- * It tests the complete flow from clicking a thread to loading messages.
+ * Focus: renderer-side routing behavior.
+ *
+ * When the user refreshes or deep-links to `/chat/:sessionId`, the UI must
+ * instruct Assistant UI's thread list runtime to switch to that thread.
  */
 
 import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ChatInterface } from '@/renderer/components/Chat/ChatInterface';
-import { ThreadAdapterProvider } from '@/renderer/contexts/ThreadAdapterContext';
 
-// Mock Assistant UI
+const switchToThread = vi.fn();
+
+const assistantApi = {
+  threadListItem: vi.fn(),
+  threads: vi.fn(() => ({ switchToThread })),
+  on: vi.fn(() => () => {}),
+};
+// Mimic assistant-ui api shape
+(assistantApi.threadListItem as any).source = true;
+
 vi.mock('@assistant-ui/react', () => ({
-  Thread: ({ children }: any) => (
-    <div data-testid="thread-component">{children}</div>
-  ),
-  useAssistantApi: () => ({
-    threadListItem: () => ({
-      getState: () => ({
-        remoteId: 'test-thread-123',
-      }),
-    }),
-  }),
+  useAssistantApi: () => assistantApi,
 }));
 
 vi.mock('@assistant-ui/react-ui', () => ({
-  Thread: ({ children }: any) => (
-    <div data-testid="thread-component">{children}</div>
-  ),
+  Thread: () => <div data-testid="thread-component" />,
 }));
 
-vi.mock('@assistant-ui/react-ai-sdk', () => ({
-  useChatRuntime: () => () => ({}),
-}));
-
-// Mock electronAPI
-const mockGetMessages = vi.fn();
-window.electronAPI = {
-  chat: {
-    getMessages: mockGetMessages,
-  },
-  sessions: {
-    list: vi.fn(),
-    get: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    updateTitle: vi.fn(),
-    delete: vi.fn(),
-  },
-} as any;
-
-describe('✅ History Loading Fix Verification', () => {
+describe('History Loading Fix - ChatInterface routing', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetMessages.mockResolvedValue({
-      success: true,
-      data: [
-        {
-          id: 'msg-1',
-          role: 'user',
-          content: 'Hello',
-          timestamp: '2024-01-01T00:00:00.000Z',
-        },
-        {
-          id: 'msg-2',
-          role: 'assistant',
-          content: 'Hi there!',
-          timestamp: '2024-01-01T00:00:01.000Z',
-        },
-      ],
+    (assistantApi.threadListItem as any).source = true;
+  });
+
+  it('switches to URL thread on page refresh', () => {
+    assistantApi.threadListItem.mockReturnValue({
+      getState: () => ({ id: '__LOCALID_abc', remoteId: undefined }),
     });
-  });
 
-  it('should render ChatInterface with ThreadHistoryProvider wrapper', () => {
-    // ARRANGE & ACT
     render(
-      <ThreadAdapterProvider>
-        <ChatInterface />
-      </ThreadAdapterProvider>
+      <MemoryRouter initialEntries={['/chat/session-123']}>
+        <Routes>
+          <Route path="/chat/:sessionId" element={<ChatInterface />} />
+        </Routes>
+      </MemoryRouter>,
     );
 
-    // ASSERT
+    expect(screen.getByTestId('chat-loading')).toBeInTheDocument();
+    expect(switchToThread).toHaveBeenCalledWith('session-123');
+  });
+
+  it('does not re-switch when already on the selected thread', () => {
+    assistantApi.threadListItem.mockReturnValue({
+      getState: () => ({ id: 'session-123', remoteId: 'session-123' }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/chat/session-123']}>
+        <Routes>
+          <Route path="/chat/:sessionId" element={<ChatInterface />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
     expect(screen.getByTestId('thread-component')).toBeInTheDocument();
-  });
-
-  it('should have unstable_Provider available in context', () => {
-    // ARRANGE
-    let unstableProvider: React.ComponentType<{ children: React.ReactNode }> | null = null;
-
-    const TestComponent = () => {
-      const { unstable_Provider } = require('@/renderer/contexts/ThreadAdapterContext').useThreadAdapter();
-      unstableProvider = unstable_Provider;
-      return <div data-testid="test-component">Test</div>;
-    };
-
-    // ACT
-    render(
-      <ThreadAdapterProvider>
-        <TestComponent />
-      </ThreadAdapterProvider>
-    );
-
-    // ASSERT
-    expect(unstableProvider).toBeDefined();
-    expect(typeof unstableProvider).toBe('function');
+    expect(switchToThread).not.toHaveBeenCalled();
   });
 });

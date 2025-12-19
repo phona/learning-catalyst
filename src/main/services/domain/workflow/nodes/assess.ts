@@ -25,7 +25,7 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
 import { NodeName } from '../types';
@@ -58,7 +58,7 @@ const ASSESSMENT_PROMPT = ChatPromptTemplate.fromMessages([
       'Recent Conversation:',
       '{recentMessages}',
       '',
-      'Return your response in the format: "Score: NN%"'
+      'Return your response in the format: "Score: NN%"',
     ].join('\n'),
   ],
 ]);
@@ -112,19 +112,21 @@ function extractPracticeMetrics(attempts: PracticeAttempt[]): PracticeMetrics {
     // Collect all rubric scores for averaging
     const rubric = attempt.rubricScores;
     if (rubric) {
-      const scores = [rubric.retrieval, rubric.application, rubric.teachBack]
-        .filter((v): v is number => typeof v === 'number');
+      const scores = [rubric.retrieval, rubric.application, rubric.teachBack].filter(
+        (v): v is number => typeof v === 'number',
+      );
       allRubricScores.push(...scores);
     }
 
     // Collect error tags as gaps for future remediation
-    (attempt.errorTags ?? []).forEach(tag => gaps.add(tag));
+    (attempt.errorTags ?? []).forEach((tag) => gaps.add(tag));
   }
 
   // Calculate average rubric score (0-1 range)
-  const rubricAverage = allRubricScores.length > 0
-    ? allRubricScores.reduce((sum, score) => sum + score, 0) / (allRubricScores.length * 100)
-    : 0;
+  const rubricAverage =
+    allRubricScores.length > 0
+      ? allRubricScores.reduce((sum, score) => sum + score, 0) / (allRubricScores.length * 100)
+      : 0;
 
   return {
     passCount: outcomeCounts.pass,
@@ -146,97 +148,115 @@ function extractPracticeMetrics(attempts: PracticeAttempt[]): PracticeMetrics {
 function formatRecentMessages(
   messages: Array<HumanMessage | AIMessage>,
   maxMessages = 20,
-  maxMessageLength = 200
+  maxMessageLength = 200,
 ): string {
   return messages
     .slice(-maxMessages)
-    .map(msg => {
+    .map((msg) => {
       // Use instanceof for type-safe message type detection
       const role = msg instanceof HumanMessage ? 'user' : 'assistant';
-      const content = msg.content.length > maxMessageLength
-        ? msg.content.slice(0, maxMessageLength)
-        : msg.content;
+      const content =
+        msg.content.length > maxMessageLength
+          ? msg.content.slice(0, maxMessageLength)
+          : msg.content;
       return `${role}: ${content}`;
     })
     .join('\n');
 }
 
-export const assessNode = (deps: WorkflowDeps) => async (
-  state: typeof WorkflowStateAnnotation.State,
-  config: LangGraphRunnableConfig
-) => {
-  // Initialize chunk emitter for streaming status updates
-  const emitter = createChunkEmitter(config);
-  const nodeName = NodeName.ASSESS;
-  const toolCallId = generateId(nodeName);
+export const assessNode =
+  (deps: WorkflowDeps) =>
+  async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
+    // Initialize chunk emitter for streaming status updates
+    const emitter = createChunkEmitter(config);
+    const nodeName = NodeName.ASSESS;
+    const toolCallId = generateId(nodeName);
 
-  // Emit input start for observability
-  emitter.toolInputStart(toolCallId, nodeName);
+    // Emit input start for observability
+    emitter.toolInputStart(toolCallId, nodeName);
 
-  // Step 1: Fetch related concepts from knowledge graph
-  const knowledgeResult = await deps.knowledgeService.searchKnowledge({
-    query: state.topic,
-    limit: 5,
-  });
+    // Step 1: Fetch related concepts from knowledge graph
+    const knowledgeResult = await deps.knowledgeService.searchKnowledge({
+      query: state.topic,
+      limit: 5,
+    });
 
-  // Extract concept IDs for practice history lookup
-  const conceptIds = (knowledgeResult?.results ?? [])
-    .map(result => result.id)
-    .filter((id): id is string => Boolean(id));
+    // Extract concept IDs for practice history lookup
+    const conceptIds = (knowledgeResult?.results ?? [])
+      .map((result) => result.id)
+      .filter((id): id is string => Boolean(id));
 
-  // Step 2: Retrieve practice history for confidence calculation
-  const practiceHistory = await deps.learningService.getPracticeHistory({
-    conceptIds,
-    limit: 100,
-  });
+    // Step 2: Retrieve practice history for confidence calculation
+    const practiceHistory = await deps.learningService.getPracticeHistory({
+      conceptIds,
+      limit: 100,
+    });
 
-  // Step 3: Extract metrics from practice history
-  const practiceMetrics = extractPracticeMetrics(practiceHistory);
+    // Step 3: Extract metrics from practice history
+    const practiceMetrics = extractPracticeMetrics(practiceHistory);
 
-  // Step 4: Format recent conversation for LLM analysis
-  const recentMessages = formatRecentMessages(state.messages as (HumanMessage | AIMessage)[]);
+    // Step 4: Format recent conversation for LLM analysis
+    const recentMessages = formatRecentMessages(state.messages as (HumanMessage | AIMessage)[]);
 
-  // Step 5: Get AI model and generate confidence assessment
-  const model = await deps.providerFactory.getModel();
+    // Step 5: Get AI model and generate confidence assessment
+    const model = await deps.providerFactory.getModel();
 
-  // Format the prompt using the global ChatPromptTemplate
-  const messages = await ASSESSMENT_PROMPT.formatMessages({
-    topic: state.topic,
-    passCount: String(practiceMetrics.passCount),
-    partialCount: String(practiceMetrics.partialCount),
-    failCount: String(practiceMetrics.failCount),
-    rubricAvg: String(Math.round(practiceMetrics.rubricAverage * 100)),
-    recentMessages,
-  });
+    // Format the prompt using the global ChatPromptTemplate
+    const messages = await ASSESSMENT_PROMPT.formatMessages({
+      topic: state.topic,
+      passCount: String(practiceMetrics.passCount),
+      partialCount: String(practiceMetrics.partialCount),
+      failCount: String(practiceMetrics.failCount),
+      rubricAvg: String(Math.round(practiceMetrics.rubricAverage * 100)),
+      recentMessages,
+    });
 
-  // Invoke model with the formatted messages
-  const modelResponse = await model.invoke(messages);
+    // Invoke model with the formatted messages
+    const modelResponse = await model.invoke(messages);
 
-  // Extract confidence score from model response
-  const rawResponse = String(modelResponse.content ?? modelResponse ?? '');
-  const parsedConfidence = parseScore(rawResponse);
+    // Extract confidence score from model response
+    const rawResponse = String(modelResponse.content ?? modelResponse ?? '');
+    const parsedConfidence = parseScore(rawResponse);
 
-  // Clamp confidence to valid range [0, 1]
-  const confidence = clamp01(parsedConfidence ?? 0.5);
+    // Clamp confidence to valid range [0, 1]
+    const confidence = clamp01(parsedConfidence ?? 0.5);
 
-  // Format confidence message for user
-  const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
+    // Format confidence message for user
+    const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
 
-  // Step 6: Emit tool output for orchestration
-  emitter.toolOutputAvailable(toolCallId, {
-    ok: true,
-    data: {
+    // Step 6: Emit tool output for orchestration
+
+    const toolOutput = {
       confidence,
       gaps: practiceMetrics.gaps,
       content: confidenceMessage,
       topic: state.topic,
-    },
-  });
+    };
+    emitter.toolOutputAvailable(toolCallId, {
+      ok: true,
+      data: toolOutput,
+    });
 
-  // Step 7: Return updated state
-  return {
-    messages: [new AIMessage(confidenceMessage)],
-    confidence,
-    gaps: practiceMetrics.gaps,
+    // Step 7: Return updated state
+    return {
+      messages: [
+        new AIMessage({
+          content: confidenceMessage,
+          tool_calls: [
+            {
+              id: toolCallId,
+              name: nodeName,
+              args: {},
+            },
+          ],
+        }),
+        new ToolMessage({
+          tool_call_id: toolCallId,
+          name: nodeName,
+          artifact: toolOutput,
+        }),
+      ],
+      confidence,
+      gaps: practiceMetrics.gaps,
+    };
   };
-};

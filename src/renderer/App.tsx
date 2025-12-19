@@ -19,7 +19,6 @@ import type { IPCErrorPayload } from '@/shared/types/ipc-error';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
 import { LoadingScreen } from '@/renderer/components/UI/LoadingScreen';
 import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
-import { ThreadAdapterProvider } from '@/renderer/contexts/ThreadAdapterContext';
 import { useElectronAPI } from '@/renderer/hooks/useElectronAPI';
 import { IpcChatTransport } from '@/renderer/services/chat/IpcChatTransport';
 
@@ -50,8 +49,8 @@ const formatIPCError = (payload: IPCErrorPayload): string => {
 /**
  * Custom hook that creates the chat runtime with IPC transport
  *
- * Uses our custom IpcChatTransport that pre-initializes threads to ensure
- * the remoteId is available before any messages are sent.
+ * Uses our custom IpcChatTransport to send AI SDK chat requests over Electron IPC
+ * (and to ensure the correct thread ID is used when sending messages).
  */
 function useIpcChatRuntime(api: ReturnType<typeof useElectronAPI>) {
   // Create a stable transport instance using useMemo
@@ -62,32 +61,28 @@ function useIpcChatRuntime(api: ReturnType<typeof useElectronAPI>) {
   });
 }
 
-const AppContent: React.FC<{ status: AppState; message: string | null }> = ({
-  status,
-  message,
-}) => {
+const ReadyApp: React.FC = () => {
   const api = useElectronAPI();
-
-  if (status === 'setup') {
-    return <SetupScreen message={message ?? undefined} />;
-  }
 
   // Create thread list adapter for SQLite persistence
   const threadListAdapter = React.useMemo(() => createThreadListAdapter(api), [api]);
 
+  // Matches Assistant UI's recommended pattern: runtimeHook is a component-like function.
+  function RuntimeHook() {
+    return useIpcChatRuntime(api);
+  }
+
   // Create runtime with thread list support
   // useRemoteThreadListRuntime combines chat runtime with thread persistence
   const runtime = useRemoteThreadListRuntime({
-    runtimeHook: () => useIpcChatRuntime(api),
+    runtimeHook: RuntimeHook,
     adapter: threadListAdapter,
   });
 
   return (
-    <ThreadAdapterProvider adapter={threadListAdapter}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        <MainRoutes />
-      </AssistantRuntimeProvider>
-    </ThreadAdapterProvider>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <MainRoutes />
+    </AssistantRuntimeProvider>
   );
 };
 
@@ -210,5 +205,9 @@ export default function App(): JSX.Element {
     return <LoadingScreen message="Checking workspace configuration…" error={initError} />;
   }
 
-  return <AppContent status={status} message={statusMessage} />;
+  if (status === 'setup') {
+    return <SetupScreen message={statusMessage ?? undefined} />;
+  }
+
+  return <ReadyApp />;
 }

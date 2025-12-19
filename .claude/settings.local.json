@@ -15,7 +15,6 @@
       "Bash(mkdir:*)",
       "Bash(mv:*)",
       "WebFetch(domain:mermaid.js.org)",
-      "Bash(git commit:*)",
       "Bash(tree:*)",
       "Read(//home/tao/.catalyst/**)",
       "Bash(poetry run python:*)",
@@ -44,7 +43,6 @@
       "WebSearch",
       "Bash(npx vite:*)",
       "Bash(sqlite3:*)",
-      "Bash(git add:*)",
       "Bash(npx:*)",
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
@@ -93,7 +91,8 @@
       "WebFetch(domain:www.assistant-ui.com)",
       "Bash(tee:*)",
       "Bash(bash:*)",
-      "mcp__chrome-devtools__navigate_page"
+      "mcp__chrome-devtools__navigate_page",
+      "WebFetch(domain:reference.langchain.com)"
     ],
     "deny": [],
     "ask": []

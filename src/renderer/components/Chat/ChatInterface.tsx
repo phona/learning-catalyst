@@ -1,36 +1,58 @@
 import React from 'react';
-import { useThreadListItemRuntime } from '@assistant-ui/react';
+import { useAssistantApi } from '@assistant-ui/react';
 import { Thread } from '@assistant-ui/react-ui';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ToolFallback } from './ToolFallback';
-import { useThreadAdapter } from '@/renderer/contexts/ThreadAdapterContext';
 
 /**
  * ChatInterface Component
  *
  * Renders the Thread component from assistant-ui.
- * Must be wrapped with unstable_Provider to enable history loading when switching threads.
- * Uses remoteId as key to force re-mount when thread changes.
+ *
+ * Notes:
+ * - History adapters are wired via the RemoteThreadListRuntime adapter's `unstable_Provider`
+ *   (not by wrapping <Thread/> manually here).
+ * - When the URL is `/chat/:sessionId`, we ensure the runtime switches to that thread.
  */
 export const ChatInterface: React.FC = () => {
-  const { unstable_Provider } = useThreadAdapter();
-  const ThreadHistoryProvider = unstable_Provider;
+  const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
+  const api = useAssistantApi();
 
-  // Get current thread's remoteId to use as key for re-mounting
-  const threadRuntime = useThreadListItemRuntime({ optional: true });
-  const threadState = threadRuntime?.getState();
-  const threadKey = threadState?.remoteId || threadState?.id || 'default';
+  const threadListItem = api.threadListItem.source ? api.threadListItem() : null;
+  const threadState = threadListItem?.getState();
+  const currentThreadId = threadState?.id;
+  const currentRemoteId = threadState?.remoteId;
+  const isHydrating = !threadState || !currentRemoteId;
+
+  // Ensure the runtime thread matches the route on refresh / deep-link.
+  React.useEffect(() => {
+    if (!sessionId) return;
+
+    // If we're already on the right thread (by id or remoteId), no-op.
+    if (sessionId === currentThreadId || sessionId === currentRemoteId) return;
+
+    api.threads().switchToThread(sessionId);
+  }, [api, sessionId, currentThreadId, currentRemoteId]);
+
+  // Keep the URL in sync when switching threads from the sidebar.
+  React.useEffect(() => {
+    const dispose = api.on('thread-list-item.switched-to', ({ threadId }) => {
+      navigate(`/chat/${threadId}`);
+    });
+    return dispose;
+  }, [api, navigate]);
 
   return (
     <div className="h-full bg-gray-50">
-      <ThreadHistoryProvider key={threadKey}>
-        <Thread
-          assistantMessage={{
-            components: {
-              ToolFallback: ToolFallback,
-            },
-          }}
-        />
-      </ThreadHistoryProvider>
+      <Thread
+        key={currentThreadId}
+        assistantMessage={{
+          components: {
+            ToolFallback: ToolFallback,
+          },
+        }}
+      />
     </div>
   );
 };

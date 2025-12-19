@@ -3,20 +3,154 @@ import { ILogger } from "../../types";
 import { generateAITitle } from "./title-generation";
 import { ProviderFactory } from "@/main/services/agent/provider-factory";
 import type { SQLiteCheckpointSaver } from "@/main/services/core/checkpoints/SQLiteCheckpointSaver";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 
 /**
- * Display-ready message structure returned by getMessages
+ * Display-ready message structure for chat history
+ * Matches ChatHistoryMessage from shared API types
  */
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: string;
-  metadata: {
+  timestamp?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+  metadata?: {
     checkpoint_id?: string;
     message_index: number;
+    run_id?: string;
+    invalid_tool_calls?: any[];
+    response_metadata?: Record<string, unknown>;
+    // Tool-specific metadata (for ToolMessage)
+    tool_call_id?: string;
+    tool_name?: string;
+    tool_status?: string;
+    artifact?: any;
+  };
+}
+
+/**
+ * Direct converter from checkpoint format to ChatMessage format
+ *
+ * Checkpoints store messages as serialized objects:
+ * {
+ *   id: ["langchain_core", "messages", "HumanMessage"],
+ *   kwargs: { content: "...", additional_kwargs: {}, response_metadata: {} },
+ *   lc: 1,
+ *   type: "constructor"
+ * }
+ */
+function convertToChatMessage(
+  msg: any,
+  index: number,
+  sessionId: string,
+  checkpointMetadata?: Record<string, unknown>,
+  checkpointId?: string
+): ChatMessage {
+  // Check if this is a serialized checkpoint message
+  if (msg &&
+      typeof msg === 'object' &&
+      !Array.isArray(msg) &&
+      Array.isArray(msg.id) &&
+      msg.kwargs) {
+
+    const messageType = msg.id[2]; // e.g., "HumanMessage", "AIMessage", "ToolMessage"
+    const content = msg.kwargs.content;
+
+    // Map ToolMessage to assistant role with tool metadata
+    const role = messageType === 'HumanMessage' ? 'user'
+      : messageType === 'ToolMessage' ? 'assistant'
+      : 'assistant';
+
+    return {
+      id: `${sessionId}-${index}`,
+      role,
+      content: typeof content === 'string' ? content : JSON.stringify(content),
+      timestamp: typeof checkpointMetadata?.created_at === 'string'
+        ? checkpointMetadata.created_at
+        : new Date().toISOString(),
+      tool_calls: msg.kwargs.tool_calls,
+      metadata: {
+        checkpoint_id: checkpointId,
+        message_index: index,
+        run_id: msg.kwargs.id,
+        invalid_tool_calls: msg.kwargs.invalid_tool_calls,
+        response_metadata: msg.kwargs.response_metadata,
+        // Tool-specific metadata
+        tool_call_id: msg.kwargs.tool_call_id,
+        tool_name: msg.kwargs.name,
+        tool_status: msg.kwargs.status,
+      },
+    };
+  }
+
+  // Handle class instances (from memory)
+  if (msg instanceof HumanMessage) {
+    return {
+      id: `${sessionId}-${index}`,
+      role: 'user',
+      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      timestamp: typeof checkpointMetadata?.created_at === 'string'
+        ? checkpointMetadata.created_at
+        : new Date().toISOString(),
+      metadata: {
+        checkpoint_id: checkpointId,
+        message_index: index,
+      },
+    };
+  } else if (msg instanceof AIMessage) {
+    return {
+      id: `${sessionId}-${index}`,
+      role: 'assistant',
+      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      timestamp: typeof checkpointMetadata?.created_at === 'string'
+        ? checkpointMetadata.created_at
+        : new Date().toISOString(),
+      tool_calls: msg.tool_calls,
+      metadata: {
+        checkpoint_id: checkpointId,
+        message_index: index,
+        invalid_tool_calls: msg.invalid_tool_calls,
+      },
+    };
+  } else if (msg instanceof ToolMessage) {
+    console.log('ToolMessage', msg);
+    return {
+      id: `${sessionId}-${index}`,
+      role: 'assistant',
+      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      timestamp: typeof checkpointMetadata?.created_at === 'string'
+        ? checkpointMetadata.created_at
+        : new Date().toISOString(),
+      metadata: {
+        checkpoint_id: checkpointId,
+        message_index: index,
+        tool_call_id: msg.tool_call_id,
+        tool_name: msg.name,
+        tool_status: msg.status,
+        artifact: msg.artifact,
+      },
+    };
+  }
+
+  // Fallback for unknown types
+  return {
+    id: `${sessionId}-${index}`,
+    role: 'assistant',
+    content: 'Unknown message type',
+    timestamp: new Date().toISOString(),
+    metadata: {
+      checkpoint_id: checkpointId,
+      message_index: index,
+    },
   };
 }
 
@@ -87,29 +221,24 @@ export const createChatService = ({
       // Messages accumulate via reducer - latest checkpoint has complete history
       // Messages are stored in channel_values.messages (LangGraph state structure)
       const latestCheckpoint = checkpoints[0];
-      const messages = latestCheckpoint.checkpoint.channel_values?.messages ?? [];
-
-      // Convert LangChain messages to display format
-      const formattedMessages: ChatMessage[] = messages.map((msg, index) => {
-        const messageType = msg.constructor.name;
-
-        return {
-          id: `${sessionId}-${index}`,
-          role: messageType === 'HumanMessage' ? 'user'
-              : messageType === 'AIMessage' ? 'assistant'
-              : 'system',
-          content: typeof msg.content === 'string'
-            ? msg.content
-            : JSON.stringify(msg.content),
-          timestamp: typeof latestCheckpoint.metadata?.created_at === 'string'
-            ? latestCheckpoint.metadata.created_at
-            : new Date().toISOString(),
-          metadata: {
-            checkpoint_id: latestCheckpoint.config.configurable?.checkpoint_id,
-            message_index: index,
-          },
-        };
+      const rawMessages = latestCheckpoint.checkpoint.channel_values?.messages ?? [];
+      serviceLogger.debug('Messages found in latest checkpoint', {
+        sessionId,
+        rawMessages,
+        messageCount: rawMessages.length,
       });
+
+      // Convert checkpoint messages directly to ChatMessage format
+      // Handles both serialized checkpoint format and class instances
+      const formattedMessages: ChatMessage[] = rawMessages.map((msg, index) =>
+        convertToChatMessage(
+          msg,
+          index,
+          sessionId,
+          latestCheckpoint.metadata,
+          latestCheckpoint.config.configurable?.checkpoint_id
+        )
+      );
 
       serviceLogger.info('Message history retrieved', {
         sessionId,
