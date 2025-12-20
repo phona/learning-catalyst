@@ -10,12 +10,7 @@
  *     ↓
  * ErrorBoundary (Catch-all)
  *     ↓
- * AppErrorHandler (Init State)
- *     ├─ setup → SetupPage
- *     ├─ crashed → ErrorBoundary (Crash)
- *     └─ ready/config → AppContent
- *             ↓
- *         AppContent (Config Validation)
+ * AppContent (Single Gate)
  *             ├─ loading → LoadingScreen
  *             ├─ setup → SetupScreen
  *             └─ ready → ReadyApp
@@ -32,12 +27,11 @@
  * import { AppRoutes } from '@/renderer/components/App/AppRoutes';
  *
  * // After
- * import App, { AppRoutes, AppErrorHandler, AppContent, ReadyApp } from '@/renderer/components/App';
+ * import App, { AppRoutes, AppContent, ReadyApp } from '@/renderer/components/App';
  * ```
  */
 
 // Core components
-export { AppErrorHandler } from './AppErrorHandler';
 export { AppContent } from './AppContent';
 export { ReadyApp } from './ReadyApp';
 export { AppRoutes } from './AppRoutes';

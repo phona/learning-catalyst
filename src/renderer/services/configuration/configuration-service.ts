@@ -1,7 +1,7 @@
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 import type { AppConfig, ProviderValidationResult, ProviderConfig } from '@/shared/types/config';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import _ from 'lodash';
-import { assertOk, unwrap } from '@/renderer/utils/apiResponse';
 
 /**
  * Configuration Service
@@ -31,16 +31,15 @@ export function createConfigurationService(apiClient: ElectronAPI) {
   const setConfig = async (config: Partial<AppConfig>): Promise<void> => {
     const currentConfig = (await getConfig()) ?? {};
     const newConfig = _.merge({}, currentConfig, config);
-    const resp = await apiClient.settings.setConfig(newConfig as AppConfig);
-    assertOk(resp);
+    await unwrapAPI(apiClient.settings.setConfig(newConfig as AppConfig));
   };
 
   /**
    * Fetch the persisted application configuration.
    */
   const getConfig = async (): Promise<AppConfig | null> => {
-    const resp = await apiClient.settings.getConfig();
-    return unwrap(resp);
+    const resp = await unwrapAPI(apiClient.settings.getConfig());
+    return resp;
   };
 
   /**
@@ -59,9 +58,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     baseUrl?: string,
   ): Promise<string[]> => {
     // Get available providers from settings API
-    const response = await apiClient.settings.getAvailableProviders();
-    assertOk(response);
-    const result = unwrap(response);
+    const response = await unwrapAPI(apiClient.settings.getAvailableProviders());
+    const result = response;
     const providers = (result.providers || []) as {
       providerType?: string;
       models?: string[];
@@ -79,8 +77,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
    * Get available AI providers and their status
    */
   const getAvailableProviders = async () => {
-    const response = await apiClient.settings.getAvailableProviders();
-    const result = unwrap(response);
+    const response = await unwrapAPI(apiClient.settings.getAvailableProviders());
+    const result = response;
     const { providers = [], summary } = result;
     return {
       success: true,
@@ -100,24 +98,18 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     provider: string;
     config: Partial<ProviderConfig>;
   }) => {
-    const fullConfig: ProviderConfig = {
-      providerType: params.provider as any,
-      apiKey: params.config.apiKey,
-      baseUrl: params.config.baseUrl,
-      models: params.config.models,
-      type: params.config.type,
-      model: params.config.model,
-      temperature: params.config.temperature,
-      maxTokens: params.config.maxTokens,
-      streaming: params.config.streaming,
-      customHeaders: params.config.customHeaders,
-    };
+    const currentConfig = (await getConfig()) ?? {};
+    const newConfig = _.merge(
+      {},
+      (currentConfig as AppConfig)?.ai?.providers?.[params.provider] || {},
+      params.config
+    );
 
-    const response = await apiClient.settings.configureProvider({
+    const response = await unwrapAPI(apiClient.settings.configureProvider({
       provider: params.provider,
-      config: fullConfig,
-    });
-    return unwrap(response);
+      config: newConfig,
+    }));
+    return response;
   };
 
   const validateProvider = async (
@@ -128,8 +120,8 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     if (!providerType || !apiKey.trim()) {
       return { success: false, error: 'Provider and API key are required' };
     }
-    const providersResp = await apiClient.settings.getAvailableProviders();
-    const { providers } = unwrap(providersResp);
+    const providersResp = await unwrapAPI(apiClient.settings.getAvailableProviders());
+    const { providers } = providersResp;
     const known = providers.find((p) => p.providerType === providerType);
     if (!known && !baseUrl) {
       return {

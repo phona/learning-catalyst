@@ -1,4 +1,4 @@
-import type { ElectronAPI, AppConfig, ChatStreamEvent } from '@/shared/types';
+import type { ElectronAPI, AppConfig } from '@/shared/types';
 import type {
   AgentDisplay,
   AgentContext,
@@ -6,6 +6,9 @@ import type {
   FeatureDemoDisplay,
 } from '@/shared/types';
 import type { ProviderConfig } from '@/shared/types';
+import { ChatHistoryMessage, ChatStreamEvent } from '@/shared/types/electron-api/chat-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import { AIMessage } from 'langchain';
 
 type ElectronWindow = Window & { electronAPI?: ElectronAPI };
 
@@ -115,14 +118,14 @@ const mockFeatureDemo: FeatureDemoDisplay = {
 export function createMockElectronAPIClient(): ElectronAPI {
   const mockStreamState = new Map<string, { aborted: boolean }>();
   // In-memory storage for dev mode
-  const mockSessions = new Map<string, { id: string; title: string; status: string }>();
-  const mockMessages = new Map<string, Array<{ id: string; role: string; content: string; timestamp: string }>>();
+  const mockSessions = new Map<string, SessionDisplay>();
+  const mockMessages = new Map<string, {sessions: ChatHistoryMessage[], hasMore: boolean, total: number}>();
 
   const partial: Partial<ElectronAPI> = {
     aiSDK: {
       stream: (
         params: {
-          messages: Array<Pick<AIMessage, 'role' | 'content'>>;
+          messages: Array<{ role: string; content: string }>;
           conversationId?: string;
         },
         callback: (data: unknown) => void,
@@ -137,20 +140,22 @@ export function createMockElectronAPIClient(): ElectronAPI {
         // Store the user message
         const userMessage = params.messages[params.messages.length - 1];
         if (userMessage) {
-          const existingMessages = mockMessages.get(threadId) || [];
+          const newMockMessages = mockMessages.get(threadId) || {sessions: [], hasMore: false, total: 0};
+          const existingMessages = newMockMessages.sessions || [];
           existingMessages.push({
             id: `${threadId}-${existingMessages.length}`,
             role: 'user',
-            content: userMessage.content,
+            content: String(userMessage.content),
             timestamp: new Date().toISOString(),
           });
-          mockMessages.set(threadId, existingMessages);
+          mockMessages.set(threadId, newMockMessages);
         }
 
         // Set up message handling
         port1.onmessage = (event) => {
           callback(event.data);
         };
+        // @ts-ignore
         port1.onclose = () => {
           console.log('[Mock aiSDK] Stream ended:', streamId);
           onComplete?.();
@@ -158,17 +163,18 @@ export function createMockElectronAPIClient(): ElectronAPI {
 
         // Simulate a response
         setTimeout(() => {
-          const responseMessage = {
-            id: `${threadId}-${(mockMessages.get(threadId) || []).length}`,
+          const responseMessage: ChatHistoryMessage = {
+            id: `${threadId}-${(mockMessages.get(threadId) || {sessions: []}).sessions.length}`,
             role: 'assistant',
             content: 'This is a mock response. Chat functionality is not available in dev mode.',
             timestamp: new Date().toISOString(),
           };
 
           // Add assistant message to storage
-          const messages = mockMessages.get(threadId) || [];
-          messages.push(responseMessage);
-          mockMessages.set(threadId, messages);
+          const newMockMessages = mockMessages.get(threadId) || {sessions: [], hasMore: false, total: 0};
+          const existingMessages = newMockMessages.sessions || [];
+          existingMessages.push(responseMessage);
+          mockMessages.set(threadId, newMockMessages);
 
           callback({
             type: 'text-delta',
@@ -379,17 +385,26 @@ export function createMockElectronAPIClient(): ElectronAPI {
           data: { sessions, total: sessions.length, hasMore: false },
         });
       },
-      create: (params: { title: string; threadId: string }) => {
-        const sessionId = params.threadId;
-        const session = {
+      create: (payload: { title?: string; threadId?: string }) => {
+        const sessionId = payload.threadId || `session_${Date.now()}`;
+        const session: SessionDisplay = {
           id: sessionId,
-          title: params.title || 'New Chat',
-          status: 'active' as const,
+          title: payload.title || 'New Chat',
+          topic: 'General',
+          difficulty: 'beginner',
+          status: 'active',
+          progress: 0,
+          agent: {
+            type: 'learning',
+            name: 'Mock Agent',
+          },
+          lastActivity: new Date().toISOString(),
+          duration: '0m',
         };
         mockSessions.set(sessionId, session);
         return Promise.resolve({
           success: true,
-          data: session,
+          data: { sessionId, session },
         });
       },
       get: (id: string) => {
@@ -413,7 +428,12 @@ export function createMockElectronAPIClient(): ElectronAPI {
             error: 'Session not found',
           });
         }
-        Object.assign(session, updates);
+        if (updates.title !== undefined) {
+          session.title = updates.title;
+        }
+        if (updates.status !== undefined) {
+          session.status = updates.status as 'active' | 'paused' | 'completed';
+        }
         return Promise.resolve({
           success: true,
           data: session,
@@ -437,6 +457,27 @@ export function createMockElectronAPIClient(): ElectronAPI {
             averageMessagesPerSession: 0,
           },
         }),
+      delete: (sessionId: string) => {
+        mockSessions.delete(sessionId);
+        return Promise.resolve({
+          success: true,
+          data: { deleted: true },
+        });
+      },
+      updateTitle: (sessionId: string, title: string) => {
+        const session = mockSessions.get(sessionId);
+        if (!session) {
+          return Promise.resolve({
+            success: false,
+            error: 'Session not found',
+          });
+        }
+        session.title = title;
+        return Promise.resolve({
+          success: true,
+          data: undefined,
+        });
+      },
     },
     chat: {
       generateTitle: (messageText: string) =>
@@ -445,161 +486,12 @@ export function createMockElectronAPIClient(): ElectronAPI {
           data: messageText.split(' ').slice(0, 5).join(' ') || 'Mock Title',
         }),
       getMessages: (threadId: string, options?: { limit?: number; offset?: number }) => {
-        const messages = mockMessages.get(threadId) || [];
+        const messages = mockMessages.get(threadId) || { sessions: [], hasMore: false, total: 0 };
         return Promise.resolve({
           success: true,
           data: messages,
         });
       },
-      saveCheckpoint: (threadId: string, checkpoint: { messages: Array<{ id: string; role: string; content: string }> }) => {
-        // Store messages for this thread
-        mockMessages.set(threadId, checkpoint.messages);
-        return Promise.resolve({
-          success: true,
-        });
-      },
-      getCheckpoint: (threadId: string) => {
-        const messages = mockMessages.get(threadId) || [];
-        return Promise.resolve({
-          success: true,
-          data: { messages },
-        });
-      },
-      startConversation: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            id: 'mock-conversation',
-            agent: mockAgent,
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            messages: [],
-            suggestedTopics: [],
-          },
-        }),
-      sendMessage: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            id: 'mock-message',
-            conversationId: 'mock-conversation',
-            role: 'assistant',
-            content: 'Mock response',
-            status: 'completed',
-            timestamp: new Date().toISOString(),
-            relativeTime: 'just now',
-          },
-        }),
-      sendMessageStream: (
-        params: { conversationId: string; message: string; attachments?: File[]; includeStatus?: boolean },
-        onEvent: (evt: ChatStreamEvent) => void,
-      ) => {
-        const text = params.message || 'Mock stream response';
-        const chunks = text.match(/.{1,60}/g) ?? [text];
-        mockStreamState.set(params.conversationId, { aborted: false });
-        const state = mockStreamState.get(params.conversationId)!;
-        let i = 0;
-        const emitNext = () => {
-          try {
-            if (!state || state.aborted) return;
-            if (i < chunks.length) {
-              onEvent({ type: 'chunk', chunk: chunks[i] });
-              i++;
-              setTimeout(emitNext, 100);
-            } else {
-              onEvent({ type: 'complete' });
-            }
-          } catch (err) {
-            onEvent({ type: 'error', error: (err as Error)?.message || 'Mock stream error' });
-          }
-        };
-        setTimeout(emitNext, 80);
-        return Promise.resolve({ success: true, data: { started: true } });
-      },
-      cancelStream: (conversationId: string) => {
-        const state = mockStreamState.get(conversationId);
-        if (state) state.aborted = true;
-        return Promise.resolve({ success: true, data: { canceled: true } });
-      },
-      getTypingIndicator: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            isTyping: false,
-            agentInfo: { name: mockAgent.name, avatar: mockAgent.avatar, color: mockAgent.color },
-          },
-        }),
-      getConversationHistory: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            conversationId: 'mock-conversation',
-            messages: [],
-            pagination: { hasMore: false, total: 0 },
-          },
-        }),
-      pauseConversation: () =>
-        Promise.resolve({ success: true, data: { message: 'Conversation paused' } }),
-      resumeConversation: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            conversationId: 'mock-conversation',
-            lastMessage: {} as any,
-            agentState: { currentTopic: undefined, contextPoints: [], userPreferences: {} },
-            suggestedReopenings: [],
-          },
-        }),
-      endConversation: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            conversationId: 'mock-conversation',
-            summary: 'Mock conversation summary',
-            keyTopics: [],
-            duration: '0m',
-            messageCount: 0,
-            suggestedFollowUps: [],
-          },
-        }),
-      checkPracticeOpportunity: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            hasOpportunity: false,
-            shouldSuggest: false,
-            reason: 'No practice opportunity detected',
-            timing: 'not-appropriate',
-            confidence: 0,
-          },
-        }),
-      getPracticeSuggestion: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            id: 'mock-suggestion',
-            type: 'gentle-nudge',
-            introduction: 'Would you like to practice?',
-            challenge: 'Try this exercise',
-            context: 'Based on our conversation',
-            estimatedTime: 5,
-            difficulty: 'easy',
-            vibe: 'understanding',
-            timing: { when: 'right now', urgency: 'low' },
-            options: {
-              accept: "Yes, let's practice!",
-              decline: 'Not right now',
-              postpone: 'Maybe later',
-            },
-            metadata: {
-              concept: 'mock-concept',
-              relatedTopics: [],
-              prerequisites: [],
-              nextSteps: [],
-            },
-          },
-        }),
     },
     agents: {
       getAvailableAgents: () => Promise.resolve({ success: true, data: [mockAgent] }),
@@ -1023,6 +915,9 @@ export function createMockElectronAPIClient(): ElectronAPI {
     showSaveDialog: () => Promise.resolve({ canceled: true, filePath: '' }),
     onMenuAction: () => {},
     onIPCError: () => () => {},
+    getErrorBuffer: () => Promise.resolve([]),
+    clearErrorBuffer: () => Promise.resolve({ cleared: true }),
+    relaunchApp: () => Promise.resolve({ relaunching: false }),
     catalyst: {
       executeAgent: () =>
         Promise.resolve({
@@ -1090,6 +985,7 @@ const mockDefaultConfig: AppConfig = {
   ai: {
     providers: {},
     modelTypes: {},
+    embeddingDimensions: 1536,
   },
   ui: {
     theme: 'light',

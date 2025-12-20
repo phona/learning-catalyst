@@ -5,36 +5,7 @@
  * This file focuses on component-specific behavior.
  */
 
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-
-// Mock the dependencies
-vi.mock('@/renderer/services/services-provider', () => ({
-  useConfigurationService: vi.fn(),
-  useServiceContext: vi.fn(() => ({
-    ipcErrors: [],
-    needsSetup: false,
-    setupMessage: null
-  })),
-  useElectronAPIClient: vi.fn(() => ({
-    awaitReady: vi.fn()
-  }))
-}));
-
-vi.mock('@/renderer/stores/useConfigStore', () => ({
-  setConfigurationService: vi.fn()
-}));
-
-vi.mock('@/renderer/components/Setup/SetupPage', () => ({
-  SetupPage: () => <div data-testid="setup-page">Setup Page</div>
-}));
-
-vi.mock('@/renderer/components/UI/LoadingScreen', () => ({
-  LoadingScreen: () => <div data-testid="loading-screen">Loading Screen</div>
-}));
-
-vi.mock('../ReadyApp', () => ({
-  ReadyApp: () => <div data-testid="ready-app">Ready App</div>
-}));
+import { describe, it, expect } from 'vitest';
 
 // Note: Helper functions are tested in app-init.test.ts
 // This file is kept for future component-specific tests

@@ -295,10 +295,8 @@ export function createQdrantProcessService(
     child.on('error', (error) => {
       logger.error('Qdrant process spawn error', error, {
         message: error.message,
-        code: error.code,
-        errno: error.errno,
-        syscall: error.syscall,
-        path: error.path,
+        cause: error.cause,
+        stack: error.stack,
       });
     });
   }

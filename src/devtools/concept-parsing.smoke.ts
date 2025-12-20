@@ -98,7 +98,11 @@ const buildService = async (cfg: any) => {
     start: async () => {},
   };
   const loggerService = {
-    child: () => ({ info: () => {}, debug: () => {}, warn: () => {}, error: () => {} }),
+    child: (_meta: Record<string, unknown>) => ({ info: () => {}, debug: () => {}, warn: () => {}, error: () => {} }),
+    info: () => {},
+    debug: () => {},
+    warn: () => {},
+    error: () => {},
   };
   const svc = createConceptParsingService({ providerFactory, vectorDatabase, loggerService });
   return { svc, captured, chatModel, provider: cfg?.ai?.modelTypes?.chat?.provider ?? 'dev' };
@@ -144,8 +148,7 @@ const run = async () => {
               tags: z.array(z.string()).nullable().optional(),
               metadata: z.record(z.unknown()).nullable().optional(),
             })
-            .strict()
-            .required({ name: true }),
+            .strict(),
         ),
         relationships: z.array(
           z
@@ -158,8 +161,7 @@ const run = async () => {
               description: z.string().nullable().optional(),
               metadata: z.record(z.unknown()).nullable().optional(),
             })
-            .strict()
-            .required({ from: true, to: true }),
+            .strict(),
         ),
         recommendations: z.array(z.string()),
       })
@@ -200,7 +202,7 @@ const run = async () => {
     success: res.success,
     errors: res.errors,
     stats: res.statistics,
-    tokenUsage: res.statistics?.tokenUsage ?? res.metadata?.tokenUsage,
+    tokenUsage: (res.statistics as any)?.tokenUsage ?? (res.metadata as any)?.tokenUsage,
     concepts: res.concepts.map((c) => ({ name: c.name, confidence: c.confidence, title: c.metadata.segmentTitle })),
     relationships: res.relationships.map((r) => ({ from: r.sourceId, to: r.targetId, type: r.type })),
     chunkTitles: captured.map((d) => d.title),

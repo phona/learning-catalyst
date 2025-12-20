@@ -1,9 +1,9 @@
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { LearningPath } from '@/shared/types/concept-parsing';
 import type {
   ConceptParsingResult,
   KnowledgeSearchResultDisplay,
 } from '@/shared/types/electron-api/knowledge-api';
+import { LearningPath } from '@/shared/types';
 
 /**
  * Functional implementation of discovery service using the unified electronAPI client
@@ -35,7 +35,7 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
       const learningPathResp = await apiClient.learning.getLearningPath(sessionId);
       if (!learningPathResp.success || !learningPathResp.data) {
         throw new Error(
-          learningPathResp.error?.message ||
+          learningPathResp.error ||
             `No learning path found for session ${sessionId}. Please start a learning session first.`,
         );
       }
@@ -52,7 +52,7 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
         id: learningPathResponse.sessionId,
         title: `Learning Path for ${concepts.join(', ')}`,
         description: `Generated learning path covering: ${concepts.join(', ')}`,
-        estimatedDuration: learningPathResponse.path.reduce((total, item) => {
+        estimated_duration: learningPathResponse.path.reduce((total, item) => {
           return total + (parseInt(item.duration?.replace('min', '') || '30') || 30);
         }, 0),
         difficulty:
@@ -83,8 +83,10 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
         prerequisites: [],
         targetMastery: learningPathResponse.progress?.percentage / 100 || 0.8,
         adaptations: [],
+        objectives: [],
+        difficulty_progression: 'linear',
+        tags: concepts,
         progress: {
-          userId: 'current-user',
           currentModule:
             learningPathResponse.path[learningPathResponse.currentPosition]?.id.toString() || '',
           completedModules: learningPathResponse.path
@@ -109,7 +111,7 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
     ): Promise<any[]> {
       const searchResp = await apiClient.knowledge.searchKnowledge(topic);
       if (!searchResp.success || !searchResp.data) {
-        throw new Error(searchResp.error?.message ?? 'Search failed');
+        throw new Error(searchResp.error ?? 'Search failed');
       }
       const searchResults = (searchResp.data as KnowledgeSearchResultDisplay).results ?? [];
 
@@ -150,14 +152,14 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
         depth: 'intermediate',
       });
       if (!conceptResp.success || !conceptResp.data) {
-        throw new Error(conceptResp.error?.message ?? 'Explore concept failed');
+        throw new Error(conceptResp.error ?? 'Explore concept failed');
       }
       const conceptResponse = conceptResp.data;
 
       // Search for related content to assess understanding
       const searchResp = await apiClient.knowledge.searchKnowledge(currentUnderstanding);
       if (!searchResp.success || !searchResp.data) {
-        throw new Error(searchResp.error?.message ?? 'Search failed');
+        throw new Error(searchResp.error ?? 'Search failed');
       }
       const searchResponse = searchResp.data;
 

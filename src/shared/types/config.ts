@@ -80,8 +80,7 @@ export interface AIConfig {
   streaming?: boolean;
   enableThinking?: boolean;
   contextWindowSize?: number;
-  // Embedding configuration - REQUIRED
-  embeddingDimensions: number;
+  embeddingDimensions?: number;
 }
 
 export interface UIConfig {

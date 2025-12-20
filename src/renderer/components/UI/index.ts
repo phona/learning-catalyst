@@ -103,6 +103,7 @@ export type { AccordionProps, AccordionItemProps } from './Accordion';
  * ```
  */
 export { ErrorBoundary } from './ErrorBoundary';
+export { ErrorPage } from './ErrorPage';
 
 /**
  * 💬 Chat-specific error boundary with message recovery options

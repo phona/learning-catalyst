@@ -3,7 +3,7 @@ import { ProviderSelect } from '@/renderer/components/Config/components/Provider
 import { ModelSelect } from '@/renderer/components/Config/components/ModelSelect';
 import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/renderer/utils/toast';
-import { useConfigurationService, useElectronAPIClient, useServiceContext } from '@/renderer/services/services-provider';
+import { useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-provider';
 import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import { useSetupWorkflow } from '@/renderer/hooks/useSetupWorkflow';
 import type {
@@ -103,7 +103,6 @@ const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
 const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
   const configService = useConfigurationService();
   const electronAPI = useElectronAPIClient();
-  const { markSetupComplete } = useServiceContext();
   // Wizard step management
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
@@ -463,7 +462,11 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ message }) => {
       console.log('[SetupScreen] Save complete, scheduling navigation');
       await electronAPI.awaitConfigChange({ timeoutMs: READY_TIMEOUT_MS });
       await electronAPI.awaitReady({ timeoutMs: READY_TIMEOUT_MS });
-      await markSetupComplete();
+      try {
+        await electronAPI.clearErrorBuffer();
+      } catch (error) {
+        console.warn('[SetupScreen] Failed to clear IPC error buffer', error);
+      }
       setShouldNavigate(true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save configuration.';

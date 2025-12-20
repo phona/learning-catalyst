@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import type { ChatService } from './chat/chat-service';
 import type { SessionService } from './session/session-service';
 import type { DiscoveryService } from './discovery/discovery-service';
@@ -17,10 +17,8 @@ import {
   type ConceptParsingService,
 } from './concept-parsing/concept-parsing-service';
 import { createFileService, type FileService } from './file/file-service';
-import type { ElectronAPI } from '@/shared/types/electron-api';
+import { type ElectronAPI } from '@/shared/types/electron-api';
 import { createAgentService, type AgentService } from './agents/agent-service';
-import type { IPCErrorPayload } from '@/shared/types/ipc-error';
-import { requiresSetup, isFatalError } from '@/shared/types/ipc-error';
 
 interface ServiceContextType {
   electronAPIClient: ElectronAPI;
@@ -33,10 +31,6 @@ interface ServiceContextType {
   fileService: FileService;
   conceptParsing: ConceptParsingService;
   agentService: AgentService;
-  ipcErrors: IPCErrorPayload[];
-  needsSetup: boolean;
-  setupMessage: string | null;
-  markSetupComplete: () => Promise<void>;
 }
 
 const ServiceContext = createContext<ServiceContextType | null>(null);
@@ -64,7 +58,11 @@ export interface ServicesProviderProps {
  * Automatically creates services from an apiClient, with fallback to mock
  * client when electronAPI is not available (browser environment).
  */
-export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, children, overrides }) => {
+export const ServicesProvider: React.FC<ServicesProviderProps> = ({
+  apiClient,
+  children,
+  overrides,
+}) => {
   const client = apiClient;
 
   const sessionService = overrides?.sessionService ?? createSessionService(client);
@@ -76,104 +74,6 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
   const fileService = overrides?.fileService ?? createFileService(client);
   const conceptParsing = overrides?.conceptParsing ?? createConceptParsingService(client);
   const agentService = overrides?.agentService ?? createAgentService(client);
-
-  const [ipcErrors, setIpcErrors] = useState<IPCErrorPayload[]>([]);
-  const [needsSetup, setNeedsSetup] = useState(false);
-  const [setupMessage, setSetupMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    const api = client as unknown;
-    let active = true;
-    (async () => {
-      try {
-        if (api && typeof api === 'object' && 'getErrorBuffer' in api) {
-          const errors = await (api as { getErrorBuffer: () => Promise<unknown[]> }).getErrorBuffer();
-          if (Array.isArray(errors) && errors.length > 0) {
-            setIpcErrors((prev) => [...prev, ...errors as IPCErrorPayload[]]);
-            console.log('[ServicesProvider] loaded IPC error buffer', { count: errors.length });
-            for (const payload of errors as IPCErrorPayload[]) {
-              if (requiresSetup(payload)) {
-                console.log('[ServicesProvider] needsSetup triggered by buffered error');
-                setNeedsSetup(true);
-                setSetupMessage(String((payload as any)?.message ?? ''));
-                break;
-              }
-            }
-          }
-          try {
-            if (api?.clearErrorBuffer) {
-              console.log('[ServicesProvider] clearing IPC error buffer');
-              await api.clearErrorBuffer();
-            }
-          } catch {}
-        }
-      } catch {}
-      try {
-        if (active && api?.onIPCError) {
-          unsubscribe = api.onIPCError((payload: unknown) => {
-            const typed = payload as IPCErrorPayload;
-            setIpcErrors((prev) => [...prev, typed]);
-            console.log('[ServicesProvider] IPC error received');
-            if (requiresSetup(typed)) {
-              console.log('[ServicesProvider] needsSetup triggered by live error');
-              setNeedsSetup(true);
-              setSetupMessage(String((typed as any)?.message ?? ''));
-            }
-          });
-        }
-      } catch {}
-    })();
-    return () => {
-      active = false;
-      try {
-        unsubscribe?.();
-      } catch {}
-    };
-  }, [client]);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const cfg = await configService.getConfig();
-        const chat = (cfg?.ai as any)?.modelTypes?.chat;
-        const providers = (cfg?.ai as any)?.providers ?? {};
-        const providerId = chat?.provider as string | undefined;
-        const providerCfg = providerId ? providers[providerId] : undefined;
-        const localIds = ['openai-compatible', 'ollama', 'lmstudio'];
-        const isLocal = typeof (providerCfg?.providerType) === 'string' && localIds.includes(String(providerCfg?.providerType));
-        const hasModel = typeof chat?.model === 'string' && chat.model.trim().length > 0;
-        const hasProvider = typeof providerId === 'string' && providerId.trim().length > 0 && !!providerCfg;
-        const hasBaseUrl = typeof providerCfg?.baseUrl === 'string' && providerCfg.baseUrl.trim().length > 0;
-        const hasApiKey = typeof providerCfg?.apiKey === 'string' && providerCfg.apiKey.trim().length > 0;
-        const hasModels = Array.isArray(providerCfg?.models) && providerCfg.models.length > 0;
-        const credsOk = isLocal ? hasBaseUrl : (hasApiKey || hasModels);
-        const valid = hasProvider && hasModel && credsOk;
-        if (active && valid) {
-          console.log('[ServicesProvider] derived config valid, clearing needsSetup');
-          setNeedsSetup(false);
-          setSetupMessage(null);
-        }
-      } catch {}
-    })();
-    return () => {
-      active = false;
-    };
-  }, [configService]);
-
-  const markSetupComplete = async (): Promise<void> => {
-    try {
-      const api = client as unknown;
-      if (api && typeof api === 'object' && 'clearErrorBuffer' in api) {
-        console.log('[ServicesProvider] markSetupComplete: clearing IPC error buffer');
-        await (api as { clearErrorBuffer: () => Promise<void> }).clearErrorBuffer();
-      }
-    } catch {}
-    console.log('[ServicesProvider] markSetupComplete: needsSetup=false');
-    setNeedsSetup(false);
-    setSetupMessage(null);
-  };
 
   return (
     <ServiceContext.Provider
@@ -188,10 +88,6 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({ apiClient, c
         fileService,
         conceptParsing,
         agentService,
-        ipcErrors,
-        needsSetup,
-        setupMessage,
-        markSetupComplete,
       }}
     >
       {children}

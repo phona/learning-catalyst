@@ -1,179 +1,228 @@
-import { useEffect, useState } from 'react';
-import { useConfigurationService, useServiceContext, useElectronAPIClient } from '@/renderer/services/services-provider';
-import { SetupPage } from '@/renderer/components/Setup/SetupPage';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-provider';
 import { LoadingScreen } from '@/renderer/components/UI/LoadingScreen';
-import { ErrorBoundary } from '@/renderer/components/UI/ErrorBoundary';
+import { ErrorPage } from '@/renderer/components/UI/ErrorPage';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
+import SetupScreen from '@/renderer/components/SetupScreen';
 import { ReadyApp } from './ReadyApp';
 import { IPCErrorPayload } from '@/shared/types/ipc-error';
-import { validateConfig, handleInitError } from './app-init';
+import { validateConfig } from './app-init';
 import { showError } from '@/renderer/utils/toast';
 import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
+import {
+  initialInitState,
+  initReducer,
+  mapIPCErrorToInitEvent,
+  buildInitEventKey,
+  type InitEvent,
+} from '@/renderer/init/init-machine';
 
-/**
- * Application state represents the current phase of the app initialization
- */
-type AppState = 'loading' | 'setup' | 'error' | 'ready';
+const toCrashPayload = (
+  error: unknown,
+  code = 'system.initialization_failed',
+  fallbackMessage = 'Application failed to initialize.',
+): IPCErrorPayload => {
+  if (error && typeof error === 'object') {
+    const maybePayload = error as Partial<IPCErrorPayload>;
+    if (
+      typeof maybePayload.type === 'string' &&
+      typeof maybePayload.code === 'string' &&
+      typeof maybePayload.message === 'string'
+    ) {
+      return maybePayload as IPCErrorPayload;
+    }
+  }
 
-const formatIPCError = (payload: IPCErrorPayload): string => {
-  const guidance =
-    payload.details && typeof payload.details === 'object' && 'guidance' in payload.details
-      ? ` – ${(payload.details as Record<string, unknown>).guidance}`
-      : '';
-  return `${payload.message}${guidance}`;
+  const message = error instanceof Error ? error.message : fallbackMessage;
+
+  return {
+    type: 'SYSTEM_ERROR',
+    code,
+    message,
+    details:
+      error instanceof Error
+        ? {
+            errorMessage: error.message,
+            stack: error.stack,
+          }
+        : {
+            errorMessage: fallbackMessage,
+          },
+  };
 };
 
-export function AppContent(): JSX.Element {
-  const [status, setStatus] = useState<AppState>('loading');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [initError, setInitError] = useState<string | null>(null);
-  const [errorState, setErrorState] = useState<{
+function InitGuard({
+  status,
+  loadingError,
+  crashError,
+}: {
+  status: 'loading' | 'setup' | 'crash' | 'ready';
+  loadingError?: string | null;
+  crashError: {
+    type: string;
+    code: string;
     message: string;
-    details?: string;
-    stack?: string;
-    errorId?: string;
-  } | null>(null);
+    details?: unknown;
+  } | null;
+}): JSX.Element {
+  const location = useLocation();
+
+  if (crashError) {
+    return (
+      <ErrorPage
+        crashError={crashError}
+        title="Application Failed to Start"
+        description="Learning Catalyst encountered a critical error during initialization."
+      />
+    );
+  }
+
+  if (status === 'loading') {
+    return <LoadingScreen message="Checking workspace configuration..." error={loadingError ?? undefined} />;
+  }
+
+  if (status === 'setup' && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />;
+  }
+
+  if (status === 'ready' && location.pathname === '/setup') {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Outlet />;
+}
+
+export function AppContent(): JSX.Element {
+  const [state, dispatch] = useReducer(initReducer, initialInitState);
 
   const configService = useConfigurationService();
-  const { ipcErrors, needsSetup, setupMessage } = useServiceContext();
   const electronAPI = useElectronAPIClient();
-  const [processedErrors, setProcessedErrors] = useState<number>(0);
+  const statusRef = useRef(state.status);
+  const location = useLocation();
+  const initRunRef = useRef(0);
 
   useEffect(() => {
     setConfigurationService(configService);
   }, [configService]);
 
-  /**
-   * Initialize application by:
-   * 1. Loading configuration
-   * 2. Validating AI provider setup
-   * 3. Waiting for main process readiness
-   * 4. Transitioning to ready state
-   *
-   * Cleanup handled via mounted flag to prevent state updates after unmount
-   */
   useEffect(() => {
-    let mounted = true;
+    statusRef.current = state.status;
+  }, [state.status]);
 
-    const initializeApp = async (): Promise<void> => {
-      console.log('[App] init run start');
-
-      try {
-        // Step 1: Load configuration
-        const config = await configService.getConfig();
-        console.log('[App] Loaded config', config);
-
-        // Exit early if component unmounted
-        if (!mounted) return;
-
-        // Step 2: Validate configuration
-        const validation = validateConfig(config);
-        if (validation.needsSetup) {
-          console.log('[App] status -> setup:', validation.message);
-          setStatus('setup');
-          setStatusMessage(validation.message || 'Unspecified setup required');
-          return;
-        }
-
-        // Step 3: Wait for main process readiness
-        console.log('[App] awaitReady start', { timeout: READY_TIMEOUT_MS });
-        await electronAPI.awaitReady({ timeoutMs: READY_TIMEOUT_MS });
-        console.log('[App] awaitReady finished');
-
-        // Step 4: Transition to ready state
-        if (mounted) {
-          console.log('[App] status -> ready');
-          setStatus('ready');
-          setStatusMessage(null);
-        }
-      } catch (error) {
-        // Handle initialization errors
-        handleInitError(error, 'load-config', setInitError, setStatus, setStatusMessage);
+  useEffect(() => {
+    const handleInitEvent = (event: InitEvent) => {
+      if (event.type === 'nonfatal_error' && statusRef.current === 'ready') {
+        showError(event.message);
+        return;
       }
+      dispatch(event);
     };
 
-    // Execute initialization
-    initializeApp();
+    const unsubscribe = electronAPI.onIPCError((payload: IPCErrorPayload) => {
+      handleInitEvent(mapIPCErrorToInitEvent(payload));
+    });
 
-    // Cleanup on unmount
+    let active = true;
+    (async () => {
+      try {
+        const errors = await electronAPI.getErrorBuffer();
+        if (!active) return;
+
+        const seen = new Set<string>();
+        for (const payload of errors as IPCErrorPayload[]) {
+          const event = mapIPCErrorToInitEvent(payload);
+          const key = buildInitEventKey(event);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          handleInitEvent(event);
+        }
+
+        await electronAPI.clearErrorBuffer();
+      } catch (error) {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'Unable to load startup error buffer.';
+        handleInitEvent({ type: 'nonfatal_error', message });
+      }
+    })();
+
     return () => {
-      mounted = false;
+      active = false;
+      unsubscribe?.();
     };
+  }, [electronAPI]);
+
+  const initializeApp = useCallback(async (): Promise<void> => {
+    const runId = ++initRunRef.current;
+
+    try {
+      const config = await configService.getConfig();
+      if (initRunRef.current !== runId) return;
+
+      const validation = validateConfig(config);
+      if (validation.needsSetup) {
+        dispatch({ type: 'config_needs_setup', message: validation.message });
+        return;
+      }
+    } catch (error) {
+      if (initRunRef.current !== runId) return;
+      const message = error instanceof Error ? error.message : 'Unable to load workspace configuration.';
+      showError(message);
+      dispatch({ type: 'config_needs_setup', message: 'Unable to load workspace configuration.' });
+      return;
+    }
+
+    dispatch({ type: 'config_ok' });
+
+    try {
+      await electronAPI.awaitReady({ timeoutMs: READY_TIMEOUT_MS });
+      if (initRunRef.current !== runId) return;
+      dispatch({ type: 'ready' });
+    } catch (error) {
+      if (initRunRef.current !== runId) return;
+      const payload = toCrashPayload(
+        error,
+        'system.ready_timeout',
+        `Main process did not signal ready within ${READY_TIMEOUT_MS} ms.`,
+      );
+      dispatch({ type: 'system_error', payload });
+    }
   }, [configService, electronAPI]);
 
-  // Monitor external signals: forced setup or buffered IPC errors.
   useEffect(() => {
-    console.log('[App] status watcher', { status, needsSetup, processedErrors });
-    if (status === 'ready') return;
+    initializeApp();
+  }, [initializeApp]);
 
-    // Process IPC errors FIRST - SYSTEM_ERROR takes priority over setup
-    const newErrors = ipcErrors.slice(processedErrors);
-    if (newErrors.length > 0) {
-      for (const payload of newErrors) {
-        const msg = formatIPCError(payload);
-        console.log(payload)
+  useEffect(() => {
+    if (state.status !== 'setup') return;
+    if (location.pathname === '/setup') return;
+    initializeApp();
+  }, [initializeApp, location.pathname, state.status]);
 
-        if (payload.type === 'SYSTEM_ERROR') {
-          // SYSTEM_ERROR always transitions to error page regardless of current state
-          console.log('[App] SYSTEM_ERROR received, transitioning to error page', { msg });
-          setErrorState({
-            message: payload.message,
-            details: String(payload.details?.errorMessage || payload.details?.error || msg),
-            stack: String(payload.details?.stack),
-            errorId: `sys_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-          });
-          setStatus('error');
-          setProcessedErrors(ipcErrors.length);
-          return; // Exit early - error page takes priority
-        } else if (status === 'loading') {
-          // Non-system errors during loading: show in loading screen
-          setInitError(msg);
-        } else {
-          // Non-system errors in other states: show as toast
-          showError(msg);
+  const crashError =
+    state.status === 'crash' && state.crash
+      ? {
+          type: state.crash.type,
+          code: state.crash.code,
+          message: state.crash.message,
+          details: state.crash.details,
         }
-      }
-      console.log('[App] processed IPC errors', { count: ipcErrors.length });
-      setProcessedErrors(ipcErrors.length);
-    }
+      : null;
 
-    // Only redirect to setup if no SYSTEM_ERROR was found
-    if (needsSetup) {
-      console.log('[App] status -> setup due to needsSetup', setupMessage);
-      setStatus('setup');
-      setStatusMessage(setupMessage);
-    }
-  }, [ipcErrors, needsSetup, setupMessage, status, processedErrors]);
-
-  if (status === 'loading') {
-    return <LoadingScreen message="Checking workspace configuration…" error={initError} />;
-  }
-
-  if (status === 'setup') {
-    return <SetupPage message={statusMessage ?? undefined} />;
-  }
-
-  if (status === 'error' && errorState) {
-    return (
-      <ErrorBoundary
-        variant="full"
-        crashError={{
-          type: 'SYSTEM_ERROR',
-          code: errorState.errorId || 'system.initialization_failed',
-          message: errorState.message,
-          details: {
-            errorMessage: errorState.details,
-            stack: errorState.stack,
-          },
-        }}
-        title="Application Failed to Start"
-        description="Learning Catalyst encountered a critical error during initialization."
+  return (
+    <Routes>
+      <Route
+        element={
+          <InitGuard
+            status={state.status}
+            loadingError={state.loadingError}
+            crashError={crashError}
+          />
+        }
       >
-        {/* Children won't render when crashError is provided */}
-        <div />
-      </ErrorBoundary>
-    );
-  }
-
-  return <ReadyApp />;
+        <Route path="/setup" element={<SetupScreen message={state.status === 'setup' ? state.statusMessage ?? undefined : undefined} />} />
+        <Route path="/*" element={<ReadyApp />} />
+      </Route>
+    </Routes>
+  );
 }

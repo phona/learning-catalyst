@@ -197,9 +197,11 @@ Learning Catalyst implements a **comprehensive multi-layered error handling syst
 ### Error Flow
 
 ```
-Component Error → ErrorBoundary (full/inline/minimal) → Error UI + Retry
-     ↓
-Main Process Error → serializeIPCError → IPC Channel → Renderer → Toast
+Component Error -> ErrorBoundary (full/inline/minimal) -> Error UI + Retry
+     |
+Main Process Error -> serializeIPCError -> IPC Channel -> Renderer -> Toast
+     |
+Renderer Init Flow -> ServicesProvider normalizes IPC errors (fatal => crash, config => setup, other => nonfatal) -> reducer in AppContent drives loading/setup/crash/ready screens
 ```
 
 ### Key Error Types
@@ -614,4 +616,6 @@ The project has migrated from custom-built chat UI components to the `assistant-
 - All main process code should NEVER reference or access `window.electronAPI`
 - `electronAPI` now exposes documented sessions/catalyst domains and filesystem/dialog helpers with
   matching IPC handlers.
+
+
 
