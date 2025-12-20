@@ -69,6 +69,7 @@ import {
 } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
+import type { ElectronAPI } from '@/shared/types';
 import { useElectronAPI, unwrapAPI } from './useElectronAPI';
 
 /**
@@ -256,23 +257,36 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
  * - Enables per-thread history loading context
  * - See ThreadHistoryProvider documentation for details
  */
+type WindowWithElectronAPI = Window & { electronAPI?: ElectronAPI };
+
+/**
+ * Factory for the thread-list adapter. In production we inject `api` explicitly
+ * from the hook; in tests we fall back to `window.electronAPI`.
+ */
 export function createThreadListAdapter(
-  api: ReturnType<typeof useElectronAPI>,
+  api: ReturnType<typeof useElectronAPI> | ElectronAPI | undefined = undefined,
 ): RemoteThreadListAdapter {
+  const resolvedApi =
+    api ??
+    (typeof window !== 'undefined' ? (window as WindowWithElectronAPI).electronAPI : undefined);
+
+  if (!resolvedApi) {
+    throw new Error('Electron API is unavailable; pass api explicitly or set window.electronAPI.');
+  }
+
   return {
     /**
      * List all threads from SQLite learning_sessions table.
      * Returns empty list on error for graceful degradation.
      */
     async list() {
-      const data = await unwrapAPI(api.sessions.list({ limit: 100 }));
-      console.log(
-        '[ThreadListAdapter.list] Sessions from SQLite:',
-        data.sessions.length,
-        data.sessions,
-      );
+      const data = await unwrapAPI(resolvedApi.sessions.list({ limit: 100 }));
+      const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+      if (sessions.length === 0) {
+        return { threads: [] };
+      }
       return {
-        threads: data.sessions.map(
+        threads: sessions.map(
           (session: { id: string; status: string; title?: string; topic?: string }) => ({
             remoteId: session.id,
             externalId: session.id,
@@ -290,30 +304,35 @@ export function createThreadListAdapter(
      */
     async initialize(localId: string) {
       console.log('[ThreadListAdapter.initialize] Called with localId:', localId);
-      const result = await unwrapAPI(api.sessions.create({ title: 'New Chat', threadId: localId }));
-      const { sessionId } = result;
+      const result = await unwrapAPI(
+        resolvedApi.sessions.create({ title: 'New Chat', threadId: localId }),
+      );
+      const { sessionId } = result ?? {};
+      if (!sessionId) {
+        throw new Error('Session ID missing from creation response.');
+      }
       console.log('[ThreadListAdapter.initialize] Created session with sessionId:', sessionId);
       return { remoteId: sessionId, externalId: sessionId };
     },
 
     /** Rename a thread's title in SQLite. */
     async rename(remoteId: string, title: string) {
-      await unwrapAPI(api.sessions.updateTitle(remoteId, title));
+      await unwrapAPI(resolvedApi.sessions.updateTitle(remoteId, title));
     },
 
     /** Archive a thread by setting status to 'completed'. */
     async archive(remoteId: string) {
-      await unwrapAPI(api.sessions.update(remoteId, { status: 'completed' }));
+      await unwrapAPI(resolvedApi.sessions.update(remoteId, { status: 'completed' }));
     },
 
     /** Unarchive a thread by setting status back to 'active'. */
     async unarchive(remoteId: string) {
-      await unwrapAPI(api.sessions.update(remoteId, { status: 'active' }));
+      await unwrapAPI(resolvedApi.sessions.update(remoteId, { status: 'active' }));
     },
 
     /** Permanently delete a thread from SQLite. */
     async delete(remoteId: string) {
-      await unwrapAPI(api.sessions.delete(remoteId));
+      await unwrapAPI(resolvedApi.sessions.delete(remoteId));
     },
 
     /**
@@ -334,9 +353,9 @@ export function createThreadListAdapter(
 
         if (!textContent) return;
 
-        const title = await unwrapAPI(api.chat.generateTitle(textContent));
+        const title = await unwrapAPI(resolvedApi.chat.generateTitle(textContent));
         const finalTitle = title.length > 47 ? title.slice(0, 47) + '...' : title;
-        await unwrapAPI(api.sessions.updateTitle(remoteId, finalTitle));
+        await unwrapAPI(resolvedApi.sessions.updateTitle(remoteId, finalTitle));
       });
     },
 
@@ -346,14 +365,15 @@ export function createThreadListAdapter(
     async fetch(threadId: string) {
       console.log('[ThreadListAdapter.fetch] Called with threadId:', threadId);
       try {
-        const data = await unwrapAPI(api.sessions.get(threadId));
-        // Type assertion: unwrapAPI guarantees data exists on success
-        const session = data!;
+        const session = await unwrapAPI(resolvedApi.sessions.get(threadId));
+        if (!session) {
+          return { status: 'regular' as const, remoteId: threadId, title: 'New Chat' };
+        }
         return {
           status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
           remoteId: threadId,
           externalId: threadId,
-          title: session.title || 'New Chat',
+          title: session.title || session.topic || 'New Chat',
         };
       } catch {
         return { status: 'regular' as const, remoteId: threadId, title: 'New Chat' };

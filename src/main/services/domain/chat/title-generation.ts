@@ -57,5 +57,7 @@ export const generateAITitle = async (
   });
 
   deps.loggerService.info('[TitleGeneration] Generated AI title:', result);
-  return result;
+  if (typeof result === 'string') return result;
+  if (Array.isArray(result.content)) return result.content.map(c => typeof c === 'string' ? c : c.text || '').join('');
+  return String(result.content || '');
 };

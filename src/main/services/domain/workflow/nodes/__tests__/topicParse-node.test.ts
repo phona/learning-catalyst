@@ -14,10 +14,17 @@ describe('topicParse node', () => {
   });
 
   it('parses valid topic with concept matches', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
@@ -31,7 +38,15 @@ describe('topicParse node', () => {
       }),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     const result = await node({
       messages: [],
@@ -46,15 +61,22 @@ describe('topicParse node', () => {
     expect(result.topic).toBe('React');
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0]).toBeInstanceOf(AIMessage);
-    expect(result.messages[0].content).toContain('Topic: React');
-    expect(result.messages[0].content).toContain('Related: JavaScript, JSX, Components');
+    expect(result.messages[0].content).toContain("I'll help you learn about React");
+    expect(result.messages[0].content).toContain('Related topics: JavaScript, JSX, Components');
   });
 
   it('handles topic with no relationships', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
@@ -65,7 +87,15 @@ describe('topicParse node', () => {
       }),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     const result = await node({
       messages: [],
@@ -73,21 +103,36 @@ describe('topicParse node', () => {
     }, createMockConfig());
 
     expect(result.topic).toBe('React');
-    expect(result.messages[0].content).toBe('Topic: React');
+    expect(result.messages[0].content).toBe("I'll help you learn about React.");
   });
 
   it('handles empty topic gracefully', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn(),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     const result = await node({
       messages: [],
@@ -95,16 +140,23 @@ describe('topicParse node', () => {
     }, createMockConfig());
 
     expect(mockKnowledgeService.findRelatedByPrompt).not.toHaveBeenCalled();
-    expect(result.error).toBe('No topic provided. Please specify what you want to learn about.');
+    expect(result.error).toBe("I didn't receive any message. What would you like to learn about?");
     expect(result.messages).toBeUndefined();
     expect(result.topic).toBeUndefined();
   });
 
   it('handles topic from last user message', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
@@ -115,7 +167,15 @@ describe('topicParse node', () => {
       }),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     const result = await node({
       messages: [
@@ -133,10 +193,17 @@ describe('topicParse node', () => {
   });
 
   it('handles no matching concepts found', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
@@ -145,7 +212,15 @@ describe('topicParse node', () => {
       }),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     const result = await node({
       messages: [],
@@ -153,7 +228,7 @@ describe('topicParse node', () => {
     }, createMockConfig());
 
     // Error field is set with topic not found message
-    expect(result.error).toBe('Topic "UnknownTopic" not found in knowledge base.');
+    expect(result.error).toBe('I couldn\'t find learning materials for "UnknownTopic". Try being more specific, like "Python programming" or try a different topic.');
     // Topic is undefined - workflow will stop
     expect(result.topic).toBeUndefined();
     // Messages field is undefined when topic not found
@@ -161,17 +236,32 @@ describe('topicParse node', () => {
   });
 
   it('handles errors gracefully', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
       findRelatedByPrompt: vi.fn().mockRejectedValue(new Error('Database error')),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     // Should reject the promise when database error occurs
     await expect(node({
@@ -181,10 +271,17 @@ describe('topicParse node', () => {
   });
 
   it('normalizes and trims topic text', async () => {
+    const mockLoggerService = {
+      error: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+
     const mockKnowledgeService = {
       ingestConceptParsingResult: vi.fn(),
       searchKnowledge: vi.fn(),
-      semanticSearch: vi.fn(),  // ← NEW method
+      semanticSearch: vi.fn(),
       exploreConcept: vi.fn(),
       getRelatedConcepts: vi.fn(),
       getKnowledgeMap: vi.fn(),
@@ -195,7 +292,15 @@ describe('topicParse node', () => {
       }),
     };
 
-    const node = topicParseNode({ knowledgeService: mockKnowledgeService });
+    const node = topicParseNode({
+      knowledgeService: mockKnowledgeService,
+      loggerService: mockLoggerService,
+      checkpointer: {} as any,
+      configService: {} as any,
+      providerFactory: {} as any,
+      learningService: {} as any,
+      practiceService: {} as any,
+    });
 
     const result = await node({
       messages: [],

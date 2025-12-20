@@ -59,8 +59,6 @@ import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
-import { NodeName } from '../types';
 
 /**
  * Session Blueprint Schemas and Types
@@ -75,7 +73,7 @@ export const PracticeBlockSchema = z.object({
   type: z.enum(['retrieval', 'apply', 'teach_back', 'open_question']),
   prompt: z.string(),
   minutes: z.number().int().positive(),
-  expectedAnswer: z.string().optional(),
+  expectedAnswer: z.string().describe('Expected answer or understanding criteria to check user comprehension'),
   scoring: z.enum(['auto', 'manual', 'hybrid']),
 });
 export type PracticeBlock = z.infer<typeof PracticeBlockSchema>;
@@ -214,11 +212,6 @@ export const planNode = (deps: WorkflowDeps) => async (
   state: typeof WorkflowStateAnnotation.State,
   config: LangGraphRunnableConfig
 ) => {
-  const emitter = createChunkEmitter(config);
-  const nodeName = NodeName.PLAN;
-  const toolCallId = generateId(nodeName);
-  emitter.toolInputStart(toolCallId, nodeName);
-
   // Determine learner level based on assessment confidence
   const confidence = state.confidence ?? 0.5;
   const level: LearnerLevel = confidence >= 0.8 ? 'advanced' : confidence >= 0.5 ? 'intermediate' : 'novice';
@@ -234,13 +227,6 @@ export const planNode = (deps: WorkflowDeps) => async (
     allowExternal: true,
     userGoal: undefined,
   };
-
-  emitter.toolInputAvailable(toolCallId, nodeName, {
-    topic: sessionParams.topic,
-    level: sessionParams.level,
-    timeAvailable: sessionParams.timeAvailable,
-    gaps: sessionParams.gaps,
-  });
 
   // Create LLM instance using provider factory
   const llm = await deps.providerFactory.getModel();
@@ -272,20 +258,13 @@ export const planNode = (deps: WorkflowDeps) => async (
   const blueprint = parsed.data;
 
   // Create the message content
-  const content = `Based on your assessment (${Math.round(confidence * 100)}% confidence), I've created a personalized learning plan for "${blueprint.learnerProfile.topic}". The session will focus on ${blueprint.session.primaryConcept} with ${blueprint.session.practiceBlocks.length} practice activities.`;
-
-  /**
-   * EMIT TOOL OUTPUT:
-   * Provide the structured learning plan
-   */
-  emitter.toolOutputAvailable(toolCallId, {
-    ok: true,
-    data: {
-      sessionBlueprint: blueprint,
-      summary: content,
-      topic: sessionParams.topic,
-    },
-  });
+  // break long line into multiple lines
+  const content = [
+    `Based on your assessment (${Math.round(confidence * 100)}% confidence),`,
+    `I've created a personalized learning plan for "${blueprint.learnerProfile.topic}".`,
+    `The session will focus on ${blueprint.session.primaryConcept}`,
+    `with ${blueprint.session.practiceBlocks.length} practice activities.`
+  ].join(' ');
 
   // Return state updates
   return {

@@ -257,5 +257,5 @@ THRESHOLDS = {
 - **Graph Definition**: `src/main/services/domain/workflow/graph.ts`
 - **Edges**: `src/main/services/domain/workflow/edges.ts`
 - **Types**: `src/main/services/domain/workflow/types.ts`
-- **Role Mapping**: `src/main/services/domain/workflow/utils/role-mapping.ts`
 - **Normalization**: `src/main/services/domain/workflow/utils/normalization.ts`
+- **Assistant-UI Stream**: `src/main/services/domain/workflow/utils/assistant-ui-stream.ts`

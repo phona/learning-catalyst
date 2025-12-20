@@ -1,0 +1,8 @@
+storage_path: ./storage
+host: 127.0.0.1
+port: 6335
+grpc:
+  host: 127.0.0.1
+  port: 6336
+telemetry_disabled: true
+log_level: INFO

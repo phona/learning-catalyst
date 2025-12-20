@@ -360,6 +360,33 @@
   }
 }
 
+/* Assistant UI loading indicator dark mode fixes */
+.aui-assistant-message-content .aui-text,
+[data-role="assistant"] .aui-text {
+  @apply text-zinc-800 dark:text-zinc-200;
+}
+
+/* Loading indicator - the pulsing dot after running text */
+.aui-text-running::after {
+  @apply text-zinc-600 dark:text-zinc-300;
+}
+
+/* Ensure text content is visible */
+.aui-text {
+  @apply text-zinc-800 dark:text-zinc-200;
+}
+
+/* Assistant message content text */
+.aui-assistant-message-content {
+  @apply text-zinc-800 dark:text-zinc-200;
+}
+
+/* Assistant UI default text primitives */
+[data-aui-part="text"],
+.aui-message-text {
+  @apply text-zinc-800 dark:text-zinc-200;
+}
+
 /* Custom animations */
 @keyframes slideInRight {
   from {

@@ -92,7 +92,8 @@
       "Bash(tee:*)",
       "Bash(bash:*)",
       "mcp__chrome-devtools__navigate_page",
-      "WebFetch(domain:reference.langchain.com)"
+      "WebFetch(domain:reference.langchain.com)",
+      "Bash(wmic:*)"
     ],
     "deny": [],
     "ask": []

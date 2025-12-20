@@ -3,6 +3,7 @@ import { useAssistantApi } from '@assistant-ui/react';
 import { Thread } from '@assistant-ui/react-ui';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ToolFallback } from './ToolFallback';
+import { MarkdownText } from './MarkdownText';
 
 /**
  * ChatInterface Component
@@ -49,6 +50,7 @@ export const ChatInterface: React.FC = () => {
         key={currentThreadId}
         assistantMessage={{
           components: {
+            Text: MarkdownText,
             ToolFallback: ToolFallback,
           },
         }}

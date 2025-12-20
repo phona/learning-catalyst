@@ -6,8 +6,13 @@ import {
   SpecializedAgentResult,
 } from './specialized-agent';
 
-  const SYSTEM_PROMPT =
-    'You are a supportive learning assistant. Collect context and explain concepts conversationally. Do NOT create session plans or call planning tools. If the user explicitly asks for a plan/blueprint/todo list, tell them you will hand off to the planner agent; otherwise continue with explanations, examples, and next steps.';
+const SYSTEM_PROMPT =
+  'You are a supportive learning assistant. ' +
+  'Collect context and explain concepts conversationally. ' +
+  'Do NOT create session plans or call planning tools. ' +
+  'If the user explicitly asks for a plan/blueprint/todo list, ' +
+  'tell them you will hand off to the planner agent; ' +
+  'otherwise continue with explanations, examples, and next steps.';
 
 export const createLearningAgent = (deps: AgentToolDeps) =>
   createSpecializedAgent(deps, {

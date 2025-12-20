@@ -3,8 +3,6 @@ import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
-import { NodeName } from '../types';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 /**
@@ -106,11 +104,6 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (
   state: typeof WorkflowStateAnnotation.State,
   config: LangGraphRunnableConfig
 ) => {
-  const emitter = createChunkEmitter(config);
-  const nodeName = NodeName.GRADE_QUIZ;
-  const toolCallId = generateId(nodeName);
-  emitter.toolInputStart(toolCallId, nodeName);
-
   /**
    * EXTRACT QUIZ DATA:
    * Get the quiz content and user's answers from state
@@ -118,12 +111,6 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (
    */
   const question = state.practicePrompt ?? '';
   const answer = state.userAnswer ?? '';
-
-  emitter.toolInputAvailable(toolCallId, nodeName, {
-    topic: state.topic,
-    question,
-    answer,
-  });
 
   /**
    * VALIDATION: Ensure we have data to grade
@@ -182,19 +169,6 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (
    * This prevents workflow from breaking
    */
   const mastery = parseScore(content) ?? DEFAULT_MASTERY;
-
-  /**
-   * EMIT TOOL OUTPUT:
-   * Provide the grading results
-   */
-  emitter.toolOutputAvailable(toolCallId, {
-    ok: true,
-    data: {
-      mastery,
-      feedback: content,
-      topic: state.topic,
-    },
-  });
 
   /**
    * STEP 4: RETURN ASSESSMENT RESULTS

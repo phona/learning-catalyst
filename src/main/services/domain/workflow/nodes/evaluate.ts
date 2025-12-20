@@ -33,8 +33,6 @@ import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
-import { NodeName } from '../types';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 
 /**
@@ -46,20 +44,17 @@ const DEFAULT_MASTERY = 0.5;
  * Chat prompt template for evaluating user answers
  */
 const EVALUATION_TEMPLATE = ChatPromptTemplate.fromMessages([
-  [
-    'system',
-    'You are an expert learning evaluator. Provide fair, constructive feedback.'
-  ],
+  ['system', 'You are an expert learning evaluator. Provide fair, constructive feedback.'],
   [
     'human',
     [
-      'Grade the user\'s answer for topic: {topic}',
+      "Grade the user's answer for topic: {topic}",
       'Question: {question}',
       'Answer: {answer}',
       '',
-      'Return "Score: NN%" only, where NN is a number from 0-100.'
-    ].join('\n')
-  ]
+      'Return "Score: NN%" only, where NN is a number from 0-100.',
+    ].join('\n'),
+  ],
 ]);
 
 /**
@@ -70,50 +65,71 @@ const EVALUATION_TEMPLATE = ChatPromptTemplate.fromMessages([
  * @param config - LangGraph configuration
  * @returns Evaluation results with mastery score, attempt count, and feedback messages
  */
-export const evaluateNode = (deps: WorkflowDeps) => async (
-  state: typeof WorkflowStateAnnotation.State,
-  config: LangGraphRunnableConfig
-) => {
-  const emitter = createChunkEmitter(config);
-  const nodeName = NodeName.EVALUATE;
-  const toolCallId = generateId(nodeName);
-  emitter.toolInputStart(toolCallId, nodeName);
+export const evaluateNode =
+  (deps: WorkflowDeps) =>
+  async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
+    const startTime = Date.now();
 
-  const model = await deps.providerFactory.getModel();
-  const question = state.practicePrompt ?? '';
-  const answer = state.userAnswer ?? '';
+    // Debug: Node start
+    deps.loggerService.debug('evaluateNode: start', {
+      topic: state.topic,
+      hasPracticePrompt: !!state.practicePrompt,
+      hasUserAnswer: !!state.userAnswer,
+      previousMastery: state.mastery,
+      previousAttemptCount: state.attemptCount,
+    });
 
-  emitter.toolInputAvailable(toolCallId, nodeName, {
-    topic: state.topic,
-    question,
-    answer,
-  });
+    const model = await deps.providerFactory.getModel();
+    const question = state.practicePrompt ?? '';
+    const answer = state.userAnswer ?? '';
 
-  // Format the evaluation prompt using ChatPromptTemplate
-  const messages = await EVALUATION_TEMPLATE.formatMessages({
-    topic: state.topic,
-    question,
-    answer,
-  });
+    // Debug: Input validation
+    deps.loggerService.debug('evaluateNode: input validation', {
+      questionLength: question.length,
+      answerLength: answer.length,
+    });
 
-  const res = await model.invoke(messages);
-  const content = String(res.content ?? res ?? '');
-  const mastery = parseScore(content) ?? state.mastery ?? DEFAULT_MASTERY;
-  const attemptCount = (state.attemptCount ?? 0) + 1;
+    // Format the evaluation prompt using ChatPromptTemplate
+    const messages = await EVALUATION_TEMPLATE.formatMessages({
+      topic: state.topic,
+      question,
+      answer,
+    });
 
-  /**
-   * EMIT TOOL OUTPUT:
-   * Provide the evaluation results
-   */
-  emitter.toolOutputAvailable(toolCallId, {
-    ok: true,
-    data: {
+    const res = await model.invoke(messages);
+    const content = String(res.content ?? res ?? '');
+    const mastery = parseScore(content) ?? state.mastery ?? DEFAULT_MASTERY;
+    const attemptCount = (state.attemptCount ?? 0) + 1;
+
+    // Debug: Final result
+    const duration = Date.now() - startTime;
+    deps.loggerService.debug('evaluateNode: complete', {
+      topic: state.topic,
+      mastery,
+      masteryPercent: Math.round(mastery * 100),
+      attemptCount,
+      feedbackLength: content.length,
+      durationMs: duration,
+    });
+
+    // Info: Evaluation completed
+    deps.loggerService.info('evaluateNode: evaluation complete', {
+      topic: state.topic,
+      masteryPercent: Math.round(mastery * 100),
+      attemptCount,
+      outcome: mastery >= 0.9 ? 'pass' : 'continue',
+      durationMs: duration,
+    });
+
+    return {
       mastery,
       attemptCount,
-      feedback: content,
-      topic: state.topic,
-    },
-  });
-
-  return { mastery, attemptCount, messages: [new AIMessage(content)] };
-};
+      messages: [
+        new HumanMessage({
+          response_metadata: {
+            content,
+          },
+        }),
+      ],
+    };
+  };

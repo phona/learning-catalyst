@@ -25,11 +25,10 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
-import { HumanMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
-import { NodeName } from '../types';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
 
 /**
  * Utility to clamp a number to the range [0, 1]
@@ -154,7 +153,7 @@ function formatRecentMessages(
     .slice(-maxMessages)
     .map((msg) => {
       // Use instanceof for type-safe message type detection
-      const role = msg instanceof HumanMessage ? 'user' : 'assistant';
+      const role = HumanMessage.isInstance(msg) ? 'user' : 'assistant';
       const content =
         msg.content.length > maxMessageLength
           ? msg.content.slice(0, maxMessageLength)
@@ -167,13 +166,15 @@ function formatRecentMessages(
 export const assessNode =
   (deps: WorkflowDeps) =>
   async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
-    // Initialize chunk emitter for streaming status updates
-    const emitter = createChunkEmitter(config);
-    const nodeName = NodeName.ASSESS;
-    const toolCallId = generateId(nodeName);
+    const startTime = Date.now();
 
-    // Emit input start for observability
-    emitter.toolInputStart(toolCallId, nodeName);
+    // Debug: Node start
+    deps.loggerService.debug('assessNode: start', {
+      topic: state.topic,
+      messageCount: state.messages?.length ?? 0,
+      hasConfidence: !!state.confidence,
+      hasGaps: !!state.gaps,
+    });
 
     // Step 1: Fetch related concepts from knowledge graph
     const knowledgeResult = await deps.knowledgeService.searchKnowledge({
@@ -186,14 +187,35 @@ export const assessNode =
       .map((result) => result.id)
       .filter((id): id is string => Boolean(id));
 
+    // Debug: Knowledge search results
+    deps.loggerService.debug('assessNode: knowledge search', {
+      topic: state.topic,
+      resultsFound: knowledgeResult?.results?.length ?? 0,
+      conceptIdsCount: conceptIds.length,
+    });
+
     // Step 2: Retrieve practice history for confidence calculation
     const practiceHistory = await deps.learningService.getPracticeHistory({
       conceptIds,
       limit: 100,
     });
 
+    // Debug: Practice history
+    deps.loggerService.debug('assessNode: practice history', {
+      conceptIdsCount: conceptIds.length,
+      historyItems: practiceHistory.length,
+    });
+
     // Step 3: Extract metrics from practice history
     const practiceMetrics = extractPracticeMetrics(practiceHistory);
+
+    // Debug: Practice metrics extracted
+    deps.loggerService.debug('assessNode: practice metrics', {
+      passCount: practiceMetrics.passCount,
+      partialCount: practiceMetrics.partialCount,
+      failCount: practiceMetrics.failCount,
+      gapsCount: practiceMetrics.gaps.length,
+    });
 
     // Step 4: Format recent conversation for LLM analysis
     const recentMessages = formatRecentMessages(state.messages as (HumanMessage | AIMessage)[]);
@@ -223,37 +245,41 @@ export const assessNode =
 
     // Format confidence message for user
     const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
+    const messageId = generateId('assess');
+    // const emitter = createChunkEmitter(config);
+    // emitter.textStart(messageId);
+    // emitter.textDelta(messageId, confidenceMessage);
+    // emitter.textEnd(messageId);
 
-    // Step 6: Emit tool output for orchestration
-
-    const toolOutput = {
-      confidence,
-      gaps: practiceMetrics.gaps,
-      content: confidenceMessage,
+    // Debug: Final result
+    const duration = Date.now() - startTime;
+    deps.loggerService.debug('assessNode: complete', {
       topic: state.topic,
-    };
-    emitter.toolOutputAvailable(toolCallId, {
-      ok: true,
-      data: toolOutput,
+      confidence,
+      confidencePercent: Math.round(confidence * 100),
+      gapsCount: practiceMetrics.gaps.length,
+      gaps: practiceMetrics.gaps,
+      durationMs: duration,
     });
 
-    // Step 7: Return updated state
+    // Info: Assessment completed
+    deps.loggerService.info('assessNode: assessment complete', {
+      topic: state.topic,
+      confidencePercent: Math.round(confidence * 100),
+      gapsCount: practiceMetrics.gaps.length,
+      path: confidence >= 0.8 ? 'fast_track' : 'standard_learning',
+      durationMs: duration,
+    });
+
+    // Step 6: Return updated state
+    // Remove ToolMessage - just return state directly
+    // The toolOutput data (confidence, gaps) is already in state fields
     return {
       messages: [
-        new AIMessage({
-          content: confidenceMessage,
-          tool_calls: [
-            {
-              id: toolCallId,
-              name: nodeName,
-              args: {},
-            },
-          ],
-        }),
-        new ToolMessage({
-          tool_call_id: toolCallId,
-          name: nodeName,
-          artifact: toolOutput,
+        new HumanMessage({
+          response_metadata: {
+            content: confidenceMessage,
+          },
         }),
       ],
       confidence,

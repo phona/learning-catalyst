@@ -93,7 +93,7 @@ function convertToChatMessage(
   }
 
   // Handle class instances (from memory)
-  if (msg instanceof HumanMessage) {
+  if (HumanMessage.isInstance(msg)) {
     return {
       id: `${sessionId}-${index}`,
       role: 'user',
@@ -121,7 +121,7 @@ function convertToChatMessage(
         invalid_tool_calls: msg.invalid_tool_calls,
       },
     };
-  } else if (msg instanceof ToolMessage) {
+  } else if (ToolMessage.isInstance(msg)) {
     console.log('ToolMessage', msg);
     return {
       id: `${sessionId}-${index}`,

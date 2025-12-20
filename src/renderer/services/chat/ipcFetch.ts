@@ -17,6 +17,7 @@ export const createIpcFetch = (api: ElectronAPI): FetchFunction => async (_input
         cancelStream = api.aiSDK.stream(
           { messages, conversationId },
           (stream: string) => {
+            console.log(stream);
             controller.enqueue(textEncoder.encode(stream));
           },
           () => {

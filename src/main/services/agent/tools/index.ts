@@ -38,7 +38,11 @@ const safeJsonObject = <T extends Record<string, any>>(value?: string): T | unde
  * Content Analysis Tool
  * Analyzes content for summary, keypoints, structure, etc.
  */
-export const contentAnalysisTool = (services: ToolServices) => {
+export const contentAnalysisTool = (services: {
+  aiService: AIService;
+  configService: ConfigService;
+  loggerService: LoggerService;
+}) => {
   return async (params: {
     content: string;
     analysisType: 'summary' | 'keypoints' | 'structure' | 'complexity';
@@ -315,10 +319,7 @@ const requireConcepts = (conceptIds?: string[]) => {
 };
 
 export const fetchPracticeHistoryTool = (services: ToolServices) => {
-  return async (params: {
-    conceptIds: string[];
-    since?: string;
-  }): Promise<ToolResult> => {
+  return async (params: { conceptIds: string[]; since?: string }): Promise<ToolResult> => {
     const validation = requireConcepts(params?.conceptIds);
     if (validation) return validation;
 
@@ -355,10 +356,7 @@ export const fetchPracticeHistoryTool = (services: ToolServices) => {
 };
 
 export const fetchDiscussionTranscriptTool = (services: ToolServices) => {
-  return async (params: {
-    conceptIds?: string[];
-    limit?: number;
-  }): Promise<ToolResult> => {
+  return async (params: { conceptIds?: string[]; limit?: number }): Promise<ToolResult> => {
     const logger = services.loggerService.child({ tool: 'fetch-discussion-transcript' });
     logger.info('Fetching discussion transcript', {
       conceptCount: params.conceptIds?.length ?? 0,
@@ -373,7 +371,11 @@ export const fetchDiscussionTranscriptTool = (services: ToolServices) => {
         order: 'desc',
       });
       const turns: DiscussionTurn[] = messages
-        .map((row) => ({ text: row.content, conceptIds: params.conceptIds, timestamp: row.timestamp }))
+        .map((row) => ({
+          text: row.content,
+          conceptIds: params.conceptIds,
+          timestamp: row.timestamp,
+        }))
         .filter((t) => t.text);
 
       return {
@@ -392,9 +394,7 @@ export const fetchDiscussionTranscriptTool = (services: ToolServices) => {
 };
 
 export const fetchGoalArtifactsTool = (services: ToolServices) => {
-  return async (params: {
-    goal: string;
-  }): Promise<ToolResult> => {
+  return async (params: { goal: string }): Promise<ToolResult> => {
     if (!params.goal?.trim()) {
       return { success: false, error: 'goal is required to fetch goal artifacts' };
     }
@@ -412,7 +412,8 @@ export const fetchGoalArtifactsTool = (services: ToolServices) => {
       });
       const artifacts: GoalArtifact[] = messages
         .map((row) => {
-          const isCode = /```/.test(row.content) || /function|class|const|let|var/.test(row.content);
+          const isCode =
+            /```/.test(row.content) || /function|class|const|let|var/.test(row.content);
           const type: GoalArtifact['type'] = isCode ? 'code' : 'text';
           return { type, content: row.content, conceptIds: [], timestamp: row.timestamp };
         })

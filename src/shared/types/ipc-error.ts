@@ -83,6 +83,7 @@ export const IPC_ERROR_CODES = {
     reportErrorFailed: 'system.report_error_failed',
     healthCheckFailed: 'system.health_check_failed',
     versionFailed: 'system.version_failed',
+    unknown: 'system.unknown',
   },
   analytics: {
     dashboardFailed: 'analytics.dashboard_failed',
@@ -140,4 +141,9 @@ export const requiresSetup = (payload: IPCErrorPayload): boolean => {
     typeof payload.code === 'string' &&
     payload.code.endsWith(IPC_ERROR_CODES.provider.missingApiKey)
   );
+};
+
+export const isFatalError = (payload: IPCErrorPayload): boolean => {
+  if (!payload) return false;
+  return payload.type === 'SYSTEM_ERROR';
 };

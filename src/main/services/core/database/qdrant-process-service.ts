@@ -8,13 +8,14 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import type { ChildProcess } from 'node:child_process';
+import type { LoggerService } from '../logger/logger-service';
+import { spawn } from 'child_process';
+import asyncfs from 'fs/promises'
+import { IPC_ERROR_CODES, IPCErrorException } from '@/shared/types/ipc-error';
 
 export interface QdrantProcessService {
   start(): Promise<void>;
   stop(): Promise<void>;
-  isReady(): boolean;
-  getHealth(): Promise<boolean>;
-  getMetrics(): Promise<string>;
 }
 
 const QDRANT_DIR = '.catalyst';
@@ -96,25 +97,27 @@ function getDefaultQdrantConfigPath(workspacePath: string): string {
 
 export function createQdrantProcessService(
   workspacePath: string,
+  logger: LoggerService,
   config: {
     host?: string;
     port?: number;
     grpcPort?: number;
     configPath?: string;
     dataPath?: string;
-  } = {}
+  } = {},
 ): QdrantProcessService {
   // Process state
   let childProcess: ChildProcess | null = null;
   let isReady = false;
   let isStarting = false;
+  let startupPromise: Promise<void> | null = null;
 
   const serviceConfig = {
     host: '127.0.0.1',
     port: 6333,
     grpcPort: 6334,
-    configPath: getDefaultQdrantConfigPath(workspacePath),  // ← Uses workspace path
-    dataPath: getDefaultQdrantDataPath(workspacePath),  // ← Same pattern as SQLite
+    configPath: getDefaultQdrantConfigPath(workspacePath), // ← Uses workspace path
+    dataPath: getDefaultQdrantDataPath(workspacePath), // ← Same pattern as SQLite
     ...config,
   };
 
@@ -122,54 +125,182 @@ export function createQdrantProcessService(
    * Start the Qdrant binary as a child process
    */
   async function start(): Promise<void> {
-    if (childProcess || isStarting) {
+    // If already running, return immediately
+    if (childProcess && isReady) {
       return;
     }
 
+    // If startup is in progress, wait for the existing startup operation
+    if (startupPromise) {
+      return startupPromise;
+    }
+
+    // Start the process
+    startupPromise = performStartup();
+    return startupPromise;
+  }
+
+  async function performStartup(): Promise<void> {
     isStarting = true;
 
     try {
-      const { spawn } = await import('child_process');
-      const fs = await import('fs/promises');
+      const { binaryPath } = await validateEnvironment();
+      const { child, stdoutChunks, stderrChunks } = spawnQdrantProcess(binaryPath);
 
-      // Ensure data directory exists
-      await fs.mkdir(serviceConfig.dataPath, { recursive: true });
-
-      // Check for binary existence
-      const qdrantPath = path.join(process.cwd(), 'external', 'qdrant', 'qdrant.exe');
-
-      try {
-        await fs.access(qdrantPath);
-      } catch {
-        throw new Error(`Qdrant binary not found at ${qdrantPath}`);
-      }
-
-      // Spawn the process
-      childProcess = spawn(qdrantPath, [
-        '--config-path', serviceConfig.configPath
-      ], {
-        stdio: ['ignore', 'pipe', 'pipe'],
-        cwd: path.dirname(qdrantPath),
+      // Create a promise that rejects if process exits/errors during startup
+      let startupErrorReject: (error: Error) => void;
+      const processErrorPromise = new Promise<never>((_, reject) => {
+        startupErrorReject = reject;
       });
 
-      // Set up event handlers
-      childProcess.on('exit', (code) => {
-        console.log(`Qdrant process exited with code ${code}`);
-        childProcess = null;
-        isReady = false;
-      });
+      setupProcessMonitoring(child, stdoutChunks, stderrChunks, startupErrorReject!);
 
-      childProcess.on('error', (error) => {
-        console.error('Qdrant process error:', error);
-      });
+      // Race between ready check and process error
+      await Promise.race([
+        waitForReady(),
+        processErrorPromise
+      ]);
 
-      // Wait for server to be ready
-      await waitForReady();
       isReady = true;
-      console.log('Qdrant service started successfully');
+
+      logger.info('Qdrant service started successfully');
+    } catch (error) {
+      // On error, clean up the process reference
+      if (childProcess) {
+        try {
+          childProcess.kill();
+        } catch {
+          // Ignore kill errors
+        }
+        childProcess = null;
+      }
+      isReady = false;
+
+      // Log detailed error information
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('Failed to start Qdrant service', error, {
+        errorMessage,
+        workspacePath,
+        configPath: serviceConfig.configPath,
+        dataPath: serviceConfig.dataPath,
+      });
+
+      // Re-throw to propagate error to callers
+      throw error;
     } finally {
       isStarting = false;
     }
+  }
+
+  async function validateEnvironment(): Promise<{ binaryPath: string }> {
+    await asyncfs.mkdir(serviceConfig.dataPath, { recursive: true });
+
+    const binaryPath = path.join(process.cwd(), 'external', 'qdrant', 'qdrant.exe');
+
+    try {
+      await asyncfs.access(binaryPath);
+    } catch {
+      throw new Error(`Qdrant binary not found at ${binaryPath}`);
+    }
+
+    // Double-check process hasn't started while we were preparing
+    if (childProcess && isReady) {
+      throw new Error('Qdrant already running');
+    }
+
+    return { binaryPath };
+  }
+
+  function spawnQdrantProcess(binaryPath: string) {
+    const child = spawn(binaryPath, ['--config-path', serviceConfig.configPath], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: path.dirname(binaryPath),
+    });
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdoutChunks.push(chunk);
+      const output = chunk.toString().trim();
+      if (output) {
+        logger.debug(`[Qdrant] ${output}`);
+      }
+    });
+
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderrChunks.push(chunk);
+      const error = chunk.toString().trim();
+      if (error) {
+        logger.error(`[Qdrant Error] ${error}`);
+      }
+    });
+
+    return { child, stdoutChunks, stderrChunks };
+  }
+
+  function setupProcessMonitoring(
+    child: ChildProcess,
+    stdoutChunks: Buffer[],
+    stderrChunks: Buffer[],
+    onStartupError?: (error: Error) => void
+  ) {
+    child.on('exit', (code, signal) => {
+      const stdout = Buffer.concat(stdoutChunks).toString().trim();
+      const stderr = Buffer.concat(stderrChunks).toString().trim();
+
+      if (code !== 0 || signal) {
+        const errorMessage =
+          stderr ||
+          stdout ||
+          `Qdrant process exited with code ${code}${signal ? ` and signal ${signal}` : ''}`;
+
+        logger.error('Qdrant process exited with error', {
+          code,
+          signal,
+          stdout: stdout || undefined,
+          stderr: stderr || undefined,
+          errorMessage,
+        });
+
+        if (stdout) {
+          logger.debug('[Qdrant Stdout]:', stdout);
+        }
+        if (stderr) {
+          logger.debug('[Qdrant Stderr]:', stderr);
+        }
+
+        // Reject startup if still in progress
+        if (isStarting && onStartupError) {
+          onStartupError(new IPCErrorException({
+            message: errorMessage,
+            type: 'SYSTEM_ERROR',
+            code: IPC_ERROR_CODES.system.healthCheckFailed,
+          }));
+        }
+      } else {
+        logger.info(`Qdrant process exited normally with code ${code}`);
+      }
+
+      const wasReady = isReady;
+
+      childProcess = null;
+      isReady = false;
+
+      if (wasReady && startupPromise) {
+        startupPromise = null;
+      }
+    });
+
+    child.on('error', (error) => {
+      logger.error('Qdrant process spawn error', error, {
+        message: error.message,
+        code: error.code,
+        errno: error.errno,
+        syscall: error.syscall,
+        path: error.path,
+      });
+    });
   }
 
   /**
@@ -193,6 +324,7 @@ export function createQdrantProcessService(
         childProcess.once('exit', () => {
           childProcess = null;
           isReady = false;
+          startupPromise = null; // Clear startup promise on stop
           resolve();
         });
 
@@ -205,6 +337,7 @@ export function createQdrantProcessService(
             childProcess.kill('SIGKILL');
             childProcess = null;
             isReady = false;
+            startupPromise = null; // Clear startup promise on force kill
             resolve();
           }
         }, 10000);
@@ -212,43 +345,6 @@ export function createQdrantProcessService(
         resolve();
       }
     });
-  }
-
-  /**
-   * Check if service is ready
-   */
-  function ready(): boolean {
-    return isReady;
-  }
-
-  /**
-   * Get health status
-   */
-  async function getHealth(): Promise<boolean> {
-    if (!childProcess) {
-      return false;
-    }
-
-    try {
-      const { QdrantClient } = await import('@qdrant/qdrant-js');
-      const client = new QdrantClient({
-        host: serviceConfig.host,
-        port: serviceConfig.port,
-      });
-      await client.getCollections();
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Get server metrics
-   */
-  async function getMetrics(): Promise<string> {
-    const url = `http://${serviceConfig.host}:${serviceConfig.port}/metrics`;
-    const res = await fetch(url);
-    return await res.text();
   }
 
   /**
@@ -277,8 +373,5 @@ export function createQdrantProcessService(
   return {
     start,
     stop,
-    isReady: ready,
-    getHealth,
-    getMetrics,
   };
 }

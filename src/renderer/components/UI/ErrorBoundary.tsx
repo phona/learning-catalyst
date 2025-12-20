@@ -1,6 +1,27 @@
 import React, { Component, ReactNode } from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon, HomeIcon } from '@heroicons/react/24/outline';
 
+/**
+ * System error structure received from main process via IPC.
+ * Represents critical initialization or runtime failures.
+ */
+interface SystemError {
+  /** Error type for routing logic */
+  type: 'SYSTEM_ERROR' | 'CONFIG_ERROR' | 'NETWORK_ERROR';
+
+  /** Specific error code for categorization */
+  code: string;
+
+  /** User-friendly error message */
+  message: string;
+
+  /** Additional error context */
+  details?: Record<string, unknown>;
+
+  /** Timestamp when error occurred */
+  timestamp?: number;
+}
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -11,6 +32,12 @@ interface Props {
   showRetry?: boolean;
   onRetry?: () => void;
   customActions?: ReactNode;
+
+  /** System error from IPC for crash page display */
+  crashError?: SystemError | null;
+
+  /** Callback for restart action (defaults to window.location.reload) */
+  onRestart?: () => void;
 }
 
 interface State {
@@ -104,7 +131,112 @@ export class ErrorBoundary extends Component<Props, State> {
     this.props.onRetry?.();
   };
 
+  /**
+   * Handles restart action with fallback mechanisms.
+   * Tries window.location.reload first, then electronAPI.relaunchApp.
+   */
+  private handleRestart = () => {
+    // Use custom restart handler if provided
+    if (this.props.onRestart) {
+      this.props.onRestart();
+      return;
+    }
+
+    // Default: reload the entire application
+    try {
+      if (typeof window.location?.reload === 'function') {
+        window.location.reload();
+        return;
+      }
+    } catch {
+      // Ignore errors and try fallback
+    }
+
+    // Fallback: try electronAPI relaunch
+    try {
+      window.electronAPI?.relaunchApp?.();
+    } catch {
+      // If all else fails, do nothing
+    }
+  };
+
   render() {
+    // Priority 1: Show crash page if system error is provided
+    // This takes precedence over React errors for critical failures
+    if (this.props.crashError && this.props.variant === 'full') {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-8 max-w-2xl w-full border border-red-200 dark:border-red-800">
+            <div className="text-center mb-8">
+              <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+                <ExclamationTriangleIcon className="w-10 h-10 text-red-600 dark:text-red-400" />
+              </div>
+
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
+                {this.props.title || 'Application Failed to Start'}
+              </h1>
+
+              <p className="text-lg text-gray-700 dark:text-gray-300 mb-4">
+                {this.props.description ||
+                  'Learning Catalyst encountered a critical error during initialization.'}
+              </p>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 mb-6">
+                <p className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">
+                  Error Details
+                </p>
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  {this.props.crashError.message}
+                </p>
+                {this.props.crashError.code && (
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-mono">
+                    Code: {this.props.crashError.code}
+                  </p>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                The application failed to initialize properly. Your learning progress has been saved.
+                Try restarting the application to continue.
+              </p>
+            </div>
+
+            {process.env.NODE_ENV === 'development' && this.props.crashError.details && (
+              <details className="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm">
+                <summary className="cursor-pointer font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                  Technical Details (Development Mode)
+                </summary>
+                <pre className="mt-2 whitespace-pre-wrap text-gray-700 dark:text-gray-300 text-xs overflow-auto max-h-64">
+                  {JSON.stringify(this.props.crashError.details, null, 2)}
+                </pre>
+              </details>
+            )}
+
+            <div className="space-y-3">
+              <button
+                onClick={this.handleRestart}
+                className="w-full flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors shadow-lg"
+              >
+                <ArrowPathIcon className="w-5 h-5" />
+                <span>Restart Application</span>
+              </button>
+
+              <button
+                onClick={() => (window.location.href = '/')}
+                className="w-full flex items-center justify-center space-x-2 text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 font-medium py-2 px-4 rounded-lg transition-colors"
+              >
+                <HomeIcon className="w-4 h-4" />
+                <span>Go to Home</span>
+              </button>
+
+              {this.props.customActions}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Priority 2: Show React error boundary for component errors
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -177,7 +309,7 @@ export class ErrorBoundary extends Component<Props, State> {
         );
       }
 
-      // Full screen error for critical failures
+      // Full screen error for critical React component failures
       return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 max-w-lg w-full">
@@ -221,17 +353,7 @@ export class ErrorBoundary extends Component<Props, State> {
               )}
 
               <button
-                onClick={() => {
-                  try {
-                    if (typeof window.location?.reload === 'function') {
-                      window.location.reload();
-                      return;
-                    }
-                  } catch {}
-                  try {
-                    window.electronAPI?.relaunchApp?.();
-                  } catch {}
-                }}
+                onClick={this.handleRestart}
                 className="w-full flex items-center justify-center space-x-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium py-2 px-4 rounded-lg transition-colors"
               >
                 <ArrowPathIcon className="w-4 h-4" />

@@ -15,11 +15,15 @@ const createMockElectronAPI = () => ({
   },
 });
 
+type MockElectronAPI = ReturnType<typeof createMockElectronAPI>;
+type GlobalWithWindow = typeof globalThis & { window: { electronAPI: MockElectronAPI } };
+
 /**
- * Mock window.electronAPI
+ * Injects the mock Electron API into the global window so the adapter
+ * uses the test double instead of real IPC.
  */
-const setupWindowMock = (mockAPI: ReturnType<typeof createMockElectronAPI>) => {
-  (global as any).window = {
+const setupWindowMock = (mockAPI: MockElectronAPI) => {
+  (globalThis as GlobalWithWindow).window = {
     electronAPI: mockAPI,
   };
 };
@@ -133,6 +137,20 @@ describe('ThreadListAdapter', () => {
       mockElectronAPI.sessions.list.mockResolvedValueOnce({
         success: true,
         data: null,
+      });
+
+      const result = await adapter.list();
+
+      expect(result.threads).toEqual([]);
+    });
+
+    it('should return empty threads when sessions payload is missing', async () => {
+      mockElectronAPI.sessions.list.mockResolvedValueOnce({
+        success: true,
+        data: {
+          total: 0,
+          hasMore: false,
+        },
       });
 
       const result = await adapter.list();

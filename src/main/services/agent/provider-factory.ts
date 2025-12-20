@@ -1,4 +1,3 @@
-import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { Embeddings } from '@langchain/core/embeddings';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import type { ConfigService } from '@/main/services/core/config/config-service';
@@ -10,6 +9,7 @@ import type {
 } from '@/shared/types/config';
 import { createIPCError, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import { AsyncCaller } from '@langchain/core/utils/async_caller';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 // ============================================================================
 // TYPES
@@ -35,7 +35,7 @@ interface Reranker {
 }
 
 type ProviderImplementation = {
-  createModel: (settings: ProviderConfig, modelId: string, selectedModel: SelectedChatModel) => BaseLanguageModel;
+  createModel: (settings: ProviderConfig, modelId: string, selectedModel: SelectedChatModel) => BaseChatModel;
   createEmbeddings: (settings: ProviderConfig, modelId: string, selectedModel: SelectedEmbeddingModel) => Embeddings;
   createReranker?: (settings: ProviderConfig, modelId: string, selectedModel: SelectedRerankModel) => Reranker;
 };
@@ -328,7 +328,7 @@ const validateProviderConfig = (provider: ProviderConfig) => {
 export const createProviderFactory = (configService: ConfigService) => {
   // Separate caches for each model type to avoid key conflicts
   // Cache key format: "model:openai", "emb:openai:gpt-4o", "rerank:siliconflow:rerank-model"
-  const modelCache = new Map<string, BaseLanguageModel>();
+  const modelCache = new Map<string, BaseChatModel>();
   const embeddingsCache = new Map<string, Embeddings>();
   const rerankerCache = new Map<string, Reranker>();
 
@@ -343,7 +343,7 @@ export const createProviderFactory = (configService: ConfigService) => {
    *
    * @param providerName - Optional provider name (e.g., "openai", "chatglm").
    *                      If omitted, uses the default from ai.modelTypes.chat
-   * @returns A LangChain BaseLanguageModel instance
+   * @returns A LangChain BaseChatModel instance
    * @throws CONFIG_ERROR if provider not found, missing API key, or unsupported
    *
    * @example

@@ -97,10 +97,10 @@ export const formatMessages = (messages: BaseMessage[], topic?: string) => {
   // Convert BaseMessage[] to AgentMessage format using instanceof for type checking
   const agentMessages: AgentMessage[] = messages.map((msg) => {
     // Determine role using instanceof (more reliable than private _getType method)
-    const role = msg instanceof AIMessage ? 'ai' :
-                 msg instanceof HumanMessage ? 'human' :
-                 msg instanceof SystemMessage ? 'system' :
-                 msg instanceof ToolMessage ? 'tool' : 'unknown';
+    const role = AIMessage.isInstance(msg) ? 'ai' :
+                 HumanMessage.isInstance(msg) ? 'human' :
+                 SystemMessage.isInstance(msg) ? 'system' :
+                 ToolMessage.isInstance(msg) ? 'tool' : 'unknown';
     return {
       role: role === 'ai' ? 'assistant' : 'user',
       content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),

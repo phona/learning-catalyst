@@ -62,10 +62,9 @@ Error: Failed to parse. Text: "undefined"
 - ⚠️ breaker (no test)
 - ⚠️ fastTrackQuiz (no test)
 - ⚠️ gradeQuiz (no test)
-- ⚠️ masteryCheck (no test)
 - ⚠️ topicParse (no test)
 
-**Coverage: 1/13 nodes with tests (8%)**
+**Coverage: 1/12 nodes with tests (8%)**
 
 ## Recommendations for Tomorrow
 

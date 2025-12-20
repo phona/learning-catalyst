@@ -197,4 +197,251 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText('Mini fail')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
   });
+
+  describe('Crash Error Handling', () => {
+    it('renders crash page when crashError prop is provided', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'initialization.failed',
+        message: 'Failed to initialize application',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>This should not render</div>
+        </ErrorBoundary>,
+      );
+
+      // Should show crash page instead of children
+      expect(screen.getByText('Application Failed to Start')).toBeInTheDocument();
+      expect(screen.getByText('Failed to initialize application')).toBeInTheDocument();
+      expect(screen.queryByText('This should not render')).not.toBeInTheDocument();
+    });
+
+    it('displays error code in crash page', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'database.connection.failed',
+        message: 'Cannot connect to database',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      expect(screen.getByText(/Code: database.connection.failed/)).toBeInTheDocument();
+    });
+
+    it('shows restart button in crash page', () => {
+      const reloadSpy = vi.fn();
+      vi.stubGlobal('location', { reload: reloadSpy });
+
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      const restartButton = screen.getByRole('button', { name: 'Restart Application' });
+      fireEvent.click(restartButton);
+
+      expect(reloadSpy).toHaveBeenCalled();
+    });
+
+    it('calls onRestart callback if provided', () => {
+      const onRestartSpy = vi.fn();
+
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError} onRestart={onRestartSpy}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      const restartButton = screen.getByRole('button', { name: 'Restart Application' });
+      fireEvent.click(restartButton);
+
+      expect(onRestartSpy).toHaveBeenCalled();
+    });
+
+    it('shows technical details in development mode for crash errors', () => {
+      vi.stubEnv('NODE_ENV', 'development');
+
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        details: {
+          phase: 'initialization',
+          stack: 'Error stack trace',
+        },
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      const details = screen.getByText('Technical Details (Development Mode)');
+      expect(details).toBeInTheDocument();
+
+      // Expand to see details
+      fireEvent.click(details);
+
+      expect(screen.getByText(/phase.*initialization/)).toBeInTheDocument();
+
+      vi.unstubAllEnvs();
+    });
+
+    it('hides technical details in production mode for crash errors', () => {
+      vi.stubEnv('NODE_ENV', 'production');
+
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        details: {
+          stack: 'Error stack trace',
+        },
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      expect(screen.queryByText('Technical Details')).not.toBeInTheDocument();
+
+      vi.unstubAllEnvs();
+    });
+
+    it('shows custom title and description for crash page', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary
+          variant="full"
+          crashError={crashError}
+          title="Custom Crash Title"
+          description="Custom crash description"
+        >
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      expect(screen.getByText('Custom Crash Title')).toBeInTheDocument();
+      expect(screen.getByText('Custom crash description')).toBeInTheDocument();
+    });
+
+    it('shows explanatory text about saved progress', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      expect(
+        screen.getByText(/Your learning progress has been saved/),
+      ).toBeInTheDocument();
+    });
+
+    it('does not show crash page when variant is not full', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="inline" crashError={crashError}>
+          <div>Children should render</div>
+        </ErrorBoundary>,
+      );
+
+      // Should render children, not crash page
+      expect(screen.getByText('Children should render')).toBeInTheDocument();
+      expect(screen.queryByText('Application Failed to Start')).not.toBeInTheDocument();
+    });
+
+    it('prioritizes crashError over React errors', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Crash error',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <ThrowError />
+        </ErrorBoundary>,
+      );
+
+      // Should show crash page, not React error
+      expect(screen.getByText('Crash error')).toBeInTheDocument();
+      expect(screen.queryByText('Application Error')).not.toBeInTheDocument();
+    });
+
+    it('has proper styling for crash page', () => {
+      const crashError = {
+        type: 'SYSTEM_ERROR' as const,
+        code: 'test.error',
+        message: 'Test crash',
+        timestamp: Date.now(),
+      };
+
+      render(
+        <ErrorBoundary variant="full" crashError={crashError}>
+          <div>Should not render</div>
+        </ErrorBoundary>,
+      );
+
+      const crashContainer = screen
+        .getByText('Application Failed to Start')
+        .closest('div');
+
+      // Check for gradient background
+      expect(crashContainer?.parentElement).toHaveClass(
+        'bg-gradient-to-br',
+        'from-red-50',
+        'to-orange-50',
+        'dark:from-gray-900',
+        'dark:to-gray-800',
+      );
+    });
+  });
 });

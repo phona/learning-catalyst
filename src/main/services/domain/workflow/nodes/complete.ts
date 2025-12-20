@@ -44,23 +44,31 @@ import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
 
 
-const COMPLETE_SUMMARY = 'Great work! You have completed this topic. Want to schedule a spaced review?';
-
 export const completeNode = () => async (
   state: typeof WorkflowStateAnnotation.State,
   config: LangGraphRunnableConfig
 ) => {
   const emitter = createChunkEmitter(config);
-  const summary = COMPLETE_SUMMARY;
 
-  /**
-   * EMIT COMPLETION CHUNKS:
-   * Stream the completion celebration to the user
-   */
+  // Check if workflow ended due to an error
+  if (state.error) {
+    const errorMessage = `Learning session ended with an error: ${state.error}`;
+    const messageId = generateId('msg');
+
+    emitter.textStart(messageId);
+    emitter.textDelta(messageId, errorMessage);
+    emitter.textEnd(messageId);
+
+    return { messages: [new AIMessage(errorMessage)], error: null };
+  }
+
+  // Successful completion
+  const successMessage = 'Great work! You have completed this topic. Want to schedule a spaced review?';
   const messageId = generateId('msg');
+
   emitter.textStart(messageId);
-  emitter.textDelta(messageId, summary);
+  emitter.textDelta(messageId, successMessage);
   emitter.textEnd(messageId);
 
-  return { messages: [new AIMessage(summary)] };
+  return { messages: [new AIMessage(successMessage)] };
 };

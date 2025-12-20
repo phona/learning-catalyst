@@ -147,7 +147,6 @@ docs/
 └── WORKFLOW/                           # Workflow documentation
     ├── README.md                       # Workflow overview
     ├── workflow-overview.md            # End-to-end flow
-    ├── node-role-usage.md              # Role mapping system
     └── normalization-usage.md          # Message normalization
 ```
 

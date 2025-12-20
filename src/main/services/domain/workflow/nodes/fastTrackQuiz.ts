@@ -5,8 +5,6 @@ import { interrupt } from '@langchain/langgraph';
 import { randomUUID } from 'crypto';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { createChunkEmitter, generateId } from '../utils/chunk-emitter';
-import { NodeName } from '../types';
 
 /**
  * Fast Track Quiz Node (ASSISTANT Role)
@@ -69,11 +67,6 @@ export const fastTrackQuizNode = (deps: WorkflowDeps) => async (
   state: typeof WorkflowStateAnnotation.State,
   config: LangGraphRunnableConfig
 ) => {
-  const emitter = createChunkEmitter(config);
-  const nodeName = NodeName.FAST_TRACK_QUIZ;
-  const toolCallId = generateId(nodeName);
-  emitter.toolInputStart(toolCallId, nodeName);
-
   /**
    * RESUME DETECTION:
    * Check if quiz has already been generated for this session.
@@ -143,19 +136,6 @@ Present them in a supportive, encouraging tone:
 End by asking them to share their thoughts/answers.`;
   const res = await model.invoke([new HumanMessage(prompt)]);
   const quizContent = String(res.content ?? res ?? '');
-
-  emitter.toolInputAvailable(toolCallId, nodeName, {
-    topic: state.topic,
-    confidence: state.confidence,
-  });
-
-  emitter.toolOutputAvailable(toolCallId, {
-    ok: true,
-    data: {
-      quiz: quizContent,
-      topic: state.topic,
-    },
-  });
 
   /**
    * STEP 2: TRACK QUIZ SESSION

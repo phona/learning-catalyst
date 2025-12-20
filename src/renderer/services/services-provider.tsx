@@ -20,7 +20,7 @@ import { createFileService, type FileService } from './file/file-service';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import { createAgentService, type AgentService } from './agents/agent-service';
 import type { IPCErrorPayload } from '@/shared/types/ipc-error';
-import { requiresSetup } from '@/shared/types/ipc-error';
+import { requiresSetup, isFatalError } from '@/shared/types/ipc-error';
 
 interface ServiceContextType {
   electronAPIClient: ElectronAPI;

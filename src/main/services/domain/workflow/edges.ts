@@ -23,17 +23,12 @@ export const SIMPLE_EDGES: Array<[any, any]> = [
   // NOTE: TEACH is now interactive and handles Q&A within the node
   [NodeName.TEACH, NodeName.PRACTICE],
   // PresentProblem([**Practice Agent**]: Present Problem) --> Eval([**Assessment Agent**]: Evaluate)
+  // PRACTICE subgraph now handles all failure detection internally
   [NodeName.PRACTICE, NodeName.EVALUATE],
-
-  // Path C: Remediation - Recursive practice
-  // Hint([**Learning Agent**]: Targeted Hint) --> PracticeStart (loop back to practice)
-  [NodeName.REMEDIATE, NodeName.PRACTICE],
 
   // Workflow termination paths
   // EndSuccess([**Orchestrator**]: Module Success / Exit) when mastery threshold met
   [NodeName.COMPLETE, END],
-  // EndFail([**Orchestrator**]: Circuit Breaker / Exit) when fail count threshold exceeded
-  [NodeName.BREAKER, END],
 ];
 
 export const CONDITIONALS: Partial<Record<NodeName, (state: WorkflowState) => NodeName>> = {
@@ -61,23 +56,13 @@ export const CONDITIONALS: Partial<Record<NodeName, (state: WorkflowState) => No
     return mastery >= THRESHOLDS.MASTERY_COMPLETE ? NodeName.COMPLETE : NodeName.TEACH;
   },
 
-  // Path B & C: Post-evaluation decision - Eval[**Assessment Agent**]: Evaluate
+  // Path B: Post-evaluation decision - Eval[**Assessment Agent**]: Evaluate
+  // Simplified: PRACTICE subgraph now handles all failure detection internally
+  // EVALUATE now routes directly between practice and completion
   [NodeName.EVALUATE]: (state: WorkflowState) => {
     const mastery = state.mastery ?? 0;
-    const attempts = state.attemptCount ?? 0;
-    // Three-way decision after practice attempt:
-    // 1. High mastery: Check for completion (MasteryCheck)
-    // 2. Too many attempts: Trigger circuit breaker (Path D)
-    // 3. Otherwise: Provide targeted remediation (Path C)
-    if (mastery >= THRESHOLDS.MASTERY_PASS) return NodeName.MASTERY_CHECK;
-    return attempts >= THRESHOLDS.BREAKER_ATTEMPTS ? NodeName.BREAKER : NodeName.REMEDIATE;
-  },
-
-  // Path B: Final mastery check - MasteryCheck[**Assessment Agent**]: Mastery Pulse Check?
-  [NodeName.MASTERY_CHECK]: (state: WorkflowState) => {
-    const mastery = state.mastery ?? 0;
     // Mastery achieved: Complete module
-    // Need more practice: Continue loop
+    // Otherwise: Continue practice (PRACTICE will handle remediation/circuit breaking)
     return mastery >= THRESHOLDS.MASTERY_COMPLETE ? NodeName.COMPLETE : NodeName.PRACTICE;
   },
 };

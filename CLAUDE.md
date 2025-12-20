@@ -171,6 +171,112 @@ src/
     └── utils/               # Shared utilities
 ```
 
+## Error Handling Architecture
+
+Learning Catalyst implements a **comprehensive multi-layered error handling system** that ensures the application never crashes and users can always recover from errors.
+
+### Core Error Systems
+
+**1. IPC Error System** (Main ↔ Renderer Communication)
+- Structured error payloads with type, code, message, and details
+- Automatic error serialization in all IPC handlers
+- Error buffering for startup issues before renderer is ready
+- Error codes organized by domain (provider, chat, learning, etc.)
+
+**2. React Error Boundaries** (UI Layer)
+- Three-tier boundary system: `full`, `inline`, `minimal`
+- Specialized wrappers: `ComponentErrorBoundary`, `SettingsErrorBoundary`
+- Automatic error recovery with retry mechanisms
+- ProductionErrorBoundary available with auto-recovery (not currently integrated)
+
+**3. Toast Notifications** (User Feedback)
+- Automatic error display for IPC errors
+- Suppression option for background errors
+- Categorized toast helpers for different operations
+
+### Error Flow
+
+```
+Component Error → ErrorBoundary (full/inline/minimal) → Error UI + Retry
+     ↓
+Main Process Error → serializeIPCError → IPC Channel → Renderer → Toast
+```
+
+### Key Error Types
+
+- **CONFIG_ERROR**: Missing configuration, API keys, provider setup → Setup Screen
+- **SYSTEM_ERROR**: Internal failures, service unavailable → Toast or Error Page
+- **NETWORK_ERROR**: Connection issues, timeouts → Toast with retry
+
+### Documentation
+
+📖 **Complete Error Handling Guide**: [docs/DEVELOPER-GUIDE/error-handling.md](./docs/DEVELOPER-GUIDE/error-handling.md)
+- Architecture overview with visual diagrams
+- Error boundary patterns and best practices
+- IPC error handling patterns
+- Testing strategies
+
+⚡ **Error Codes Quick Reference**: [docs/DEVELOPER-GUIDE/error-codes-quick-reference.md](./docs/DEVELOPER-GUIDE/error-codes-quick-reference.md)
+- All error codes organized by category
+- When to use each error code
+- Code examples and patterns
+
+📝 **Code Examples**: [docs/DEVELOPER-GUIDE/error-handling-examples.md](./docs/DEVELOPER-GUIDE/error-handling-examples.md)
+- Copy-paste templates for services, handlers, components
+- Testing examples
+- Custom hook patterns
+
+### Usage Examples
+
+**Service Layer:**
+```typescript
+throw createIPCError({
+  type: 'CONFIG_ERROR',
+  code: 'provider.config.missing_api_key',
+  message: 'OpenAI API key is required',
+  details: { provider: 'openai', guidance: 'Add API key in Settings > AI Providers' }
+});
+```
+
+**Component Error Boundary:**
+```tsx
+<ErrorBoundary
+  variant="inline"
+  title="Chat Error"
+  description="The chat encountered an error. Try reloading."
+  onRetry={handleChatRetry}
+>
+  <ChatInterface />
+</ErrorBoundary>
+```
+
+**Renderer Error Handling:**
+```typescript
+try {
+  const data = await unwrapAPI(api.sessions.list());
+} catch (e) {
+  if (e instanceof IPCError && e.code === 'sessions.not_found') {
+    // Handle specific error
+  }
+}
+```
+
+### Best Practices
+
+✅ **DO**:
+- Use specific error codes from the organized catalog
+- Include relevant context in error details
+- Provide meaningful recovery mechanisms
+- Test error scenarios thoroughly
+- Use appropriate error boundary variants
+
+❌ **DON'T**:
+- Catch errors only to log them
+- Use generic error messages
+- Forget to provide retry mechanisms
+- Wrap every small component in error boundaries
+- Throw strings instead of structured errors
+
 ## Development Guidelines
 
 ### Service Architecture

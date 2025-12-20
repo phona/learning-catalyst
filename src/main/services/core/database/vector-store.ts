@@ -66,7 +66,6 @@ export interface VectorStore {
 export function createVectorStore(
   qdrantProcess: {
     start(): Promise<void>;
-    getHealth(): Promise<boolean>;
   },
   config: {
     host?: string;
@@ -95,10 +94,7 @@ export function createVectorStore(
    * Ensure client is ready
    */
   async function ensureReady(): Promise<void> {
-    const healthy = await qdrantProcess.getHealth();
-    if (!healthy) {
-      await qdrantProcess.start();
-    }
+    await qdrantProcess.start();
   }
 
   /**
@@ -191,10 +187,6 @@ export function createVectorStore(
 
     while (attempt < maxAttempts) {
       try {
-        const healthy = await qdrantProcess.getHealth();
-        if (!healthy) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
         await getClient().upsert(collectionName, payload);
         return;
       } catch (error: unknown) {
