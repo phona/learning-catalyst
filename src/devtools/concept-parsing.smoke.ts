@@ -97,8 +97,16 @@ const buildService = async (cfg: any) => {
     getStats: async () => ({ totalDocuments: 0 }),
     start: async () => {},
   };
+  const createMockLogger = (): ILogger => ({
+    info: () => {},
+    debug: () => {},
+    warn: () => {},
+    error: () => {},
+    child: (_meta: Record<string, unknown>) => createMockLogger(),
+  });
+
   const loggerService = {
-    child: (_meta: Record<string, unknown>) => ({ info: () => {}, debug: () => {}, warn: () => {}, error: () => {} }),
+    child: (_meta: Record<string, unknown>) => createMockLogger(),
     info: () => {},
     debug: () => {},
     warn: () => {},
