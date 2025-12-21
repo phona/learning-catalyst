@@ -43,6 +43,8 @@ import type { AppConfig } from '@/shared/types/config';
 import { Chan } from 'ts-chan';
 import type { Message as AIMessage } from '@/shared/types/ai';
 import { SessionSearchQuery } from '@/shared/types';
+import type { ContentFormat } from '@/shared/types/electron-api/base';
+import type { DirectoryFilterConfig } from '@/shared/types/filesystem';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -357,7 +359,22 @@ const analyticsAPI: AnalyticsAPI = {
  * Focuses on personalizing the AI learning experience.
  */
 const agentsAPI: AgentsAPI = {
-  
+  // Agent management
+  listAgents: () => ipcRenderer.invoke('agents:list'),
+  getAgent: (agentId: string) => ipcRenderer.invoke('agents:get', agentId),
+  createAgent: (params: { name: string; type: string; config: any }) =>
+    ipcRenderer.invoke('agents:create', params),
+  updateAgent: (agentId: string, updates: any) =>
+    ipcRenderer.invoke('agents:update', agentId, updates),
+  deleteAgent: (agentId: string) =>
+    ipcRenderer.invoke('agents:delete', agentId),
+
+  // Agent operations
+  executeAgent: (agentId: string, params: any) =>
+    ipcRenderer.invoke('agents:execute', agentId, params),
+  getAgentCapabilities: (agentId: string) =>
+    ipcRenderer.invoke('agents:get-capabilities', agentId),
+
   /**
    * Selects an agent for a specific session
    * Associates the agent with the session and applies preferences
@@ -373,7 +390,8 @@ const agentsAPI: AgentsAPI = {
    * Customizes how the agent interacts and responds
    * @param params.agentId - Agent ID to configure
    * @param params.personality - Personality description
-   * @returns Promise<{ success: boolean; updatedSettings: AgentSettings }>
+   * @param params.preferences - Additional preferences
+   * @returns Promise<{ success: boolean; updatedSettings: any }>
    */
   setAgentPersonality: (params: {
     agentId: string;
@@ -382,18 +400,10 @@ const agentsAPI: AgentsAPI = {
       | 'formal professional'
       | 'casual friendly'
       | 'technical expert';
+    preferences?: any;
   }) => ipcRenderer.invoke('agents:set-personality', params),
 
-  
-  /**
-   * Gets detailed capabilities for a specific agent
-   * Useful for showcasing agent features and limitations
-   * @param agentId - Agent ID to get capabilities for
-   * @returns Promise<AgentCapabilitiesDisplay> - Detailed capability information
-   */
-  getAgentCapabilities: (agentId: string) => ipcRenderer.invoke('agents:get-capabilities', agentId),
-
-  };
+};
 
 // ============================================================================
 // 6. Content & Discovery API

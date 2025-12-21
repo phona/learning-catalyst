@@ -1,6 +1,7 @@
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AgentDisplay as RendererAgentDisplay } from '@/renderer/types/agent';
 import type { AgentDisplay as APIAgentDisplay, AgentContext } from '@/shared/types/electron-api/agent-api';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 export interface AgentStatus {
   agentId: string;
@@ -53,22 +54,16 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
     if (typeof maybe === 'function') {
       await maybe();
     }
-    const response = await apiClient.agents.getAvailableAgents();
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to load agents');
-    }
-    return response.data.map(mapAgent);
+    const data = await unwrapAPI(apiClient.agents.getAvailableAgents());
+    return data.map(mapAgent);
   };
 
   const selectAgentForSession = async (params: {
     sessionId: string;
     agentType: RendererAgentDisplay['type'];
   }) => {
-    const response = await apiClient.agents.selectAgentForSession(params);
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to select agent');
-    }
-    const agent = response.data.agent;
+    const data = await unwrapAPI(apiClient.agents.selectAgentForSession(params));
+    const agent = data.agent;
     return mapAgent(agent);
   };
 

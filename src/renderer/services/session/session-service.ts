@@ -48,11 +48,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
    * Update the session title
    */
   const updateSessionTitle = async (sessionId: string, title: string): Promise<void> => {
-    const response = await apiClient.sessions.updateTitle(sessionId, title);
-
-    if (!response.success) {
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
-    }
+    await unwrapAPI(apiClient.sessions.updateTitle(sessionId, title));
   };
 
   /**
@@ -60,14 +56,8 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
    */
   const getRecentSessions = async (limit = 10): Promise<SessionDisplay[]> => {
     await apiClient.awaitReady();
-    const response = await apiClient.sessions.getRecentSessions(limit);
-
-    if (!response.success) {
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
-    }
-
-    const data = response.data || [];
-    return data;
+    const data = await unwrapAPI(apiClient.sessions.getRecentSessions(limit));
+    return data || [];
   };
 
   /**
@@ -92,14 +82,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     limit?: number;
     offset?: number;
   }): Promise<SessionListData> => {
-    const response = await apiClient.sessions.list(options);
-
-    if (!response.success) {
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
-    }
+    const data = await unwrapAPI(apiClient.sessions.list(options));
 
     return (
-      response.data ?? {
+      data ?? {
         sessions: [],
         total: 0,
         hasMore: false,
@@ -109,60 +95,59 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
 
   const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
     console.log('[SessionService] getSession request', { sessionId });
-    const response = await apiClient.sessions.get(sessionId);
-    if (!response.success || !response.data) {
+    try {
+      const data = await unwrapAPI(apiClient.sessions.get(sessionId));
+      console.log('[SessionService] getSession success', { sessionId });
+      return data as SessionDisplay;
+    } catch (error) {
       console.warn('[SessionService] getSession not found or failed', {
         sessionId,
-        success: response.success,
+        error: error instanceof Error ? error.message : error,
       });
       return null;
     }
-    console.log('[SessionService] getSession success', { sessionId });
-    return response.data as SessionDisplay;
   };
 
   const createSession = async (payload: SessionCreateRequest): Promise<SessionDisplay> => {
     console.log('[SessionService] createSession request', { title: payload?.title });
-    const response = await apiClient.sessions.create(payload);
-    if (!response.success || !response.data?.sessionId) {
+    try {
+      const data = await unwrapAPI(apiClient.sessions.create(payload));
+
+      // Fetch full session details if returned
+      if (data.session) {
+        console.log('[SessionService] createSession returned full session');
+        return data.session as SessionDisplay;
+      }
+
+      const created = await getSession(data.sessionId);
+      if (!created) {
+        // Fallback minimal structure
+        console.log('[SessionService] createSession fallback minimal record', {
+          id: data.sessionId,
+        });
+        return {
+          id: data.sessionId,
+          title: payload.title,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          messages: [],
+        } as unknown as SessionDisplay;
+      }
+      console.log('[SessionService] createSession fetched full record', {
+        id: created.id,
+        title: (created as any)?.title,
+      });
+      return created;
+    } catch (error) {
       console.warn('[SessionService] createSession failed', {
-        error: response.error,
+        error: error instanceof Error ? error.message : error,
       });
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
+      throw new Error(error instanceof Error ? error.message : 'Session API request failed');
     }
-
-    // Fetch full session details if returned
-    if (response.data.session) {
-      console.log('[SessionService] createSession returned full session');
-      return response.data.session as SessionDisplay;
-    }
-
-    const created = await getSession(response.data.sessionId);
-    if (!created) {
-      // Fallback minimal structure
-      console.log('[SessionService] createSession fallback minimal record', {
-        id: response.data.sessionId,
-      });
-      return {
-        id: response.data.sessionId,
-        title: payload.title,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        messages: [],
-      } as unknown as SessionDisplay;
-    }
-    console.log('[SessionService] createSession fetched full record', {
-      id: created.id,
-      title: (created as any)?.title,
-    });
-    return created;
   };
 
   const deleteSession = async (sessionId: string): Promise<void> => {
-    const response = await apiClient.sessions.delete(sessionId);
-    if (!response.success) {
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session delete failed');
-    }
+    await unwrapAPI(apiClient.sessions.delete(sessionId));
   };
 
   // const searchSessions = async (
@@ -212,11 +197,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     createSession,
     deleteSession,
     getGlobalStatistics: async (): Promise<SessionStatistics> => {
-      const response = await unwrapAPI(apiClient.sessions.getGlobalStatistics());
-      return response;
+      return await apiClient.sessions.getGlobalStatistics();
     },
     searchSessions: async (query: string, filters?: Record<string, unknown>): Promise<SessionListData> => {
-      const response = await unwrapAPI(apiClient.sessions.searchSessions(query));
+      const response = await apiClient.sessions.searchSessions(query);
       return {
         sessions: response,
         total: response.length,

@@ -13,6 +13,7 @@ import {
 } from '@/shared/types/analytics';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AchievementDisplay as APIAchievementDisplay } from '@/shared/types/electron-api/analytics-api';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 export interface Achievement {
   id: string;
@@ -83,32 +84,22 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
 
   // Public service functions
   const getDashboard = async (): Promise<DashboardDisplay> => {
-    const response = await apiClient.analytics.getDashboard();
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get dashboard');
-    }
-
-    return response.data;
+    return await unwrapAPI(apiClient.analytics.getDashboard());
   };
 
   const getProgressChart = async (params: ProgressChartParams): Promise<ProgressChartDisplay> => {
-    const response = await apiClient.analytics.getProgressChart({
+    const data = await unwrapAPI(apiClient.analytics.getProgressChart({
       timeRange: convertTimeRange(params.period),
       metric: params.metric,
       conceptIds: params.conceptIds,
       includeGoal: true,
-    });
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get progress chart');
-    }
+    }));
 
     // Convert the display data to match interface
     return {
       title: `${params.metric.charAt(0).toUpperCase() + params.metric.slice(1)} Progress`,
-      type: response.data.chartType === 'scatter' ? 'line' : response.data.chartType,
-      data: response.data.data.map((point) => ({
+      type: data.chartType === 'scatter' ? 'line' : data.chartType,
+      data: data.data.map((point) => ({
         date: new Date(point.date),
         value: point.minutes || point.sessions || point.concepts || 0,
         label: point.date,
@@ -119,40 +110,32 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   };
 
   const getConceptProgress = async (conceptId: string): Promise<ConceptProgressDisplay> => {
-    const response = await apiClient.analytics.getConceptProgress(conceptId);
-
-    if (!response.success || !response.data) {
-      if (response.code === 'CONCEPT_NOT_FOUND') {
+    try {
+      return await unwrapAPI(apiClient.analytics.getConceptProgress(conceptId));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('CONCEPT_NOT_FOUND')) {
         throw new ConceptNotFoundError(conceptId);
       }
-      throw new Error(response.error || 'Failed to get concept progress');
+      throw error;
     }
-
-    return response.data;
   };
 
   const updateConceptProgress = async (
     conceptId: string,
     update: ConceptProgressUpdate,
   ): Promise<void> => {
-    const response = await apiClient.analytics.updateConceptProgress(conceptId, update);
-
-    if (!response.success) {
-      if (response.code === 'CONCEPT_NOT_FOUND') {
+    try {
+      await unwrapAPI(apiClient.analytics.updateConceptProgress(conceptId, update));
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('CONCEPT_NOT_FOUND')) {
         throw new ConceptNotFoundError(conceptId);
       }
-      throw new Error(response.error || 'Failed to update concept progress');
+      throw error;
     }
   };
 
   const trackSession = async (session: CreateLearningSessionRequest): Promise<string> => {
-    const response = await apiClient.analytics.trackSession(session);
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to track session');
-    }
-
-    return response.data;
+    return await unwrapAPI(apiClient.analytics.trackSession(session));
   };
 
   const updateSession = async (
@@ -166,29 +149,18 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   };
 
   const getSessionHistory = async (limit?: number): Promise<SessionDisplay[]> => {
-    const response = await apiClient.analytics.getSessionHistory({
+    return await unwrapAPI(apiClient.analytics.getSessionHistory({
       limit: limit || 10,
       sortBy: 'createdAt',
       sortOrder: 'desc',
-    });
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get session history');
-    }
-
-    return response.data;
+    }));
   };
 
   const getAchievements = async (): Promise<Achievement[]> => {
-    const response = await apiClient.analytics.getAchievements();
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get achievements');
-    }
+    const apiData = await unwrapAPI(apiClient.analytics.getAchievements());
 
     // Transform the API response to match the IAnalyticsService Achievement interface
     // The API returns AchievementDisplay from analytics-api.ts which has 'name' property
-    const apiData = response.data;
     return apiData.map((achievement: APIAchievementDisplay) => ({
       id: achievement.id,
       title: achievement.name, // Convert 'name' to 'title'
@@ -207,15 +179,10 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   };
 
   const checkAchievements = async (sessionId?: string): Promise<Achievement[]> => {
-    const response = await apiClient.analytics.checkAchievements(sessionId);
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to check achievements');
-    }
+    const apiData = await unwrapAPI(apiClient.analytics.checkAchievements(sessionId));
 
     // Transform the API response to match the IAnalyticsService Achievement interface
     // The API returns AchievementDisplay from analytics-api.ts which has 'name' property
-    const apiData = response.data as unknown as APIAchievementDisplay[];
     return apiData.map((achievement: APIAchievementDisplay) => ({
       id: achievement.id,
       title: achievement.name, // Convert 'name' to 'title'
@@ -243,22 +210,18 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
 
     const apiPeriod = period && periodMap[period] ? periodMap[period] : 'weekly';
 
-    const response = await apiClient.analytics.getLearningTrends({
+    const data = await unwrapAPI(apiClient.analytics.getLearningTrends({
       period: apiPeriod,
       metric: 'mastery',
-    });
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get learning trends');
-    }
+    }));
 
     // Transform the API response to match the IAnalyticsService LearningTrends interface
     return {
-      dailyStudyTime: response.data.dataPoints.map((point) => ({
+      dailyStudyTime: data.dataPoints.map((point) => ({
         date: point.date.toISOString().split('T')[0],
         minutes: point.value,
       })),
-      masteryProgress: response.data.dataPoints.map((point) => ({
+      masteryProgress: data.dataPoints.map((point) => ({
         date: point.date.toISOString().split('T')[0],
         avgMastery: point.value,
       })),
@@ -267,83 +230,45 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
   };
 
   const getStudyStreak = async (): Promise<StudyStreakDisplay> => {
-    const response = await apiClient.analytics.getStudyStreak();
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get study streak');
-    }
-
-    return response.data;
+    return await unwrapAPI(apiClient.analytics.getStudyStreak());
   };
 
   const getTimeStats = async (): Promise<TimeStatsDisplay> => {
-    const response = await apiClient.analytics.getTimeStats({
+    return await unwrapAPI(apiClient.analytics.getTimeStats({
       includeBreakdown: true,
       includeComparisons: true,
-    });
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to get time stats');
-    }
-
-    return response.data;
+    }));
   };
 
   const exportData = async (format: 'json' | 'csv'): Promise<string> => {
-    const response = await apiClient.analytics.exportData({
+    return await unwrapAPI(apiClient.analytics.exportData({
       format,
       includeSensitive: false,
       compress: false,
-    });
-
-    if (!response.success || !response.data) {
-      throw new Error(response.error || 'Failed to export data');
-    }
-
-    return response.data;
+    }));
   };
 
   const importData = async (data: string, format: 'json' | 'csv'): Promise<void> => {
-    const response = await apiClient.analytics.importData({
+    await unwrapAPI(apiClient.analytics.importData({
       data,
       format,
       overwrite: false,
       validateOnly: false,
-    });
-
-    if (!response.success) {
-      throw new Error(response.error || 'Failed to import data');
-    }
+    }));
   };
 
   // Implement the IAnalyticsService interface methods
   const getStudyMetrics = async (): Promise<StudyMetrics> => {
-    const [timeStatsResp, streakResp, usageResp] = await Promise.all([
-      apiClient.analytics.getTimeStats({ includeBreakdown: true, includeComparisons: true }),
-      apiClient.analytics.getStudyStreak(),
-      apiClient.analytics.getUsageStats({
+    const [timeStats, streak, usage] = await Promise.all([
+      unwrapAPI(apiClient.analytics.getTimeStats({ includeBreakdown: true, includeComparisons: true })),
+      unwrapAPI(apiClient.analytics.getStudyStreak()),
+      unwrapAPI(apiClient.analytics.getUsageStats({
         timeRange: '7days',
         includePatterns: true,
         includeEngagement: true,
         detailed: true,
-      }),
+      })),
     ]);
-
-    if (!timeStatsResp.success || !timeStatsResp.data) {
-      throw new Error(timeStatsResp.error || 'Failed to get time stats');
-    }
-
-    if (!streakResp.success || !streakResp.data) {
-      throw new Error(streakResp.error || 'Failed to get study streak');
-    }
-
-    if (!usageResp.success || !usageResp.data) {
-      throw new Error(usageResp.error || 'Failed to get usage stats');
-    }
-
-    const timeStats = timeStatsResp.data;
-    const streak = streakResp.data;
-    const usage = usageResp.data;
 
     return {
       totalStudyTime: Number(timeStats.totalStudyTime || 0),

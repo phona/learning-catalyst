@@ -8,6 +8,7 @@ import type {
   SessionResponse,
   ExecutionCancelResponse,
 } from '../../../shared/types/electron-api';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 // Define ChatStreamOptions locally since it's not found
 export interface ChatStreamOptions extends ChatOptions {
@@ -51,21 +52,17 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           throw new Error('Catalyst sendChat API not available');
         }
 
-        const response = await electronAPI.catalyst.sendChat({
+        const data = await unwrapAPI(electronAPI.catalyst.sendChat({
           message: message.trim(),
           agentId: options?.agentId || 'default',
           sessionId: options?.sessionId || 'default',
           stream: false,
-        });
-
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Chat request failed');
-        }
+        }));
 
         return {
           success: true,
-          messageId: (response.data as any).messageId,
-          response: (response.data as any).response,
+          messageId: (data as any).messageId,
+          response: (data as any).response,
         };
       } catch (error) {
         return {
@@ -129,14 +126,11 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           throw new Error('Catalyst listAgents API not available');
         }
 
-        const agents = await electronAPI.catalyst.listAgents();
-        if (!agents.success || !agents.data) {
-          throw new Error(agents.error || 'Failed to get agents');
-        }
+        const agents = await unwrapAPI(electronAPI.catalyst.listAgents());
 
         return {
           success: true,
-          agents: agents.data as any,
+          agents: agents as any,
         };
       } catch (error) {
         return {
@@ -159,14 +153,11 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           throw new Error('Sessions API not available');
         }
 
-        const session = await electronAPI.sessions.get(sessionId);
-        if (!session.success || !session.data) {
-          throw new Error(session.error || 'Failed to get session');
-        }
+        const session = await unwrapAPI(electronAPI.sessions.get(sessionId));
 
         return {
           success: true,
-          session: session.data as any,
+          session: session as any,
         };
       } catch (error) {
         return {
@@ -189,10 +180,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           throw new Error('Catalyst cancelAgent API not available');
         }
 
-        const result = await electronAPI.catalyst.cancelAgent(executionId);
-        if (!result.success) {
-          throw new Error(result.error || 'Failed to cancel execution');
-        }
+        await unwrapAPI(electronAPI.catalyst.cancelAgent(executionId));
 
         return {
           success: true,
@@ -215,14 +203,11 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
           throw new Error('Catalyst getActiveExecutions API not available');
         }
 
-        const executions = await electronAPI.catalyst.getActiveExecutions();
-        if (!executions.success) {
-          throw new Error(executions.error || 'Failed to get active executions');
-        }
+        const executions = await unwrapAPI(electronAPI.catalyst.getActiveExecutions());
 
         return {
           success: true,
-          executions: executions.data as any,
+          executions: executions as any,
         };
       } catch (error) {
         return {

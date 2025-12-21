@@ -216,9 +216,10 @@ describe('sessions handlers', () => {
         difficulty: 'intermediate',
         status: 'active',
         progress: 0,
-        agent: { type: 'learning', name: 'learning' },
-        lastActivity: expect.any(String),
-        duration: '0m',
+        agentType: 'learning',
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        duration: 0,
       });
     });
 

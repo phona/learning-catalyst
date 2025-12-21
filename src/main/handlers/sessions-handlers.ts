@@ -10,6 +10,7 @@ import type { LearningService } from '../services/domain/learning/learning-servi
 import type { LoggerService } from '../services/core/logger/logger-service';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 
 type SessionsSearchPayload = {
   query?: string;
@@ -20,6 +21,26 @@ type SessionsDeps = {
   learningService: LearningService;
   loggerService: LoggerService;
 };
+
+/**
+ * Wrap a successful response in the standard API format
+ */
+const createSuccessResponse = <T>(data: T): APIResponse<T> => ({
+  success: true,
+  data,
+});
+
+/**
+ * Wrap an error response in the standard API format
+ */
+const createErrorResponse = (code: string, message: string, details?: Record<string, unknown>): APIResponse<never> => ({
+  success: false,
+  error: {
+    code,
+    message,
+    details,
+  },
+});
 
 
 /**
@@ -66,16 +87,17 @@ export const setupSessionsHandlers = (
         });
         const offset = options?.offset ?? 0;
         const sliced = sessions.slice(offset, offset + limit);
-        return {
+        return createSuccessResponse({
           sessions: sliced.map(toSessionDisplay),
           total: sessions.length,
           hasMore: sessions.length > offset + sliced.length,
-        };
+        });
       } catch (error) {
         logger.error('sessions:list failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        throw new Error(
+        return createErrorResponse(
+          'sessions.list_failed',
           error instanceof Error ? error.message : 'Failed to list sessions',
         );
       }
@@ -99,12 +121,13 @@ export const setupSessionsHandlers = (
           ...(payload.threadId ? { sessionId: payload.threadId } : {}),
         });
 
-        return { sessionId: session.id, session: toSessionDisplay(session) };
+        return createSuccessResponse({ sessionId: session.id, session: toSessionDisplay(session) });
       } catch (error) {
         logger.error('sessions:create failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        throw new Error(
+        return createErrorResponse(
+          'sessions.create_failed',
           error instanceof Error ? error.message : 'Failed to create session',
         );
       }
@@ -120,12 +143,13 @@ export const setupSessionsHandlers = (
       if (!session) {
         throw new Error('Session not found');
       }
-      return toSessionDisplay(session);
+      return createSuccessResponse(toSessionDisplay(session));
     } catch (error) {
       logger.error('sessions:get failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
+      return createErrorResponse(
+        'sessions.not_found',
         error instanceof Error ? error.message : 'Session not found',
       );
     }
@@ -145,12 +169,13 @@ export const setupSessionsHandlers = (
         if (!updated) {
           throw new Error('Session not found');
         }
-        return toSessionDisplay(updated);
+        return createSuccessResponse(toSessionDisplay(updated));
       } catch (error) {
         logger.error('sessions:update failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        throw new Error(
+        return createErrorResponse(
+          'sessions.not_found',
           error instanceof Error ? error.message : 'Session not found',
         );
       }
@@ -163,12 +188,13 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle('sessions:delete', async (_event, sessionId: string) => {
     try {
       const deleted = await services.learningService.deleteSession(sessionId);
-      return { deleted };
+      return createSuccessResponse({ deleted });
     } catch (error) {
       logger.error('sessions:delete failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
+      return createErrorResponse(
+        'sessions.delete_failed',
         error instanceof Error ? error.message : 'Failed to delete session',
       );
     }
@@ -185,12 +211,13 @@ export const setupSessionsHandlers = (
         if (!updated) {
           throw new Error('Session not found');
         }
-        return undefined;
+        return createSuccessResponse(undefined);
       } catch (error) {
         logger.error('sessions:update-title failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        throw new Error(
+        return createErrorResponse(
+          'sessions.not_found',
           error instanceof Error ? error.message : 'Session not found',
         );
       }
@@ -204,12 +231,13 @@ export const setupSessionsHandlers = (
     try {
       const limit = options?.limit ?? 10;
       const sessions = await services.learningService.getRecentSessions({ limit });
-      return sessions.map(toSessionDisplay);
+      return createSuccessResponse(sessions.map(toSessionDisplay));
     } catch (error) {
       logger.error('sessions:get-recent failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
+      return createErrorResponse(
+        'sessions.get_recent_failed',
         error instanceof Error ? error.message : 'Failed to get recent sessions',
       );
     }
@@ -224,17 +252,18 @@ export const setupSessionsHandlers = (
         payload.query ?? '',
         payload.filters,
       );
-      return {
+      return createSuccessResponse({
         sessions: result.sessions.map(toSessionDisplay),
         total: result.totalResults,
         query: result.query,
         hasMore: false,
-      };
+      });
     } catch (error) {
       logger.error('sessions:search failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
+      return createErrorResponse(
+        'sessions.search_failed',
         error instanceof Error ? error.message : 'Failed to search sessions',
       );
     }
@@ -246,15 +275,16 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle('sessions:get-statistics', async () => {
     try {
       const stats = await services.learningService.getSessionStatistics();
-      return {
+      return createSuccessResponse({
         ...stats,
         totalTokensUsed: 0, // Not tracked yet
-      } satisfies SessionStatistics;
+      } satisfies SessionStatistics);
     } catch (error) {
       logger.error('sessions:get-statistics failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(
+      return createErrorResponse(
+        'sessions.get_statistics_failed',
         error instanceof Error ? error.message : 'Failed to get session statistics',
       );
     }

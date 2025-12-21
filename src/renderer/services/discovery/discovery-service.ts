@@ -4,6 +4,7 @@ import type {
   KnowledgeSearchResultDisplay,
 } from '@/shared/types/electron-api/knowledge-api';
 import { LearningPath } from '@/shared/types';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 /**
  * Functional implementation of discovery service using the unified electronAPI client
@@ -11,19 +12,13 @@ import { LearningPath } from '@/shared/types';
 export const createDiscoveryService = (apiClient: ElectronAPI) => {
   return {
     async parseConcepts(content: string, sessionId?: string): Promise<ConceptParsingResult> {
-      const response = await apiClient.knowledge.parseConcepts({
+      return await unwrapAPI(apiClient.knowledge.parseConcepts({
         content,
         options: {
           confidenceThreshold: 0.6,
           maxConceptsPerFile: 50,
         },
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error('Failed to parse concepts');
-      }
-
-      return response.data;
+      }));
     },
 
     // NOTE: Learning API has been removed - this method is disabled
@@ -36,11 +31,7 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
       difficulty: 'easy' | 'medium' | 'hard',
       sessionId?: string,
     ): Promise<any[]> {
-      const searchResp = await apiClient.knowledge.searchKnowledge(topic);
-      if (!searchResp.success || !searchResp.data) {
-        throw new Error(typeof searchResp.error === 'string' ? searchResp.error : 'Search failed');
-      }
-      const searchResults = (searchResp.data as KnowledgeSearchResultDisplay).results ?? [];
+      const searchResults = (await unwrapAPI(apiClient.knowledge.searchKnowledge(topic)) as KnowledgeSearchResultDisplay).results ?? [];
 
       const exercises = searchResults
         .filter((result) => result.type === 'exercise')
@@ -74,21 +65,13 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
       sessionId?: string,
     ): Promise<any> {
       // First, explore the concept to get detailed information
-      const conceptResp = await apiClient.knowledge.exploreConcept({
+      const conceptResponse = await unwrapAPI(apiClient.knowledge.exploreConcept({
         conceptName: topic,
         depth: 'intermediate',
-      });
-      if (!conceptResp.success || !conceptResp.data) {
-        throw new Error(typeof conceptResp.error === 'string' ? conceptResp.error : 'Explore concept failed');
-      }
-      const conceptResponse = conceptResp.data;
+      }));
 
       // Search for related content to assess understanding
-      const searchResp = await apiClient.knowledge.searchKnowledge(currentUnderstanding);
-      if (!searchResp.success || !searchResp.data) {
-        throw new Error(typeof searchResp.error === 'string' ? searchResp.error : 'Search failed');
-      }
-      const searchResponse = searchResp.data;
+      const searchResponse = await unwrapAPI(apiClient.knowledge.searchKnowledge(currentUnderstanding));
 
       // Calculate understanding level based on search relevance
       const relevantResults =

@@ -14,6 +14,7 @@ import { KnowledgeService } from '../services/domain/knowledge/knowledge-service
 import { LearningService } from '../services/domain/learning/learning-service';
 import { PracticeService } from '../services/domain/practice/practice-service';
 import { ProviderFactory } from '../services/agent/provider-factory';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 
 type ChatDependencies = {
   chatService: ChatService;
@@ -25,6 +26,26 @@ type ChatDependencies = {
   practiceService: PracticeService;
   learningService: LearningService;
 };
+
+/**
+ * Wrap a successful response in the standard API format
+ */
+const createSuccessResponse = <T>(data: T): APIResponse<T> => ({
+  success: true,
+  data,
+});
+
+/**
+ * Wrap an error response in the standard API format
+ */
+const createErrorResponse = (code: string, message: string, details?: Record<string, unknown>): APIResponse<never> => ({
+  success: false,
+  error: {
+    code,
+    message,
+    details,
+  },
+});
 
 
 export const setupChatHandlers = (
@@ -58,11 +79,15 @@ export const setupChatHandlers = (
       const messages = await services.chatService.getMessages(sessionId);
       logger.info('Get messages requested', { sessionId, count: messages.length });
       // Return format expected by ChatAPI.getMessages: { sessions: ChatHistoryMessage[] }
-      return { sessions: messages, hasMore: false, total: messages.length };
+      return createSuccessResponse({ sessions: messages, hasMore: false, total: messages.length });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error('chat:get-messages failed', { sessionId, message });
-      throw new Error(message);
+      return createErrorResponse(
+        'chat.get_messages_failed',
+        message,
+        { sessionId }
+      );
     }
   });
 

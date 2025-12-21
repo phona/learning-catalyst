@@ -3,6 +3,7 @@ import type { PracticeOpportunityResult } from '../../../shared/types/electron-a
 import type { AgentDisplay } from '../../../shared/types/electron-api/agent-api';
 import type { SessionDisplay } from '../../../shared/types/electron-api/sessions-api';
 import type { Message, StreamChunk } from '../../../shared/types/ai';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 export interface ChatService {
   sendMessage(
@@ -88,24 +89,24 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
 
     const sessionId = ensureSessionId(options);
 
-    // Use catalyst API for sending messages
-    const response = await apiClient.catalyst.sendChat({
-      message: content,
-      sessionId: sessionId,
-      agentId: options?.agentId,
-    });
+    try {
+      // Use catalyst API for sending messages with unwrapAPI
+      const data = await unwrapAPI(apiClient.catalyst.sendChat({
+        message: content,
+        sessionId: sessionId,
+        agentId: options?.agentId,
+      }));
 
-    if (!response.success || response.data == null) {
-      throw new Error(response.error ?? 'Failed to send message');
+      return {
+        id: data.messageId ?? `msg_${Date.now()}`,
+        role: 'assistant',
+        content: data.response ?? '',
+        timestamp: new Date(),
+        provider: sessionId,
+      };
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to send message');
     }
-
-    return {
-      id: response.data.messageId ?? `msg_${Date.now()}`,
-      role: 'assistant',
-      content: response.data.response ?? '',
-      timestamp: new Date(),
-      provider: sessionId,
-    };
   };
 
   const sendMessageStream = async (
@@ -215,39 +216,52 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
   };
 
   const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
-    const response = await apiClient.sessions.get(sessionId);
-    if (!response.success) return null;
-    return response.data ?? null;
+    try {
+      const data = await unwrapAPI(apiClient.sessions.get(sessionId));
+      return data ?? null;
+    } catch (error) {
+      return null;
+    }
   };
 
   const createSession = async (
     title: string,
     options?: { description?: string },
   ): Promise<string | null> => {
-    const response = await apiClient.sessions.create({
-      title,
-      description: options?.description,
-    });
-    if (!response.success) return null;
-    return response.data?.sessionId ?? null;
+    try {
+      const data = await unwrapAPI(apiClient.sessions.create({
+        title,
+        description: options?.description,
+      }));
+      return data?.sessionId ?? null;
+    } catch (error) {
+      return null;
+    }
   };
 
   const updateSession = async (
     sessionId: string,
     updates: { title?: string },
   ): Promise<boolean> => {
-    const response = await apiClient.sessions.update(sessionId, updates);
-    return !!response.success;
+    try {
+      await unwrapAPI(apiClient.sessions.update(sessionId, updates));
+      return true;
+    } catch (error) {
+      return false;
+    }
   };
 
   const getAvailableAgents = async (): Promise<AgentDisplay[]> => {
-    const response = await apiClient.agents.getAvailableAgents();
-    if (!response.success || !response.data) return [];
-    return response.data;
+    try {
+      const data = await unwrapAPI(apiClient.agents.getAvailableAgents());
+      return data || [];
+    } catch (error) {
+      return [];
+    }
   };
 
   const cancelExecution = async (executionId: string): Promise<void> => {
-    await apiClient.catalyst.cancelAgent(executionId);
+    await unwrapAPI(apiClient.catalyst.cancelAgent(executionId));
   };
 
   const getProviderInfo = (): { name?: string; provider?: string } => {
