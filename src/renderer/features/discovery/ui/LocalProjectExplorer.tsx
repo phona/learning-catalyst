@@ -259,10 +259,9 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     }
   }, [fileService, loadDirectory]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadDefaultDirectory();
-  }, []);
+  }, [loadDefaultDirectory]);
 
   useEffect(() => {
     if (!conceptParsingService) return;

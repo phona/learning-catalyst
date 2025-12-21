@@ -24,15 +24,14 @@ import type { IpcRendererEvent } from 'electron';
 import {
   ElectronAPI,
   ChatAPI,
-  LearningAPI,
   KnowledgeAPI,
   AnalyticsAPI,
-  AgentsAPI,
-  ContentAPI,
   SettingsAPI,
   SettingsUtility,
   SessionsAPI,
   CatalystAPI,
+  ContentAPI,
+  AgentsAPI,
 } from '@/shared/types/electron-api';
 import type {
   ConceptParsingResult,
@@ -93,7 +92,7 @@ const aiSDK: AISDKAPI = {
     port1.onmessage = (event) => {
       callback(event.data);
     };
-    // @ts-ignore
+    // @ts-expect-error - onclose exists but not in type definition
     port1.onclose = () => {
       console.log('[Preload] Stream ended:', streamId);
       onComplete?.();
@@ -105,93 +104,6 @@ const aiSDK: AISDKAPI = {
   },
 };
 
-// ============================================================================
-// 2. Learning & Sessions API
-// ============================================================================
-
-/**
- * Learning & Sessions API
- *
- * Manages structured learning sessions with progress tracking.
- * Focuses on educational outcomes and learning analytics.
- */
-const learningAPI: LearningAPI = {
-  /**
-   * Starts a new structured learning session
-   * Creates a session with specific learning goals and tracks progress
-   * @param params.topic - Main topic for the learning session
-   * @param params.goals - Array of specific learning objectives
-   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
-   * @param params.agentType - Type of AI agent to guide the session
-   * @param params.learningStyle - 'visual' | 'auditory' | 'kinesthetic' | 'reading'
-   * @returns Promise<LearningSessionDisplay> - Session object with progress tracking
-   */
-  startLearningSession: async (params) => {
-    return ipcRenderer.invoke('learning:start-session', params);
-  },
-
-  /**
-   * Gets detailed progress for a learning session
-   * Returns comprehensive progress data for UI display
-   * @param sessionId - Learning session ID
-   * @returns Promise<LearningProgressDisplay> - Detailed progress information
-   */
-  getSessionProgress: (sessionId: string) => ipcRenderer.invoke('learning:get-progress', sessionId),
-
-  /**
-   * Gets the structured learning path for a session
-   * Returns the planned sequence of topics and activities
-   * @param sessionId - Learning session ID
-   * @returns Promise<LearningPathDisplay> - Structured learning path
-   */
-  getLearningPath: (sessionId: string) => ipcRenderer.invoke('learning:get-path', sessionId),
-
-  /**
-   * Pauses an active learning session
-   * Saves current state and stops progress tracking
-   * @param sessionId - Active learning session ID
-   * @returns Promise<{ success: boolean; resumeData: unknown }>
-   */
-  pauseSession: (sessionId: string) => ipcRenderer.invoke('learning:pause-session', sessionId),
-
-  /**
-   * Resumes a paused learning session
-   * Restores session state and continues progress tracking
-   * @param sessionId - Paused learning session ID
-   * @returns Promise<{ success: boolean; context: LearningContext }>
-   */
-  resumeSession: (sessionId: string) => ipcRenderer.invoke('learning:resume-session', sessionId),
-
-  /**
-   * Completes a learning session and generates summary
-   * Calculates achievements and provides recommendations
-   * @param sessionId - Learning session to complete
-   * @returns Promise<SessionCompletionDisplay> - Completion summary and recommendations
-   */
-  completeSession: (sessionId: string) =>
-    ipcRenderer.invoke('learning:complete-session', sessionId),
-
-  /**
-   * Gets recent learning sessions for quick access
-   * Returns sessions ordered by last activity
-   * @param options - Optional filter and limit options
-   * @returns Promise<SessionDisplay[]> - Array of recent sessions
-   */
-  getRecentSessions: (options?: unknown) =>
-    ipcRenderer.invoke('learning:get-recent-sessions', options),
-
-  /**
-   * Searches learning sessions with advanced filters
-   * Supports text search and multiple filter criteria
-   * @param query - Search query string
-   * @param filters - Filter options
-   * @returns Promise<SessionSearchResultDisplay> - Search results with pagination
-   */
-  searchSessions: (query: string, filters?: unknown) =>
-    ipcRenderer.invoke('learning:search-sessions', query, filters),
-};
-
-// ============================================================================
 // 3. Knowledge & Discovery API
 // ============================================================================
 
@@ -763,14 +675,13 @@ const recvWithTimeout = async <T>(
 };
 
 const electronAPI = {
-  // API Modules - 7 Complete Domains
+  // API Modules
   chat: chatAPI,
   aiSDK,
-  learning: learningAPI,
   knowledge: knowledgeAPI,
   analytics: analyticsAPI,
-  agents: agentsAPI,
-  content: contentAPI,
+
+
   settings: settingsAPI,
   sessions: sessionsAPI,
   catalyst: catalystAPI,
@@ -906,16 +817,10 @@ const electronAPI = {
 declare global {
   interface Window {
     electronAPI: ElectronAPI;
-    electron: {
-      learning: LearningAPI;
-    };
   }
 }
 
 // Expose the complete API to the renderer process
-contextBridge.exposeInMainWorld('electron', {
-  learning: learningAPI,
-});
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
 export default electronAPI;

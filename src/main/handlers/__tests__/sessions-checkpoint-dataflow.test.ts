@@ -19,10 +19,10 @@ const createMockIpcMain = () => {
   const listeners = new Map();
 
   return {
-    handle: vi.fn((channel: string, handler: Function) => {
+    handle: vi.fn((channel: string, handler: (event: any, ...args: any[]) => void) => {
       listeners.set(channel, handler);
     }),
-    on: vi.fn((channel: string, handler: Function) => {
+    on: vi.fn((channel: string, handler: (event: any, ...args: any[]) => void) => {
       listeners.set(channel, handler);
     }),
     _events: listeners,

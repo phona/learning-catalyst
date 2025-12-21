@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createSessionService } from '../session-service';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import { createMockElectronAPI, ok, fail } from '@/test/utils/electron-api-fixture';
-import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 
 const minimalSession: SessionDisplay = {
   id: 's1',

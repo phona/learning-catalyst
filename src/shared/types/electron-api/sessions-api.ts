@@ -3,10 +3,27 @@ import type {
   SessionSearchQuery,
 } from '../session';
 
-import type { SessionDisplay } from './learning-api';
-
 import type { SessionUpdateRequest, SessionCreateRequest } from '../../../renderer/types/session';
 import type { APIResponse } from './base';
+
+/**
+ * Display-ready session for lists
+ */
+export interface SessionDisplay {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+  archived?: boolean;
+  pinned?: boolean;
+  topic?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  status?: 'active' | 'paused' | 'completed' | 'archived';
+  progress?: number;
+  duration?: number;
+  agentType?: string;
+}
 
 export interface SessionStatistics {
   totalSessions: number;
@@ -46,7 +63,5 @@ export interface SessionsAPI {
   ) => Promise<APIResponse<SessionDisplay | undefined>>;
   delete: (sessionId: string) => Promise<APIResponse<{ deleted: boolean }>>;
   updateTitle: (sessionId: string, title: string) => Promise<APIResponse<void>>;
-  getRecentSessions: (options?: { limit?: number }) => Promise<APIResponse<SessionDisplay[]>>;
-  search: (query: SessionSearchQuery) => Promise<APIResponse<SessionSearchResult>>;
-  getStatistics: () => Promise<APIResponse<SessionStatistics>>;
+  getRecentSessions: (limit?: number) => Promise<APIResponse<SessionDisplay[]>>;
 }

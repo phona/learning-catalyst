@@ -59,6 +59,7 @@ function Invoke-Claude {
 
 ls .\openspec\changes | Select-String -Pattern 'archive' -NotMatch | ForEach-Object { $_.ToString().Trim() } | ForEach-Object {
     Invoke-Claude -UserPrompt "/openspec:apply $_"
+    Invoke-Claude -UserPrompt "run tests, lint, type checks and fix all errors"
     Invoke-Claude -UserPrompt "/openspec:archive $_"
     Invoke-Claude -UserPrompt "commit all changes of $_ to git"
 }

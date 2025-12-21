@@ -391,14 +391,10 @@ const createFileSystem = (deps?: ConceptParsingDeps) => {
 
   const clearJobCache = async (): Promise<{ removed: number }> => {
     const dir = resolveJobStoreDir();
-    try {
-      const entries = await fsImpl.readdir(dir).catch(() => []);
-      await fsImpl.rm(dir, { recursive: true, force: true });
-      await fsImpl.mkdir(dir, { recursive: true });
-      return { removed: entries.length };
-    } catch (error) {
-      throw error;
-    }
+    const entries = await fsImpl.readdir(dir).catch(() => []);
+    await fsImpl.rm(dir, { recursive: true, force: true });
+    await fsImpl.mkdir(dir, { recursive: true });
+    return { removed: entries.length };
   };
 
   return {

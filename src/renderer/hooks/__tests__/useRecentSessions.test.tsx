@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import { useRecentSessions } from '../useRecentSessions';
 import type { SessionService } from '@/renderer/services/session/session-service';
 

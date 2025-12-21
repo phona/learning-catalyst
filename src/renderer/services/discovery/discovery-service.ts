@@ -26,83 +26,10 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
       return response.data;
     },
 
-    async generateLearningPath(concepts: string[], sessionId?: string): Promise<LearningPath> {
-      if (!sessionId) {
-        throw new Error('Session ID is required for generating learning path');
-      }
-
-      // Use the learning API to get the learning path
-      const learningPathResp = await apiClient.learning.getLearningPath(sessionId);
-      if (!learningPathResp.success || !learningPathResp.data) {
-        throw new Error(
-          learningPathResp.error ||
-            `No learning path found for session ${sessionId}. Please start a learning session first.`,
-        );
-      }
-      const learningPathResponse = learningPathResp.data;
-
-      if (!learningPathResponse.path || learningPathResponse.path.length === 0) {
-        throw new Error(
-          `No learning path found for session ${sessionId}. Please start a learning session first.`,
-        );
-      }
-
-      // Convert LearningPathDisplay to LearningPath format
-      return {
-        id: learningPathResponse.sessionId,
-        title: `Learning Path for ${concepts.join(', ')}`,
-        description: `Generated learning path covering: ${concepts.join(', ')}`,
-        estimated_duration: learningPathResponse.path.reduce((total, item) => {
-          return total + (parseInt(item.duration?.replace('min', '') || '30') || 30);
-        }, 0),
-        difficulty:
-          learningPathResponse.path[0]?.difficulty === 'easy'
-            ? 1
-            : learningPathResponse.path[0]?.difficulty === 'medium'
-              ? 2
-              : 3,
-        modules: learningPathResponse.path.map((item, index) => ({
-          id: item.id.toString(),
-          title: item.title,
-          description: item.description || `Learn about ${item.title}`,
-          type: 'concept' as const,
-          concepts: [item.title],
-          order: index,
-          isOptional: false,
-          estimatedTime: parseInt(item.duration?.replace('min', '') || '30'),
-          difficulty: item.difficulty === 'easy' ? 1 : item.difficulty === 'medium' ? 2 : 3,
-          resources: [],
-          assessments: [],
-          completionCriteria: {
-            type: 'assessment' as const,
-            threshold: 80,
-            assessments: [],
-            required: true,
-          },
-        })),
-        prerequisites: [],
-        targetMastery: learningPathResponse.progress?.percentage / 100 || 0.8,
-        adaptations: [],
-        objectives: [],
-        difficulty_progression: 'linear',
-        tags: concepts,
-        progress: {
-          currentModule:
-            learningPathResponse.path[learningPathResponse.currentPosition]?.id.toString() || '',
-          completedModules: learningPathResponse.path
-            .slice(0, learningPathResponse.currentPosition)
-            .map((item) => item.id.toString()),
-          currentConcept:
-            learningPathResponse.path[learningPathResponse.currentPosition]?.title || '',
-          masteredConcepts: [],
-          timeSpent: 0,
-          assessmentScores: [],
-          lastAccess: new Date(),
-          completionRate: learningPathResponse.progress?.percentage || 0,
-          masteryLevel: (learningPathResponse.progress?.percentage || 0) / 100,
-        },
-      };
-    },
+    // NOTE: Learning API has been removed - this method is disabled
+    // async generateLearningPath(concepts: string[], sessionId?: string): Promise<LearningPath> {
+    //   throw new Error('Learning API has been removed - generateLearningPath is no longer available');
+    // },
 
     async createPracticeExercises(
       topic: string,

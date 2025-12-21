@@ -6,7 +6,7 @@
 import type { SessionService } from '../../services/session/session-service';
 import type { SessionsAPI } from '@/shared/types/electron-api';
 import type { APIResponse } from '@/shared/types/electron-api/base';
-import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { ChatStoreDependencies } from '../chat/chatStore';
 import { createChatStore } from '../chat/chatStore';
 

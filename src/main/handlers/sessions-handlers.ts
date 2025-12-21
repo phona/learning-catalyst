@@ -9,7 +9,7 @@ import { ipcMain } from 'electron';
 import type { LearningService } from '../services/domain/learning/learning-service';
 import type { LoggerService } from '../services/core/logger/logger-service';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
-import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { APIResponse } from '@/shared/types/electron-api';
 import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
 
@@ -26,7 +26,7 @@ type SessionsDeps = {
 const ok = <T>(data?: T): APIResponse<T> => ({ success: true, data });
 const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
   success: false,
-  error: { code, message, details },
+  error: { code, message, details: details as Record<string, unknown> | undefined },
 });
 
 /**
@@ -50,7 +50,7 @@ const toSessionDisplay = (session: {
   progress: session.progress,
   agent: { type: session.agentType, name: session.agentType },
   lastActivity: session.updatedAt,
-  duration: `${Math.round(session.duration / 60)}m`,
+  duration: session.duration,
 });
 
 export const setupSessionsHandlers = (

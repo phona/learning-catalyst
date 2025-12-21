@@ -4,7 +4,7 @@ import type {
   SessionListResponse,
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { SessionCreateRequest } from '@/renderer/types/session';
 
 export interface SessionService {

@@ -8,7 +8,7 @@ import type {
   ImportSessionDisplay,
   ContentFormat,
   ConceptExtractionDisplay,
-} from '@/shared/types/electron-api/content-api';
+} from '@/shared/types/electron-api';
 interface ExploreProject {
   id: string;
   name: string;

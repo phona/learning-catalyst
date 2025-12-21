@@ -7,7 +7,7 @@ import type {
 } from '@/shared/types';
 import type { ProviderConfig } from '@/shared/types';
 import { ChatHistoryMessage, ChatStreamEvent } from '@/shared/types/electron-api/chat-api';
-import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import { AIMessage } from 'langchain';
 
 type ElectronWindow = Window & { electronAPI?: ElectronAPI };

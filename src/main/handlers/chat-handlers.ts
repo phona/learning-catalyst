@@ -31,7 +31,10 @@ type ChatDependencies = {
 };
 
 const ok = <T>(data?: T): APIResponse<T> => ({ success: true, data });
-const fail = (code: string, error: string): APIResponse<never> => ({ success: false, code, error });
+const fail = (code: string, error: string): APIResponse<never> => ({
+  success: false,
+  error: { code, message: error }
+});
 
 export const setupChatHandlers = (
   ipcMainInstance: typeof ipcMain,

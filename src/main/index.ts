@@ -583,7 +583,6 @@ async function createWindow(): Promise<void> {
   await setupAllIpcHandlers(win, workspacePath, {
     agentManager,
     db: database,
-    learningService,
     knowledgeService,
     conceptParsingService,
     practiceService,
@@ -595,6 +594,7 @@ async function createWindow(): Promise<void> {
     providerFactory,
     chatService,
     checkpointSaver,
+    learningService,
   });
   console.log('[Main] setupAllIpcHandlers complete');
 

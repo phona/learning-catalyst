@@ -138,15 +138,15 @@ describe('Teach Subgraph', () => {
         const intent = state.teach?.teachIntent;
 
         switch (intent) {
-          case 'ready':
-            return TeachNodeName.ASSESS_UNDERSTANDING;
-          case 'question':
-          case 'confused':
-            return TeachNodeName.HANDLE_QUESTION;
-          case 'needs_more':
-            return TeachNodeName.EXPLAIN;
-          default:
-            return TeachNodeName.HANDLE_QUESTION;
+        case 'ready':
+          return TeachNodeName.ASSESS_UNDERSTANDING;
+        case 'question':
+        case 'confused':
+          return TeachNodeName.HANDLE_QUESTION;
+        case 'needs_more':
+          return TeachNodeName.EXPLAIN;
+        default:
+          return TeachNodeName.HANDLE_QUESTION;
         }
       };
 

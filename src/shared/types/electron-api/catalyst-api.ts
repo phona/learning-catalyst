@@ -7,8 +7,8 @@
  */
 
 // Import related types from other APIs
-import type { AgentDisplay } from './agent-api';
-import type { SessionDisplay } from './learning-api';
+
+import type { SessionDisplay } from './sessions-api';
 import type { APIResponse } from './base';
 
 /**

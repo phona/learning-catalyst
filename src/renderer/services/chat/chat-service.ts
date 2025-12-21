@@ -1,7 +1,7 @@
 import type { ElectronAPI } from '../../../shared/types/electron-api';
 import type { PracticeOpportunityResult } from '../../../shared/types/electron-api/chat-api';
 import type { AgentDisplay } from '../../../shared/types/electron-api/agent-api';
-import type { SessionDisplay } from '../../../shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '../../../shared/types/electron-api/sessions-api';
 import type { Message, StreamChunk } from '../../../shared/types/ai';
 
 export interface ChatService {

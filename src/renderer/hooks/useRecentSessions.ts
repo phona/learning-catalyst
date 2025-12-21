@@ -12,7 +12,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@/shared/types/session';
-import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import { useSessionService } from '@/renderer/services/services-provider';
 import { isIPCErrorPayload, isIPCErrorException, requiresSetup, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 

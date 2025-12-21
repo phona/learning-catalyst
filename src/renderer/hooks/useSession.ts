@@ -10,7 +10,7 @@ import { useCallback } from 'react';
 import { useSessionStore } from '@/renderer/stores/sessions/sessionStore';
 import { useSessionService } from '@/renderer/services/services-provider';
 import type { SessionDisplay, SessionSearchFilters, SessionCreateRequest } from '@/renderer/types';
-import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/sessions-api';
 
 const mapDifficulty = (difficulty?: string): SessionDisplay['difficulty'] => {
   switch (difficulty) {
