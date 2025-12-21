@@ -5,7 +5,7 @@
  * with explicit dependencies following the functional factory pattern
  */
 
-import type { ElectronAPI, ChatAPI, KnowledgeAPI, LearningAPI, AnalyticsAPI } from '@/shared/types';
+import type { ElectronAPI, ChatAPI, KnowledgeAPI, LearningAPI, AnalyticsAPI, SessionStatistics } from '@/shared/types';
 import type { APIResponse, SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api/base';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
 
@@ -161,21 +161,15 @@ export function createTestServiceContainer(
         success: true,
         data: [],
       }),
-      getGlobalStatistics: async () => ({
-        success: true,
-        data: {
-          totalSessions: 0,
-          totalMessages: 0,
-          totalUserMessages: 0,
-          totalAssistantMessages: 0,
-          totalTokensUsed: 0,
-          averageMessagesPerSession: 0,
-        },
+      getGlobalStatistics: async (): Promise<SessionStatistics> => ({
+        totalSessions: 0,
+        totalMessages: 0,
+        totalUserMessages: 0,
+        totalAssistantMessages: 0,
+        totalTokensUsed: 0,
+        averageMessagesPerSession: 0,
       }),
-      searchSessions: async (query: string) => ({
-        success: true,
-        data: [],
-      }),
+      searchSessions: async (query: string): Promise<SessionDisplay[]> => [],
       // getStatistics: async () => ({
       //   success: true,
       //   data: {

@@ -1,7 +1,9 @@
 import { createSessionId as _createSessionId } from '@/shared/utils/helpers';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 import type {
   SessionStatistics,
   SessionListResponse,
+  SessionListData,
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
@@ -210,12 +212,16 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     createSession,
     deleteSession,
     getGlobalStatistics: async (): Promise<SessionStatistics> => {
-      const response = await unwrapAPI(electronAPI.sessions.getGlobalStatistics());
+      const response = await unwrapAPI(apiClient.sessions.getGlobalStatistics());
       return response;
     },
-    searchSessions: async (query: string): Promise<SessionDisplay[]> => {
-      const response = await unwrapAPI(electronAPI.sessions.searchSessions(query));
-      return response;
+    searchSessions: async (query: string, filters?: Record<string, unknown>): Promise<SessionListData> => {
+      const response = await unwrapAPI(apiClient.sessions.searchSessions(query));
+      return {
+        sessions: response,
+        total: response.length,
+        hasMore: false,
+      };
     },
   };
 };

@@ -37,13 +37,14 @@ const toSessionDisplay = (session: {
 }): SessionDisplay => ({
   id: session.id,
   title: session.topic,
-  createdAt: session.createdAt,
+  createdAt: session.updatedAt, // Using updatedAt as fallback since createdAt is not available
   updatedAt: session.updatedAt,
   topic: session.topic,
   difficulty: session.difficulty as SessionDisplay['difficulty'],
   status: session.status as SessionDisplay['status'],
   progress: session.progress,
   duration: session.duration,
+  agentType: session.agentType,
 });
 
 export const setupSessionsHandlers = (

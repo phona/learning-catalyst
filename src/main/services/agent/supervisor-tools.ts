@@ -62,7 +62,7 @@ const agentDescriptions: Record<Exclude<AgentType, 'supervisor'>, string> = {
 
 const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: SpecializedAgent): Tool<string> =>
   tool(
-    async (rawInput: string) => {
+    async (rawInput: string): Promise<string> => {
       const payload = parseJsonInput<SupervisorToolInput>(rawInput, {
         conversationId: undefined,
         topic: undefined,

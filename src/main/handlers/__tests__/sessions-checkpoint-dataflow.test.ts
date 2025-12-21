@@ -205,12 +205,12 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       );
 
       // Verify session ID matches Assistant UI's threadId
-      expect(sessionResponse.data.sessionId).toBe(assistantUIThreadId);
-      expect(sessionResponse.data.session.id).toBe(assistantUIThreadId);
+      expect(sessionResponse.sessionId).toBe(assistantUIThreadId);
+      expect(sessionResponse.session.id).toBe(assistantUIThreadId);
 
       console.log('✅ Step 1: Assistant UI threadId =', assistantUIThreadId);
       console.log('✅ Step 2: sessions:create passed threadId to learningService');
-      console.log('✅ Step 3: learning_sessions.id =', sessionResponse.data.sessionId);
+      console.log('✅ Step 3: learning_sessions.id =', sessionResponse.sessionId);
     });
 
     it('should query checkpoints using same sessionId', async () => {

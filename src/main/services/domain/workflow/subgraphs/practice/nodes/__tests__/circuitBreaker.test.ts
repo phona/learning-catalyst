@@ -14,6 +14,13 @@ import { DEFAULT_PRACTICE_STATE } from '../../types';
 import type { WorkflowDeps } from '../../../../state';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
+import { createChunkEmitter } from '../../../../utils/chunk-emitter';
+
+// Mock createChunkEmitter
+vi.mock('../../../../utils/chunk-emitter', () => ({
+  createChunkEmitter: vi.fn(() => mockEmitter),
+  generateId: vi.fn((prefix: string) => `${prefix}_test_id`),
+}));
 
 // Mock dependencies
 const mockLoggerService = {

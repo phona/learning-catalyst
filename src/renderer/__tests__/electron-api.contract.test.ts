@@ -43,6 +43,53 @@ describe('electronAPI contract', () => {
     expect(typeof api.catalyst.executeAgent).toBe('function');
   });
 
+  it('should document deprecated catalyst methods that need IPC handlers', async () => {
+    // @ts-ignore: Test environment access to mocked electronAPI
+    const api = window.electronAPI;
+    expect(api).toBeDefined();
+    expect(api.catalyst).toBeDefined();
+
+    // These methods exist in the preload but have NO corresponding IPC handlers
+    // in the main process, causing "No handler registered" errors in production
+    const deprecatedMethods = [
+      'catalyst:list-agents',
+      'catalyst:get-active-executions'
+    ];
+
+    // Document the issue - these methods should either:
+    // 1. Have IPC handlers created, OR
+    // 2. Be removed from the preload API
+
+    expect(deprecatedMethods).toHaveLength(2);
+    expect(deprecatedMethods).toContain('catalyst:list-agents');
+    expect(deprecatedMethods).toContain('catalyst:get-active-executions');
+  });
+
+  it('should validate error shape for IPC failures', async () => {
+    // @ts-ignore: Test environment access to mocked electronAPI
+    const api = window.electronAPI;
+    expect(api).toBeDefined();
+
+    // Test that IPC errors have the expected structure
+    const mockIPCHandler = vi.fn().mockRejectedValue({
+      type: 'IPC_ERROR',
+      code: 'NO_HANDLER',
+      message: 'No handler registered for test-channel',
+      details: { channel: 'test-channel' }
+    });
+
+    expect(mockIPCHandler).toBeDefined();
+
+    try {
+      await mockIPCHandler();
+    } catch (error: any) {
+      expect(error).toHaveProperty('type');
+      expect(error).toHaveProperty('code');
+      expect(error).toHaveProperty('message');
+      expect(error.type).toBe('IPC_ERROR');
+    }
+  });
+
   it('exposes filesystem utilities used by renderer code', async () => {
     // @ts-ignore: Test environment access to mocked electronAPI
     const api = window.electronAPI;

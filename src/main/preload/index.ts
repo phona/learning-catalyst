@@ -384,16 +384,7 @@ const agentsAPI: AgentsAPI = {
       | 'technical expert';
   }) => ipcRenderer.invoke('agents:set-personality', params),
 
-  /**
-   * Sets response style preferences for a session
-   * Controls the format and depth of agent responses
-   * @param params.sessionId - Session ID to apply settings to
-   * @param params.style - Response style configuration
-   * @returns Promise<{ success: boolean; appliedSettings: ResponseStyleSettings }>
-   */
-  setResponseStyle: (params: { sessionId: string; style: unknown }) =>
-    ipcRenderer.invoke('agents:set-response-style', params),
-
+  
   /**
    * Gets detailed capabilities for a specific agent
    * Useful for showcasing agent features and limitations
@@ -402,16 +393,7 @@ const agentsAPI: AgentsAPI = {
    */
   getAgentCapabilities: (agentId: string) => ipcRenderer.invoke('agents:get-capabilities', agentId),
 
-  /**
-   * Demonstrates a specific agent feature
-   * Provides interactive preview of agent capabilities
-   * @param params.agentId - Agent ID to demonstrate
-   * @param params.feature - Feature name to demonstrate
-   * @returns Promise<FeatureDemoDisplay> - Interactive feature demonstration
-   */
-  tryAgentFeature: (params: { agentId: string; feature: string }) =>
-    ipcRenderer.invoke('agents:try-feature', params),
-};
+  };
 
 // ============================================================================
 // 6. Content & Discovery API
@@ -424,56 +406,30 @@ const agentsAPI: AgentsAPI = {
  * Focuses on expanding the knowledge base with relevant content.
  */
 const contentAPI: ContentAPI = {
-  /**
-   * Explores local projects for learning content
-   * Scans file system for code, documentation, and learning materials
-   * @returns Promise<ProjectDisplay[]> - Array of discoverable local projects
-   */
+  // Import sessions
+  createImportSession: (params: { path: string; options?: any }) =>
+    ipcRenderer.invoke('content:create-import-session', params),
+  getImportSession: (sessionId: string) =>
+    ipcRenderer.invoke('content:get-import-session', sessionId),
+  listImportSessions: () => ipcRenderer.invoke('content:list-import-sessions'),
+
+  // Content parsing
+  parseContent: (params: { filePath: string; format: ContentFormat }) =>
+    ipcRenderer.invoke('content:parse-content', params),
+  extractConcepts: (content: string) => ipcRenderer.invoke('content:extract-concepts', content),
+
+  // Project exploration
   exploreProject: (path: string) => ipcRenderer.invoke('content:explore-project', path),
+  scanDirectory: (params: DirectoryFilterConfig) =>
+    ipcRenderer.invoke('content:scan-directory', params),
 
-  /**
-   * Imports learning content from files
-   * Processes files and extracts learning concepts and materials
-   * @param files - FileList from file input or drag-drop
-   * @returns Promise<ImportResultDisplay> - Import results and extracted content
-   */
+  // Content import
   importLearningContent: (files: FileList) => ipcRenderer.invoke('content:import-content', files),
-
-  /**
-   * Gets recommended learning content for a topic
-   * Suggests relevant materials based on topic and skill level
-   * @param params.topic - Learning topic or concept
-   * @param params.level - 'beginner' | 'intermediate' | 'advanced'
-   * @returns Promise<ContentRecommendationDisplay[]> - Array of recommended content
-   */
   getRecommendedContent: (params: {
     topic: string;
     level: 'beginner' | 'intermediate' | 'advanced';
+    preferences?: any;
   }) => ipcRenderer.invoke('content:get-recommendations', params),
-
-  /**
-   * Searches learning resources across multiple sources
-   * Performs comprehensive search with intelligent filtering
-   * @param query - Search query string
-   * @returns Promise<ResourceSearchResultDisplay> - Search results with relevance ranking
-   */
-  searchLearningResources: (query: string) => ipcRenderer.invoke('content:search-resources', query),
-
-  /**
-   * Analyzes a document for learning content
-   * Extracts concepts, structure, and learning value from documents
-   * @param filePath - Path to the document to analyze
-   * @returns Promise<DocumentAnalysisDisplay> - Detailed document analysis
-   */
-  analyzeDocument: (filePath: string) => ipcRenderer.invoke('content:analyze-document', filePath),
-
-  /**
-   * Extracts concepts from raw text content
-   * Identifies key learning concepts and their relationships
-   * @param content - Text content to analyze
-   * @returns Promise<ConceptExtractionDisplay[]> - Array of extracted concepts
-   */
-  extractConcepts: (content: string) => ipcRenderer.invoke('content:extract-concepts', content),
 };
 
 // ============================================================================

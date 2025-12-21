@@ -313,7 +313,7 @@ export function createFileService(electronAPI: ElectronAPI) {
         };
       }
 
-      const result = await electronAPI.showSaveDialog(options);
+      const result = await electronAPI.showSaveDialog(options ?? {});
 
       return {
         success: true,

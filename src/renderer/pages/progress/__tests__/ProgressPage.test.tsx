@@ -14,6 +14,8 @@ import { useCatalystService, useAnalyticsService } from '@/renderer/services/ser
 import {
   createMockConfigurationService,
   createMockFileService,
+  createNoHandlerError,
+  createCatalystServiceWithDeprecatedMethods,
 } from '@/test/utils/services-provider-stubs';
 
 const configServiceMock = createMockConfigurationService();
@@ -495,5 +497,125 @@ describe('ProgressPage - Performance Optimized', () => {
     );
 
     expect(screen.getByText('Retry')).toBeInTheDocument();
+  });
+
+  // ==================== ENHANCED ERROR TESTING FOR IPC HANDLERS ====================
+
+  describe('Missing IPC Handler Detection', () => {
+    it('should handle missing IPC handlers gracefully', async () => {
+      // Test that the component gracefully handles deprecated methods that have no IPC handlers
+      const deprecatedCatalystService = createCatalystServiceWithDeprecatedMethods();
+
+      // Mock the service to return deprecated methods
+      vi.mocked(useCatalystService).mockReturnValue(deprecatedCatalystService);
+
+      render(<ProgressPage />);
+
+      // Component should show loading then error state (not crash)
+      await waitFor(() => {
+        expect(screen.getByText('⚠️ Error Loading Dashboard')).toBeInTheDocument();
+      }, { timeout: 1000 });
+    });
+
+    it('should document deprecated method usage', async () => {
+      // This test documents the issue with deprecated catalyst methods
+      const deprecatedCatalystService = createCatalystServiceWithDeprecatedMethods();
+
+      // Mock the service to return deprecated methods
+      vi.mocked(useCatalystService).mockReturnValue(deprecatedCatalystService);
+
+      // Attempt to call deprecated methods
+      await expect(deprecatedCatalystService.listAgents()).rejects.toMatchObject({
+        type: 'IPC_ERROR',
+        code: 'NO_HANDLER',
+        message: expect.stringContaining('catalyst:list-agents')
+      });
+
+      await expect(deprecatedCatalystService.getActiveExecutions()).rejects.toMatchObject({
+        type: 'IPC_ERROR',
+        code: 'NO_HANDLER',
+        message: expect.stringContaining('catalyst:get-active-executions')
+      });
+    });
+
+    it('should render error information safely', async () => {
+      // Test that error objects are not rendered directly as React children
+      mockCatalystService.getAvailableAgents.mockRejectedValue(
+        createNoHandlerError('catalyst:missing-method')
+      );
+
+      render(<ProgressPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('⚠️ Error Loading Dashboard')).toBeInTheDocument();
+      });
+
+      // The key test is that the component doesn't crash trying to render error objects
+      expect(screen.getByText(/Retry/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('Error Object Propagation Prevention', () => {
+    it('should NOT render error objects as React children', () => {
+      // Document the specific error pattern we're preventing
+      const errorObject = {
+        success: false,
+        error: {
+          type: 'IPC_ERROR',
+          code: 'NO_HANDLER',
+          message: 'No handler registered for catalyst:list-agents'
+        },
+        timestamp: Date.now()
+      };
+
+      expect(() => {
+        render(<div>{errorObject}</div>);
+      }).toThrow('Objects are not valid as a React child');
+    });
+
+    it('should convert error objects to strings before rendering', () => {
+      const errorObject = {
+        success: false,
+        error: {
+          type: 'IPC_ERROR',
+          code: 'NO_HANDLER',
+          message: 'No handler registered for catalyst:list-agents'
+        },
+        timestamp: Date.now()
+      };
+
+      // Correct pattern - extract string properties
+      expect(() => {
+        render(
+          <div>
+            Error: {errorObject.error.message}
+            Code: {errorObject.error.code}
+          </div>
+        );
+      }).not.toThrow();
+    });
+
+    it('should handle mixed error and success data safely', async () => {
+      // Test scenario where some service calls succeed and others fail with error objects
+      mockAnalyticsService.getStudyMetrics.mockResolvedValue({
+        totalStudyTime: 180,
+        sessionsCompleted: 15,
+        // Other fields...
+      });
+
+      mockCatalystService.getAvailableAgents.mockRejectedValue(
+        createNoHandlerError('catalyst:list-agents')
+      );
+
+      render(<ProgressPage />);
+
+      await waitFor(() => {
+        // Should show error state but not crash
+        expect(screen.getByText('⚠️ Error Loading Dashboard')).toBeInTheDocument();
+      });
+
+      // The key test is that error handling doesn't crash and shows appropriate UI
+      expect(screen.getByText(/Retry/i)).toBeInTheDocument();
+    });
   });
 });

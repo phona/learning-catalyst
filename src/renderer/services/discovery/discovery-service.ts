@@ -38,7 +38,7 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
     ): Promise<any[]> {
       const searchResp = await apiClient.knowledge.searchKnowledge(topic);
       if (!searchResp.success || !searchResp.data) {
-        throw new Error(searchResp.error ?? 'Search failed');
+        throw new Error(typeof searchResp.error === 'string' ? searchResp.error : 'Search failed');
       }
       const searchResults = (searchResp.data as KnowledgeSearchResultDisplay).results ?? [];
 
@@ -79,14 +79,14 @@ export const createDiscoveryService = (apiClient: ElectronAPI) => {
         depth: 'intermediate',
       });
       if (!conceptResp.success || !conceptResp.data) {
-        throw new Error(conceptResp.error ?? 'Explore concept failed');
+        throw new Error(typeof conceptResp.error === 'string' ? conceptResp.error : 'Explore concept failed');
       }
       const conceptResponse = conceptResp.data;
 
       // Search for related content to assess understanding
       const searchResp = await apiClient.knowledge.searchKnowledge(currentUnderstanding);
       if (!searchResp.success || !searchResp.data) {
-        throw new Error(searchResp.error ?? 'Search failed');
+        throw new Error(typeof searchResp.error === 'string' ? searchResp.error : 'Search failed');
       }
       const searchResponse = searchResp.data;
 
