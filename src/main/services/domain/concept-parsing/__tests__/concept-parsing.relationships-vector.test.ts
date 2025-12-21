@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
+import { createConceptParsingService, type ConceptParsingMaterial } from '../concept-parsing-service';
 
 // Mock the extraction workflow to return concepts with relationships
 vi.mock('../extraction-workflow', () => ({
@@ -94,7 +94,7 @@ describe('concept parsing relationship storage', () => {
       loggerService,
     });
 
-    const materials = [
+    const materials: ConceptParsingMaterial[] = [
       {
         id: 'material-1',
         title: 'Plant Biology',
@@ -184,7 +184,7 @@ describe('concept parsing relationship storage', () => {
       loggerService,
     });
 
-    const materials = [
+    const materials: ConceptParsingMaterial[] = [
       {
         id: 'material-1',
         title: 'Test',
@@ -232,7 +232,7 @@ describe('concept parsing relationship storage', () => {
       loggerService,
     });
 
-    const materials = [
+    const materials: ConceptParsingMaterial[] = [
       {
         id: 'material-1',
         title: 'Test',
@@ -289,7 +289,7 @@ describe('concept parsing relationship storage', () => {
       loggerService,
     });
 
-    const materials = [
+    const materials: ConceptParsingMaterial[] = [
       {
         id: 'material-1',
         title: 'Test',

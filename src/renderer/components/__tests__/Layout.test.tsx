@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import { Layout } from '@/renderer/components/Layout';
 import { useAppStore } from '@/renderer/stores/useAppStore';
@@ -10,6 +11,20 @@ vi.mock('@/renderer/stores/useAppStore', () => {
     theme: 'light' as 'light' | 'dark' | 'auto',
     focus_mode: false,
     toggleFocusMode: vi.fn(),
+    setCurrentView: vi.fn(),
+    setSidebarOpen: vi.fn(),
+    setSettingsPanelOpen: vi.fn(),
+    setTheme: vi.fn(),
+    setFocusMode: vi.fn(),
+    setLoading: vi.fn(),
+    setError: vi.fn(),
+    setSuccess: vi.fn(),
+    clearMessages: vi.fn(),
+    settings_panel_open: false,
+    current_view: 'chat' as const,
+    loading: false,
+    error_message: undefined,
+    success_message: undefined,
   };
   const useAppStore = () => state;
   (useAppStore as any).getState = () => state;
@@ -29,10 +44,36 @@ vi.mock('@/renderer/components/Layout/Header', () => ({
   Header: () => <div data-testid="header">header</div>,
 }));
 
-vi.mock('@/renderer/components/Layout/Sidebar', () => ({
-  Sidebar: ({ open }: { open: boolean }) => (
+vi.mock('@/renderer/components/Layout/ThreadListSidebar', () => ({
+  ThreadListSidebar: ({ open }: { open: boolean }) => (
     <div data-testid="sidebar">{open ? 'open' : 'closed'}</div>
   ),
+}));
+
+vi.mock('@assistant-ui/react', () => ({
+  ThreadListPrimitive: {
+    Root: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    New: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
+      asChild ? children : <button>{children}</button>,
+    Items: ({ components }: { components: any }) => <div>Thread items</div>,
+  },
+  ThreadListItemPrimitive: {
+    Root: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    Trigger: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    Title: ({ fallback }: { fallback?: string }) => <span>{fallback}</span>,
+    Archive: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
+      asChild ? children : <button>{children}</button>,
+  },
+  AssistantIf: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  useThreadListItemRuntime: () => null,
+}));
+
+vi.mock('@/renderer/components/UI/Button', () => ({
+  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+}));
+
+vi.mock('@/renderer/components/UI/Separator', () => ({
+  Separator: () => <hr />,
 }));
 
 const mockMatchMedia = (matches: boolean) =>
@@ -49,11 +90,11 @@ describe('Layout', () => {
     (window as any).matchMedia = mockMatchMedia(false);
   });
 
-  it('renders header, sidebar and outlet when not in focus mode', () => {
+  it('renders header and sidebar when not in focus mode', () => {
     render(
-      <Layout>
-        <div data-testid="content">content</div>
-      </Layout>,
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>,
     );
 
     expect(screen.getByTestId('header')).toBeInTheDocument();
@@ -61,31 +102,50 @@ describe('Layout', () => {
   });
 
   it('applies dark class when theme is dark', () => {
-    useAppStore().theme = 'dark';
+    const mockStore = useAppStore();
+    mockStore.theme = 'dark';
 
-    render(<Layout />);
+    render(
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>,
+    );
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
   it('derives theme from system in auto mode', () => {
-    useAppStore().theme = 'auto';
+    const mockStore = useAppStore();
+    mockStore.theme = 'auto';
     (window as any).matchMedia = mockMatchMedia(true);
 
-    render(<Layout />);
+    render(
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>,
+    );
 
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
   it('shows status bar when token usage toggle exists', () => {
-    render(<Layout />);
+    render(
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>,
+    );
     expect(screen.getByText(/Provider:/i)).toBeInTheDocument();
   });
 
   it('hides chrome and shows focus indicator in focus mode', () => {
-    useAppStore().focus_mode = true;
+    const mockStore = useAppStore();
+    mockStore.focus_mode = true;
 
-    render(<Layout />);
+    render(
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>,
+    );
 
     expect(screen.queryByTestId('header')).not.toBeInTheDocument();
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
@@ -93,11 +153,24 @@ describe('Layout', () => {
   });
 
   it('exits focus mode via close button', () => {
-    useAppStore().focus_mode = true;
-    const toggleSpy = useAppStore().toggleFocusMode as any;
+    const mockStore = useAppStore();
+    mockStore.focus_mode = true;
+    const toggleSpy = vi.fn();
+    mockStore.toggleFocusMode = toggleSpy;
 
-    render(<Layout />);
-    fireEvent.click(screen.getByRole('button'));
+    render(
+      <BrowserRouter>
+        <Layout />
+      </BrowserRouter>,
+    );
+
+    // Find the focus mode exit button (the X button in the focus mode indicator)
+    const focusModeIndicator = screen.getByText('Focus Mode').closest('div');
+    const closeButton = focusModeIndicator?.querySelector('button');
+
+    if (closeButton) {
+      fireEvent.click(closeButton);
+    }
 
     expect(toggleSpy).toHaveBeenCalled();
   });

@@ -5,7 +5,6 @@ import type { ElectronAPI } from '@/shared/types/electron-api';
 describe('electron-api-client', () => {
   it('returns window.electronAPI when present', () => {
     const api = { sentinel: true } as unknown as ElectronAPI;
-    // @ts-expect-error override global
     globalThis.window = { electronAPI: api } as any;
 
     const client = createElectronAPIClient();
@@ -14,7 +13,6 @@ describe('electron-api-client', () => {
   });
 
   it('falls back to mock client when missing', () => {
-    // @ts-expect-error override global
     globalThis.window = {};
     const client = createElectronAPIClient();
 
@@ -30,10 +28,10 @@ describe('electron-api-client', () => {
     const agents = await client.agents.getAvailableAgents();
     expect(agents.data?.[0].id).toBe('agent_mock');
 
-    const chat = await client.chat.sendMessage({
+    const chat = await client.catalyst.sendChat({
       sessionId: 's1',
       message: 'hello',
-      providerId: 'p1',
+      agentId: 'p1',
     });
     expect(chat.success).toBe(true);
 

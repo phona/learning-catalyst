@@ -1,5 +1,15 @@
 import React from 'react';
-import type { LearningSession } from '@/shared/utils/simple-analytics';
+import type { LearningSession } from '@/shared/types/analytics';
+
+// Extended session interface for analytics display with additional UI properties
+interface AnalyticsSession extends LearningSession {
+  aiProvider?: string;
+  aiModel?: string;
+  sessionType?: 'chat' | 'study' | 'assessment' | 'review' | 'exploration';
+  status?: 'completed' | 'in_progress' | 'paused';
+  durationMinutes?: number;
+  conceptsCovered?: string[];
+}
 
 // Interface for the analytics service in renderer context
 interface RendererAnalyticsService {
@@ -21,7 +31,7 @@ interface RendererAnalyticsService {
   // Add other methods as needed
 }
 
-type SessionLoader = () => Promise<LearningSession[]>;
+type SessionLoader = () => Promise<AnalyticsSession[]>;
 
 interface SessionTrackingProps {
   analytics: RendererAnalyticsService;
@@ -29,16 +39,19 @@ interface SessionTrackingProps {
   loadSessions?: SessionLoader;
 }
 
-const defaultSessionLoader: SessionLoader = async (): Promise<LearningSession[]> => [
+const defaultSessionLoader: SessionLoader = async (): Promise<AnalyticsSession[]> => [
   {
     id: 'session_1',
     title: 'React Fundamentals',
     startTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
     endTime: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+    duration: 60,
+    concepts: ['react-hooks', 'state-management', 'components'],
+    // Extended properties for UI
     durationMinutes: 60,
+    conceptsCovered: ['react-hooks', 'state-management', 'components'],
     aiProvider: 'OpenAI',
     aiModel: 'gpt-4',
-    conceptsCovered: ['react-hooks', 'state-management', 'components'],
     sessionType: 'study',
     status: 'completed',
   },
@@ -47,10 +60,13 @@ const defaultSessionLoader: SessionLoader = async (): Promise<LearningSession[]>
     title: 'JavaScript Async Patterns',
     startTime: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
     endTime: new Date(Date.now() - 23 * 60 * 60 * 1000),
+    duration: 45,
+    concepts: ['promises', 'async-await', 'callbacks'],
+    // Extended properties for UI
     durationMinutes: 45,
+    conceptsCovered: ['promises', 'async-await', 'callbacks'],
     aiProvider: 'ChatGLM',
     aiModel: 'glm-4',
-    conceptsCovered: ['promises', 'async-await', 'callbacks'],
     sessionType: 'study',
     status: 'completed',
   },
@@ -59,10 +75,13 @@ const defaultSessionLoader: SessionLoader = async (): Promise<LearningSession[]>
     title: 'TypeScript Basics',
     startTime: new Date(Date.now() - 48 * 60 * 60 * 1000), // 2 days ago
     endTime: new Date(Date.now() - 47 * 60 * 60 * 1000),
+    duration: 30,
+    concepts: ['types', 'interfaces', 'generics'],
+    // Extended properties for UI
     durationMinutes: 30,
+    conceptsCovered: ['types', 'interfaces', 'generics'],
     aiProvider: 'DeepSeek',
     aiModel: 'deepseek-chat',
-    conceptsCovered: ['types', 'interfaces', 'generics'],
     sessionType: 'review',
     status: 'completed',
   },
@@ -73,7 +92,7 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
   className = '',
   loadSessions: _loadSessions = defaultSessionLoader,
 }) => {
-  const [sessions, setSessions] = React.useState<LearningSession[]>([]);
+  const [sessions, setSessions] = React.useState<AnalyticsSession[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -95,26 +114,26 @@ export const SessionTracking: React.FC<SessionTrackingProps> = ({
     loadRecentSessions();
   }, [loadRecentSessions]);
 
-  const getSessionTypeColor = (type: LearningSession['sessionType']): string => {
-    const colors: Record<LearningSession['sessionType'], string> = {
+  const getSessionTypeColor = (type?: AnalyticsSession['sessionType']): string => {
+    const colors: Record<NonNullable<AnalyticsSession['sessionType']>, string> = {
       chat: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
       study: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
       assessment: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200',
       review: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
       exploration: 'bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200',
     };
-    return colors[type] || colors.study;
+    return colors[type ?? 'study'];
   };
 
-  const getSessionTypeLabel = (type: LearningSession['sessionType']): string => {
-    const labels: Record<LearningSession['sessionType'], string> = {
+  const getSessionTypeLabel = (type?: AnalyticsSession['sessionType']): string => {
+    const labels: Record<NonNullable<AnalyticsSession['sessionType']>, string> = {
       chat: 'Chat',
       study: 'Study',
       assessment: 'Assessment',
       review: 'Review',
       exploration: 'Exploration',
     };
-    return labels[type] || type;
+    return labels[type ?? 'study'];
   };
 
   const formatDuration = (minutes: number): string => {

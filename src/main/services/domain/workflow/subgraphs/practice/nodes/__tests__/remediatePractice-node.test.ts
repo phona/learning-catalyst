@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { remediatePracticeNode } from '../remediatePractice';
 import { PracticeAnnotation } from '../../state';
 import { DEFAULT_PRACTICE_STATE } from '../../types';
-import type { WorkflowDeps } from '../../../state';
+import type { WorkflowDeps } from '../../../../state';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
 
@@ -34,10 +34,14 @@ const mockLoggerService = {
   info: vi.fn(),
   error: vi.fn(),
   warn: vi.fn(),
+  child: vi.fn().mockReturnThis(),
 };
 
 const mockProviderFactory = {
   getModel: vi.fn(),
+  getEmbeddings: vi.fn(),
+  getEmbeddingModel: vi.fn(),
+  getRerankModel: vi.fn(),
 };
 
 const mockModel = {

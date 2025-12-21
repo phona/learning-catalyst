@@ -94,70 +94,70 @@ function buildInstruction(round: number, gaps: string[]): string {
  */
 export const explainNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
-    const emitter = createChunkEmitter(config);
-    const teach = state.teach!;
-    const round = teach.teachingRound + 1;
+    async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
+      const emitter = createChunkEmitter(config);
+      const teach = state.teach!;
+      const round = teach.teachingRound + 1;
 
-    deps.loggerService.debug('teach:explain start', {
-      topic: state.topic,
-      round,
-      gaps: teach.gaps,
-    });
+      deps.loggerService.debug('teach:explain start', {
+        topic: state.topic,
+        round,
+        gaps: teach.gaps,
+      });
 
-    // Gather knowledge context
-    const knowledgeContext = await gatherKnowledgeContext(deps, state.topic);
+      // Gather knowledge context
+      const knowledgeContext = await gatherKnowledgeContext(deps, state.topic);
 
-    // Build instruction based on context
-    const instruction = buildInstruction(round, teach.gaps);
+      // Build instruction based on context
+      const instruction = buildInstruction(round, teach.gaps);
 
-    // Format prompt
-    const messages = await TEACHING_PROMPT.formatMessages({
-      topic: state.topic,
-      round: String(round),
-      instruction,
-      knowledgeContext,
-    });
+      // Format prompt
+      const messages = await TEACHING_PROMPT.formatMessages({
+        topic: state.topic,
+        round: String(round),
+        instruction,
+        knowledgeContext,
+      });
 
-    // Get LLM response
-    const model = await deps.providerFactory.getModel();
-    const response = await model.invoke(messages);
-    const content = String(response.content ?? '');
+      // Get LLM response
+      const model = await deps.providerFactory.getModel();
+      const response = await model.invoke(messages);
+      const content = String(response.content ?? '');
 
-    // Emit to UI
-    const messageId = generateId('msg');
-    emitter.textStart(messageId);
-    emitter.textDelta(messageId, content);
-    emitter.textEnd(messageId);
+      // Emit to UI
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, content);
+      emitter.textEnd(messageId);
 
-    deps.loggerService.info('teach:explain complete', {
-      topic: state.topic,
-      round,
-      contentLength: content.length,
-    });
+      deps.loggerService.info('teach:explain complete', {
+        topic: state.topic,
+        round,
+        contentLength: content.length,
+      });
 
-    // Interrupt and wait for user response
-    const resumeValue = await interrupt({
-      type: 'teach_response',
-      prompt: content,
-      round,
-    });
+      // Interrupt and wait for user response
+      const resumeValue = await interrupt({
+        type: 'teach_response',
+        prompt: content,
+        round,
+      });
 
-    // Extract user answer from resume value
-    const userAnswer =
+      // Extract user answer from resume value
+      const userAnswer =
       typeof resumeValue === 'string'
         ? resumeValue
         : (resumeValue as { answer?: string; content?: string })?.answer ??
           (resumeValue as { answer?: string; content?: string })?.content ??
           '';
 
-    return {
-      messages: [new AIMessage(content)],
-      userAnswer,
-      teach: {
-        teachingRound: round,
-        gaps: [], // Clear after addressing
-        teachIntent: undefined, // Clear for classification
-      },
+      return {
+        messages: [new AIMessage(content)],
+        userAnswer,
+        teach: {
+          teachingRound: round,
+          gaps: [], // Clear after addressing
+          teachIntent: undefined, // Clear for classification
+        },
+      };
     };
-  };

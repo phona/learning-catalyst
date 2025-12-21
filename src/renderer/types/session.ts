@@ -61,6 +61,10 @@ export interface SessionSearchFilters {
 export interface SessionCreateRequest {
   title?: string;
   threadId?: string;
+  tags?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard' | 'beginner' | 'intermediate' | 'advanced';
+  agentType?: string;
+  description?: string;
 }
 
 export interface SessionUpdateRequest {

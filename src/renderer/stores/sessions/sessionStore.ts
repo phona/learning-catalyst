@@ -132,9 +132,11 @@ export const useSessionStore = create<SessionState>()(
 
     // Selection actions
     selectSession: (sessionId) =>
-      set((state) => ({
-        selectedSessions: new Set([...state.selectedSessions, sessionId]),
-      })),
+      set((state) => {
+        const newSelected = new Set(state.selectedSessions);
+        newSelected.add(sessionId);
+        return { selectedSessions: newSelected };
+      }),
     deselectSession: (sessionId) =>
       set((state) => {
         const newSelected = new Set(state.selectedSessions);
@@ -142,9 +144,13 @@ export const useSessionStore = create<SessionState>()(
         return { selectedSessions: newSelected };
       }),
     selectAllSessions: () =>
-      set((state) => ({
-        selectedSessions: new Set(state.sessions.map((s) => s.id)),
-      })),
+      set((state) => {
+        const newSelected = new Set<string>();
+        state.sessions.forEach((session) => {
+          newSelected.add(session.id);
+        });
+        return { selectedSessions: newSelected };
+      }),
     clearSelection: () => set({ selectedSessions: new Set<string>() }),
 
     // Pagination actions

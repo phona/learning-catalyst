@@ -5,11 +5,6 @@
  * Provides visual feedback for module system health.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import React from 'react';
 import {
   CheckCircleIcon,
@@ -19,17 +14,24 @@ import {
 } from '@heroicons/react/24/outline';
 
 interface ModuleIssue {
-  severity: 'critical' | 'warning' | 'info';
+  severity: 'critical' | 'error' | 'warning' | 'info';
   message: string;
   timestamp?: string;
   module?: string;
 }
 
+interface ModuleHealth {
+  status: string;
+  message?: string;
+  [key: string]: unknown;
+}
+
 interface SystemHealth {
   overall: string;
-  modules?: Record<string, unknown>;
+  modules?: Record<string, ModuleHealth>;
   issues: ModuleIssue[];
   status?: string;
+  lastCheck?: string;
   [key: string]: unknown;
 }
 
@@ -81,13 +83,13 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
     }
   };
 
-  const failedModules = Object.entries(modules).filter(
-    ([_, health]: [string, any]) => health.status === 'failed',
-  );
+  const failedModules = modules
+    ? Object.entries(modules).filter(([_, health]) => health.status === 'failed')
+    : [];
 
-  const degradedModules = Object.entries(modules).filter(
-    ([_, health]: [string, any]) => health.status === 'degraded',
-  );
+  const degradedModules = modules
+    ? Object.entries(modules).filter(([_, health]) => health.status === 'degraded')
+    : [];
 
   if (compact) {
     return (
@@ -150,7 +152,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
           {overall === 'healthy' ? 'Operational' : overall === 'degraded' ? 'Degraded' : 'Error'}
         </span>
         <span className="text-sm text-gray-500 dark:text-gray-400">
-          Last checked: {new Date(systemHealth.lastCheck).toLocaleTimeString()}
+          Last checked: {systemHealth.lastCheck ? new Date(systemHealth.lastCheck).toLocaleTimeString() : 'Never'}
         </span>
       </div>
 
@@ -159,7 +161,7 @@ export const ModuleStatusIndicator: React.FC<ModuleStatusIndicatorProps> = ({
         <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Module Details
         </h4>
-        {Object.entries(modules).map(([moduleName, health]: [string, any]) => (
+        {modules && Object.entries(modules).map(([moduleName, health]) => (
           <div
             key={moduleName}
             className="flex items-center justify-between py-2 px-3 bg-gray-50 dark:bg-gray-700 rounded"

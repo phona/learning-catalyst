@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ServiceContainer } from '@/renderer/services/service-container';
 
 vi.mock('@/renderer/services/service-container', () => ({
   createServiceContainer: vi.fn(() => ({
     analytics: { track: vi.fn() },
     session: { list: vi.fn() },
-  })),
+    chat: { sendMessage: vi.fn() },
+    file: { readFile: vi.fn() },
+  } satisfies ServiceContainer)),
 }));
 
 vi.mock('@/renderer/services/api/electron-api-client', () => ({
@@ -28,13 +31,14 @@ describe('appServices legacy layer', () => {
   });
 
   it('returns stubbed services after initialization', async () => {
-    const beforeCalls = (createServiceContainer as any).mock.calls.length;
+    const mockCreateServiceContainer = vi.mocked(createServiceContainer);
+    const beforeCalls = mockCreateServiceContainer.mock.calls.length;
     await appServices.initialize();
     const analytics = appServices.getAnalytics();
     const session = appServices.getSessionService();
     expect(analytics.track).toBeDefined();
     expect(session.list).toBeDefined();
-    expect((createServiceContainer as any).mock.calls.length).toBe(beforeCalls + 1);
+    expect(mockCreateServiceContainer.mock.calls.length).toBe(beforeCalls + 1);
   });
 
   it('cleanup resets container', async () => {

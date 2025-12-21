@@ -118,11 +118,16 @@ export function useGlobalStatistics(
         console.error('[useGlobalStatistics] Failed to fetch global statistics:', error);
 
         // Provide more user-friendly error messages
-        let errorMessage = error.message || 'Failed to load global statistics';
-        if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
-          errorMessage = 'Database is still initializing. Please wait a moment and try again.';
-        } else if (errorMessage.includes('Session service not available')) {
-          errorMessage = 'Session service is initializing. Please wait...';
+        let errorMessage = 'Failed to load global statistics';
+        if (error instanceof Error) {
+          errorMessage = error.message;
+          if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
+            errorMessage = 'Database is still initializing. Please wait a moment and try again.';
+          } else if (errorMessage.includes('Session service not available')) {
+            errorMessage = 'Session service is initializing. Please wait...';
+          }
+        } else if (typeof error === 'string') {
+          errorMessage = error;
         }
 
         setState((prev) => ({

@@ -22,22 +22,10 @@ import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
 import { handleConversationNode } from '../handleConversation';
 import { PracticeAnnotation } from '../../state';
 import { DEFAULT_PRACTICE_STATE } from '../../types';
-import type { WorkflowDeps } from '../../../state';
+import type { UserIntent } from '../../types';
+import type { WorkflowDeps } from '../../../../state';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
-
-// Interrupt event helpers for testing
-type InterruptEvent = { __interrupt__?: Array<{ value?: unknown; checkpoint_id?: string }> };
-
-const isInterruptEvent = (evt: unknown): evt is InterruptEvent =>
-  !!(evt as InterruptEvent)?.__interrupt__?.length;
-
-const extractInterrupt = (
-  evt: InterruptEvent,
-): Record<string, unknown> | unknown | undefined => {
-  const raw = evt?.__interrupt__?.[0];
-  return raw?.value ?? raw;
-};
+import { extractInterrupt, isInterruptEvent } from '../../../../interrupt';
 
 // Mock dependencies (only stateful external ones)
 const mockLoggerService = {
@@ -45,6 +33,7 @@ const mockLoggerService = {
   info: vi.fn(),
   error: vi.fn(),
   warn: vi.fn(),
+  child: vi.fn().mockReturnThis(),
 };
 
 const mockProviderFactory = {
@@ -62,7 +51,7 @@ const createMockConfig = (): LangGraphRunnableConfig => ({
   writer: mockWriter,
 } as any);
 
-const mockDeps: WorkflowDeps = {
+const mockDeps = {
   agentManager: {} as any,
   loggerService: mockLoggerService,
   checkpointer: {} as any,
@@ -71,7 +60,7 @@ const mockDeps: WorkflowDeps = {
   knowledgeService: {} as any,
   practiceService: {} as any,
   learningService: {} as any,
-} as WorkflowDeps;
+} as unknown as WorkflowDeps;
 
 describe('handleConversationNode', () => {
   beforeEach(() => {
@@ -209,7 +198,7 @@ describe('handleConversationNode', () => {
       const state = {
         practice: {
           ...DEFAULT_PRACTICE_STATE,
-          userIntent: 'give_up',
+          userIntent: 'give_up' as UserIntent,
           hintsGiven: 2,
           conversationTurns: 1,
           currentQuestion: 'What is a closure in JavaScript?',
@@ -331,7 +320,7 @@ describe('handleConversationNode', () => {
       const state = {
         practice: {
           ...DEFAULT_PRACTICE_STATE,
-          userIntent: 'give_up',
+          userIntent: 'give_up' as UserIntent,
           hintsGiven: 0,
           conversationTurns: 0,
           currentQuestion: 'What is a closure?',

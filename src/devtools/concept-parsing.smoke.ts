@@ -6,6 +6,7 @@ import { createPreparsedMaterial } from '../main/services/domain/content/content
 import { ChatOpenAI } from '@langchain/openai';
 import { z } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import type { ILogger } from '../main/services/types';
 
 const readChatGLMConfig = async () => {
   const cfg = path.resolve(process.cwd(), 'test_workspace/.catalyst/config.json');
@@ -120,7 +121,7 @@ const run = async () => {
   const cfg = await readChatGLMConfig();
   const { svc, captured, chatModel } = await buildService(cfg);
 
-  const fileArg = arg('file', path.resolve('test_workspace/test_concept.md'));
+  const fileArg = arg('file', path.resolve('test_workspace/test_concept.md'))!;
   const content = await fs.readFile(fileArg, 'utf-8');
   const maxChars = Number(arg('maxSegmentChars', '50'));
   const minChars = Number(arg('minSegmentChars', '1'));
@@ -154,7 +155,7 @@ const run = async () => {
               difficulty: z.enum(['beginner', 'intermediate', 'advanced']).nullable().optional(),
               confidence: z.number().nullable().optional(),
               tags: z.array(z.string()).nullable().optional(),
-              metadata: z.record(z.unknown()).nullable().optional(),
+              metadata: z.record(z.string(), z.unknown()).nullable().optional(),
             })
             .strict(),
         ),
@@ -167,7 +168,7 @@ const run = async () => {
               strength: z.number().nullable().optional(),
               confidence: z.number().nullable().optional(),
               description: z.string().nullable().optional(),
-              metadata: z.record(z.unknown()).nullable().optional(),
+              metadata: z.record(z.string(), z.unknown()).nullable().optional(),
             })
             .strict(),
         ),

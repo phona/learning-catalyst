@@ -1,7 +1,9 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { renderWithServices, screen, waitFor } from "@/test/utils/renderWithServices";
+import { renderWithServices } from "@/test/utils/test-providers";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import "@testing-library/jest-dom";
 import { LearningDashboard } from "../LearningDashboard";
 import type { StudyMetrics, LearningTrends, Achievement } from "@/renderer/services/analytics/analytics-service";
 import type { ActiveExecution } from "@/shared/types/electron-api/catalyst-api";
@@ -11,17 +13,19 @@ const makeAnalyticsService = () => {
     totalStudyTime: 120,
     sessionsCompleted: 5,
     conceptsStudied: 3,
+    accuracyRate: 0.8,
     averageSessionLength: 24,
     streakDays: 2,
-    sessionTypes: [],
-    masteryProgress: [{ date: new Date().toISOString(), avgMastery: 0.6 }],
-    dailyStudyTime: [],
+    lastStudyDate: new Date(),
+    focusScore: 85,
+    questionsAsked: 15,
+    correctAnswers: 12,
   };
 
   const trends: LearningTrends = {
-    sessionTypes: [],
-    dailyStudyTime: [],
-    masteryProgress: metrics.masteryProgress,
+    sessionTypes: {},
+    dailyStudyTime: [{ date: "2024-01-01", minutes: 30 }],
+    masteryProgress: [{ date: "2024-01-01", avgMastery: 0.6 }],
   };
 
   const achievements: Achievement[] = [
@@ -29,12 +33,10 @@ const makeAnalyticsService = () => {
       id: "a1",
       title: "Starter",
       description: "Complete first session",
-      category: "progress",
-      status: "in-progress",
+      category: "time",
+      requirement: { target: 1, current: 0 },
       progress: 40,
-      requirement: { target: 1, current: 0, unit: "session" },
-      rewards: [],
-      badge: "starter",
+      icon: "starter",
     },
   ];
 
@@ -44,10 +46,21 @@ const makeAnalyticsService = () => {
     getAchievements: vi.fn().mockResolvedValue(achievements),
     getRecentSessions: vi.fn().mockResolvedValue([{ id: "s1", title: "Session 1", statistics: { sessionDuration: 20 }, agent: { provider: "mock", model: "m1" }, metadata: { topicsCovered: ["arrays"] } }]),
     getProgressChart: vi.fn(),
-    getProgressReport: vi.fn(),
-    updateAchievementProgress: vi.fn(),
+    getDashboard: vi.fn(),
+    getSessionHistory: vi.fn(),
+    checkAchievements: vi.fn(),
+    getStudyStreak: vi.fn(),
+    getTimeStats: vi.fn(),
+    exportData: vi.fn(),
+    importData: vi.fn(),
+    trackSession: vi.fn(),
+    updateSession: vi.fn(),
     getConceptProgress: vi.fn(),
     updateConceptProgress: vi.fn(),
+    updateAchievementProgress: vi.fn(),
+    getLearningInsights: vi.fn(),
+    getSession: vi.fn(),
+    trackEvent: vi.fn(),
   } as any;
 };
 

@@ -2,9 +2,47 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SessionTracking } from '@/renderer/components/Analytics/SessionTracking';
-import type { LearningSession } from '@/shared/utils/simple-analytics';
 
-const createSession = (overrides: Partial<LearningSession> = {}): LearningSession => ({
+// Define the LearningSession interface to match what the component expects
+interface LearningSession {
+  id?: string;
+  title: string;
+  startTime: Date;
+  endTime?: Date;
+  duration?: number;
+  concepts: string[];
+  messages?: unknown[];
+  achievements?: string[];
+  notes?: string;
+}
+
+// Define the AnalyticsSession interface that the component actually uses
+interface AnalyticsSession extends LearningSession {
+  aiProvider?: string;
+  aiModel?: string;
+  sessionType?: 'chat' | 'study' | 'assessment' | 'review' | 'exploration';
+  status?: 'completed' | 'in_progress' | 'paused';
+  durationMinutes?: number;
+  conceptsCovered?: string[];
+}
+
+// Define the analytics service interface
+interface RendererAnalyticsService {
+  getStudyMetrics: () => Promise<{
+    totalStudyTime: number;
+    sessionsCompleted: number;
+    averageSessionLength: number;
+    conceptsStudied: number;
+    questionsAsked: number;
+    correctAnswers: number;
+    accuracyRate: number;
+    focusScore: number;
+    streakDays: number;
+    lastStudyDate?: Date;
+  }>;
+}
+
+const createSession = (overrides: Partial<AnalyticsSession> = {}): AnalyticsSession => ({
   id: overrides.id ?? 'session-id',
   title: overrides.title ?? 'Default Title',
   startTime: overrides.startTime ?? new Date('2025-02-10T10:00:00Z'),
@@ -15,10 +53,11 @@ const createSession = (overrides: Partial<LearningSession> = {}): LearningSessio
   conceptsCovered: overrides.conceptsCovered ?? ['react'],
   sessionType: overrides.sessionType ?? 'study',
   status: overrides.status ?? 'completed',
+  concepts: overrides.concepts ?? ['react'],
 });
 
 describe('SessionTracking', () => {
-  const analytics = {
+  const analytics: RendererAnalyticsService = {
     getStudyMetrics: vi.fn(),
   };
 
@@ -32,7 +71,7 @@ describe('SessionTracking', () => {
   });
 
   it('shows a loading indicator while sessions are fetched', (): void => {
-    const loadSessions = (): Promise<LearningSession[]> => new Promise<LearningSession[]>(() => {});
+    const loadSessions = (): Promise<AnalyticsSession[]> => new Promise<AnalyticsSession[]>(() => {});
     const { container } = render(
       <SessionTracking analytics={analytics} loadSessions={loadSessions} />,
     );

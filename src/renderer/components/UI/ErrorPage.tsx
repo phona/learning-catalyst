@@ -2,10 +2,10 @@ import React from 'react';
 import { ExclamationTriangleIcon, ArrowPathIcon, HomeIcon } from '@heroicons/react/24/outline';
 
 export interface SystemError {
-  type: 'SYSTEM_ERROR' | 'CONFIG_ERROR' | 'NETWORK_ERROR';
+  type: string;
   code: string;
   message: string;
-  details?: Record<string, unknown>;
+  details?: unknown;
   timestamp?: number;
 }
 
@@ -87,7 +87,7 @@ export function ErrorPage({
             </p>
           </div>
 
-          {process.env.NODE_ENV === 'development' && crashError.details && (
+          {process.env.NODE_ENV === 'development' && (
             <details className="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm">
               <summary className="cursor-pointer font-semibold text-gray-800 dark:text-gray-200 mb-2">
                 Technical Details (Development Mode)

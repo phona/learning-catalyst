@@ -308,7 +308,6 @@ describe('SetupScreen', () => {
       },
       validateProvider: vi.fn(),
       getProviderModels: vi.fn(),
-      updateModelTypeConfig: vi.fn(),
     } as ConfigurationService;
 
     const { default: SetupScreen } = await import('../SetupScreen');

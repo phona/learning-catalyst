@@ -23,7 +23,7 @@ import type {
 } from '@/shared/types/filesystem';
 import type { ParsingJob, ParsingOptions } from '@/shared/types/concept-parsing';
 import { ConceptParsingResults } from './ConceptParsingResults';
-import { useFileService, useService } from '@/renderer/services/services-provider';
+import { useFileService, useService, useChatService } from '@/renderer/services/services-provider';
 import type { ConceptIngestionPlan } from '@/shared/types/electron-api/knowledge-api';
 import { showSuccess, showError } from '@/renderer/utils/toast';
 
@@ -173,7 +173,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   className = '',
 }) => {
   const conceptParsingService = useService('conceptParsing');
-  const chatService = useService('chatService');
+  const chatService = useChatService();
   const fileService = useFileService();
   const [projectStructure, setProjectStructure] = useState<ProjectStructure | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -297,7 +297,7 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const handleDepthChange = (newDepth: number) => {
     setMaxDepth(newDepth);
     if (currentPath) {
-      loadDirectory(currentPath, maxDepth);
+      loadDirectory(currentPath, newDepth);
     }
   };
 
@@ -328,16 +328,17 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   };
 
   const monitorJob = (jobId: string, usedFiles: string[]) => {
+    if (!conceptParsingService) return;
+
     const checkProgress = setInterval(() => {
-      const updatedJob = conceptParsingService!.getJobStatus(jobId);
+      const updatedJob = conceptParsingService.getJobStatus(jobId);
       if (updatedJob) {
         setActiveParsingJob(updatedJob);
 
         if (updatedJob.status === 'completed') {
           clearInterval(checkProgress);
           setShowParsingResults(true);
-          const jobMetaId = updatedJob.result?.metadata?.jobId ?? jobId;
-          setLastJobId(jobMetaId);
+          setLastJobId(jobId);
           setLastFiles(usedFiles);
         } else if (updatedJob.status === 'failed') {
           clearInterval(checkProgress);
@@ -410,8 +411,13 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
     }
 
     // All validations passed - start parsing
+    if (!conceptParsingService) {
+      showError('Concept parsing service is not available');
+      return;
+    }
+
     try {
-      const job = await conceptParsingService!.parseFiles(markdownFiles, {
+      const job = await conceptParsingService.parseFiles(markdownFiles, {
         confidenceThreshold: 0.6,
         maxConceptsPerFile: 50,
         includeRelationships: true,
@@ -431,8 +437,8 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   };
 
   const cancelParsing = () => {
-    if (activeParsingJob) {
-      conceptParsingService!.cancelJob(activeParsingJob.id);
+    if (activeParsingJob && conceptParsingService) {
+      conceptParsingService.cancelJob(activeParsingJob.id);
       setActiveParsingJob(null);
     }
   };
@@ -440,14 +446,15 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
   const retryParsing = async () => {
     if (
       !activeParsingJob ||
-      (activeParsingJob.status !== 'failed' && activeParsingJob.status !== 'completed')
+      (activeParsingJob.status !== 'failed' && activeParsingJob.status !== 'completed') ||
+      !conceptParsingService
     )
       return;
 
     try {
       const filesToUse = getSelectedMarkdownFiles();
       // Reset job status for retry
-      const retryJob = await conceptParsingService!.parseFiles(filesToUse, {
+      const retryJob = await conceptParsingService.parseFiles(filesToUse, {
         confidenceThreshold: 0.6,
         maxConceptsPerFile: 50,
         includeRelationships: true,
@@ -958,7 +965,10 @@ export const LocalProjectExplorer: React.FC<LocalProjectExplorerProps> = ({
                 onExport={handleExportResults}
                 onConceptSelect={handleConceptSelect}
                 onIngest={async (result, plan) => {
-                  await conceptParsingService!.ingestParsedResult(result, plan);
+                  if (conceptParsingService) {
+                    return await conceptParsingService.ingestParsedResult(result, plan);
+                  }
+                  throw new Error('Concept parsing service is not available');
                 }}
               />
             </div>

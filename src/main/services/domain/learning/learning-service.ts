@@ -106,12 +106,12 @@ const PATH_PREFIX = 'learning_path:';
 
 const difficultyToLevel = (value: string | undefined): number => {
   switch ((value ?? 'intermediate').toLowerCase()) {
-    case 'beginner':
-      return 1;
-    case 'advanced':
-      return 3;
-    default:
-      return 2;
+  case 'beginner':
+    return 1;
+  case 'advanced':
+    return 3;
+  default:
+    return 2;
   }
 };
 
@@ -495,13 +495,13 @@ export const createLearningService = ({
           .execute();
         const rows = Array.isArray(raw)
           ? raw
-          : Array.isArray((raw as unknown)?.rows)
-            ? (raw as unknown).rows
+          : Array.isArray((raw as any)?.rows)
+            ? (raw as any).rows
             : [];
         if (!Array.isArray(raw)) {
           serviceLogger.warn('getRecentSessions unexpected result shape', {
             type: typeof raw,
-            keys: raw && typeof raw === 'object' ? Object.keys(raw as unknown) : [],
+            keys: raw && typeof raw === 'object' ? Object.keys(raw as any) : [],
           });
         }
         return rows.map(mapSessionRow);
@@ -595,7 +595,7 @@ export const createLearningService = ({
         }
       };
       const toObject = <T extends Record<string, number>>(json?: string): T | undefined => {
-        if (!json) return undefined as unknown;
+        if (!json) return undefined;
         try {
           const v = JSON.parse(json) as T;
           return typeof v === 'object' && v ? v : undefined;
@@ -605,30 +605,31 @@ export const createLearningService = ({
       };
       return raw
         .map((row: unknown) => {
-          const conceptIds = toArray(row.concept_ids);
-          const errorTags = toArray(row.error_tags);
-          const rubric = toObject<Record<string, number>>(row.rubric_scores);
+          const r = row as import('@/shared/types/database').PracticeAttemptRow;
+          const conceptIds = toArray(r.concept_ids);
+          const errorTags = toArray(r.error_tags);
+          const rubric = toObject<Record<string, number>>(r.rubric_scores);
           const normalized =
-            row.result === 'pass' || row.result === 'fail' || row.result === 'partial'
-              ? row.result
+            r.result === 'pass' || r.result === 'fail' || r.result === 'partial'
+              ? r.result
               : 'partial';
           return {
-            taskId: row.task_id,
+            taskId: r.task_id,
             conceptIds: conceptIds.length ? conceptIds : (params?.conceptIds ?? []),
             result: normalized,
-            answer: row.answer ?? undefined,
+            answer: r.answer ?? undefined,
             errorTags: errorTags.length ? errorTags : undefined,
             rubricScores: rubric
               ? {
-                  retrieval: rubric.retrieval,
-                  application: rubric.application,
-                  teachBack: rubric.teachBack,
-                }
+                retrieval: rubric.retrieval,
+                application: rubric.application,
+                teachBack: rubric.teachBack,
+              }
               : undefined,
-            timestamp: row.timestamp ?? undefined,
+            timestamp: r.timestamp ?? undefined,
           };
         })
-        .filter((a: unknown) => (Array.isArray(a.conceptIds) ? a.conceptIds.length > 0 : true));
+        .filter((a: { conceptIds?: string[] }) => (Array.isArray(a.conceptIds) ? a.conceptIds.length > 0 : true));
     },
 
     getSession: async (sessionId: string): Promise<LearningSession | null> => {

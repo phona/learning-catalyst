@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { createKnowledgeService } from '../knowledge-service';
+import type { ILogger } from '@/main/services/types';
 
-// Mock dependencies
+// Mock dependencies - keep as plain objects with vi.fn() for mock methods
 const mockDb = {
   selectFrom: vi.fn(),
   insertInto: vi.fn(),
@@ -14,13 +15,24 @@ const mockVectorDatabase = {
   addDocumentBatch: vi.fn(),
   search: vi.fn(),
   deleteDocument: vi.fn(),
+  addDocumentWithEmbedding: vi.fn(),
+  getStats: vi.fn(),
+  start: vi.fn(),
+};
+
+const mockLogger: ILogger = {
+  info: vi.fn(),
+  debug: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  child: () => mockLogger,
 };
 
 const mockLoggerService = {
-  child: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+  child: () => mockLogger,
 };
 
-const mockRerankFn = vi.fn(async (query: string, docs: string[]) => ({
+const mockRerankFn = vi.fn(async (_query: string, docs: string[]) => ({
   indices: docs.map((_, i) => i),
   scores: docs.map(() => 0.9),
 }));
@@ -29,12 +41,24 @@ const mockProviderFactory = {
   getEmbeddingModel: vi.fn(async () => ({
     embed: vi.fn(async () => Array(1536).fill(0.1)),
     embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
+    dimensions: 1536,
   })),
   getRerankModel: vi.fn(async () => ({
     rerank: mockRerankFn,
     settings: { model: 'test-rerank' },
   })),
+  getModel: vi.fn(),
+  getEmbeddings: vi.fn(),
 };
+
+// Helper to create service with type casts applied at creation time
+const createTestService = () =>
+  createKnowledgeService({
+    db: mockDb as never,
+    vectorDatabase: mockVectorDatabase as never,
+    providerFactory: mockProviderFactory as never,
+    loggerService: mockLoggerService,
+  });
 
 describe('pure separation architecture', () => {
   beforeEach(() => {
@@ -43,12 +67,7 @@ describe('pure separation architecture', () => {
 
   describe('vector database payload structure', () => {
     it('should store only conceptId and content in Qdrant', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const _service = createTestService();
 
       // Mock insertion flow
       const mockConcepts = [
@@ -87,22 +106,18 @@ describe('pure separation architecture', () => {
       });
 
       // Should NOT have type, level, path, confidence
-      expect(documentsWithEmbeddings[0].doc.metadata.type).toBeUndefined();
-      expect(documentsWithEmbeddings[0].doc.metadata.level).toBeUndefined();
-      expect(documentsWithEmbeddings[0].doc.metadata.path).toBeUndefined();
-      expect(documentsWithEmbeddings[0].doc.metadata.confidence).toBeUndefined();
+      const metadata = documentsWithEmbeddings[0].doc.metadata as Record<string, unknown>;
+      expect(metadata.type).toBeUndefined();
+      expect(metadata.level).toBeUndefined();
+      expect(metadata.path).toBeUndefined();
+      expect(metadata.confidence).toBeUndefined();
 
       // Verify content is included
       expect(documentsWithEmbeddings[0].doc.content).toBe('Variables\n\nVariables store data');
     });
 
     it('should truncate content to 500 chars for Qdrant', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const _service = createTestService();
 
       const longDescription = 'x'.repeat(1000);
       const mockConcept = {
@@ -121,12 +136,7 @@ describe('pure separation architecture', () => {
 
   describe('search functionality with pure separation', () => {
     it('should extract conceptId from Qdrant results', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       // Mock Qdrant search results (minimal payload)
       const mockQdrantResults = [
@@ -194,7 +204,7 @@ describe('pure separation architecture', () => {
 
       // Verify SQLite was queried for full data
       expect(mockDb.selectFrom).toHaveBeenCalledWith('concepts');
-      expect(mockDb.selectFrom().selectAll).toHaveBeenCalled();
+      expect((mockDb.selectFrom('concepts') as { selectAll: Mock }).selectAll).toHaveBeenCalled();
 
       // Verify results combine Qdrant scores with SQLite data
       expect(result).toHaveLength(2);
@@ -205,12 +215,7 @@ describe('pure separation architecture', () => {
     });
 
     it('should return empty array when no Qdrant results', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([]);
 
@@ -220,12 +225,7 @@ describe('pure separation architecture', () => {
     });
 
     it('should return empty array when no conceptIds in results', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([
         {
@@ -246,12 +246,7 @@ describe('pure separation architecture', () => {
 
   describe('findRelatedByPrompt with pure separation', () => {
     it('should search Qdrant and enrich from SQLite', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       const mockVectorResults = [
         {
@@ -288,22 +283,17 @@ describe('pure separation architecture', () => {
       const result = await service.findRelatedByPrompt('variables', { limit: 10, threshold: 0.5 });
 
       expect(result.matches).toHaveLength(1);
-      expect(result.matches[0].id).toBe('concept-1');
-      expect(result.matches[0].name).toBe('Variables');
-      expect(result.matches[0].type).toBe('concept');
-      expect(result.matches[0].metadata.conceptId).toBe('concept-1');
-      expect(result.matches[0].metadata.type).toBe('concept');
-      expect(result.matches[0].metadata.level).toBe(1);
-      expect(result.matches[0].metadata.path).toBe('Python > Variables');
+      expect(result.matches[0]!.id).toBe('concept-1');
+      expect(result.matches[0]!.name).toBe('Variables');
+      expect(result.matches[0]!.type).toBe('concept');
+      expect(result.matches[0]!.metadata.conceptId).toBe('concept-1');
+      expect(result.matches[0]!.metadata.type).toBe('concept');
+      expect(result.matches[0]!.metadata.level).toBe(1);
+      expect(result.matches[0]!.metadata.path).toBe('Python > Variables');
     });
 
     it('should use SQLite data for reranking content', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([
         {
@@ -338,18 +328,13 @@ describe('pure separation architecture', () => {
       // Verify rerank model was called with SQLite-enriched content
       expect(mockRerankFn).toHaveBeenCalled();
       const rerankCall = mockRerankFn.mock.calls[0];
-      expect(rerankCall[1][0]).toContain('Variables\n\nDetailed description from SQLite');
+      expect(rerankCall![1][0]).toContain('Variables\n\nDetailed description from SQLite');
     });
   });
 
   describe('data consistency checks', () => {
     it('should maintain order by Qdrant relevance score', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       // Qdrant results in one order
       const mockQdrantResults = [
@@ -387,12 +372,7 @@ describe('pure separation architecture', () => {
     });
 
     it('should filter out concepts not found in SQLite', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       const mockQdrantResults = [
         {
@@ -432,12 +412,7 @@ describe('pure separation architecture', () => {
     });
 
     it('should limit results after filtering', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       // 20 Qdrant results
       const mockQdrantResults = Array.from({ length: 20 }, (_, i) => ({
@@ -474,12 +449,7 @@ describe('pure separation architecture', () => {
 
   describe('error handling', () => {
     it('should handle SQLite query failures gracefully', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([
         {
@@ -500,12 +470,7 @@ describe('pure separation architecture', () => {
     });
 
     it('should handle missing metadata gracefully', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([
         {
@@ -540,12 +505,7 @@ describe('pure separation architecture', () => {
 
   describe('performance characteristics', () => {
     it('should use lower threshold for better recall', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([]);
 
@@ -558,12 +518,7 @@ describe('pure separation architecture', () => {
     });
 
     it('should fetch more results than requested for filtering', async () => {
-      const service = createKnowledgeService({
-        db: mockDb,
-        vectorDatabase: mockVectorDatabase,
-        providerFactory: mockProviderFactory,
-        loggerService: mockLoggerService,
-      });
+      const service = createTestService();
 
       mockVectorDatabase.search.mockResolvedValue([]);
 

@@ -12,9 +12,19 @@ import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 vi.mock('@langchain/openai', () => ({
   ChatOpenAI: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
   OpenAIEmbeddings: vi.fn().mockImplementation((cfg) => ({
-    config: cfg,
-    dimensions: cfg.dimensions,
-  })),
+    modelName: (cfg?.model as string) || '',
+    model: (cfg?.model as string) || '',
+    batchSize: cfg?.batchSize || 512,
+    stripNewLines: cfg?.stripNewLines ?? true,
+    maxRetries: cfg?.maxRetries ?? 3,
+    timeout: cfg?.timeout,
+    apiKey: cfg?.apiKey,
+    configuration: cfg?.configuration,
+    verbose: cfg?.verbose,
+    dimensions: cfg?.dimensions,
+    embedQuery: vi.fn(),
+    embedDocuments: vi.fn(),
+  }) as any),
 }));
 
 describe('Provider Embeddings Configuration', () => {
@@ -22,9 +32,19 @@ describe('Provider Embeddings Configuration', () => {
     // Reset mock completely to default state that includes dimensions from config
     vi.mocked(OpenAIEmbeddings).mockReset();
     vi.mocked(OpenAIEmbeddings).mockImplementation((cfg) => ({
-      config: cfg,
-      dimensions: cfg.dimensions,
-    }));
+      modelName: (cfg?.model as string) || '',
+      model: (cfg?.model as string) || '',
+      batchSize: cfg?.batchSize || 512,
+      stripNewLines: cfg?.stripNewLines ?? true,
+      maxRetries: cfg?.maxRetries ?? 3,
+      timeout: cfg?.timeout,
+      apiKey: cfg?.apiKey,
+      configuration: cfg?.configuration,
+      verbose: cfg?.verbose,
+      dimensions: cfg?.dimensions,
+      embedQuery: vi.fn(),
+      embedDocuments: vi.fn(),
+    }) as any);
   });
 
   const makeConfigService = (config: unknown) => ({
@@ -74,9 +94,11 @@ describe('Provider Embeddings Configuration', () => {
         dimensions: 3072,
       });
 
-      expect(embeddings.config.model).toBe('text-embedding-3-large');
-      expect(embeddings.config.apiKey).toBe('sk-openai-key');
-      expect(embeddings.config.dimensions).toBe(3072);
+      // Cast to OpenAIEmbeddings to access properties
+      const openaiEmbeddings = embeddings as any;
+      expect(openaiEmbeddings.model).toBe('text-embedding-3-large');
+      expect(openaiEmbeddings.apiKey).toBe('sk-openai-key');
+      expect(openaiEmbeddings.dimensions).toBe(3072);
     });
 
     it('should handle SiliconFlow embedding provider', async () => {
@@ -272,8 +294,13 @@ describe('Provider Embeddings Configuration', () => {
       vi.mocked(OpenAIEmbeddings).mockImplementation(() => ({
         embedQuery: mockEmbedQuery,
         embedDocuments: mockEmbedDocuments,
-        config: { model: 'text-embedding-3-small' },
-      }));
+        modelName: 'text-embedding-3-small',
+        model: 'text-embedding-3-small',
+        batchSize: 512,
+        stripNewLines: true,
+        maxRetries: 3,
+        dimensions: 1536,
+      }) as any);
 
       const config = {
         ai: {
@@ -304,9 +331,15 @@ describe('Provider Embeddings Configuration', () => {
 
       // Reset the mock to default
       vi.mocked(OpenAIEmbeddings).mockImplementation(() => ({
-        config: {},
-        dimensions: undefined,
-      }));
+        modelName: '' as any,
+        model: '' as any,
+        batchSize: 512,
+        stripNewLines: true,
+        maxRetries: 3,
+        dimensions: undefined as any,
+        embedQuery: vi.fn(),
+        embedDocuments: vi.fn(),
+      }) as any);
     });
 
     it('should handle batch text embedding', async () => {
@@ -322,8 +355,13 @@ describe('Provider Embeddings Configuration', () => {
       vi.mocked(OpenAIEmbeddings).mockImplementation(() => ({
         embedQuery: mockEmbedQuery,
         embedDocuments: mockEmbedDocuments,
-        config: { model: 'text-embedding-3-small' },
-      }));
+        modelName: 'text-embedding-3-small',
+        model: 'text-embedding-3-small',
+        batchSize: 512,
+        stripNewLines: true,
+        maxRetries: 3,
+        dimensions: 1536,
+      }) as any);
 
       const config = {
         ai: {
@@ -359,9 +397,15 @@ describe('Provider Embeddings Configuration', () => {
 
       // Reset the mock to default
       vi.mocked(OpenAIEmbeddings).mockImplementation(() => ({
-        config: {},
-        dimensions: undefined,
-      }));
+        modelName: '' as any,
+        model: '' as any,
+        batchSize: 512,
+        stripNewLines: true,
+        maxRetries: 3,
+        dimensions: undefined as any,
+        embedQuery: vi.fn(),
+        embedDocuments: vi.fn(),
+      }) as any);
     });
   });
 

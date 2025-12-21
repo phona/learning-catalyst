@@ -1,6 +1,8 @@
 import type { AppConfig } from '@/shared/types/config';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
 import { assertOk, unwrap } from '@/renderer/utils/apiResponse';
+import type { ElectronAPI, APIResponse } from '@/shared/types/electron-api';
+
 
 // Menu handlers interface
 interface MenuHandlers {
@@ -53,7 +55,7 @@ export async function getAppVersion(): Promise<string> {
 
   try {
     const resp = await window.electronAPI.settings.getAppVersion();
-    const data = unwrap(resp);
+    const data = unwrap(resp as APIResponse<string>);
     return typeof data === 'string' ? data : 'Unknown';
   } catch (error) {
     console.error('Failed to get app version:', error);
@@ -71,7 +73,7 @@ export async function quitApp(): Promise<void> {
 
   try {
     const resp = await window.electronAPI.settings.quit();
-    assertOk(resp);
+    assertOk(resp as APIResponse<unknown>);
   } catch (error) {
     console.error('Failed to quit app:', error);
   }
@@ -165,27 +167,30 @@ export function validateConfig(config: unknown): config is AppConfig {
     return false;
   }
 
+  const configObj = config as Record<string, unknown>;
+
   // Basic structure validation
   const requiredSections = ['ai', 'ui', 'learning', 'privacy', 'performance'];
   for (const section of requiredSections) {
-    if (!config[section] || typeof config[section] !== 'object') {
+    if (!configObj[section] || typeof configObj[section] !== 'object') {
       return false;
     }
   }
 
   // AI section validation
-  if (!config.ai.default_provider || typeof config.ai.default_provider !== 'string') {
+  const aiConfig = configObj.ai as Record<string, unknown>;
+  if (!aiConfig.default_provider || typeof aiConfig.default_provider !== 'string') {
     return false;
   }
 
-  if (!config.ai.default_model || typeof config.ai.default_model !== 'string') {
+  if (!aiConfig.default_model || typeof aiConfig.default_model !== 'string') {
     return false;
   }
 
   if (
-    typeof config.ai.temperature !== 'number' ||
-    config.ai.temperature < 0 ||
-    config.ai.temperature > 2
+    typeof aiConfig.temperature !== 'number' ||
+    aiConfig.temperature < 0 ||
+    aiConfig.temperature > 2
   ) {
     return false;
   }

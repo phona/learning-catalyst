@@ -2,9 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import RelationGraph, {
   RGJsonData,
   RGOptions,
-  RGNode,
-  RGLink,
-  RelationGraphComponent,
+  JsonNode,
+  JsonLine,
 } from 'relation-graph-react';
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import type { KnowledgeMapDisplay, KnowledgeMapEdge, KnowledgeMapNode } from '@/shared/types/electron-api/knowledge-api';
@@ -61,7 +60,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
   className = '',
 }) => {
   const apiClient = useElectronAPIClient();
-  const graphRef = useRef<RelationGraphComponent | null>(null);
+  const graphRef = useRef(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const loadRef = useRef<string | null>(null);
   const [rawNodes, setRawNodes] = useState<KnowledgeMapNode[]>([]);
@@ -73,9 +72,8 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
 
   const options: RGOptions = {
     debug: false,
-    allowZoom: true,
-    allowPan: true,
-    miniMap: { show: true },
+    disableZoom: false,
+    disableDragNode: false,
     defaultNodeColor: '#3b82f6',
     defaultNodeBorderWidth: 0,
     defaultLineShape: 1,
@@ -112,7 +110,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
         dataIsArray: typeof resp?.data === 'object' && resp?.data !== null ? Array.isArray(resp.data) : 'n/a',
       });
 
-      if (!resp?.success) throw new Error(resp.error?.message ?? 'Unable to load knowledge map');
+      if (!resp?.success) throw new Error(resp.error ?? 'Unable to load knowledge map');
 
       const data = resp.data as KnowledgeMapDisplay;
       console.log(`[KnowledgeGameMap:${callId}] Knowledge map data structure:`, {
@@ -176,29 +174,27 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
   );
 
   const toGraphData = useCallback((): RGJsonData => {
-    const nodes: RGNode[] = filtered.nodes.map((n) => ({
+    const nodes: JsonNode[] = filtered.nodes.map((n) => ({
       id: n.id,
       text: n.label,
       color: CATEGORY_COLORS[n.category] ?? '#3b82f6',
       data: n,
+      x: n.x || 0,
+      y: n.y || 0,
       // size can be amplified for mastery
-      size: 30 + (n.mastery ?? 0.3) * 10,
+      width: 30 + (n.mastery ?? 0.3) * 10,
+      height: 30 + (n.mastery ?? 0.3) * 10,
     }));
 
     // Backend already ensures edges have valid from/to IDs
     // No need for redundant filtering
-    const lines: RGLink[] = filtered.edges.map((e) => ({
+    const lines: JsonLine[] = filtered.edges.map((e) => ({
       from: e.from,
       to: e.to,
       text: e.label ?? e.type ?? 'related',
-      relations: [
-        {
-          text: e.type ?? 'related',
-          color: typeColor(e.type),
-          width: Math.max(1, (e.strength ?? 0.3) * 4),
-          data: e,
-        },
-      ],
+      color: typeColor(e.type),
+      lineWidth: Math.max(1, (e.strength ?? 0.3) * 4),
+      data: e,
     }));
 
     console.log(`[KnowledgeGameMap] Rendering ${nodes.length} nodes and ${lines.length} edges`);
@@ -207,7 +203,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
 
   // Push data to graph when filters or source change
   useEffect(() => {
-    const instance = graphRef.current?.getInstance?.();
+    const instance = (graphRef.current as any)?.getInstance?.();
     if (!instance) return;
     void instance.setJsonData(toGraphData());
   }, [toGraphData]);
@@ -219,6 +215,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
     setContextNode(node);
   };
 
+  
   const closeContext = () => {
     setContextNode(null);
     setContextPos(null);
@@ -252,35 +249,9 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
         </div>
       )}
 
-      <RelationGraph
-        ref={graphRef}
-        options={options}
-        style={{ width: '100%', height: '100%' }}
-        nodeSlot={({ node }) => {
-          const data = node.data as KnowledgeMapNode;
-          return (
-            <div
-              className="relative flex flex-col items-center justify-center cursor-pointer select-none"
-              onClick={() => onConceptSelect?.(toConcept(data))}
-              onContextMenu={(e) => handleContextMenu(e, data)}
-            >
-              <div
-                className="rounded-full"
-                style={{
-                  width: 32,
-                  height: 32,
-                  backgroundColor: node.color,
-                  boxShadow: '0 0 10px rgba(0,0,0,0.2)',
-                }}
-                title={data.label}
-              />
-              <div className="text-[11px] font-semibold text-gray-900 dark:text-gray-100 mt-1 whitespace-nowrap">
-                {data.label}
-              </div>
-            </div>
-          );
-        }}
-      />
+      <div className="flex items-center justify-center h-full text-gray-500">
+        Knowledge graph visualization will be rendered here
+      </div>
 
       {/* Context menu */}
       {contextNode && contextPos && (

@@ -6,29 +6,45 @@ import { executeExtractionWorkflow } from '../extraction-workflow';
 
 describe('Workflow Streaming Test', () => {
   it.skip('should extract concepts via streaming without timeout', async () => {
-    // Load test configuration
-    const configPath = path.join(process.cwd(), '.testconfig.json');
-    const testConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    // Mock test configuration to avoid external dependencies
+    const mockConfig = {
+      provider: {
+        chatModel: {
+          apiKey: 'test-key',
+          model: 'gpt-3.5-turbo',
+          temperature: 0.7,
+          maxTokens: 1000,
+          baseUrl: 'https://api.openai.com/v1',
+        },
+      },
+    };
 
     // Set environment variable for ChatOpenAI
-    process.env.OPENAI_API_KEY = testConfig.provider.chatModel.apiKey;
+    process.env.OPENAI_API_KEY = mockConfig.provider.chatModel.apiKey;
 
-    // Create ChatOpenAI model with ChatGLM
+    // Create ChatOpenAI model
     const chatModel = new ChatOpenAI({
-      modelName: testConfig.provider.chatModel.model,
-      temperature: testConfig.provider.chatModel.temperature,
-      maxTokens: testConfig.provider.chatModel.maxTokens,
+      modelName: mockConfig.provider.chatModel.model,
+      temperature: mockConfig.provider.chatModel.temperature,
+      maxTokens: mockConfig.provider.chatModel.maxTokens,
       configuration: {
-        baseURL: testConfig.provider.chatModel.baseUrl,
+        baseURL: mockConfig.provider.chatModel.baseUrl,
       },
       timeout: 30000, // 30s timeout for silence between chunks (not total time)
     });
 
     const logger = {
-      info: (msg: string, data?: object) => console.log(`[INFO] ${msg}`, data || ''),
-      debug: (msg: string, data?: object) => console.log(`[DEBUG] ${msg}`, data || ''),
-      warn: (msg: string, data?: object) => console.warn(`[WARN] ${msg}`, data || ''),
-      error: (msg: string, data?: object) => console.error(`[ERROR] ${msg}`, data || ''),
+      info: (msg: string, ...args: unknown[]) => console.log(`[INFO] ${msg}`, ...args),
+      debug: (msg: string, ...args: unknown[]) => console.log(`[DEBUG] ${msg}`, ...args),
+      warn: (msg: string, ...args: unknown[]) => console.warn(`[WARN] ${msg}`, ...args),
+      error: (msg: string, error?: Error | unknown, ...args: unknown[]) => console.error(`[ERROR] ${msg}`, error, ...args),
+      child: (context: Record<string, unknown>) => ({
+        info: (msg: string, ...args: unknown[]) => console.log(`[INFO] ${msg}`, context, ...args),
+        debug: (msg: string, ...args: unknown[]) => console.log(`[DEBUG] ${msg}`, context, ...args),
+        warn: (msg: string, ...args: unknown[]) => console.warn(`[WARN] ${msg}`, context, ...args),
+        error: (msg: string, error?: Error | unknown, ...args: unknown[]) => console.error(`[ERROR] ${msg}`, context, error, ...args),
+        child: () => logger as any,
+      }),
     };
 
     const testContent = `# Python Data Types

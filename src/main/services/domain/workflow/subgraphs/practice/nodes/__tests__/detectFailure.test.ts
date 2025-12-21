@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { detectFailureNode } from '../detectFailure';
 import { PracticeAnnotation } from '../../state';
 import { DEFAULT_PRACTICE_STATE } from '../../types';
-import type { WorkflowDeps } from '../../../state';
+import type { WorkflowDeps } from '../../../../state';
 
 // Mock dependencies
 const mockLoggerService = {
@@ -19,6 +19,12 @@ const mockLoggerService = {
   info: vi.fn(),
   error: vi.fn(),
   warn: vi.fn(),
+  child: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+  }),
 };
 
 const mockDeps: WorkflowDeps = {

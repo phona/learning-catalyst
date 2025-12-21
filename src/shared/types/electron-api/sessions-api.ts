@@ -1,11 +1,11 @@
 import type {
   SessionSearchResult,
   SessionSearchQuery,
-} from '@/shared/types/session';
+} from '../session';
 
 import type { SessionDisplay } from './learning-api';
 
-import type { SessionUpdateRequest, SessionCreateRequest } from '@/renderer/types/session';
+import type { SessionUpdateRequest, SessionCreateRequest } from '../../../renderer/types/session';
 import type { APIResponse } from './base';
 
 export interface SessionStatistics {

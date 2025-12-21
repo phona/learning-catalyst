@@ -27,10 +27,6 @@ export interface VectorStore {
   deleteCollection(name: string): Promise<void>;
   listCollections(): Promise<Array<{
     name: string;
-    vectors_count: number;
-    points_count: number;
-    status: string;
-    optimizer_status: string;
   }>>;
 
   // Vector Operations
@@ -41,7 +37,7 @@ export interface VectorStore {
     options?: {
       limit?: number;
       scoreThreshold?: number;
-      filter?: unknown;
+      filter?: Record<string, unknown>;
     }
   ): Promise<VectorSearchResult[]>;
   getVectors(collectionName: string, ids: Array<string | number>): Promise<VectorPoint[]>;
@@ -155,20 +151,10 @@ export function createVectorStore(
    */
   async function listCollections(): Promise<Array<{
     name: string;
-    vectors_count: number;
-    points_count: number;
-    status: string;
-    optimizer_status: string;
   }>> {
     await ensureReady();
     const res = await getClient().getCollections();
-    return res.collections.map((col: { name: string; vectors_count?: number; points_count?: number; status: string; optimizer_status?: { status?: string } }) => ({
-      name: col.name,
-      vectors_count: col.vectors_count || 0,
-      points_count: col.points_count || 0,
-      status: col.status,
-      optimizer_status: col.optimizer_status?.status || 'unknown',
-    }));
+    return res.collections;
   }
 
   /**
@@ -208,11 +194,17 @@ export function createVectorStore(
     options: {
       limit?: number;
       scoreThreshold?: number;
-      filter?: unknown;
+      filter?: Record<string, unknown>;
     } = {}
   ): Promise<VectorSearchResult[]> {
     await ensureReady();
-    const payload: unknown = {
+    const payload: {
+      vector: number[];
+      limit?: number;
+      score_threshold?: number;
+      with_payload: boolean;
+      filter?: Record<string, unknown>;
+    } = {
       vector: queryVector,
       limit: options.limit || 10,
       score_threshold: options.scoreThreshold || 0.7,
@@ -224,7 +216,7 @@ export function createVectorStore(
     }
 
     const result = await getClient().search(collectionName, payload);
-    return result.map((r: unknown) => ({
+    return result.map((r: any) => ({
       id: r.id,
       score: r.score,
       payload: r.payload,
@@ -246,7 +238,7 @@ export function createVectorStore(
     };
 
     const result = await getClient().retrieve(collectionName, payload);
-    return result.map((point: unknown) => ({
+    return result.map((point: any) => ({
       id: point.id,
       vector: point.vector,
       payload: point.payload,
@@ -271,7 +263,7 @@ export function createVectorStore(
   async function clearCollection(collectionName: string): Promise<void> {
     await ensureReady();
     const batchSize = 1000;
-    let offset: unknown = undefined;
+    let offset: string | number | Record<string, unknown> | undefined = undefined;
     let done = false;
 
     while (!done) {
@@ -281,7 +273,7 @@ export function createVectorStore(
         with_vector: false,
         offset,
       });
-      const ids = page.points?.map((p: unknown) => p.id) ?? [];
+      const ids = page.points?.map((p: any) => p.id) ?? [];
 
       if (ids.length > 0) {
         await getClient().delete(collectionName, { points: ids });
@@ -315,11 +307,11 @@ export function createVectorStore(
       limit: options.limit || 1000,
       with_payload: options.withPayload !== false,
       with_vector: options.withVector || false,
-      offset: options.offset,
+      offset: options.offset as string | number | Record<string, unknown> | undefined,
     });
 
     return {
-      points: page.points?.map((p: unknown) => ({
+      points: page.points?.map((p: any) => ({
         id: p.id,
         vector: p.vector,
         payload: p.payload,

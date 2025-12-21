@@ -5,8 +5,8 @@
  * This is an adapter that wraps the core vector-store service.
  */
 
-import type { VectorStore } from '@/main/services/core/database/vector-store';
-import type { ProviderFactory } from '@/main/services/agent/provider-factory';
+import type { VectorStore } from '../../../core/database/vector-store';
+import type { ProviderFactory } from '../../../agent/provider-factory';
 
 // Pure separation: Qdrant stores vectors + conceptId, all other data in SQLite
 const DEFAULT_SEARCH_THRESHOLD = 0.5;  // Lowered for pure separation architecture
@@ -142,18 +142,22 @@ export const createVectorDatabase = (
     console.log('[VectorDatabase] Qdrant returned', rawResults.length, 'results');
 
     return rawResults.map((result) => {
+      const payload = result.payload as { content?: string; metadata?: Record<string, unknown> };
+      const metadata = payload.metadata || {};
+      const createdAtStr = metadata.createdAt as string | undefined;
+      const updatedAtStr = metadata.updatedAt as string | undefined;
       const document: VectorDocument = {
         id: typeof result.id === 'string' ? result.id : String(result.id),
-        content: result.payload.content || '',
-        metadata: result.payload.metadata || {},
-        createdAt: new Date(result.payload.metadata?.createdAt || Date.now()),
-        updatedAt: new Date(result.payload.metadata?.updatedAt || Date.now()),
+        content: payload.content || '',
+        metadata,
+        createdAt: new Date(createdAtStr || Date.now()),
+        updatedAt: new Date(updatedAtStr || Date.now()),
       };
 
       return {
         document,
         score: result.score,
-        metadata: result.payload.metadata,
+        metadata,
       };
     });
   };
@@ -164,7 +168,7 @@ export const createVectorDatabase = (
 
   const getStats = async (): Promise<{ totalDocuments: number }> => {
     const collections = await vectorStore.listCollections();
-    const kc = collections.find((c) => c.name === 'knowledge_items');
+    const kc = collections.find((c) => c.name === 'knowledge_items') as { name: string; points_count?: number } | undefined;
     const points = kc?.points_count || 0;
     return { totalDocuments: points };
   };
@@ -173,6 +177,9 @@ export const createVectorDatabase = (
     // Ensure Qdrant collection exists with correct embedding dimensions
     const embeddingModel = await providerFactory.getEmbeddingModel();
     const expectedDimensions = embeddingModel.dimensions;
+    if (expectedDimensions === undefined) {
+      throw new Error('Embedding model dimensions are not configured');
+    }
 
     const collections = await vectorStore.listCollections();
     const knowledgeCollection = collections.find((c) => c.name === 'knowledge_items');

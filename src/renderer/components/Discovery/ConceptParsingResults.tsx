@@ -23,6 +23,8 @@ import type {
   ConceptParsingResult,
   ConceptIngestionPlan,
   KnowledgeIngestionResult,
+  ConceptIngestionAction,
+  ParsedRelationship,
 } from '@/shared/types/electron-api/knowledge-api';
 import { showSuccess, showError } from '@/renderer/utils/toast';
 import { ConfirmDialog } from '../UI/ConfirmDialog';
@@ -123,7 +125,7 @@ const ConceptCard: React.FC<ConceptCardProps> = ({ concept, onSelect }) => {
             </span>
           )}
         </div>
-        <span className="text-xs">{concept.extractedAt.toLocaleDateString()}</span>
+        <span className="text-xs">{new Date((concept as any).extractedAt || Date.now()).toLocaleDateString()}</span>
       </div>
 
       {concept.metadata.tags.length > 0 && (
@@ -162,10 +164,10 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   const [filterType, setFilterType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'confidence' | 'difficulty' | 'date'>('confidence');
 
-  const result = job.result;
+  const result = job.result as unknown as ConceptParsingResult; // Cast to expected type
   const concepts = result?.concepts || [];
   const relationships = result?.relationships || [];
-  const statistics = result?.statistics;
+  const statistics = result?.statistics as ConceptParsingResult['statistics']; // Cast to include tokenUsage
   const metadata = result?.metadata;
   const [ingesting, setIngesting] = useState(false);
   const [ingestSummary, setIngestSummary] = useState<KnowledgeIngestionResult | null>(null);
@@ -177,7 +179,13 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
   );
   const [lowConfidenceThreshold, setLowConfidenceThreshold] = useState(0.6);
   const [actions, setActions] = useState<Record<string, ConceptIngestionAction>>({});
-  const [edits, setEdits] = useState<Record<string, Partial<Concept>>>({});
+  interface ConceptEdit {
+  name?: string;
+  description?: string;
+  type?: string;
+}
+
+const [edits, setEdits] = useState<Record<string, ConceptEdit>>({});
 
   const buildPayloadAndPlan = () => {
     if (!result) {
@@ -207,7 +215,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
       }
     });
 
-    const filteredConcepts = result.concepts
+    const filteredConcepts = (result.concepts as any[]) // Cast to any for now to handle type mismatch
       .map((c) => ({ ...c, ...edits[c.id] }))
       .filter((c) => planActions[c.id] !== 'skip');
 
@@ -216,26 +224,8 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
 
     const filteredRelationships: ParsedRelationship[] = [];
 
-    // relationships attached to concepts (source implied by the owning concept)
-    filteredConcepts.forEach((concept) => {
-      concept.relationships?.forEach((rel) => {
-        const targetId =
-          rel.targetConceptId ??
-          (rel.targetConceptName ? nameToId.get(rel.targetConceptName.toLowerCase()) : undefined);
-        if (!targetId || !conceptIdSet.has(targetId)) return;
-        filteredRelationships.push({
-          sourceId: concept.id,
-          targetId,
-          type: rel.type ?? 'related',
-          strength: Math.min(1, Math.max(0, rel.strength ?? 0.5)),
-          confidence: Math.min(1, Math.max(0, rel.confidence ?? 0.5)),
-          description: rel.description,
-        });
-      });
-    });
-
     // relationships already structured with source/target (if present)
-    result.relationships?.forEach((rel: ProposedRelationship) => {
+    result.relationships?.forEach((rel: any) => { // Use any to handle type mismatch
       const sourceId: string | undefined = rel.sourceConceptId;
       const targetId: string | undefined = rel.targetConceptId;
       if (!sourceId || !targetId) return;
@@ -250,9 +240,29 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
       });
     });
 
+    // Transform Concept to ParsedConcept
+    const transformedConcepts: any[] = filteredConcepts.map((concept: any) => ({
+      id: concept.id,
+      name: concept.name,
+      description: concept.description || '',
+      type: concept.type,
+      confidence: concept.confidence,
+      difficulty: concept.difficulty,
+      evidence: (concept.evidence || []).map((e: any) => ({
+        type: e.sourceType || e.type || 'unknown',
+        text: e.text,
+        relevance: e.confidence || e.relevance || 0.5,
+      })),
+      metadata: {
+        ...(concept.metadata || {}),
+        tags: concept.metadata?.tags || [],
+        extractedAt: concept.extractedAt?.toISOString?.() || new Date().toISOString(),
+      },
+    }));
+
     const payload: ConceptParsingResult = {
       ...result,
-      concepts: filteredConcepts,
+      concepts: transformedConcepts,
       relationships: filteredRelationships,
     };
 
@@ -326,7 +336,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
       case 'difficulty':
         return b.difficulty - a.difficulty;
       case 'date':
-        return b.extractedAt.getTime() - a.extractedAt.getTime();
+        return new Date((b as any).extractedAt || 0).getTime() - new Date((a as any).extractedAt || 0).getTime();
       default:
         return 0;
       }
@@ -533,7 +543,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
             </div>
             <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
               <div className="text-purple-600 dark:text-purple-400 font-semibold">
-                {statistics.validConcepts > 0
+                {statistics?.totalConcepts && statistics.totalConcepts > 0
                   ? Math.round((statistics.validConcepts / statistics.totalConcepts) * 100)
                   : 0}
                 %
@@ -650,7 +660,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                         <div className="flex justify-between">
                           <dt className="text-gray-600 dark:text-gray-400">Average Confidence:</dt>
                           <dd className="font-medium">
-                            {statistics
+                            {statistics && statistics.totalConcepts > 0
                               ? Math.round(
                                 (statistics.validConcepts / statistics.totalConcepts) * 100,
                               )
@@ -680,7 +690,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                         .map((concept) => (
                           <ConceptCard
                             key={concept.id}
-                            concept={concept}
+                            concept={concept as any} // Cast to handle type mismatch
                             onSelect={onConceptSelect}
                           />
                         ))}
@@ -850,7 +860,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {relationships.map((relationship, index) => (
+                    {relationships.map((relationship: any, index) => (
                       <div
                         key={index}
                         className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
@@ -858,7 +868,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                         <div className="flex items-center justify-between">
                           <div>
                             <span className="font-medium text-gray-900 dark:text-gray-100">
-                              {relationship.targetConceptName || 'Unknown Concept'}
+                              {(relationship as any).targetConceptName || relationship.targetId || 'Unknown Concept'}
                             </span>
                             <span className="mx-2 text-gray-500">{'->'}</span>
                             <span className="text-sm text-blue-600 dark:text-blue-400">
@@ -867,7 +877,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              {Math.round(relationship.strength * 100)}%
+                              {Math.round((relationship.strength || 0) * 100)}%
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">strength</div>
                           </div>
@@ -902,7 +912,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                           <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative">
                             <div
                               className="bg-blue-600 h-4 rounded-full absolute"
-                              style={{ width: `${(count / statistics.totalConcepts) * 100}%` }}
+                              style={{ width: `${statistics.totalConcepts > 0 ? (count / statistics.totalConcepts) * 100 : 0}%` }}
                             />
                           </div>
                           <span className="text-sm font-medium text-gray-900 dark:text-gray-100 w-8">
@@ -926,7 +936,7 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                           <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative">
                             <div
                               className="bg-green-600 h-4 rounded-full absolute"
-                              style={{ width: `${(count / statistics.totalConcepts) * 100}%` }}
+                              style={{ width: `${statistics.totalConcepts > 0 ? (count / statistics.totalConcepts) * 100 : 0}%` }}
                             />
                           </div>
                           <span className="text-sm font-medium text-gray-900 dark:text-gray-100 w-8">
@@ -1016,19 +1026,13 @@ export const ConceptParsingResults: React.FC<ConceptParsingResultsProps> = ({
                       {result.errors.map((error, index) => (
                         <div
                           key={index}
-                          className={`p-3 rounded-lg border ${
-                            error.severity === 'high'
-                              ? 'bg-red-50 border-red-200 text-red-800'
-                              : error.severity === 'medium'
-                                ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                : 'bg-blue-50 border-blue-200 text-blue-800'
-                          }`}
+                          className="p-3 rounded-lg border bg-blue-50 border-blue-200 text-blue-800"
                         >
                           <div className="flex items-center space-x-2">
-                            <span className="text-xs font-medium uppercase">{error.severity}</span>
-                            <span className="text-xs">{error.timestamp.toLocaleTimeString()}</span>
+                            <span className="text-xs font-medium uppercase">Note</span>
+                            <span className="text-xs">{new Date().toLocaleTimeString()}</span>
                           </div>
-                          <p className="text-sm mt-1">{error.message}</p>
+                          <p className="text-sm mt-1">{error}</p>
                         </div>
                       ))}
                     </div>

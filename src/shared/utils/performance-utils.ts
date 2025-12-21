@@ -101,12 +101,13 @@ export class LRUCache<TKey, TValue> {
     let oldestKey: TKey | null = null;
     let oldestTimestamp = Infinity;
 
-    for (const [key, entry] of this.cache.entries()) {
+    // Convert to array to avoid downlevelIteration issues
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if (entry.timestamp < oldestTimestamp) {
         oldestTimestamp = entry.timestamp;
         oldestKey = key;
       }
-    }
+    });
 
     if (oldestKey) {
       this.remove(oldestKey);
@@ -119,11 +120,11 @@ export class LRUCache<TKey, TValue> {
     let evictedCount = 0;
 
     // Find stale entries (older than 30 minutes)
-    for (const [key, entry] of this.cache.entries()) {
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if (now - entry.timestamp > 30 * 60 * 1000) {
         staleEntries.push(key);
       }
-    }
+    });
 
     // Remove stale entries
     staleEntries.forEach((key) => {
@@ -188,13 +189,13 @@ export class PromiseCache {
       maxSize?: number;
     },
   ): Promise<T> {
-    const existing = this.cache.get(key);
+    const existing = this.cache.get(key) as Promise<T> | undefined;
     if (existing) {
       return existing;
     }
 
     // Check if promise is already loading
-    const loading = this.loadingPromises.get(key);
+    const loading = this.loadingPromises.get(key) as Promise<T> | undefined;
     if (loading) {
       return loading;
     }
@@ -266,7 +267,7 @@ export class PerformanceMonitor {
       name,
       duration,
       timestamp: Date.now(),
-      metadata,
+      metadata: metadata as { [key: string]: unknown },
     };
 
     let nameMetrics = this.metrics.get(name);
@@ -460,7 +461,7 @@ interface PerformanceMetric {
   name: string;
   duration: number;
   timestamp: number;
-  metadata?: Record<string, unknown>;
+  metadata?: { [key: string]: unknown };
 }
 
 /**
@@ -481,17 +482,50 @@ interface PerformanceStats {
 // Memory Management Utilities
 // ============================================================================
 
+// Type declarations for WeakRef and FinalizationRegistry
+declare const WeakRef: {
+  new <T extends object>(target: T): WeakRef<T>;
+  prototype: WeakRef<any>;
+};
+
+interface WeakRef<T extends object> {
+  deref(): T | undefined;
+}
+
+declare const FinalizationRegistry: {
+  new <T>(cleanupCallback: (heldValue: T) => void): FinalizationRegistry<T>;
+  prototype: FinalizationRegistry<any>;
+};
+
+interface FinalizationRegistry<T> {
+  register(target: object, heldValue: T): void;
+  unregister(target: object): void;
+}
+
 /**
  * Weak reference wrapper for garbage collection
  */
 export class WeakReference<T extends object> {
-  private readonly ref: WeakRef<T>;
-  private readonly registry: FinalizationRegistry<string>;
+  private readonly ref: WeakRef<T> | { deref: () => T | undefined };
+  private readonly registry: FinalizationRegistry<string> | { register: () => void };
 
   constructor(value: T, id: string, cleanupCallback: (id: string) => void) {
-    this.ref = new WeakRef(value);
-    this.registry = new FinalizationRegistry(cleanupCallback);
-    this.registry.register(value, id);
+    // Check if WeakRef is supported (Node.js 14.6+)
+    if (typeof WeakRef !== 'undefined') {
+      this.ref = new WeakRef(value);
+    } else {
+      // Fallback for older environments
+      this.ref = { deref: () => value };
+    }
+
+    // Check if FinalizationRegistry is supported (Node.js 14.6+)
+    if (typeof FinalizationRegistry !== 'undefined') {
+      this.registry = new FinalizationRegistry(cleanupCallback);
+      this.registry.register(value, id);
+    } else {
+      // No-op fallback for older environments
+      this.registry = { register: () => {} };
+    }
   }
 
   get(): T | undefined {
@@ -581,7 +615,8 @@ export class Debounced<T extends (...args: unknown[]) => unknown> {
     // Handle leading execution
     if (this.options.leading && !this.timeout) {
       this.lastCallTime = now;
-      return this.func(...args);
+      const result = this.func(...args);
+      return Promise.resolve(result) as Promise<ReturnType<T>>;
     }
 
     this.lastArgs = args;
@@ -595,10 +630,14 @@ export class Debounced<T extends (...args: unknown[]) => unknown> {
 
           if (this.lastArgs && (this.options.trailing || !this.options.leading)) {
             try {
-              resolve(this.func(...this.lastArgs));
+              const result = this.func(...this.lastArgs);
+              resolve(result as ReturnType<T>);
             } catch (err) {
               reject(err);
             }
+          } else {
+            // Resolve with undefined if no execution
+            resolve(undefined as ReturnType<T>);
           }
         };
 

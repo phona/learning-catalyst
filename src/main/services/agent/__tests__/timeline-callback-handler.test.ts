@@ -1,24 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TimelineCallbackHandler } from '@/main/services/agent/timeline-callback-handler';
+import { createTimelineCallbackHandler } from '@/main/services/agent/timeline-callback-handler';
 import type { ChatStatus } from '@/shared/types/electron-api/chat-api';
 
 describe('TimelineCallbackHandler', () => {
   let mockOnStatus: ReturnType<typeof vi.fn>;
-  let handler: TimelineCallbackHandler;
+  let handler: ReturnType<typeof createTimelineCallbackHandler>;
 
   beforeEach(() => {
     mockOnStatus = vi.fn();
-    handler = new TimelineCallbackHandler(mockOnStatus, 'TestAgent');
+    handler = createTimelineCallbackHandler({ onStatus: mockOnStatus, agentName: 'TestAgent' });
   });
 
   describe('initialization', () => {
     it('should initialize with correct agent name', () => {
-      expect(handler).toBeInstanceOf(TimelineCallbackHandler);
+      expect(handler).toBeDefined();
+      expect(typeof handler.onAgentAction).toBe('function');
     });
 
     it('should use default agent name when not provided', () => {
-      const defaultHandler = new TimelineCallbackHandler(mockOnStatus);
-      expect(defaultHandler).toBeInstanceOf(TimelineCallbackHandler);
+      const defaultHandler = createTimelineCallbackHandler({ onStatus: mockOnStatus });
+      expect(defaultHandler).toBeDefined();
+      expect(typeof defaultHandler.onAgentAction).toBe('function');
     });
   });
 
@@ -131,7 +133,9 @@ describe('TimelineCallbackHandler', () => {
         call[0].event?.detail?.includes('"param1"')
       );
       expect(call).toBeDefined();
-      expect(call[0].event.detail).toContain('"param1": "value1"');
+      if (call) {
+        expect(call[0].event.detail).toContain('"param1": "value1"');
+      }
     });
   });
 
@@ -255,7 +259,10 @@ describe('TimelineCallbackHandler', () => {
       const endCall = mockOnStatus.mock.calls.find(
         (call) => call[0].event?.phase === 'error'
       );
-      expect(endCall[0].event.tool).toBe('FailingTool');
+      expect(endCall).toBeDefined();
+      if (endCall) {
+        expect(endCall[0].event.tool).toBe('FailingTool');
+      }
 
       mockOnStatus.mockClear();
       await handler.onToolError(new Error('Another error'));
@@ -263,7 +270,10 @@ describe('TimelineCallbackHandler', () => {
       const nextCall = mockOnStatus.mock.calls.find(
         (call) => call[0].event?.phase === 'error'
       );
-      expect(nextCall[0].event.tool).toBe('unknown');
+      expect(nextCall).toBeDefined();
+      if (nextCall) {
+        expect(nextCall[0].event.tool).toBe('unknown');
+      }
     });
 
     it('should handle non-Error objects', async () => {
@@ -340,7 +350,7 @@ describe('TimelineCallbackHandler', () => {
     });
 
     it('should include correct agent name on all events', async () => {
-      const customAgentHandler = new TimelineCallbackHandler(mockOnStatus, 'CustomAgent');
+      const customAgentHandler = createTimelineCallbackHandler({ onStatus: mockOnStatus, agentName: 'CustomAgent' });
       await customAgentHandler.onAgentAction({ tool: 'TestTool' });
 
       const event = mockOnStatus.mock.calls[0][0].event;

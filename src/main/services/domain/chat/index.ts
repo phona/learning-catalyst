@@ -1,10 +1,11 @@
 import { LoggerService } from "../../core/logger/logger-service";
 import { ILogger } from "../../types";
 import { generateAITitle } from "./title-generation";
-import { ProviderFactory } from "@/main/services/agent/provider-factory";
-import type { SQLiteCheckpointSaver } from "@/main/services/core/checkpoints/SQLiteCheckpointSaver";
+import { createProviderFactory, type ProviderFactory } from "@/main/services/agent/provider-factory";
+import { SQLiteCheckpointSaver } from "@/main/services/core/checkpoints/SQLiteCheckpointSaver";
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
+import type { ToolCall } from "@langchain/core/messages/tool";
 
 /**
  * Display-ready message structure for chat history
@@ -38,6 +39,29 @@ interface ChatMessage {
 }
 
 /**
+ * Convert LangChain ToolCall to the expected format
+ */
+function convertToolCall(toolCall: ToolCall): {
+  id: string;
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+} {
+  return {
+    id: toolCall.id || '',
+    type: toolCall.type || 'tool_call',
+    function: {
+      name: toolCall.name,
+      arguments: typeof toolCall.args === 'string'
+        ? toolCall.args
+        : JSON.stringify(toolCall.args),
+    },
+  };
+}
+
+/**
  * Direct converter from checkpoint format to ChatMessage format
  *
  * Checkpoints store messages as serialized objects:
@@ -52,7 +76,7 @@ function convertToChatMessage(
   msg: any,
   index: number,
   sessionId: string,
-  checkpointMetadata?: Record<string, unknown>,
+  checkpointMetadata: Record<string, unknown> | undefined,
   checkpointId?: string
 ): ChatMessage {
   // Check if this is a serialized checkpoint message
@@ -68,7 +92,7 @@ function convertToChatMessage(
     // Map ToolMessage to assistant role with tool metadata
     const role = messageType === 'HumanMessage' ? 'user'
       : messageType === 'ToolMessage' ? 'assistant'
-      : 'assistant';
+        : 'assistant';
 
     return {
       id: `${sessionId}-${index}`,
@@ -77,7 +101,7 @@ function convertToChatMessage(
       timestamp: typeof checkpointMetadata?.created_at === 'string'
         ? checkpointMetadata.created_at
         : new Date().toISOString(),
-      tool_calls: msg.kwargs.tool_calls,
+      tool_calls: msg.kwargs.tool_calls?.map(convertToolCall),
       metadata: {
         checkpoint_id: checkpointId,
         message_index: index,
@@ -114,7 +138,7 @@ function convertToChatMessage(
       timestamp: typeof checkpointMetadata?.created_at === 'string'
         ? checkpointMetadata.created_at
         : new Date().toISOString(),
-      tool_calls: msg.tool_calls,
+      tool_calls: msg.tool_calls?.map(convertToolCall),
       metadata: {
         checkpoint_id: checkpointId,
         message_index: index,
@@ -201,14 +225,14 @@ export const createChatService = ({
       const checkpoints: Array<{
         checkpoint: { channel_values?: { messages?: BaseMessage[] } };
         metadata: Record<string, unknown>;
-        config: { configurable: { checkpoint_id?: string } };
+        config: { configurable?: { checkpoint_id?: string; [key: string]: unknown } };
       }> = [];
 
       for await (const checkpoint of checkpointSaver.list(checkpointConfig)) {
         checkpoints.push({
           checkpoint: checkpoint.checkpoint as { channel_values?: { messages?: BaseMessage[] } },
-          metadata: checkpoint.metadata,
-          config: checkpoint.config,
+          metadata: checkpoint.metadata || {},
+          config: checkpoint.config as { configurable?: { checkpoint_id?: string; [key: string]: unknown } },
         });
       }
 

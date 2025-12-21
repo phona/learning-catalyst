@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import type { ParsedConcept, ParsedRelationship } from '@/shared/types/electron-api/knowledge-api';
+import type { ParsedConcept, ParsedRelationship, ConceptIngestionPlan } from '@/shared/types/electron-api/knowledge-api';
 
 // Import the deduplication function
 // Note: This is a simplified test - in real implementation, we'd need to extract the function
@@ -20,6 +20,7 @@ describe('Concept Deduplication', () => {
         type: 'topic',
         confidence: 0.9,
         difficulty: 3,
+        evidence: [],
         metadata: {},
       },
       {
@@ -29,6 +30,7 @@ describe('Concept Deduplication', () => {
         type: 'topic',
         confidence: 0.8,
         difficulty: 3,
+        evidence: [],
         metadata: {},
       },
       {
@@ -38,6 +40,7 @@ describe('Concept Deduplication', () => {
         type: 'topic',
         confidence: 0.85,
         difficulty: 3,
+        evidence: [],
         metadata: {},
       },
     ];
@@ -77,6 +80,7 @@ describe('Concept Deduplication', () => {
         type: 'topic',
         confidence: 0.9,
         difficulty: 4,
+        evidence: [],
         metadata: {},
       },
       {
@@ -86,6 +90,7 @@ describe('Concept Deduplication', () => {
         type: 'topic',
         confidence: 0.9,
         difficulty: 4,
+        evidence: [],
         metadata: {},
       },
     ];
@@ -106,6 +111,7 @@ describe('Concept Deduplication', () => {
         type: 'skill',
         confidence: 0.9,
         difficulty: 2,
+        evidence: [],
         metadata: {},
       },
       {
@@ -115,6 +121,7 @@ describe('Concept Deduplication', () => {
         type: 'topic',
         confidence: 0.9,
         difficulty: 1,
+        evidence: [],
         metadata: {},
       },
     ];
@@ -129,11 +136,11 @@ describe('Concept Deduplication', () => {
 
 describe('Auto-Deduplication Configuration', () => {
   it('should enable auto-deduplication in plan', () => {
-    const plan = {
+    const plan: ConceptIngestionPlan = {
       autoDeduplicate: {
         enabled: true,
         threshold: 0.92,
-        strategy: 'skip' as const,
+        strategy: 'skip',
       },
     };
 
@@ -143,7 +150,7 @@ describe('Auto-Deduplication Configuration', () => {
   });
 
   it('should use default threshold when not specified', () => {
-    const plan = {
+    const plan: ConceptIngestionPlan = {
       autoDeduplicate: {
         enabled: true,
       },
@@ -154,10 +161,10 @@ describe('Auto-Deduplication Configuration', () => {
   });
 
   it('should support merge_metadata strategy', () => {
-    const plan = {
+    const plan: ConceptIngestionPlan = {
       autoDeduplicate: {
         enabled: true,
-        strategy: 'merge_metadata' as const,
+        strategy: 'merge_metadata',
       },
     };
 

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { assessNode } from '../assess';
-import { WorkflowStateAnnotation } from '../state';
+import { WorkflowStateAnnotation } from '../../state';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import type { SearchResult } from '../../../../../../../shared/types/electron-api/knowledge-api';
 
 // Mock chunk emitter utilities
 vi.mock('../utils/chunk-emitter', () => ({
@@ -14,9 +15,130 @@ vi.mock('../utils/chunk-emitter', () => ({
 }));
 
 // Mock parseScore utility
-vi.mock('../parse-score', () => ({
+vi.mock('../../parse-score', () => ({
   parseScore: vi.fn(),
 }));
+
+// Helper function to create complete mock logger service
+const createMockLoggerService = () => ({
+  debug: vi.fn(),
+  info: vi.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
+  child: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    child: vi.fn().mockReturnValue({
+      debug: vi.fn(),
+      info: vi.fn(),
+      error: vi.fn(),
+      warn: vi.fn(),
+      child: vi.fn(),
+    }),
+  }),
+});
+
+// Helper function to create complete mock agent manager
+const createMockAgentManager = (overrides = {}) => ({
+  runAgent: vi.fn(),
+  terminateAgent: vi.fn(),
+  isAgentRunning: vi.fn(),
+  getAgentState: vi.fn(),
+  getAgent: vi.fn(),
+  ...overrides,
+});
+
+// Helper function to create complete mock config service
+const createMockConfigService = (overrides = {}) => ({
+  get: vi.fn(),
+  set: vi.fn(),
+  delete: vi.fn(),
+  clear: vi.fn(),
+  getAll: vi.fn(),
+  has: vi.fn(),
+  getConfig: vi.fn(),
+  setConfig: vi.fn(),
+  getProviderConfig: vi.fn(),
+  setProviderConfig: vi.fn(),
+  onConfigChanged: vi.fn(),
+  isSetupComplete: vi.fn(),
+  ...overrides,
+});
+
+// Helper function to create complete mock checkpointer
+const createMockCheckpointer = (overrides = {}) => ({
+  get: vi.fn(),
+  put: vi.fn(),
+  list: vi.fn(),
+  delete: vi.fn(),
+  serde: vi.fn(),
+  getTuple: vi.fn(),
+  putWrites: vi.fn(),
+  deleteThread: vi.fn(),
+  getNextVersion: vi.fn(),
+  ...overrides,
+});
+
+// Helper function to create complete mock practice service
+const createMockPracticeService = (overrides = {}) => ({
+  recordPracticeAttempt: vi.fn(),
+  rebuild: vi.fn(),
+  ...overrides,
+});
+
+// Helper function to create complete mock dependencies
+const createMockDeps = (overrides = {}) => ({
+  agentManager: createMockAgentManager(),
+  loggerService: createMockLoggerService(),
+  checkpointer: createMockCheckpointer(),
+  configService: createMockConfigService(),
+  providerFactory: createMockProviderFactory(),
+  knowledgeService: createMockKnowledgeService(),
+  practiceService: createMockPracticeService(),
+  learningService: createMockLearningService(),
+  ...overrides,
+});
+
+// Helper function to create complete mock knowledge service
+const createMockKnowledgeService = (overrides = {}) => ({
+  ingestConceptParsingResult: vi.fn(),
+  searchKnowledge: vi.fn(),
+  semanticSearch: vi.fn(),
+  exploreConcept: vi.fn(),
+  getRelatedConcepts: vi.fn(),
+  getKnowledgeMap: vi.fn(),
+  findRelatedByPrompt: vi.fn(),
+  ...overrides,
+});
+
+// Helper function to create complete mock learning service
+const createMockLearningService = (overrides = {}) => ({
+  createLearningPath: vi.fn(),
+  getLearningPath: vi.fn(),
+  getUserProgress: vi.fn(),
+  startLearningSession: vi.fn(),
+  getSessionProgress: vi.fn(),
+  getRecentSessions: vi.fn(),
+  searchSessions: vi.fn(),
+  getPracticeHistory: vi.fn(),
+  getSession: vi.fn(),
+  updateSession: vi.fn(),
+  deleteSession: vi.fn(),
+  updateSessionTitle: vi.fn(),
+  getSessionStatistics: vi.fn(),
+  ...overrides,
+});
+
+// Helper function to create complete mock provider factory
+const createMockProviderFactory = (overrides = {}) => ({
+  getModel: vi.fn(),
+  getEmbeddings: vi.fn(),
+  getEmbeddingModel: vi.fn(),
+  getRerankModel: vi.fn(),
+  ...overrides,
+});
 
 // Mock config writer for chunk emitter
 const createMockConfig = (): LangGraphRunnableConfig => ({
@@ -30,34 +152,56 @@ describe('assess node', () => {
 
   it('calculates confidence based on practice history and conversation', async () => {
     // Setup mocks
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({
         results: [
-          { id: 'concept-1', name: 'React Components' },
-          { id: 'concept-2', name: 'JSX Syntax' },
+          {
+            id: 'concept-1',
+            title: 'React Components',
+            type: 'concept' as const,
+            category: 'programming',
+            relevanceScore: 0.95,
+            preview: 'Learn about React components',
+            tags: ['react', 'components'],
+          },
+          {
+            id: 'concept-2',
+            title: 'JSX Syntax',
+            type: 'concept' as const,
+            category: 'programming',
+            relevanceScore: 0.9,
+            preview: 'Understanding JSX syntax',
+            tags: ['jsx', 'syntax'],
+          },
         ],
       }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([
         {
-          result: 'pass',
+          taskId: 'task-1',
+          conceptIds: ['concept-1', 'concept-2'],
+          result: 'pass' as const,
           rubricScores: { retrieval: 85, application: 90, teachBack: 88 },
           errorTags: [],
         },
         {
-          result: 'partial',
+          taskId: 'task-2',
+          conceptIds: ['concept-1'],
+          result: 'partial' as const,
           rubricScores: { retrieval: 70, application: 65 },
           errorTags: ['state-management'],
         },
         {
-          result: 'fail',
+          taskId: 'task-3',
+          conceptIds: ['concept-2'],
+          result: 'fail' as const,
           rubricScores: { retrieval: 45, application: 40, teachBack: 50 },
           errorTags: ['props', 'state-management'],
         },
       ]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({
@@ -65,28 +209,27 @@ describe('assess node', () => {
       }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
+    });
 
-    const mockDeps = {
+    const mockDeps = createMockDeps({
+      providerFactory: mockProviderFactory,
       knowledgeService: mockKnowledgeService,
       learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
-    };
+    });
 
     const node = assessNode(mockDeps);
 
-    const result = await node(
-      {
-        messages: [
-          new HumanMessage('I want to learn React'),
-          new AIMessage('Let me help you with React'),
-        ],
-        topic: 'React Components',
-      } as any,
-      createMockConfig()
-    );
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [
+        new HumanMessage('I want to learn React'),
+        new AIMessage('Let me help you with React'),
+      ],
+      topic: 'React Components',
+    };
+
+    const result = await node(state, createMockConfig());
 
     // Verify knowledge service was called
     expect(mockKnowledgeService.searchKnowledge).toHaveBeenCalledWith({
@@ -121,35 +264,34 @@ describe('assess node', () => {
   });
 
   it('handles empty practice history gracefully', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 50%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    const result = await node(
-      {
-        messages: [],
-        topic: 'New Topic',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'New Topic',
+    };
+
+    const result = await node(state, createMockConfig());
 
     expect(result.confidence).toBe(0.5);
     expect(result.gaps).toEqual([]);
@@ -157,38 +299,37 @@ describe('assess node', () => {
   });
 
   it('clamps confidence to valid range [0, 1]', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 150%' }), // Invalid: > 100%
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const { parseScore } = await import('../parse-score');
-    vi.mocked(parseScore).mockReturnValue(1.5); // 150%
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    const result = await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const { parseScore } = await import('../../parse-score');
+    vi.mocked(parseScore).mockReturnValue(1.5); // 150%
+
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    const result = await node(state, createMockConfig());
 
     // Should clamp to 1.0 (100%)
     expect(result.confidence).toBe(1.0);
@@ -196,35 +337,34 @@ describe('assess node', () => {
   });
 
   it('clamps negative confidence scores to 0', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 0%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    const result = await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    const result = await node(state, createMockConfig());
 
     // Should be 0%
     expect(result.confidence).toBe(0.0);
@@ -232,27 +372,27 @@ describe('assess node', () => {
   });
 
   it('limits recent messages to last 20', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 75%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
+    });
 
-    const node = assessNode({
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
       knowledgeService: mockKnowledgeService,
       learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
-    });
+    }));
 
     // Create 30 messages
     const conversationMessages = Array.from({ length: 30 }, (_, i) => {
@@ -261,13 +401,12 @@ describe('assess node', () => {
         : new AIMessage(`Assistant message ${i}`);
     });
 
-    await node(
-      {
-        messages: conversationMessages,
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: conversationMessages,
+      topic: 'Test',
+    };
+
+    await node(state, createMockConfig());
 
     // Verify only last 20 messages were included in prompt
     const messagesArray = mockModel.invoke.mock.calls[0][0];
@@ -279,37 +418,36 @@ describe('assess node', () => {
   });
 
   it('truncates long messages to 200 characters', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 75%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
+    });
 
-    const node = assessNode({
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
       knowledgeService: mockKnowledgeService,
       learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
-    });
+    }));
 
     const longMessage = new HumanMessage('x'.repeat(500));
 
-    await node(
-      {
-        messages: [longMessage],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [longMessage],
+      topic: 'Test',
+    };
+
+    await node(state, createMockConfig());
 
     // Verify message was truncated
     const messagesArray = mockModel.invoke.mock.calls[0][0];
@@ -320,50 +458,68 @@ describe('assess node', () => {
   });
 
   it('calculates average rubric score correctly from multiple attempts', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({
-        results: [{ id: 'concept-1', name: 'Test' }],
+        results: [
+          {
+            id: 'concept-1',
+            title: 'Test',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.9,
+            preview: 'Test concept',
+            tags: ['test'],
+          },
+        ],
       }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([
         {
-          result: 'pass',
+          taskId: 'task-1',
+          conceptIds: ['concept-1'],
+          result: 'pass' as const,
           rubricScores: { retrieval: 100, application: 100, teachBack: 100 },
+          errorTags: [],
         },
         {
-          result: 'pass',
+          taskId: 'task-2',
+          conceptIds: ['concept-1'],
+          result: 'pass' as const,
           rubricScores: { retrieval: 80, application: 80, teachBack: 80 },
+          errorTags: [],
         },
         {
-          result: 'partial',
+          taskId: 'task-3',
+          conceptIds: ['concept-1'],
+          result: 'partial' as const,
           rubricScores: { retrieval: 60, application: 60 },
+          errorTags: [],
         },
       ]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 90%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    await node(state, createMockConfig());
 
     // Verify average calculation: (100+100+100+80+80+80+60+60) / (8 * 100) = 0.825 = 83%
     const messagesArray = mockModel.invoke.mock.calls[0][0];
@@ -373,46 +529,61 @@ describe('assess node', () => {
   });
 
   it('handles undefined rubric scores gracefully', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({
-        results: [{ id: 'concept-1', name: 'Test' }],
+        results: [
+          {
+            id: 'concept-1',
+            title: 'Test',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.9,
+            preview: 'Test concept',
+            tags: ['test'],
+          },
+        ],
       }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([
         {
-          result: 'pass',
+          taskId: 'task-1',
+          conceptIds: ['concept-1'],
+          result: 'pass' as const,
           rubricScores: { retrieval: 80 }, // Only retrieval score
+          errorTags: [],
         },
         {
-          result: 'partial',
+          taskId: 'task-2',
+          conceptIds: ['concept-1'],
+          result: 'partial' as const,
           rubricScores: undefined, // No rubric scores
+          errorTags: [],
         },
       ]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 70%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    await node(state, createMockConfig());
 
     // Should only count defined scores
     const messagesArray = mockModel.invoke.mock.calls[0][0];
@@ -422,53 +593,68 @@ describe('assess node', () => {
   });
 
   it('aggregates unique error tags from all attempts', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({
-        results: [{ id: 'concept-1', name: 'Test' }],
+        results: [
+          {
+            id: 'concept-1',
+            title: 'Test',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.9,
+            preview: 'Test concept',
+            tags: ['test'],
+          },
+        ],
       }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([
         {
-          result: 'fail',
+          taskId: 'task-1',
+          conceptIds: ['concept-1'],
+          result: 'fail' as const,
           rubricScores: { retrieval: 40 },
           errorTags: ['concept-a', 'concept-b'],
         },
         {
-          result: 'fail',
+          taskId: 'task-2',
+          conceptIds: ['concept-1'],
+          result: 'fail' as const,
           rubricScores: { retrieval: 45 },
           errorTags: ['concept-b', 'concept-c'],
         },
         {
-          result: 'partial',
+          taskId: 'task-3',
+          conceptIds: ['concept-1'],
+          result: 'partial' as const,
           rubricScores: { retrieval: 60 },
           errorTags: ['concept-a'],
         },
       ]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 50%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    const result = await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    const result = await node(state, createMockConfig());
 
     // Should have unique gaps only
     expect(result.gaps).toEqual(['concept-a', 'concept-b', 'concept-c']);
@@ -476,42 +662,73 @@ describe('assess node', () => {
   });
 
   it('filters out empty concept IDs', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({
         results: [
-          { id: 'concept-1', name: 'Valid Concept' },
-          { id: '', name: 'Empty ID' },
-          { id: null, name: 'Null ID' },
-          { id: 'concept-2', name: 'Another Valid Concept' },
+          {
+            id: 'concept-1',
+            title: 'Valid Concept',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.9,
+            preview: 'Valid concept',
+            tags: ['test'],
+          },
+          {
+            id: '',
+            title: 'Empty ID',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.8,
+            preview: 'Empty ID',
+            tags: ['test'],
+          },
+          {
+            id: null as any,
+            title: 'Null ID',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.7,
+            preview: 'Null ID',
+            tags: ['test'],
+          },
+          {
+            id: 'concept-2',
+            title: 'Another Valid Concept',
+            type: 'concept' as const,
+            category: 'testing',
+            relevanceScore: 0.9,
+            preview: 'Another concept',
+            tags: ['test'],
+          },
         ],
       }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 60%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    await node(state, createMockConfig());
 
     // Should only pass valid concept IDs
     expect(mockLearningService.getPracticeHistory).toHaveBeenCalledWith({
@@ -521,161 +738,161 @@ describe('assess node', () => {
   });
 
   it('handles missing model response gracefully', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({}), // Empty response
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    const result = await node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    );
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    const result = await node(state, createMockConfig());
 
     // Should default to 0.5 confidence
     expect(result.confidence).toBe(0.5);
   });
 
   it('propagates errors from knowledge service', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockRejectedValue(new Error('Knowledge service unavailable')),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 50%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    await expect(node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    )).rejects.toThrow('Knowledge service unavailable');
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    await expect(node(state, createMockConfig())).rejects.toThrow('Knowledge service unavailable');
   });
 
   it('propagates errors from learning service', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockRejectedValue(new Error('Learning service unavailable')),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 50%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    await expect(node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    )).rejects.toThrow('Learning service unavailable');
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    await expect(node(state, createMockConfig())).rejects.toThrow('Learning service unavailable');
   });
 
   it('propagates errors from model invocation', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockRejectedValue(new Error('Model unavailable')),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
-    await expect(node(
-      {
-        messages: [],
-        topic: 'Test',
-      } as any,
-      createMockConfig()
-    )).rejects.toThrow('Model unavailable');
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+
+    await expect(node(state, createMockConfig())).rejects.toThrow('Model unavailable');
   });
 
   it('uses chunk emitter for streaming', async () => {
-    const mockKnowledgeService = {
+    const mockKnowledgeService = createMockKnowledgeService({
       searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-    };
+    });
 
-    const mockLearningService = {
+    const mockLearningService = createMockLearningService({
       getPracticeHistory: vi.fn().mockResolvedValue([]),
-    };
+    });
 
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({ content: 'Score: 75%' }),
     };
 
-    const mockProviderFactory = {
+    const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
-    };
-
-    const node = assessNode({
-      knowledgeService: mockKnowledgeService,
-      learningService: mockLearningService,
-      providerFactory: mockProviderFactory,
     });
 
+    const node = assessNode(createMockDeps({
+      providerFactory: mockProviderFactory,
+      knowledgeService: mockKnowledgeService,
+      learningService: mockLearningService,
+    }));
+
     const config = createMockConfig();
-    const result = await node({ messages: [], topic: 'Test' } as any, config);
+    const state: typeof WorkflowStateAnnotation.State = {
+      messages: [],
+      topic: 'Test',
+    };
+    const result = await node(state, config);
 
     // Verify result is properly formatted
     expect(result.messages).toHaveLength(1);
@@ -692,35 +909,34 @@ describe('assess node', () => {
     ];
 
     for (const testCase of testCases) {
-      const mockKnowledgeService = {
+      const mockKnowledgeService = createMockKnowledgeService({
         searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
-      };
+      });
 
-      const mockLearningService = {
+      const mockLearningService = createMockLearningService({
         getPracticeHistory: vi.fn().mockResolvedValue([]),
-      };
+      });
 
       const mockModel = {
         invoke: vi.fn().mockResolvedValue({ content: testCase.score }),
       };
 
-      const mockProviderFactory = {
+      const mockProviderFactory = createMockProviderFactory({
         getModel: vi.fn().mockResolvedValue(mockModel),
-      };
-
-      const node = assessNode({
-        knowledgeService: mockKnowledgeService,
-        learningService: mockLearningService,
-        providerFactory: mockProviderFactory,
       });
 
-      const result = await node(
-        {
-          messages: [],
-          topic: 'Test',
-        } as any,
-        createMockConfig()
-      );
+      const node = assessNode(createMockDeps({
+        providerFactory: mockProviderFactory,
+        knowledgeService: mockKnowledgeService,
+        learningService: mockLearningService,
+      }));
+
+      const state: typeof WorkflowStateAnnotation.State = {
+        messages: [],
+        topic: 'Test',
+      };
+
+      const result = await node(state, createMockConfig());
 
       expect(result.confidence).toBe(testCase.expected);
     }

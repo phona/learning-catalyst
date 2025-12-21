@@ -112,38 +112,86 @@ export const setupConceptParsingHandlers = (
   ipcMainInstance.handle(
     'knowledge:parse-concepts',
     async (_event, params: ConceptParsingHandlerParams) => {
-      const files = params.files ?? [];
-      handlerLogger.info('Handling concept parsing request', {
-        files: files.length,
-        userId: params.userId,
-      });
-
-      const materials = files.map((file, index) => normalizeMaterial(file, index));
-      const hasInlineContent =
-        params.content !== undefined && params.content !== null && params.content !== '';
-      if (hasInlineContent) {
-        materials.push({
-          id: params.materialId ?? `inline-${Date.now()}`,
-          title: params.materialId ?? 'inline-content',
-          content: params.content ?? '',
-          format: 'text',
+      try {
+        const files = params.files ?? [];
+        handlerLogger.info('Handling concept parsing request', {
+          files: files.length,
+          userId: params.userId,
         });
-      }
 
-      const settings = await buildParsingSettings(params, services.configService);
-      const result = await services.conceptParsingService.parseMaterials(materials, settings);
-      handlerLogger.info('Concept parsing completed', {
-        success: result.success,
-        concepts: result.concepts.length,
-        relationships: result.relationships.length,
-      });
-      return result;
+        const materials = files.map((file, index) => normalizeMaterial(file, index));
+        const hasInlineContent =
+          params.content !== undefined && params.content !== null && params.content !== '';
+        if (hasInlineContent) {
+          materials.push({
+            id: params.materialId ?? `inline-${Date.now()}`,
+            title: params.materialId ?? 'inline-content',
+            content: params.content ?? '',
+            format: 'text',
+          });
+        }
+
+        const settings = await buildParsingSettings(params, services.configService);
+        const result = await services.conceptParsingService.parseMaterials(materials, settings);
+        handlerLogger.info('Concept parsing completed', {
+          success: result.success,
+          concepts: result.concepts.length,
+          relationships: result.relationships.length,
+        });
+        return result;
+      } catch (error) {
+        handlerLogger.error('Concept parsing failed', {
+          message: error instanceof Error ? error.message : String(error),
+          name: error instanceof Error ? error.name : 'Error',
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+
+        return {
+          success: false,
+          error: {
+            type: 'SYSTEM_ERROR',
+            code: 'knowledge.parse_failed',
+            message: 'Unable to parse concepts',
+            details: error instanceof Error
+              ? {
+                message: error.message,
+                name: error.name,
+                stack: error.stack,
+              }
+              : { message: String(error) },
+          },
+        };
+      }
     },
   );
 
   ipcMainInstance.handle('knowledge:clear-parsing-jobs', async () => {
-    const result = await services.conceptParsingService.clearJobCache();
-    handlerLogger.info('Cleared parsing job cache', result);
-    return result;
+    try {
+      const result = await services.conceptParsingService.clearJobCache();
+      handlerLogger.info('Cleared parsing job cache', result);
+      return result;
+    } catch (error) {
+      handlerLogger.error('Failed to clear parsing job cache', {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      return {
+        success: false,
+        error: {
+          type: 'SYSTEM_ERROR',
+          code: 'knowledge.parse_failed',
+          message: 'Unable to clear parsing cache',
+          details: error instanceof Error
+            ? {
+              message: error.message,
+              name: error.name,
+              stack: error.stack,
+            }
+            : { message: String(error) },
+        },
+      };
+    }
   });
 };

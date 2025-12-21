@@ -51,7 +51,7 @@ describe('discovery-service', () => {
     expect(path.id).toBe('session-123');
     expect(path.modules).toHaveLength(2);
     expect(path.modules[0].difficulty).toBe(1); // easy
-    expect(path.estimatedDuration).toBe(60);
+    expect(path.estimated_duration).toBe(60);
     expect(path.progress.currentModule).toBe('2');
   });
 

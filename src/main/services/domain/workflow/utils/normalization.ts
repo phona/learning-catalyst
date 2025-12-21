@@ -113,9 +113,9 @@ export interface NormalizedMessage {
  * Input message types that can be converted to NormalizedMessage.
  *
  * Supports:
- * - LangChain BaseMessage objects
+ * - LangChain BaseMessage instances (HumanMessage, AIMessage, ToolMessage)
+ * - LangChain serialized messages (with lc_kwargs)
  * - Plain message objects with role/content
- * - Serialized LangChain messages
  */
 export type InputMessage = BaseMessage | {
   role: string;
@@ -161,12 +161,13 @@ interface PlainMessage {
  * LangChain message → NormalizedMessage
  *
  * Handles:
+ * - LangChain BaseMessage instances (HumanMessage, AIMessage, ToolMessage)
  * - LangChain serialized messages (lc_kwargs)
  * - Plain message objects
  * - String vs object content
  * - Metadata attachment (agentType, workflowNode)
  *
- * @param msg - LangChain message or plain message object
+ * @param msg - LangChain BaseMessage, serialized message, or plain message object
  * @param nodeName - Optional workflow node name for metadata
  * @returns Normalized message object
  *
@@ -178,6 +179,31 @@ export function convertToPlainMessage(
   msg: InputMessage,
   nodeName?: string
 ): NormalizedMessage {
+  // Handle LangChain BaseMessage instances
+  if (msg && typeof msg === 'object' && typeof (msg as BaseMessage)._getType === 'function') {
+    const baseMessage = msg as BaseMessage;
+    // Get role from _getType() method (returns 'human', 'ai', 'tool')
+    const messageType = baseMessage._getType();
+    const role = messageType === 'human' ? 'user' :
+      messageType === 'ai' ? 'assistant' :
+        messageType === 'tool' ? 'tool' : messageType;
+
+    const result: NormalizedMessage = {
+      role: role as 'user' | 'assistant' | 'tool',
+      content: typeof baseMessage.content === 'string'
+        ? baseMessage.content
+        : JSON.stringify(baseMessage.content),
+    };
+
+    // Attach metadata if nodeName provided
+    if (nodeName) {
+      result.agentType = getAgentType(nodeName);
+      result.workflowNode = nodeName;
+    }
+
+    return result;
+  }
+
   // Handle LangChain message objects with lc_serializable or lc_kwargs
   if (msg && typeof msg === 'object' && 'lc_kwargs' in msg && msg.lc_kwargs) {
     const result: NormalizedMessage = {

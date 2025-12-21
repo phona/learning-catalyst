@@ -4,7 +4,8 @@ import { StudyStreak } from '../Analytics/StudyStreak';
 import { LearningTrends } from '../Analytics/LearningTrends';
 import { Achievements } from '../Analytics/Achievements';
 import { SessionTracking } from '../Analytics/SessionTracking';
-import type { StudyMetrics, LearningSession } from '@/shared/utils/simple-analytics';
+import type { StudyMetrics } from '@/renderer/services/analytics/analytics-service';
+import type { LearningSession } from '@/shared/types/analytics';
 import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
 import type { ActiveExecution } from '@/shared/types/electron-api/catalyst-api';
 import type { AgentDisplay as ManagementAgentDisplay } from '@/shared/types/electron-api/agent-api';
@@ -57,7 +58,7 @@ export const LearningDashboard: React.FC = () => {
       durationMinutes: (session as any).statistics?.sessionDuration ?? 0,
       aiProvider: (session as any).agent?.provider ?? 'Unknown',
       aiModel: (session as any).agent?.model ?? 'Unknown',
-      conceptsCovered: (session as any).metadata?.topicsCovered ?? [],
+      concepts: (session as any).metadata?.topicsCovered ?? [],
       sessionType: 'study',
       status: 'completed',
     }));
@@ -525,7 +526,7 @@ export const LearningDashboard: React.FC = () => {
                     durationMinutes: (session as any).statistics?.sessionDuration ?? 0,
                     aiProvider: (session as any).agent?.provider ?? 'Unknown',
                     aiModel: (session as any).agent?.model ?? 'Unknown',
-                    conceptsCovered: (session as any).metadata?.topicsCovered ?? [],
+                    concepts: (session as any).metadata?.topicsCovered ?? [],
                     sessionType: 'study',
                     status: 'completed',
                   })),

@@ -85,107 +85,107 @@ function shouldTriggerCircuitBreaker(
  */
 export const detectFailureNode =
   (deps: WorkflowDeps) =>
-  async (
-    state: typeof PracticeAnnotation.State,
-    _config: LangGraphRunnableConfig
-  ): Promise<FailureDetectionResult> => {
-    const practice = state.practice!;
-    const mastery = state.mastery ?? 0;
-    const failureStreak = practice.failureStreak ?? 0;
+    async (
+      state: typeof PracticeAnnotation.State,
+      _config: LangGraphRunnableConfig
+    ): Promise<FailureDetectionResult> => {
+      const practice = state.practice!;
+      const mastery = state.mastery ?? 0;
+      const failureStreak = practice.failureStreak ?? 0;
 
-    deps.loggerService.debug('detectFailureNode: analyzing', {
-      mastery,
-      failureStreak,
-      hintsGiven: practice.hintsGiven,
-      conversationTurns: practice.conversationTurns,
-    });
-
-    // Check for success FIRST - high mastery means we've achieved our goal
-    if (mastery >= THRESHOLDS.MASTERY_PASS) {
-      deps.loggerService.info('detectFailureNode: success achieved', {
+      deps.loggerService.debug('detectFailureNode: analyzing', {
         mastery,
         failureStreak,
-      });
-
-      return {
-        practice: {
-          ...practice,
-          isComplete: true,
-          failureStreak: 0, // Reset on success
-        },
-        shouldExit: true,
-        exitReason: 'success',
-        needsRemediation: false,
-      };
-    }
-
-    // Determine if circuit breaker should trigger
-    const shouldBreak = shouldTriggerCircuitBreaker(
-      failureStreak,
-      mastery,
-      practice.hintsGiven
-    );
-
-    if (shouldBreak) {
-      deps.loggerService.info('detectFailureNode: circuit breaker triggered', {
-        failureStreak,
-        mastery,
-        hintsUsed: practice.hintsGiven,
-      });
-
-      return {
-        practice: {
-          ...practice,
-          shouldCircuitBreak: true,
-          failureStreak: failureStreak + 1,
-        },
-        shouldExit: true,
-        exitReason: 'circuit_breaker',
-        needsRemediation: false,
-      };
-    }
-
-    // Detect knowledge gaps for remediation
-    const gapsDetected = detectKnowledgeGaps(
-      mastery,
-      practice.hintsGiven,
-      practice.conversationTurns,
-      practice.focusConcepts
-    );
-
-    if (gapsDetected) {
-      deps.loggerService.info('detectFailureNode: remediation needed', {
-        mastery,
-        hintsUsed: practice.hintsGiven,
+        hintsGiven: practice.hintsGiven,
         conversationTurns: practice.conversationTurns,
       });
 
+      // Check for success FIRST - high mastery means we've achieved our goal
+      if (mastery >= THRESHOLDS.MASTERY_PASS) {
+        deps.loggerService.info('detectFailureNode: success achieved', {
+          mastery,
+          failureStreak,
+        });
+
+        return {
+          practice: {
+            ...practice,
+            isComplete: true,
+            failureStreak: 0, // Reset on success
+          },
+          shouldExit: true,
+          exitReason: 'success',
+          needsRemediation: false,
+        };
+      }
+
+      // Determine if circuit breaker should trigger
+      const shouldBreak = shouldTriggerCircuitBreaker(
+        failureStreak,
+        mastery,
+        practice.hintsGiven
+      );
+
+      if (shouldBreak) {
+        deps.loggerService.info('detectFailureNode: circuit breaker triggered', {
+          failureStreak,
+          mastery,
+          hintsUsed: practice.hintsGiven,
+        });
+
+        return {
+          practice: {
+            ...practice,
+            shouldCircuitBreak: true,
+            failureStreak: failureStreak + 1,
+          },
+          shouldExit: true,
+          exitReason: 'circuit_breaker',
+          needsRemediation: false,
+        };
+      }
+
+      // Detect knowledge gaps for remediation
+      const gapsDetected = detectKnowledgeGaps(
+        mastery,
+        practice.hintsGiven,
+        practice.conversationTurns,
+        practice.focusConcepts
+      );
+
+      if (gapsDetected) {
+        deps.loggerService.info('detectFailureNode: remediation needed', {
+          mastery,
+          hintsUsed: practice.hintsGiven,
+          conversationTurns: practice.conversationTurns,
+        });
+
+        return {
+          practice: {
+            ...practice,
+            needsRemediation: true,
+            failureStreak: failureStreak + 1,
+          },
+          shouldExit: false,
+          exitReason: null,
+          needsRemediation: true,
+        };
+      }
+
+      // Continue practice - update failure streak
+      deps.loggerService.debug('detectFailureNode: continue practice', {
+        mastery,
+        failureStreak: failureStreak + 1,
+      });
+
       return {
         practice: {
           ...practice,
-          needsRemediation: true,
           failureStreak: failureStreak + 1,
+          isComplete: false,
         },
         shouldExit: false,
         exitReason: null,
-        needsRemediation: true,
+        needsRemediation: false,
       };
-    }
-
-    // Continue practice - update failure streak
-    deps.loggerService.debug('detectFailureNode: continue practice', {
-      mastery,
-      failureStreak: failureStreak + 1,
-    });
-
-    return {
-      practice: {
-        ...practice,
-        failureStreak: failureStreak + 1,
-        isComplete: false,
-      },
-      shouldExit: false,
-      exitReason: null,
-      needsRemediation: false,
     };
-  };

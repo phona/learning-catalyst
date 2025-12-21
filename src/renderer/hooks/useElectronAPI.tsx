@@ -38,7 +38,9 @@ export class IPCError extends Error {
  */
 function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
   if (!response.success) {
-    const errorMessage = response.error || 'unknown error';
+    const errorMessage = typeof response.error === 'string'
+      ? response.error
+      : response.error?.message || 'unknown error';
 
     // Toast unless silent
     if (!options.silent) {
@@ -46,7 +48,13 @@ function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
     }
 
     // Re-throw for caller handling
-    throw new Error(errorMessage);
+    throw new IPCError(
+      typeof response.error === 'object' && response.error?.code
+        ? response.error.code
+        : 'UNKNOWN_ERROR',
+      errorMessage,
+      typeof response.error === 'object' ? response.error?.details : undefined
+    );
   }
 
   return response.data as T;
@@ -55,10 +63,14 @@ function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
 /**
  * Helper to unwrap API responses
  * @param responsePromise - Promise that resolves to APIResponse<T>
+ * @param options - Options for unwrapping behavior
  * @returns Promise that resolves to unwrapped data T
  */
-export function unwrapAPI<T>(responsePromise: Promise<APIResponse<T>>): Promise<T> {
-  return responsePromise.then((response) => unwrap(response));
+export function unwrapAPI<T>(
+  responsePromise: Promise<APIResponse<T>>,
+  options: IPCCallOptions = {}
+): Promise<T> {
+  return responsePromise.then((response) => unwrap(response, options));
 }
 
 // Context for dependency injection

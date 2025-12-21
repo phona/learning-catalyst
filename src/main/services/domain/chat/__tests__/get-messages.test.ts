@@ -8,7 +8,9 @@ import type { ChatService } from '../index';
  */
 interface MockCheckpoint {
   checkpoint: {
-    messages: Array<HumanMessage | AIMessage>;
+    channel_values?: {
+      messages?: Array<HumanMessage | AIMessage>;
+    };
   };
   metadata: Record<string, unknown>;
   config: {
@@ -90,7 +92,7 @@ describe('ChatService.getMessages', () => {
 
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages },
+          checkpoint: { channel_values: { messages } },
           metadata: { created_at: '2024-01-01T00:00:00Z' },
           config: { configurable: { checkpoint_id: 'cp-1' } },
         },
@@ -123,9 +125,11 @@ describe('ChatService.getMessages', () => {
         role: 'assistant',
         content: 'Hi there!',
         timestamp: '2024-01-01T00:00:00Z',
+        tool_calls: [],
         metadata: {
           checkpoint_id: 'cp-1',
           message_index: 1,
+          invalid_tool_calls: [],
         },
       });
       expect(result[2]).toEqual({
@@ -143,13 +147,13 @@ describe('ChatService.getMessages', () => {
     it('should handle complex message content (non-string)', async () => {
       // Arrange
       const messages = [
-        new HumanMessage({ type: 'text', text: 'Text message' }),
+        new HumanMessage({ content: [{ type: 'text', text: 'Text message' }] }),
         new AIMessage([{ type: 'text', text: 'Array message' }]),
       ];
 
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages },
+          checkpoint: { channel_values: { messages } },
           metadata: { created_at: '2024-01-01T00:00:00Z' },
           config: { configurable: { checkpoint_id: 'cp-1' } },
         },
@@ -166,7 +170,7 @@ describe('ChatService.getMessages', () => {
       const result = await chatService.getMessages('session-789');
 
       // Assert
-      expect(result[0].content).toBe('{"type":"text","text":"Text message"}');
+      expect(result[0].content).toBe('[{"type":"text","text":"Text message"}]');
       expect(result[1].content).toBe('[{"type":"text","text":"Array message"}]');
     });
 
@@ -175,19 +179,23 @@ describe('ChatService.getMessages', () => {
       const checkpoints: MockCheckpoint[] = [
         {
           checkpoint: {
-            messages: [
-              new HumanMessage('Latest message'),
-              new AIMessage('Latest response'),
-            ],
+            channel_values: {
+              messages: [
+                new HumanMessage('Latest message'),
+                new AIMessage('Latest response'),
+              ],
+            },
           },
           metadata: { created_at: '2024-01-02T00:00:00Z' },
           config: { configurable: { checkpoint_id: 'cp-latest' } },
         },
         {
           checkpoint: {
-            messages: [
-              new HumanMessage('Old message'),
-            ],
+            channel_values: {
+              messages: [
+                new HumanMessage('Old message'),
+              ],
+            },
           },
           metadata: { created_at: '2024-01-01T00:00:00Z' },
           config: { configurable: { checkpoint_id: 'cp-old' } },
@@ -206,9 +214,9 @@ describe('ChatService.getMessages', () => {
 
       // Assert - Should get messages from latest checkpoint only
       expect(result).toHaveLength(2);
-      expect(result[0].content).toBe('Latest message');
-      expect(result[1].content).toBe('Latest response');
-      expect(result[0].metadata.checkpoint_id).toBe('cp-latest');
+      expect(result[0]!.content).toBe('Latest message');
+      expect(result[1]!.content).toBe('Latest response');
+      expect(result[0]!.metadata?.checkpoint_id).toBe('cp-latest');
     });
   });
 
@@ -223,7 +231,7 @@ describe('ChatService.getMessages', () => {
 
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages },
+          checkpoint: { channel_values: { messages } },
           metadata: {},
           config: { configurable: {} },
         },
@@ -249,7 +257,7 @@ describe('ChatService.getMessages', () => {
       const messages = [new HumanMessage('Test')];
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages },
+          checkpoint: { channel_values: { messages } },
           metadata: {}, // No created_at
           config: { configurable: {} },
         },
@@ -273,7 +281,7 @@ describe('ChatService.getMessages', () => {
       // Arrange
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages: [] }, // Empty messages
+          checkpoint: { channel_values: { messages: [] } }, // Empty messages
           metadata: {},
           config: { configurable: {} },
         },
@@ -297,10 +305,12 @@ describe('ChatService.getMessages', () => {
   describe('Error handling', () => {
     it('should propagate errors from checkpoint saver', async () => {
       // Arrange
-      mockCheckpointSaver = createMockCheckpointSaver([]);
-      (mockCheckpointSaver.list as vi.MockedFunction<any>).mockRejectedValueOnce(
-        new Error('Database connection failed')
-      );
+      const error = new Error('Database connection failed');
+      mockCheckpointSaver = {
+        list: vi.fn().mockImplementation(async function* () {
+          throw error;
+        }),
+      };
 
       chatService = createChatService({
         providerFactory: {} as any,
@@ -321,7 +331,7 @@ describe('ChatService.getMessages', () => {
       const loggerSpy = mockLogger.child();
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages: [] },
+          checkpoint: { channel_values: { messages: [] } },
           metadata: {},
           config: { configurable: {} },
         },
@@ -349,7 +359,7 @@ describe('ChatService.getMessages', () => {
       const messages = [new HumanMessage('Test'), new AIMessage('Response')];
       const checkpoints: MockCheckpoint[] = [
         {
-          checkpoint: { messages },
+          checkpoint: { channel_values: { messages } },
           metadata: {},
           config: { configurable: {} },
         },

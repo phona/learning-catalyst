@@ -75,7 +75,6 @@ describe('ConfigService Tests', () => {
         apiKey: 'test-key',
         baseUrl: 'https://api.openai.com/v1',
         models: ['gpt-4', 'gpt-3.5-turbo'],
-        streaming: true,
       },
     },
     modelTypes: {
@@ -472,7 +471,6 @@ describe('ConfigService Tests', () => {
         apiKey: 'test-key',
         baseUrl: 'https://api.openai.com/v1',
         models: ['gpt-4', 'gpt-3.5-turbo'],
-        streaming: true,
       });
     });
 

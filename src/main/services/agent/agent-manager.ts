@@ -90,11 +90,12 @@ export const createAgentManager = async (deps: AgentManagerDeps) => {
         agentInstances = await createAllAgents();
         supervisorAgent = agentInstances.supervisor;
         currentConfig = newConfig;
-        if (typeof deps.conceptParsingService?.rebuild === 'function') {
-          await deps.conceptParsingService.rebuild();
+        // Rebuild services if they support it
+        if (deps.conceptParsingService && 'rebuild' in deps.conceptParsingService) {
+          await (deps.conceptParsingService as { rebuild: () => Promise<void> }).rebuild();
         }
-        if (typeof deps.learningService?.rebuild === 'function') {
-          await deps.learningService.rebuild();
+        if (deps.learningService && 'rebuild' in deps.learningService) {
+          await (deps.learningService as { rebuild: () => Promise<void> }).rebuild();
         }
         deps.loggerService.info('Agents rebuilt successfully');
       } catch (error) {

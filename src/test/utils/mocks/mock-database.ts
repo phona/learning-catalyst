@@ -519,15 +519,22 @@ export const mockMigrations = {
 export const mockDatabaseFactory = {
   instances: new Map(),
 
-  create: vi.fn().mockImplementation(async (config: unknown) => {
-    const instanceId = config.filename || 'default';
+  create: vi.fn().mockImplementation(async (config: { filename?: string } | string) => {
+    // Handle both string path and config object
+    const filename = typeof config === 'string' ? config : config.filename || 'default';
+    const instanceId = filename;
 
     if (mockDatabaseFactory.instances.has(instanceId)) {
       return mockDatabaseFactory.instances.get(instanceId);
     }
 
     const db = { ...mockDatabase };
-    db.connection = { ...db.connection, ...config };
+    // Update connection with the provided filename
+    if (typeof config === 'string') {
+      db.connection = { ...db.connection, filename: config };
+    } else {
+      db.connection = { ...db.connection, ...config };
+    }
 
     mockDatabaseFactory.instances.set(instanceId, db);
     return db;

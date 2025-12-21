@@ -92,64 +92,64 @@ function extractFocusConcepts(practice: PracticeState, mastery: number): string[
  */
 export const remediatePracticeNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof PracticeAnnotation.State, _config: LangGraphRunnableConfig) => {
-    const emitter = createChunkEmitter(_config);
-    const practice = state.practice!;
-    const mastery = state.mastery ?? 0;
-    const failureStreak = practice.failureStreak ?? 0;
+    async (state: typeof PracticeAnnotation.State, _config: LangGraphRunnableConfig) => {
+      const emitter = createChunkEmitter(_config);
+      const practice = state.practice!;
+      const mastery = state.mastery ?? 0;
+      const failureStreak = practice.failureStreak ?? 0;
 
-    deps.loggerService.info('remediatePracticeNode: providing remediation', {
-      topic: state.topic,
-      mastery,
-      failureStreak,
-      gaps: practice.focusConcepts,
-    });
+      deps.loggerService.info('remediatePracticeNode: providing remediation', {
+        topic: state.topic,
+        mastery,
+        failureStreak,
+        gaps: practice.focusConcepts,
+      });
 
-    // Extract focus concepts for remediation
-    const focusConcepts = extractFocusConcepts(practice, mastery);
+      // Extract focus concepts for remediation
+      const focusConcepts = extractFocusConcepts(practice, mastery);
 
-    // Create targeted remediation message
-    const model = await deps.providerFactory.getModel();
-    const prompt = createRemediationPrompt({
-      topic: state.topic,
-      mastery,
-      failureStreak,
-      gaps: practice.focusConcepts,
-      hintsUsed: practice.hintsGiven,
-      focusConcepts,
-    });
-
-    const messages = [
-      { role: 'system' as const, content: 'You are an expert tutor specializing in clear explanations.' },
-      { role: 'user' as const, content: prompt },
-    ];
-
-    const response = await model.invoke(messages);
-    const content = String(response.content ?? '');
-
-    // Stream remediation message to user
-    const messageId = generateId('msg');
-    emitter.textStart(messageId);
-    emitter.textDelta(messageId, content);
-    emitter.textEnd(messageId);
-
-    deps.loggerService.info('remediatePracticeNode: remediation delivered', {
-      topic: state.topic,
-      contentLength: content.length,
-      focusConcepts,
-    });
-
-    // Update practice state for next round
-    return {
-      messages: [new AIMessage(content)],
-      practice: {
-        ...practice,
-        needsRemediation: false,
-        // Reset counters for fresh start after remediation
-        hintsGiven: 0,
-        conversationTurns: 0,
-        // Keep focus concepts for next question generation
+      // Create targeted remediation message
+      const model = await deps.providerFactory.getModel();
+      const prompt = createRemediationPrompt({
+        topic: state.topic,
+        mastery,
+        failureStreak,
+        gaps: practice.focusConcepts,
+        hintsUsed: practice.hintsGiven,
         focusConcepts,
-      },
+      });
+
+      const messages = [
+        { role: 'system' as const, content: 'You are an expert tutor specializing in clear explanations.' },
+        { role: 'user' as const, content: prompt },
+      ];
+
+      const response = await model.invoke(messages);
+      const content = String(response.content ?? '');
+
+      // Stream remediation message to user
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, content);
+      emitter.textEnd(messageId);
+
+      deps.loggerService.info('remediatePracticeNode: remediation delivered', {
+        topic: state.topic,
+        contentLength: content.length,
+        focusConcepts,
+      });
+
+      // Update practice state for next round
+      return {
+        messages: [new AIMessage(content)],
+        practice: {
+          ...practice,
+          needsRemediation: false,
+          // Reset counters for fresh start after remediation
+          hintsGiven: 0,
+          conversationTurns: 0,
+          // Keep focus concepts for next question generation
+          focusConcepts,
+        },
+      };
     };
-  };

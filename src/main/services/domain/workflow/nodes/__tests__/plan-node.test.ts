@@ -72,7 +72,7 @@ describe('plan node', () => {
 
     // Use RunnableLambda with correct constructor signature
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         return new AIMessage(JSON.stringify(mockBlueprint));
       },
     });
@@ -111,7 +111,7 @@ describe('plan node', () => {
 
   it('determines novice level for low confidence', async () => {
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         return new AIMessage(JSON.stringify({
           learnerProfile: {
             topic: 'Test Topic',
@@ -187,7 +187,7 @@ describe('plan node', () => {
 
   it('determines advanced level for high confidence', async () => {
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         return new AIMessage(JSON.stringify({
           learnerProfile: {
             topic: 'Test Topic',
@@ -263,7 +263,7 @@ describe('plan node', () => {
 
   it('uses default confidence when not provided', async () => {
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         return new AIMessage(JSON.stringify({
           learnerProfile: {
             topic: 'Test Topic',
@@ -339,7 +339,7 @@ describe('plan node', () => {
 
   it('includes gaps from assessment in the plan', async () => {
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         return new AIMessage(JSON.stringify({
           learnerProfile: {
             topic: 'JavaScript',
@@ -417,7 +417,7 @@ describe('plan node', () => {
 
   it('validates session blueprint schema', async () => {
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         return new AIMessage(JSON.stringify({
           learnerProfile: {
             topic: 'Test',
@@ -498,7 +498,7 @@ describe('plan node', () => {
 
     // Use RunnableLambda that throws an error
     const mockLlm = new RunnableLambda({
-      func: async (_input) => {
+      func: async (_input: unknown) => {
         throw new Error('Test error');
       },
     });

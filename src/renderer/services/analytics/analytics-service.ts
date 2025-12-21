@@ -86,7 +86,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.getDashboard();
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get dashboard');
+      throw new Error(response.error || 'Failed to get dashboard');
     }
 
     return response.data;
@@ -101,7 +101,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get progress chart');
+      throw new Error(response.error || 'Failed to get progress chart');
     }
 
     // Convert the display data to match interface
@@ -122,10 +122,10 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.getConceptProgress(conceptId);
 
     if (!response.success || !response.data) {
-      if (response.error?.code === 'CONCEPT_NOT_FOUND') {
+      if (response.code === 'CONCEPT_NOT_FOUND') {
         throw new ConceptNotFoundError(conceptId);
       }
-      throw new Error(response.error?.message || 'Failed to get concept progress');
+      throw new Error(response.error || 'Failed to get concept progress');
     }
 
     return response.data;
@@ -138,10 +138,10 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.updateConceptProgress(conceptId, update);
 
     if (!response.success) {
-      if (response.error?.code === 'CONCEPT_NOT_FOUND') {
+      if (response.code === 'CONCEPT_NOT_FOUND') {
         throw new ConceptNotFoundError(conceptId);
       }
-      throw new Error(response.error?.message || 'Failed to update concept progress');
+      throw new Error(response.error || 'Failed to update concept progress');
     }
   };
 
@@ -149,7 +149,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.trackSession(session);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to track session');
+      throw new Error(response.error || 'Failed to track session');
     }
 
     return response.data;
@@ -173,7 +173,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get session history');
+      throw new Error(response.error || 'Failed to get session history');
     }
 
     return response.data;
@@ -183,7 +183,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.getAchievements();
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get achievements');
+      throw new Error(response.error || 'Failed to get achievements');
     }
 
     // Transform the API response to match the IAnalyticsService Achievement interface
@@ -210,7 +210,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.checkAchievements(sessionId);
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to check achievements');
+      throw new Error(response.error || 'Failed to check achievements');
     }
 
     // Transform the API response to match the IAnalyticsService Achievement interface
@@ -249,7 +249,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get learning trends');
+      throw new Error(response.error || 'Failed to get learning trends');
     }
 
     // Transform the API response to match the IAnalyticsService LearningTrends interface
@@ -270,7 +270,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     const response = await apiClient.analytics.getStudyStreak();
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get study streak');
+      throw new Error(response.error || 'Failed to get study streak');
     }
 
     return response.data;
@@ -283,7 +283,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to get time stats');
+      throw new Error(response.error || 'Failed to get time stats');
     }
 
     return response.data;
@@ -297,7 +297,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     });
 
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to export data');
+      throw new Error(response.error || 'Failed to export data');
     }
 
     return response.data;
@@ -312,7 +312,7 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     });
 
     if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to import data');
+      throw new Error(response.error || 'Failed to import data');
     }
   };
 
@@ -330,15 +330,15 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
     ]);
 
     if (!timeStatsResp.success || !timeStatsResp.data) {
-      throw new Error(timeStatsResp.error?.message || 'Failed to get time stats');
+      throw new Error(timeStatsResp.error || 'Failed to get time stats');
     }
 
     if (!streakResp.success || !streakResp.data) {
-      throw new Error(streakResp.error?.message || 'Failed to get study streak');
+      throw new Error(streakResp.error || 'Failed to get study streak');
     }
 
     if (!usageResp.success || !usageResp.data) {
-      throw new Error(usageResp.error?.message || 'Failed to get usage stats');
+      throw new Error(usageResp.error || 'Failed to get usage stats');
     }
 
     const timeStats = timeStatsResp.data;

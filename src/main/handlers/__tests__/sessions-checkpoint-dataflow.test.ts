@@ -13,11 +13,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { setupSessionsHandlers } from '../sessions-handlers';
 import { setupChatHandlers } from '../chat-handlers';
-import { ipcMain } from 'electron';
+
+// Create a mock IPC main instance
+const createMockIpcMain = () => {
+  const listeners = new Map();
+
+  return {
+    handle: vi.fn((channel: string, handler: Function) => {
+      listeners.set(channel, handler);
+    }),
+    on: vi.fn((channel: string, handler: Function) => {
+      listeners.set(channel, handler);
+    }),
+    _events: listeners,
+  };
+};
+
+const ipcMain = createMockIpcMain();
 
 // Test utilities
 const getHandler = (channel: string) => {
-  const handler = (ipcMain as any)._events.get(channel);
+  const handler = ipcMain._events.get(channel);
   if (!handler) {
     throw new Error(`Handler not found for channel: ${channel}`);
   }
@@ -26,6 +42,15 @@ const getHandler = (channel: string) => {
 
 // Mock services
 const createMockServices = () => {
+  // Create mock logger with proper structure
+  const createMockLogger = () => ({
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn((context: Record<string, unknown>) => createMockLogger()),
+  });
+
   const learningService = {
     startLearningSession: vi.fn(),
     getSession: vi.fn(),
@@ -34,33 +59,74 @@ const createMockServices = () => {
     getRecentSessions: vi.fn(),
     searchSessions: vi.fn(),
     getSessionStatistics: vi.fn(),
+    createLearningPath: vi.fn(),
+    getLearningPath: vi.fn(),
+    getUserProgress: vi.fn(),
+    getSessionProgress: vi.fn(),
+    getPracticeHistory: vi.fn(),
+    updateSessionTitle: vi.fn(),
   };
 
-  const loggerService = {
-    child: vi.fn(() => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    })),
-  };
+  const loggerService = createMockLogger();
 
   const chatService = {
     generateTitle: vi.fn(),
     getMessages: vi.fn(),
   };
 
-  const checkpointSaver = {
-    put: vi.fn(),
-    list: vi.fn(),
+  // Create a mock checkpoint saver class
+  class MockCheckpointSaver {
+    put = vi.fn();
+    list = vi.fn();
+    get = vi.fn();
+    serde = {
+      serialize: vi.fn(),
+      deserialize: vi.fn(),
+    };
+    getTuple = vi.fn();
+    putWrites = vi.fn();
+    deleteThread = vi.fn();
+    getNextVersion = vi.fn();
+  }
+
+  const checkpointSaver = new MockCheckpointSaver();
+
+  const configService = {
+    getConfig: vi.fn(),
+    setConfig: vi.fn(),
     get: vi.fn(),
+    getProviderConfig: vi.fn(),
+    setProviderConfig: vi.fn(),
+    onConfigChanged: vi.fn(),
+    isSetupComplete: true,
   };
 
-  const configService = {};
-  const providerFactory = {};
-  const knowledgeService = {};
-  const practiceService = {};
-  const agentManager = {};
+  const providerFactory = {
+    getModel: vi.fn(),
+    getEmbeddings: vi.fn(),
+    getEmbeddingModel: vi.fn(),
+    getRerankModel: vi.fn(),
+  };
+
+  const knowledgeService = {
+    ingestConceptParsingResult: vi.fn(),
+    searchKnowledge: vi.fn(),
+    semanticSearch: vi.fn(),
+    exploreConcept: vi.fn(),
+    findRelatedByPrompt: vi.fn(),
+    getRelatedConcepts: vi.fn(),
+    getKnowledgeMap: vi.fn(),
+  };
+
+  const practiceService = {
+    recordPracticeAttempt: vi.fn(),
+    rebuild: vi.fn(),
+  };
+
+  const agentManager = {
+    runAgent: vi.fn(),
+    getAgent: vi.fn(),
+  };
 
   return {
     learningService,
@@ -82,7 +148,7 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
 
   afterEach(() => {
     // Clean up handlers
-    (ipcMain as any)._events = new Map();
+    ipcMain._events.clear();
   });
 
   describe('End-to-End Session Flow', () => {
@@ -113,13 +179,13 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       setupChatHandlers(ipcMain as any, {
         chatService: services.chatService,
         loggerService: services.loggerService,
-        checkpointSaver: services.checkpointSaver,
-        configService: services.configService,
-        providerFactory: services.providerFactory,
-        knowledgeService: services.knowledgeService,
-        practiceService: services.practiceService,
-        learningService: services.learningService,
-        agentManager: services.agentManager,
+        checkpointSaver: services.checkpointSaver as any,
+        configService: services.configService as any,
+        providerFactory: services.providerFactory as any,
+        knowledgeService: services.knowledgeService as any,
+        practiceService: services.practiceService as any,
+        learningService: services.learningService as any,
+        agentManager: services.agentManager as any,
       });
 
       // Step 1: Assistant UI creates session with threadId
@@ -183,13 +249,13 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       setupChatHandlers(ipcMain as any, {
         chatService: services.chatService,
         loggerService: services.loggerService,
-        checkpointSaver: services.checkpointSaver,
-        configService: services.configService,
-        providerFactory: services.providerFactory,
-        knowledgeService: services.knowledgeService,
-        practiceService: services.practiceService,
-        learningService: services.learningService,
-        agentManager: services.agentManager,
+        checkpointSaver: services.checkpointSaver as any,
+        configService: services.configService as any,
+        providerFactory: services.providerFactory as any,
+        knowledgeService: services.knowledgeService as any,
+        practiceService: services.practiceService as any,
+        learningService: services.learningService as any,
+        agentManager: services.agentManager as any,
       });
 
       // Step 1: Get session
@@ -251,13 +317,13 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       setupChatHandlers(ipcMain as any, {
         chatService: services.chatService,
         loggerService: services.loggerService,
-        checkpointSaver: services.checkpointSaver,
-        configService: services.configService,
-        providerFactory: services.providerFactory,
-        knowledgeService: services.knowledgeService,
-        practiceService: services.practiceService,
-        learningService: services.learningService,
-        agentManager: services.agentManager,
+        checkpointSaver: services.checkpointSaver as any,
+        configService: services.configService as any,
+        providerFactory: services.providerFactory as any,
+        knowledgeService: services.knowledgeService as any,
+        practiceService: services.practiceService as any,
+        learningService: services.learningService as any,
+        agentManager: services.agentManager as any,
       });
 
       // Create session

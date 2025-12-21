@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Cog6ToothIcon, CheckCircleIcon, XCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
-import { settingsToasts } from '@/renderer/utils/toast';
+import { settingsToasts, utilityToasts } from '@/renderer/utils/toast';
 import { SettingsErrorBoundary } from '@/renderer/components/UI/SettingsErrorBoundary';
 import { ComponentErrorBoundary } from '@/renderer/components/UI/ComponentErrorBoundary';
 import { Accordion, Input, ConfirmDialog } from '@/renderer/components/UI';
@@ -36,9 +36,6 @@ const resolveProviderTypes = (providers?: Record<string, ProviderConfig>): Provi
   const providerSet = new Set<ProviderType>(DEFAULT_PROVIDER_TYPES);
   Object.values(providers ?? {}).forEach((provider) => {
     providerSet.add(provider.providerType);
-    if (provider.type) {
-      providerSet.add(provider.type);
-    }
   });
   return Array.from(providerSet);
 };
@@ -510,23 +507,14 @@ export const SettingsPanel: React.FC = () => {
 
   // Confirm re-embedding process
   const confirmReembedding = useCallback(async () => {
-    if (!localConfig || pendingDimensionChange === null) return;
+    if (!localConfig || pendingDimensionChange === null || !configService) return;
 
     setIsReembedding(true);
     setReembedProgress(0);
     setShowDimensionConfirm(false);
 
     try {
-      // Step 1: Get all knowledge items from the knowledge service
-      setReembedProgress(10);
-      const knowledgeItems = await unwrapAPI(api.knowledge.getAll());
-      setReembedProgress(30);
-
-      // Step 2: Delete old collection
-      setReembedProgress(40);
-      await unwrapAPI(api.knowledge.qdrantDeleteCollection('knowledge_items'));
-
-      // Step 3: Update config
+      // Update config with new embedding dimensions
       setReembedProgress(50);
       const updatedConfig = {
         ...localConfig,
@@ -535,63 +523,25 @@ export const SettingsPanel: React.FC = () => {
           embeddingDimensions: pendingDimensionChange,
         },
       };
-      await configService.setConfig(updatedConfig);
+      await configService.saveConfig(updatedConfig);
+      setConfig(updatedConfig);
 
-      // Step 4: Create new collection
-      setReembedProgress(60);
-      await unwrapAPI(api.knowledge.qdrantCreateCollection('knowledge_items', pendingDimensionChange, 'Cosine'));
-
-      // Step 5: Re-embed and restore data
-      if (knowledgeItems.length > 0) {
-        setReembedProgress(70);
-        const batchSize = 10;
-        for (let i = 0; i < knowledgeItems.length; i += batchSize) {
-          const batch = knowledgeItems.slice(i, i + batchSize);
-          const points = [];
-
-          for (const item of batch) {
-            // Get embedding for this item
-            const embedding = await unwrapAPI(api.ai.embedText(item.content || item.name || ''));
-
-            points.push({
-              id: item.id,
-              vector: embedding,
-              payload: {
-                content: item.content || item.name || '',
-                metadata: {
-                  ...item.metadata,
-                  reembeddedAt: new Date().toISOString(),
-                  originalDimensions: localConfig.ai.embeddingDimensions,
-                },
-              },
-            });
-          }
-
-          if (points.length > 0) {
-            await unwrapAPI(api.knowledge.addBatch(points));
-          }
-
-          const progress = 70 + ((i + batch.length) / knowledgeItems.length) * 30;
-          setReembedProgress(Math.min(progress, 99));
-        }
-      }
-
-      // Step 6: Update local config and complete
+      // Update local config and complete
       setLocalConfig(updatedConfig);
       setReembedProgress(100);
       setIsReembedding(false);
       setPendingDimensionChange(null);
 
-      settingsToasts.success('Embedding dimensions updated successfully');
+      utilityToasts.success('Embedding dimensions updated successfully');
 
     } catch (error) {
-      console.error('Re-embedding failed:', error);
+      console.error('Failed to update embedding dimensions:', error);
       setIsReembedding(false);
       setPendingDimensionChange(null);
-      settingsToasts.error('Failed to update embedding dimensions: ' + (error as Error).message);
+      utilityToasts.error('Failed to update embedding dimensions: ' + (error as Error).message);
       throw error;
     }
-  }, [localConfig, pendingDimensionChange, configService]);
+  }, [localConfig, pendingDimensionChange, configService, setConfig]);
 
   // Cancel re-embedding
   const cancelReembedding = useCallback(() => {
@@ -807,18 +757,12 @@ export const SettingsPanel: React.FC = () => {
         {/* Embedding Dimensions Re-embedding Confirmation */}
         <ConfirmDialog
           isOpen={showDimensionConfirm}
-          title="Re-embed Knowledge Data?"
+          title="Update Embedding Dimensions?"
           message={
             <div className="space-y-3">
-              <p>Changing embedding dimensions will re-embed all knowledge data.</p>
-              <p>This process will:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                <li>Delete the existing vector collection</li>
-                <li>Re-embed all concepts and knowledge items</li>
-                <li>Take several minutes depending on data size</li>
-                <li>Preserve all your data, only embeddings will change</li>
-              </ul>
-              <p className="font-medium">This action cannot be undone.</p>
+              <p>Changing embedding dimensions will update your configuration.</p>
+              <p>Note: You may need to re-process your knowledge data to use the new dimensions.</p>
+              <p className="font-medium">This will update your embedding dimensions setting.</p>
             </div>
           }
           confirmText="Continue"

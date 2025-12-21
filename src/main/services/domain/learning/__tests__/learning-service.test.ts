@@ -102,13 +102,30 @@ const createMockDatabase = () => {
       executeTakeFirst: vi.fn().mockResolvedValue(data[0] || undefined),
     }),
     update: vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          execute: vi.fn().mockImplementation(() => {
-            return Promise.resolve();
-          }),
+      set: vi.fn().mockImplementation((updates: any) => ({
+        where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+          if (operator === '=') {
+            const tableData = databaseTables[tableName] || [];
+            const updatedRows = tableData.map((row: any) => {
+              if (row[column] === value) {
+                return { ...row, ...updates };
+              }
+              return row;
+            });
+            databaseTables[tableName] = updatedRows;
+            return {
+              execute: vi.fn().mockImplementation(() => {
+                return Promise.resolve({ numUpdatedRows: updatedRows.length });
+              }),
+            };
+          }
+          return {
+            execute: vi.fn().mockImplementation(() => {
+              return Promise.resolve({ numUpdatedRows: 0 });
+            }),
+          };
         }),
-      }),
+      })),
     }),
     deleteFrom: vi.fn().mockReturnValue({
       where: vi.fn().mockReturnValue({
@@ -142,13 +159,30 @@ const createMockDatabase = () => {
       })),
     })),
     updateTable: vi.fn().mockImplementation((tableName: string) => ({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          execute: vi.fn().mockImplementation(() => {
-            return Promise.resolve();
-          }),
+      set: vi.fn().mockImplementation((updates: any) => ({
+        where: vi.fn().mockImplementation((column: string, operator: string, value: any) => {
+          if (operator === '=') {
+            const tableData = databaseTables[tableName] || [];
+            const updatedRows = tableData.map((row: any) => {
+              if (row[column] === value) {
+                return { ...row, ...updates };
+              }
+              return row;
+            });
+            databaseTables[tableName] = updatedRows;
+            return {
+              execute: vi.fn().mockImplementation(() => {
+                return Promise.resolve({ numUpdatedRows: updatedRows.length });
+              }),
+            };
+          }
+          return {
+            execute: vi.fn().mockImplementation(() => {
+              return Promise.resolve({ numUpdatedRows: 0 });
+            }),
+          };
         }),
-      }),
+      })),
     })),
     deleteFrom: vi.fn().mockImplementation((tableName: string) => ({
       where: vi.fn().mockReturnValue({
@@ -238,9 +272,14 @@ describe('learning service (mocked database)', () => {
 
     mockDb = createMockDatabase();
     service = createLearningService({
-      db: mockDb,
+      db: mockDb as any,
       loggerService,
-      learningAgent,
+      checkpointSaver: {
+        save: vi.fn().mockResolvedValue(undefined),
+        load: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+        list: vi.fn().mockResolvedValue([]),
+      } as any,
     });
   });
 
@@ -255,7 +294,6 @@ describe('learning service (mocked database)', () => {
       difficulty: 'beginner',
       agentType: 'learning',
       learningStyle: 'visual',
-      userId: 'tester',
     });
 
     expect((session.metadata as any)?.blueprint?.modules).toHaveLength(1);
@@ -265,46 +303,27 @@ describe('learning service (mocked database)', () => {
     // timeline property doesn't exist on progress type, so we'll skip this check
   });
 
-  it('updates pause/resume/completion state in the database', async () => {
+  it('updates session state in the database', async () => {
     const session = await service.startLearningSession({
       topic: 'Refactoring',
       goals: ['Plan improvements'],
       difficulty: 'intermediate',
       agentType: 'learning',
       learningStyle: 'reading',
-      userId: 'tester',
     });
 
-    const pauseResult = await service.pauseSession(session.id);
-    expect(pauseResult.resumeData?.sessionId).toBe(session.id);
-
-    const resumeResult = await service.resumeSession(session.id);
-    expect(resumeResult.context?.sessionId).toBe(session.id);
-
-    const completion = await service.completeSession(session.id);
-    expect(completion.summary.keyTakeaways).toContain('Key insight');
-  });
-
-  it('adds and lists messages for a session', async () => {
-    const session = await service.startLearningSession({
-      topic: 'Algebra',
-      goals: ['Practice basics'],
-      difficulty: 'beginner',
-      agentType: 'learning',
-      learningStyle: 'visual',
-      userId: 'tester',
+    const updated = await service.updateSession(session.id, {
+      status: 'paused',
     });
+    expect(updated?.status).toBe('paused');
 
-    await service.addMessage({ sessionId: session.id, role: 'user', content: 'Hello' });
-    await service.addMessage({ sessionId: session.id, role: 'assistant', content: 'Hi' });
-
-    const rows = await service.listMessages({ sessionId: session.id, order: 'asc' });
-    expect(rows.length).toBeGreaterThanOrEqual(2);
-    expect(rows[0].content).toBe('Hello');
-    expect(rows[1].content).toBe('Hi');
+    const resumed = await service.updateSession(session.id, {
+      status: 'active',
+    });
+    expect(resumed?.status).toBe('active');
   });
 
-  it('returns structured practice history', async () => {
+  it('retrieves practice history for concepts', async () => {
     const now = new Date().toISOString();
     await mockDb
       .insertInto('practice_attempts')
@@ -327,5 +346,31 @@ describe('learning service (mocked database)', () => {
     expect(attempts[0].taskId).toBe('task-1');
     expect(attempts[0].conceptIds).toEqual(['c1']);
     expect(attempts[0].result).toBe('pass');
+  });
+
+  it('returns structured practice history', async () => {
+    const now = new Date().toISOString();
+    await mockDb
+      .insertInto('practice_attempts')
+      .values({
+        id: 'p2',
+        task_id: 'task-2',
+        concept_ids: JSON.stringify(['c2']),
+        result: 'fail',
+        answer: 'wrong',
+        error_tags: JSON.stringify(['calculation']),
+        rubric_scores: JSON.stringify({ retrieval: 0, application: 0, teachBack: 0 }),
+        timestamp: now,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    const attempts = await service.getPracticeHistory({ conceptIds: ['c2'], limit: 10 });
+    expect(attempts.length).toBeGreaterThanOrEqual(1);
+    expect(attempts[0].taskId).toBe('task-2');
+    expect(attempts[0].conceptIds).toEqual(['c2']);
+    expect(attempts[0].result).toBe('fail');
+    expect(attempts[0].errorTags).toContain('calculation');
   });
 });

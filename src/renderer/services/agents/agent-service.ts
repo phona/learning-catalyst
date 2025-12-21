@@ -1,5 +1,6 @@
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { AgentDisplay } from '@/renderer/types/agent';
+import type { AgentDisplay as RendererAgentDisplay } from '@/renderer/types/agent';
+import type { AgentDisplay as APIAgentDisplay, AgentContext } from '@/shared/types/electron-api/agent-api';
 
 export interface AgentStatus {
   agentId: string;
@@ -9,34 +10,40 @@ export interface AgentStatus {
 }
 
 export interface AgentService {
-  getAvailableAgents: () => Promise<AgentDisplay[]>;
+  getAvailableAgents: () => Promise<RendererAgentDisplay[]>;
   selectAgentForSession: (params: {
     sessionId: string;
-    agentType: AgentDisplay['type'];
-  }) => Promise<AgentDisplay>;
+    agentType: RendererAgentDisplay['type'];
+  }) => Promise<RendererAgentDisplay>;
   getAgentStatus: (agentId: string) => Promise<AgentStatus>;
 }
 
 export function createAgentService(apiClient: ElectronAPI): AgentService {
-  const normalizeCategory = (category?: string): AgentDisplay['category'] => {
-    const allowed: AgentDisplay['category'][] = ['learning', 'analysis', 'creative'];
-    return allowed.includes(category as AgentDisplay['category'])
-      ? (category as AgentDisplay['category'])
+  const normalizeCategory = (category?: string): RendererAgentDisplay['category'] => {
+    const allowed: RendererAgentDisplay['category'][] = ['learning', 'analysis', 'creative'];
+    return allowed.includes(category as RendererAgentDisplay['category'])
+      ? (category as RendererAgentDisplay['category'])
       : 'learning';
   };
 
   const mapAgent = (
-    agent: import('@/shared/types/electron-api/agent-api').AgentDisplay,
-  ): AgentDisplay => {
-    const statsSource = (agent as { stats?: Partial<AgentDisplay['stats']> }).stats;
+    agent: APIAgentDisplay,
+  ): RendererAgentDisplay => {
     return {
-      ...agent,
+      id: agent.id,
+      type: agent.type as RendererAgentDisplay['type'],
+      name: agent.name,
+      description: agent.description,
+      avatar: agent.avatar,
+      color: agent.color,
+      capabilities: agent.capabilities,
+      isAvailable: agent.isAvailable,
       category: normalizeCategory(agent.category),
       stats: {
-        sessionsCount: statsSource?.sessionsCount ?? 0,
-        avgRating: statsSource?.avgRating ?? 0,
-        totalInteractions: statsSource?.totalInteractions ?? 0,
-        successRate: statsSource?.successRate ?? 0,
+        sessionsCount: agent.stats.sessionsCount,
+        avgRating: agent.stats.avgRating,
+        totalInteractions: 0, // Not available from API, default to 0
+        successRate: 0, // Not available from API, default to 0
       },
     };
   };
@@ -55,13 +62,13 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
 
   const selectAgentForSession = async (params: {
     sessionId: string;
-    agentType: AgentDisplay['type'];
+    agentType: RendererAgentDisplay['type'];
   }) => {
     const response = await apiClient.agents.selectAgentForSession(params);
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to select agent');
     }
-    const agent = (response.data as any).agent ?? (response.data as any);
+    const agent = response.data.agent;
     return mapAgent(agent);
   };
 

@@ -36,7 +36,7 @@ describe('Knowledge components placeholders', () => {
         clusters: [],
         metadata: { totalNodes: 2, totalEdges: 0, centerConcepts: [], learningPaths: [] },
       },
-    } as any);
+    });
     client.knowledge.getRelatedConcepts = vi.fn().mockResolvedValue({
       success: true,
       data: {
@@ -47,8 +47,8 @@ describe('Knowledge components placeholders', () => {
         categories: ['related'],
         learningPaths: [],
       },
-    } as any);
-    client.knowledge.ingestConcepts = vi.fn().mockResolvedValue({ success: true }) as any;
+    });
+    client.knowledge.ingestConcepts = vi.fn().mockResolvedValue({ success: true });
 
     const onCreated = vi.fn();
     renderWithServices(
@@ -80,12 +80,15 @@ describe('Knowledge components placeholders', () => {
       success: true,
       data: {
         nodes: [
-          { id: '1', label: 'Alpha', category: 'topic', mastery: 0.4 },
-          { id: '2', label: 'Beta', category: 'skill', mastery: 0.7 },
+          { id: '1', label: 'Alpha', x: 0, y: 0, size: 1, color: '#000', category: 'topic', mastery: 0.4 },
+          { id: '2', label: 'Beta', x: 0, y: 0, size: 1, color: '#000', category: 'skill', mastery: 0.7 },
         ],
-        edges: [{ from: '1', to: '2', label: 'rel', strength: 0.9 }],
+        edges: [{ from: '1', to: '2', label: 'rel', strength: 0.9, type: 'related' }],
+        layout: 'force-directed',
+        clusters: [],
+        metadata: { totalNodes: 2, totalEdges: 1, centerConcepts: [], learningPaths: [] },
       },
-    } as any);
+    });
 
     renderWithServices(<KnowledgeGraphVisualization />, { electronAPI: client });
 
@@ -107,8 +110,8 @@ describe('Knowledge components placeholders', () => {
         clusters: [],
         metadata: { totalNodes: 2, totalEdges: 0, centerConcepts: [], learningPaths: [] },
       },
-    } as any);
-    client.knowledge.ingestConcepts = vi.fn().mockResolvedValue({ success: true }) as any;
+    });
+    client.knowledge.ingestConcepts = vi.fn().mockResolvedValue({ success: true });
 
     const onCreated = vi.fn();
 

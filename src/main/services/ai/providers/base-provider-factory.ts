@@ -38,11 +38,17 @@ interface RawChatCompletionResponse {
 }
 
 interface RawEmbeddingResponse {
+  object: string;
+  model: string;
   data: Array<{
     object: string;
     embedding: number[];
     index: number;
   }>;
+  usage?: {
+    prompt_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export interface ProviderDefinition {

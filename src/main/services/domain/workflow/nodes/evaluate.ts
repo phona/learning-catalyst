@@ -67,69 +67,69 @@ const EVALUATION_TEMPLATE = ChatPromptTemplate.fromMessages([
  */
 export const evaluateNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
-    const startTime = Date.now();
+    async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
+      const startTime = Date.now();
 
-    // Debug: Node start
-    deps.loggerService.debug('evaluateNode: start', {
-      topic: state.topic,
-      hasPracticePrompt: !!state.practicePrompt,
-      hasUserAnswer: !!state.userAnswer,
-      previousMastery: state.mastery,
-      previousAttemptCount: state.attemptCount,
-    });
+      // Debug: Node start
+      deps.loggerService.debug('evaluateNode: start', {
+        topic: state.topic,
+        hasPracticePrompt: !!state.practicePrompt,
+        hasUserAnswer: !!state.userAnswer,
+        previousMastery: state.mastery,
+        previousAttemptCount: state.attemptCount,
+      });
 
-    const model = await deps.providerFactory.getModel();
-    const question = state.practicePrompt ?? '';
-    const answer = state.userAnswer ?? '';
+      const model = await deps.providerFactory.getModel();
+      const question = state.practicePrompt ?? '';
+      const answer = state.userAnswer ?? '';
 
-    // Debug: Input validation
-    deps.loggerService.debug('evaluateNode: input validation', {
-      questionLength: question.length,
-      answerLength: answer.length,
-    });
+      // Debug: Input validation
+      deps.loggerService.debug('evaluateNode: input validation', {
+        questionLength: question.length,
+        answerLength: answer.length,
+      });
 
-    // Format the evaluation prompt using ChatPromptTemplate
-    const messages = await EVALUATION_TEMPLATE.formatMessages({
-      topic: state.topic,
-      question,
-      answer,
-    });
+      // Format the evaluation prompt using ChatPromptTemplate
+      const messages = await EVALUATION_TEMPLATE.formatMessages({
+        topic: state.topic,
+        question,
+        answer,
+      });
 
-    const res = await model.invoke(messages);
-    const content = String(res.content ?? res ?? '');
-    const mastery = parseScore(content) ?? state.mastery ?? DEFAULT_MASTERY;
-    const attemptCount = (state.attemptCount ?? 0) + 1;
+      const res = await model.invoke(messages);
+      const content = String(res.content ?? res ?? '');
+      const mastery = parseScore(content) ?? state.mastery ?? DEFAULT_MASTERY;
+      const attemptCount = (state.attemptCount ?? 0) + 1;
 
-    // Debug: Final result
-    const duration = Date.now() - startTime;
-    deps.loggerService.debug('evaluateNode: complete', {
-      topic: state.topic,
-      mastery,
-      masteryPercent: Math.round(mastery * 100),
-      attemptCount,
-      feedbackLength: content.length,
-      durationMs: duration,
-    });
+      // Debug: Final result
+      const duration = Date.now() - startTime;
+      deps.loggerService.debug('evaluateNode: complete', {
+        topic: state.topic,
+        mastery,
+        masteryPercent: Math.round(mastery * 100),
+        attemptCount,
+        feedbackLength: content.length,
+        durationMs: duration,
+      });
 
-    // Info: Evaluation completed
-    deps.loggerService.info('evaluateNode: evaluation complete', {
-      topic: state.topic,
-      masteryPercent: Math.round(mastery * 100),
-      attemptCount,
-      outcome: mastery >= 0.9 ? 'pass' : 'continue',
-      durationMs: duration,
-    });
+      // Info: Evaluation completed
+      deps.loggerService.info('evaluateNode: evaluation complete', {
+        topic: state.topic,
+        masteryPercent: Math.round(mastery * 100),
+        attemptCount,
+        outcome: mastery >= 0.9 ? 'pass' : 'continue',
+        durationMs: duration,
+      });
 
-    return {
-      mastery,
-      attemptCount,
-      messages: [
-        new HumanMessage({
-          response_metadata: {
-            content,
-          },
-        }),
-      ],
+      return {
+        mastery,
+        attemptCount,
+        messages: [
+          new HumanMessage({
+            response_metadata: {
+              content,
+            },
+          }),
+        ],
+      };
     };
-  };

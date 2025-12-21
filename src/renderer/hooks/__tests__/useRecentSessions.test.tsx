@@ -1,23 +1,39 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/learning-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/learning-api';
 import { useRecentSessions } from '../useRecentSessions';
+import type { SessionService } from '@/renderer/services/session/session-service';
 
 const mockGetRecentSessions = vi.fn();
 
 vi.mock('@/renderer/services/services-provider', () => ({
-  useSessionService: () =>
-    ({
-      getRecentSessions: mockGetRecentSessions,
-    } as any),
+  useSessionService: (): SessionService => ({
+    getRecentSessions: mockGetRecentSessions,
+    getGlobalStatistics: vi.fn(),
+    listSessions: vi.fn(),
+    getSession: vi.fn(),
+    generateAITitle: vi.fn(),
+    generateSessionId: vi.fn().mockReturnValue('test-session-id'),
+    updateSessionTitle: vi.fn(),
+    createSession: vi.fn(),
+    deleteSession: vi.fn(),
+    searchSessions: vi.fn(),
+  }),
 }));
 
-const makeSession = (id: string): ElectronSessionDisplay => ({
+const makeSession = (id: string): SessionDisplay => ({
   id,
   title: `Session ${id}`,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-  metadata: { tags: [], title: `Session ${id}` },
+  topic: `Topic for session ${id}`,
+  difficulty: 'intermediate',
+  status: 'active',
+  progress: 50,
+  agent: {
+    type: 'learning',
+    name: 'Learning Agent',
+  },
+  lastActivity: new Date().toISOString(),
+  duration: '30 minutes',
 });
 
 describe('useRecentSessions', () => {

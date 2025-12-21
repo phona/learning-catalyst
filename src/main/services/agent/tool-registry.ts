@@ -98,7 +98,11 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
         return `Knowledge extraction failed: ${result.error}`;
       }
 
-      const data = result.data as { concepts?: Array<{ name?: string }>; relationships?: unknown; metadata?: unknown };
+      const data = result.data as {
+        concepts?: Array<{ name?: string }>;
+        relationships?: Array<unknown>;
+        metadata?: unknown;
+      };
       const nodes =
         data?.concepts?.slice(0, 5).map((concept) => concept.name ?? 'unknown') ?? [];
       return JSON.stringify({
@@ -133,7 +137,12 @@ export const buildKnowledgeTools = (deps: AgentToolDeps): ToolRegistry => {
         return `Content analysis failed: ${result.error}`;
       }
 
-      return `Analysis (${result.data?.analysisType}): ${result.data?.analysis || 'No analysis available'}`;
+      const analysisData = result.data as {
+        analysisType?: string;
+        analysis?: string;
+      };
+
+      return `Analysis (${analysisData?.analysisType}): ${analysisData?.analysis || 'No analysis available'}`;
     },
     {
       name: 'content_analysis',

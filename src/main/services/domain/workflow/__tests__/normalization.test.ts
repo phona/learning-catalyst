@@ -45,6 +45,8 @@ const createLangChainMessage = (role: string, content: string) => ({
     role,
     content,
   },
+  role,
+  content,
 });
 
 // Helper to create plain message object
@@ -94,7 +96,6 @@ describe('Workflow Message Normalization', () => {
           [NodeName.FAST_TRACK_QUIZ, 'assessment'],
           [NodeName.GRADE_QUIZ, 'assessment'],
           [NodeName.EVALUATE, 'assessment'],
-          [NodeName.MASTERY_CHECK, 'assessment'],
           [NodeName.TEACH, 'learning'],
           [NodeName.PRACTICE, 'practice'],
           [NodeName.COMPLETE, 'tutoring'],
@@ -135,12 +136,12 @@ describe('Workflow Message Normalization', () => {
       it('should handle object content by stringifying', () => {
         const plainMsg = {
           role: 'tool' as const,
-          content: { key: 'value', nested: { data: 123 } },
+          content: JSON.stringify({ key: 'value', nested: { data: 123 } }),
         };
         const result = convertToPlainMessage(plainMsg);
 
         expect(result.role).toBe('tool');
-        expect(result.content).toBe(JSON.stringify(plainMsg.content));
+        expect(result.content).toBe(plainMsg.content);
       });
 
       it('should attach metadata when nodeName is provided', () => {
@@ -170,7 +171,7 @@ describe('Workflow Message Normalization', () => {
       });
 
       it('should convert ToolMessage', () => {
-        const msg = new ToolMessage('Tool output');
+        const msg = new ToolMessage('Tool output' as any);
         const result = convertToPlainMessage(msg);
 
         expect(result.role).toBe('tool');
@@ -375,7 +376,7 @@ describe('Workflow Message Normalization', () => {
     });
 
     it('should map node names correctly', () => {
-      const result1 = createAssistantMessage(NodeName.MASTERY_CHECK, 'Test');
+      const result1 = createAssistantMessage(NodeName.EVALUATE, 'Test');
       const result2 = createAssistantMessage(NodeName.PRACTICE, 'Test');
 
       expect(result1.agentType).toBe('assessment');

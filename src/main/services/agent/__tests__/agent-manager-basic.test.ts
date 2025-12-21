@@ -350,7 +350,6 @@ describe('Agent Manager - Basic Tests', () => {
           learningService: mockLearningService,
           loggerService: mockLoggerService,
           configService: mockConfigService,
-          db: {} as any,
         }),
       ).rejects.toThrow('Config load failed');
     });

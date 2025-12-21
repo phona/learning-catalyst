@@ -131,74 +131,74 @@ function summarizeConversation(
  */
 export const assessUnderstandingNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
-    const emitter = createChunkEmitter(config);
-    const startTime = Date.now();
-    const teach = state.teach!;
+    async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
+      const emitter = createChunkEmitter(config);
+      const startTime = Date.now();
+      const teach = state.teach!;
 
-    deps.loggerService.debug('teach:assessUnderstanding start', {
-      topic: state.topic,
-      round: teach.teachingRound,
-      previousLevel: teach.understandingLevel,
-      questionsAsked: teach.questionsAsked,
-    });
+      deps.loggerService.debug('teach:assessUnderstanding start', {
+        topic: state.topic,
+        round: teach.teachingRound,
+        previousLevel: teach.understandingLevel,
+        questionsAsked: teach.questionsAsked,
+      });
 
-    // Summarize conversation for assessment
-    const conversationSummary = summarizeConversation(state.messages);
+      // Summarize conversation for assessment
+      const conversationSummary = summarizeConversation(state.messages);
 
-    // Format assessment prompt
-    const messages = await ASSESSMENT_PROMPT.formatMessages({
-      topic: state.topic,
-      conversationSummary,
-      userStatement: state.userAnswer ?? 'I understand',
-      rounds: String(teach.teachingRound),
-      questionsAsked: String(teach.questionsAsked),
-    });
+      // Format assessment prompt
+      const messages = await ASSESSMENT_PROMPT.formatMessages({
+        topic: state.topic,
+        conversationSummary,
+        userStatement: state.userAnswer ?? 'I understand',
+        rounds: String(teach.teachingRound),
+        questionsAsked: String(teach.questionsAsked),
+      });
 
-    // Get assessment from LLM
-    const model = await deps.providerFactory.getModel();
-    const response = await model.invoke(messages);
-    const assessment = parseAssessment(String(response.content ?? ''));
+      // Get assessment from LLM
+      const model = await deps.providerFactory.getModel();
+      const response = await model.invoke(messages);
+      const assessment = parseAssessment(String(response.content ?? ''));
 
-    // Determine mastery (use threshold)
-    const mastered = assessment.level >= MASTERY_THRESHOLD && assessment.gaps.length === 0;
+      // Determine mastery (use threshold)
+      const mastered = assessment.level >= MASTERY_THRESHOLD && assessment.gaps.length === 0;
 
-    const duration = Date.now() - startTime;
-    deps.loggerService.info('teach:assessUnderstanding complete', {
-      level: assessment.level,
-      gaps: assessment.gaps,
-      mastered,
-      reason: assessment.reason,
-      durationMs: duration,
-    });
-
-    // Emit feedback to UI
-    let feedbackMessage: string;
-    if (mastered) {
-      feedbackMessage =
-        `🎉 Excellent! You've demonstrated a solid understanding of ${state.topic}. ` +
-        `You're ready to put your knowledge into practice!`;
-    } else if (assessment.gaps.length > 0) {
-      feedbackMessage =
-        `You're making good progress! Let's strengthen your understanding of: ` +
-        `${assessment.gaps.join(', ')}. Then we'll move to practice.`;
-    } else {
-      feedbackMessage =
-        `Good effort! Let's explore ${state.topic} a bit more to solidify your understanding.`;
-    }
-
-    const messageId = generateId('msg');
-    emitter.textStart(messageId);
-    emitter.textDelta(messageId, feedbackMessage);
-    emitter.textEnd(messageId);
-
-    return {
-      messages: [new AIMessage(feedbackMessage)],
-      teach: {
-        understandingLevel: assessment.level,
+      const duration = Date.now() - startTime;
+      deps.loggerService.info('teach:assessUnderstanding complete', {
+        level: assessment.level,
         gaps: assessment.gaps,
         mastered,
-        assessmentReason: assessment.reason,
-      },
+        reason: assessment.reason,
+        durationMs: duration,
+      });
+
+      // Emit feedback to UI
+      let feedbackMessage: string;
+      if (mastered) {
+        feedbackMessage =
+        `🎉 Excellent! You've demonstrated a solid understanding of ${state.topic}. ` +
+        `You're ready to put your knowledge into practice!`;
+      } else if (assessment.gaps.length > 0) {
+        feedbackMessage =
+        `You're making good progress! Let's strengthen your understanding of: ` +
+        `${assessment.gaps.join(', ')}. Then we'll move to practice.`;
+      } else {
+        feedbackMessage =
+        `Good effort! Let's explore ${state.topic} a bit more to solidify your understanding.`;
+      }
+
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, feedbackMessage);
+      emitter.textEnd(messageId);
+
+      return {
+        messages: [new AIMessage(feedbackMessage)],
+        teach: {
+          understandingLevel: assessment.level,
+          gaps: assessment.gaps,
+          mastered,
+          assessmentReason: assessment.reason,
+        },
+      };
     };
-  };

@@ -439,6 +439,12 @@ The Learning Catalyst uses LangGraph for AI workflow orchestration. This section
    - Nodes using streaming need `LangGraphRunnableConfig` with `writer` function
    - Provide minimal config: `{ writer: vi.fn() }` (mock writer only)
 
+4. **Interrupt Handling Testing**
+   - **CRITICAL**: Nodes that call `interrupt()` MUST be tested with StateGraph streaming
+   - **NEVER** call nodes directly that use `interrupt()` outside a graph context
+   - Use `streamMode: 'updates'` to capture interrupt events
+   - Import `isInterruptEvent` and `extractInterrupt` from `../interrupt`
+
 ### Example 1: Testing a Node with .pipe() Chain (titleGenerateNode)
 
 ```typescript
@@ -639,6 +645,176 @@ describe('assess node', () => {
 - ✅ Pattern: `{ invoke: vi.fn().mockResolvedValue({ content: '...' }) }`
 - ✅ Works because node calls `model.invoke()` directly, not through chain
 
+### Example 4: Testing a Node with Interrupt (askQuestionNode)
+
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+import { askQuestionNode } from '../askQuestion';
+import { isInterruptEvent, extractInterrupt, type InterruptEvent } from '../../../interrupt';
+import { PracticeAnnotation } from '../../state';
+
+describe('[TC-401] askQuestion Node with Interrupt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Create test graph factory for interrupt testing
+  const createTestGraph = (mockDeps: any) => {
+    const graph = new StateGraph(PracticeAnnotation)
+      .addNode('askQuestion', askQuestionNode(mockDeps))
+      .addNode('complete', async (state: any) => ({ done: true }))
+      .addEdge(START, 'askQuestion')
+      .addEdge('askQuestion', 'complete')
+      .addEdge('complete', END);
+
+    return graph.compile({ checkpointer: new MemorySaver() });
+  };
+
+  it('executes interrupt through StateGraph with streaming', async () => {
+    const mockDeps = createMockDeps();
+    const graph = createTestGraph(mockDeps);
+
+    /**
+     * Streaming mode required: askQuestion node calls interrupt() for user interaction
+     * Using streamMode: 'updates' allows us to capture interrupt events
+     */
+    const stream = await graph.stream(
+      {
+        practice: {
+          attemptCount: 0,
+          focusConcepts: ['closures'],
+          relatedConcepts: ['functions'],
+        },
+        topic: 'JavaScript Closures',
+        userAnswer: '',
+      },
+      {
+        configurable: { thread_id: 'test-thread-interrupt' },
+        streamMode: 'updates' as const,
+      }
+    );
+
+    // Collect and verify interrupt events
+    let gotInterrupt = false;
+    for await (const evt of stream) {
+      if (isInterruptEvent(evt)) {
+        gotInterrupt = true;
+        const interruptValue = extractInterrupt(evt) as any;
+        expect(interruptValue.type).toBe('practice_question');
+        expect(interruptValue.prompt).toBeDefined();
+        expect(interruptValue.questionId).toBeDefined();
+        break;
+      }
+    }
+
+    expect(gotInterrupt).toBe(true);
+  });
+
+  // Unit tests only for cases before interrupt is called
+  it('handles no knowledge found gracefully', async () => {
+    const mockDeps = createMockDeps();
+    mockDeps.knowledgeService.searchKnowledge.mockResolvedValue({ results: [] });
+
+    const node = askQuestionNode(mockDeps);
+    const state = { topic: 'Unknown Topic' } as any;
+
+    const result = await node(state);
+    expect(result.error).toBeDefined();
+    expect(result.practice?.isComplete).toBe(true);
+  });
+});
+```
+
+**Key Points:**
+- ✅ **NEVER** call `interrupt()` nodes directly - use StateGraph
+- ✅ Use `streamMode: 'updates'` to capture interrupt events
+- ✅ Import `isInterruptEvent` and `extractInterrupt` helpers
+- ✅ Create test graph with MemorySaver checkpointer
+- ✅ Unit tests only for logic before `interrupt()` is called
+
+### Example 5: Testing Workflow with Multiple Interrupts (full-workflow.test.ts)
+
+```typescript
+describe('[TC-402] Full Workflow Interrupt Handling', () => {
+  it('handles TEACH node interrupts with streaming', async () => {
+    const deps = makeDeps();
+    const graph = createWorkflowGraph(deps);
+
+    /**
+     * Streaming mode required: TEACH node calls interrupt() for user interaction
+     * Using streamMode: 'updates' allows us to capture interrupt events
+     */
+    const stream = await graph.stream(
+      {
+        messages: [new HumanMessage('Teach me Python basics')],
+        topic: 'Python',
+        confidence: 0.5,
+      },
+      {
+        configurable: { thread_id: 'teach-stream-test' },
+        streamMode: 'updates' as const,
+        interrupt_after: 'TEACH',
+      }
+    );
+
+    let gotInterrupt = false;
+    for await (const evt of stream) {
+      if (isInterruptEvent(evt)) {
+        gotInterrupt = true;
+        const interruptValue = extractInterrupt(evt) as any;
+        expect(['teach_followup', 'teach_response']).toContain(interruptValue.type);
+        expect(interruptValue.prompt).toBeDefined();
+        break;
+      }
+    }
+
+    expect(gotInterrupt).toBe(true);
+  });
+
+  it('handles practice conversation interrupts', async () => {
+    const deps = makeDeps();
+    const graph = createWorkflowGraph(deps);
+
+    /**
+     * Streaming mode required: handleConversation calls interrupt() for hints/give_up
+     * Using streamMode: 'updates' allows us to capture practice conversation interrupts
+     */
+    const stream = await graph.stream(
+      {
+        messages: [new HumanMessage('I need practice')],
+        topic: 'Python',
+        practicePrompt: 'Write a function',
+        userAnswer: 'Give me a hint',
+      },
+      {
+        configurable: { thread_id: 'practice-interrupt' },
+        streamMode: 'updates' as const,
+        interrupt_after: 'HANDLE_CONVERSATION',
+      }
+    );
+
+    let gotInterrupt = false;
+    for await (const evt of stream) {
+      if (isInterruptEvent(evt)) {
+        gotInterrupt = true;
+        const interruptValue = extractInterrupt(evt) as any;
+        expect(['hint_request', 'give_up', 'practice_followup']).toContain(interruptValue.type);
+        break;
+      }
+    }
+
+    expect(gotInterrupt).toBe(true);
+  });
+});
+```
+
+**Key Points:**
+- ✅ Full workflow tests use `createWorkflowGraph()` not single nodes
+- ✅ Test multiple interrupt types from different nodes
+- ✅ Use `interrupt_after` to stop execution at specific nodes
+- ✅ Document why streaming is required in comments
+
 ### When to Use Which Pattern
 
 | Node Pattern | Test Approach | Example |
@@ -646,6 +822,7 @@ describe('assess node', () => {
 | `.pipe()` chain: `template.pipe(llm).pipe(parser)` | `RunnableLambda` with `{ func: ... }` returning `AIMessage(JSON.stringify(...))` | titleGenerateNode, planNode |
 | Direct LLM: `model.invoke()` | Plain mock: `{ invoke: vi.fn().mockResolvedValue({...}) }` | assessNode, evaluateNode |
 | Uses chunk-emitter | Provide config: `{ writer: vi.fn() }` | planNode, assessNode, evaluateNode |
+| **Calls `interrupt()`** | **StateGraph with streaming**: `streamMode: 'updates'` + `isInterruptEvent/extractInterrupt` | askQuestionNode, teachNode, handleConversationNode |
 | Stateless utilities | Use **real packages** (don't mock) | ChatPromptTemplate, StructuredOutputParser, chunk-emitter |
 
 ### Common Patterns Reference
@@ -688,6 +865,11 @@ const makeDeps = () => ({
 - [ ] Does the test file live in `src/main/services/domain/workflow/nodes/__tests__/`?
 - [ ] Are only stateful dependencies mocked?
 - [ ] Does the test verify the node's **output state**, not just internal behavior?
+- [ ] **CRITICAL**: If node calls `interrupt()`, is it tested with StateGraph streaming?
+  - [ ] Uses `streamMode: 'updates'`?
+  - [ ] Imports `isInterruptEvent` and `extractInterrupt`?
+  - [ ] Creates test graph with MemorySaver checkpointer?
+  - [ ] Unit tests only cover logic before `interrupt()`?
 
 ## AI-Assisted Testing
 
@@ -707,6 +889,7 @@ const makeDeps = () => ({
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.3.0 | 2025-12-21 | Added LangGraph Interrupt Testing patterns with comprehensive examples for testing nodes that call interrupt() using StateGraph streaming. Includes critical guidance on using isInterruptEvent/extractInterrupt helpers and streaming mode for interrupt detection. |
 | 1.2.0 | 2025-12-16 | Added LangGraph Workflow Node Testing Best Practices section with DI pattern, RunnableLambda for .pipe() chains, chunk-emitter testing, and comprehensive code examples from actual implementations. |
 | 1.1.1 | 2025-11-24 | Added fake IPC E2E guidance and corrected contract example. |
 | 1.1.0 | 2025-11-24 | Added comprehensive test strategy, templates, execution, and metrics; AI-friendly and design-for-testability guidance; expanded troubleshooting and references. |

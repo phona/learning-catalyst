@@ -93,7 +93,9 @@
       "Bash(bash:*)",
       "mcp__chrome-devtools__navigate_page",
       "WebFetch(domain:reference.langchain.com)",
-      "Bash(wmic:*)"
+      "Bash(wmic:*)",
+      "Write(/**/*)",
+      "Bash(openspec validate:*)"
     ],
     "deny": [],
     "ask": []
@@ -103,6 +105,7 @@
     "context7",
     "magic",
     "sequential-thinking",
-    "langchain"
+    "langchain",
+    "chrome-devtools"
   ]
 }

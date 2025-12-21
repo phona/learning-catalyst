@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import {
   createUUID,
   generateTimestamp,
@@ -11,28 +11,51 @@ import {
 } from '../helpers';
 
 describe('shared/utils/helpers', () => {
-  const originalCrypto = globalThis.crypto;
+  let originalCrypto: Crypto | undefined;
+
+  beforeEach(() => {
+    originalCrypto = globalThis.crypto;
+  });
 
   afterEach(() => {
-    // Restore crypto after tests that patch it
-    globalThis.crypto = originalCrypto as Crypto;
+    // Restore crypto after tests that patch it using Object.defineProperty
+    if (originalCrypto) {
+      Object.defineProperty(globalThis, 'crypto', {
+        value: originalCrypto,
+        writable: true,
+        configurable: true,
+      });
+    } else {
+      // Remove crypto if it didn't exist originally
+      delete (globalThis as any).crypto;
+    }
     vi.restoreAllMocks();
   });
 
   it('uses crypto.randomUUID when available', () => {
     const mockUuid = '11111111-2222-3333-4444-555555555555';
-    // @ts-expect-error allow overriding crypto for test
-    globalThis.crypto = { randomUUID: vi.fn(() => mockUuid) };
+    const mockCrypto = {
+      randomUUID: vi.fn(() => mockUuid),
+    };
+
+    Object.defineProperty(globalThis, 'crypto', {
+      value: mockCrypto,
+      writable: true,
+      configurable: true,
+    });
 
     const value = createUUID();
 
     expect(value).toBe(mockUuid);
-    expect((globalThis.crypto as unknown).randomUUID).toHaveBeenCalled();
+    expect(mockCrypto.randomUUID).toHaveBeenCalled();
   });
 
   it('falls back to manual UUID generation when crypto is missing', () => {
-    // @ts-expect-error intentionally remove crypto
-    globalThis.crypto = undefined;
+    // Remove crypto property entirely
+    Object.defineProperty(globalThis, 'crypto', {
+      get: () => undefined,
+      configurable: true,
+    });
 
     const value = createUUID();
 

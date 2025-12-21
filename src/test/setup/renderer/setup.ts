@@ -25,10 +25,12 @@ Object.defineProperty(window, 'electronAPI', {
   value: {
     relaunchApp: vi.fn().mockResolvedValue(undefined),
     getConfig: vi.fn().mockResolvedValue({}),
+    aiSDK: {
+      stream: vi.fn().mockReturnValue(vi.fn()),
+    },
     chat: {
-      sendMessage: vi
-        .fn()
-        .mockResolvedValue({ success: true, data: { assistantMessage: { content: 'ok' } } }),
+      generateTitle: vi.fn().mockResolvedValue({ success: true, data: 'Test Title' }),
+      getMessages: vi.fn().mockResolvedValue({ success: true, data: [] }),
       sendMessageStream: vi.fn(),
       startConversation: vi.fn().mockResolvedValue({ success: true, data: {} }),
       getConversationHistory: vi.fn().mockResolvedValue({ success: true, data: [] }),

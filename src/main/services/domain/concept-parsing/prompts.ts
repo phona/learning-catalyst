@@ -2,6 +2,20 @@ import { z, ZodError } from 'zod';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { ChatOpenAI } from '@langchain/openai';
 import type { AIMessageChunk, UsageMetadata } from '@langchain/core/messages';
+
+// Token usage format for progress callbacks
+interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
+// Extended usage metadata type with actual properties we see in practice
+interface ExtendedUsageMetadata {
+  input_tokens?: number;
+  output_tokens?: number;
+  total_tokens?: number;
+}
 import { RELATIONSHIP_TYPE_VALUES } from '@/shared/types/relationship-types';
 
 /**
@@ -85,7 +99,7 @@ const ExtractedConceptSchema = z
     difficulty: z.enum(['beginner', 'intermediate', 'advanced']).nullable().optional(),
     confidence: z.number().min(0).max(1).nullable().optional(),
     tags: z.array(z.string()).nullable().optional(),
-    metadata: z.record(z.unknown()).nullable().optional(),
+    metadata: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .strict()
   .required({ name: true });
@@ -99,7 +113,7 @@ const ExtractedRelationshipSchema = z
     strength: z.number().min(0).max(1).nullable().optional(),
     confidence: z.number().min(0).max(1).nullable().optional(),
     description: z.string().nullable().optional(),
-    metadata: z.record(z.unknown()).nullable().optional(),
+    metadata: z.record(z.string(), z.unknown()).nullable().optional(),
   })
   .strict()
   .required({ from: true, to: true });
@@ -283,7 +297,7 @@ Content: {content}
  * @param llm - The language model to use for extraction
  * @returns Chain object with invoke method
  */
-export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: { onTokenUsageUpdate?: (usage: UsageMetadata, phase: number, status: string) => void }) => {
+export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: { onTokenUsageUpdate?: (usage: TokenUsage, phase: number, status: string) => void }) => {
   const prompt = ChatPromptTemplate.fromTemplate(SIMPLE_EXTRACTION_TEMPLATE);
 
   return {
@@ -337,7 +351,8 @@ export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: { o
       const response = (finalChunk?.content as string) || '';
 
       // Extract token usage from FINAL chunk only (ChatGLM/OpenAI compatible)
-      const usage = (finalChunk?.usage_metadata as UsageMetadata) || {};
+      const usageMetadata = finalChunk?.usage_metadata as ExtendedUsageMetadata;
+      const usage = usageMetadata || {};
       const tokenUsage = {
         promptTokens: usage.input_tokens || 0,
         completionTokens: usage.output_tokens || 0,
@@ -345,7 +360,7 @@ export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: { o
       };
 
       // Emit progress after streaming completes (real-time for OpenAI, end-of-stream for ChatGLM)
-      progressCallback?.onTokenUsageUpdate(tokenUsage, 1, 'extracting');
+      progressCallback?.onTokenUsageUpdate?.(tokenUsage, 1, 'extracting');
 
       /**
        * =============================================================================
@@ -424,7 +439,7 @@ export const createSimpleExtractChain = (llm: ChatOpenAI, progressCallback?: { o
  * @param llm - The language model to use for retry
  * @returns Chain object with invoke method
  */
-export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: { onTokenUsageUpdate?: (usage: UsageMetadata, phase: number, status: string) => void }) => {
+export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: { onTokenUsageUpdate?: (usage: TokenUsage, phase: number, status: string) => void }) => {
   const prompt = ChatPromptTemplate.fromTemplate(SIMPLE_RETRY_TEMPLATE);
 
   return {
@@ -467,7 +482,8 @@ export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: { on
       const response = (finalChunk?.content as string) || '';
 
       // Extract token usage from FINAL chunk only (ChatGLM/OpenAI compatible)
-      const usage = (finalChunk?.usage_metadata as UsageMetadata) || {};
+      const usageMetadata = finalChunk?.usage_metadata as ExtendedUsageMetadata;
+      const usage = usageMetadata || {};
       const tokenUsage = {
         promptTokens: usage.input_tokens || 0,
         completionTokens: usage.output_tokens || 0,
@@ -475,7 +491,7 @@ export const createRetryExtractChain = (llm: ChatOpenAI, progressCallback?: { on
       };
 
       // Emit progress after streaming completes
-      progressCallback?.onTokenUsageUpdate(tokenUsage, 2, 'retrying');
+      progressCallback?.onTokenUsageUpdate?.(tokenUsage, 2, 'retrying');
 
       /**
        * =============================================================================
@@ -575,7 +591,7 @@ export const safeValidateExtractionResult = (
  * @returns Human-readable error message
  */
 const formatZodErrors = (error: ZodError): string => {
-  return error.errors
+  return error.issues
     .map((err) => {
       const path = err.path.length > 0 ? `Field "${err.path.join('.')}": ` : '';
       return `${path}${err.message}`;

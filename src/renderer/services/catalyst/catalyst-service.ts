@@ -1,5 +1,5 @@
-import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { ChatOptions } from '@/shared/types/ai';
+import type { ElectronAPI } from '../../../shared/types/electron-api';
+import type { ChatOptions } from '../../../shared/types/ai';
 import type {
   ActiveExecution,
   StreamChunk,
@@ -7,7 +7,7 @@ import type {
   AgentsResponse,
   SessionResponse,
   ExecutionCancelResponse,
-} from '@/shared/types/electron-api';
+} from '../../../shared/types/electron-api';
 
 // Define ChatStreamOptions locally since it's not found
 export interface ChatStreamOptions extends ChatOptions {
@@ -59,7 +59,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         });
 
         if (!response.success || !response.data) {
-          throw new Error(response.error?.message || 'Chat request failed');
+          throw new Error(response.error || 'Chat request failed');
         }
 
         return {
@@ -107,7 +107,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         });
 
         if (!response.success || !response.data) {
-          throw new Error(response.error?.message || 'Chat stream failed');
+          throw new Error(response.error || 'Chat stream failed');
         }
 
         return {
@@ -131,7 +131,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         const agents = await electronAPI.catalyst.listAgents();
         if (!agents.success || !agents.data) {
-          throw new Error(agents.error?.message || 'Failed to get agents');
+          throw new Error(agents.error || 'Failed to get agents');
         }
 
         return {
@@ -161,7 +161,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         const session = await electronAPI.sessions.get(sessionId);
         if (!session.success || !session.data) {
-          throw new Error(session.error?.message || 'Failed to get session');
+          throw new Error(session.error || 'Failed to get session');
         }
 
         return {
@@ -191,7 +191,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         const result = await electronAPI.catalyst.cancelAgent(executionId);
         if (!result.success) {
-          throw new Error(result.error?.message || 'Failed to cancel execution');
+          throw new Error(result.error || 'Failed to cancel execution');
         }
 
         return {
@@ -217,7 +217,7 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
         const executions = await electronAPI.catalyst.getActiveExecutions();
         if (!executions.success) {
-          throw new Error(executions.error?.message || 'Failed to get active executions');
+          throw new Error(executions.error || 'Failed to get active executions');
         }
 
         return {

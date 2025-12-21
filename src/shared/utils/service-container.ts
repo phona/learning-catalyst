@@ -189,15 +189,15 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
     }
 
     // Dispose of all disposable services
-    for (const definition of this.services.values()) {
+    for (const definition of Array.from(this.services.values())) {
       if (
         definition.instance &&
         typeof definition.instance === 'object' &&
         'dispose' in definition.instance &&
-        typeof definition.instance.dispose === 'function'
+        typeof (definition.instance as { dispose?: () => void }).dispose === 'function'
       ) {
         try {
-          (definition.instance as unknown).dispose();
+          (definition.instance as { dispose: () => void }).dispose();
         } catch (error) {
           console.warn('Error disposing service:', error);
         }
@@ -223,10 +223,10 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
         definition.instance &&
         typeof definition.instance === 'object' &&
         'dispose' in definition.instance &&
-        typeof definition.instance.dispose === 'function'
+        typeof (definition.instance as { dispose?: () => void }).dispose === 'function'
       ) {
         try {
-          (definition.instance as unknown).dispose();
+          (definition.instance as { dispose: () => void }).dispose();
         } catch (error) {
           console.warn('Error disposing service:', error);
         }
@@ -306,7 +306,7 @@ export class ServiceContainer<TServices extends Record<string, unknown> = Record
     const child = new ServiceContainer<TServices>();
 
     // Copy all service definitions to child
-    for (const [name, definition] of this.services.entries()) {
+    for (const [name, definition] of Array.from(this.services.entries())) {
       child.services.set(name, { ...definition });
     }
 
@@ -349,7 +349,7 @@ export class ServiceContainerBuilder<
     singleton?: boolean,
   ): ServiceContainerBuilder<TServices & { [P in K]: TServices[K] }> {
     this.container.register(name, factory as ServiceFactory<TServices[K]>, singleton);
-    return this as unknown;
+    return this as ServiceContainerBuilder<TServices & { [P in K]: TServices[K] }>;
   }
 
   /**
@@ -360,7 +360,7 @@ export class ServiceContainerBuilder<
     instance: TServices[K],
   ): ServiceContainerBuilder<TServices & { [P in K]: TServices[K] }> {
     this.container.registerInstance(name, instance);
-    return this as unknown;
+    return this as ServiceContainerBuilder<TServices & { [P in K]: TServices[K] }>;
   }
 
   /**
@@ -383,16 +383,16 @@ export function createServiceContainer<
 /**
  * Decorator for automatic service registration
  */
-export function Injectable<T extends new (...args: unknown[]) => unknown>(
-  container: ServiceContainer,
+export function Injectable<TServices extends Record<string, unknown> = Record<string, unknown>>(
+  container: ServiceContainer<TServices>,
   name?: string,
 ) {
-  return function (target: T): T {
+  return function <T extends new (...args: unknown[]) => unknown>(target: T): T {
     const serviceName = name || target.name;
 
     container.register(
-      serviceName as unknown,
-      () => {
+      serviceName as keyof TServices,
+      (() => {
         const dependencies: unknown[] = [];
 
         // Simple dependency injection based on constructor parameters
@@ -400,16 +400,16 @@ export function Injectable<T extends new (...args: unknown[]) => unknown>(
         const paramTypes = Reflect.getMetadata('design:paramtypes', target) || [];
 
         for (const paramType of paramTypes) {
-          const paramServiceName = paramType.name.toLowerCase();
-          if (container.has(paramServiceName as unknown)) {
-            dependencies.push(container.get(paramServiceName as unknown));
+          const paramServiceName = (paramType as { name: string }).name.toLowerCase();
+          if (container.has(paramServiceName as keyof TServices)) {
+            dependencies.push(container.get(paramServiceName as keyof TServices));
           } else {
             dependencies.push(undefined);
           }
         }
 
         return new target(...dependencies);
-      },
+      }) as ServiceFactory<TServices[keyof TServices]>,
       true,
     );
 

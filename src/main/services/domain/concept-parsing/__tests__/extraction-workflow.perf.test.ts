@@ -129,6 +129,7 @@ describe.skip('LangGraph Extraction Workflow - Performance Tests', () => {
       debug: (msg: string, data?: object) => {}, // Silent debug
       warn: (msg: string, data?: object) => console.warn(`[WARN] ${msg}`, data || ''),
       error: (msg: string, data?: object) => console.error(`[ERROR] ${msg}`, data || ''),
+      child: (context: Record<string, unknown>) => testLogger,
     };
 
     console.log('\n=== Performance Test Configuration ===');

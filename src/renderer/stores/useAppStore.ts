@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { UIState } from '../types/ui';
+import type { ExtendedUIState } from '../types/ui';
 
-interface AppStore extends UIState {
+interface AppStore extends ExtendedUIState {
   // Focus mode
   focus_mode: boolean;
 
   // Actions
-  setCurrentView: (view: UIState['current_view']) => void;
+  setCurrentView: (view: ExtendedUIState['current_view']) => void;
   setSidebarOpen: (open: boolean) => void;
   setSettingsPanelOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'auto') => void;

@@ -113,7 +113,7 @@ const Accordion: AccordionComponent = ({
   };
 
   const isAccordionItem = (element: React.ReactElement) => {
-    const type: string | React.ComponentType | undefined = element.type as any;
+    const type = element.type as any;
     return type === AccordionItem || type?.displayName === 'AccordionItem' || type?.__ACC_ITEM;
   };
 

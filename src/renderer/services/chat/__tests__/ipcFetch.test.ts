@@ -1,13 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createIpcFetch } from '../ipcFetch';
+import type { ElectronAPI } from '@/shared/types';
 
 describe('ipcFetch', () => {
   let ipcFetch: ReturnType<typeof createIpcFetch>;
-  let mockElectronAPI: {
-    aiSDK: {
-      stream: vi.MockedFunction<(...args: any[]) => any>;
-    };
-  };
+  let mockElectronAPI: ElectronAPI;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -15,18 +12,13 @@ describe('ipcFetch', () => {
       aiSDK: {
         stream: vi.fn(),
       },
-    };
+    } as ElectronAPI;
 
-    // Mock window.electronAPI
-    (global as any).window = {
-      electronAPI: mockElectronAPI,
-    };
-
-    ipcFetch = createIpcFetch();
+    ipcFetch = createIpcFetch(mockElectronAPI);
   });
 
-  describe('thread ID extraction', () => {
-    it('should extract threadId from payload.id', async () => {
+  describe('conversationId handling', () => {
+    it('should pass conversationId from payload.id to aiSDK.stream', async () => {
       const payload = {
         id: 'thread-custom-123',
         messages: [
@@ -43,16 +35,15 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: 'thread-custom-123',
+          conversationId: 'thread-custom-123',
         }),
         expect.any(Function),
         expect.any(Function)
       );
     });
 
-    it('should fallback to conversationId when id is not provided', async () => {
+    it('should handle undefined conversationId when id is not provided', async () => {
       const payload = {
-        conversationId: 'thread-conv-456',
         messages: [
           {
             role: 'user',
@@ -67,42 +58,16 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: 'thread-conv-456',
+          conversationId: undefined,
         }),
         expect.any(Function),
         expect.any(Function)
       );
     });
 
-    it('should generate threadId when neither id nor conversationId provided', async () => {
-      const payload = {
-        messages: [
-          {
-            role: 'user',
-            content: 'Hello',
-          },
-        ],
-      };
-
-      vi.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
-
-      await ipcFetch('test input', {
-        body: JSON.stringify(payload),
-      });
-
-      expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
-        expect.objectContaining({
-          threadId: expect.stringMatching(/^thread_\d+$/),
-        }),
-        expect.any(Function),
-        expect.any(Function)
-      );
-    });
-
-    it('should handle null id and conversationId', async () => {
+    it('should handle null id', async () => {
       const payload = {
         id: null,
-        conversationId: null,
         messages: [
           {
             role: 'user',
@@ -117,55 +82,7 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: expect.stringMatching(/^thread_\d+$/),
-        }),
-        expect.any(Function),
-        expect.any(Function)
-      );
-    });
-
-    it('should handle undefined id and conversationId', async () => {
-      const payload = {
-        messages: [
-          {
-            role: 'user',
-            content: 'Hello',
-          },
-        ],
-      };
-
-      await ipcFetch('test input', {
-        body: JSON.stringify(payload),
-      });
-
-      expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
-        expect.objectContaining({
-          threadId: expect.stringMatching(/^thread_\d+$/),
-        }),
-        expect.any(Function),
-        expect.any(Function)
-      );
-    });
-
-    it('should prioritize id over conversationId', async () => {
-      const payload = {
-        id: 'thread-priority-id',
-        conversationId: 'thread-conv-should-not-use',
-        messages: [
-          {
-            role: 'user',
-            content: 'Hello',
-          },
-        ],
-      };
-
-      await ipcFetch('test input', {
-        body: JSON.stringify(payload),
-      });
-
-      expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
-        expect.objectContaining({
-          threadId: 'thread-priority-id',
+          conversationId: null,
         }),
         expect.any(Function),
         expect.any(Function)
@@ -202,6 +119,7 @@ describe('ipcFetch', () => {
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
           messages,
+          conversationId: 'thread-123',
         }),
         expect.any(Function),
         expect.any(Function)
@@ -221,6 +139,7 @@ describe('ipcFetch', () => {
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
           messages: [],
+          conversationId: 'thread-123',
         }),
         expect.any(Function),
         expect.any(Function)
@@ -239,6 +158,7 @@ describe('ipcFetch', () => {
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
           messages: [],
+          conversationId: 'thread-123',
         }),
         expect.any(Function),
         expect.any(Function)
@@ -418,7 +338,8 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: 'thread-123',
+          conversationId: 'thread-123',
+          messages: [{ role: 'user', content: 'Hello' }],
         }),
         expect.any(Function),
         expect.any(Function)
@@ -432,12 +353,13 @@ describe('ipcFetch', () => {
       };
 
       await ipcFetch('test input', {
-        body: payload,
+        body: payload as any,
       });
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: 'thread-123',
+          conversationId: 'thread-123',
+          messages: [{ role: 'user', content: 'Hello' }],
         }),
         expect.any(Function),
         expect.any(Function)
@@ -451,7 +373,7 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: expect.stringMatching(/^thread_\d+$/),
+          conversationId: undefined,
           messages: [],
         }),
         expect.any(Function),
@@ -464,7 +386,7 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: expect.stringMatching(/^thread_\d+$/),
+          conversationId: undefined,
           messages: [],
         }),
         expect.any(Function),
@@ -482,11 +404,16 @@ describe('ipcFetch', () => {
   });
 
   describe('logging', () => {
-    it('should log threadId when sending message', async () => {
+    it('should log stream data when sending message', async () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      const streamMock = vi.fn(() => vi.fn());
+      let streamCallback: any;
 
-      mockElectronAPI.aiSDK.stream = streamMock;
+      mockElectronAPI.aiSDK.stream.mockImplementation(
+        (params, onData, onDone) => {
+          streamCallback = onData;
+          return vi.fn(); // cancel function
+        }
+      );
 
       const payload = {
         id: 'thread-log-123',
@@ -497,10 +424,11 @@ describe('ipcFetch', () => {
         body: JSON.stringify(payload),
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[ipcFetch] Sending message with threadId:',
-        'thread-log-123'
-      );
+      // Simulate stream data to test logging
+      const testData = 'test stream data';
+      streamCallback(testData);
+
+      expect(consoleSpy).toHaveBeenCalledWith(testData);
       consoleSpy.mockRestore();
     });
   });
@@ -509,7 +437,6 @@ describe('ipcFetch', () => {
     it('should handle empty string id', async () => {
       const payload = {
         id: '',
-        conversationId: 'thread-fallback',
         messages: [{ role: 'user', content: 'Hello' }],
       };
 
@@ -519,27 +446,8 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
-          threadId: 'thread-fallback',
-        }),
-        expect.any(Function),
-        expect.any(Function)
-      );
-    });
-
-    it('should handle empty string conversationId', async () => {
-      const payload = {
-        id: '',
-        conversationId: '',
-        messages: [{ role: 'user', content: 'Hello' }],
-      };
-
-      await ipcFetch('test input', {
-        body: JSON.stringify(payload),
-      });
-
-      expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
-        expect.objectContaining({
-          threadId: expect.stringMatching(/^thread_\d+$/),
+          conversationId: '',
+          messages: [{ role: 'user', content: 'Hello' }],
         }),
         expect.any(Function),
         expect.any(Function)
@@ -574,6 +482,7 @@ describe('ipcFetch', () => {
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledWith(
         expect.objectContaining({
+          conversationId: 'thread-123',
           messages,
         }),
         expect.any(Function),

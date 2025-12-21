@@ -1,6 +1,6 @@
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
-import type { ServiceLogger } from '@/main/services/types';
+import type { ServiceLogger } from '../../types';
 import {
   VibeDetectionRequest,
   VibeDetectionResult,
@@ -8,8 +8,8 @@ import {
   VIBE_PATTERNS,
   VibeIndicator,
   VibePattern,
-} from '@/shared/types/practice';
-import { Message } from '@/shared/types/ai';
+} from '../../../../shared/types/practice';
+import { Message } from '../../../../shared/types/ai';
 
 export class VibeDetector {
   private readonly logger: ServiceLogger;
@@ -192,7 +192,7 @@ User Context:
 - Confidence Level: ${userContext.confidenceLevel}
 - Learning Velocity: ${userContext.learningVelocity}
 - Stuck Points: ${userContext.stuckPoints.join(', ') || 'None'}
-- Recent Concepts: ${userContext.recentConcepts.map((c) => (typeof c === 'string' ? c : c?.concept || c)).join(', ') || 'None'}
+- Recent Concepts: ${userContext.recentConcepts.join(', ') || 'None'}
 
 Analyze the conversation and determine the user's learning vibe. Consider:
 1. Language patterns and emotional indicators

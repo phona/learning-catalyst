@@ -2,15 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import React from 'react';
 import { UISettings } from '../UISettings';
+import type { AppConfig } from '@/shared/types/config';
 
-const baseConfig = {
+const baseConfig: AppConfig = {
   ai: { providers: {} },
   ui: {
-    theme: 'light',
+    theme: 'light' as const,
     showTokenUsage: false,
-    displayFormat: 'compact',
+    displayFormat: 'compact' as const,
     sessionDuration: 30,
-    fontSize: 'medium',
+    fontSize: 'medium' as const,
     sidebarWidth: 240,
     autoSave: false,
     autoScroll: false,
@@ -23,13 +24,13 @@ const baseConfig = {
   learning: {
     autoSave: false,
     sessionTimeoutMinutes: 30,
-    difficulty: 'beginner',
-    learningStyle: 'reading',
+    difficulty: 'beginner' as const,
+    learningStyle: 'reading' as const,
     personalizationEnabled: false,
     checkpointInterval: 10,
     maxSessionHistory: 5,
     enableAnalytics: false,
-    preferredExplanationLength: 'brief',
+    preferredExplanationLength: 'brief' as const,
   },
   privacy: {
     storeConversations: false,
@@ -38,7 +39,7 @@ const baseConfig = {
     crashReporting: false,
     encryptLocalStorage: false,
     autoCleanup: false,
-    exportFormat: 'json',
+    exportFormat: 'json' as const,
   },
   performance: {
     cacheSizeMb: 128,
@@ -46,13 +47,16 @@ const baseConfig = {
     maxConcurrentRequests: 4,
     requestTimeout: 30,
     memoryLimitMb: 512,
+    gpuAcceleration: false,
+    backgroundProcessing: false,
+    preloadModels: false,
   },
 };
 
 describe('UISettings depth', () => {
   it('shows included levels for default depth and updates on change', () => {
-    let cfg = { ...baseConfig };
-    const onConfigChange = (updates: any) => {
+    let cfg: AppConfig = { ...baseConfig };
+    const onConfigChange = (updates: Partial<AppConfig>) => {
       cfg = { ...cfg, ...updates, ui: { ...cfg.ui, ...(updates.ui || {}) } };
       rerender(<UISettings config={cfg} onConfigChange={onConfigChange} />);
     };

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
 import { createConceptParsingService } from '../concept-parsing-service';
 import { executeExtractionWorkflow } from '../extraction-workflow';
 
@@ -31,7 +31,7 @@ describe('H1 as Root Topic Concept', () => {
 
   it('should treat H1 as ROOT TOPIC concept and create contains relationships', async () => {
     // Mock the extraction workflow to return H1 as first concept (root topic)
-    (executeExtractionWorkflow as vi.MockedFunction<typeof executeExtractionWorkflow>).mockResolvedValue({
+    (executeExtractionWorkflow as MockedFunction<typeof executeExtractionWorkflow>).mockResolvedValue({
       success: true,
       result: {
         summary: 'Python programming fundamentals',
@@ -162,7 +162,7 @@ Functions are reusable code blocks.`;
   });
 
   it('should prioritize ROOT TOPIC in results', async () => {
-    (executeExtractionWorkflow as vi.MockedFunction<typeof executeExtractionWorkflow>).mockResolvedValue({
+    (executeExtractionWorkflow as MockedFunction<typeof executeExtractionWorkflow>).mockResolvedValue({
       success: true,
       result: {
         summary: 'Test summary',

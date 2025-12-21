@@ -16,7 +16,7 @@ import {
   useElectronAPI,
   ElectronAPIProvider,
   IPCError,
-  type UnwrappedElectronAPI,
+  unwrapAPI,
 } from '../useElectronAPI';
 import type { APIResponse } from '@/shared/types/electron-api/base';
 
@@ -47,9 +47,9 @@ describe('useElectronAPI', () => {
     it('provides injected mock API', () => {
       const mockApi = {
         sessions: {
-          list: vi.fn().mockResolvedValue({ sessions: [], total: 0, hasMore: false }),
+          list: vi.fn().mockResolvedValue({ success: true, data: { sessions: [], total: 0, hasMore: false } }),
         },
-      } as unknown as UnwrappedElectronAPI;
+      } as any;
 
       const wrapper = ({ children }: { children: ReactNode }) => (
         <ElectronAPIProvider api={mockApi}>{children}</ElectronAPIProvider>
@@ -80,48 +80,33 @@ describe('useElectronAPI', () => {
     });
   });
 
-  describe('auto-unwrap behavior', () => {
-    // These tests verify the proxy behavior with a mock electron API
-    // In real usage, window.electronAPI returns APIResponse<T>
-    // The proxy unwraps it to T
-
+  describe('unwrapAPI helper', () => {
     it('unwraps successful APIResponse', async () => {
       const mockSessionData = { sessions: [{ id: '1', title: 'Test' }], total: 1, hasMore: false };
 
-      // Simulate the real electronAPI which returns APIResponse
-      const mockElectronAPI = {
+      // Mock API that returns APIResponse
+      const mockApi = {
         sessions: {
           list: vi.fn().mockResolvedValue({
             success: true,
             data: mockSessionData,
           }),
         },
-      };
+      } as any;
 
-      // Mock window.electronAPI
-      const originalElectronAPI = (window as unknown as { electronAPI: unknown }).electronAPI;
-      (window as unknown as { electronAPI: unknown }).electronAPI = mockElectronAPI;
-
-      // Import fresh to get the proxy with our mock
-      const { createElectronAPIClient } = await import('@/renderer/services/api/electron-api-client');
-
-      // Create the provider with default (proxied) API
       const wrapper = ({ children }: { children: ReactNode }) => (
-        <ElectronAPIProvider>{children}</ElectronAPIProvider>
+        <ElectronAPIProvider api={mockApi}>{children}</ElectronAPIProvider>
       );
 
       const { result } = renderHook(() => useElectronAPI(), { wrapper });
 
-      // The proxy should unwrap the response
-      const data = await result.current.sessions.list();
+      // Use unwrapAPI helper to unwrap the response
+      const data = await unwrapAPI(result.current.sessions.list());
       expect(data).toEqual(mockSessionData);
-
-      // Restore
-      (window as unknown as { electronAPI: unknown }).electronAPI = originalElectronAPI;
     });
 
     it('shows toast and throws IPCError on failure', async () => {
-      const mockElectronAPI = {
+      const mockApi = {
         sessions: {
           get: vi.fn().mockResolvedValue({
             success: false,
@@ -132,34 +117,30 @@ describe('useElectronAPI', () => {
             },
           }),
         },
-      };
-
-      const originalElectronAPI = (window as unknown as { electronAPI: unknown }).electronAPI;
-      (window as unknown as { electronAPI: unknown }).electronAPI = mockElectronAPI;
+      } as any;
 
       const wrapper = ({ children }: { children: ReactNode }) => (
-        <ElectronAPIProvider>{children}</ElectronAPIProvider>
+        <ElectronAPIProvider api={mockApi}>{children}</ElectronAPIProvider>
       );
 
       const { result } = renderHook(() => useElectronAPI(), { wrapper });
 
-      await expect(result.current.sessions.get('abc')).rejects.toThrow(IPCError);
+      await expect(unwrapAPI(result.current.sessions.get('abc'))).rejects.toThrow(IPCError);
+      expect(showError).toHaveBeenCalledWith('Session not found');
 
       try {
-        await result.current.sessions.get('abc');
+        await unwrapAPI(result.current.sessions.get('abc'));
       } catch (e) {
         expect(e).toBeInstanceOf(IPCError);
         const error = e as IPCError;
         expect(error.code).toBe('NOT_FOUND');
         expect(error.message).toBe('Session not found');
-        expect(showError).toHaveBeenCalledWith('Session not found');
+        expect(error.details).toEqual({ sessionId: 'abc' });
       }
-
-      (window as unknown as { electronAPI: unknown }).electronAPI = originalElectronAPI;
     });
 
     it('suppresses toast with silent option', async () => {
-      const mockElectronAPI = {
+      const mockApi = {
         sessions: {
           get: vi.fn().mockResolvedValue({
             success: false,
@@ -169,56 +150,46 @@ describe('useElectronAPI', () => {
             },
           }),
         },
-      };
-
-      const originalElectronAPI = (window as unknown as { electronAPI: unknown }).electronAPI;
-      (window as unknown as { electronAPI: unknown }).electronAPI = mockElectronAPI;
+      } as any;
 
       const wrapper = ({ children }: { children: ReactNode }) => (
-        <ElectronAPIProvider>{children}</ElectronAPIProvider>
+        <ElectronAPIProvider api={mockApi}>{children}</ElectronAPIProvider>
       );
 
       const { result } = renderHook(() => useElectronAPI(), { wrapper });
 
-      // Call with silent option
-      await expect(result.current.sessions.get('abc', { silent: true })).rejects.toThrow(IPCError);
+      // Call unwrapAPI with silent option
+      await expect(unwrapAPI(result.current.sessions.get('abc'), { silent: true })).rejects.toThrow(IPCError);
 
       // Toast should NOT be called when silent: true
       expect(showError).not.toHaveBeenCalled();
-
-      (window as unknown as { electronAPI: unknown }).electronAPI = originalElectronAPI;
     });
   });
 
-  describe('nested namespace proxying', () => {
-    it('proxies nested objects like api.sessions, api.chat', async () => {
-      const mockElectronAPI = {
+  describe('nested namespace access', () => {
+    it('provides access to nested objects like api.sessions, api.chat', async () => {
+      const mockApi = {
         sessions: {
-          list: vi.fn().mockResolvedValue({ success: true, data: [] }),
+          list: vi.fn().mockResolvedValue({ success: true, data: { sessions: [], total: 0, hasMore: false } }),
           get: vi.fn().mockResolvedValue({ success: true, data: null }),
         },
         chat: {
           generateTitle: vi.fn().mockResolvedValue({ success: true, data: 'Test Title' }),
         },
-      };
-
-      const originalElectronAPI = (window as unknown as { electronAPI: unknown }).electronAPI;
-      (window as unknown as { electronAPI: unknown }).electronAPI = mockElectronAPI;
+      } as any;
 
       const wrapper = ({ children }: { children: ReactNode }) => (
-        <ElectronAPIProvider>{children}</ElectronAPIProvider>
+        <ElectronAPIProvider api={mockApi}>{children}</ElectronAPIProvider>
       );
 
       const { result } = renderHook(() => useElectronAPI(), { wrapper });
 
       // Verify nested namespaces work
       await result.current.sessions.list();
-      expect(mockElectronAPI.sessions.list).toHaveBeenCalled();
+      expect(mockApi.sessions.list).toHaveBeenCalled();
 
       await result.current.chat.generateTitle('Hello');
-      expect(mockElectronAPI.chat.generateTitle).toHaveBeenCalledWith('Hello');
-
-      (window as unknown as { electronAPI: unknown }).electronAPI = originalElectronAPI;
+      expect(mockApi.chat.generateTitle).toHaveBeenCalledWith('Hello');
     });
   });
 });

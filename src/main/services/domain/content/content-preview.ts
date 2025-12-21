@@ -1,6 +1,7 @@
-import path from 'node:path';
+import * as path from 'node:path';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
+import type { Node } from 'unist';
 
 export interface DocumentPreviewSnippet {
   label: string;
@@ -61,30 +62,37 @@ const detectHeading = (line: string): DetectedHeading => {
 export const extractMarkdownHeadings = (
   content: string,
 ): Array<{ label: string; level: number; startLine: number }> => {
-  const tree = unified().use(remarkParse).parse(content) as unknown;
+  const tree = unified().use(remarkParse).parse(content) as any;
   const result: Array<{ label: string; level: number; startLine: number }> = [];
-  const stack: unknown[] = [tree];
+  const stack: any[] = [tree];
+
   while (stack.length) {
     const node = stack.pop();
+
     if (node && node.type === 'heading' && node.depth && node.position?.start?.line) {
       const parts: string[] = [];
       const children = Array.isArray(node.children) ? node.children : [];
       for (const c of children) {
-        if (typeof c.value === 'string') parts.push(c.value);
-        else if (Array.isArray(c.children)) {
+        if (typeof c.value === 'string') {
+          parts.push(c.value);
+        } else if (Array.isArray(c.children)) {
           for (const cc of c.children) {
-            if (typeof cc.value === 'string') parts.push(cc.value);
+            if (typeof cc.value === 'string') {
+              parts.push(cc.value);
+            }
           }
         }
       }
       const label = parts.join('').trim();
       result.push({ label, level: node.depth, startLine: node.position.start.line });
     }
+
     const children = Array.isArray(node?.children) ? node.children : [];
     for (let i = children.length - 1; i >= 0; i -= 1) {
       stack.push(children[i]);
     }
   }
+
   return result.sort((a, b) => a.startLine - b.startLine);
 };
 

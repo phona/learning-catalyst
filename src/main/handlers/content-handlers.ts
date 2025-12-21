@@ -82,14 +82,14 @@ export const setupContentHandlers = (
 
   ipcMainInstance.handle('content:analyze-document', async (_event, filePath: string) => {
     handlerLogger.info('Handling analyze document request', { filePath });
-      const documentAnalysis = await services.contentService.analyzeDocument(filePath);
-      return documentAnalysis;
+    const documentAnalysis = await services.contentService.analyzeDocument(filePath);
+    return documentAnalysis;
   });
 
   ipcMainInstance.handle('content:extract-concepts', async (_event, content: string) => {
     handlerLogger.info('Handling extract concepts request', { contentLength: content.length });
-      const conceptExtraction = await services.contentService.extractConcepts(content);
-      return conceptExtraction;
+    const conceptExtraction = await services.contentService.extractConcepts(content);
+    return conceptExtraction;
   });
 
   handlerLogger.info('Content handlers registered successfully');

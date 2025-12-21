@@ -16,10 +16,22 @@ describe('electron-api-client mock behavior', () => {
 
   it('returns structured content import response', async () => {
     const client = createMockElectronAPIClient();
-    const result = await client.content.importLearningContent({});
+    // Create a mock FileList for testing
+    const mockFile = new File(['test content'], 'test.txt', { type: 'text/plain' });
+    const mockFileList = {
+      0: mockFile,
+      length: 1,
+      item: (index: number) => index === 0 ? mockFile : null,
+      [Symbol.iterator]: function* () {
+        yield mockFile;
+      },
+    } as FileList;
+    const result = await client.content.importLearningContent(mockFileList);
 
     expect(result.success).toBe(true);
     expect(result.data?.summary?.difficulty).toBe('beginner');
+    expect(result.data?.processedFiles).toBe(1);
+    expect(result.data?.totalFiles).toBe(1);
   });
 
   it('provides settings/config accessors', async () => {

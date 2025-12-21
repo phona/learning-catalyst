@@ -46,7 +46,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
     setError(null);
     try {
       const resp = await apiClient.knowledge.getKnowledgeMap();
-      if (!resp?.success) throw new Error(resp?.error?.message ?? 'Unable to load concepts');
+      if (!resp?.success) throw new Error(resp?.error ?? 'Unable to load concepts');
       const data = resp.data as KnowledgeMapDisplay;
       setNodes(data.nodes ?? []);
     } catch (err) {
@@ -65,7 +65,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
       setLoadingRel(true);
       try {
         const resp = await apiClient.knowledge.getRelatedConcepts(conceptId);
-        if (!resp?.success) throw new Error(resp?.error?.message ?? 'Unable to load relationships');
+        if (!resp?.success) throw new Error(resp?.error ?? 'Unable to load relationships');
         setRelated(resp.data as RelatedConceptsDisplay);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load relationships');
@@ -162,7 +162,7 @@ export const RelationshipManager: React.FC<RelationshipManagerProps> = ({
       };
 
       const resp = await apiClient.knowledge.ingestConcepts({ result: parsedResult });
-      if (!resp?.success) throw new Error(resp?.error?.message ?? 'Failed to save relationship');
+      if (!resp?.success) throw new Error(resp?.error ?? 'Failed to save relationship');
 
       const relationship: Relationship = {
         sourceConceptId: sourceId,

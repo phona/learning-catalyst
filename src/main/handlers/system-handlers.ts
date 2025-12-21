@@ -19,21 +19,21 @@ export function setupSystemHandlers(
   });
 
   ipcMainInstance.handle('system:health-check', async () => {
-      const healthStatus = {
-        status: 'healthy' as const,
-        timestamp: new Date().toISOString(),
-        apis: {
-          chat: { status: 'healthy' },
-          learning: { status: 'healthy' },
-          knowledge: { status: 'healthy' },
-          analytics: { status: 'healthy' },
-          agents: { status: 'healthy' },
-          content: { status: 'healthy' },
-          settings: { status: 'healthy' },
-          sessions: { status: 'healthy' },
-        },
-      };
-      return healthStatus;
+    const healthStatus = {
+      status: 'healthy' as const,
+      timestamp: new Date().toISOString(),
+      apis: {
+        chat: { status: 'healthy' },
+        learning: { status: 'healthy' },
+        knowledge: { status: 'healthy' },
+        analytics: { status: 'healthy' },
+        agents: { status: 'healthy' },
+        content: { status: 'healthy' },
+        settings: { status: 'healthy' },
+        sessions: { status: 'healthy' },
+      },
+    };
+    return healthStatus;
   });
 
   ipcMainInstance.handle('system:get-version', async () => {

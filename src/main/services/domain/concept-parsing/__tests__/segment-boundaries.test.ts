@@ -6,7 +6,7 @@ import { createConceptParsingService } from '../concept-parsing-service';
 // Mock LLM following docs pattern for .pipe() chains
 const createMockLlm = (response?: any) =>
   new RunnableLambda({
-    func: async (_input) => {
+    func: async (_input: unknown) => {
       return new AIMessage(
         JSON.stringify(
           response ?? {
@@ -34,14 +34,21 @@ const createTestService = () => {
   const mockLlm = createMockLlm();
   const vectorDatabase = {
     addDocumentBatch: vi.fn().mockResolvedValue(undefined),
+    addDocumentWithEmbedding: vi.fn(),
+    search: vi.fn(),
+    deleteDocument: vi.fn(),
+    getStats: vi.fn(),
+    start: vi.fn(),
   };
+  const createMockLogger = () => ({
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: (meta: Record<string, unknown>) => createMockLogger(),
+  });
   const loggerService = {
-    child: () => ({
-      info: vi.fn(),
-      debug: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    }),
+    child: (meta: Record<string, unknown>) => createMockLogger(),
   };
 
   const fileSystem = {
@@ -55,9 +62,20 @@ const createTestService = () => {
   const service = createConceptParsingService({
     providerFactory: {
       getModel: vi.fn().mockResolvedValue(mockLlm),
-      getEmbeddingModel: vi.fn(async () => ({
+      getEmbeddings: vi.fn().mockResolvedValue({
+        embedQuery: vi.fn(async (text: string) => Array(1536).fill(0.1)),
+        embedDocuments: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
+      }),
+      getEmbeddingModel: vi.fn().mockResolvedValue({
+        embed: vi.fn(async (text: string) => Array(1536).fill(0.1)),
         embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
-      })),
+        dimensions: 1536,
+      }),
+      getRerankModel: vi.fn().mockResolvedValue({
+        rerank: vi.fn(async (query: string, documents: string[]) =>
+          documents.map((doc, index) => ({ document: doc, score: 1 - index * 0.1 }))
+        ),
+      }),
     },
     vectorDatabase,
     loggerService,
@@ -104,7 +122,16 @@ More H2 content.`;
 
     const calls = vectorDatabase.addDocumentBatch.mock.calls;
     if (calls.length > 0) {
-      const segments = calls[0][0];
+      const segments: Array<{
+        doc: {
+          id: string;
+          content: string;
+          metadata: {
+            conceptId: string;
+          };
+        };
+        embedding: number[];
+      }> = calls[0][0];
 
       // Verify no segment content is duplicated in another segment
       for (let i = 0; i < segments.length; i++) {
@@ -151,18 +178,27 @@ Content after second H2.`;
     expect(res.success).toBe(true);
 
     if (vectorDatabase.addDocumentBatch.mock.calls.length > 0) {
-      const segments = vectorDatabase.addDocumentBatch.mock.calls[0][0];
+      const segments: Array<{
+        doc: {
+          id: string;
+          content: string;
+          metadata: {
+            conceptId: string;
+          };
+        };
+        embedding: number[];
+      }> = vectorDatabase.addDocumentBatch.mock.calls[0][0];
 
       // Count heading occurrences across all segments
-      const h1Count = segments.reduce((count: number, seg: any) => {
+      const h1Count = segments.reduce((count: number, seg) => {
         return count + (seg.doc.content.match(/^#\s+First H1/gm) || []).length;
       }, 0);
 
-      const h2FirstCount = segments.reduce((count: number, seg: any) => {
+      const h2FirstCount = segments.reduce((count: number, seg) => {
         return count + (seg.doc.content.match(/^##\s+First H2/gm) || []).length;
       }, 0);
 
-      const h2SecondCount = segments.reduce((count: number, seg: any) => {
+      const h2SecondCount = segments.reduce((count: number, seg) => {
         return count + (seg.doc.content.match(/^##\s+Second H2/gm) || []).length;
       }, 0);
 
@@ -196,10 +232,19 @@ Final content.`;
     expect(res.success).toBe(true);
 
     if (vectorDatabase.addDocumentBatch.mock.calls.length > 0) {
-      const segments = vectorDatabase.addDocumentBatch.mock.calls[0][0];
+      const segments: Array<{
+        doc: {
+          id: string;
+          content: string;
+          metadata: {
+            conceptId: string;
+          };
+        };
+        embedding: number[];
+      }> = vectorDatabase.addDocumentBatch.mock.calls[0][0];
 
       // Verify no content duplication
-      const allContents = segments.map((s: any) => s.doc.content);
+      const allContents = segments.map((s) => s.doc.content);
 
       // Check that "Content between H1 and H2" appears only once
       const h1toH2Count = allContents.filter(c => c.includes('Content between H1 and H2')).length;
@@ -279,7 +324,7 @@ Section B content.`;
         const lines = content.split('\n');
 
         // First non-empty line should be a heading
-        const firstLine = lines.find(l => l.trim().length > 0);
+        const firstLine = lines.find((l: string) => l.trim().length > 0);
         expect(firstLine).toMatch(/^#+\s+/);
       }
 
@@ -390,10 +435,19 @@ Content.`;
     expect(res.success).toBe(true);
 
     if (vectorDatabase.addDocumentBatch.mock.calls.length > 0) {
-      const segments = vectorDatabase.addDocumentBatch.mock.calls[0][0];
+      const segments: Array<{
+        doc: {
+          id: string;
+          content: string;
+          metadata: {
+            conceptId: string;
+          };
+        };
+        embedding: number[];
+      }> = vectorDatabase.addDocumentBatch.mock.calls[0][0];
 
       // Verify no heading duplication
-      const allContent = segments.map((s: any) => s.doc.content).join('\n');
+      const allContent = segments.map((s) => s.doc.content).join('\n');
 
       // Count heading occurrences
       const h2Count = (allContent.match(/^##\s+H2/gm) || []).length;

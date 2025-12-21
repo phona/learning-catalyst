@@ -6,8 +6,8 @@
  */
 
 import { ChatPromptTemplate } from '@langchain/core/prompts';
-import type { ProviderFactory } from '@/main/services/agent/provider-factory';
-import type { LearningService } from '@/main/services/domain/learning/learning-service';
+import { createProviderFactory, type ProviderFactory } from '@/main/services/agent/provider-factory';
+import type { BaseMessage } from '@langchain/core/messages';
 import { LoggerService } from '../../core/logger/logger-service';
 
 // Template created once and reused
@@ -54,7 +54,7 @@ export const generateAITitle = async (
   // Generate title using structured output
   const result = await chain.invoke({
     userMessage: text,
-  });
+  }) as BaseMessage;
 
   deps.loggerService.info('[TitleGeneration] Generated AI title:', result);
   if (typeof result === 'string') return result;

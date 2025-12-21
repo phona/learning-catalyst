@@ -77,6 +77,17 @@ describe('Learning Service - Interface Tests', () => {
       getAvailableModels: vi.fn(() => []),
     };
 
+    // Mock checkpoint saver - extends BaseCheckpointSaver so we need to mock all required methods
+    const mockCheckpointSaver = {
+      put: vi.fn().mockResolvedValue({}),
+      get: vi.fn().mockResolvedValue({}),
+      list: vi.fn().mockResolvedValue([]),
+      getTuple: vi.fn().mockResolvedValue(null),
+      listW: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue(undefined),
+      configure: vi.fn(),
+    } as any;
+
     // Mock domain agent
     const mockDomainAgent = {
       invoke: vi.fn().mockResolvedValue({ content: '{}' }),
@@ -91,6 +102,7 @@ describe('Learning Service - Interface Tests', () => {
     learningService = createLearningService({
       db: mockDb,
       loggerService: mockLoggerService,
+      checkpointSaver: mockCheckpointSaver,
     });
   });
 

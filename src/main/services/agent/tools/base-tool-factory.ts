@@ -18,8 +18,8 @@ export interface ToolConfig {
 /**
  * Base tool factory that eliminates 85% of duplication
  */
-export const createTool = (config: ToolConfig) => (services: { loggerService?: LoggerService }) => {
-  const logger = services.loggerService?.child({ tool: config.name }) || console;
+export const createTool = (config: ToolConfig) => (services: ToolServices) => {
+  const logger = services.loggerService.child({ tool: config.name });
 
   return async (params: ToolParams): Promise<ToolResult> => {
     logger.info(`${config.name} operation requested`);

@@ -110,39 +110,39 @@ async function generateResponse(
   const userInput = state.userAnswer ?? '';
 
   switch (intent) {
-    case 'question': {
-      const knowledgeContext = await gatherKnowledgeContext(deps, state.topic);
-      const messages = await QUESTION_RESPONSE_PROMPT.formatMessages({
-        topic: state.topic,
-        userQuestion: userInput,
-        knowledgeContext,
-      });
-      const response = await model.invoke(messages);
-      return String(response.content ?? '');
-    }
+  case 'question': {
+    const knowledgeContext = await gatherKnowledgeContext(deps, state.topic);
+    const messages = await QUESTION_RESPONSE_PROMPT.formatMessages({
+      topic: state.topic,
+      userQuestion: userInput,
+      knowledgeContext,
+    });
+    const response = await model.invoke(messages);
+    return String(response.content ?? '');
+  }
 
-    case 'confused': {
-      const messages = await CLARIFICATION_PROMPT.formatMessages({
-        topic: state.topic,
-        userConfusion: userInput,
-      });
-      const response = await model.invoke(messages);
-      return String(response.content ?? '');
-    }
+  case 'confused': {
+    const messages = await CLARIFICATION_PROMPT.formatMessages({
+      topic: state.topic,
+      userConfusion: userInput,
+    });
+    const response = await model.invoke(messages);
+    return String(response.content ?? '');
+  }
 
-    case 'off_topic': {
-      return (
-        `Let's stay focused on ${state.topic}. ` +
+  case 'off_topic': {
+    return (
+      `Let's stay focused on ${state.topic}. ` +
         `What would you like to know about it? Or are you ready to practice?`
-      );
-    }
+    );
+  }
 
-    default: {
-      return (
-        `I'm not sure I understood that. ` +
+  default: {
+    return (
+      `I'm not sure I understood that. ` +
         `Do you have a question about ${state.topic}, or are you ready to practice?`
-      );
-    }
+    );
+  }
   }
 }
 
@@ -153,85 +153,85 @@ async function generateResponse(
  */
 export const handleQuestionNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
-    const emitter = createChunkEmitter(config);
-    const startTime = Date.now();
-    const teach = state.teach!;
-    const intent = teach.teachIntent ?? 'question';
-    const newQuestionsAsked = teach.questionsAsked + 1;
+    async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
+      const emitter = createChunkEmitter(config);
+      const startTime = Date.now();
+      const teach = state.teach!;
+      const intent = teach.teachIntent ?? 'question';
+      const newQuestionsAsked = teach.questionsAsked + 1;
 
-    deps.loggerService.debug('teach:handleQuestion start', {
-      intent,
-      questionsAsked: newQuestionsAsked,
-    });
+      deps.loggerService.debug('teach:handleQuestion start', {
+        intent,
+        questionsAsked: newQuestionsAsked,
+      });
 
-    // Safety: max questions reached
-    if (newQuestionsAsked >= MAX_QUESTIONS) {
-      const maxQuestionsMessage =
+      // Safety: max questions reached
+      if (newQuestionsAsked >= MAX_QUESTIONS) {
+        const maxQuestionsMessage =
         `We've covered a lot of ground! Let's consolidate what we've learned. ` +
         `Do you feel ready to try some practice, or would you like a summary?`;
 
-      const messageId = generateId('msg');
-      emitter.textStart(messageId);
-      emitter.textDelta(messageId, maxQuestionsMessage);
-      emitter.textEnd(messageId);
+        const messageId = generateId('msg');
+        emitter.textStart(messageId);
+        emitter.textDelta(messageId, maxQuestionsMessage);
+        emitter.textEnd(messageId);
 
-      const resumeValue = await interrupt({
-        type: 'teach_max_questions',
-        prompt: maxQuestionsMessage,
-      });
+        const resumeValue = await interrupt({
+          type: 'teach_max_questions',
+          prompt: maxQuestionsMessage,
+        });
 
-      const answer =
+        const answer =
         typeof resumeValue === 'string'
           ? resumeValue
           : (resumeValue as { answer?: string })?.answer ?? '';
 
-      return {
-        messages: [new AIMessage(maxQuestionsMessage)],
-        userAnswer: answer,
-        teach: {
-          questionsAsked: newQuestionsAsked,
-          teachIntent: undefined,
-        },
-      };
-    }
+        return {
+          messages: [new AIMessage(maxQuestionsMessage)],
+          userAnswer: answer,
+          teach: {
+            questionsAsked: newQuestionsAsked,
+            teachIntent: undefined,
+          },
+        };
+      }
 
-    // Generate appropriate response based on intent
-    const responseContent = await generateResponse(deps, state, intent);
+      // Generate appropriate response based on intent
+      const responseContent = await generateResponse(deps, state, intent);
 
-    // Emit to UI
-    const messageId = generateId('msg');
-    emitter.textStart(messageId);
-    emitter.textDelta(messageId, responseContent);
-    emitter.textEnd(messageId);
+      // Emit to UI
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, responseContent);
+      emitter.textEnd(messageId);
 
-    const duration = Date.now() - startTime;
-    deps.loggerService.info('teach:handleQuestion complete', {
-      intent,
-      questionsAsked: newQuestionsAsked,
-      durationMs: duration,
-    });
+      const duration = Date.now() - startTime;
+      deps.loggerService.info('teach:handleQuestion complete', {
+        intent,
+        questionsAsked: newQuestionsAsked,
+        durationMs: duration,
+      });
 
-    // Interrupt and wait for next user response
-    const resumeValue = await interrupt({
-      type: 'teach_followup',
-      prompt: responseContent,
-      questionsAsked: newQuestionsAsked,
-    });
+      // Interrupt and wait for next user response
+      const resumeValue = await interrupt({
+        type: 'teach_followup',
+        prompt: responseContent,
+        questionsAsked: newQuestionsAsked,
+      });
 
-    const answer =
+      const answer =
       typeof resumeValue === 'string'
         ? resumeValue
         : (resumeValue as { answer?: string; content?: string })?.answer ??
           (resumeValue as { answer?: string; content?: string })?.content ??
           '';
 
-    return {
-      messages: [new AIMessage(responseContent)],
-      userAnswer: answer,
-      teach: {
-        questionsAsked: newQuestionsAsked,
-        teachIntent: undefined, // Clear for reclassification
-      },
+      return {
+        messages: [new AIMessage(responseContent)],
+        userAnswer: answer,
+        teach: {
+          questionsAsked: newQuestionsAsked,
+          teachIntent: undefined, // Clear for reclassification
+        },
+      };
     };
-  };

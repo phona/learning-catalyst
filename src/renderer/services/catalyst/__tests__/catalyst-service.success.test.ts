@@ -15,10 +15,10 @@ const buildApi = () => {
       success: true,
       data: [{ id: 'agent-1', name: 'Agent', type: 'learning' }],
     }),
-    cancelAgent: vi.fn().mockResolvedValue({ success: true }),
+    cancelAgent: vi.fn().mockResolvedValue({ success: true, data: { cancelled: true } }),
     getActiveExecutions: vi.fn().mockResolvedValue({
       success: true,
-      data: [{ id: 'exec-1', status: 'running' }],
+      data: [{ id: 'exec-1', status: 'running' as const, agentId: 'agent-1', startTime: Date.now() }],
     }),
   };
 
@@ -79,7 +79,7 @@ describe('catalyst-service success paths', () => {
 
     expect(api.sessions.get).toHaveBeenCalledWith('s1');
     expect(res.success).toBe(true);
-    expect(res.session?.id).toBe('s1');
+    expect((res.session as any)?.id).toBe('s1');
   });
 
   it('cancels execution and lists active executions', async () => {

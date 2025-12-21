@@ -165,124 +165,120 @@ function formatRecentMessages(
 
 export const assessNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
-    const startTime = Date.now();
+    async (state: typeof WorkflowStateAnnotation.State, config: LangGraphRunnableConfig) => {
+      const startTime = Date.now();
 
-    // Debug: Node start
-    deps.loggerService.debug('assessNode: start', {
-      topic: state.topic,
-      messageCount: state.messages?.length ?? 0,
-      hasConfidence: !!state.confidence,
-      hasGaps: !!state.gaps,
-    });
+      // Debug: Node start
+      deps.loggerService.debug('assessNode: start', {
+        topic: state.topic,
+        messageCount: state.messages?.length ?? 0,
+        hasConfidence: !!state.confidence,
+        hasGaps: !!state.gaps,
+      });
 
-    // Step 1: Fetch related concepts from knowledge graph
-    const knowledgeResult = await deps.knowledgeService.searchKnowledge({
-      query: state.topic,
-      limit: 5,
-    });
+      // Step 1: Fetch related concepts from knowledge graph
+      const knowledgeResult = await deps.knowledgeService.searchKnowledge({
+        query: state.topic,
+        limit: 5,
+      });
 
-    // Extract concept IDs for practice history lookup
-    const conceptIds = (knowledgeResult?.results ?? [])
-      .map((result) => result.id)
-      .filter((id): id is string => Boolean(id));
+      // Extract concept IDs for practice history lookup
+      const conceptIds = (knowledgeResult?.results ?? [])
+        .map((result) => result.id)
+        .filter((id): id is string => Boolean(id));
 
-    // Debug: Knowledge search results
-    deps.loggerService.debug('assessNode: knowledge search', {
-      topic: state.topic,
-      resultsFound: knowledgeResult?.results?.length ?? 0,
-      conceptIdsCount: conceptIds.length,
-    });
+      // Debug: Knowledge search results
+      deps.loggerService.debug('assessNode: knowledge search', {
+        topic: state.topic,
+        resultsFound: knowledgeResult?.results?.length ?? 0,
+        conceptIdsCount: conceptIds.length,
+      });
 
-    // Step 2: Retrieve practice history for confidence calculation
-    const practiceHistory = await deps.learningService.getPracticeHistory({
-      conceptIds,
-      limit: 100,
-    });
+      // Step 2: Retrieve practice history for confidence calculation
+      const practiceHistory = await deps.learningService.getPracticeHistory({
+        conceptIds,
+        limit: 100,
+      });
 
-    // Debug: Practice history
-    deps.loggerService.debug('assessNode: practice history', {
-      conceptIdsCount: conceptIds.length,
-      historyItems: practiceHistory.length,
-    });
+      // Debug: Practice history
+      deps.loggerService.debug('assessNode: practice history', {
+        conceptIdsCount: conceptIds.length,
+        historyItems: practiceHistory.length,
+      });
 
-    // Step 3: Extract metrics from practice history
-    const practiceMetrics = extractPracticeMetrics(practiceHistory);
+      // Step 3: Extract metrics from practice history
+      const practiceMetrics = extractPracticeMetrics(practiceHistory);
 
-    // Debug: Practice metrics extracted
-    deps.loggerService.debug('assessNode: practice metrics', {
-      passCount: practiceMetrics.passCount,
-      partialCount: practiceMetrics.partialCount,
-      failCount: practiceMetrics.failCount,
-      gapsCount: practiceMetrics.gaps.length,
-    });
+      // Debug: Practice metrics extracted
+      deps.loggerService.debug('assessNode: practice metrics', {
+        passCount: practiceMetrics.passCount,
+        partialCount: practiceMetrics.partialCount,
+        failCount: practiceMetrics.failCount,
+        gapsCount: practiceMetrics.gaps.length,
+      });
 
-    // Step 4: Format recent conversation for LLM analysis
-    const recentMessages = formatRecentMessages(state.messages as (HumanMessage | AIMessage)[]);
+      // Step 4: Format recent conversation for LLM analysis
+      const recentMessages = formatRecentMessages(state.messages as (HumanMessage | AIMessage)[]);
 
-    // Step 5: Get AI model and generate confidence assessment
-    const model = await deps.providerFactory.getModel();
+      // Step 5: Get AI model and generate confidence assessment
+      const model = await deps.providerFactory.getModel();
 
-    // Format the prompt using the global ChatPromptTemplate
-    const messages = await ASSESSMENT_PROMPT.formatMessages({
-      topic: state.topic,
-      passCount: String(practiceMetrics.passCount),
-      partialCount: String(practiceMetrics.partialCount),
-      failCount: String(practiceMetrics.failCount),
-      rubricAvg: String(Math.round(practiceMetrics.rubricAverage * 100)),
-      recentMessages,
-    });
+      // Format the prompt using the global ChatPromptTemplate
+      const messages = await ASSESSMENT_PROMPT.formatMessages({
+        topic: state.topic,
+        passCount: String(practiceMetrics.passCount),
+        partialCount: String(practiceMetrics.partialCount),
+        failCount: String(practiceMetrics.failCount),
+        rubricAvg: String(Math.round(practiceMetrics.rubricAverage * 100)),
+        recentMessages,
+      });
 
-    // Invoke model with the formatted messages
-    const modelResponse = await model.invoke(messages);
+      // Invoke model with the formatted messages
+      const modelResponse = await model.invoke(messages);
 
-    // Extract confidence score from model response
-    const rawResponse = String(modelResponse.content ?? modelResponse ?? '');
-    const parsedConfidence = parseScore(rawResponse);
+      // Extract confidence score from model response
+      const rawResponse = String(modelResponse.content ?? modelResponse ?? '');
+      const parsedConfidence = parseScore(rawResponse);
 
-    // Clamp confidence to valid range [0, 1]
-    const confidence = clamp01(parsedConfidence ?? 0.5);
+      // Clamp confidence to valid range [0, 1]
+      const confidence = clamp01(parsedConfidence ?? 0.5);
 
-    // Format confidence message for user
-    const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
-    const messageId = generateId('assess');
-    // const emitter = createChunkEmitter(config);
-    // emitter.textStart(messageId);
-    // emitter.textDelta(messageId, confidenceMessage);
-    // emitter.textEnd(messageId);
+      // Format confidence message for user
+      const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
+      const messageId = generateId('assess');
+      // const emitter = createChunkEmitter(config);
+      // emitter.textStart(messageId);
+      // emitter.textDelta(messageId, confidenceMessage);
+      // emitter.textEnd(messageId);
 
-    // Debug: Final result
-    const duration = Date.now() - startTime;
-    deps.loggerService.debug('assessNode: complete', {
-      topic: state.topic,
-      confidence,
-      confidencePercent: Math.round(confidence * 100),
-      gapsCount: practiceMetrics.gaps.length,
-      gaps: practiceMetrics.gaps,
-      durationMs: duration,
-    });
+      // Debug: Final result
+      const duration = Date.now() - startTime;
+      deps.loggerService.debug('assessNode: complete', {
+        topic: state.topic,
+        confidence,
+        confidencePercent: Math.round(confidence * 100),
+        gapsCount: practiceMetrics.gaps.length,
+        gaps: practiceMetrics.gaps,
+        durationMs: duration,
+      });
 
-    // Info: Assessment completed
-    deps.loggerService.info('assessNode: assessment complete', {
-      topic: state.topic,
-      confidencePercent: Math.round(confidence * 100),
-      gapsCount: practiceMetrics.gaps.length,
-      path: confidence >= 0.8 ? 'fast_track' : 'standard_learning',
-      durationMs: duration,
-    });
+      // Info: Assessment completed
+      deps.loggerService.info('assessNode: assessment complete', {
+        topic: state.topic,
+        confidencePercent: Math.round(confidence * 100),
+        gapsCount: practiceMetrics.gaps.length,
+        path: confidence >= 0.8 ? 'fast_track' : 'standard_learning',
+        durationMs: duration,
+      });
 
-    // Step 6: Return updated state
-    // Remove ToolMessage - just return state directly
-    // The toolOutput data (confidence, gaps) is already in state fields
-    return {
-      messages: [
-        new HumanMessage({
-          response_metadata: {
-            content: confidenceMessage,
-          },
-        }),
-      ],
-      confidence,
-      gaps: practiceMetrics.gaps,
+      // Step 6: Return updated state
+      // Remove ToolMessage - just return state directly
+      // The toolOutput data (confidence, gaps) is already in state fields
+      return {
+        messages: [
+          new AIMessage(confidenceMessage),
+        ],
+        confidence,
+        gaps: practiceMetrics.gaps,
+      };
     };
-  };

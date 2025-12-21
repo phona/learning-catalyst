@@ -130,7 +130,7 @@ export async function setupIPCIntegrationTest() {
 
   (mockRendererProcess as any).invokeWithTimeout = vi
     .fn()
-    .mockImplementation(async (channel: string, data?: unknown, timeout: number) => {
+    .mockImplementation(async (channel: string, timeout: number, data?: unknown) => {
       const handler = ipcHandlers.get(channel);
       if (handler) {
         try {

@@ -1,13 +1,53 @@
 /**
  * @fileoverview Comprehensive tests for ToolFallback component
  * Tests helper functions, result handling, error states, and UI interactions
+ *
+ * TypeScript Compatibility Fix:
+ * This test file uses the `createToolProps` helper function to provide the required
+ * ToolCallMessagePartProps interface that the ToolFallback component expects.
+ * The component is a ToolCallMessagePartComponent that requires properties like
+ * type, toolCallId, args, addResult, and resume in addition to the tested props.
+ *
+ * Usage Pattern:
+ * Replace direct ToolFallback usage like:
+ *   <ToolFallback toolName="test" argsText="{}" result={data} status={{ type: 'complete' }} />
+ *
+ * With the helper function:
+ *   <ToolFallback {...createToolProps({ toolName: 'test', argsText: '{}', result: data, status: { type: 'complete' } })} />
+ *
+ * Or use the renderToolFallback helper:
+ *   renderToolFallback({ toolName: 'test', argsText: '{}', result: data, status: { type: 'complete' } });
  */
 
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom';
 import { ToolFallback } from '@/renderer/components/Chat/ToolFallback';
 import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
+
+/**
+ * Helper function to create minimal ToolCallMessagePart props for testing
+ */
+const createToolProps = (overrides: any = {}) => ({
+  type: 'tool-call' as const,
+  toolCallId: 'test-tool-call-id',
+  toolName: 'test-tool',
+  args: {},
+  argsText: '{}',
+  status: { type: 'running' as const },
+  addResult: vi.fn(),
+  resume: vi.fn(),
+  ...overrides,
+});
+
+/**
+ * Helper function to render ToolFallback with test props
+ */
+const renderToolFallback = (props: any = {}) => {
+  const defaultProps = createToolProps();
+  return render(<ToolFallback {...defaultProps} {...props} />);
+};
 
 /**
  * Helper function to expand ToolFallback component for testing
@@ -34,14 +74,12 @@ describe('ToolFallback', () => {
     describe('formatPayload behavior', () => {
       it('handles string values directly', () => {
         const result = 'simple string result';
-        render(
-          <ToolFallback
-            toolName="test-tool"
-            argsText="{}"
-            result={result}
-            status={{ type: 'complete' }}
-          />,
-        );
+        renderToolFallback({
+          toolName: 'test-tool',
+          argsText: '{}',
+          result,
+          status: { type: 'complete' },
+        });
 
         expandComponent();
         expect(screen.getByText(result)).toBeInTheDocument();
@@ -49,14 +87,12 @@ describe('ToolFallback', () => {
 
       it('stringifies objects with proper formatting', () => {
         const result = { key: 'value', nested: { data: 'test' } };
-        render(
-          <ToolFallback
-            toolName="test-tool"
-            argsText="{}"
-            result={result}
-            status={{ type: 'complete' }}
-          />,
-        );
+        renderToolFallback({
+          toolName: 'test-tool',
+          argsText: '{}',
+          result,
+          status: { type: 'complete' },
+        });
 
         expandComponent();
         expectJSONContent(result);
@@ -74,14 +110,12 @@ describe('ToolFallback', () => {
           },
         };
 
-        render(
-          <ToolFallback
-            toolName="test-tool"
-            argsText="{}"
-            result={result}
-            status={{ type: 'complete' }}
-          />,
-        );
+        renderToolFallback({
+          toolName: 'test-tool',
+          argsText: '{}',
+          result,
+          status: { type: 'complete' },
+        });
 
         expandComponent();
         expectJSONContent(result);

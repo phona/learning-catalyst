@@ -7,6 +7,7 @@
 
 import type { ElectronAPI, ChatAPI, KnowledgeAPI, LearningAPI, AnalyticsAPI } from '@/shared/types';
 import type { APIResponse, SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api/base';
+import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
 
 import type {
   ConversationDisplay,
@@ -122,218 +123,22 @@ export function createTestServiceContainer(
 ): ServiceContainer {
   // Create a mock electronAPI for testing with proper typing
   const fullMockAPI: ElectronAPI = {
-    // Add required ElectronAPI methods with proper typing
+    // ChatAPI with correct interface matching src/shared/types/electron-api/chat-api.ts
     chat: {
-      startConversation: async (params: {
-        agentType: 'learning' | 'tutoring' | 'assessment' | 'practice';
-        topic?: string;
-        preferences?: {
-          responseStyle?: 'conversational' | 'structured' | 'detailed' | 'concise';
-          difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
-          language?: string;
-          enableAnimations?: boolean;
-        };
-      }): Promise<APIResponse<ConversationDisplay>> => ({
+      generateTitle: async (messageText: string): Promise<APIResponse<string>> => ({
+        success: true,
+        data: `Mock title for: ${messageText.slice(0, 50)}...`,
+      }),
+      getMessages: async (
+        threadId: string,
+        options?: { limit?: number; offset?: number },
+      ): Promise<APIResponse<{sessions: ChatHistoryMessage[], hasMore: boolean, total: number}>> => ({
         success: true,
         data: {
-          id: 'mock-conversation-id',
-          agent: {
-            id: 'mock-agent',
-            type: params.agentType,
-            name: 'Mock Agent',
-            avatar: '🤖',
-            color: '#blue',
-            capabilities: [],
-            isAvailable: true,
-            category: 'learning',
-          },
-          status: 'active',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages: [],
-          suggestedTopics: params.topic ? [params.topic] : [],
-        } as ConversationDisplay,
-      }),
-      sendMessage: async (params: {
-        conversationId: string;
-        message: string;
-        attachments?: File[];
-      }): Promise<APIResponse<MessageDisplay>> => ({
-        success: true,
-        data: {
-          id: 'mock-message-id',
-          conversationId: params.conversationId,
-          role: 'assistant',
-          content: 'Mock response',
-          status: 'completed',
-          timestamp: new Date().toISOString(),
-          relativeTime: 'just now',
-        } as MessageDisplay,
-      }),
-      sendMessageStream: async (
-        params: {
-          conversationId: string;
-          message: string;
-          attachments?: File[];
-          includeStatus?: boolean;
+          sessions: [],
+          hasMore: false,
+          total: 0,
         },
-        onEvent: (evt: unknown) => void,
-      ): Promise<APIResponse<{ started: boolean }>> => ({
-        success: true,
-        data: { started: true },
-      }),
-      getTypingIndicator: async (
-        conversationId: string,
-      ): Promise<APIResponse<TypingIndicator>> => ({
-        success: true,
-        data: {
-          isTyping: false,
-          agentInfo: {
-            name: 'Mock Agent',
-            avatar: '🤖',
-            color: '#blue',
-          },
-          message: '',
-        } as TypingIndicator,
-      }),
-      getConversationHistory: async (
-        conversationId: string,
-        options?: {
-          limit?: number;
-          before?: string;
-          filter?: {
-            messageType?: 'user' | 'assistant' | 'all';
-            dateRange?: { start: Date; end: Date };
-            hasAttachments?: boolean;
-          };
-        },
-      ): Promise<APIResponse<ConversationHistory>> => ({
-        success: true,
-        data: {
-          conversationId,
-          messages: [],
-          pagination: {
-            hasMore: false,
-            total: 0,
-          },
-        } as ConversationHistory,
-      }),
-      pauseConversation: async (
-        conversationId: string,
-      ): Promise<APIResponse<{ message: string }>> => ({
-        success: true,
-        data: { message: 'Conversation paused' },
-      }),
-      resumeConversation: async (
-        conversationId: string,
-      ): Promise<APIResponse<ConversationContext>> => ({
-        success: true,
-        data: {
-          conversationId,
-          lastMessage: {
-            id: 'last',
-            conversationId,
-            role: 'assistant',
-            content: '',
-            status: 'completed',
-            timestamp: new Date().toISOString(),
-            relativeTime: 'just now',
-          },
-          agentState: {
-            currentTopic: undefined,
-            contextPoints: [],
-            userPreferences: {},
-          },
-          suggestedReopenings: [],
-        } as ConversationContext,
-      }),
-      endConversation: async (
-        conversationId: string,
-      ): Promise<APIResponse<ConversationSummary>> => ({
-        success: true,
-        data: {
-          conversationId,
-          summary: 'Mock conversation summary',
-          keyTopics: [],
-          duration: '10 minutes',
-          messageCount: 0,
-          suggestedFollowUps: [],
-        } as ConversationSummary,
-      }),
-      checkPracticeOpportunity: async (params: {
-        conversationId: string;
-        userMessage: string;
-      }): Promise<APIResponse<PracticeOpportunityResult>> => ({
-        success: true,
-        data: {
-          hasOpportunity: false,
-          shouldSuggest: false,
-          reason: 'not-appropriate',
-          timing: 'not-appropriate',
-          confidence: 0,
-        } as PracticeOpportunityResult,
-      }),
-      getPracticeSuggestion: async (params: {
-        conversationId: string;
-        userMessage: string;
-        userContext?: UserLearningContext;
-      }): Promise<APIResponse<NaturalPracticeSuggestion>> => ({
-        success: true,
-        data: {
-          id: 'mock-suggestion',
-          type: 'gentle-nudge',
-          introduction: 'Would you like a quick practice?',
-          challenge: 'Try solving this simple example.',
-          context: 'Based on our recent topic.',
-          estimatedTime: 5,
-          difficulty: 'easy',
-          vibe: 'practicing',
-          timing: { when: 'right now', urgency: 'low' },
-          options: { accept: 'Yes', decline: 'No', postpone: 'Later' },
-          metadata: { concept: '', relatedTopics: [], prerequisites: [], nextSteps: [] },
-        } as NaturalPracticeSuggestion,
-      }),
-      searchPrompts: async (params: {
-        sessionId?: string;
-        role?: 'user' | 'assistant';
-        query?: string;
-        limit?: number;
-        offset?: number;
-      }): Promise<APIResponse<{
-        prompts: Array<{
-          id: string;
-          sessionId: string;
-          role: 'user' | 'assistant';
-          text: string;
-          createdAt: string;
-        }>;
-        pagination: {
-          total?: number;
-          limit: number;
-          offset: number;
-          hasMore: boolean;
-        };
-      }>> => ({
-        success: true,
-        data: {
-          prompts: [],
-          pagination: {
-            total: 0,
-            limit: params.limit || 50,
-            offset: params.offset || 0,
-            hasMore: false,
-          },
-        },
-      }),
-      resumeWorkflow: async (params: {
-        conversationId: string;
-        checkpointId: string;
-        questionId?: string;
-        action: 'answer' | 'skip' | 'resume_later';
-        input?: string;
-      }): Promise<APIResponse<{ success: boolean; resumed: boolean }>> => ({
-        success: true,
-        data: { success: true, resumed: true },
       }),
     },
     sessions: {

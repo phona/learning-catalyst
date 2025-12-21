@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createProviderFactory } from '../../agent/provider-factory';
+import { createProviderFactory } from '@/main/services/agent/provider-factory';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 
 vi.mock('@langchain/openai', () => ({
@@ -67,9 +67,9 @@ describe('Provider Factory - Real Implementation', () => {
         },
       });
 
-      expect(model.config.modelName).toBe('glm-4.5-air');
-      expect(model.config.temperature).toBe(0.4);
-      expect(model.config.apiKey).toBe('869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS');
+      expect((model as any).config.modelName).toBe('glm-4.5-air');
+      expect((model as any).config.temperature).toBe(0.4);
+      expect((model as any).config.apiKey).toBe('869b77b7d3dd4edfbec66a4679115310.JlzJCz7QhExkssTS');
     });
 
     it('should handle different provider types correctly', async () => {
@@ -239,9 +239,9 @@ describe('Provider Factory - Real Implementation', () => {
       const model = await factory.getModel();
 
       // Verify model type config takes precedence
-      expect(model.config.modelName).toBe('gpt-4');      // NOT 'gpt-3.5-turbo'
-      expect(model.config.temperature).toBe(0.3);       // NOT 0.9
-      expect(model.config.maxTokens).toBe(2000);        // NOT 1000
+      expect((model as any).config.modelName).toBe('gpt-4');      // NOT 'gpt-3.5-turbo'
+      expect((model as any).config.temperature).toBe(0.3);       // NOT 0.9
+      expect((model as any).config.maxTokens).toBe(2000);        // NOT 1000
     });
 
     it('should fall back to provider config when modelType missing', async () => {
@@ -268,8 +268,8 @@ describe('Provider Factory - Real Implementation', () => {
       const factory = createProviderFactory(makeConfigService(config));
       const model = await factory.getModel();
 
-      expect(model.config.modelName).toBe('gpt-4');
-      expect(model.config.temperature).toBe(undefined); // Not in chat config, no fallback implemented
+      expect((model as any).config.modelName).toBe('gpt-4');
+      expect((model as any).config.temperature).toBe(undefined); // Not in chat config, no fallback implemented
     });
   });
 
@@ -471,8 +471,8 @@ describe('Provider Factory - Real Implementation', () => {
 
       // Test chat model
       const model = await factory.getModel();
-      expect(model.config.modelName).toBe('glm-4.5-air');
-      expect(model.config.temperature).toBe(0.4);
+      expect((model as any).config.modelName).toBe('glm-4.5-air');
+      expect((model as any).config.temperature).toBe(0.4);
 
       // Test embeddings (SiliconFlow uses custom implementation)
       const embeddings = await factory.getEmbeddings();

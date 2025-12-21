@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "downlevelIteration": true,
-    "types": ["node", "vitest/globals"],
+    "types": ["node", "vitest/globals", "@testing-library/jest-dom"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": false,
@@ -12,7 +12,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -25,7 +25,9 @@
       "@/main/*": ["src/main/*"],
       "@/shared/*": ["src/shared/*"],
       "@/test/*": ["src/test/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"],
+    "allowImportingTsExtensions": false
   },
   "include": ["src", "tests"],
   "exclude": ["node_modules", "vite.config.ts"]

@@ -13,7 +13,7 @@ export interface APIResponse<T = unknown> {
 
 export interface SystemReadyPayload {
   status: 'ready' | 'loading';
-  ready: { ipcHandlersRegistered: boolean };
+  ready: { ipcHandlersRegistered: boolean; startMs?: number };
 }
 
 export interface ConfigChangedPayload {

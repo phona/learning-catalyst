@@ -221,10 +221,23 @@ function createExtractNode(model: ChatOpenAI, logger?: ILogger, progressCallback
     });
 
     try {
+      // Create adapter for progress callback if provided
+      const progressCallbackAdapter = progressCallback ? {
+        onTokenUsageUpdate: (usage: any, phase: number, status: string) => {
+          const tokenUsage = {
+            promptTokens: usage.input_tokens || 0,
+            completionTokens: usage.output_tokens || 0,
+            totalTokens: usage.total_tokens || 0,
+          };
+          const phaseStr = status === 'extracting' ? 'extracting' : status === 'retrying' ? 'retrying' : 'extracting';
+          progressCallback.onTokenUsageUpdate(tokenUsage, phase, phaseStr);
+        }
+      } : undefined;
+
       // Create the appropriate chain based on attempt number
       const chainCreationStart = Date.now();
       const chain =
-        attempt === 1 ? createSimpleExtractChain(model, progressCallback) : createRetryExtractChain(model, progressCallback);
+        attempt === 1 ? createSimpleExtractChain(model, progressCallbackAdapter) : createRetryExtractChain(model, progressCallbackAdapter);
       const chainCreationMs = Date.now() - chainCreationStart;
 
       // Prepare input based on attempt
@@ -232,10 +245,10 @@ function createExtractNode(model: ChatOpenAI, logger?: ILogger, progressCallback
         attempt === 1
           ? { content }
           : {
-              content,
-              previousResponse: rawResponse || '',
-              errors: error || 'Unknown validation error',
-            };
+            content,
+            previousResponse: rawResponse || '',
+            errors: error || 'Unknown validation error',
+          };
 
       logger?.debug('[LANGGRAPH] Invoking LLM', {
         attempt,
@@ -370,7 +383,7 @@ function createValidateNode(logger?: ILogger) {
         },
       };
     } else {
-      const validationError = validationResult.error;
+      const validationError = (validationResult as { success: false; error: string }).error;
       logger?.warn('[LANGGRAPH] Validation failed', {
         attempt,
         validationMs,

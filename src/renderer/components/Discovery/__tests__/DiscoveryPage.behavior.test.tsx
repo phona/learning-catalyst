@@ -2,8 +2,8 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DiscoveryPage } from './components/Discovery';
-import { ServicesProvider } from './services/services-provider';
+import { DiscoveryPage } from '../index';
+import { ServicesProvider } from '../../../services/services-provider';
 
 const makeDirectoryItem = (overrides: Partial<any> = {}) => ({
   name: 'readme.md',
@@ -62,6 +62,8 @@ describe('DiscoveryPage end-to-end (no Electron)', () => {
       parseFiles: vi.fn().mockResolvedValue(parsingJob),
       getJobStatus: vi.fn().mockReturnValue(parsingJob),
       cancelJob: vi.fn(),
+      getLastJobId: vi.fn().mockReturnValue('job-1'),
+      getLastFiles: vi.fn().mockReturnValue([makeDirectoryItem()]),
     } as any;
 
     const chatService = {

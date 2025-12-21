@@ -64,53 +64,53 @@ Keep it warm, encouraging, and不超过150 words.`;
  */
 export const circuitBreakerNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof PracticeAnnotation.State, config: LangGraphRunnableConfig) => {
-    const emitter = createChunkEmitter(config);
-    const practice = state.practice!;
-    const mastery = state.mastery ?? 0;
-    const failureStreak = practice.failureStreak ?? 0;
+    async (state: typeof PracticeAnnotation.State, config: LangGraphRunnableConfig) => {
+      const emitter = createChunkEmitter(config);
+      const practice = state.practice!;
+      const mastery = state.mastery ?? 0;
+      const failureStreak = practice.failureStreak ?? 0;
 
-    deps.loggerService.info('circuitBreakerNode: providing support', {
-      topic: state.topic,
-      failureStreak,
-      mastery,
-    });
+      deps.loggerService.info('circuitBreakerNode: providing support', {
+        topic: state.topic,
+        failureStreak,
+        mastery,
+      });
 
-    // Create supportive message using AI
-    const model = await deps.providerFactory.getModel();
-    const prompt = createCircuitBreakerPrompt({
-      topic: state.topic,
-      failureStreak,
-      mastery,
-      hintsUsed: practice.hintsGiven,
-    });
+      // Create supportive message using AI
+      const model = await deps.providerFactory.getModel();
+      const prompt = createCircuitBreakerPrompt({
+        topic: state.topic,
+        failureStreak,
+        mastery,
+        hintsUsed: practice.hintsGiven,
+      });
 
-    const messages = [
-      { role: 'system' as const, content: 'You are a supportive learning mentor.' },
-      { role: 'user' as const, content: prompt },
-    ];
+      const messages = [
+        { role: 'system' as const, content: 'You are a supportive learning mentor.' },
+        { role: 'user' as const, content: prompt },
+      ];
 
-    const response = await model.invoke(messages);
-    const content = String(response.content ?? '');
+      const response = await model.invoke(messages);
+      const content = String(response.content ?? '');
 
-    // Stream supportive message to user
-    const messageId = generateId('msg');
-    emitter.textStart(messageId);
-    emitter.textDelta(messageId, content);
-    emitter.textEnd(messageId);
+      // Stream supportive message to user
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, content);
+      emitter.textEnd(messageId);
 
-    deps.loggerService.info('circuitBreakerNode: support delivered', {
-      topic: state.topic,
-      contentLength: content.length,
-    });
+      deps.loggerService.info('circuitBreakerNode: support delivered', {
+        topic: state.topic,
+        contentLength: content.length,
+      });
 
-    // Exit the practice subgraph with circuit breaker status
-    return {
-      messages: [new AIMessage(content)],
-      practice: {
-        ...practice,
-        isComplete: true,
-        shouldCircuitBreak: true,
-      },
+      // Exit the practice subgraph with circuit breaker status
+      return {
+        messages: [new AIMessage(content)],
+        practice: {
+          ...practice,
+          isComplete: true,
+          shouldCircuitBreak: true,
+        },
+      };
     };
-  };

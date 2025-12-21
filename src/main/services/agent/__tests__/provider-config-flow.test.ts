@@ -80,10 +80,11 @@ describe('Provider Configuration Flow', () => {
         },
       });
 
-      // Verify model object has expected properties
-      expect(model.config.modelName).toBe('glm-4.5-air');
-      expect(model.config.temperature).toBe(0.4);
-      expect(model.config.maxTokens).toBe(20480);  // actual value from modelTypes.chat
+      // Verify model object has expected properties (cast to mock structure)
+      const mockModel = model as unknown as { config: Record<string, unknown> };
+      expect(mockModel.config.modelName).toBe('glm-4.5-air');
+      expect(mockModel.config.temperature).toBe(0.4);
+      expect(mockModel.config.maxTokens).toBe(20480);  // actual value from modelTypes.chat
     });
 
     it('should handle embedding configuration correctly', async () => {
@@ -120,9 +121,10 @@ describe('Provider Configuration Flow', () => {
       const factory = createProviderFactory(makeConfigService(config));
       const model = await factory.getModel();
 
-      // Verify model type config takes precedence
-      expect(model.config.modelName).toBe('gpt-4');  // NOT 'gpt-3.5-turbo'
-      expect(model.config.temperature).toBe(0.3);   // NOT 0.9
+      // Verify model type config takes precedence (cast to mock structure)
+      const mockModel = model as unknown as { config: Record<string, unknown> };
+      expect(mockModel.config.modelName).toBe('gpt-4');  // NOT 'gpt-3.5-turbo'
+      expect(mockModel.config.temperature).toBe(0.3);   // NOT 0.9
     });
   });
 });

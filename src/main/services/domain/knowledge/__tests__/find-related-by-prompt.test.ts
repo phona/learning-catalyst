@@ -48,6 +48,16 @@ const createMockProviderFactory = () => {
     setModel: vi.fn(),
     getEmbeddingModel: vi.fn(),
     getRerankModel: vi.fn(async () => rerankModel),
+    getEmbeddings: vi.fn(async () => {
+      const mockEmbeddings = {
+        embedQuery: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+        embedDocuments: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+        // Add required properties from Embeddings interface
+        caller: 'test',
+        concurrency: 5,
+      };
+      return mockEmbeddings as any;
+    }),
   };
 
   return { providerFactory, rerankModel };
@@ -73,11 +83,6 @@ const createMockDatabase = () => {
           }),
         };
       }),
-      where: vi.fn().mockReturnValue({
-        in: vi.fn().mockReturnValue({
-          execute: vi.fn().mockResolvedValue(executeMock),
-        }),
-      }),
     }),
     where: vi.fn().mockReturnValue({
       in: vi.fn().mockReturnValue({
@@ -99,17 +104,13 @@ const createMockDatabase = () => {
     }),
     updateTable: vi.fn().mockReturnValue({
       set: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          execute: vi.fn().mockResolvedValue(undefined),
-        }),
-      }),
-    }),
-    deleteFrom: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
         execute: vi.fn().mockResolvedValue(undefined),
       }),
     }),
-  };
+    deleteFrom: vi.fn().mockReturnValue({
+      execute: vi.fn().mockResolvedValue(undefined),
+    }),
+  } as any;
 };
 
 describe('findRelatedByPrompt', () => {
@@ -410,7 +411,8 @@ describe('findRelatedByPrompt', () => {
     const result = await service.findRelatedByPrompt('test');
 
     // Fixed: Metadata is overwritten with SQLite data (source of truth in pure separation)
-    expect(result.matches[0].metadata).toEqual({
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]!.metadata).toEqual({
       conceptId: 'test-id',
       type: 'concept',
       level: 2,

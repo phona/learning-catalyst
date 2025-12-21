@@ -63,9 +63,9 @@ describe('Checkpoint Deserialization - Comprehensive', () => {
           id: "run-123",
           tool_calls: [
             {
-              id: "call-1",
-              type: "tool",
-              function: { name: "calculator", arguments: "2+2" }
+              type: "tool_call",
+              name: "calculator",
+              args: { calculation: "2+2" }
             }
           ],
           invalid_tool_calls: []
@@ -87,9 +87,9 @@ describe('Checkpoint Deserialization - Comprehensive', () => {
           run_id: "run-123",
           tool_calls: [
             {
-              id: "call-1",
-              type: "tool",
-              function: { name: "calculator", arguments: "2+2" }
+              type: "tool_call",
+              name: "calculator",
+              args: { calculation: "2+2" }
             }
           ],
           invalid_tool_calls: [],
@@ -210,9 +210,9 @@ describe('Checkpoint Deserialization - Comprehensive', () => {
         content: "I'll help you calculate",
         tool_calls: [
           {
-            id: "call-1",
-            type: "tool",
-            function: { name: "calculator", arguments: "5*5" }
+            type: "tool_call",
+            name: "calculator",
+            args: { calculation: "5*5" }
           }
         ],
         invalid_tool_calls: []  // Explicitly set to empty array
@@ -230,9 +230,9 @@ describe('Checkpoint Deserialization - Comprehensive', () => {
           message_index: 1,
           tool_calls: [
             {
-              id: "call-1",
-              type: "tool",
-              function: { name: "calculator", arguments: "5*5" }
+              type: "tool_call",
+              name: "calculator",
+              args: { calculation: "5*5" }
             }
           ],
           invalid_tool_calls: []
@@ -441,10 +441,10 @@ describe('Checkpoint Deserialization - Comprehensive', () => {
                   kwargs: {
                     content: "Using calculator",
                     tool_calls: [
-                      { id: "call-1", function: { name: "calc", arguments: "10+5" } }
+                      { type: "tool_call", name: "calc", args: { calculation: "10+5" } }
                     ],
                     invalid_tool_calls: [
-                      { id: "invalid-1", message: "Tool not found" }
+                      { type: "invalid_tool_call", name: "invalid-tool", args: "bad-args", error: "Tool not found" }
                     ],
                     response_metadata: { model: "gpt-4" },
                     id: "run-abc123"
@@ -520,7 +520,7 @@ function createConverter() {
 
       const role = messageType === 'HumanMessage' ? 'user'
         : messageType === 'ToolMessage' ? 'assistant'
-        : 'assistant';
+          : 'assistant';
 
       return {
         id: `${sessionId}-${index}`,
@@ -533,8 +533,17 @@ function createConverter() {
           checkpoint_id: checkpointId,
           message_index: index,
           run_id: msg.kwargs.id,
-          tool_calls: msg.kwargs.tool_calls,
-          invalid_tool_calls: msg.kwargs.invalid_tool_calls,
+          tool_calls: msg.kwargs.tool_calls?.map((tc: any) => ({
+            type: tc.type,
+            name: tc.name,
+            args: tc.args
+          })),
+          invalid_tool_calls: msg.kwargs.invalid_tool_calls?.map((itc: any) => ({
+            type: itc.type,
+            name: itc.name,
+            args: itc.args,
+            error: itc.error
+          })),
           response_metadata: msg.kwargs.response_metadata,
           tool_call_id: msg.kwargs.tool_call_id,
           tool_name: msg.kwargs.name,
@@ -568,8 +577,17 @@ function createConverter() {
         metadata: {
           checkpoint_id: checkpointId,
           message_index: index,
-          tool_calls: msg.tool_calls,
-          invalid_tool_calls: msg.invalid_tool_calls,
+          tool_calls: msg.tool_calls?.map((tc: any) => ({
+            type: tc.type,
+            name: tc.name,
+            args: tc.args
+          })),
+          invalid_tool_calls: msg.invalid_tool_calls?.map((itc: any) => ({
+            type: itc.type,
+            name: itc.name,
+            args: itc.args,
+            error: itc.error
+          })),
         },
       };
     } else if (ToolMessage.isInstance(msg)) {

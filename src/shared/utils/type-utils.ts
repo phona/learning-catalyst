@@ -98,7 +98,9 @@ export function createServiceClient<T extends Record<string, (...args: unknown[]
 ): {
   [K in keyof T]: (...args: Parameters<T[K]>) => Promise<ExtractPromiseType<ReturnType<T[K]>>>;
 } {
-  const client = {} as unknown;
+  const client = {} as {
+    [K in keyof T]: (...args: Parameters<T[K]>) => Promise<ExtractPromiseType<ReturnType<T[K]>>>;
+  };
   const { timeout = 30000, retryCount = 3, onError } = options || {};
 
   for (const [key, method] of Object.entries(api)) {
@@ -300,27 +302,27 @@ export interface TypedEventEmitter<TEvents extends Record<string, unknown>> {
 export function createTypedEventEmitter<
   TEvents extends Record<string, unknown>,
 >(): TypedEventEmitter<TEvents> {
-  const listeners = new Map<keyof TEvents, Set<(data: unknown) => void>>();
+  const listeners = new Map<keyof TEvents, Set<(data: TEvents[keyof TEvents]) => void>>();
 
   return {
-    on(event, listener) {
+    on<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void {
       if (!listeners.has(event)) {
         listeners.set(event, new Set());
       }
-      listeners.get(event)!.add(listener);
+      listeners.get(event)!.add(listener as (data: TEvents[keyof TEvents]) => void);
     },
 
-    off(event, listener) {
+    off<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void {
       const eventListeners = listeners.get(event);
       if (eventListeners) {
-        eventListeners.delete(listener);
+        eventListeners.delete(listener as (data: TEvents[keyof TEvents]) => void);
         if (eventListeners.size === 0) {
           listeners.delete(event);
         }
       }
     },
 
-    emit(event, data) {
+    emit<TKey extends keyof TEvents>(event: TKey, data: TEvents[TKey]): void {
       const eventListeners = listeners.get(event);
       if (eventListeners) {
         eventListeners.forEach((listener) => {
@@ -333,10 +335,10 @@ export function createTypedEventEmitter<
       }
     },
 
-    once(event, listener) {
-      const onceListener = (data: unknown) => {
+    once<TKey extends keyof TEvents>(event: TKey, listener: (data: TEvents[TKey]) => void): void {
+      const onceListener = (data: TEvents[TKey]) => {
         this.off(event, onceListener);
-        listener(data as TEvents[typeof event]);
+        listener(data);
       };
       this.on(event, onceListener);
     },

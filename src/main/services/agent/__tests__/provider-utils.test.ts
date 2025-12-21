@@ -11,8 +11,8 @@ const createConfigService = (config: Partial<AppConfig>): ConfigService => ({
   getProviderConfig: vi.fn(),
   setProviderConfig: vi.fn(),
   onConfigChanged: vi.fn().mockReturnValue(() => undefined),
-  get: vi.fn() as any, // Added missing property
-  isSetupComplete: vi.fn().mockResolvedValue(true), // Added missing property
+  get: vi.fn().mockResolvedValue(undefined),
+  isSetupComplete: vi.fn().mockResolvedValue(true),
 });
 
 describe('resolveProviderSettings', () => {
@@ -51,8 +51,10 @@ describe('resolveProviderSettings', () => {
       ai: {
         providers: {
           openai: {
+            // Missing providerType - intentional for test
             apiKey: 'test-key',
-          },
+            // Type assertion needed for test scenario
+          } as any,
         },
         modelTypes: {
           chat: {

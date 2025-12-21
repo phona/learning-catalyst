@@ -10,7 +10,12 @@ interface MemoryUsage {
   heapUsed: number; // Heap memory used
   heapTotal: number; // Total heap memory allocated
   external: number; // Memory used by C++ objects
-  arrayBuffers: number; // Memory used by ArrayBuffer objects
+  arrayBuffers?: number; // Memory used by ArrayBuffer objects (optional for Node.js compatibility)
+}
+
+// Extended interface for Node.js process.memoryUsage() return type
+interface NodeJSMemoryUsage extends Omit<NodeJS.MemoryUsage, 'arrayBuffers'> {
+  arrayBuffers?: number;
 }
 
 class MemoryDebugLogger {
@@ -72,7 +77,7 @@ class MemoryDebugLogger {
    */
   private logMemoryUsage(): void {
     try {
-      const usage = process.memoryUsage();
+      const usage = process.memoryUsage() as NodeJSMemoryUsage;
       const timestamp = new Date().toLocaleTimeString();
 
       // Format memory sizes in MB
@@ -80,7 +85,7 @@ class MemoryDebugLogger {
       const heapUsed = Math.round(usage.heapUsed / 1024 / 1024);
       const heapTotal = Math.round(usage.heapTotal / 1024 / 1024);
       const external = Math.round(usage.external / 1024 / 1024);
-      const arrayBuffers = Math.round((usage as unknown).arrayBuffers / 1024 / 1024);
+      const arrayBuffers = Math.round((usage.arrayBuffers || 0) / 1024 / 1024);
 
       console.log(`🧠 Memory Debug [${timestamp}]:`);
       console.log(
@@ -112,13 +117,13 @@ class MemoryDebugLogger {
    * Get current memory usage once (without starting monitoring)
    */
   getCurrentUsage(): MemoryUsage {
-    const usage = process.memoryUsage();
+    const usage = process.memoryUsage() as NodeJSMemoryUsage;
     return {
       rss: usage.rss,
       heapUsed: usage.heapUsed,
       heapTotal: usage.heapTotal,
       external: usage.external,
-      arrayBuffers: (usage as unknown).arrayBuffers || 0,
+      arrayBuffers: usage.arrayBuffers || 0,
     };
   }
 
@@ -136,7 +141,7 @@ let memoryLogger: MemoryDebugLogger | null = null;
 /**
  * Get or create the memory logger instance
  */
-export function getMemoryLogger(): MemoryDebugLogger {
+export function getMemoryLogger(): MemoryDebugLogger | null {
   if (!memoryLogger) {
     // Check if memory debugging is enabled
     const enabled =
@@ -152,7 +157,7 @@ export function getMemoryLogger(): MemoryDebugLogger {
     }
   }
 
-  return memoryLogger as MemoryDebugLogger;
+  return memoryLogger;
 }
 
 /**
@@ -160,9 +165,7 @@ export function getMemoryLogger(): MemoryDebugLogger {
  */
 export function startMemoryDebug(): void {
   const logger = getMemoryLogger();
-  if (logger) {
-    logger.start();
-  }
+  logger?.start();
 }
 
 /**

@@ -30,18 +30,25 @@ const createMockChunk = (content: string, usage?: any): AIMessageChunk => {
       total_tokens: 0,
     },
     response_metadata: {},
-  } as AIMessageChunk;
+  } as unknown as AIMessageChunk;
 
   // Mock concat method
   chunk.concat = vi.fn().mockImplementation((other: AIMessageChunk) => {
     const merged = createMockChunk(
       content + (other.content as string),
-      usage || other.usage_metadata
+      usage || (other.usage_metadata as any)
     );
     return merged;
   });
 
   return chunk;
+};
+
+// Create async generator function for streaming
+const createMockStream = async function* (chunks: AIMessageChunk[]) {
+  for (const chunk of chunks) {
+    yield chunk;
+  }
 };
 
 describe('Token Usage Tracking', () => {
@@ -66,13 +73,9 @@ describe('Token Usage Tracking', () => {
         }
       );
 
-      const stream = {
-        [Symbol.asyncIterator]: async function* () {
-          yield mockResponse;
-        },
-      };
+      const stream = createMockStream([mockResponse]);
 
-      vi.mocked(mockModel.stream).mockResolvedValue(stream);
+      vi.mocked(mockModel.stream).mockResolvedValue(stream as any);
 
       const result = await executeExtractionWorkflow(
         'Test content',
@@ -95,15 +98,9 @@ describe('Token Usage Tracking', () => {
         { input_tokens: 50, output_tokens: 25, total_tokens: 75 }
       );
 
-      const stream = {
-        [Symbol.asyncIterator]: async function* () {
-          yield chunk1;
-          yield chunk2;
-          yield chunk3;
-        },
-      };
+      const stream = createMockStream([chunk1, chunk2, chunk3]);
 
-      vi.mocked(mockModel.stream).mockResolvedValue(stream);
+      vi.mocked(mockModel.stream).mockResolvedValue(stream as any);
 
       const result = await executeExtractionWorkflow(
         'Test content',
@@ -125,13 +122,9 @@ describe('Token Usage Tracking', () => {
         // No usage_metadata
       );
 
-      const stream = {
-        [Symbol.asyncIterator]: async function* () {
-          yield chunk;
-        },
-      };
+      const stream = createMockStream([chunk]);
 
-      vi.mocked(mockModel.stream).mockResolvedValue(stream);
+      vi.mocked(mockModel.stream).mockResolvedValue(stream as any);
 
       const result = await executeExtractionWorkflow(
         'Test content',
@@ -183,13 +176,9 @@ describe('Token Usage Tracking', () => {
         }
       );
 
-      const stream = {
-        [Symbol.asyncIterator]: async function* () {
-          yield chunk;
-        },
-      };
+      const stream = createMockStream([chunk]);
 
-      vi.mocked(mockModel.stream).mockResolvedValue(stream);
+      vi.mocked(mockModel.stream).mockResolvedValue(stream as any);
 
       const result = await executeExtractionWorkflow(
         'Test content',
@@ -242,16 +231,8 @@ describe('Token Usage Tracking', () => {
 
       // Mock to return different chunks on successive calls
       vi.mocked(mockModel.stream)
-        .mockResolvedValueOnce({
-          [Symbol.asyncIterator]: async function* () {
-            yield chunk1;
-          },
-        })
-        .mockResolvedValueOnce({
-          [Symbol.asyncIterator]: async function* () {
-            yield chunk2;
-          },
-        });
+        .mockResolvedValueOnce(createMockStream([chunk1]) as any)
+        .mockResolvedValueOnce(createMockStream([chunk2]) as any);
 
       const result = await executeExtractionWorkflow(
         'Test content',
@@ -335,13 +316,9 @@ describe('Token Usage Tracking', () => {
         { input_tokens: 0, output_tokens: 0, total_tokens: 0 }
       );
 
-      const stream = {
-        [Symbol.asyncIterator]: async function* () {
-          yield chunk;
-        },
-      };
+      const stream = createMockStream([chunk]);
 
-      vi.mocked(mockModel.stream).mockResolvedValue(stream);
+      vi.mocked(mockModel.stream).mockResolvedValue(stream as any);
 
       const result = await executeExtractionWorkflow(
         '',
@@ -367,13 +344,9 @@ describe('Token Usage Tracking', () => {
         }
       );
 
-      const stream = {
-        [Symbol.asyncIterator]: async function* () {
-          yield chunk;
-        },
-      };
+      const stream = createMockStream([chunk]);
 
-      vi.mocked(mockModel.stream).mockResolvedValue(stream);
+      vi.mocked(mockModel.stream).mockResolvedValue(stream as any);
 
       const result = await executeExtractionWorkflow(
         'Test content',

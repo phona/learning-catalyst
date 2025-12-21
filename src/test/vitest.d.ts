@@ -1,5 +1,8 @@
 /// <reference types="vitest" />
 
+// Import the ElectronAPI type for global declaration
+import type { ElectronAPI } from '@/shared/types/electron-api';
+
 declare global {
   namespace vi {
     interface Mock<T = unknown, Y extends unknown[] = unknown[]> {
@@ -19,6 +22,11 @@ declare global {
     function fn<T = unknown, Y extends unknown[] = unknown[]>(
       implementation?: (...args: Y) => T,
     ): Mock<T, Y>;
+  }
+
+  // Add electronAPI to the global Window interface for test environment
+  interface Window {
+    electronAPI: ElectronAPI;
   }
 }
 

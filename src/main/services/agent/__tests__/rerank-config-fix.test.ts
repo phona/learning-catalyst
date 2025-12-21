@@ -15,14 +15,29 @@ import type { ProviderConfig } from '@/shared/types/config';
 describe('Rerank Configuration Fix', () => {
   let configService: ConfigService;
   let providerFactory: ReturnType<typeof createProviderFactory>;
+  let mockStorage: any;
+  let mockLogger: any;
 
   beforeEach(() => {
+    // Create mock storage
+    mockStorage = {
+      loadConfig: vi.fn().mockResolvedValue({}),
+      saveConfig: vi.fn(),
+      getConfigPath: vi.fn().mockResolvedValue('/test/path/config.json'),
+    };
+
+    // Create mock logger
+    mockLogger = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    };
+
+    // Create config service with proper dependencies
     configService = createConfigService({
-      get: vi.fn().mockImplementation(() => Promise.resolve(undefined)),
-      set: vi.fn(),
-      getConfig: vi.fn().mockImplementation(() => Promise.resolve({})),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
+      storage: mockStorage,
+      logger: mockLogger as any,
     });
 
     providerFactory = createProviderFactory(configService);

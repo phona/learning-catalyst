@@ -616,13 +616,13 @@ export function createMockElectronAPIClient(): ElectronAPI {
     },
     content: {
       exploreLocalProjects: () => Promise.resolve({ success: true, data: [] }),
-      importLearningContent: () =>
+      importLearningContent: (files: FileList) =>
         Promise.resolve({
           success: true,
           data: {
             success: true,
-            processedFiles: 0,
-            totalFiles: 0,
+            processedFiles: Array.from(files).length,
+            totalFiles: Array.from(files).length,
             extractedContent: {
               concepts: [],
               codeExamples: 0,

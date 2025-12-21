@@ -1,12 +1,21 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+
 import { describe, it, expect, vi } from 'vitest';
+
+// Import the renderer test setup to get the mock electronAPI
+import '@/test/setup/renderer/setup';
 
 describe('electronAPI contract', () => {
   it('exposes core domain modules with callable methods', async () => {
+    // @ts-ignore: Test environment access to mocked electronAPI
     const api = window.electronAPI;
     expect(api).toBeDefined();
 
     expect(api.chat).toBeDefined();
-    expect(typeof api.chat.sendMessage).toBe('function');
+    expect(typeof api.chat.generateTitle).toBe('function');
+    expect(typeof api.chat.getMessages).toBe('function');
+    expect(api.aiSDK).toBeDefined();
+    expect(typeof api.aiSDK.stream).toBe('function');
 
     expect(api.learning).toBeDefined();
     expect(typeof api.learning.startLearningSession).toBe('function');
@@ -35,6 +44,7 @@ describe('electronAPI contract', () => {
   });
 
   it('exposes filesystem utilities used by renderer code', async () => {
+    // @ts-ignore: Test environment access to mocked electronAPI
     const api = window.electronAPI;
 
     await expect(api.getWorkspacePath()).resolves.toBeDefined();
@@ -45,6 +55,7 @@ describe('electronAPI contract', () => {
   });
 
   it('exposes dialog and lifecycle helpers', async () => {
+    // @ts-ignore: Test environment access to mocked electronAPI
     const api = window.electronAPI;
 
     await expect(api.showOpenDialog()).resolves.toHaveProperty('canceled');

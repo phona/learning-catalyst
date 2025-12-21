@@ -23,7 +23,7 @@ describe('toAssistantUIStream Integration', () => {
    * HELPER: Convert SSE chunks to objects for easier testing
    */
   const parseSSE = (sse: string) => {
-    const match = sse.match(/data: (.+)\n\n/s);
+    const match = sse.match(/data: (.+)\n\n/);
     return match ? JSON.parse(match[1]) : null;
   };
 
@@ -31,13 +31,13 @@ describe('toAssistantUIStream Integration', () => {
     it('should pass through tool-input-start chunk', async () => {
       const stream = async function* () {
         yield [
-          'tool-input-start',
+          'custom',
           {
             type: 'tool-input-start',
             toolCallId: 'tool-1',
             toolName: 'Practice'
           }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -55,7 +55,7 @@ describe('toAssistantUIStream Integration', () => {
     it('should pass through tool-output-available chunk', async () => {
       const stream = async function* () {
         yield [
-          'tool-output-available',
+          'custom',
           {
             type: 'tool-output-available',
             toolCallId: 'tool-1',
@@ -64,7 +64,7 @@ describe('toAssistantUIStream Integration', () => {
               data: { exercises: [] }
             }
           }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -81,12 +81,12 @@ describe('toAssistantUIStream Integration', () => {
     it('should pass through error chunk', async () => {
       const stream = async function* () {
         yield [
-          'error',
+          'custom',
           {
             type: 'error',
             errorText: 'Something went wrong'
           }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -103,13 +103,13 @@ describe('toAssistantUIStream Integration', () => {
     it('should ignore invalid custom events', async () => {
       const stream = async function* () {
         // Invalid event (no 'type' field)
-        yield ['invalid-event', { data: 'test' }] as [string, unknown];
+        yield ['custom', { data: 'test' }] as ['custom', unknown];
 
         // Valid event
         yield [
-          'finish',
+          'custom',
           { type: 'finish' }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -149,12 +149,12 @@ describe('toAssistantUIStream Integration', () => {
     it('should pass through error chunks', async () => {
       const stream = async function* () {
         yield [
-          'error',
+          'custom',
           {
             type: 'error',
             errorText: 'Something went wrong'
           }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -173,9 +173,9 @@ describe('toAssistantUIStream Integration', () => {
     it('should format chunks as SSE with data: prefix and double newline', async () => {
       const stream = async function* () {
         yield [
-          'text-start',
+          'custom',
           { type: 'text-start', id: 'msg-1' }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -195,9 +195,9 @@ describe('toAssistantUIStream Integration', () => {
     it('should format custom events as SSE', async () => {
       const stream = async function* () {
         yield [
-          'finish',
+          'custom',
           { type: 'finish' }
-        ] as [string, DataStreamChunk];
+        ] as ['custom', DataStreamChunk];
       };
 
       const chunks: string[] = [];
@@ -215,9 +215,9 @@ describe('toAssistantUIStream Integration', () => {
         // Generate 100 custom events
         for (let i = 0; i < 100; i++) {
           yield [
-            'text-delta',
+            'custom',
             { type: 'text-delta', id: `msg-${i}`, delta: `Message ${i}` }
-          ] as [string, DataStreamChunk];
+          ] as ['custom', DataStreamChunk];
         }
       };
 
@@ -254,7 +254,7 @@ describe('Practice Node Scenario', () => {
    * HELPER: Convert SSE chunks to objects for easier testing
    */
   const parseSSE = (sse: string) => {
-    const match = sse.match(/data: (.+)\n\n/s);
+    const match = sse.match(/data: (.+)\n\n/);
     return match ? JSON.parse(match[1]) : null;
   };
 
@@ -262,44 +262,44 @@ describe('Practice Node Scenario', () => {
     const stream = async function* () {
       // 1. Tool input start
       yield [
-        'tool-input-start',
+        'custom',
         {
           type: 'tool-input-start',
           toolCallId: 'tool-123',
           toolName: 'Practice'
         }
-      ] as [string, DataStreamChunk];
+      ] as ['custom', DataStreamChunk];
 
       // 2. Tool input available
       yield [
-        'tool-input-available',
+        'custom',
         {
           type: 'tool-input-available',
           toolCallId: 'tool-123',
           toolName: 'Practice',
           input: { topic: 'Python Functions', limit: 5 }
         }
-      ] as [string, DataStreamChunk];
+      ] as ['custom', DataStreamChunk];
 
       // 3. Conversational message (emitted via chunk emitter)
       yield [
-        'text-start',
+        'custom',
         { type: 'text-start', id: 'msg-0' }
-      ] as [string, DataStreamChunk];
+      ] as ['custom', DataStreamChunk];
 
       yield [
-        'text-delta',
+        'custom',
         { type: 'text-delta', id: 'msg-0', delta: 'I\'ve created some practice exercises for you!' }
-      ] as [string, DataStreamChunk];
+      ] as ['custom', DataStreamChunk];
 
       yield [
-        'text-end',
+        'custom',
         { type: 'text-end', id: 'msg-0' }
-      ] as [string, DataStreamChunk];
+      ] as ['custom', DataStreamChunk];
 
       // 4. Tool output available
       yield [
-        'tool-output-available',
+        'custom',
         {
           type: 'tool-output-available',
           toolCallId: 'tool-123',
@@ -313,7 +313,7 @@ describe('Practice Node Scenario', () => {
             }
           }
         }
-      ] as [string, DataStreamChunk];
+      ] as ['custom', DataStreamChunk];
     };
 
     const chunks: string[] = [];

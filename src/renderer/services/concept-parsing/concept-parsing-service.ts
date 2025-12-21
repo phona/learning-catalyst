@@ -3,7 +3,12 @@ import type {
   Concept,
   ConceptEvidence,
   ProposedRelationship,
+  ParsingResult,
+  ParsingStatistics,
+  ParsingError,
 } from '@/shared/types/concept-parsing';
+import type { RelationshipType } from '@/shared/types/relationship-types';
+import type { LearningPath } from '@/shared/types/learning';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type {
   ConceptParsingResult,
@@ -154,7 +159,10 @@ export const createConceptParsingService = (
     });
 
     if (!result.success || !result.data) {
-      throw new Error(result.error?.message ?? 'Concept parsing failed');
+      const errorMessage = result.error
+        ? (typeof result.error === 'string' ? result.error : 'message' in result.error ? result.error.message : 'Concept parsing failed')
+        : 'Concept parsing failed';
+      throw new Error(errorMessage);
     }
 
     return result.data;
@@ -176,7 +184,10 @@ export const createConceptParsingService = (
       options,
     });
     if (!ingestion.success || !ingestion.data) {
-      throw new Error(ingestion.error?.message ?? 'Concept ingestion failed');
+      const errorMessage = ingestion.error
+        ? (typeof ingestion.error === 'string' ? ingestion.error : 'message' in ingestion.error ? ingestion.error.message : 'Concept ingestion failed')
+        : 'Concept ingestion failed';
+      throw new Error(errorMessage);
     }
     return ingestion.data;
   };
@@ -273,6 +284,62 @@ export const createConceptParsingService = (
       return undefined;
     }
 
+    const parsingResult: ParsingResult | undefined = activeJob.result
+      ? (() => {
+          const conceptNameById = new Map(
+            activeJob.result.concepts.map((c) => [c.id, c.name] as const),
+          );
+          return {
+            concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
+            relationships: activeJob.result.relationships.map((rel) =>
+              transformParsedRelationshipToProposed(rel, conceptNameById),
+            ),
+            learningPath: {
+              id: 'default',
+              title: 'Learning Path',
+              description: 'Generated learning path',
+              objectives: [],
+              estimated_duration: 60,
+              difficulty_progression: 'linear' as const,
+              prerequisites: [],
+              tags: [],
+              difficulty: 3,
+              modules: [],
+              targetMastery: 0.8,
+              adaptations: [],
+              progress: {
+                currentModule: '',
+                completedModules: [],
+                currentConcept: '',
+                masteredConcepts: [],
+                timeSpent: 0,
+                assessmentScores: [],
+                lastAccess: new Date(),
+                completionRate: 0,
+                masteryLevel: 0,
+              },
+            },
+            assessments: [],
+            statistics: {
+              totalConcepts: activeJob.result.statistics.totalConcepts,
+              validConcepts: activeJob.result.statistics.validConcepts,
+              totalRelationships: activeJob.result.statistics.totalRelationships,
+              confidenceDistribution: activeJob.result.statistics.confidenceDistribution,
+              difficultyDistribution: activeJob.result.statistics.difficultyDistribution,
+              typeDistribution: activeJob.result.statistics.typeDistribution,
+              processingTime: activeJob.result.statistics.processingTime,
+              modelUsage: activeJob.result.statistics.modelUsage,
+            },
+            errors: activeJob.result.errors.map((error) => ({
+              type: 'parsing' as const,
+              message: error,
+              severity: 'medium' as const,
+              timestamp: new Date(),
+            })),
+          };
+        })()
+      : undefined;
+
     return {
       id: activeJob.id,
       materialId: `material-${jobId}`,
@@ -289,59 +356,7 @@ export const createConceptParsingService = (
         { name: 'validation', status: 'pending', progress: 0 },
         { name: 'compilation', status: 'pending', progress: 0 },
       ],
-      result: activeJob.result
-        ? (() => {
-          const conceptNameById = new Map(
-            activeJob.result.concepts.map((c) => [c.id, c.name] as const),
-          );
-          return {
-            concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
-            relationships: activeJob.result.relationships.map((rel) =>
-              transformParsedRelationshipToProposed(rel, conceptNameById),
-            ),
-          learningPath: {
-            id: 'default',
-            title: 'Learning Path',
-            description: 'Generated learning path',
-            estimatedDuration: 60,
-            difficulty: 3,
-            modules: [],
-            prerequisites: [],
-            targetMastery: 0.8,
-            adaptations: [],
-            progress: {
-              userId: 'current-user',
-              currentModule: '',
-              completedModules: [],
-              currentConcept: '',
-              masteredConcepts: [],
-              timeSpent: 0,
-              assessmentScores: [],
-              lastAccess: new Date(),
-              completionRate: 0,
-              masteryLevel: 0,
-            },
-          },
-          assessments: [],
-          statistics: {
-            totalConcepts: activeJob.result.statistics.totalConcepts,
-            validConcepts: activeJob.result.statistics.validConcepts,
-            totalRelationships: activeJob.result.statistics.totalRelationships,
-            confidenceDistribution: activeJob.result.statistics.confidenceDistribution,
-            difficultyDistribution: activeJob.result.statistics.difficultyDistribution,
-            typeDistribution: activeJob.result.statistics.typeDistribution,
-            processingTime: activeJob.result.statistics.processingTime,
-            modelUsage: activeJob.result.statistics.modelUsage,
-          },
-          errors: activeJob.result.errors.map((error) => ({
-            type: 'parsing' as const,
-            message: error,
-            severity: 'medium' as const,
-            timestamp: new Date(),
-          })),
-          };
-        })()
-        : undefined,
+      result: parsingResult,
     };
   };
 
@@ -349,96 +364,116 @@ export const createConceptParsingService = (
     parsed: ParsedRelationship,
     conceptNameById: Map<string, string>,
   ): ProposedRelationship => {
+    // Map parsed relationship types to valid RelationshipType values
+    const mapRelationshipType = (type: string): RelationshipType => {
+      switch (type) {
+        case 'prerequisite':
+          return 'prerequisite' as RelationshipType;
+        case 'related':
+          return 'related_to' as RelationshipType;
+        case 'contains':
+          return 'part_of' as RelationshipType;
+        case 'example':
+          return 'example_of' as RelationshipType;
+        case 'application':
+          return 'applies_to' as RelationshipType;
+        case 'contrasts':
+          return 'contrasts_with' as RelationshipType;
+        default:
+          return 'related_to' as RelationshipType; // fallback
+      }
+    };
+
     return {
       sourceConceptId: parsed.sourceId,
       sourceConceptName: conceptNameById.get(parsed.sourceId),
       targetConceptId: parsed.targetId,
       targetConceptName: conceptNameById.get(parsed.targetId),
-      type: parsed.type as
-        | 'prerequisite'
-        | 'related'
-        | 'contains'
-        | 'example'
-        | 'application'
-        | 'contrasts',
-      strength: parsed.strength,
-      confidence: parsed.confidence,
+      type: mapRelationshipType(parsed.type),
+      strength: parsed.strength ?? 0.5,
+      confidence: parsed.confidence ?? 0.5,
       description: parsed.description,
       evidence: [], // Provide empty evidence array as it's required but not available in ParsedRelationship
     };
   };
 
   const listActiveJobs = (): ParsingJob[] => {
-    return Array.from(activeJobs.values()).map((activeJob) => ({
-      id: activeJob.id,
-      materialId: `material-${activeJob.id}`,
-      status: activeJob.status,
-      progress: activeJob.progress,
-      startedAt: activeJob.startedAt,
-      completedAt: activeJob.completedAt,
-      errorMessage: activeJob.errorMessage,
-      stages: [
-        { name: 'file-collection', status: 'pending', progress: 0 },
-        { name: 'content-analysis', status: 'pending', progress: 0 },
-        { name: 'concept-extraction', status: 'pending', progress: 0 },
-        { name: 'relationship-analysis', status: 'pending', progress: 0 },
-        { name: 'validation', status: 'pending', progress: 0 },
-        { name: 'compilation', status: 'pending', progress: 0 },
-      ],
-      result: activeJob.result
+    return Array.from(activeJobs.values()).map((activeJob) => {
+      const parsingResult: ParsingResult | undefined = activeJob.result
         ? (() => {
-          const conceptNameById = new Map(
-            activeJob.result.concepts.map((c) => [c.id, c.name] as const),
-          );
-          return {
-            concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
-            relationships: activeJob.result.relationships.map((rel) =>
-              transformParsedRelationshipToProposed(rel, conceptNameById),
-            ),
-          learningPath: {
-            id: 'default',
-            title: 'Learning Path',
-            description: 'Generated learning path',
-            estimatedDuration: 60,
-            difficulty: 3,
-            modules: [],
-            prerequisites: [],
-            targetMastery: 0.8,
-            adaptations: [],
-            progress: {
-              userId: 'current-user',
-              currentModule: '',
-              completedModules: [],
-              currentConcept: '',
-              masteredConcepts: [],
-              timeSpent: 0,
-              assessmentScores: [],
-              lastAccess: new Date(),
-              completionRate: 0,
-              masteryLevel: 0,
-            },
-          },
-          assessments: [],
-          statistics: {
-            totalConcepts: activeJob.result.statistics.totalConcepts,
-            validConcepts: activeJob.result.statistics.validConcepts,
-            totalRelationships: activeJob.result.statistics.totalRelationships,
-            confidenceDistribution: activeJob.result.statistics.confidenceDistribution,
-            difficultyDistribution: activeJob.result.statistics.difficultyDistribution,
-            typeDistribution: activeJob.result.statistics.typeDistribution,
-            processingTime: activeJob.result.statistics.processingTime,
-            modelUsage: activeJob.result.statistics.modelUsage,
-          },
-          errors: activeJob.result.errors.map((error) => ({
-            type: 'parsing' as const,
-            message: error,
-            severity: 'medium' as const,
-            timestamp: new Date(),
-          })),
-          };
-        })()
-        : undefined,
-    }));
+            const conceptNameById = new Map(
+              activeJob.result.concepts.map((c) => [c.id, c.name] as const),
+            );
+            return {
+              concepts: activeJob.result.concepts.map(transformParsedConceptToConcept),
+              relationships: activeJob.result.relationships.map((rel) =>
+                transformParsedRelationshipToProposed(rel, conceptNameById),
+              ),
+              learningPath: {
+                id: 'default',
+                title: 'Learning Path',
+                description: 'Generated learning path',
+                objectives: [],
+                estimated_duration: 60,
+                difficulty_progression: 'linear' as const,
+                prerequisites: [],
+                tags: [],
+                difficulty: 3,
+                modules: [],
+                targetMastery: 0.8,
+                adaptations: [],
+                progress: {
+                  currentModule: '',
+                  completedModules: [],
+                  currentConcept: '',
+                  masteredConcepts: [],
+                  timeSpent: 0,
+                  assessmentScores: [],
+                  lastAccess: new Date(),
+                  completionRate: 0,
+                  masteryLevel: 0,
+                },
+              },
+              assessments: [],
+              statistics: {
+                totalConcepts: activeJob.result.statistics.totalConcepts,
+                validConcepts: activeJob.result.statistics.validConcepts,
+                totalRelationships: activeJob.result.statistics.totalRelationships,
+                confidenceDistribution: activeJob.result.statistics.confidenceDistribution,
+                difficultyDistribution: activeJob.result.statistics.difficultyDistribution,
+                typeDistribution: activeJob.result.statistics.typeDistribution,
+                processingTime: activeJob.result.statistics.processingTime,
+                modelUsage: activeJob.result.statistics.modelUsage,
+              },
+              errors: activeJob.result.errors.map((error) => ({
+                type: 'parsing' as const,
+                message: error,
+                severity: 'medium' as const,
+                timestamp: new Date(),
+              })),
+            };
+          })()
+        : undefined;
+
+      return {
+        id: activeJob.id,
+        materialId: `material-${activeJob.id}`,
+        status: activeJob.status,
+        progress: activeJob.progress,
+        startedAt: activeJob.startedAt,
+        completedAt: activeJob.completedAt,
+        errorMessage: activeJob.errorMessage,
+        stages: [
+          { name: 'file-collection', status: 'pending', progress: 0 },
+          { name: 'content-analysis', status: 'pending', progress: 0 },
+          { name: 'concept-extraction', status: 'pending', progress: 0 },
+          { name: 'relationship-analysis', status: 'pending', progress: 0 },
+          { name: 'validation', status: 'pending', progress: 0 },
+          { name: 'compilation', status: 'pending', progress: 0 },
+        ],
+        result: parsingResult,
+      };
+    });
   };
 
   const cancelJob = (jobId: string): boolean => {
@@ -540,12 +575,14 @@ export const createConceptParsingService = (
       });
 
       if (!parsingResult.success || !parsingResult.data) {
-        const err = parsingResult.error?.message ?? 'Concept parsing failed';
+        const err = parsingResult.error
+        ? (typeof parsingResult.error === 'string' ? parsingResult.error : 'message' in parsingResult.error ? parsingResult.error.message : 'Concept parsing failed')
+        : 'Concept parsing failed';
         throw new Error(err);
       }
 
       activeJob.progress = 0.75;
-      activeJob.status = 'ingesting';
+      activeJob.status = 'processing';
 
       // Step 2: Ingest parsed concepts into SQLite database
       const ingestionResult = await apiClient.knowledge.ingestConcepts({
@@ -556,7 +593,9 @@ export const createConceptParsingService = (
       });
 
       if (!ingestionResult.success) {
-        const err = ingestionResult.error?.message ?? 'Concept ingestion failed';
+        const err = ingestionResult.error
+        ? (typeof ingestionResult.error === 'string' ? ingestionResult.error : 'message' in ingestionResult.error ? ingestionResult.error.message : 'Concept ingestion failed')
+        : 'Concept ingestion failed';
         throw new Error(err);
       }
 
@@ -642,7 +681,10 @@ export const createConceptParsingService = (
     clearSavedJobs: async () => {
       const res = await apiClient.knowledge.clearParsingJobs();
       if (!res.success || !res.data) {
-        throw new Error(res.error?.message ?? 'Failed to clear parsing cache');
+        const errorMessage = res.error
+        ? (typeof res.error === 'string' ? res.error : 'message' in res.error ? res.error.message : 'Failed to clear parsing cache')
+        : 'Failed to clear parsing cache';
+      throw new Error(errorMessage);
       }
       try {
         window?.localStorage?.removeItem(LAST_JOB_KEY);

@@ -73,7 +73,9 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('text-start');
-      expect(emittedChunk.id).toBe('msg-1');
+      if (emittedChunk.type === 'text-start') {
+        expect(emittedChunk.id).toBe('msg-1');
+      }
     });
 
     it('should emit text-delta chunk correctly', () => {
@@ -83,8 +85,10 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('text-delta');
-      expect(emittedChunk.id).toBe('msg-1');
-      expect((emittedChunk as any).delta).toBe('Hello world');
+      if (emittedChunk.type === 'text-delta') {
+        expect(emittedChunk.id).toBe('msg-1');
+        expect(emittedChunk.delta).toBe('Hello world');
+      }
     });
 
     it('should emit text-end chunk correctly', () => {
@@ -94,7 +98,9 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('text-end');
-      expect(emittedChunk.id).toBe('msg-1');
+      if (emittedChunk.type === 'text-end') {
+        expect(emittedChunk.id).toBe('msg-1');
+      }
     });
 
     it('should emit tool-input-start chunk correctly', () => {
@@ -104,8 +110,10 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('tool-input-start');
-      expect((emittedChunk as any).toolCallId).toBe('tool-1');
-      expect((emittedChunk as any).toolName).toBe('Practice');
+      if (emittedChunk.type === 'tool-input-start') {
+        expect(emittedChunk.toolCallId).toBe('tool-1');
+        expect(emittedChunk.toolName).toBe('Practice');
+      }
     });
 
     it('should emit tool-input-available chunk correctly', () => {
@@ -116,27 +124,31 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('tool-input-available');
-      expect((emittedChunk as any).toolCallId).toBe('tool-1');
-      expect((emittedChunk as any).toolName).toBe('Practice');
-      expect((emittedChunk as any).input).toEqual(inputData);
+      if (emittedChunk.type === 'tool-input-available') {
+        expect(emittedChunk.toolCallId).toBe('tool-1');
+        expect(emittedChunk.toolName).toBe('Practice');
+        expect(emittedChunk.input).toEqual(inputData);
+      }
     });
 
     it('should emit tool-output-available chunk with success', () => {
       const emitter = createChunkEmitter(mockConfig);
-      const outputData = { ok: true, data: { exercises: [] } };
+      const outputData = { ok: true as const, data: { exercises: [] } };
       emitter.toolOutputAvailable('tool-1', outputData);
 
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('tool-output-available');
-      expect((emittedChunk as any).toolCallId).toBe('tool-1');
-      expect((emittedChunk as any).output).toEqual(outputData);
+      if (emittedChunk.type === 'tool-output-available') {
+        expect(emittedChunk.toolCallId).toBe('tool-1');
+        expect(emittedChunk.output).toEqual(outputData);
+      }
     });
 
     it('should emit tool-output-available chunk with error', () => {
       const emitter = createChunkEmitter(mockConfig);
       const errorOutput = {
-        ok: false,
+        ok: false as const,
         error: { message: 'Failed to generate exercises' }
       };
       emitter.toolOutputAvailable('tool-1', errorOutput);
@@ -144,8 +156,10 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('tool-output-available');
-      expect((emittedChunk as any).toolCallId).toBe('tool-1');
-      expect((emittedChunk as any).output).toEqual(errorOutput);
+      if (emittedChunk.type === 'tool-output-available') {
+        expect(emittedChunk.toolCallId).toBe('tool-1');
+        expect(emittedChunk.output).toEqual(errorOutput);
+      }
     });
 
     it('should emit reasoning-start chunk correctly', () => {
@@ -155,7 +169,9 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('reasoning-start');
-      expect((emittedChunk as any).id).toBe('reason-1');
+      if (emittedChunk.type === 'reasoning-start') {
+        expect(emittedChunk.id).toBe('reason-1');
+      }
     });
 
     it('should emit reasoning-delta chunk correctly', () => {
@@ -165,8 +181,10 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('reasoning-delta');
-      expect((emittedChunk as any).id).toBe('reason-1');
-      expect((emittedChunk as any).delta).toBe('Let me think about this...');
+      if (emittedChunk.type === 'reasoning-delta') {
+        expect(emittedChunk.id).toBe('reason-1');
+        expect(emittedChunk.delta).toBe('Let me think about this...');
+      }
     });
 
     it('should emit reasoning-end chunk correctly', () => {
@@ -176,7 +194,9 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('reasoning-end');
-      expect((emittedChunk as any).id).toBe('reason-1');
+      if (emittedChunk.type === 'reasoning-end') {
+        expect(emittedChunk.id).toBe('reason-1');
+      }
     });
 
     it('should emit error chunk correctly', () => {
@@ -186,7 +206,9 @@ describe('ChunkEmitter', () => {
       expect(mockWriter).toHaveBeenCalledTimes(1);
       const emittedChunk = mockWriter.mock.calls[0][0] as DataStreamChunk;
       expect(emittedChunk.type).toBe('error');
-      expect((emittedChunk as any).errorText).toBe('Something went wrong');
+      if (emittedChunk.type === 'error') {
+        expect(emittedChunk.errorText).toBe('Something went wrong');
+      }
     });
 
     it('should emit finish chunk correctly', () => {
@@ -399,8 +421,8 @@ describe('ChunkEmitter - Integration Example', () => {
     expect(emittedChunks[2].type).toBe('tool-output-available');
 
     // Verify IDs match
-    expect((emittedChunks[0] as any).toolCallId).toBe(toolCallId);
-    expect((emittedChunks[1] as any).toolCallId).toBe(toolCallId);
-    expect((emittedChunks[2] as any).toolCallId).toBe(toolCallId);
+    expect(emittedChunks[0]).toMatchObject({ toolCallId });
+    expect(emittedChunks[1]).toMatchObject({ toolCallId });
+    expect(emittedChunks[2]).toMatchObject({ toolCallId });
   });
 });

@@ -367,7 +367,7 @@ export function createThreadListAdapter(
       try {
         const session = await unwrapAPI(resolvedApi.sessions.get(threadId));
         if (!session) {
-          return { status: 'regular' as const, remoteId: threadId, title: 'New Chat' };
+          return { status: 'regular' as const, remoteId: threadId, externalId: threadId, title: 'New Chat' };
         }
         return {
           status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
@@ -376,7 +376,7 @@ export function createThreadListAdapter(
           title: session.title || session.topic || 'New Chat',
         };
       } catch {
-        return { status: 'regular' as const, remoteId: threadId, title: 'New Chat' };
+        return { status: 'regular' as const, remoteId: threadId, externalId: threadId, title: 'New Chat' };
       }
     },
 

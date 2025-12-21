@@ -9,11 +9,48 @@
 
 import { vi } from 'vitest';
 
+// Type definitions for mock configurations
+interface ChatModelConfig {
+  modelName?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  [key: string]: unknown;
+}
+
+interface AgentConfig {
+  agent?: unknown;
+  tools?: unknown[];
+  maxIterations?: number;
+  maxExecutionTime?: number;
+  [key: string]: unknown;
+}
+
+interface PromptConfig {
+  template?: string;
+  inputVariables?: string[];
+  [key: string]: unknown;
+}
+
+interface ChainConfig {
+  llm?: unknown;
+  prompt?: unknown;
+  memory?: unknown;
+  outputParser?: unknown;
+  [key: string]: unknown;
+}
+
+interface TextSplitterConfig {
+  chunkSize?: number;
+  chunkOverlap?: number;
+  [key: string]: unknown;
+}
+
 // Mock Chat Models
-export const mockChatOpenAI = vi.fn().mockImplementation((config: unknown) => {
-  const model = config?.modelName || 'gpt-3.5-turbo';
-  const temperature = config?.temperature || 0.7;
-  const maxTokens = config?.maxTokens || 1000;
+export const mockChatOpenAI = vi.fn().mockImplementation((config: ChatModelConfig = {}) => {
+  const model = config.modelName || 'gpt-3.5-turbo';
+  const temperature = config.temperature || 0.7;
+  const maxTokens = config.maxTokens || 1000;
   return {
     _modelType: 'openai-chat',
     model,
@@ -52,10 +89,10 @@ export const mockChatOpenAI = vi.fn().mockImplementation((config: unknown) => {
 });
 
 // Mock Anthropic Claude
-export const mockChatAnthropic = vi.fn().mockImplementation((config: unknown) => {
-  const model = config?.model || 'claude-3-sonnet-20241022';
-  const temperature = config?.temperature || 0.7;
-  const maxTokens = config?.maxTokens || 1000;
+export const mockChatAnthropic = vi.fn().mockImplementation((config: ChatModelConfig = {}) => {
+  const model = config.model || 'claude-3-sonnet-20241022';
+  const temperature = config.temperature || 0.7;
+  const maxTokens = config.maxTokens || 1000;
   return {
     _modelType: 'anthropic-chat',
     model,
@@ -84,10 +121,10 @@ export const mockChatAnthropic = vi.fn().mockImplementation((config: unknown) =>
 });
 
 // Mock ChatGLM
-export const mockChatGLM = vi.fn().mockImplementation((config: unknown) => {
-  const model = config?.model || 'glm-4';
-  const temperature = config?.temperature || 0.7;
-  const maxTokens = config?.maxTokens || 1000;
+export const mockChatGLM = vi.fn().mockImplementation((config: ChatModelConfig = {}) => {
+  const model = config.model || 'glm-4';
+  const temperature = config.temperature || 0.7;
+  const maxTokens = config.maxTokens || 1000;
   return {
     _modelType: 'chatglm-chat',
     model,
@@ -124,11 +161,11 @@ export const mockChatGLM = vi.fn().mockImplementation((config: unknown) => {
 });
 
 // Mock LangChain Agents
-export const mockAgentExecutor = vi.fn().mockImplementation((config: unknown) => ({
-  agent: config?.agent || { lc_kwargs: { name: 'MockAgent' } },
-  tools: config?.tools || [mockTool],
-  maxIterations: config?.maxIterations || 10,
-  maxExecutionTime: config?.maxExecutionTime || 60000,
+export const mockAgentExecutor = vi.fn().mockImplementation((config: AgentConfig = {}) => ({
+  agent: config.agent || { lc_kwargs: { name: 'MockAgent' } },
+  tools: config.tools || [mockTool],
+  maxIterations: config.maxIterations || 10,
+  maxExecutionTime: config.maxExecutionTime || 60000,
 
   invoke: vi.fn().mockImplementation(async (input: any) => {
     const { input: userInput } = input;
@@ -257,9 +294,9 @@ export const mockBufferMemory = vi.fn().mockImplementation(() => {
 });
 
 // Mock Prompt Templates
-export const mockChatPromptTemplate = vi.fn().mockImplementation((config: unknown) => {
-  const template = config?.template || 'Template: {input}';
-  const inputVariables = config?.inputVariables || ['input'];
+export const mockChatPromptTemplate = vi.fn().mockImplementation((config: PromptConfig = {}) => {
+  const template = config.template || 'Template: {input}';
+  const inputVariables = config.inputVariables || ['input'];
   return {
     template,
     inputVariables,
@@ -282,11 +319,11 @@ export const mockChatPromptTemplate = vi.fn().mockImplementation((config: unknow
 });
 
 // Mock Chains
-export const mockLLMChain = vi.fn().mockImplementation((config: unknown) => {
-  const llm = config?.llm || mockChatOpenAI({});
-  const prompt = config?.prompt || mockChatPromptTemplate({ template: 'Default: {input}' });
-  const memory = config?.memory || mockBufferMemory();
-  const outputParser = config?.outputParser || {
+export const mockLLMChain = vi.fn().mockImplementation((config: ChainConfig = {}) => {
+  const llm = config.llm || mockChatOpenAI({});
+  const prompt = config.prompt || mockChatPromptTemplate({ template: 'Default: {input}' });
+  const memory = config.memory || mockBufferMemory();
+  const outputParser = config.outputParser || {
     parse: async (text: string) => ({ result: text }),
     getFormatInstructions: () => 'Output format instructions',
   };
@@ -339,9 +376,9 @@ export const mockDocument = vi.fn().mockImplementation((pageContent: string, met
   lookup: vi.fn().mockReturnValue(null),
 }));
 
-export const mockRecursiveCharacterTextSplitter = vi.fn().mockImplementation((config: unknown) => {
-  const chunkSize = config?.chunkSize || 1000;
-  const chunkOverlap = config?.chunkOverlap || 200;
+export const mockRecursiveCharacterTextSplitter = vi.fn().mockImplementation((config: TextSplitterConfig = {}) => {
+  const chunkSize = config.chunkSize || 1000;
+  const chunkOverlap = config.chunkOverlap || 200;
   return {
     chunkSize,
     chunkOverlap,

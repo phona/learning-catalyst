@@ -400,7 +400,7 @@ async function createWindow(): Promise<void> {
 
     // Fallback: emit loading if no snapshot recorded yet.
     if (!readySnapshotSent) {
-      const loadingPayload = {
+      const loadingPayload: SystemReadyPayload = {
         status: 'loading',
         ready: { ipcHandlersRegistered: false },
       };
@@ -549,9 +549,13 @@ async function createWindow(): Promise<void> {
 
   const contentService = createContentService({ loggerService, aiService });
 
+  // Create checkpoint saver for chat service
+  const checkpointSaver = new SQLiteCheckpointSaver(database);
+
   const learningService = createLearningService({
     db: database,
     loggerService,
+    checkpointSaver,
   });
 
   const agentManager = await createAgentManager({
@@ -568,9 +572,6 @@ async function createWindow(): Promise<void> {
     knowledgeService,
     db: database,
   });
-
-  // Create checkpoint saver for chat service
-  const checkpointSaver = new SQLiteCheckpointSaver(database);
 
   const chatService = createChatService({
     loggerService,
@@ -606,7 +607,6 @@ async function createWindow(): Promise<void> {
   aiServiceManager.onConfigReloaded(async () => {
     await conceptParsingService.rebuild();
     await practiceService.rebuild();
-    await learningService.rebuild(agentManager.getAgent('learning'));
   });
 
   // Send success event with timing information

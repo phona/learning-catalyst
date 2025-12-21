@@ -63,125 +63,125 @@ End by inviting the user to ask for hints if needed.`,
  */
 export const askQuestionNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof PracticeAnnotation.State, config: LangGraphRunnableConfig) => {
-    const emitter = createChunkEmitter(config);
-    const startTime = Date.now();
+    async (state: typeof PracticeAnnotation.State, config: LangGraphRunnableConfig) => {
+      const emitter = createChunkEmitter(config);
+      const startTime = Date.now();
 
-    deps.loggerService.debug('askQuestionNode: start', {
-      topic: state.topic,
-      hasPractice: !!state.practice?.currentQuestion,
-    });
-
-    // Check if we already have a question (resume case)
-    if (state.practice?.currentQuestion && !state.practice.isComplete) {
-      deps.loggerService.debug('askQuestionNode: resuming with existing question');
-
-      // Wait for user input on existing question
-      const resumeValue = await interrupt({
-        type: 'practice_question',
-        prompt: state.practice.currentQuestion,
-        questionId: randomUUID(),
+      deps.loggerService.debug('askQuestionNode: start', {
+        topic: state.topic,
+        hasPractice: !!state.practice?.currentQuestion,
       });
 
-      const answer =
+      // Check if we already have a question (resume case)
+      if (state.practice?.currentQuestion && !state.practice.isComplete) {
+        deps.loggerService.debug('askQuestionNode: resuming with existing question');
+
+        // Wait for user input on existing question
+        const resumeValue = await interrupt({
+          type: 'practice_question',
+          prompt: state.practice.currentQuestion,
+          questionId: randomUUID(),
+        });
+
+        const answer =
         typeof resumeValue === 'string'
           ? resumeValue
           : (resumeValue as { answer?: string; content?: string })?.answer ??
             (resumeValue as { answer?: string; content?: string })?.content ??
             '';
 
-      return {
-        userAnswer: answer,
-      };
-    }
+        return {
+          userAnswer: answer,
+        };
+      }
 
-    // Step 1: Search knowledge graph for relevant concepts
-    const searchResult = await deps.knowledgeService.searchKnowledge({
-      query: state.topic,
-      limit: KNOWLEDGE_SEARCH_LIMIT,
-    });
+      // Step 1: Search knowledge graph for relevant concepts
+      const searchResult = await deps.knowledgeService.searchKnowledge({
+        query: state.topic,
+        limit: KNOWLEDGE_SEARCH_LIMIT,
+      });
 
-    if (!searchResult.results.length) {
-      deps.loggerService.error('askQuestionNode: no knowledge found', { topic: state.topic });
-      return {
-        error: `No knowledge found for topic: ${state.topic}`,
-        practice: { isComplete: true },
-      };
-    }
+      if (!searchResult.results.length) {
+        deps.loggerService.error('askQuestionNode: no knowledge found', { topic: state.topic });
+        return {
+          error: `No knowledge found for topic: ${state.topic}`,
+          practice: { isComplete: true },
+        };
+      }
 
-    // Extract focus concepts
-    const focusConcepts = Array.from(
-      new Set(searchResult.results.map((r) => r.title).filter(Boolean))
-    ).slice(0, MAX_FOCUS_CONCEPTS);
+      // Extract focus concepts
+      const focusConcepts = Array.from(
+        new Set(searchResult.results.map((r) => r.title).filter(Boolean))
+      ).slice(0, MAX_FOCUS_CONCEPTS);
 
-    // Get related concepts
-    const relatedSet = new Set<string>();
-    if (searchResult.results[0]?.id) {
-      const related = await deps.knowledgeService.getRelatedConcepts(searchResult.results[0].id);
-      related.relatedConcepts.forEach((rel) => relatedSet.add(rel.name));
-    }
-    const relatedConcepts = Array.from(relatedSet).slice(0, MAX_RELATED_CONCEPTS);
+      // Get related concepts
+      const relatedSet = new Set<string>();
+      if (searchResult.results[0]?.id) {
+        const related = await deps.knowledgeService.getRelatedConcepts(searchResult.results[0].id);
+        related.relatedConcepts.forEach((rel) => relatedSet.add(rel.name));
+      }
+      const relatedConcepts = Array.from(relatedSet).slice(0, MAX_RELATED_CONCEPTS);
 
-    // Step 2: Generate question using AI
-    const model = await deps.providerFactory.getModel();
-    const messages = await QUESTION_GENERATION_TEMPLATE.formatMessages({
-      topic: state.topic,
-      focusConcepts: focusConcepts.join(', '),
-      relatedConcepts: relatedConcepts.join(', ') || 'None',
-    });
+      // Step 2: Generate question using AI
+      const model = await deps.providerFactory.getModel();
+      const messages = await QUESTION_GENERATION_TEMPLATE.formatMessages({
+        topic: state.topic,
+        focusConcepts: focusConcepts.join(', '),
+        relatedConcepts: relatedConcepts.join(', ') || 'None',
+      });
 
-    const response = await model.invoke(messages);
-    const questionContent = String(response.content ?? '');
+      const response = await model.invoke(messages);
+      const questionContent = String(response.content ?? '');
 
-    // Step 3: Emit question to user
-    const messageId = generateId('msg');
-    emitter.textStart(messageId);
-    emitter.textDelta(messageId, questionContent);
-    emitter.textEnd(messageId);
+      // Step 3: Emit question to user
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, questionContent);
+      emitter.textEnd(messageId);
 
-    // Step 4: Record analytics
-    await deps.practiceService.recordPracticeAttempt({
-      taskId: `practice_${Date.now()}`,
-      conceptIds: searchResult.results.map((r) => r.id),
-      result: 'partial',
-      timestamp: new Date().toISOString(),
-    });
+      // Step 4: Record analytics
+      await deps.practiceService.recordPracticeAttempt({
+        taskId: `practice_${Date.now()}`,
+        conceptIds: searchResult.results.map((r) => r.id),
+        result: 'partial',
+        timestamp: new Date().toISOString(),
+      });
 
-    // Step 5: Interrupt for user input
-    const questionId = randomUUID();
-    const resumeValue = await interrupt({
-      type: 'practice_question',
-      prompt: questionContent,
-      questionId,
-      instruction: 'Answer the question, or ask for hints/clarification if needed.',
-    });
+      // Step 5: Interrupt for user input
+      const questionId = randomUUID();
+      const resumeValue = await interrupt({
+        type: 'practice_question',
+        prompt: questionContent,
+        questionId,
+        instruction: 'Answer the question, or ask for hints/clarification if needed.',
+      });
 
-    const answer =
+      const answer =
       typeof resumeValue === 'string'
         ? resumeValue
         : (resumeValue as { answer?: string; content?: string })?.answer ??
           (resumeValue as { answer?: string; content?: string })?.content ??
           '';
 
-    const duration = Date.now() - startTime;
-    deps.loggerService.info('askQuestionNode: complete', {
-      topic: state.topic,
-      questionLength: questionContent.length,
-      durationMs: duration,
-    });
+      const duration = Date.now() - startTime;
+      deps.loggerService.info('askQuestionNode: complete', {
+        topic: state.topic,
+        questionLength: questionContent.length,
+        durationMs: duration,
+      });
 
-    return {
-      messages: [new AIMessage(questionContent)],
-      practicePrompt: questionContent,
-      userAnswer: answer,
-      practice: {
-        currentQuestion: questionContent,
-        expectedAnswer: '', // Will be used for grading context
-        hintsGiven: 0,
-        conversationTurns: 0,
-        isComplete: false,
-        focusConcepts,
-        relatedConcepts,
-      },
+      return {
+        messages: [new AIMessage(questionContent)],
+        practicePrompt: questionContent,
+        userAnswer: answer,
+        practice: {
+          currentQuestion: questionContent,
+          expectedAnswer: '', // Will be used for grading context
+          hintsGiven: 0,
+          conversationTurns: 0,
+          isComplete: false,
+          focusConcepts,
+          relatedConcepts,
+        },
+      };
     };
-  };

@@ -9,21 +9,54 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createKnowledgeService } from '../knowledge-service';
 import type { Kysely } from 'kysely';
+import type { VectorDatabaseApi, SearchResult } from '../vector/vector-database';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
+import type { ILogger } from '@/main/services/types';
+import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
 
 describe('clean architecture: SQLite + Qdrant separation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('Qdrant stores only conceptId reference, not full concept data', async () => {
-    const capturedQueries: any[] = [];
+  // Helper function to create complete mock statistics
+  const createMockStatistics = () => ({
+    totalConcepts: 1,
+    validConcepts: 1,
+    totalRelationships: 0,
+    confidenceDistribution: { '0.8-0.9': 1 },
+    difficultyDistribution: { 3: 1 },
+    typeDistribution: { concept: 1 },
+    processingTime: 1000,
+    modelUsage: { 'test-model': 1 },
+    tokenUsage: {
+      total: 100,
+      prompt: 50,
+      completion: 50,
+      estimated: false,
+    },
+  });
 
-    const vectorDatabase = {
-      search: vi.fn().mockImplementation(async (query: string, options: any) => {
+  // Helper function to create complete mock metadata
+  const createMockMetadata = () => ({
+    processingTime: 1000,
+    processedAt: new Date().toISOString(),
+    inputFiles: 1,
+    aiProvider: 'test-provider',
+    aiModel: 'test-model',
+    segmentsProcessed: 1,
+    segmentsTotal: 1,
+  });
+
+  it('Qdrant stores only conceptId reference, not full concept data', async () => {
+    const capturedQueries: { type: string; query?: string; options?: unknown }[] = [];
+
+    const vectorDatabase: VectorDatabaseApi = {
+      search: vi.fn().mockImplementation(async (query: string, options?: { limit?: number; threshold?: number }) => {
         capturedQueries.push({ type: 'search', query, options });
         return [];
       }),
-      addDocumentWithEmbedding: vi.fn(async (doc: any) => {
+      addDocumentWithEmbedding: vi.fn(async (_doc, _embedding) => {
         // This method exists in the API but is not used by knowledge-service
         // Vector storage is handled separately from knowledge service
       }),
@@ -33,18 +66,28 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       start: vi.fn(),
     };
 
-    const providerFactory = {
+    const providerFactory: ProviderFactory = {
+      getModel: vi.fn(),
+      getEmbeddings: vi.fn(),
       getEmbeddingModel: vi.fn().mockResolvedValue({
         embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+        embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+        dimensions: 3,
       }),
+      getRerankModel: vi.fn(),
     };
 
-    const loggerService: any = {
+    const loggerService: ILogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
       child: () => ({
-        info: vi.fn(),
         debug: vi.fn(),
+        info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       }),
     };
 
@@ -59,7 +102,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       }),
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
-          where: vi.fn().mockImplementation((column, operator, value) => {
+          where: vi.fn().mockImplementation((_column, _operator, _value) => {
             return {
               execute: vi.fn().mockResolvedValue([]),
             };
@@ -78,7 +121,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           execute: vi.fn().mockResolvedValue(undefined),
         }),
       }),
-    } as any;
+    } as unknown as Kysely<CoreDatabase>;
 
     const svc = createKnowledgeService({
       db: mockDb,
@@ -96,20 +139,31 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           name: 'React',
           description: 'A JavaScript library for building UIs',
           type: 'concept',
-          difficulty: 'intermediate',
+          difficulty: 3,
           confidence: 0.9,
-          tags: ['javascript', 'frontend'],
-          sourceMaterialId: 'material-1',
+          evidence: [
+            {
+              type: 'text',
+              text: 'React is a JavaScript library for building UIs',
+              relevance: 0.9,
+            },
+          ],
+          metadata: {
+            sourceMaterialId: 'material-1',
+            tags: ['javascript', 'frontend'],
+          },
         },
       ],
       relationships: [],
       errors: [],
+      statistics: createMockStatistics(),
+      metadata: createMockMetadata(),
     };
 
     // Manually call the parsing service
     // Note: Vector database storage is not implemented in knowledge-service
     // This test verifies that the service initializes without errors
-    const result = await svc.ingestConceptParsingResult(mockParseResult, 'material-1');
+    const result = await svc.ingestConceptParsingResult(mockParseResult, { materialId: 'material-1' });
 
     // Verify ingestion completed
     expect(result).toBeDefined();
@@ -122,7 +176,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
   });
 
   it('semanticSearch queries Qdrant then fetches full data from SQLite', async () => {
-    const qdrantResults = [
+    const qdrantResults: SearchResult[] = [
       {
         document: {
           id: 'concept:abc-123',
@@ -131,6 +185,8 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
             conceptId: 'abc-123',
             type: 'concept',
           },
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
         },
         score: 0.95,
       },
@@ -142,12 +198,14 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
             conceptId: 'def-456',
             type: 'concept',
           },
+          createdAt: new Date('2024-01-01'),
+          updatedAt: new Date('2024-01-01'),
         },
         score: 0.87,
       },
     ];
 
-    const vectorDatabase = {
+    const vectorDatabase: VectorDatabaseApi = {
       search: vi.fn().mockResolvedValue(qdrantResults),
       addDocumentWithEmbedding: vi.fn(),
       addDocumentBatch: vi.fn(),
@@ -159,7 +217,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
     const mockDb = {
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
-          where: vi.fn().mockImplementation((column, operator, value) => {
+          where: vi.fn().mockImplementation((_column, _operator, _value) => {
             return {
               execute: vi.fn().mockResolvedValue([
                 {
@@ -195,20 +253,30 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           }),
         }),
       }),
-    } as any;
+    } as unknown as Kysely<CoreDatabase>;
 
-    const providerFactory = {
+    const providerFactory: ProviderFactory = {
+      getModel: vi.fn(),
+      getEmbeddings: vi.fn(),
       getEmbeddingModel: vi.fn().mockResolvedValue({
         embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+        embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+        dimensions: 3,
       }),
+      getRerankModel: vi.fn(),
     };
 
-    const loggerService: any = {
+    const loggerService: ILogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
       child: () => ({
-        info: vi.fn(),
         debug: vi.fn(),
+        info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       }),
     };
 
@@ -250,9 +318,9 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
   });
 
   it('Qdrant IDs use concept: prefix pattern', async () => {
-    const vectorDatabase = {
+    const vectorDatabase: VectorDatabaseApi = {
       search: vi.fn().mockResolvedValue([]),
-      addDocumentWithEmbedding: vi.fn(async (doc: any) => {
+      addDocumentWithEmbedding: vi.fn(async (_doc, _embedding) => {
         // Not used by knowledge-service
       }),
       addDocumentBatch: vi.fn(),
@@ -272,7 +340,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       }),
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
-          where: vi.fn().mockImplementation((column, operator, value) => {
+          where: vi.fn().mockImplementation((_column, _operator, _value) => {
             return {
               execute: vi.fn().mockResolvedValue([]),
             };
@@ -291,20 +359,30 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           execute: vi.fn().mockResolvedValue(undefined),
         }),
       }),
-    } as any;
+    } as unknown as Kysely<CoreDatabase>;
 
-    const providerFactory = {
+    const providerFactory: ProviderFactory = {
+      getModel: vi.fn(),
+      getEmbeddings: vi.fn(),
       getEmbeddingModel: vi.fn().mockResolvedValue({
         embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+        embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+        dimensions: 3,
       }),
+      getRerankModel: vi.fn(),
     };
 
-    const loggerService: any = {
+    const loggerService: ILogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
       child: () => ({
-        info: vi.fn(),
         debug: vi.fn(),
+        info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       }),
     };
 
@@ -323,18 +401,29 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           name: 'TypeScript',
           description: 'Typed superset of JavaScript',
           type: 'concept',
-          difficulty: 'intermediate',
+          difficulty: 3,
           confidence: 0.9,
-          tags: ['javascript', 'types'],
-          sourceMaterialId: 'material-2',
+          evidence: [
+            {
+              type: 'text',
+              text: 'TypeScript is a typed superset of JavaScript',
+              relevance: 0.9,
+            },
+          ],
+          metadata: {
+            sourceMaterialId: 'material-2',
+            tags: ['javascript', 'types'],
+          },
         },
       ],
       relationships: [],
       errors: [],
+      statistics: createMockStatistics(),
+      metadata: createMockMetadata(),
     };
 
     // Ingest the parsing result
-    const result = await svc.ingestConceptParsingResult(mockParseResult, 'material-2');
+    const result = await svc.ingestConceptParsingResult(mockParseResult, { materialId: 'material-2' });
 
     // Verify ingestion completed successfully
     expect(result).toBeDefined();
@@ -348,7 +437,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
   });
 
   it('No data duplication: concept data exists only in SQLite', async () => {
-    const vectorDatabase = {
+    const vectorDatabase: VectorDatabaseApi = {
       addDocumentWithEmbedding: vi.fn(),
       search: vi.fn().mockResolvedValue([]),
       addDocumentBatch: vi.fn(),
@@ -357,17 +446,17 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       start: vi.fn(),
     };
 
-    const capturedQueries: any[] = [];
+    const capturedQueries: { type: string; table: string; values?: unknown; columns?: unknown }[] = [];
 
     const mockDb = {
-      insertInto: vi.fn().mockImplementation((table) => {
+      insertInto: vi.fn().mockImplementation((table: string) => {
         capturedQueries.push({ type: 'insert', table });
         return {
-          values: vi.fn().mockImplementation((values) => {
+          values: vi.fn().mockImplementation((values: unknown) => {
             capturedQueries.push({ type: 'values', table, values });
             return {
               execute: vi.fn().mockResolvedValue([{ id: 'concept-123' }]),
-              returning: vi.fn().mockImplementation((columns) => {
+              returning: vi.fn().mockImplementation((columns: unknown) => {
                 capturedQueries.push({ type: 'returning', table, columns });
                 return {
                   executeTakeFirst: vi.fn().mockResolvedValue({ id: 'concept-123' }),
@@ -379,7 +468,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       }),
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
-          where: vi.fn().mockImplementation((column, operator, value) => {
+          where: vi.fn().mockImplementation((_column, _operator, _value) => {
             return {
               execute: vi.fn().mockResolvedValue([]),
             };
@@ -398,20 +487,30 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           execute: vi.fn().mockResolvedValue(undefined),
         }),
       }),
-    } as any;
+    } as unknown as Kysely<CoreDatabase>;
 
-    const providerFactory = {
+    const providerFactory: ProviderFactory = {
+      getModel: vi.fn(),
+      getEmbeddings: vi.fn(),
       getEmbeddingModel: vi.fn().mockResolvedValue({
         embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+        embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+        dimensions: 3,
       }),
+      getRerankModel: vi.fn(),
     };
 
-    const loggerService: any = {
+    const loggerService: ILogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
       child: () => ({
-        info: vi.fn(),
         debug: vi.fn(),
+        info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       }),
     };
 
@@ -430,17 +529,28 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           name: 'Python',
           description: 'A programming language',
           type: 'concept',
-          difficulty: 'beginner',
+          difficulty: 1,
           confidence: 0.95,
-          tags: ['programming'],
-          sourceMaterialId: 'material-3',
+          evidence: [
+            {
+              type: 'text',
+              text: 'Python is a programming language',
+              relevance: 0.95,
+            },
+          ],
+          metadata: {
+            sourceMaterialId: 'material-3',
+            tags: ['programming'],
+          },
         },
       ],
       relationships: [],
       errors: [],
+      statistics: createMockStatistics(),
+      metadata: createMockMetadata(),
     };
 
-    const result = await svc.ingestConceptParsingResult(mockParseResult, 'material-3');
+    const result = await svc.ingestConceptParsingResult(mockParseResult, { materialId: 'material-3' });
 
     // ✓ Full concept data is stored in SQLite
     const insertQuery = capturedQueries.find((q) => q.type === 'insert' && q.table === 'concepts');
@@ -457,7 +567,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
   });
 
   it('Relationship storage uses relationshipId pattern', async () => {
-    const vectorDatabase = {
+    const vectorDatabase: VectorDatabaseApi = {
       addDocumentWithEmbedding: vi.fn(),
       search: vi.fn().mockResolvedValue([]),
       addDocumentBatch: vi.fn(),
@@ -477,7 +587,7 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
       }),
       selectFrom: vi.fn().mockReturnValue({
         selectAll: vi.fn().mockReturnValue({
-          where: vi.fn().mockImplementation((column, operator, value) => {
+          where: vi.fn().mockImplementation((_column, _operator, _value) => {
             return {
               execute: vi.fn().mockResolvedValue([]),
             };
@@ -496,20 +606,30 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           execute: vi.fn().mockResolvedValue(undefined),
         }),
       }),
-    } as any;
+    } as unknown as Kysely<CoreDatabase>;
 
-    const providerFactory = {
+    const providerFactory: ProviderFactory = {
+      getModel: vi.fn(),
+      getEmbeddings: vi.fn(),
       getEmbeddingModel: vi.fn().mockResolvedValue({
         embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+        embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2, 0.3]]),
+        dimensions: 3,
       }),
+      getRerankModel: vi.fn(),
     };
 
-    const loggerService: any = {
+    const loggerService: ILogger = {
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
       child: () => ({
-        info: vi.fn(),
         debug: vi.fn(),
+        info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
+        child: vi.fn(),
       }),
     };
 
@@ -528,10 +648,19 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
           name: 'HTML',
           description: 'HyperText Markup Language',
           type: 'concept',
-          difficulty: 'beginner',
+          difficulty: 1,
           confidence: 0.9,
-          tags: ['web'],
-          sourceMaterialId: 'material-4',
+          evidence: [
+            {
+              type: 'text',
+              text: 'HTML is HyperText Markup Language',
+              relevance: 0.9,
+            },
+          ],
+          metadata: {
+            sourceMaterialId: 'material-4',
+            tags: ['web'],
+          },
         },
       ],
       relationships: [
@@ -546,9 +675,11 @@ describe('clean architecture: SQLite + Qdrant separation', () => {
         },
       ],
       errors: [],
+      statistics: createMockStatistics(),
+      metadata: createMockMetadata(),
     };
 
-    const result = await svc.ingestConceptParsingResult(mockParseResult, 'material-4');
+    const result = await svc.ingestConceptParsingResult(mockParseResult, { materialId: 'material-4' });
 
     // Verify ingestion completed successfully
     expect(result).toBeDefined();

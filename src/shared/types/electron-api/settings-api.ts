@@ -6,8 +6,8 @@
  */
 
 import type { APIResponse } from './base';
-import type { AppConfig, ProviderConfig } from '@/shared/types';
-export type { ProviderConfig } from '@/shared/types';
+import type { AppConfig, ProviderConfig } from '../config';
+export type { ProviderConfig } from '../config';
 
 export interface SettingsAPI {
   /**

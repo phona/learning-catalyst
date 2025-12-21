@@ -4,7 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { renderWithServices, screen, waitFor } from "@/test/utils/renderWithServices";
 import { act } from "@testing-library/react";
 import { useConfigStore } from "@/renderer/stores/useConfigStore";
-import type { AppConfig } from "@/shared/types";
+import { ElectronAPIProvider } from "@/renderer/hooks/useElectronAPI";
+import type { AppConfig, ProviderConfig } from "@/shared/types";
 import { SettingsPanel } from "../SettingsPanel";
 
 vi.mock("@/renderer/utils/toast", () => ({
@@ -96,16 +97,21 @@ describe("SettingsPanel behavior", () => {
     const configService = {
       saveConfig,
       getConfig: vi.fn().mockResolvedValue(baseConfig),
-      setConfig: vi.fn(),
-      configureProvider: vi.fn(),
-      getAvailableProviders: vi.fn().mockResolvedValue({ providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
-      validateProvider: vi.fn(),
-      getProviderModels: vi.fn(),
-    } as any;
+      setConfig: vi.fn().mockResolvedValue(undefined),
+      configureProvider: vi.fn().mockResolvedValue({ providerId: 'test', status: 'configured' }),
+      getAvailableProviders: vi.fn().mockResolvedValue({ success: true, providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
+      validateProvider: vi.fn().mockResolvedValue({ success: true }),
+      getProviderModels: vi.fn().mockResolvedValue([]),
+    };
 
-    renderWithServices(<SettingsPanel />, {
-      serviceOverrides: { configService },
-    });
+    renderWithServices(
+      <ElectronAPIProvider>
+        <SettingsPanel />
+      </ElectronAPIProvider>,
+      {
+        serviceOverrides: { configService },
+      }
+    );
 
     await screen.findByText("Preferences");
 
@@ -127,14 +133,19 @@ describe("SettingsPanel behavior", () => {
     const configService = {
       saveConfig,
       getConfig: vi.fn().mockResolvedValue(baseConfig),
-      setConfig: vi.fn(),
-      configureProvider: vi.fn(),
-      getAvailableProviders: vi.fn().mockResolvedValue({ providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
-      validateProvider: vi.fn(),
-      getProviderModels: vi.fn(),
-    } as any;
+      setConfig: vi.fn().mockResolvedValue(undefined),
+      configureProvider: vi.fn().mockResolvedValue({ providerId: 'test', status: 'configured' }),
+      getAvailableProviders: vi.fn().mockResolvedValue({ success: true, providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
+      validateProvider: vi.fn().mockResolvedValue({ success: true }),
+      getProviderModels: vi.fn().mockResolvedValue([]),
+    };
 
-    renderWithServices(<SettingsPanel />, { serviceOverrides: { configService } });
+    renderWithServices(
+      <ElectronAPIProvider>
+        <SettingsPanel />
+      </ElectronAPIProvider>,
+      { serviceOverrides: { configService } }
+    );
 
     await screen.findByText("Preferences");
     await openSection(/Interface/i);
@@ -156,14 +167,19 @@ describe("SettingsPanel behavior", () => {
     const configService = {
       saveConfig,
       getConfig: vi.fn().mockResolvedValue(baseConfig),
-      setConfig: vi.fn(),
-      configureProvider: vi.fn(),
-      getAvailableProviders: vi.fn().mockResolvedValue({ providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
-      validateProvider: vi.fn(),
-      getProviderModels: vi.fn(),
-    } as any;
+      setConfig: vi.fn().mockResolvedValue(undefined),
+      configureProvider: vi.fn().mockResolvedValue({ providerId: 'test', status: 'configured' }),
+      getAvailableProviders: vi.fn().mockResolvedValue({ success: true, providers: [], summary: { total: 0, connected: 0, configured: 0 } }),
+      validateProvider: vi.fn().mockResolvedValue({ success: true }),
+      getProviderModels: vi.fn().mockResolvedValue([]),
+    };
 
-    renderWithServices(<SettingsPanel />, { serviceOverrides: { configService } });
+    renderWithServices(
+      <ElectronAPIProvider>
+        <SettingsPanel />
+      </ElectronAPIProvider>,
+      { serviceOverrides: { configService } }
+    );
 
     await screen.findByText("Preferences");
     await openSection(/Interface/i);

@@ -8,6 +8,7 @@
 import React, { Component, ReactNode } from 'react';
 import { performanceService } from '@/shared/services/performance-service';
 import { createTypedEventEmitter } from '@/shared/utils/type-utils';
+import type { MemoryStats } from '@/shared/utils/performance-monitor';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -240,7 +241,7 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
     this.events.emit('health:changed', healthStatus);
   }
 
-  private calculateHealthStatus(memoryStats: unknown): HealthStatus {
+  private calculateHealthStatus(memoryStats: MemoryStats): HealthStatus {
     const uptime = Date.now() - this.startTime;
     const memoryUsage = memoryStats.percentage || 0;
 

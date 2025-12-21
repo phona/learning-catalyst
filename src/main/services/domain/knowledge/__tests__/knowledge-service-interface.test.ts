@@ -46,7 +46,8 @@ vi.mock('../knowledge-service', () => {
 describe('Knowledge Service - Interface Tests', () => {
   let mockDb: any;
   let mockLoggerService: any;
-  let mockAiService: any;
+  let mockVectorDatabase: any;
+  let mockProviderFactory: any;
   let knowledgeService: any;
 
   beforeEach(async () => {
@@ -70,11 +71,34 @@ describe('Knowledge Service - Interface Tests', () => {
       })),
     };
 
+    // Mock vector database
+    mockVectorDatabase = {
+      addDocumentBatch: vi.fn().mockResolvedValue(undefined),
+      addDocumentWithEmbedding: vi.fn().mockResolvedValue(undefined),
+      search: vi.fn().mockResolvedValue([]),
+      deleteDocument: vi.fn().mockResolvedValue(undefined),
+      getStats: vi.fn().mockResolvedValue({ count: 0 }),
+      start: vi.fn().mockResolvedValue(undefined),
+    };
+
+    // Mock provider factory
+    mockProviderFactory = {
+      getModel: vi.fn().mockResolvedValue({}),
+      getEmbeddings: vi.fn().mockResolvedValue({}),
+      getEmbeddingModel: vi.fn().mockResolvedValue({
+        embed: vi.fn().mockResolvedValue([]),
+        embedBatch: vi.fn().mockResolvedValue([]),
+      }),
+      getRerankModel: vi.fn().mockResolvedValue(null),
+    };
+
     // Import knowledge service
     const knowledgeModule = await import('../knowledge-service');
     const { createKnowledgeService } = knowledgeModule;
     knowledgeService = createKnowledgeService({
       db: mockDb,
+      vectorDatabase: mockVectorDatabase,
+      providerFactory: mockProviderFactory,
       loggerService: mockLoggerService,
     });
   });

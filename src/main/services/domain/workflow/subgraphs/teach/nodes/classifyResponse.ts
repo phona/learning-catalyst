@@ -156,58 +156,58 @@ function parseIntent(aiResponse: string): TeachIntent {
  */
 export const classifyResponseNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof TeachAnnotation.State, _config: LangGraphRunnableConfig) => {
-    const startTime = Date.now();
-    const userResponse = state.userAnswer ?? '';
+    async (state: typeof TeachAnnotation.State, _config: LangGraphRunnableConfig) => {
+      const startTime = Date.now();
+      const userResponse = state.userAnswer ?? '';
 
-    deps.loggerService.debug('teach:classifyResponse start', {
-      responseLength: userResponse.length,
-    });
-
-    // Fast path: empty response → confused
-    if (!userResponse.trim()) {
-      deps.loggerService.debug('teach:classifyResponse empty response');
-      return {
-        teach: { teachIntent: 'confused' as TeachIntent },
-      };
-    }
-
-    // Fast path: keyword detection
-    const keywordIntent = detectIntentByKeywords(userResponse);
-    if (keywordIntent) {
-      deps.loggerService.debug('teach:classifyResponse keyword match', {
-        intent: keywordIntent,
-      });
-      return {
-        teach: { teachIntent: keywordIntent },
-      };
-    }
-
-    // AI classification for nuanced cases
-    try {
-      const model = await deps.providerFactory.getModel();
-      const messages = await CLASSIFICATION_PROMPT.formatMessages({
-        topic: state.topic,
-        userResponse,
+      deps.loggerService.debug('teach:classifyResponse start', {
+        responseLength: userResponse.length,
       });
 
-      const response = await model.invoke(messages);
-      const intent = parseIntent(String(response.content ?? ''));
+      // Fast path: empty response → confused
+      if (!userResponse.trim()) {
+        deps.loggerService.debug('teach:classifyResponse empty response');
+        return {
+          teach: { teachIntent: 'confused' as TeachIntent },
+        };
+      }
 
-      const duration = Date.now() - startTime;
-      deps.loggerService.info('teach:classifyResponse complete', {
-        intent,
-        durationMs: duration,
-      });
+      // Fast path: keyword detection
+      const keywordIntent = detectIntentByKeywords(userResponse);
+      if (keywordIntent) {
+        deps.loggerService.debug('teach:classifyResponse keyword match', {
+          intent: keywordIntent,
+        });
+        return {
+          teach: { teachIntent: keywordIntent },
+        };
+      }
 
-      return {
-        teach: { teachIntent: intent },
-      };
-    } catch (error) {
-      deps.loggerService.error('teach:classifyResponse AI classification failed', { error });
-      // Fallback: assume question
-      return {
-        teach: { teachIntent: 'question' as TeachIntent },
-      };
-    }
-  };
+      // AI classification for nuanced cases
+      try {
+        const model = await deps.providerFactory.getModel();
+        const messages = await CLASSIFICATION_PROMPT.formatMessages({
+          topic: state.topic,
+          userResponse,
+        });
+
+        const response = await model.invoke(messages);
+        const intent = parseIntent(String(response.content ?? ''));
+
+        const duration = Date.now() - startTime;
+        deps.loggerService.info('teach:classifyResponse complete', {
+          intent,
+          durationMs: duration,
+        });
+
+        return {
+          teach: { teachIntent: intent },
+        };
+      } catch (error) {
+        deps.loggerService.error('teach:classifyResponse AI classification failed', { error });
+        // Fallback: assume question
+        return {
+          teach: { teachIntent: 'question' as TeachIntent },
+        };
+      }
+    };

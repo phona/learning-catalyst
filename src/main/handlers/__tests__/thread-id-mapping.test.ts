@@ -9,24 +9,46 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { setupSessionsHandlers } from '../sessions-handlers';
 import { ipcMain } from 'electron';
 
+// Mock electron module
+const handlerMap = new Map<string, (...args: unknown[]) => any>();
+
+vi.mock('electron', () => ({
+  ipcMain: {
+    handle: (channel: string, handler: (...args: unknown[]) => any) => {
+      handlerMap.set(channel, handler);
+    },
+  },
+}));
+
 // Mock services
 const createMockServices = () => {
   const learningService = {
+    createLearningPath: vi.fn(),
+    getLearningPath: vi.fn(),
+    getUserProgress: vi.fn(),
+    getSessionProgress: vi.fn(),
     startLearningSession: vi.fn(),
     getSession: vi.fn(),
     updateSession: vi.fn(),
+    updateSessionTitle: vi.fn(),
     deleteSession: vi.fn(),
     getRecentSessions: vi.fn(),
     searchSessions: vi.fn(),
+    getPracticeHistory: vi.fn(),
     getSessionStatistics: vi.fn(),
   };
 
   const loggerService = {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
     child: vi.fn(() => ({
-      info: vi.fn(),
       debug: vi.fn(),
+      info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
+      child: vi.fn(),
     })),
   };
 
@@ -59,7 +81,7 @@ describe('Thread ID Mapping', () => {
       learningService.startLearningSession.mockResolvedValue(expectedSession);
 
       // Get the handler directly
-      const handler = (ipcMain as any)._events.get('sessions:create');
+      const handler = handlerMap.get('sessions:create')!;
 
       // Act
       const response = await handler(null, {
@@ -75,13 +97,13 @@ describe('Thread ID Mapping', () => {
         })
       );
 
-      expect(response.data.sessionId).toBe(assistantUIThreadId);
-      expect(response.data.session.id).toBe(assistantUIThreadId);
+      expect(response.sessionId).toBe(assistantUIThreadId);
+      expect(response.session.id).toBe(assistantUIThreadId);
 
       console.log('✅ threadId flows correctly:');
       console.log('  Assistant UI threadId:', assistantUIThreadId);
       console.log('  learningService called with sessionId:', assistantUIThreadId);
-      console.log('  Response sessionId:', response.data.sessionId);
+      console.log('  Response sessionId:', response.sessionId);
     });
 
     it('should use provided threadId as sessionId in database', async () => {
@@ -106,19 +128,19 @@ describe('Thread ID Mapping', () => {
       });
 
       // Get handler and execute
-      const handler = (ipcMain as any)._events.get('sessions:create');
+      const handler = handlerMap.get('sessions:create')!;
       const response = await handler(null, {
         title: 'Custom Thread',
         threadId: customThreadId,
       });
 
       // Verify
-      expect(response.data.sessionId).toBe(customThreadId);
-      expect(response.data.session.id).toBe(customThreadId);
+      expect(response.sessionId).toBe(customThreadId);
+      expect(response.session.id).toBe(customThreadId);
 
       console.log('✅ Custom threadId used correctly:');
       console.log('  Input threadId:', customThreadId);
-      console.log('  Database sessionId:', response.data.sessionId);
+      console.log('  Database sessionId:', response.sessionId);
     });
   });
 
@@ -146,7 +168,7 @@ describe('Thread ID Mapping', () => {
         });
       });
 
-      const handler = (ipcMain as any)._events.get('sessions:create');
+      const handler = handlerMap.get('sessions:create')!;
       const response = await handler(null, {
         title: 'Consistency Test',
         threadId: testThreadId,
@@ -157,8 +179,8 @@ describe('Thread ID Mapping', () => {
         expect.objectContaining({ sessionId: testThreadId })
       );
 
-      expect(response.data.sessionId).toBe(testThreadId);
-      expect(response.data.session.id).toBe(testThreadId);
+      expect(response.sessionId).toBe(testThreadId);
+      expect(response.session.id).toBe(testThreadId);
 
       // This demonstrates the key invariant:
       // Assistant UI threadId = learningService sessionId = DB sessionId
@@ -166,7 +188,7 @@ describe('Thread ID Mapping', () => {
       console.log('\n=== ID Consistency Verification ===');
       console.log('Assistant UI threadId:', testThreadId);
       console.log('learningService sessionId param:', testThreadId);
-      console.log('DB session.id:', response.data.sessionId);
+      console.log('DB session.id:', response.sessionId);
       console.log('✅ All IDs match!\n');
       console.log('This ensures:');
       console.log('  • chat:start-stream will use conversationId =', testThreadId);

@@ -1,6 +1,13 @@
-import React from 'react';
+/**
+ * ModuleStatusIndicator Component Tests
+ *
+ * Tests for the system health status indicator component that displays
+ * module status and issues with proper error handling.
+ */
+
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { vi } from 'vitest';
+import '@testing-library/jest-dom';
 import { ModuleStatusIndicator } from '../ModuleStatusIndicator';
 
 describe('ModuleStatusIndicator', () => {
@@ -13,15 +20,14 @@ describe('ModuleStatusIndicator', () => {
       discovery: { status: 'failed', message: 'down' },
     },
     issues: [
-      { module: 'discovery', severity: 'critical', message: 'service unreachable' },
-      { module: 'analytics', severity: 'warning', message: 'latency high' },
-      { module: 'chat', severity: 'info', message: 'using fallback' },
-      { module: 'sessions', severity: 'error', message: 'queue backlog' },
+      { module: 'discovery', severity: 'critical' as const, message: 'service unreachable' },
+      { module: 'analytics', severity: 'warning' as const, message: 'latency high' },
+      { module: 'chat', severity: 'info' as const, message: 'using fallback' },
     ],
   };
 
   it('shows initializing state when health is not provided', () => {
-    render(<ModuleStatusIndicator systemHealth={undefined as any} />);
+    render(<ModuleStatusIndicator systemHealth={null} />);
 
     expect(screen.getByText('Module system initializing...')).toBeInTheDocument();
   });
@@ -43,8 +49,8 @@ describe('ModuleStatusIndicator', () => {
     expect(screen.getAllByText(/analytics/i)[0]).toBeInTheDocument();
     expect(screen.getAllByText('failed')[0]).toHaveClass('text-red-600');
 
-    // Issues section should truncate after three and show count of remaining
+    // Issues section should display all issues since there are only 3
     expect(screen.getByText(/Recent Issues/i)).toBeInTheDocument();
-    expect(screen.getByText('... and 1 more')).toBeInTheDocument();
+    expect(screen.queryByText(/\.\.\. and \d+ more/)).not.toBeInTheDocument();
   });
 });

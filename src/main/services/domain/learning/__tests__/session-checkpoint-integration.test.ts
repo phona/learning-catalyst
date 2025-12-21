@@ -21,13 +21,16 @@ const mockCheckpointSaver = {
 };
 
 // Mock logger
+const createMockLogger = () => ({
+  info: vi.fn(),
+  debug: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  child: vi.fn(() => createMockLogger()),
+});
+
 const mockLoggerService = {
-  child: vi.fn(() => ({
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })),
+  child: vi.fn(() => createMockLogger()),
 };
 
 // Mock database

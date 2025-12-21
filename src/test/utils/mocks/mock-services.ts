@@ -172,7 +172,7 @@ export const mockCatalystService = () => {
       }
 
       // Add sessionRestored flag for restored sessions
-      const metadata = {
+      const metadata: Record<string, any> = {
         tokensUsed: 50,
         agentId,
         timestamp: Date.now(),
@@ -451,7 +451,7 @@ export const mockElectronIPC = {
         success: true,
         result: {
           type: 'learning_explanation',
-          content: data?.message?.includes('useCallback')
+          content: (data as any)?.message?.includes('useCallback')
             ? 'useCallback is a React Hook that returns a memoized callback function. It only changes when one of its dependencies changes.'
             : 'Mock response from CatalystService',
           metadata: { tokensUsed: 50, modelUsed: 'gpt-3.5-turbo' },

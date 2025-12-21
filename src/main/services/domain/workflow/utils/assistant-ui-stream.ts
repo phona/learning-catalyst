@@ -245,8 +245,8 @@ export type DataStreamChunk =
  *
  * Accepts the raw workflow stream from LangGraph.stream() and converts it to AI SDK protocol.
  * This version handles streamMode: ['messages', 'custom'] which can yield:
- * - Custom events: [eventName, DataStreamChunk]
- * - Messages: [BaseMessage, Record<string, any>]
+ * - Custom events: ['custom', DataStreamChunk]
+ * - Messages: ['messages', StreamMessageOutput]
  *
  * PHILOSOPHY:
  * - Direct pass-through for custom events (already AI SDK chunks)
@@ -278,18 +278,16 @@ export type DataStreamChunk =
  * 'data: {"type":"text-end","id":"msg-0"}\n\n'
  */
 export async function* toAssistantUIStream(
-  workflowStream: AsyncIterable<[string, DataStreamChunk]>
+  workflowStream: AsyncIterable<['messages' | 'custom', unknown]>
 ): AsyncGenerator<string, void, unknown> {
   // Iterate over the workflow stream
-  for await (const chunk of workflowStream) {
+  for await (const [eventType, data] of workflowStream) {
     // Handle custom events (AI SDK chunks emitted directly from nodes)
-    // Format: [eventName, dataStreamChunk]
-    const [, dataStreamChunk] = chunk;
-
-    // Validate that it's actually a DataStreamChunk
-    if (dataStreamChunk && typeof dataStreamChunk === 'object' && 'type' in dataStreamChunk) {
-      yield formatSSE(dataStreamChunk);
+    // Format: ['custom', DataStreamChunk]
+    if (eventType === 'custom' && data && typeof data === 'object' && 'type' in data) {
+      yield formatSSE(data as DataStreamChunk);
     }
+    // Messages are handled separately by the workflow itself
   }
 }
 

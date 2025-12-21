@@ -18,6 +18,7 @@ import type {
   RelatedConcept,
   RelatedConceptsDisplay,
   SearchResult,
+  KnowledgeIngestionResult,
 } from '@/shared/types/electron-api/knowledge-api';
 
 type KnowledgeServiceDeps = {
@@ -36,16 +37,6 @@ export interface KnowledgeIngestionOptions {
   materialId?: string;
   sessionId?: string;
   source?: string;
-}
-
-export interface KnowledgeIngestionResult {
-  conceptsInserted: number;
-  conceptsUpdated: number;
-  relationshipsInserted: number;
-  metadata: {
-    processedAt: string;
-    source?: string;
-  };
 }
 
 type SearchParams = {
@@ -84,11 +75,11 @@ const normalizeRelationshipType = (
     return normalized as RelationshipRow['relationship_type'];
   }
   if (normalized.includes('require') || normalized.includes('depend')) return 'prerequisite';
-  if (normalized.includes('example')) return 'example';
-  if (normalized.includes('apply')) return 'application';
-  if (normalized.includes('contrast') || normalized.includes('opposite')) return 'contrasts';
-  if (normalized.includes('contains') || normalized.includes('part')) return 'contains';
-  return 'related';
+  if (normalized.includes('example')) return 'example_of';
+  if (normalized.includes('apply')) return 'applies_to';
+  if (normalized.includes('contrast') || normalized.includes('opposite')) return 'contrasts_with';
+  if (normalized.includes('contains') || normalized.includes('part')) return 'part_of';
+  return 'related_to';
 };
 
 const clampStrength = (value?: number): number =>
@@ -241,9 +232,9 @@ const getKnowledgeGraph = async (db: Kysely<CoreDatabase>, startId: string, dept
 };
 
 const relationshipTypeToEdgeType = (type: RelationshipRow['relationship_type']) => {
-  if (type === 'prerequisite') return 'prerequisite';
-  if (type === 'application') return 'application';
-  if (type === 'contains') return 'foundation';
+  if (type === 'prerequisite' || type === 'depends_on' || type === 'builds_upon') return 'prerequisite';
+  if (type === 'applies_to') return 'application';
+  if (type === 'part_of' || type === 'generalizes') return 'foundation';
   return 'related' as const;
 };
 
@@ -395,13 +386,16 @@ export const createKnowledgeService = ({
 
         if (vectorResults.length > 0) {
           const bestMatch = vectorResults[0];
-          const conceptId = bestMatch.metadata?.conceptId || bestMatch.document.id;
+          const conceptId = (bestMatch.metadata?.conceptId as string) || bestMatch.document.id;
 
           // Found a similar concept in the knowledge base
           if (dedupStrategy === 'skip') {
             // Don't store the new concept, mark as skipped (used existing)
             nodeIdMapping.set(node.id, conceptId);
-            nameById.set(node.id, bestMatch.metadata?.conceptName || bestMatch.document);
+            nameById.set(
+              node.id,
+              (bestMatch.metadata?.conceptName as string) || bestMatch.document.content,
+            );
             skippedConcepts += 1;
             continue;
           } else if (dedupStrategy === 'merge_metadata' && conceptId) {
@@ -522,11 +516,17 @@ export const createKnowledgeService = ({
           .insertInto('concepts')
           .values({
             id: conceptId,
-            ...payload,
+            name: payload.name,
+            description: payload.description,
+            concept_type: payload.concept_type,
+            difficulty_level: payload.difficulty_level,
             mastery_level: 0,
+            tags: payload.tags,
+            metadata: payload.metadata,
             review_count: 0,
             parent_concept_id: undefined,
             created_at: now,
+            updated_at: now,
           })
           .execute();
         insertedConcepts += 1;
@@ -645,13 +645,6 @@ export const createKnowledgeService = ({
       metadata: {
         processedAt: now,
         source: options.source,
-        autoDeduplication: autoDedupEnabled
-          ? {
-              enabled: true,
-              threshold: plan?.autoDeduplicate?.threshold ?? 0.92,
-              strategy: plan?.autoDeduplicate?.strategy ?? 'skip',
-            }
-          : { enabled: false },
       },
     };
   };
@@ -729,7 +722,7 @@ export const createKnowledgeService = ({
 
       // 2. Extract conceptIds from Qdrant results
       const conceptIds = qdrantResults
-        .map((result) => result.document.metadata.conceptId)
+        .map((result) => result.document.metadata.conceptId as string)
         .filter(Boolean);
 
       if (conceptIds.length === 0) {
@@ -747,7 +740,7 @@ export const createKnowledgeService = ({
       const conceptMap = new Map(rows.map((row) => [row.id, row]));
       const results = qdrantResults
         .map((result) => {
-          const conceptId = result.document.metadata.conceptId;
+          const conceptId = result.document.metadata.conceptId as string;
           const concept = conceptMap.get(conceptId);
           if (!concept) return null;
 

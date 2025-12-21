@@ -9,14 +9,30 @@ describe('vector database pure separation', () => {
   describe('addDocumentBatch', () => {
     it('should store minimal payload with only conceptId and content', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -66,14 +82,30 @@ describe('vector database pure separation', () => {
 
     it('should batch multiple documents correctly', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -96,14 +128,30 @@ describe('vector database pure separation', () => {
 
     it('should handle empty document array', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -116,14 +164,30 @@ describe('vector database pure separation', () => {
 
     it('should format content as "name | description" for better search', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -148,14 +212,30 @@ describe('vector database pure separation', () => {
 
     it('should store content without truncation', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -184,6 +264,10 @@ describe('vector database pure separation', () => {
   describe('search', () => {
     it('should return results with minimal metadata', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
         search: vi.fn().mockResolvedValue([
           {
             id: 'concept:concept-1',
@@ -198,13 +282,25 @@ describe('vector database pure separation', () => {
             },
           },
         ]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -241,16 +337,32 @@ describe('vector database pure separation', () => {
 
     it('should generate embedding from query', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
         search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockEmbeddingModel = {
         embed: vi.fn().mockResolvedValue(Array(1536).fill(0.5)),
+        embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.5)]),
         dimensions: 1536,
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue(mockEmbeddingModel),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -271,14 +383,30 @@ describe('vector database pure separation', () => {
 
     it('should handle search errors gracefully', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
         search: vi.fn().mockRejectedValue(new Error('Qdrant error')),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -288,14 +416,30 @@ describe('vector database pure separation', () => {
 
     it('should return empty array when no results', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
         search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -307,14 +451,30 @@ describe('vector database pure separation', () => {
 
     it('should use default options correctly', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
         search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -335,14 +495,30 @@ describe('vector database pure separation', () => {
   describe('deleteDocument', () => {
     it('should delete document by ID', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
         delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -354,14 +530,30 @@ describe('vector database pure separation', () => {
 
     it('should handle delete errors gracefully', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
+        upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
         delete: vi.fn().mockRejectedValue(new Error('Delete failed')),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -373,19 +565,38 @@ describe('vector database pure separation', () => {
   describe('getStats', () => {
     it('should return total document count', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
         listCollections: vi.fn().mockResolvedValue([
           {
             name: 'knowledge_items',
+            vectors_count: 100,
             points_count: 100,
+            status: 'green',
+            optimizer_status: 'ok',
           },
         ]),
+        upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -399,14 +610,30 @@ describe('vector database pure separation', () => {
   describe('payload structure validation', () => {
     it('should have consistent payload structure', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -455,14 +682,30 @@ describe('vector database pure separation', () => {
   describe('vector dimensions', () => {
     it('should handle 1536-dimensional embeddings', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);
@@ -486,14 +729,30 @@ describe('vector database pure separation', () => {
 
     it('should handle different embedding values', async () => {
       const mockVectorStore = {
+        createCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        listCollections: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(),
+        search: vi.fn().mockResolvedValue([]),
+        getVectors: vi.fn().mockResolvedValue([]),
+        delete: vi.fn(),
+        clearCollection: vi.fn(),
+        scroll: vi.fn().mockResolvedValue({ points: [] }),
       };
 
       const mockProviderFactory = {
+        getModel: vi.fn(),
+        getEmbeddings: vi.fn().mockResolvedValue({
+          embedQuery: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocument: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedDocuments: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
+        }),
         getEmbeddingModel: vi.fn().mockResolvedValue({
           embed: vi.fn().mockResolvedValue(Array(1536).fill(0.1)),
+          embedBatch: vi.fn().mockResolvedValue([Array(1536).fill(0.1)]),
           dimensions: 1536,
         }),
+        getRerankModel: vi.fn(),
       };
 
       const vectorDatabase = createVectorDatabase(mockVectorStore, mockProviderFactory);

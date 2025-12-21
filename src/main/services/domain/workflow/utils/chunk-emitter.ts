@@ -78,6 +78,14 @@ import type {
  * ```
  */
 export function createChunkEmitter(config: LangGraphRunnableConfig): ChunkEmitter {
+  // Throw if writer is not available - chunk emission requires streaming context
+  if (!config.writer) {
+    throw new Error(
+      'ChunkEmitter requires a writer function in config. ' +
+      'This node must be called with streaming enabled (stream() not invoke()).'
+    );
+  }
+
   const writer = config.writer;
 
   /**
@@ -86,16 +94,8 @@ export function createChunkEmitter(config: LangGraphRunnableConfig): ChunkEmitte
    * @param chunk - Data stream chunk to emit
    */
   const emit = (chunk: DataStreamChunk): void => {
-    writer(chunk as any);
+    writer(chunk);
   };
-
-  // Throw if writer is not available - chunk emission requires streaming context
-  if (!writer) {
-    throw new Error(
-      'ChunkEmitter requires a writer function in config. ' +
-      'This node must be called with streaming enabled (stream() not invoke()).'
-    );
-  }
 
   return {
     textStart: (id: string): void => {
@@ -131,7 +131,7 @@ export function createChunkEmitter(config: LangGraphRunnableConfig): ChunkEmitte
     toolInputAvailable: (
       toolCallId: string,
       toolName: string,
-      input: unknown
+      input?: unknown
     ): void => {
       emit({
         type: 'tool-input-available',
@@ -248,12 +248,12 @@ export interface ChunkEmitter {
    *
    * @param toolCallId - Tool call ID (must match tool-input-start)
    * @param toolName - Tool name
-   * @param input - Tool input parameters
+   * @param input - Tool input parameters (optional)
    */
   toolInputAvailable: (
     toolCallId: string,
     toolName: string,
-    input: unknown
+    input?: unknown
   ) => void;
 
   /**

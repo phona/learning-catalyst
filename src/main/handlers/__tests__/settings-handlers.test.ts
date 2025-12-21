@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { setupSettingsHandlers } from '../settings-handlers';
+import { ipcMain } from 'electron';
 import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { AppConfig } from '@/shared/types';
 
@@ -52,29 +53,29 @@ describe('settings handlers (documented surface)', () => {
     const sampleConfig = { ui: { theme: 'dark' } } as unknown as AppConfig;
     mockConfigServiceFns.getConfig.mockResolvedValue(sampleConfig);
 
-    setupSettingsHandlers({ configService: mockConfigService });
+    setupSettingsHandlers(ipcMain, { configService: mockConfigService });
 
     const result = await getHandler('settings:getWorkspaceConfig')(undefined);
 
-    expect(result).toEqual({ success: true, data: sampleConfig });
+    expect(result).toEqual(sampleConfig);
     expect(mockConfigServiceFns.getConfig).toHaveBeenCalledTimes(1);
   });
 
   it('persists workspace configuration when requested', async () => {
-    setupSettingsHandlers({ configService: mockConfigService });
+    setupSettingsHandlers(ipcMain, { configService: mockConfigService });
 
     const config = { ui: { theme: 'dark' } } as Partial<AppConfig>;
     const result = await getHandler('settings:setWorkspaceConfig')(undefined, config);
-    expect((result as { success: boolean }).success).toBe(true);
+    expect(result).toBeUndefined();
 
     expect(mockConfigServiceFns.setConfig).toHaveBeenCalledWith(config);
   });
 
   it('returns app version through settings:getAppVersion', async () => {
-    setupSettingsHandlers({ configService: mockConfigService });
+    setupSettingsHandlers(ipcMain, { configService: mockConfigService });
 
     const version = await getHandler('settings:getAppVersion')(undefined);
 
-    expect(version).toEqual({ success: true, data: '9.9.9' });
+    expect(version).toEqual('9.9.9');
   });
 });

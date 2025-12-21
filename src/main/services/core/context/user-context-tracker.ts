@@ -61,7 +61,7 @@ type RecentConceptRecord = {
 };
 
 type RecentActivityEntry = {
-  type: 'concept_introduction' | 'practice_attempt' | 'breakthrough' | 'confusion' | 'help_request';
+  type: string;
   concept: string;
   timestamp: number;
   outcome?: string;
@@ -620,7 +620,7 @@ export const createUserContextTracker = (
 
         handleLearningPatternDetected(request, {
           ...changes,
-          newConcepts: patternResult.patterns.map((p) => (p as { concept?: string }).concept || 'general'),
+          newConcepts: patternResult.patterns.map((p: any) => (p as { concept?: string }).concept || 'general'),
           confidenceChanges: {},
           newStuckPoints: [],
           resolvedStuckPoints: [],
@@ -730,7 +730,7 @@ export const createUserContextTracker = (
         type: projectContextUpdate.type,
         technologies: projectContextUpdate.files || [],
         recentFiles:
-            projectContextUpdate.files?.map((file) => ({
+            projectContextUpdate.files?.map((file: string) => ({
               path: file,
               lastModified: Date.now(),
               concepts: [],

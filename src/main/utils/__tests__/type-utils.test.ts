@@ -84,11 +84,11 @@ describe('Type Utils - Interface Tests', () => {
         // missing optional fields
       };
 
-      const withDefaults = (data?: unknown) => ({
-        id: data.id,
-        title: data.title,
-        description: data.description || 'Default description',
-        status: data.status || 'draft',
+      const withDefaults = (data?: { id?: string; title?: string; description?: string; status?: string }) => ({
+        id: data?.id,
+        title: data?.title,
+        description: data?.description || 'Default description',
+        status: data?.status || 'draft',
       });
 
       const result = withDefaults(partialData);

@@ -170,38 +170,38 @@ export const createWinstonLoggerService = ({
     // In prod mode, use rotation for log management
     const fileOptions = devMode
       ? {
-          filename: join(logDirectory, 'app.log'),
-          format: fileFormat,
-          level: fileLevel,
-          options: { flags: 'a' }, // Append mode
-        }
+        filename: join(logDirectory, 'app.log'),
+        format: fileFormat,
+        level: fileLevel,
+        options: { flags: 'a' }, // Append mode
+      }
       : {
-          filename: join(logDirectory, 'app.log'),
-          maxsize: parseSize(loggerConfig.file.maxFileSize),
-          maxFiles: parseInt(loggerConfig.file.maxFiles, 10) || 10,
-          format: fileFormat,
-          level: fileLevel,
-          tailable: true,
-        };
+        filename: join(logDirectory, 'app.log'),
+        maxsize: parseSize(loggerConfig.file.maxFileSize),
+        maxFiles: parseInt(loggerConfig.file.maxFiles, 10) || 10,
+        format: fileFormat,
+        level: fileLevel,
+        tailable: true,
+      };
 
     transports.push(new winston.transports.File(fileOptions));
 
     // Error-only log
     const errorOptions = devMode
       ? {
-          filename: join(logDirectory, 'error.log'),
-          format: fileFormat,
-          level: 'error' as const,
-          options: { flags: 'a' },
-        }
+        filename: join(logDirectory, 'error.log'),
+        format: fileFormat,
+        level: 'error' as const,
+        options: { flags: 'a' },
+      }
       : {
-          filename: join(logDirectory, 'error.log'),
-          maxsize: parseSize(loggerConfig.file.maxFileSize),
-          maxFiles: parseInt(loggerConfig.file.maxFiles, 10) || 10,
-          format: fileFormat,
-          level: 'error' as const,
-          tailable: true,
-        };
+        filename: join(logDirectory, 'error.log'),
+        maxsize: parseSize(loggerConfig.file.maxFileSize),
+        maxFiles: parseInt(loggerConfig.file.maxFiles, 10) || 10,
+        format: fileFormat,
+        level: 'error' as const,
+        tailable: true,
+      };
 
     transports.push(new winston.transports.File(errorOptions));
   }

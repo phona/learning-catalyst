@@ -17,6 +17,7 @@ import type {
   CheckpointListOptions,
   ChannelVersions,
   PendingWrite,
+  CheckpointPendingWrite,
 } from '@langchain/langgraph-checkpoint';
 // Define RunnableConfig locally since we can't import it
 export interface RunnableConfig {
@@ -423,7 +424,11 @@ export class SQLiteCheckpointSaver extends BaseCheckpointSaver<number> {
       checkpoint,
       metadata,
       parentConfig,
-      writes: writes ?? [],
+      pendingWrites: writes?.map((write) => {
+        // Convert [channel, value] to [taskId, channel, value]
+        // For now, use 'main' as default taskId since we don't have taskId in PendingWrite
+        return ['main', write[0], write[1]] as CheckpointPendingWrite;
+      }),
     };
   }
 

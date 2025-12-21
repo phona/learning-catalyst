@@ -7,12 +7,24 @@ const base = {
   preview: 'preview',
   tags: ['math'],
   agentType: 'learning',
-  difficulty: 'beginner',
+  difficulty: 'beginner' as const,
   messages: [],
+  messageCount: 0,
+  lastActivity: 'just now',
+  duration: '0 min',
+  isActive: false,
+  hasUnreadMessages: false,
 };
 
 const s1 = { id: 's1', title: 'One', ...base };
-const s2 = { id: 's2', title: 'Two', ...base, agentType: 'tutor', difficulty: 'advanced', tags: ['science'] };
+const s2 = {
+  id: 's2',
+  title: 'Two',
+  ...base,
+  agentType: 'tutor',
+  difficulty: 'advanced' as const,
+  tags: ['science']
+};
 
 describe('sessionStore behavior', () => {
   beforeEach(() => {
@@ -37,12 +49,12 @@ describe('sessionStore behavior', () => {
 
   it('adds, updates, removes and selects sessions', () => {
     const store = useSessionStore.getState();
-    store.addSession(s1 as any);
-    store.addSession(s2 as any);
+    store.addSession(s1);
+    store.addSession(s2);
     expect(useSessionStore.getState().sessions).toHaveLength(2);
     store.updateSession('s1', { title: 'New' });
     expect(useSessionStore.getState().sessions[1].title).toBe('New');
-    store.setCurrentSession(s1 as any);
+    store.setCurrentSession(s1);
     expect(useSessionStore.getState().currentSession?.id).toBe('s1');
     store.removeSession('s1');
     expect(useSessionStore.getState().sessions).toHaveLength(1);
@@ -55,7 +67,7 @@ describe('sessionStore behavior', () => {
   it('manages filters and pagination', () => {
     const store = useSessionStore.getState();
     store.setSearchQuery('math');
-    store.setFilters({ difficulty: 'beginner' } as any);
+    store.setFilters({ difficulty: 'beginner' });
     expect(useSessionStore.getState().filters.difficulty).toBe('beginner');
     store.clearFilters();
     expect(useSessionStore.getState().filters).toEqual({});
@@ -67,26 +79,27 @@ describe('sessionStore behavior', () => {
 
   it('filters sessions by text, tags and agent type', () => {
     const store = useSessionStore.getState();
-    store.setSessions([s1 as any, s2 as any]);
+    store.setSessions([s1, s2]);
 
     store.setSearchQuery('two');
-    let filtered = useSessionStore.getState().useFilteredSessions?.() ?? []; // defensive
-    filtered = useSessionStore.getState().sessions.filter((s) => s.title.toLowerCase().includes('two'));
-    expect(filtered).toHaveLength(1);
+    const filteredByTitle = useSessionStore.getState().sessions.filter((s) =>
+      s.title.toLowerCase().includes('two')
+    );
+    expect(filteredByTitle).toHaveLength(1);
 
     store.setSearchQuery('');
-    store.setFilters({ tags: ['math'] } as any);
+    store.setFilters({ tags: ['math'] });
     const filteredByTag = useSessionStore.getState().sessions.filter((s) => s.tags.includes('math'));
     expect(filteredByTag).toHaveLength(1);
 
-    store.setFilters({ agentType: 'tutor' } as any);
+    store.setFilters({ agentType: 'tutor' });
     const filteredByAgent = useSessionStore.getState().sessions.filter((s) => s.agentType === 'tutor');
     expect(filteredByAgent).toHaveLength(1);
   });
 
   it('selection helpers select/deselect all', () => {
     const store = useSessionStore.getState();
-    store.setSessions([s1 as any, s2 as any]);
+    store.setSessions([s1, s2]);
     store.selectAllSessions();
     expect(useSessionStore.getState().selectedSessions.size).toBe(2);
     store.deselectSession('s1');
@@ -97,7 +110,7 @@ describe('sessionStore behavior', () => {
 
   it('update and delete actions toggle flags and mutate state', async () => {
     const store = useSessionStore.getState();
-    store.setSessions([s1 as any]);
+    store.setSessions([s1]);
 
     await store.updateSessionData('s1', { title: 'Updated' });
     expect(useSessionStore.getState().sessions[0].title).toBe('Updated');
@@ -110,9 +123,9 @@ describe('sessionStore behavior', () => {
 
   it('createNewSession forwards defaults to createSession', async () => {
     const createSessionMock = vi.fn().mockResolvedValue({ id: 'new', title: 'New Learning Session' });
-    useSessionStore.setState((state) => ({ ...state, createSession: createSessionMock as any }));
+    useSessionStore.setState((state) => ({ ...state, createSession: createSessionMock }));
 
-    const session = await useSessionStore.getState().createNewSession({ title: 'Custom' } as any);
+    const session = await useSessionStore.getState().createNewSession({ title: 'Custom' });
     expect(createSessionMock).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Custom', agentType: 'learning', difficulty: 'medium' }),
     );
@@ -121,14 +134,18 @@ describe('sessionStore behavior', () => {
 
   it('refreshSessions delegates to loadSessions with current filters', async () => {
     const loadSessionsMock = vi.fn().mockResolvedValue(undefined);
-    useSessionStore.setState((state) => ({ ...state, loadSessions: loadSessionsMock as any, filters: { agentType: 'tutor' } as any }));
+    useSessionStore.setState((state) => ({
+      ...state,
+      loadSessions: loadSessionsMock,
+      filters: { agentType: 'tutor' }
+    }));
     await useSessionStore.getState().refreshSessions();
     expect(loadSessionsMock).toHaveBeenCalledWith({ agentType: 'tutor' });
   });
 
   it('resetSessionState restores initial values', () => {
     const store = useSessionStore.getState();
-    store.setSessions([s1 as any]);
+    store.setSessions([s1]);
     store.setSearchQuery('x');
     store.resetSessionState();
     expect(useSessionStore.getState().sessions).toHaveLength(0);

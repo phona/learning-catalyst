@@ -24,7 +24,6 @@ const baseApi = (): Partial<ElectronAPI> => ({
 describe('chat-service', () => {
   it('requires session id for sendMessage', async () => {
     const service = createChatService(baseApi() as ElectronAPI);
-    // @ts-expect-error no session
     await expect(service.sendMessage('hi')).rejects.toThrow(/Session ID/);
   });
 
@@ -64,8 +63,7 @@ describe('chat-service', () => {
 
   it('throws when onChunk missing', async () => {
     const service = createChatService(baseApi() as ElectronAPI);
-    // @ts-expect-error missing callback
-    await expect(service.sendMessageStream('go', undefined, { sessionId: 's1' })).rejects.toThrow(
+    await expect(service.sendMessageStream('go', undefined as any, { sessionId: 's1' })).rejects.toThrow(
       /onChunk/,
     );
   });

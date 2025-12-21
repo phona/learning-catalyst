@@ -123,7 +123,7 @@ describe('Workflow Graph Routing', () => {
   });
 
   describe('TOPIC_PARSE conditional routing', () => {
-    const routingFn = CONDITIONALS[NodeName.TOPIC_PARSE];
+    const routingFn = CONDITIONALS[NodeName.TOPIC_PARSE]!;
 
     it('should route to COMPLETE when error is present', () => {
       const stateWithError: WorkflowState = {
@@ -336,7 +336,7 @@ describe('Workflow Graph Routing', () => {
   });
 
   describe('ASSESS conditional routing', () => {
-    const routingFn = CONDITIONALS[NodeName.ASSESS];
+    const routingFn = CONDITIONALS[NodeName.ASSESS]!;
 
     it('should route to FAST_TRACK_QUIZ when confidence >= threshold', () => {
       const highConfidenceState: WorkflowState = {
@@ -648,7 +648,7 @@ describe('Workflow Graph Routing', () => {
   });
 
   describe('GRADE_QUIZ conditional routing', () => {
-    const routingFn = CONDITIONALS[NodeName.GRADE_QUIZ];
+    const routingFn = CONDITIONALS[NodeName.GRADE_QUIZ]!;
 
     it('should route to COMPLETE when mastery >= threshold', () => {
       const highMasteryState: WorkflowState = {
@@ -828,7 +828,7 @@ describe('Workflow Graph Routing', () => {
   });
 
   describe('EVALUATE conditional routing', () => {
-    const routingFn = CONDITIONALS[NodeName.EVALUATE];
+    const routingFn = CONDITIONALS[NodeName.EVALUATE]!;
 
     it('should route to COMPLETE when mastery >= complete threshold', () => {
       const highMasteryState: WorkflowState = {
@@ -1109,11 +1109,11 @@ describe('Workflow Graph Routing', () => {
       };
 
       // After ASSESS with high confidence -> FAST_TRACK_QUIZ
-      expect(CONDITIONALS[NodeName.ASSESS](assessState)).toBe(NodeName.FAST_TRACK_QUIZ);
+      expect(CONDITIONALS[NodeName.ASSESS]!(assessState)).toBe(NodeName.FAST_TRACK_QUIZ);
 
       // After FAST_TRACK_QUIZ with high mastery -> COMPLETE
       const afterQuizState = { ...assessState, mastery: 0.95 };
-      expect(CONDITIONALS[NodeName.GRADE_QUIZ](afterQuizState)).toBe(NodeName.COMPLETE);
+      expect(CONDITIONALS[NodeName.GRADE_QUIZ]!(afterQuizState)).toBe(NodeName.COMPLETE);
     });
 
     it('should route through complete workflow for low-confidence user', () => {
@@ -1158,13 +1158,13 @@ describe('Workflow Graph Routing', () => {
       };
 
       // After ASSESS with low confidence -> TEACH
-      expect(CONDITIONALS[NodeName.ASSESS](assessState)).toBe(NodeName.TEACH);
+      expect(CONDITIONALS[NodeName.ASSESS]!(assessState)).toBe(NodeName.TEACH);
 
       // After TEACH -> PRACTICE (via SIMPLE_EDGES)
 
       // After PRACTICE with high mastery -> COMPLETE
       const afterPracticeState = { ...assessState, mastery: 0.95 };
-      expect(CONDITIONALS[NodeName.EVALUATE](afterPracticeState)).toBe(NodeName.COMPLETE);
+      expect(CONDITIONALS[NodeName.EVALUATE]!(afterPracticeState)).toBe(NodeName.COMPLETE);
     });
   });
 });

@@ -23,6 +23,7 @@ describe('concept parsing handlers - error propagation', () => {
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
     };
 
     const mockConceptParsingService = {
@@ -32,7 +33,7 @@ describe('concept parsing handlers - error propagation', () => {
     };
 
     const mockLoggerService = {
-      child: () => mockErrorLogger,
+      child: vi.fn().mockReturnValue(mockErrorLogger),
     };
 
     const mockConfigService = {
@@ -44,6 +45,11 @@ describe('concept parsing handlers - error propagation', () => {
           },
         },
       }),
+      setConfig: vi.fn(),
+      getProviderConfig: vi.fn(),
+      setProviderConfig: vi.fn(),
+      onConfigChanged: vi.fn(),
+      isSetupComplete: vi.fn(),
     };
 
     // Setup handlers
@@ -94,18 +100,26 @@ describe('concept parsing handlers - error propagation', () => {
       rebuild: vi.fn().mockResolvedValue(undefined),
     };
 
+    const mockLogger = {
+      info: vi.fn(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
+    };
+
     const mockLoggerService = {
-      child: () => ({
-        info: vi.fn(),
-        debug: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-      }),
+      child: vi.fn().mockReturnValue(mockLogger),
     };
 
     const mockConfigService = {
       get: vi.fn(),
       getConfig: vi.fn().mockResolvedValue({}),
+      setConfig: vi.fn(),
+      getProviderConfig: vi.fn(),
+      setProviderConfig: vi.fn(),
+      onConfigChanged: vi.fn(),
+      isSetupComplete: vi.fn(),
     };
 
     setupConceptParsingHandlers(mockIpcMain as any, {
@@ -136,20 +150,29 @@ describe('concept parsing handlers - error propagation', () => {
         metadata: {} as any,
       }),
       clearJobCache: vi.fn().mockRejectedValue(new Error('Permission denied')),
+      rebuild: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const mockLogger = {
+      info: vi.fn(),
+      debug: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      child: vi.fn().mockReturnThis(),
     };
 
     const mockLoggerService = {
-      child: () => ({
-        info: vi.fn(),
-        debug: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-      }),
+      child: vi.fn().mockReturnValue(mockLogger),
     };
 
     const mockConfigService = {
       get: vi.fn(),
       getConfig: vi.fn().mockResolvedValue({}),
+      setConfig: vi.fn(),
+      getProviderConfig: vi.fn(),
+      setProviderConfig: vi.fn(),
+      onConfigChanged: vi.fn(),
+      isSetupComplete: vi.fn(),
     };
 
     setupConceptParsingHandlers(mockIpcMain as any, {

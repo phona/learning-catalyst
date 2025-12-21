@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createThreadListAdapter } from '../useThreadListAdapter';
+import type { ElectronAPI } from '@/shared/types';
+import { IPCError } from '../useElectronAPI';
 
 /**
  * Mock electronAPI for testing
@@ -12,6 +14,10 @@ const createMockElectronAPI = () => ({
     updateTitle: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+  },
+  chat: {
+    getMessages: vi.fn(),
+    generateTitle: vi.fn(),
   },
 });
 
@@ -40,7 +46,7 @@ describe('ThreadListAdapter', () => {
   });
 
   describe('initialize', () => {
-    it('should create thread with localId as threadId', async () => {
+    it('should create thread with sessionId as remoteId', async () => {
       const localId = 'thread-local-123';
       mockElectronAPI.sessions.create.mockResolvedValueOnce({
         success: true,
@@ -54,8 +60,8 @@ describe('ThreadListAdapter', () => {
         threadId: localId,
       });
       expect(result).toEqual({
-        remoteId: localId,
-        externalId: localId,
+        remoteId: 'session-123',
+        externalId: 'session-123',
       });
     });
 
@@ -125,12 +131,10 @@ describe('ThreadListAdapter', () => {
     it('should return empty threads on API error', async () => {
       mockElectronAPI.sessions.list.mockResolvedValueOnce({
         success: false,
-        error: 'API Error',
+        error: { message: 'API Error', code: 'LIST_ERROR' },
       });
 
-      const result = await adapter.list();
-
-      expect(result.threads).toEqual([]);
+      await expect(adapter.list()).rejects.toThrow(IPCError);
     });
 
     it('should return empty threads when no data', async () => {
@@ -246,12 +250,10 @@ describe('ThreadListAdapter', () => {
       const newTitle = 'New Thread Title';
       mockElectronAPI.sessions.updateTitle.mockResolvedValueOnce({
         success: false,
-        error: 'Update failed',
+        error: { message: 'Update failed', code: 'UPDATE_TITLE_ERROR' },
       });
 
-      await expect(adapter.rename(threadId, newTitle)).rejects.toThrow(
-        'Failed to rename session',
-      );
+      await expect(adapter.rename(threadId, newTitle)).rejects.toThrow(IPCError);
     });
   });
 
@@ -273,12 +275,10 @@ describe('ThreadListAdapter', () => {
       const threadId = 'session-123';
       mockElectronAPI.sessions.update.mockResolvedValueOnce({
         success: false,
-        error: 'Archive failed',
+        error: { message: 'Archive failed', code: 'ARCHIVE_ERROR' },
       });
 
-      await expect(adapter.archive(threadId)).rejects.toThrow(
-        'Failed to archive session',
-      );
+      await expect(adapter.archive(threadId)).rejects.toThrow(IPCError);
     });
   });
 
@@ -300,12 +300,10 @@ describe('ThreadListAdapter', () => {
       const threadId = 'session-123';
       mockElectronAPI.sessions.update.mockResolvedValueOnce({
         success: false,
-        error: 'Unarchive failed',
+        error: { message: 'Unarchive failed', code: 'UNARCHIVE_ERROR' },
       });
 
-      await expect(adapter.unarchive(threadId)).rejects.toThrow(
-        'Failed to unarchive session',
-      );
+      await expect(adapter.unarchive(threadId)).rejects.toThrow(IPCError);
     });
   });
 
@@ -325,12 +323,10 @@ describe('ThreadListAdapter', () => {
       const threadId = 'session-123';
       mockElectronAPI.sessions.delete.mockResolvedValueOnce({
         success: false,
-        error: 'Delete failed',
+        error: { message: 'Delete failed', code: 'DELETE_ERROR' },
       });
 
-      await expect(adapter.delete(threadId)).rejects.toThrow(
-        'Failed to delete session',
-      );
+      await expect(adapter.delete(threadId)).rejects.toThrow(IPCError);
     });
   });
 
@@ -362,7 +358,7 @@ describe('ThreadListAdapter', () => {
       const threadId = 'session-123';
       mockElectronAPI.sessions.get.mockResolvedValueOnce({
         success: false,
-        error: 'Not found',
+        error: { message: 'Not found', code: 'NOT_FOUND' },
       });
 
       const result = await adapter.fetch(threadId);
@@ -370,6 +366,7 @@ describe('ThreadListAdapter', () => {
       expect(result).toEqual({
         status: 'regular',
         remoteId: threadId,
+        externalId: threadId,
         title: 'New Chat',
       });
     });
@@ -386,6 +383,7 @@ describe('ThreadListAdapter', () => {
       expect(result).toEqual({
         status: 'regular',
         remoteId: threadId,
+        externalId: threadId,
         title: 'New Chat',
       });
     });
@@ -427,8 +425,13 @@ describe('ThreadListAdapter', () => {
 
   describe('generateTitle', () => {
     it('should generate title from first user message', async () => {
+      mockElectronAPI.chat.generateTitle.mockResolvedValueOnce({
+        success: true,
+        data: 'Generated Title: How do I learn JavaScript?'
+      });
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({
         success: true,
+        data: null
       });
 
       const messages = [
@@ -441,18 +444,27 @@ describe('ThreadListAdapter', () => {
 
       const stream = await adapter.generateTitle('thread-1', messages);
       expect(stream).toBeDefined();
+      expect(mockElectronAPI.chat.generateTitle).toHaveBeenCalledWith('How do I learn JavaScript?');
+
+      // Wait a tick for the async title update to happen
+      await new Promise(resolve => setTimeout(resolve, 0));
       expect(mockElectronAPI.sessions.updateTitle).toHaveBeenCalledWith(
         'thread-1',
-        'How do I learn JavaScript?'
+        'Generated Title: How do I learn JavaScript?'
       );
     });
 
     it('should truncate long titles', async () => {
+      const longText = 'This is a very long message that should be truncated to fit within the title limit';
+      mockElectronAPI.chat.generateTitle.mockResolvedValueOnce({
+        success: true,
+        data: 'Generated Title: ' + longText
+      });
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({
         success: true,
+        data: null
       });
 
-      const longText = 'This is a very long message that should be truncated to fit within the title limit';
       const messages = [
         {
           id: 'msg-1',
@@ -461,16 +473,22 @@ describe('ThreadListAdapter', () => {
         },
       ];
 
-      await adapter.generateTitle('thread-1', messages);
+      const stream = await adapter.generateTitle('thread-1', messages);
+      expect(stream).toBeDefined();
+      expect(mockElectronAPI.chat.generateTitle).toHaveBeenCalledWith(longText);
+
+      // Wait a tick for the async title update to happen
+      await new Promise(resolve => setTimeout(resolve, 0));
       expect(mockElectronAPI.sessions.updateTitle).toHaveBeenCalledWith(
         'thread-1',
-        'This is a very long message that should be truncat...'
+        'Generated Title: This is a very long message th...'
       );
     });
 
     it('should use default title when no user messages', async () => {
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({
         success: true,
+        data: null
       });
 
       const messages = [
@@ -481,11 +499,9 @@ describe('ThreadListAdapter', () => {
         },
       ];
 
-      await adapter.generateTitle('thread-1', messages);
-      expect(mockElectronAPI.sessions.updateTitle).toHaveBeenCalledWith(
-        'thread-1',
-        'New Chat'
-      );
+      const stream = await adapter.generateTitle('thread-1', messages);
+      expect(stream).toBeDefined();
+      expect(mockElectronAPI.chat.generateTitle).not.toHaveBeenCalled();
     });
   });
 });

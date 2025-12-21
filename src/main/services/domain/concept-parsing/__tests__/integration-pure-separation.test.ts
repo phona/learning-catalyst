@@ -30,7 +30,7 @@ const createMockConfig = (): LangGraphRunnableConfig => ({
 // Mock LLM following docs pattern for .pipe() chains
 const createMockLlm = (response?: any) =>
   new RunnableLambda({
-    func: async (_input) => {
+    func: async (_input: unknown) => {
       return new AIMessage(
         JSON.stringify(
           response ?? {
@@ -71,16 +71,32 @@ const createMockLlm = (response?: any) =>
 const createTestService = () => {
   // Mock stateful dependencies (per docs line 430)
   const mockLlm = createMockLlm();
-  const vectorDatabase = {
-    addDocumentBatch: vi.fn().mockResolvedValue(undefined),
-  };
-  const loggerService = {
-    child: () => ({
+
+  // Mock logger with recursive child support
+  const mockLogger = {
+    info: vi.fn(),
+    debug: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn().mockReturnValue({
       info: vi.fn(),
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
     }),
+  };
+
+  const vectorDatabase = {
+    addDocumentBatch: vi.fn().mockResolvedValue(undefined),
+    addDocumentWithEmbedding: vi.fn().mockResolvedValue(undefined),
+    search: vi.fn().mockResolvedValue([]),
+    deleteDocument: vi.fn().mockResolvedValue(undefined),
+    getStats: vi.fn().mockResolvedValue({ totalDocuments: 0 }),
+    start: vi.fn().mockResolvedValue(undefined),
+  };
+
+  const loggerService = {
+    child: vi.fn().mockReturnValue(mockLogger),
   };
 
   // Inject fileSystem and isolated jobStoreDir for testing
@@ -95,9 +111,18 @@ const createTestService = () => {
   const service = createConceptParsingService({
     providerFactory: {
       getModel: vi.fn().mockResolvedValue(mockLlm),
+      getEmbeddings: vi.fn().mockResolvedValue({
+        embedQuery: vi.fn(async (text: string) => Array(1536).fill(0.1)),
+        embedDocuments: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
+      }),
       getEmbeddingModel: vi.fn(async () => ({
+        embed: vi.fn(async () => Array(1536).fill(0.1)),
         embedBatch: vi.fn(async (texts: string[]) => texts.map(() => Array(1536).fill(0.1))),
+        dimensions: 1536,
       })),
+      getRerankModel: vi.fn().mockResolvedValue({
+        rerank: vi.fn(async () => ({ indices: [], scores: [] })),
+      }),
     },
     vectorDatabase,
     loggerService,
@@ -105,7 +130,7 @@ const createTestService = () => {
     jobStoreDir: '/tmp/test-concept-jobs',
   });
 
-  return { service, vectorDatabase, fileSystem, loggerService };
+  return { service, vectorDatabase, fileSystem, loggerService: mockLogger };
 };
 
 describe('concept parsing integration with pure separation', () => {

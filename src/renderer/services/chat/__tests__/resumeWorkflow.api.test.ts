@@ -117,7 +117,7 @@ describe('ResumeWorkflow API - Client Side', () => {
       data: { success: true, resumed: true },
     });
 
-    await chatService.resumeWorkflow(params);
+    await chatService.resumeWorkflow!(params);
 
     expect(mockInvoke).toHaveBeenCalledWith({
       conversationId: 'session-123',
@@ -142,7 +142,7 @@ describe('ResumeWorkflow API - Client Side', () => {
       data: { success: true, resumed: false },
     });
 
-    await chatService.resumeWorkflow(params);
+    await chatService.resumeWorkflow!(params);
 
     expect(mockInvoke).toHaveBeenCalledWith({
       conversationId: 'session-123',
@@ -168,7 +168,7 @@ describe('ResumeWorkflow API - Client Side', () => {
       data: { success: true, resumed: true },
     });
 
-    await chatService.resumeWorkflow(params);
+    await chatService.resumeWorkflow!(params);
 
     expect(mockInvoke).toHaveBeenCalledWith({
       conversationId: 'session-123',
@@ -188,7 +188,7 @@ describe('ResumeWorkflow API - Client Side', () => {
       data: { success: true, resumed: true },
     });
 
-    const result = await chatService.resumeWorkflow({
+    const result = await chatService.resumeWorkflow!({
       conversationId: 'session-123',
       checkpointId: 'checkpoint-456',
       action: 'skip',
@@ -207,7 +207,7 @@ describe('ResumeWorkflow API - Client Side', () => {
     mockInvoke.mockRejectedValue(new Error('Network error'));
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'skip',
@@ -225,7 +225,7 @@ describe('ResumeWorkflow API - Client Side', () => {
     });
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'invalid',
         action: 'skip',
@@ -239,7 +239,7 @@ describe('ResumeWorkflow API - Client Side', () => {
 
     // Missing conversationId
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         checkpointId: 'checkpoint-456',
         action: 'skip',
       } as any)
@@ -251,7 +251,7 @@ describe('ResumeWorkflow API - Client Side', () => {
     const chatService = createChatService(apiClient);
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'invalid_action' as any,
@@ -271,7 +271,7 @@ describe('ResumeWorkflow API - Type Safety', () => {
 
     for (const action of actions) {
       await expect(
-        chatService.resumeWorkflow({
+        chatService.resumeWorkflow!({
           conversationId: 'session-123',
           checkpointId: 'checkpoint-456',
           action,
@@ -288,7 +288,7 @@ describe('ResumeWorkflow API - Type Safety', () => {
 
     // Should work without input for skip and resume_later
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'skip',
@@ -296,7 +296,7 @@ describe('ResumeWorkflow API - Type Safety', () => {
     ).resolves.not.toThrow();
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'resume_later',
@@ -305,7 +305,7 @@ describe('ResumeWorkflow API - Type Safety', () => {
 
     // Should accept answer without explicit input (though it may fail in backend)
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'answer',
@@ -320,7 +320,7 @@ describe('ResumeWorkflow API - Type Safety', () => {
     mockInvoke.mockResolvedValue({ success: true, data: { success: true, resumed: true } });
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'skip',
@@ -340,7 +340,7 @@ describe('ResumeWorkflow API - Response Handling', () => {
       data: { success: true, resumed: true },
     });
 
-    const result = await chatService.resumeWorkflow({
+    const result = await chatService.resumeWorkflow!({
       conversationId: 'session-123',
       checkpointId: 'checkpoint-456',
       action: 'skip',
@@ -358,7 +358,7 @@ describe('ResumeWorkflow API - Response Handling', () => {
       data: { success: true, resumed: false },
     });
 
-    const result = await chatService.resumeWorkflow({
+    const result = await chatService.resumeWorkflow!({
       conversationId: 'session-123',
       checkpointId: 'checkpoint-456',
       action: 'resume_later',
@@ -376,7 +376,7 @@ describe('ResumeWorkflow API - Response Handling', () => {
       data: { success: true, resumed: true },
     });
 
-    const result = await chatService.resumeWorkflow({
+    const result = await chatService.resumeWorkflow!({
       conversationId: 'session-123',
       checkpointId: 'checkpoint-456',
       action: 'answer',
@@ -398,7 +398,7 @@ describe('ResumeWorkflow API - Integration Scenarios', () => {
       data: { success: true, resumed: true },
     });
 
-    const result = await chatService.resumeWorkflow({
+    const result = await chatService.resumeWorkflow!({
       conversationId: 'session-learnings-123',
       checkpointId: 'cp-assessment-456',
       questionId: 'q-level-789',
@@ -426,7 +426,7 @@ describe('ResumeWorkflow API - Integration Scenarios', () => {
       data: { success: true, resumed: false },
     });
 
-    const result = await chatService.resumeWorkflow({
+    const result = await chatService.resumeWorkflow!({
       conversationId: 'session-learnings-123',
       checkpointId: 'cp-assessment-456',
       action: 'resume_later',
@@ -450,7 +450,7 @@ describe('ResumeWorkflow API - Integration Scenarios', () => {
     mockInvoke.mockRejectedValue(new Error('Request timeout'));
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'checkpoint-456',
         action: 'skip',
@@ -465,7 +465,7 @@ describe('ResumeWorkflow API - Integration Scenarios', () => {
     mockInvoke.mockRejectedValue(new Error('Conversation not found'));
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'nonexistent-session',
         checkpointId: 'checkpoint-456',
         action: 'skip',
@@ -480,7 +480,7 @@ describe('ResumeWorkflow API - Integration Scenarios', () => {
     mockInvoke.mockRejectedValue(new Error('Checkpoint not found'));
 
     await expect(
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: 'session-123',
         checkpointId: 'invalid-checkpoint',
         action: 'skip',
@@ -500,7 +500,7 @@ describe('ResumeWorkflow API - Performance', () => {
       data: { success: true, resumed: true },
     });
 
-    await chatService.resumeWorkflow({
+    await chatService.resumeWorkflow!({
       conversationId: 'session-123',
       checkpointId: 'checkpoint-456',
       action: 'skip',
@@ -520,7 +520,7 @@ describe('ResumeWorkflow API - Performance', () => {
     });
 
     const requests = Array.from({ length: 5 }, (_, i) =>
-      chatService.resumeWorkflow({
+      chatService.resumeWorkflow!({
         conversationId: `session-${i}`,
         checkpointId: `checkpoint-${i}`,
         action: 'skip',

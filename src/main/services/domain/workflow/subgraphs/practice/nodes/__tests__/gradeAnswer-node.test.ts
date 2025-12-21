@@ -7,17 +7,21 @@
  * - Practice attempt recording
  * - State cleanup for next round
  * - Mastery calculation
+ *
+ * TESTING APPROACH (per testing.md DI pattern):
+ * - Only mock STATEFUL dependencies (e.g., LLM, services)
+ * - Use REAL packages for stateless utilities (e.g., chunk-emitter)
+ * - Provide config with writer function to verify streaming
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { gradeAnswerNode } from '../gradeAnswer';
-import { PracticeAnnotation } from '../../state';
 import { DEFAULT_PRACTICE_STATE } from '../../types';
-import type { WorkflowDeps } from '../../../state';
+import type { WorkflowDeps } from '../../../../state';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
 
-// Mock dependencies
+// Mock dependencies (only stateful ones)
 const mockLoggerService = {
   debug: vi.fn(),
   info: vi.fn(),
@@ -33,29 +37,19 @@ const mockModel = {
   invoke: vi.fn(),
 };
 
-const mockEmitter = {
-  textStart: vi.fn(),
-  textDelta: vi.fn(),
-  textEnd: vi.fn(),
-};
-
 const mockPracticeService = {
   recordPracticeAttempt: vi.fn(),
 };
 
-// Mock createChunkEmitter
-const createChunkEmitterMock = vi.fn(() => mockEmitter);
-
-vi.mock('../../../utils/chunk-emitter', () => ({
-  createChunkEmitter: createChunkEmitterMock,
-  generateId: vi.fn().mockReturnValue('mock-id'),
-}));
-
+/**
+ * Creates a mock config with a writer function for chunk-emitter.
+ * Per testing.md: "Provide config: `{ writer: vi.fn() }` (mock writer only)"
+ */
 const createMockConfig = (): LangGraphRunnableConfig => ({
   writer: vi.fn(),
 } as any);
 
-const mockDeps: WorkflowDeps = {
+const mockDeps = {
   agentManager: {} as any,
   loggerService: mockLoggerService,
   checkpointer: {} as any,
@@ -64,7 +58,7 @@ const mockDeps: WorkflowDeps = {
   knowledgeService: {} as any,
   practiceService: mockPracticeService,
   learningService: {} as any,
-} as WorkflowDeps;
+} as unknown as WorkflowDeps;
 
 describe('gradeAnswerNode', () => {
   beforeEach(() => {
@@ -473,14 +467,32 @@ describe('gradeAnswerNode', () => {
         mastery: 0,
       };
 
-      await node(state as any, createMockConfig());
+      // Create config with trackable writer
+      const mockWriter = vi.fn();
+      const config = { writer: mockWriter } as any;
 
-      expect(mockEmitter.textStart).toHaveBeenCalled();
-      expect(mockEmitter.textDelta).toHaveBeenCalledWith(
-        'mock-id',
-        expect.stringContaining('Score: 85%')
+      await node(state as any, config);
+
+      // Verify writer was called with correct chunk types (text-start, text-delta, text-end)
+      expect(mockWriter).toHaveBeenCalled();
+
+      // Verify text-start chunk
+      expect(mockWriter).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'text-start' })
       );
-      expect(mockEmitter.textEnd).toHaveBeenCalledWith('mock-id');
+
+      // Verify text-delta chunk with feedback content
+      expect(mockWriter).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'text-delta',
+          delta: expect.stringContaining('Score: 85%'),
+        })
+      );
+
+      // Verify text-end chunk
+      expect(mockWriter).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'text-end' })
+      );
     });
 
     it('includes encouraging feedback', async () => {

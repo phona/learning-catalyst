@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { app } from 'electron';
 import type { ILogger } from '../../types';
 import {
@@ -200,8 +200,8 @@ const deduplicateWithinBatch = (
     const tokens1 = new Set(s1.split(/\s+/).filter((t) => t.length > 2));
     const tokens2 = new Set(s2.split(/\s+/).filter((t) => t.length > 2));
 
-    const intersection = new Set([...tokens1].filter((x) => tokens2.has(x)));
-    const union = new Set([...tokens1, ...tokens2]);
+    const intersection = new Set(Array.from(tokens1).filter((x) => tokens2.has(x)));
+    const union = new Set(Array.from(tokens1).concat(Array.from(tokens2)));
 
     return union.size === 0 ? 0 : intersection.size / union.size;
   };
@@ -212,7 +212,7 @@ const deduplicateWithinBatch = (
 
     // Check if this concept is already a duplicate of an existing canonical
     let foundCanonical = false;
-    for (const [canonicalId, canonical] of canonicalMap.entries()) {
+    for (const [canonicalId, canonical] of Array.from(canonicalMap.entries())) {
       const similarity = calculateStringSimilarity(concept.name, canonical.name);
 
       // Threshold for name similarity (0.85 catches "AI" vs "AI Systems")
@@ -249,7 +249,7 @@ const deduplicateWithinBatch = (
   }
 
   // Build deduplicated concepts array
-  for (const [canonicalId, canonical] of canonicalMap.entries()) {
+  for (const [canonicalId, canonical] of Array.from(canonicalMap.entries())) {
     const duplicates = duplicatesMergedMap.get(canonicalId) ?? [];
     if (duplicates.length > 0) {
       // Add merge info to metadata
@@ -272,7 +272,7 @@ const deduplicateWithinBatch = (
   const conceptIdMap = new Map<string, string>(); // oldId -> canonicalId
 
   // Build mapping of old IDs to canonical IDs
-  for (const [canonicalId, canonical] of canonicalMap.entries()) {
+  for (const [canonicalId, canonical] of Array.from(canonicalMap.entries())) {
     conceptIdMap.set(canonicalId, canonicalId);
     const duplicates = duplicatesMergedMap.get(canonicalId) ?? [];
     for (const dupId of duplicates) {
@@ -327,7 +327,7 @@ const deduplicateWithinBatch = (
   }
 
   // Build final deduplicated relationships array
-  for (const rel of uniqueRelationships.values()) {
+  for (const rel of Array.from(uniqueRelationships.values())) {
     deduplicatedRelationships.push(rel);
   }
 
@@ -345,11 +345,11 @@ const deduplicateWithinBatch = (
 
 const createFileSystem = (deps?: ConceptParsingDeps) => {
   const fsImpl = deps?.fileSystem ?? {
-    readFile: (path: string, encoding: string) => fs.readFile(path, encoding),
-    writeFile: (path: string, data: string, encoding: string) => fs.writeFile(path, data, encoding),
-    mkdir: (path: string, options: { recursive: boolean }) => fs.mkdir(path, options),
-    readdir: (path: string) => fs.readdir(path),
-    rm: (path: string, options: { recursive: boolean; force: boolean }) => fs.rm(path, options),
+    readFile: async (path: string, encoding: string) => (await fs.readFile(path, { encoding: encoding as BufferEncoding })).toString(),
+    writeFile: async (path: string, data: string, encoding: string) => fs.writeFile(path, data, { encoding: encoding as BufferEncoding }),
+    mkdir: async (path: string, options: { recursive: boolean }) => fs.mkdir(path, options),
+    readdir: async (path: string) => fs.readdir(path),
+    rm: async (path: string, options: { recursive: boolean; force: boolean }) => fs.rm(path, options),
   };
 
   const resolveJobStoreDir = (): string => {
@@ -390,11 +390,11 @@ const createFileSystem = (deps?: ConceptParsingDeps) => {
   };
 
   const clearJobCache = async (): Promise<{ removed: number }> => {
-    const dir = fsApi.resolveJobStoreDir();
+    const dir = resolveJobStoreDir();
     try {
-      const entries = await fsApi.fsImpl.readdir(dir).catch(() => []);
-      await fsApi.fsImpl.rm(dir, { recursive: true, force: true });
-      await fsApi.fsImpl.mkdir(dir, { recursive: true });
+      const entries = await fsImpl.readdir(dir).catch(() => []);
+      await fsImpl.rm(dir, { recursive: true, force: true });
+      await fsImpl.mkdir(dir, { recursive: true });
       return { removed: entries.length };
     } catch (error) {
       throw error;

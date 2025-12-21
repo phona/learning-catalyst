@@ -122,58 +122,58 @@ function parseIntent(aiResponse: string): UserIntent {
  */
 export const classifyIntentNode =
   (deps: WorkflowDeps) =>
-  async (state: typeof PracticeAnnotation.State, _config: LangGraphRunnableConfig) => {
-    const startTime = Date.now();
-    const userResponse = state.userAnswer ?? '';
-    const question = state.practice?.currentQuestion ?? state.practicePrompt ?? '';
+    async (state: typeof PracticeAnnotation.State, _config: LangGraphRunnableConfig) => {
+      const startTime = Date.now();
+      const userResponse = state.userAnswer ?? '';
+      const question = state.practice?.currentQuestion ?? state.practicePrompt ?? '';
 
-    deps.loggerService.debug('classifyIntentNode: start', {
-      responseLength: userResponse.length,
-      questionLength: question.length,
-    });
-
-    // Fast path: empty response
-    if (!userResponse.trim()) {
-      deps.loggerService.debug('classifyIntentNode: empty response');
-      return {
-        practice: { userIntent: 'give_up' as UserIntent },
-      };
-    }
-
-    // Fast path: keyword detection
-    const keywordIntent = detectIntentByKeywords(userResponse);
-    if (keywordIntent && keywordIntent !== 'answer_attempt') {
-      deps.loggerService.debug('classifyIntentNode: keyword match', { intent: keywordIntent });
-      return {
-        practice: { userIntent: keywordIntent },
-      };
-    }
-
-    // AI classification for nuanced cases
-    try {
-      const model = await deps.providerFactory.getModel();
-      const messages = await INTENT_CLASSIFICATION_TEMPLATE.formatMessages({
-        question,
-        userResponse,
+      deps.loggerService.debug('classifyIntentNode: start', {
+        responseLength: userResponse.length,
+        questionLength: question.length,
       });
 
-      const response = await model.invoke(messages);
-      const intent = parseIntent(String(response.content ?? ''));
+      // Fast path: empty response
+      if (!userResponse.trim()) {
+        deps.loggerService.debug('classifyIntentNode: empty response');
+        return {
+          practice: { userIntent: 'give_up' as UserIntent },
+        };
+      }
 
-      const duration = Date.now() - startTime;
-      deps.loggerService.info('classifyIntentNode: complete', {
-        intent,
-        durationMs: duration,
-      });
+      // Fast path: keyword detection
+      const keywordIntent = detectIntentByKeywords(userResponse);
+      if (keywordIntent && keywordIntent !== 'answer_attempt') {
+        deps.loggerService.debug('classifyIntentNode: keyword match', { intent: keywordIntent });
+        return {
+          practice: { userIntent: keywordIntent },
+        };
+      }
 
-      return {
-        practice: { userIntent: intent },
-      };
-    } catch (error) {
-      deps.loggerService.error('classifyIntentNode: AI classification failed', { error });
-      // Fallback: assume answer attempt
-      return {
-        practice: { userIntent: 'answer_attempt' as UserIntent },
-      };
-    }
-  };
+      // AI classification for nuanced cases
+      try {
+        const model = await deps.providerFactory.getModel();
+        const messages = await INTENT_CLASSIFICATION_TEMPLATE.formatMessages({
+          question,
+          userResponse,
+        });
+
+        const response = await model.invoke(messages);
+        const intent = parseIntent(String(response.content ?? ''));
+
+        const duration = Date.now() - startTime;
+        deps.loggerService.info('classifyIntentNode: complete', {
+          intent,
+          durationMs: duration,
+        });
+
+        return {
+          practice: { userIntent: intent },
+        };
+      } catch (error) {
+        deps.loggerService.error('classifyIntentNode: AI classification failed', { error });
+        // Fallback: assume answer attempt
+        return {
+          practice: { userIntent: 'answer_attempt' as UserIntent },
+        };
+      }
+    };

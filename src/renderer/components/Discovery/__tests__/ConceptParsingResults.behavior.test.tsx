@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConceptParsingResults } from '../ConceptParsingResults';
+import type { ConceptIngestionAction, ParsedRelationship } from '@/shared/types/electron-api/knowledge-api';
 
 const makeCompletedJob = () => ({
   id: 'job-1',

@@ -2,6 +2,26 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createKnowledgeService } from '../knowledge-service';
 import type { ConceptParsingResult } from '@/shared/types/electron-api/knowledge-api';
 
+// Extend the result type to include all properties returned by the service
+interface KnowledgeIngestionResult {
+  conceptsInserted: number;
+  conceptsUpdated: number;
+  relationshipsInserted: number;
+  conceptsSkipped?: number;
+  conceptsMerged?: number;
+  relationshipsSkipped?: number;
+  lowConfidenceSkipped?: number;
+  metadata: {
+    processedAt: string;
+    source?: string;
+    autoDeduplication?: {
+      enabled: boolean;
+      threshold?: number;
+      strategy?: string;
+    };
+  };
+}
+
 // Mock database following DI pattern (like find-related-by-prompt.test.ts)
 const createMockDatabase = () => {
   const createQueryBuilder = (executeMock: any) => {
@@ -29,12 +49,19 @@ const createMockDatabase = () => {
       return queryBuilder;
     });
 
+    const orderBy = vi.fn().mockReturnValue({
+      limit: vi.fn().mockReturnValue({
+        execute: vi.fn().mockResolvedValue(executeMock),
+      }),
+    });
+
     // Create queryBuilder object with the mock functions
     const queryBuilder = {
       selectAll,
       where,
       execute,
       executeTakeFirst,
+      orderBy,
     };
 
     return queryBuilder;
@@ -59,7 +86,15 @@ const createMockDatabase = () => {
         execute: vi.fn().mockResolvedValue(undefined),
       }),
     }),
-  };
+    // Add required Kysely properties
+    schema: {
+      getSchemaName: vi.fn().mockReturnValue('main'),
+      hasTable: vi.fn().mockReturnValue(true),
+    },
+    dynamic: {},
+    introspection: {},
+    createQueryExecutor: vi.fn(),
+  } as any; // Type assertion for mock
 };
 
 const createLoggerService = () => {
@@ -129,7 +164,7 @@ const buildParsingResult = (): ConceptParsingResult => ({
 });
 
 describe('concept graph knowledge service', () => {
-  let mockDb: ReturnType<typeof createMockDatabase>;
+  let mockDb: any; // Using any for mock database to avoid Kysely complexity in tests
   let service: ReturnType<typeof createKnowledgeService>;
   let databaseTables: { [tableName: string]: any[] } = {};
 
@@ -251,7 +286,15 @@ describe('concept graph knowledge service', () => {
           }),
         })),
       })),
-    };
+      // Add required Kysely properties
+      schema: {
+        getSchemaName: vi.fn().mockReturnValue('main'),
+        hasTable: vi.fn().mockReturnValue(true),
+      },
+      dynamic: {},
+      introspection: {},
+      createQueryExecutor: vi.fn(),
+    } as any;
 
     service = createKnowledgeService({
       db: mockDb,

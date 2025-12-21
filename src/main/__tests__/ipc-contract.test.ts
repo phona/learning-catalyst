@@ -6,8 +6,9 @@ describe('IPC contract skeleton (no real Electron)', () => {
   it('handles chat send and streams chunks to renderer', async () => {
     const bus = createIpcPair();
 
-    bus.ipcMain.handle(IPC_CHANNELS.CATALYST_SEND_CHAT, async (_event, payload: { id: string; text: string }) => {
-      // simulate streaming tokens arriving back to renderer
+    bus.ipcMain.handle(IPC_CHANNELS.CATALYST_SEND_CHAT, async (_event, ...args: unknown[]) => {
+      const payload = args[0] as { id: string; text: string };
+      // simulate streaming tokens arrived back to renderer
       bus.emitToRenderer(IPC_EVENTS.CHAT_STREAM_CHUNK, {
         streamId: payload.id,
         content: 'partial answer',
@@ -22,7 +23,8 @@ describe('IPC contract skeleton (no real Electron)', () => {
 
     const chunks: string[] = [];
     bus.ipcRenderer.on(IPC_EVENTS.CHAT_STREAM_CHUNK, (_event, data?: unknown) => {
-      chunks.push(data?.content ?? '');
+      const chunkData = data as { content?: string };
+      chunks.push(chunkData?.content ?? '');
     });
 
     const result = await bus.ipcRenderer.invoke(IPC_CHANNELS.CATALYST_SEND_CHAT, {
@@ -38,7 +40,8 @@ describe('IPC contract skeleton (no real Electron)', () => {
   it('bubbles validation errors back to renderer', async () => {
     const bus = createIpcPair();
 
-    bus.ipcMain.handle(IPC_CHANNELS.CATALYST_SEND_CHAT, async (_event, payload: { text?: string }) => {
+    bus.ipcMain.handle(IPC_CHANNELS.CATALYST_SEND_CHAT, async (_event, ...args: unknown[]) => {
+      const payload = args[0] as { text?: string };
       if (!payload.text) {
         throw new Error('validation failed: text required');
       }
