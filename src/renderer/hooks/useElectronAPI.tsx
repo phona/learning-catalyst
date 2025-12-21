@@ -9,7 +9,7 @@ import { createContext, useContext, type FC, type ReactNode } from 'react';
 import type { ElectronAPI } from '@/shared/types';
 import type { APIResponse } from '@/shared/types/electron-api/base';
 import { createElectronAPIClient } from '@/renderer/services/api/electron-api-client';
-import { showError } from '@/renderer/utils/toast';
+import { showError } from '@/renderer/shared/lib';
 
 /** IPC call options */
 export interface IPCCallOptions {
@@ -38,9 +38,7 @@ export class IPCError extends Error {
  */
 function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
   if (!response.success) {
-    const errorMessage = typeof response.error === 'string'
-      ? response.error
-      : response.error?.message || 'unknown error';
+    const errorMessage = response.error ?? 'unknown error';
 
     // Toast unless silent
     if (!options.silent) {
@@ -49,11 +47,8 @@ function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
 
     // Re-throw for caller handling
     throw new IPCError(
-      typeof response.error === 'object' && response.error?.code
-        ? response.error.code
-        : 'UNKNOWN_ERROR',
+      response.code ?? 'UNKNOWN_ERROR',
       errorMessage,
-      typeof response.error === 'object' ? response.error?.details : undefined
     );
   }
 

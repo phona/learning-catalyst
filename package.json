@@ -12,7 +12,7 @@
     "build:all": "vite build && electron-builder --publish=never",
     "lint": "eslint src/**/*.ts src/**/*.tsx",
     "lint:file": "eslint",
-    "type-check": "tsc --noEmit --skipLibCheck",
+    "type-check": "tsc --noEmit --skipLibCheck -p tsconfig.build.json",
     "test": "npm run test:main && npm run test:renderer",
     "test:ui": "npm run test:main:ui && npm run test:renderer:ui",
     "test:run": "npm run test:main && npm run test:renderer",

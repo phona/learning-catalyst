@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { Routes, Route } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { Providers, renderWithServices, screen, waitFor, fireEvent } from '@/test/utils/renderWithServices';
-import App from '@/renderer/components/App/App';
+import { App } from '@/renderer/app';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
-import SetupScreen from '@/renderer/components/SetupScreen';
+import SetupPage from '@/renderer/pages/setup/SetupPage';
 import { ConfigChangedPayload, SystemReadyPayload } from '@/shared/types/electron-api';
 
 describe('Integration: setup + loading to chat navigation', () => {
@@ -38,7 +38,7 @@ describe('Integration: setup + loading to chat navigation', () => {
 
     renderWithServices(
       <Routes>
-        <Route path="/setup" element={<SetupScreen />} />
+        <Route path="/setup" element={<SetupPage />} />
         <Route path="/" element={<ChatHome />} />
       </Routes>,
       { routerProps: { initialEntries: ['/setup'] }, electronAPI },

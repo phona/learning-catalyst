@@ -21,11 +21,11 @@ import {
 import type { APIResponse } from '@/shared/types/electron-api/base';
 
 // Mock toast
-vi.mock('@/renderer/utils/toast', () => ({
+vi.mock('@/renderer/shared/lib', () => ({
   showError: vi.fn(),
 }));
 
-import { showError } from '@/renderer/utils/toast';
+import { showError } from '@/renderer/shared/lib';
 
 describe('useElectronAPI', () => {
   beforeEach(() => {

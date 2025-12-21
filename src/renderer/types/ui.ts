@@ -4,7 +4,7 @@
  */
 
 // Import shared UI types
-import {
+import type {
   UIState,
   ChatUIState,
   MenuItem,
@@ -16,7 +16,7 @@ import {
 } from '../../shared/types/ui';
 
 // Re-export shared UI types
-export {
+export type {
   UIState,
   ChatUIState,
   MenuItem,

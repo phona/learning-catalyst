@@ -159,9 +159,7 @@ export const createConceptParsingService = (
     });
 
     if (!result.success || !result.data) {
-      const errorMessage = result.error
-        ? (typeof result.error === 'string' ? result.error : 'message' in result.error ? result.error.message : 'Concept parsing failed')
-        : 'Concept parsing failed';
+      const errorMessage = result.error ?? 'Concept parsing failed';
       throw new Error(errorMessage);
     }
 
@@ -184,9 +182,7 @@ export const createConceptParsingService = (
       options,
     });
     if (!ingestion.success || !ingestion.data) {
-      const errorMessage = ingestion.error
-        ? (typeof ingestion.error === 'string' ? ingestion.error : 'message' in ingestion.error ? ingestion.error.message : 'Concept ingestion failed')
-        : 'Concept ingestion failed';
+      const errorMessage = ingestion.error ?? 'Concept ingestion failed';
       throw new Error(errorMessage);
     }
     return ingestion.data;
@@ -575,9 +571,7 @@ export const createConceptParsingService = (
       });
 
       if (!parsingResult.success || !parsingResult.data) {
-        const err = parsingResult.error
-        ? (typeof parsingResult.error === 'string' ? parsingResult.error : 'message' in parsingResult.error ? parsingResult.error.message : 'Concept parsing failed')
-        : 'Concept parsing failed';
+        const err = parsingResult.error ?? 'Concept parsing failed';
         throw new Error(err);
       }
 
@@ -593,9 +587,7 @@ export const createConceptParsingService = (
       });
 
       if (!ingestionResult.success) {
-        const err = ingestionResult.error
-        ? (typeof ingestionResult.error === 'string' ? ingestionResult.error : 'message' in ingestionResult.error ? ingestionResult.error.message : 'Concept ingestion failed')
-        : 'Concept ingestion failed';
+        const err = ingestionResult.error ?? 'Concept ingestion failed';
         throw new Error(err);
       }
 
@@ -681,10 +673,8 @@ export const createConceptParsingService = (
     clearSavedJobs: async () => {
       const res = await apiClient.knowledge.clearParsingJobs();
       if (!res.success || !res.data) {
-        const errorMessage = res.error
-        ? (typeof res.error === 'string' ? res.error : 'message' in res.error ? res.error.message : 'Failed to clear parsing cache')
-        : 'Failed to clear parsing cache';
-      throw new Error(errorMessage);
+        const errorMessage = res.error ?? 'Failed to clear parsing cache';
+        throw new Error(errorMessage);
       }
       try {
         window?.localStorage?.removeItem(LAST_JOB_KEY);

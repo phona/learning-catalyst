@@ -55,7 +55,7 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
     }
     const response = await apiClient.agents.getAvailableAgents();
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to load agents');
+      throw new Error(response.error || 'Failed to load agents');
     }
     return response.data.map(mapAgent);
   };
@@ -66,7 +66,7 @@ export function createAgentService(apiClient: ElectronAPI): AgentService {
   }) => {
     const response = await apiClient.agents.selectAgentForSession(params);
     if (!response.success || !response.data) {
-      throw new Error(response.error?.message || 'Failed to select agent');
+      throw new Error(response.error || 'Failed to select agent');
     }
     const agent = response.data.agent;
     return mapAgent(agent);

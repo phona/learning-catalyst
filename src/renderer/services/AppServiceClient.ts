@@ -1,6 +1,6 @@
 import type { AppConfig } from '@/shared/types/config';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
-import { assertOk, unwrap } from '@/renderer/utils/apiResponse';
+import { assertOk, unwrap } from '@/renderer/shared/lib';
 import type { ElectronAPI, APIResponse } from '@/shared/types/electron-api';
 
 

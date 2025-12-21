@@ -9,12 +9,12 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
-import App from './components/App';
+import { App } from '@/renderer/app';
 import { ServicesProvider } from './services/services-provider';
 import { createElectronAPIClient } from './services/api/electron-api-client';
 import { ElectronAPIProvider } from './hooks/useElectronAPI';
 import { ChatStoreProvider } from './stores/chat/ChatStoreProvider';
-import { ErrorBoundary } from './components/UI/ErrorBoundary';
+import { ErrorBoundary } from '@/renderer/shared/ui';
 import '../index.css';
 import '@assistant-ui/react-ui/styles/index.css';
 

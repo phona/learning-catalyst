@@ -26,7 +26,6 @@
       "@/shared/*": ["src/shared/*"],
       "@/test/*": ["src/test/*"]
     },
-    "typeRoots": ["./node_modules/@types", "./src/types"],
     "allowImportingTsExtensions": false
   },
   "include": ["src", "tests"],
