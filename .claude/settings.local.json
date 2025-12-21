@@ -95,7 +95,8 @@
       "WebFetch(domain:reference.langchain.com)",
       "Bash(wmic:*)",
       "Write(/**/*)",
-      "Bash(openspec validate:*)"
+      "Bash(openspec validate:*)",
+      "Bash(openspec list:*)"
     ],
     "deny": [],
     "ask": []
