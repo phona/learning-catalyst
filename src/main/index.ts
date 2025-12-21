@@ -24,7 +24,6 @@ import { createPracticeService } from '@/main/services/domain/practice/practice-
 import { createContentService } from '@/main/services/domain/content/content-service';
 import { createAnalyticsService } from '@/main/services/domain/analytics/analytics-service';
 import { createAiServiceManager } from '@/main/services/core/ai/ai-service-manager';
-import { createAgentManager } from '@/main/services/agent/agent-manager';
 import { createProviderFactory } from '@/main/services/agent/provider-factory';
 import { IPC_ERROR_CHANNEL, IPC_ERROR_CODES, IPCErrorException, MAX_ERROR_BUFFER_SIZE } from '@/shared/types/ipc-error';
 import { createVectorDatabase } from './services/domain/knowledge/vector/vector-database';
@@ -558,15 +557,6 @@ async function createWindow(): Promise<void> {
     checkpointSaver,
   });
 
-  const agentManager = await createAgentManager({
-    aiService,
-    analyticsService,
-    conceptParsingService,
-    learningService,
-    loggerService,
-    configService,
-  });
-
   const practiceService = createPracticeService({
     loggerService,
     knowledgeService,
@@ -581,7 +571,6 @@ async function createWindow(): Promise<void> {
 
   console.log('[Main] setupAllIpcHandlers begin', { workspacePath });
   await setupAllIpcHandlers(win, workspacePath, {
-    agentManager,
     db: database,
     knowledgeService,
     conceptParsingService,

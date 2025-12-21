@@ -392,27 +392,44 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 - Custom model support
 - Streaming across all providers
 
-## Multi-Agent System
+## AI Model Access System
 
-**Specialized Agents:**
+**Provider Factory Pattern:**
 
-- **Learning** -> Learning Guide (explores concepts conversationally).
-- **Assessment** -> Understanding Coach (pulls practice/discussion evidence for the provided goal+concepts, scores confidence, infers level; tools: fetch_practice_history, fetch_goal_artifacts, fetch_discussion_transcript, grade_open_answer; no userId or extra context needed in this desktop app; no new questions invented).
-- **Tutoring** -> Learning Mentor (personalized help and motivation).
-- **Practice** -> Practice Master (gamified challenges).
-- **Learning Planner** -> Builds single-session plans using the session blueprint tool; requires `level` + `timeAvailable` (no difficulty aliases or defaults).
-- **Session Blueprint (single-session)** -> Builds a one-sitting plan with one primary concept plus required retrieval/apply/teach-back/open-question blocks, bounded by `level` (novice|intermediate|advanced) and `timeAvailable`; `level` is the only difficulty field. Supervisor should call assessment first when level is unknown.
+The application now uses a direct `ProviderFactory` approach for AI model access instead of agent management abstraction:
+
+- **Provider Factory** -> Direct AI model access via `getModel()`, `getEmbeddings()`, `getRerankModel()`
+- **Multi-Provider Support** -> OpenAI, ChatGLM, DeepSeek, local models (Ollama, Llama.cpp)
+- **Workflow Nodes** -> Direct model access using `deps.providerFactory.getModel()`
+- **Tool Registry** -> Dynamic tool loading and execution framework
+
+**Benefits:**
+- Simplified architecture with single point of AI model access
+- Better performance with direct model calls (no unnecessary indirection)
+- Clearer intent in code (explicitly shows AI model usage)
+- Easier testing with simpler mock patterns
 
 **Configuration Schema:**
 
 ```typescript
-interface AgentConfiguration {
+interface ProviderConfiguration {
   id: string;
   name: string;
-  type: 'learning' | 'assessment' | 'tutoring' | 'practice';
-  modelConfig: { provider: string; model: string; temperature: number };
-  tools: string[];
-  capabilities: string[];
+  provider: string; // 'openai' | 'chatglm' | 'deepseek' | 'ollama'
+  model: string;
+  apiKey?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxTokens?: number;
+  timeout?: number;
+}
+
+interface ModelCapabilities {
+  streaming: boolean;
+  functionCalling: boolean;
+  vision: boolean;
+  embeddings: boolean;
+  rerank: boolean;
 }
 ```
 

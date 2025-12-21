@@ -357,13 +357,7 @@ const analyticsAPI: AnalyticsAPI = {
  * Focuses on personalizing the AI learning experience.
  */
 const agentsAPI: AgentsAPI = {
-  /**
-   * Gets all available AI agents with display information
-   * Returns agents optimized for selection UI
-   * @returns Promise<AgentDisplay[]> - Array of available agents
-   */
-  getAvailableAgents: () => ipcRenderer.invoke('agents:get-available'),
-
+  
   /**
    * Selects an agent for a specific session
    * Associates the agent with the session and applies preferences
@@ -435,7 +429,7 @@ const contentAPI: ContentAPI = {
    * Scans file system for code, documentation, and learning materials
    * @returns Promise<ProjectDisplay[]> - Array of discoverable local projects
    */
-  exploreLocalProjects: () => ipcRenderer.invoke('content:explore-projects'),
+  exploreProject: (path: string) => ipcRenderer.invoke('content:explore-project', path),
 
   /**
    * Imports learning content from files
@@ -498,9 +492,7 @@ const sessionsAPI: SessionsAPI = {
   // Use learning:get-recent-sessions (the registered handler) for recent sessions
   getRecentSessions: (options: unknown) =>
     ipcRenderer.invoke('learning:get-recent-sessions', options),
-  search: (query: SessionSearchQuery) => ipcRenderer.invoke('sessions:search', query),
-  getStatistics: () => ipcRenderer.invoke('sessions:get-statistics'),
-};
+  };
 
 // ============================================================================
 // Catalyst API

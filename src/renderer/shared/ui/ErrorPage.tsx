@@ -47,11 +47,9 @@ export function ErrorPage({
       // ignore
     }
 
-    try {
-      window.electronAPI?.relaunchApp?.();
-    } catch {
-      // ignore
-    }
+    // TODO: Implement relaunch functionality when API is available
+    // For now, user will need to manually restart the app
+    console.warn('App restart requested but relaunch API is not available');
   };
 
   if (crashError) {

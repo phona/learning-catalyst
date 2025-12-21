@@ -60,10 +60,7 @@ export type {
   FeatureDemoDisplay,
   ImportSessionDisplay,
   ContentFormat,
-  ConceptExtractionDisplay,
-  ContentAPI,
-  AgentsAPI,
-  LearningAPI
+  ConceptExtractionDisplay
 } from './base';
 
 // Export API interfaces
@@ -73,9 +70,9 @@ export type { AnalyticsAPI };
 export type { SettingsAPI, SettingsUtility };
 export type { SessionsAPI };
 export type { CatalystAPI };
-export type { ContentAPI };
-export type { AgentsAPI };
-export type { LearningAPI };
+
+// Also export the domain APIs from base.ts
+export type { ContentAPI, AgentsAPI, LearningAPI } from './base';
 
 // Export the main electronAPI interface
 export interface ElectronAPI {

@@ -80,9 +80,9 @@ export function createChatStore(dependencies: ChatStoreDependencies) {
 
         const response = await sessions.get(sessionId);
         if (!response.success || !response.data) {
-          throw new Error(response.error ?? 'Failed to load session');
+          throw new Error(response.error?.message ?? 'Failed to load session');
         }
-        const session = normalizeSession(response.data as Partial<Session>);
+        const session = normalizeSession(response.data as unknown as Session & { createdAt: string; updatedAt: string });
         set({ currentSessionId: session.id, currentSession: session });
       },
 

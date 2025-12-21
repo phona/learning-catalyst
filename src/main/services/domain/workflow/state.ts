@@ -1,6 +1,5 @@
 import { Annotation, BaseCheckpointSaver } from '@langchain/langgraph';
 import type { BaseMessage } from '@langchain/core/messages';
-import type { AgentManager } from '../../agent/agent-manager';
 import type { LoggerService } from '../../core/logger/logger-service';
 import type { ConfigService } from '../../core/config/config-service';
 import type { ProviderFactory } from '../../agent/provider-factory';
@@ -80,7 +79,6 @@ export const WorkflowStateAnnotation = Annotation.Root({
 export type WorkflowState = typeof WorkflowStateAnnotation.State;
 
 export type WorkflowDeps = {
-  agentManager: AgentManager;
   loggerService: LoggerService;
   checkpointer: BaseCheckpointSaver;
   configService: ConfigService;

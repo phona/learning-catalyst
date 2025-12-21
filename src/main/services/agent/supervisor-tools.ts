@@ -1,10 +1,27 @@
-import { tool } from 'langchain';
+import { tool, type Tool } from 'langchain';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { ToolRegistry, AgentToolDeps } from './tool-registry';
 import { buildKnowledgeTools } from './tool-registry';
-import { formatMessages, pickAssistantMessage } from './specialized-agent';
-import type { SpecializedAgent } from './specialized-agent';
 import type { AgentType } from './types';
+
+// Helper functions that were previously in specialized-agent.ts
+const formatMessages = (messages: any[], topic?: string): any[] => {
+  if (topic && messages.length > 0) {
+    // Add topic context if provided
+    const contextMessage = new HumanMessage(`Topic: ${topic}`);
+    return [contextMessage, ...messages];
+  }
+  return messages;
+};
+
+const pickAssistantMessage = (messages: any[]): AIMessage | undefined => {
+  return messages.find(msg => msg._getType() === 'ai') as AIMessage | undefined;
+};
+
+// Basic SpecializedAgent interface
+interface SpecializedAgent {
+  invoke(input: { messages: HumanMessage[] | AIMessage[], conversationId?: string, topic?: string, userId?: string }): Promise<{ messages: HumanMessage[] | AIMessage[] }>;
+}
 
 type SupervisorToolInput = {
   conversationId?: string;
@@ -43,7 +60,7 @@ const agentDescriptions: Record<Exclude<AgentType, 'supervisor'>, string> = {
   // assessment - REMOVED (migrated to workflow assess node)
 };
 
-const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: SpecializedAgent) =>
+const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: SpecializedAgent): Tool<string> =>
   tool(
     async (rawInput: string) => {
       const payload = parseJsonInput<SupervisorToolInput>(rawInput, {

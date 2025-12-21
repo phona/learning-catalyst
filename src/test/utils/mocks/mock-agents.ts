@@ -483,194 +483,59 @@ export const mockTutoringAgent = vi.fn().mockImplementation(function (config: an
   return agent;
 });
 
-// Mock Agent Manager
-export const mockAgentManager = vi.fn().mockImplementation(function (config: any = {}) {
-  const manager: any = {
-    agents: new Map(),
-    defaultAgentId: config?.defaultAgentId || 'general-agent',
-    currentSessions: new Map(),
+// Mock Provider Factory (replaces AgentManager for direct model access)
+export const mockProviderFactory = vi.fn().mockImplementation(function (config: any = {}) {
+  const factory: any = {
+    config: config,
+    models: new Map(),
+    embeddings: new Map(),
 
-    // Agent registration
-    registerAgent: vi.fn().mockImplementation(async function (this: any, agent: any) {
-      this.agents.set(agent.id, agent);
-      await agent.initialize();
-      return { success: true, agentId: agent.id };
-    }),
-
-    unregisterAgent: vi.fn().mockImplementation(async function (this: any, agentId: string) {
-      const agent = this.agents.get(agentId);
-      if (agent) {
-        await agent.dispose();
-        this.agents.delete(agentId);
-        return { success: true, agentId };
-      }
-      throw new Error(`Agent ${agentId} not found`);
-    }),
-
-    // Agent retrieval
-    getAgent: vi.fn().mockImplementation(function (this: any, agentId: string) {
-      return this.agents.get(agentId) || null;
-    }),
-
-    getAllAgents: vi.fn().mockImplementation(function (this: any) {
-      return Array.from(this.agents.values());
-    }),
-
-    // Session management
-    createSession: vi.fn().mockImplementation(async function (
-      this: any,
-      sessionId: string,
-      agentType: string,
-    ) {
-      const agent =
-        Array.from(this.agents.values()).find((a: any) => a?.type === agentType) ||
-        Array.from(this.agents.values())[0];
-
-      if (!agent) {
-        throw new Error(`No agent found for type: ${agentType}`);
-      }
-
-      const session = {
-        id: sessionId,
-        agentId: (agent as any).id,
-        agentType: (agent as any).type,
-        status: 'active',
-        createdAt: Date.now(),
-        lastActivity: Date.now(),
-        messages: [],
-        context: {},
+    // Model access
+    getModel: vi.fn().mockImplementation(function (this: any, providerName?: string) {
+      const mockModel = {
+        provider: providerName || 'openai',
+        modelId: config?.modelId || 'gpt-3.5-turbo',
+        invoke: vi.fn().mockResolvedValue({
+          content: `Mock response from ${providerName || 'default'} model`,
+          metadata: {
+            tokensUsed: 50,
+            processingTime: 100,
+          }
+        }),
+        stream: vi.fn().mockImplementation(async function* () {
+          yield { content: 'Mock ', type: 'token' };
+          yield { content: 'stream ', type: 'token' };
+          yield { content: 'response', type: 'token' };
+        }),
       };
-
-      this.currentSessions.set(sessionId, session);
-      return session;
+      return mockModel;
     }),
 
-    processMessage: vi.fn().mockImplementation(async function (
-      this: any,
-      sessionId: string,
-      message: string,
-      context?: any,
-    ) {
-      const session = this.currentSessions.get(sessionId);
-      if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
-      }
-
-      const agent = this.agents.get(session.agentId);
-      if (!agent) {
-        throw new Error(`Agent ${session.agentId} not found`);
-      }
-
-      // Add message to session history
-      session.messages.push({
-        role: 'user',
-        content: message,
-        timestamp: Date.now(),
-      });
-
-      // Process with agent
-      const response = await agent.process(message, { ...context, session });
-
-      // Add response to session history
-      session.messages.push({
-        role: 'assistant',
-        content: response.content,
-        timestamp: Date.now(),
-        metadata: response.metadata,
-      });
-
-      session.lastActivity = Date.now();
-
+    getEmbeddings: vi.fn().mockImplementation(function (this: any) {
       return {
-        sessionId,
-        response,
-        sessionInfo: {
-          messageCount: session.messages.length,
-          duration: Date.now() - session.createdAt,
-          agentType: session.agentType,
-        },
+        embed: vi.fn().mockResolvedValue([0.1, 0.2, 0.3, 0.4, 0.5]),
+        embedBatch: vi.fn().mockResolvedValue([[0.1, 0.2], [0.3, 0.4]]),
       };
     }),
 
-    // Orchestration patterns
-    handoffToAgent: vi.fn().mockImplementation(async function (
-      this: any,
-      sessionId: string,
-      targetAgentType: string,
-      reason: string,
-    ) {
-      const session = this.currentSessions.get(sessionId);
-      if (!session) {
-        throw new Error(`Session ${sessionId} not found`);
-      }
-
-      const targetAgent = Array.from(this.agents.values()).find(
-        (a: any) => a.type === targetAgentType,
-      );
-      if (!targetAgent) {
-        throw new Error(`Target agent type ${targetAgentType} not found`);
-      }
-
-      const previousAgentId = session.agentId;
-      const targetAgentId = (targetAgent as any).id;
-
-      // Update session
-      session.agentId = targetAgentId;
-      session.agentType = targetAgentType;
-      session.messages.push({
-        role: 'system',
-        content: `Handed off from ${previousAgentId} to ${targetAgentId}. Reason: ${reason}`,
-        timestamp: Date.now(),
-        type: 'handoff',
-      });
-
+    getRerankModel: vi.fn().mockImplementation(function (this: any) {
       return {
-        sessionId,
-        previousAgentId,
-        newAgentId: targetAgentId,
-        handoffReason: reason,
-        timestamp: Date.now(),
+        rerank: vi.fn().mockResolvedValue([
+          { index: 0, score: 0.9 },
+          { index: 1, score: 0.7 },
+        ]),
       };
     }),
 
-    // Health and stats - FIXED VERSION
-    getHealthStatus: vi.fn().mockImplementation(function (this: any) {
-      const agents = Array.from(this.agents?.values() || []);
-      const sessions = Array.from(this.currentSessions?.values() || []);
-
-      return {
-        agents: {
-          total: agents.length,
-          active: agents.filter((a: any) => a?.status === 'ready').length,
-          processing: agents.filter((a: any) => a?.status === 'processing').length,
-          error: agents.filter((a: any) => a?.status === 'error').length,
-        },
-        sessions: {
-          total: sessions.length,
-          active: sessions.filter((s: any) => s?.status === 'active').length,
-          averageDuration:
-            sessions.length > 0
-              ? sessions.reduce(
-                (sum: number, s: any) => sum + (Date.now() - (s?.createdAt || 0)),
-                0,
-              ) / sessions.length
-              : 0,
-        },
-        overall: agents.every((a: any) => a?.status !== 'error') ? 'healthy' : 'degraded',
-      };
-    }),
-
-    // Cleanup
-    dispose: vi.fn().mockImplementation(async function (this: any) {
-      const agents = Array.from(this.agents?.values() || []);
-      const disposePromises = agents.map((agent: any) => agent.dispose());
-      await Promise.all(disposePromises);
-      this.agents?.clear();
-      this.currentSessions?.clear();
+    // Configuration
+    validateConfig: vi.fn().mockResolvedValue({ valid: true }),
+    updateConfig: vi.fn().mockImplementation(function (this: any, newConfig: any) {
+      this.config = { ...this.config, ...newConfig };
+      return Promise.resolve(this.config);
     }),
   };
 
-  return manager;
+  return factory;
 });
 
 // Export comprehensive mock collection
@@ -683,8 +548,8 @@ export const AgentMocks = {
   PracticeAgent: mockPracticeAgent,
   TutoringAgent: mockTutoringAgent,
 
-  // Management
-  AgentManager: mockAgentManager,
+  // Provider Factory (replaces AgentManager)
+  ProviderFactory: mockProviderFactory,
 };
 
 // Export default mock collection

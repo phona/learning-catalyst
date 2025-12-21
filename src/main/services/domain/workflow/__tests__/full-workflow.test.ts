@@ -374,7 +374,6 @@ const makeDeps = () => {
   });
 
   return {
-    agentManager,
     loggerService,
     checkpointer: makeCheckpointer(),
     configService,

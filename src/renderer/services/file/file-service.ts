@@ -140,14 +140,11 @@ export function createFileService(electronAPI: ElectronAPI) {
         data: result,
       };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:showOpenDialog',
-          'error',
-        );
-      } catch {}
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:showOpenDialog',
+      );
       return {
         success: false,
         error: {
@@ -198,14 +195,11 @@ export function createFileService(electronAPI: ElectronAPI) {
         },
       };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:readFile',
-          'error',
-        );
-      } catch {}
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:readFile',
+      );
       return {
         success: false,
         error: {
@@ -246,14 +240,12 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       return { success: true };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:writeFile',
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:writeFile',
           'error',
         );
-      } catch {}
       return {
         success: false,
         error: {
@@ -287,14 +279,12 @@ export function createFileService(electronAPI: ElectronAPI) {
         data: exists,
       };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:existsFile',
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:existsFile',
           'error',
         );
-      } catch {}
       return {
         success: false,
         error: {
@@ -330,14 +320,12 @@ export function createFileService(electronAPI: ElectronAPI) {
         data: result,
       };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:showSaveDialog',
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:showSaveDialog',
           'error',
         );
-      } catch {}
       return {
         success: false,
         error: {
@@ -383,14 +371,12 @@ export function createFileService(electronAPI: ElectronAPI) {
         data: Array.isArray(items) ? items : [],
       };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:readDirectory',
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:readDirectory',
           'error',
         );
-      } catch {}
       return {
         success: false,
         error: {
@@ -421,14 +407,12 @@ export function createFileService(electronAPI: ElectronAPI) {
         data: workspacePath || null,
       };
     } catch (error) {
-      // Log to centralized error handler when available
-      try {
-        electronAPI?.handleError?.(
-          error instanceof Error ? error : String(error),
-          'renderer:file-service:getWorkspacePath',
+      // Log error to console
+      console.error(
+        error instanceof Error ? error : String(error),
+        'renderer:file-service:getWorkspacePath',
           'error',
         );
-      } catch {}
       return {
         success: false,
         error: {

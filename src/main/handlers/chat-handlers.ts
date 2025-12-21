@@ -13,7 +13,6 @@ import { ConfigService } from '../services/core/config/config-service';
 import { KnowledgeService } from '../services/domain/knowledge/knowledge-service';
 import { LearningService } from '../services/domain/learning/learning-service';
 import { PracticeService } from '../services/domain/practice/practice-service';
-import { AgentManager } from '../services/agent/agent-manager';
 import { ProviderFactory } from '../services/agent/provider-factory';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import type { APIResponse } from '@/shared/types/electron-api/base';
@@ -27,7 +26,6 @@ type ChatDependencies = {
   knowledgeService: KnowledgeService;
   practiceService: PracticeService;
   learningService: LearningService;
-  agentManager: AgentManager;
 };
 
 const ok = <T>(data?: T): APIResponse<T> => ({ success: true, data });
@@ -42,7 +40,6 @@ export const setupChatHandlers = (
 ): void => {
   const logger = services.loggerService.child({ handler: 'chat' });
   const workflowGraph = createWorkflowGraph({
-    agentManager: services.agentManager,
     loggerService: logger,
     checkpointer: services.checkpointSaver,
     configService: services.configService,

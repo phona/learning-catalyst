@@ -28,15 +28,11 @@ Business logic services implementing core application features.
 - **Content** - Content management and discovery services
 
 ### Agent Services (`agent/`)
-Multi-agent system implementation with specialized agents and orchestration.
+AI provider abstraction and model access layer.
 
-- **Learning Agent** - Guides discovery-based learning conversations
-- **Tutoring Agent** - Provides personalized assistance and motivation
-- **Assessment Agent** - Evaluates understanding and tracks progress
-- **Practice Agent** - Creates gamified challenges and practice sessions
-- **Supervisor Agent** - Orchestrates multiple agents for complex workflows
+- **Provider Factory** - Direct access to AI models via `getModel()`, `getEmbeddings()`, etc.
 - **Tool Registry** - Dynamic tool loading and execution framework
-- **Timeline Handler** - Manages agent conversation timelines and callbacks
+- **Multi-Provider Support** - OpenAI, ChatGLM, DeepSeek, local models
 
 ### AI Services (`ai/`)
 AI provider abstraction layer and management.
@@ -97,7 +93,7 @@ const chatService = createChatService({
   db: database,
   loggerService: loggerService,
   aiService: aiService,
-  agentManager: agentManager
+  providerFactory: providerFactory
 });
 
 // Renderer consumes via electronAPI

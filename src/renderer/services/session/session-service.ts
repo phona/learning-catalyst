@@ -58,7 +58,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
    */
   const getRecentSessions = async (limit = 10): Promise<SessionDisplay[]> => {
     await apiClient.awaitReady();
-    const response = await apiClient.sessions.getRecentSessions({ limit });
+    const response = await apiClient.sessions.getRecentSessions(limit);
 
     if (!response.success) {
       throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
@@ -70,16 +70,17 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
 
   /**
    * Fetch global session statistics for dashboards
+   * TODO: Implement when getStatistics API is available
    */
-  const getGlobalStatistics = async (): Promise<SessionStatistics> => {
-    const response = await apiClient.sessions.getStatistics();
-
-    if (!response.success) {
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
-    }
-
-    return response.data as SessionStatistics;
-  };
+  // const getGlobalStatistics = async (): Promise<SessionStatistics> => {
+  //   const response = await apiClient.sessions.getStatistics();
+  //
+  //   if (!response.success) {
+  //     throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
+  //   }
+  //
+  //   return response.data as SessionStatistics;
+  // };
 
   /**
    * List sessions with optional filters
@@ -162,28 +163,24 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     }
   };
 
-  const searchSessions = async (
-    query: string,
-    filters?: Record<string, unknown>,
-  ): Promise<SessionListData> => {
-    const response = await apiClient.sessions.search({ query, ...(filters ?? {}) });
-    if (!response.success) {
-      throw new Error(typeof response.error === 'string' ? response.error : 'Session search failed');
-    }
-    const data = response.data as
-      | Partial<{
-          sessions: SessionDisplay[];
-          total: number;
-          hasMore: boolean;
-        }>
-      | undefined;
-
-    return {
-      sessions: data?.sessions ?? [],
-      total: data?.total ?? 0,
-      hasMore: data?.hasMore ?? false,
-    };
-  };
+  // const searchSessions = async (
+//     query: string,
+//     filters?: Record<string, unknown>,
+//   ): Promise<SessionListData> => {
+//     // TODO: Implement when search API is available
+//     // For now, use the list method with query filter
+//     const response = await apiClient.sessions.list({ query, limit: 50 });
+//     if (!response.success) {
+//       throw new Error(typeof response.error === 'string' ? response.error : 'Session search failed');
+//     }
+//     const data = response.data;
+//
+//     return {
+//       sessions: data?.sessions ?? [],
+//       total: data?.total ?? 0,
+//       hasMore: data?.hasMore ?? false,
+//     };
+//   };
 
   /**
    * Generate a session title using heuristics (no IPC required)
@@ -205,7 +202,6 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
 
   return {
     getRecentSessions,
-    getGlobalStatistics,
     listSessions,
     getSession,
     generateAITitle,
@@ -213,6 +209,7 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     updateSessionTitle,
     createSession,
     deleteSession,
-    searchSessions,
+    // getGlobalStatistics, // TODO: Implement when API is available
+    // searchSessions, // TODO: Implement when API is available
   };
 };

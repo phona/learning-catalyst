@@ -53,8 +53,8 @@ export const appServices = {
     }
     return container.session;
   },
-  getAgentManager() {
-    throw new Error('Agent manager not available in renderer container.');
+  getProviderFactory() {
+    throw new Error('Provider factory not available in renderer container.');
   },
   isInitialized() {
     return container != null;
@@ -68,4 +68,4 @@ export const getAnalytics = () => appServices.getAnalytics();
 export const getKnowledgeGraph = () => appServices.getKnowledgeGraph();
 export const getVectorDatabase = () => appServices.getVectorDatabase();
 export const getSessionService = () => appServices.getSessionService();
-export const getAgentManager = () => appServices.getAgentManager();
+export const getProviderFactory = () => appServices.getProviderFactory();

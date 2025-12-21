@@ -157,25 +157,25 @@ export function createTestServiceContainer(
       updateTitle: async (sessionId: string, title: string) => ({
         success: true,
       }),
-      getRecentSessions: async (options?: { limit?: number }) => ({
+      getRecentSessions: async (limit?: number) => ({
         success: true,
         data: [],
       }),
-      search: async (query: SessionSearchQuery) => ({
-        success: true,
-        data: { sessions: [], total: 0, hasMore: false },
-      }),
-      getStatistics: async () => ({
-        success: true,
-        data: {
-          totalSessions: 0,
-          totalMessages: 0,
-          totalUserMessages: 0,
-          totalAssistantMessages: 0,
-          totalTokensUsed: 0,
-          averageMessagesPerSession: 0,
-        },
-      }),
+      // search: async (query: SessionSearchQuery) => ({
+      //   success: true,
+      //   data: { sessions: [], total: 0, hasMore: false },
+      // }),
+      // getStatistics: async () => ({
+      //   success: true,
+      //   data: {
+      //     totalSessions: 0,
+      //     totalMessages: 0,
+      //     totalUserMessages: 0,
+      //     totalAssistantMessages: 0,
+      //     totalTokensUsed: 0,
+      //     averageMessagesPerSession: 0,
+      //   },
+      // }),
     },
     analytics: {
       getDashboard: (): Promise<APIResponse<IDashboardDisplay>> =>

@@ -4,8 +4,19 @@ import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ILogger } from '../../types';
 import type { LearningSessionRow } from '@/shared/types/database';
 import type { Database as CoreDatabase } from '@/main/services/core/database/kysely-schema';
-import type { LearningAgent } from '@/main/services/agent/learning-agent';
-import { pickAssistantMessage, formatMessages } from '@/main/services/agent/specialized-agent';
+// Helper functions that were previously in specialized-agent.ts
+const pickAssistantMessage = (messages: HumanMessage[] | AIMessage[]): AIMessage | undefined => {
+  return messages.find(msg => msg._getType() === 'ai') as AIMessage | undefined;
+};
+
+const formatMessages = (messages: HumanMessage[] | AIMessage[], topic?: string): HumanMessage[] | AIMessage[] => {
+  if (topic && messages.length > 0) {
+    // Add topic context if provided
+    const contextMessage = new HumanMessage(`Topic: ${topic}`);
+    return [contextMessage, ...messages];
+  }
+  return messages;
+};
 
 interface LearningPath {
   id: string;

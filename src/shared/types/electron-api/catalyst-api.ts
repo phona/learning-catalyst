@@ -9,7 +9,7 @@
 // Import related types from other APIs
 
 import type { SessionDisplay } from './sessions-api';
-import type { APIResponse } from './base';
+import type { APIResponse, AgentDisplay } from './base';
 
 /**
  * Main Catalyst API interface for renderer-main communication

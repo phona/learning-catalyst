@@ -12,37 +12,6 @@ type AgentType = 'assessment' | 'learning' | 'tutoring' | 'supervisor';
 const makeCheckpointer = () => new MemorySaver();
 
 const makeDeps = () => {
-  // Create a proper agent manager mock that matches the real interface
-  const createMockAgent = (content: string) => ({
-    invoke: vi.fn().mockResolvedValue({
-      messages: [{ role: 'assistant', content }],
-    }),
-    providerInfo: { providerName: 'mock', model: 'mock-model' },
-  });
-
-  const agentManager = {
-    runAgent: vi.fn(),
-    getAgent: vi.fn().mockImplementation((type) => {
-      if (type === 'learning') return createMockAgent('Learning content');
-      if (type === 'tutoring') return createMockAgent('Tutoring content');
-      return createMockAgent('Default content');
-    }),
-  };
-
-  // Configure runAgent to use the actual agent manager logic
-  agentManager.runAgent.mockImplementation(async (request: any) => {
-    const agent = agentManager.getAgent(request.agentType);
-    const result = await agent.invoke({
-      messages: request.messages,
-    });
-    const message = result.messages[0];
-    return {
-      content: message.content,
-      model: agent.providerInfo.model,
-      provider: agent.providerInfo.providerName,
-      agentType: request.agentType,
-    };
-  });
 
   const child = { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
   const loggerService = {
@@ -134,7 +103,6 @@ const makeDeps = () => {
   } as any;
 
   return {
-    agentManager,
     loggerService,
     checkpointer: makeCheckpointer(),
     configService,
@@ -152,32 +120,8 @@ describe('workflow-graph interrupts', () => {
   it('emits await interrupt on standard practice path', async () => {
     const deps = makeDeps();
 
-    // Configure specific responses for this test
-    const mockAssessment = {
-      invoke: vi.fn().mockResolvedValue({
-        messages: [{ role: 'assistant', content: 'Confidence: 50%' }],
-      }),
-      providerInfo: { providerName: 'mock', model: 'mock' },
-    };
-    const mockLearning = {
-      invoke: vi.fn().mockResolvedValue({
-        messages: [{ role: 'assistant', content: 'Teach content with questions' }],
-      }),
-      providerInfo: { providerName: 'mock', model: 'mock' },
-    };
-    const mockTutoring = {
-      invoke: vi.fn().mockResolvedValue({
-        messages: [{ role: 'assistant', content: 'Practice prompt' }],
-      }),
-      providerInfo: { providerName: 'mock', model: 'mock' },
-    };
-
-    deps.agentManager.getAgent.mockImplementation((type: AgentType) => {
-      if (type === 'assessment') return mockAssessment;
-      if (type === 'learning') return mockLearning;
-      if (type === 'tutoring') return mockTutoring;
-      return mockLearning;
-    });
+    // Configure specific responses for this test - no agentManager needed
+    // All workflow nodes now use providerFactory directly
 
     const graph = createWorkflowGraph(deps);
     const stream = await graph.stream(

@@ -48,8 +48,7 @@ const toSessionDisplay = (session: {
   difficulty: session.difficulty as SessionDisplay['difficulty'],
   status: session.status as SessionDisplay['status'],
   progress: session.progress,
-  agent: { type: session.agentType, name: session.agentType },
-  lastActivity: session.updatedAt,
+    lastActivity: session.updatedAt,
   duration: session.duration,
 });
 
