@@ -1,7 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RunnableLambda } from '@langchain/core/runnables';
 import { AIMessage } from '@langchain/core/messages';
-import { createConceptParsingService } from '../concept-parsing-service';
+
+let createConceptParsingService: any;
+
+const executeExtractionWorkflow = vi.fn(async () => ({
+  success: true,
+  result: {
+    summary: 'Test content',
+    focusAreas: [],
+    nodes: [
+      {
+        name: 'Test Concept',
+        description: 'Test description',
+        type: 'concept',
+        difficulty: 'beginner',
+        confidence: 0.9,
+      },
+    ],
+    relationships: [],
+    recommendations: [],
+  },
+  attempt: 1,
+  metrics: {
+    chainCreationMs: 0,
+    llmInvokeMs: 1,
+    jsonParseMs: 0,
+    validationMs: 0,
+    totalMs: 1,
+  },
+}));
+
+vi.mock('../extraction-workflow', () => ({
+  executeExtractionWorkflow,
+}));
 
 // Mock LLM following docs pattern for .pipe() chains
 const createMockLlm = (response?: any) =>
@@ -87,8 +119,10 @@ const createTestService = () => {
 };
 
 describe('segment boundaries and non-overlapping content', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
+    ({ createConceptParsingService } = await import('../concept-parsing-service'));
   });
 
   it('should create non-overlapping segments with headings included', async () => {

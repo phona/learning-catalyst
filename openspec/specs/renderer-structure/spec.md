@@ -1,17 +1,8 @@
-# Renderer Structure Reorganization - Specification
+# renderer-structure Specification
 
-**Change ID**: `reorganize-renderer-structure`
-**Spec Type**: Requirements
-**Version**: 1.0
-
-## Overview
-
-This specification defines the reorganization of the `src/renderer` directory structure to improve code organization, maintainability, and developer experience. The new structure follows a feature-driven approach with clear separation between pages, widgets, features, and shared utilities.
-
-## ADDED Requirements
-
-### Directory Structure
-
+## Purpose
+TBD - created by archiving change reorganize-renderer-structure. Update Purpose after archive.
+## Requirements
 ### Requirement: New Top-Level Structure
 The `src/renderer/` directory SHALL reorganize into the following structure:
 
@@ -140,10 +131,6 @@ Feature-specific components SHALL organize as follows:
 - **THEN** they find all related code in `features/chat/`
 - **AND** feature boundaries are clear and maintainable
 
-## MODIFIED Requirements
-
-### Import Path Structure
-
 ### Requirement: Updated Import Paths
 All import paths SHALL update to reflect the new structure:
 - Pages import from: `@/renderer/pages/*`
@@ -198,10 +185,6 @@ Import direction SHALL follow these rules:
 - **THEN** no circular dependencies exist
 - **AND** module boundaries are respected
 
-## REMOVED Requirements
-
-### Old Directory Structure
-
 ### Requirement: Remove Old Component Structure
 These old directories SHALL be removed after migration:
 - `src/renderer/components/` (all contents moved)
@@ -213,8 +196,6 @@ These old directories SHALL be removed after migration:
 - **WHEN** migration is complete
 - **THEN** developers only see the new structure
 - **AND** no confusion exists about which location to use
-
-## Validation Requirements
 
 ### Requirement: Test Suite Passes
 All tests SHALL pass after reorganization:
@@ -249,41 +230,3 @@ TypeScript type checking SHALL pass:
 - **THEN** no TypeScript errors occur
 - **AND** all types resolve correctly
 
-## Implementation Notes
-
-### Migration Order
-1. Create new directory structure
-2. Move shared resources (shared/ui, shared/lib)
-3. Update imports that depend on shared resources
-4. Move app structure
-5. Move widgets
-6. Move pages
-7. Update AppRoutes
-8. Update remaining imports
-9. Run tests and fix issues
-10. Remove old directories
-
-### Rollback Strategy
-- Keep old structure intact until all phases complete
-- Use git commits to track each phase
-- Revert to last known good state if needed
-
-## Success Criteria
-
-- [ ] All files moved to new locations
-- [ ] All imports updated correctly
-- [ ] All tests pass
-- [ ] Build succeeds
-- [ ] Type checking passes
-- [ ] No circular dependencies introduced
-- [ ] Developer documentation updated
-- [ ] Clear import patterns established
-- [ ] Single home for shared utilities
-- [ ] Feature boundaries clear
-
-## References
-
-- Current structure: `src/renderer/`
-- Route definitions: `src/renderer/components/App/AppRoutes.tsx`
-- OpenSpec design document: `openspec/changes/reorganize-renderer-structure/design.md`
-- OpenSpec tasks: `openspec/changes/reorganize-renderer-structure/tasks.md`

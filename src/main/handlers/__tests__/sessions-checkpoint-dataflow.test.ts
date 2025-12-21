@@ -269,8 +269,8 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       expect(services.chatService.getMessages).toHaveBeenCalledWith(sessionId);
 
       // Verify messages were retrieved
-      expect(messagesResponse.data.messages).toHaveLength(1);
-      expect(messagesResponse.data.messages[0].content).toBe('Hello');
+      expect(messagesResponse.data.sessions).toHaveLength(1);
+      expect(messagesResponse.data.sessions[0].content).toBe('Hello');
 
       console.log('✅ Step 1: chat:get-messages called with sessionId =', sessionId);
       console.log('✅ Step 2: chatService.getMessages queried using sessionId');

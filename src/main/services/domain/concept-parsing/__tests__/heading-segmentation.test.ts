@@ -1,29 +1,38 @@
-import { describe, it, expect, vi } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock the extraction workflow
+const executeExtractionWorkflow = vi.fn(async () => ({
+  success: true,
+  result: {
+    summary: '',
+    focusAreas: [],
+    nodes: [{ name: 'Test Concept', confidence: 0.8 }],
+    relationships: [],
+    recommendations: [],
+  },
+  attempt: 1,
+  metrics: {
+    chainCreationMs: 0,
+    llmInvokeMs: 50,
+    jsonParseMs: 0,
+    validationMs: 0,
+    totalMs: 50,
+  },
+}));
+
 vi.mock('../extraction-workflow', () => ({
-  executeExtractionWorkflow: vi.fn(async () => ({
-    success: true,
-    result: {
-      summary: '',
-      focusAreas: [],
-      nodes: [{ name: 'Test Concept', confidence: 0.8 }],
-      relationships: [],
-      recommendations: [],
-    },
-    attempt: 1,
-    metrics: {
-      chainCreationMs: 0,
-      llmInvokeMs: 50,
-      jsonParseMs: 0,
-      validationMs: 0,
-      totalMs: 50,
-    },
-  })),
+  executeExtractionWorkflow,
 }));
 
 describe('heading segmentation fix', () => {
+  let createConceptParsingService: any;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    ({ createConceptParsingService } = await import('../concept-parsing-service'));
+  });
+
   const providerFactory: any = {
     getModel: vi.fn(async () => ({})),
     getEmbeddingModel: vi.fn(async () => ({

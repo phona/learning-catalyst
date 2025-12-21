@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConceptParsingService, type ConceptParsingMaterial } from '../concept-parsing-service';
+import type { ConceptParsingMaterial } from '../concept-parsing-service';
 
 // Mock the extraction workflow to return concepts with relationships
 vi.mock('../extraction-workflow', () => ({
@@ -50,8 +50,12 @@ vi.mock('../extraction-workflow', () => ({
 }));
 
 describe('concept parsing relationship storage', () => {
-  beforeEach(() => {
+  let createConceptParsingService: any;
+
+  beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
+    ({ createConceptParsingService } = await import('../concept-parsing-service'));
   });
 
   it('should parse and return relationships without storing them in vector database', async () => {

@@ -35,12 +35,12 @@ Analyze the conversation to assess comprehension. Consider:
 - Any remaining confusion
 
 Return ONLY valid JSON:
-{
+{{
   "level": 0.0-1.0,
   "gaps": ["concept needing more work", "another gap"],
   "mastered": boolean,
   "reason": "brief explanation of assessment"
-}
+}}
 
 Scoring guide:
 - 0.0-0.3: Major misconceptions, fundamental confusion

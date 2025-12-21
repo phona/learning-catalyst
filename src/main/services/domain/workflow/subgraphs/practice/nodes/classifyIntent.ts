@@ -51,14 +51,29 @@ What is the user's intent? Reply with ONLY the intent label.`,
  * Keywords for quick intent detection (fallback/validation)
  */
 const INTENT_KEYWORDS: Record<UserIntent, string[]> = {
-  hint_request: ['hint', 'help', 'clue', 'example', 'can you help', 'give me a hint', 'stuck'],
+  hint_request: [
+    'hint',
+    'help',
+    'example',
+    'can you help',
+    'give me a hint',
+    'give me a clue',
+    'can you give me a clue',
+    'explain',
+    'elaborate',
+    'what does this mean',
+    'what is',
+  ],
   clarification: [
     'what do you mean',
     'unclear',
     'don\'t understand the question',
-    'what is',
-    'explain',
     'confused about the question',
+    'clarify',
+    'rephrase',
+    'what does this question mean',
+    'what are you looking for',
+    'i don\'t get what you\'re asking',
   ],
   give_up: [
     'don\'t know',
@@ -69,8 +84,12 @@ const INTENT_KEYWORDS: Record<UserIntent, string[]> = {
     'next question',
     'i quit',
     'can\'t answer',
+    'stuck',
+    'no clue',
   ],
-  thinking_aloud: ['let me think', 'thinking', 'hmm', 'maybe', 'i\'m not sure but', 'working on it'],
+  // Avoid keyword-matching for "thinking_aloud" since it's easy to misclassify
+  // genuine answer attempts (e.g. "maybe it's X..."). Let the model decide.
+  thinking_aloud: [],
   off_topic: [], // Detected by AI, hard to keyword match
   answer_attempt: [], // Default if nothing else matches
 };
@@ -150,30 +169,22 @@ export const classifyIntentNode =
       }
 
       // AI classification for nuanced cases
-      try {
-        const model = await deps.providerFactory.getModel();
-        const messages = await INTENT_CLASSIFICATION_TEMPLATE.formatMessages({
-          question,
-          userResponse,
-        });
+      const model = await deps.providerFactory.getModel();
+      const messages = await INTENT_CLASSIFICATION_TEMPLATE.formatMessages({
+        question,
+        userResponse,
+      });
 
-        const response = await model.invoke(messages);
-        const intent = parseIntent(String(response.content ?? ''));
+      const response = await model.invoke(messages);
+      const intent = parseIntent(String(response.content ?? ''));
 
-        const duration = Date.now() - startTime;
-        deps.loggerService.info('classifyIntentNode: complete', {
-          intent,
-          durationMs: duration,
-        });
+      const duration = Date.now() - startTime;
+      deps.loggerService.info('classifyIntentNode: complete', {
+        intent,
+        durationMs: duration,
+      });
 
-        return {
-          practice: { userIntent: intent },
-        };
-      } catch (error) {
-        deps.loggerService.error('classifyIntentNode: AI classification failed', { error });
-        // Fallback: assume answer attempt
-        return {
-          practice: { userIntent: 'answer_attempt' as UserIntent },
-        };
-      }
+      return {
+        practice: { userIntent: intent },
+      };
     };

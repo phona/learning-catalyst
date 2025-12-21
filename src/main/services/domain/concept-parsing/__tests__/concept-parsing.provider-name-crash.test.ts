@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
 
 /**
  * Test for fix: providerName undefined crash
@@ -41,8 +40,12 @@ vi.mock('../extraction-workflow', () => ({
 }));
 
 describe('concept parsing - providerName crash fix', () => {
-  beforeEach(() => {
+  let createConceptParsingService: any;
+
+  beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
+    ({ createConceptParsingService } = await import('../concept-parsing-service'));
   });
 
   it('should not crash when provider model does not have settings property', async () => {

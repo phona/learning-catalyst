@@ -7,8 +7,18 @@ import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 // Mock chunk emitter utilities
 vi.mock('../utils/chunk-emitter', () => ({
   createChunkEmitter: vi.fn().mockReturnValue({
+    textStart: vi.fn(),
+    textDelta: vi.fn(),
+    textEnd: vi.fn(),
     toolInputStart: vi.fn(),
+    toolInputAvailable: vi.fn(),
     toolOutputAvailable: vi.fn(),
+    reasoningStart: vi.fn(),
+    reasoningDelta: vi.fn(),
+    reasoningEnd: vi.fn(),
+    error: vi.fn(),
+    finish: vi.fn(),
+    abort: vi.fn(),
   }),
   generateId: vi.fn().mockReturnValue('test-id-123'),
 }));

@@ -48,6 +48,35 @@ const createBaseState = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const getMessageRole = (message: any): string | undefined => {
+  if (!message || typeof message !== 'object') return undefined;
+  if (typeof message.role === 'string') return message.role;
+
+  const rawType =
+    typeof message._getType === 'function'
+      ? message._getType()
+      : typeof message.getType === 'function'
+        ? message.getType()
+        : typeof message.type === 'string'
+          ? message.type
+          : undefined;
+
+  if (rawType === 'human') return 'user';
+  if (rawType === 'system') return 'system';
+  if (rawType === 'ai') return 'assistant';
+  return rawType;
+};
+
+const getMessageContentText = (message: any): string => {
+  const content = message?.content;
+  if (typeof content === 'string') return content;
+  try {
+    return JSON.stringify(content);
+  } catch {
+    return String(content ?? '');
+  }
+};
+
 describe('[TC-501] classifyResponse node', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -250,8 +279,8 @@ describe('[TC-501] classifyResponse node', () => {
 
       const result = await node(state, createMockConfig());
 
-      // Should return the model response (no validation in parseIntent)
-      expect(result.teach?.teachIntent).toBe('!@#$%^&*()');
+      // Unknown model responses should fall back to a safe default
+      expect(result.teach?.teachIntent).toBe('question');
       expect(deps.providerFactory.getModel).toHaveBeenCalled();
     });
 
@@ -329,16 +358,17 @@ describe('[TC-501] classifyResponse node', () => {
       expect(Array.isArray(messages)).toBe(true);
 
       // Should include system and user messages
-      const systemMessage = messages.find((m: any) => m.role === 'system');
-      const userMessage = messages.find((m: any) => m.role === 'user');
+      const systemMessage = messages.find((m: any) => getMessageRole(m) === 'system');
+      const userMessage = messages.find((m: any) => getMessageRole(m) === 'user');
 
       expect(systemMessage).toBeDefined();
       expect(userMessage).toBeDefined();
 
       // User message should include topic and response
       if (userMessage) {
-        expect(userMessage.content).toContain('Closures');
-        expect(userMessage.content).toContain('Testing one two three');
+        const text = getMessageContentText(userMessage);
+        expect(text).toContain('Closures');
+        expect(text).toContain('Testing one two three');
       }
     });
 

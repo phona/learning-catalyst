@@ -412,19 +412,21 @@ export const createLearningService = ({
     startLearningSession: async (params: {
       topic: string;
       goals: string[];
-      difficulty: 'beginner' | 'intermediate' | 'advanced';
-      agentType: string;
-      learningStyle: LearningSession['learningStyle'];
+      difficulty?: 'beginner' | 'intermediate' | 'advanced';
+      agentType?: string;
+      learningStyle?: LearningSession['learningStyle'];
+      userId?: string;
       sessionId?: string;
     }): Promise<LearningSession> => {
       const metadata: LearningSessionMetadata = {
         goals: params.goals ?? [],
-        agentType: params.agentType,
+        agentType: params.agentType ?? 'learning',
         topic: params.topic,
         difficulty: params.difficulty ?? 'intermediate',
         learningStyle: params.learningStyle ?? 'visual',
         status: 'active',
         progress: 10,
+        userId: params.userId,
         blueprint: {
           summary: 'Session initialized with starter blueprint',
           timeline: ['Session created'],
@@ -482,6 +484,62 @@ export const createLearningService = ({
       );
       serviceLogger.info('Session progress calculated', { sessionId });
       return snapshot;
+    },
+
+    pauseSession: async (sessionId: string): Promise<{ success: true; resumeData: unknown }> => {
+      const pausedAt = new Date().toISOString();
+      await updateSessionMetadata(sessionId, (metadata) => ({
+        ...metadata,
+        status: 'paused',
+        pausedAt,
+      }));
+      serviceLogger.info('Session paused', { sessionId });
+      return { success: true, resumeData: { sessionId } };
+    },
+
+    resumeSession: async (
+      sessionId: string,
+    ): Promise<{ success: true; context: { sessionId: string } }> => {
+      const resumeAt = new Date().toISOString();
+      await updateSessionMetadata(sessionId, (metadata) => ({
+        ...metadata,
+        status: 'active',
+        resumeAt,
+      }));
+      serviceLogger.info('Session resumed', { sessionId });
+      return { success: true, context: { sessionId } };
+    },
+
+    completeSession: async (sessionId: string): Promise<{ sessionId: string; summary: unknown }> => {
+      const now = new Date();
+      const row = await ensureSessionRow(sessionId);
+      const startTime = new Date(row.start_time);
+      const durationSeconds = Number.isFinite(startTime.getTime())
+        ? Math.max(0, Math.floor((now.getTime() - startTime.getTime()) / 1000))
+        : row.duration_seconds;
+
+      const nextMetadata = await updateSessionMetadata(
+        sessionId,
+        (metadata) => ({
+          ...metadata,
+          status: 'completed',
+          progress: 100,
+          summary: metadata.summary ?? {
+            topicsCovered: [],
+            keyTakeaways: [],
+            strengths: [],
+            areasForImprovement: [],
+            nextSteps: [],
+          },
+        }),
+        {
+          end_time: now.toISOString(),
+          duration_seconds: durationSeconds,
+        },
+      );
+
+      serviceLogger.info('Session completed', { sessionId });
+      return { sessionId, summary: nextMetadata.summary ?? {} };
     },
 
     getRecentSessions: async (options?: SessionFilters) => {

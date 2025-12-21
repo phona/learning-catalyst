@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
 
 // Mock the extraction workflow
 vi.mock('../extraction-workflow', () => ({
@@ -25,10 +24,12 @@ vi.mock('../extraction-workflow', () => ({
 
 describe('concept parsing vectorization', () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
   });
 
   it('always vectorizes when a vector DB is provided, even if vectorize flag is false', async () => {
+    const { createConceptParsingService } = await import('../concept-parsing-service');
     const addDocumentBatch = vi.fn().mockResolvedValue(undefined);
     const vectorDatabase = {
       addDocument: vi.fn(),

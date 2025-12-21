@@ -44,6 +44,15 @@ const mockEmitter = {
   textStart: vi.fn(),
   textDelta: vi.fn(),
   textEnd: vi.fn(),
+  toolInputStart: vi.fn(),
+  toolInputAvailable: vi.fn(),
+  toolOutputAvailable: vi.fn(),
+  reasoningStart: vi.fn(),
+  reasoningDelta: vi.fn(),
+  reasoningEnd: vi.fn(),
+  error: vi.fn(),
+  finish: vi.fn(),
+  abort: vi.fn(),
 };
 
 // Mock createChunkEmitter
@@ -52,6 +61,15 @@ vi.mock('../../../utils/chunk-emitter', () => ({
     textStart: mockEmitter.textStart,
     textDelta: mockEmitter.textDelta,
     textEnd: mockEmitter.textEnd,
+    toolInputStart: mockEmitter.toolInputStart,
+    toolInputAvailable: mockEmitter.toolInputAvailable,
+    toolOutputAvailable: mockEmitter.toolOutputAvailable,
+    reasoningStart: mockEmitter.reasoningStart,
+    reasoningDelta: mockEmitter.reasoningDelta,
+    reasoningEnd: mockEmitter.reasoningEnd,
+    error: mockEmitter.error,
+    finish: mockEmitter.finish,
+    abort: mockEmitter.abort,
   }),
   generateId: vi.fn().mockReturnValue('mock-id'),
 }));

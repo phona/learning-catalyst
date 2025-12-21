@@ -6,29 +6,37 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createProviderFactory } from '../../agent/provider-factory';
-import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
+
+const ChatOpenAI = vi.fn().mockImplementation((cfg) => ({ config: cfg }));
+const OpenAIEmbeddings = vi.fn().mockImplementation((cfg) => ({
+  modelName: (cfg?.model as string) || '',
+  model: (cfg?.model as string) || '',
+  batchSize: cfg?.batchSize || 512,
+  stripNewLines: cfg?.stripNewLines ?? true,
+  maxRetries: cfg?.maxRetries ?? 3,
+  timeout: cfg?.timeout,
+  apiKey: cfg?.apiKey,
+  configuration: cfg?.configuration,
+  verbose: cfg?.verbose,
+  dimensions: cfg?.dimensions,
+  embedQuery: vi.fn(),
+  embedDocuments: vi.fn(),
+}) as any);
 
 vi.mock('@langchain/openai', () => ({
-  ChatOpenAI: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
-  OpenAIEmbeddings: vi.fn().mockImplementation((cfg) => ({
-    modelName: (cfg?.model as string) || '',
-    model: (cfg?.model as string) || '',
-    batchSize: cfg?.batchSize || 512,
-    stripNewLines: cfg?.stripNewLines ?? true,
-    maxRetries: cfg?.maxRetries ?? 3,
-    timeout: cfg?.timeout,
-    apiKey: cfg?.apiKey,
-    configuration: cfg?.configuration,
-    verbose: cfg?.verbose,
-    dimensions: cfg?.dimensions,
-    embedQuery: vi.fn(),
-    embedDocuments: vi.fn(),
-  }) as any),
+  ChatOpenAI,
+  OpenAIEmbeddings,
 }));
 
 describe('Provider Embeddings Configuration', () => {
-  beforeEach(() => {
+  let createProviderFactory: any;
+
+  beforeEach(async () => {
+    // With isolate=false in vitest config, ensure provider-factory is imported after mocks apply.
+    vi.resetModules();
+    vi.clearAllMocks();
+    ({ createProviderFactory } = await import('../../agent/provider-factory'));
+
     // Reset mock completely to default state that includes dimensions from config
     vi.mocked(OpenAIEmbeddings).mockReset();
     vi.mocked(OpenAIEmbeddings).mockImplementation((cfg) => ({

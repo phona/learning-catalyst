@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
 
 // Mock the extraction workflow to return valid concept data
 vi.mock('../extraction-workflow', () => ({
@@ -25,6 +24,7 @@ vi.mock('../extraction-workflow', () => ({
 
 describe('concept parsing chunk boundaries', () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
   });
 
@@ -33,6 +33,7 @@ describe('concept parsing chunk boundaries', () => {
   };
 
   it('keeps chunking within section boundaries when splitting', async () => {
+    const { createConceptParsingService } = await import('../concept-parsing-service');
     const addDocumentBatchMock = vi.fn().mockResolvedValue(undefined);
     const vectorDatabase: any = {
       addDocumentBatch: addDocumentBatchMock,

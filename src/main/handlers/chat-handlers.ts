@@ -15,6 +15,8 @@ import { LearningService } from '../services/domain/learning/learning-service';
 import { PracticeService } from '../services/domain/practice/practice-service';
 import { AgentManager } from '../services/agent/agent-manager';
 import { ProviderFactory } from '../services/agent/provider-factory';
+import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 
 type ChatDependencies = {
   chatService: ChatService;
@@ -27,6 +29,9 @@ type ChatDependencies = {
   learningService: LearningService;
   agentManager: AgentManager;
 };
+
+const ok = <T>(data?: T): APIResponse<T> => ({ success: true, data });
+const fail = (code: string, error: string): APIResponse<never> => ({ success: false, code, error });
 
 export const setupChatHandlers = (
   ipcMainInstance: typeof ipcMain,
@@ -45,15 +50,27 @@ export const setupChatHandlers = (
   });
 
   ipcMainInstance.handle('chat:generate-title', async (_event, messageText: string) => {
-    const title = await services.chatService.generateTitle(messageText);
-    return { title };
+    try {
+      const title = await services.chatService.generateTitle(messageText);
+      return ok(title);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('chat:generate-title failed', { message });
+      return fail(IPC_ERROR_CODES.chat.generateTitleFailed, message);
+    }
   });
 
   ipcMainInstance.handle('chat:get-messages', async (_event, sessionId: string) => {
-    const messages = await services.chatService.getMessages(sessionId);
-    logger.info('Get messages requested', { sessionId, count: messages.length });
-    // Return format expected by useThreadHistoryAdapter: { sessions: ChatHistoryMessage[] }
-    return { sessions: messages, hasMore: false, total: messages.length };
+    try {
+      const messages = await services.chatService.getMessages(sessionId);
+      logger.info('Get messages requested', { sessionId, count: messages.length });
+      // Return format expected by ChatAPI.getMessages: { sessions: ChatHistoryMessage[] }
+      return ok({ sessions: messages, hasMore: false, total: messages.length });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('chat:get-messages failed', { sessionId, message });
+      return fail(IPC_ERROR_CODES.system.unknown, message);
+    }
   });
 
   // Keep old IPC streaming API as fallback (to be removed later)

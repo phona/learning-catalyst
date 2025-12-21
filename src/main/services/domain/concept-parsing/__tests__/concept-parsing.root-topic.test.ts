@@ -1,14 +1,18 @@
-import { describe, it, expect, vi, beforeEach, type MockedFunction } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
-import { executeExtractionWorkflow } from '../extraction-workflow';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const executeExtractionWorkflow = vi.fn();
 
 vi.mock('../extraction-workflow', () => ({
-  executeExtractionWorkflow: vi.fn(),
+  executeExtractionWorkflow,
 }));
 
 describe('H1 as Root Topic Concept', () => {
-  beforeEach(() => {
+  let createConceptParsingService: any;
+
+  beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
+    ({ createConceptParsingService } = await import('../concept-parsing-service'));
   });
 
   const providerFactory: any = {
@@ -31,7 +35,7 @@ describe('H1 as Root Topic Concept', () => {
 
   it('should treat H1 as ROOT TOPIC concept and create contains relationships', async () => {
     // Mock the extraction workflow to return H1 as first concept (root topic)
-    (executeExtractionWorkflow as MockedFunction<typeof executeExtractionWorkflow>).mockResolvedValue({
+    executeExtractionWorkflow.mockResolvedValue({
       success: true,
       result: {
         summary: 'Python programming fundamentals',
@@ -162,7 +166,7 @@ Functions are reusable code blocks.`;
   });
 
   it('should prioritize ROOT TOPIC in results', async () => {
-    (executeExtractionWorkflow as MockedFunction<typeof executeExtractionWorkflow>).mockResolvedValue({
+    executeExtractionWorkflow.mockResolvedValue({
       success: true,
       result: {
         summary: 'Test summary',

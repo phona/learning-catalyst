@@ -21,6 +21,15 @@ const mockEmitter = {
   textStart: vi.fn(),
   textDelta: vi.fn(),
   textEnd: vi.fn(),
+  toolInputStart: vi.fn(),
+  toolInputAvailable: vi.fn(),
+  toolOutputAvailable: vi.fn(),
+  reasoningStart: vi.fn(),
+  reasoningDelta: vi.fn(),
+  reasoningEnd: vi.fn(),
+  error: vi.fn(),
+  finish: vi.fn(),
+  abort: vi.fn(),
 };
 
 vi.mock('../../../utils/chunk-emitter', () => ({

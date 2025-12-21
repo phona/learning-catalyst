@@ -8,15 +8,20 @@ import type { SearchResult } from '../../../../../../../shared/types/electron-ap
 // Mock chunk emitter utilities
 vi.mock('../utils/chunk-emitter', () => ({
   createChunkEmitter: vi.fn().mockReturnValue({
+    textStart: vi.fn(),
+    textDelta: vi.fn(),
+    textEnd: vi.fn(),
     toolInputStart: vi.fn(),
+    toolInputAvailable: vi.fn(),
     toolOutputAvailable: vi.fn(),
+    reasoningStart: vi.fn(),
+    reasoningDelta: vi.fn(),
+    reasoningEnd: vi.fn(),
+    error: vi.fn(),
+    finish: vi.fn(),
+    abort: vi.fn(),
   }),
   generateId: vi.fn().mockReturnValue('test-id-123'),
-}));
-
-// Mock parseScore utility
-vi.mock('../../parse-score', () => ({
-  parseScore: vi.fn(),
 }));
 
 // Helper function to create complete mock logger service
@@ -314,9 +319,6 @@ describe('assess node', () => {
     const mockProviderFactory = createMockProviderFactory({
       getModel: vi.fn().mockResolvedValue(mockModel),
     });
-
-    const { parseScore } = await import('../../parse-score');
-    vi.mocked(parseScore).mockReturnValue(1.5); // 150%
 
     const node = assessNode(createMockDeps({
       providerFactory: mockProviderFactory,

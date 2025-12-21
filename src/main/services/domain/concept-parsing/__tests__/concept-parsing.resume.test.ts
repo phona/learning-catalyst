@@ -35,6 +35,7 @@ describe('concept parsing resume support', () => {
     // Override job directory for testing
     process.env.CONCEPT_PARSE_JOB_DIR = jobDir;
     fs.rmSync(jobDir, { recursive: true, force: true });
+    vi.resetModules();
     vi.clearAllMocks();
   });
 

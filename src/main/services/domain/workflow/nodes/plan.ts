@@ -73,7 +73,10 @@ export const PracticeBlockSchema = z.object({
   type: z.enum(['retrieval', 'apply', 'teach_back', 'open_question']),
   prompt: z.string(),
   minutes: z.number().int().positive(),
-  expectedAnswer: z.string().describe('Expected answer or understanding criteria to check user comprehension'),
+  expectedAnswer: z
+    .string()
+    .default('')
+    .describe('Expected answer or understanding criteria to check user comprehension'),
   scoring: z.enum(['auto', 'manual', 'hybrid']),
 });
 export type PracticeBlock = z.infer<typeof PracticeBlockSchema>;

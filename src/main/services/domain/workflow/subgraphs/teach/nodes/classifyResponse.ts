@@ -66,6 +66,7 @@ const INTENT_KEYWORDS: Record<TeachIntent, string[]> = {
   confused: [
     "don't get",
     'confused',
+    'confusing',
     'unclear',
     "don't understand",
     'lost',
@@ -105,21 +106,17 @@ const INTENT_KEYWORDS: Record<TeachIntent, string[]> = {
 function detectIntentByKeywords(response: string): TeachIntent | null {
   const lowerResponse = response.toLowerCase();
 
-  // Check for question marks as strong signal
-  if (lowerResponse.includes('?')) {
-    // But not if it's clearly readiness
-    const readyWithQuestion = ['ready?', 'shall we practice?', 'good?'];
-    if (!readyWithQuestion.some((q) => lowerResponse.includes(q))) {
-      return 'question';
-    }
-  }
-
-  // Check keywords in priority order
-  for (const intent of ['ready', 'confused', 'needs_more', 'question'] as TeachIntent[]) {
+  // Check keywords in priority order (confusion should override "understand" substring matches)
+  for (const intent of ['confused', 'needs_more', 'ready', 'question'] as TeachIntent[]) {
     const keywords = INTENT_KEYWORDS[intent];
     if (keywords.some((keyword) => lowerResponse.includes(keyword))) {
       return intent;
     }
+  }
+
+  // Question marks are a strong signal *only* if we didn't match other intents (e.g., "Huh?")
+  if (lowerResponse.includes('?')) {
+    return 'question';
   }
 
   return null;

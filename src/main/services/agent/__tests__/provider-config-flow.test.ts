@@ -5,16 +5,26 @@
  * which is exactly what happened with the model configuration issue.
  */
 
-import { describe, it, expect, vi } from 'vitest';
-import { createProviderFactory } from '../provider-factory';
-import { ChatOpenAI } from '@langchain/openai';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const ChatOpenAI = vi.fn().mockImplementation((cfg) => ({ config: cfg }));
+const OpenAIEmbeddings = vi.fn().mockImplementation((cfg) => ({ config: cfg }));
 
 vi.mock('@langchain/openai', () => ({
-  ChatOpenAI: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
-  OpenAIEmbeddings: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
+  ChatOpenAI,
+  OpenAIEmbeddings,
 }));
 
 describe('Provider Configuration Flow', () => {
+  let createProviderFactory: any;
+
+  beforeEach(async () => {
+    // Make sure provider-factory imports see our '@langchain/openai' mock (suite runs with isolate=false)
+    vi.resetModules();
+    vi.clearAllMocks();
+    ({ createProviderFactory } = await import('../provider-factory'));
+  });
+
   const makeConfigService = (config: unknown) => ({
     getConfig: vi.fn().mockResolvedValue(config),
     setConfig: vi.fn(),

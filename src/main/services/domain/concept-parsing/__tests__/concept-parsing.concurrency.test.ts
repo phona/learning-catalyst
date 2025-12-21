@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createConceptParsingService } from '../concept-parsing-service';
 
 let active = 0;
 let maxActive = 0;
@@ -35,11 +34,15 @@ vi.mock('../extraction-workflow', () => ({
 }));
 
 describe('concept parsing concurrency', () => {
-  beforeEach(() => {
+  let createConceptParsingService: any;
+
+  beforeEach(async () => {
     active = 0;
     maxActive = 0;
     segmentCount = 0;
+    vi.resetModules();
     vi.clearAllMocks();
+    ({ createConceptParsingService } = await import('../concept-parsing-service'));
   });
 
   const providerFactory: any = {

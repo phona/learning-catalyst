@@ -6,15 +6,31 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createProviderFactory } from '@/main/services/agent/provider-factory';
-import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
+
+const ChatOpenAI = vi.fn().mockImplementation((cfg) => ({ config: cfg }));
+const OpenAIEmbeddings = vi.fn().mockImplementation((cfg) => ({ config: cfg }));
 
 vi.mock('@langchain/openai', () => ({
-  ChatOpenAI: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
-  OpenAIEmbeddings: vi.fn().mockImplementation((cfg) => ({ config: cfg })),
+  ChatOpenAI,
+  OpenAIEmbeddings,
 }));
 
 describe('Provider Factory - Real Implementation', () => {
+  let createProviderFactory: any;
+
+  beforeEach(async () => {
+    // With isolate=false in vitest config, other tests may have already imported provider-factory.
+    // Reset module cache so our '@langchain/openai' mock applies before provider-factory imports it.
+    vi.resetModules();
+    vi.clearAllMocks();
+    createProviderFactory = await importProviderFactory();
+  });
+
+  const importProviderFactory = async () => {
+    const mod = await import('@/main/services/agent/provider-factory');
+    return mod.createProviderFactory;
+  };
+
   const makeConfigService = (config: unknown) => ({
     getConfig: vi.fn().mockResolvedValue(config),
     setConfig: vi.fn(),

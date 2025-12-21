@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { explainNode } from '../nodes/explain';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
 import { TeachState, DEFAULT_TEACH_STATE } from '../types';
@@ -25,7 +24,14 @@ vi.mock('../../../utils/chunk-emitter', async () => {
       textDelta: vi.fn(),
       textEnd: vi.fn(),
       toolInputStart: vi.fn(),
+      toolInputAvailable: vi.fn(),
       toolOutputAvailable: vi.fn(),
+      reasoningStart: vi.fn(),
+      reasoningDelta: vi.fn(),
+      reasoningEnd: vi.fn(),
+      error: vi.fn(),
+      finish: vi.fn(),
+      abort: vi.fn(),
     }),
     generateId: vi.fn().mockReturnValue('test-id'),
   };
@@ -84,8 +90,12 @@ const createState = (overrides: Partial<TeachSubgraphState> = {}): TeachSubgraph
 };
 
 describe('explain node', () => {
-  beforeEach(() => {
+  let explainNode: any;
+
+  beforeEach(async () => {
+    vi.resetModules();
     vi.clearAllMocks();
+    ({ explainNode } = await import('../nodes/explain'));
   });
 
   it('should generate initial explanation for round 1', async () => {

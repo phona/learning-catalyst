@@ -499,8 +499,12 @@ describe('classifyIntent node', () => {
     expect(Array.isArray(messages)).toBe(true);
 
     // Should include system and user messages
-    const systemMessage = messages.find((m: any) => m.role === 'system');
-    const userMessage = messages.find((m: any) => m.role === 'user');
+    const messageType = (m: any) => m?.role ?? m?._getType?.() ?? m?.getType?.() ?? m?.type;
+    const systemMessage = messages.find((m: any) => messageType(m) === 'system');
+    const userMessage = messages.find((m: any) => {
+      const t = messageType(m);
+      return t === 'user' || t === 'human';
+    });
 
     expect(systemMessage).toBeDefined();
     expect(userMessage).toBeDefined();
