@@ -161,10 +161,21 @@ export function createTestServiceContainer(
         success: true,
         data: [],
       }),
-      // search: async (query: SessionSearchQuery) => ({
-      //   success: true,
-      //   data: { sessions: [], total: 0, hasMore: false },
-      // }),
+      getGlobalStatistics: async () => ({
+        success: true,
+        data: {
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
+        },
+      }),
+      searchSessions: async (query: string) => ({
+        success: true,
+        data: [],
+      }),
       // getStatistics: async () => ({
       //   success: true,
       //   data: {

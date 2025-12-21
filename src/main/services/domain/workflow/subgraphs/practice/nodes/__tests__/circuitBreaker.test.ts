@@ -76,6 +76,9 @@ vi.mock('../../../utils/chunk-emitter', () => ({
 
 const createMockConfig = (): LangGraphRunnableConfig => ({
   writer: vi.fn(),
+  configurable: {},
+  tags: [],
+  recursionLimit: 25,
 } as any);
 
 const mockDeps: WorkflowDeps = {
@@ -158,9 +161,9 @@ describe('circuitBreakerNode', () => {
       await node(state as any, config);
 
       // Verify chunk streaming
-      expect(mockEmitter.textStart).toHaveBeenCalled();
-      expect(mockEmitter.textDelta).toHaveBeenCalled();
-      expect(mockEmitter.textEnd).toHaveBeenCalled();
+      expect(mockEmitter.textStart).toHaveBeenCalledTimes(1);
+      expect(mockEmitter.textDelta).toHaveBeenCalledTimes(1);
+      expect(mockEmitter.textEnd).toHaveBeenCalledTimes(1);
     });
 
     it('handles different failure scenarios', async () => {

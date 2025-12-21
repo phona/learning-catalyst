@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LangGraphRunnableConfig, MemorySaver, StateGraph } from '@langchain/langgraph';
 import { handleQuestionNode } from '../nodes/handleQuestion';
 import { DEFAULT_TEACH_STATE, TeachState } from '../types';
@@ -5,8 +6,14 @@ import { AIMessage } from '@langchain/core/messages';
 import { TeachAnnotation } from '../state';
 import type { WorkflowDeps } from '../../../state';
 
-// Mock interrupt function
-const interrupt = vi.fn().mockResolvedValue('');
+// Mock interrupt from langgraph
+vi.mock('@langchain/langgraph', async () => {
+  const actual = await vi.importActual('@langchain/langgraph');
+  return {
+    ...actual,
+    interrupt: vi.fn().mockResolvedValue(''),
+  };
+});
 
 // Mock dependencies
 const createMockDeps = (): WorkflowDeps => {
@@ -57,7 +64,7 @@ const createMockConfig = (): LangGraphRunnableConfig => ({});
 
 describe('handleQuestion node', () => {
   beforeEach(() => {
-    // Note: vi.clearAllMocks() is not available, so we clean up manually
+    vi.clearAllMocks();
   });
 
   it('should answer user questions', async () => {
@@ -240,7 +247,8 @@ describe('handleQuestion node', () => {
     await node(state, createMockConfig());
 
     // Verify interrupt was called
-    expect(interrupt).toHaveBeenCalled();
+    const { interrupt } = await import('@langchain/langgraph');
+    expect(vi.mocked(interrupt)).toHaveBeenCalled();
   });
 
   it('should respect MAX_QUESTIONS limit', async () => {

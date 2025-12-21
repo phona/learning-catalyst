@@ -209,7 +209,13 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     updateSessionTitle,
     createSession,
     deleteSession,
-    // getGlobalStatistics, // TODO: Implement when API is available
-    // searchSessions, // TODO: Implement when API is available
+    getGlobalStatistics: async (): Promise<SessionStatistics> => {
+      const response = await unwrapAPI(electronAPI.sessions.getGlobalStatistics());
+      return response;
+    },
+    searchSessions: async (query: string): Promise<SessionDisplay[]> => {
+      const response = await unwrapAPI(electronAPI.sessions.searchSessions(query));
+      return response;
+    },
   };
 };

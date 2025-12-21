@@ -35,6 +35,7 @@ import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
 import type { AppConfig } from '../config';
 // Import base types to re-export
 import type { SystemReadyPayload, ConfigChangedPayload, IPCError } from './base';
+import type { ContentAPI, AgentsAPI, AISDKAPI } from './base';
 
 // Re-export base types
 export type {
@@ -79,6 +80,7 @@ export interface ElectronAPI {
   // System events
   onceSystemReady: (callback: (payload: SystemReadyPayload) => void) => void;
   onConfigChanged: (callback: (payload: ConfigChangedPayload) => void) => void;
+  awaitReady: () => Promise<SystemReadyPayload>;
 
   // Chat domain
   chat: ChatAPI;
@@ -111,5 +113,12 @@ export interface ElectronAPI {
   openFile: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
   saveFile: (options: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
   showDirectoryDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
+  showOpenDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
+  showSaveDialog: (options: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
+  readFile: (filePath: string) => Promise<string>;
+  writeFile: (filePath: string, content: string) => Promise<void>;
+  existsFile: (filePath: string) => Promise<boolean>;
+  readDirectory: (dirPath: string, recursive?: boolean, maxDepth?: number, filterConfig?: DirectoryFilterConfig) => Promise<any[]>;
+  getWorkspacePath: () => Promise<string | null>;
 }
 

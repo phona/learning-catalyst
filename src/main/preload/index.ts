@@ -492,7 +492,9 @@ const sessionsAPI: SessionsAPI = {
   // Use learning:get-recent-sessions (the registered handler) for recent sessions
   getRecentSessions: (options: unknown) =>
     ipcRenderer.invoke('learning:get-recent-sessions', options),
-  };
+  getGlobalStatistics: () => ipcRenderer.invoke('sessions:get-global-statistics'),
+  searchSessions: (query: string) => ipcRenderer.invoke('sessions:search', query),
+};
 
 // ============================================================================
 // Catalyst API

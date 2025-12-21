@@ -1,5 +1,41 @@
 # OpenSpec Change Proposal: Eliminate Double IPC Response Wrapping
 
+## Why
+
+The double IPC response wrapping issue is causing **data access problems in the renderer process**, specifically preventing the session sidebar from displaying historical sessions. This creates a **poor user experience** where users cannot see their previous learning sessions, breaking the core feature of session persistence and continuity.
+
+The current double-wrapping pattern also **violates the single responsibility principle** by having two layers (handlers and IPC proxy) both responsible for response formatting. This leads to:
+- Inconsistent API patterns across the codebase
+- Developer confusion and increased cognitive load
+- Potential runtime errors when accessing nested data
+- Harder maintenance and debugging
+
+Fixing this issue will **improve code clarity**, **establish consistent patterns**, and **ensure reliable data access** throughout the application.
+
+## What Changes
+
+### Core Changes
+1. **Remove all `ok()` and `fail()` wrapper calls** from IPC handlers:
+   - `src/main/handlers/chat-handlers.ts`: 4 wrappers removed
+   - `src/main/handlers/sessions-handlers.ts`: 22 wrappers removed
+   - `src/main/handlers/learning-handlers.ts`: Not applicable (file doesn't exist)
+
+2. **Update error handling** in handlers:
+   - Replace `return fail(...)` with `throw new Error(...)`
+   - Let the IPC proxy's catch block handle error wrapping
+
+3. **Clean up helper functions**:
+   - Remove unused `ok()` and `fail()` helper functions
+   - Remove unused imports (APIResponse, IPC_ERROR_CODES)
+
+### Renderer Updates
+- Verify ThreadListAdapter accesses `data.sessions` correctly (already implemented)
+
+### Result
+- All IPC responses wrapped exactly once by `createIpcProxy`
+- Consistent `{ success: boolean, data: any, timestamp: Date }` structure
+- Direct data access via `data.field` instead of `data.data.field`
+
 ## Problem Statement
 
 The IPC (Inter-Process Communication) system in Learning Catalyst has a **double-wrapping bug** that causes data access issues in the renderer process.

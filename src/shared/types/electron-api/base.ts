@@ -175,6 +175,14 @@ export interface ContentAPI {
   // Project exploration
   exploreProject: (path: string) => Promise<any>;
   scanDirectory: (params: DirectoryFilterConfig) => Promise<DirectoryScanResult>;
+
+  // Content import
+  importLearningContent: (files: FileList) => Promise<any>;
+  getRecommendedContent: (params: {
+    topic: string;
+    level: 'beginner' | 'intermediate' | 'advanced';
+    preferences?: any;
+  }) => Promise<any[]>;
 }
 
 export interface AgentsAPI {
@@ -188,6 +196,12 @@ export interface AgentsAPI {
   // Agent operations
   executeAgent: (agentId: string, params: any) => Promise<any>;
   getAgentCapabilities: (agentId: string) => Promise<AgentCapabilitiesDisplay>;
+  selectAgentForSession: (params: { sessionId: string; agentType: string }) => Promise<{ success: boolean; agent: AgentDisplay; context: AgentContext }>;
+  setAgentPersonality: (params: {
+    agentId: string;
+    personality: any;
+    preferences: any;
+  }) => Promise<{ success: boolean; updatedSettings: any }>;
 }
 
 export interface LearningAPI {

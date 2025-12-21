@@ -8,9 +8,7 @@
 import { ipcMain } from 'electron';
 import type { LearningService } from '../services/domain/learning/learning-service';
 import type { LoggerService } from '../services/core/logger/logger-service';
-import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
-import type { APIResponse } from '@/shared/types/electron-api';
 import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
 
 type SessionsSearchPayload = {
@@ -23,11 +21,6 @@ type SessionsDeps = {
   loggerService: LoggerService;
 };
 
-const ok = <T>(data?: T): APIResponse<T> => ({ success: true, data });
-const fail = (code: string, message: string, details?: unknown): APIResponse<never> => ({
-  success: false,
-  error: { code, message, details: details as Record<string, unknown> | undefined },
-});
 
 /**
  * Convert learning session to SessionDisplay format for UI
@@ -44,11 +37,12 @@ const toSessionDisplay = (session: {
 }): SessionDisplay => ({
   id: session.id,
   title: session.topic,
+  createdAt: session.createdAt,
+  updatedAt: session.updatedAt,
   topic: session.topic,
   difficulty: session.difficulty as SessionDisplay['difficulty'],
   status: session.status as SessionDisplay['status'],
   progress: session.progress,
-    lastActivity: session.updatedAt,
   duration: session.duration,
 });
 
@@ -71,17 +65,16 @@ export const setupSessionsHandlers = (
         });
         const offset = options?.offset ?? 0;
         const sliced = sessions.slice(offset, offset + limit);
-        return ok({
+        return {
           sessions: sliced.map(toSessionDisplay),
           total: sessions.length,
           hasMore: sessions.length > offset + sliced.length,
-        });
+        };
       } catch (error) {
         logger.error('sessions:list failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        return fail(
-          IPC_ERROR_CODES.sessions.createFailed,
+        throw new Error(
           error instanceof Error ? error.message : 'Failed to list sessions',
         );
       }
@@ -105,13 +98,12 @@ export const setupSessionsHandlers = (
           ...(payload.threadId ? { sessionId: payload.threadId } : {}),
         });
 
-        return ok({ sessionId: session.id, session: toSessionDisplay(session) });
+        return { sessionId: session.id, session: toSessionDisplay(session) };
       } catch (error) {
         logger.error('sessions:create failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        return fail(
-          IPC_ERROR_CODES.sessions.createFailed,
+        throw new Error(
           error instanceof Error ? error.message : 'Failed to create session',
         );
       }
@@ -125,15 +117,14 @@ export const setupSessionsHandlers = (
     try {
       const session = await services.learningService.getSession(sessionId);
       if (!session) {
-        return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
+        throw new Error('Session not found');
       }
-      return ok(toSessionDisplay(session));
+      return toSessionDisplay(session);
     } catch (error) {
       logger.error('sessions:get failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      return fail(
-        IPC_ERROR_CODES.sessions.notFound,
+      throw new Error(
         error instanceof Error ? error.message : 'Session not found',
       );
     }
@@ -151,15 +142,14 @@ export const setupSessionsHandlers = (
           status: updates.status as 'active' | 'paused' | 'completed' | undefined,
         });
         if (!updated) {
-          return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
+          throw new Error('Session not found');
         }
-        return ok(toSessionDisplay(updated));
+        return toSessionDisplay(updated);
       } catch (error) {
         logger.error('sessions:update failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        return fail(
-          IPC_ERROR_CODES.sessions.notFound,
+        throw new Error(
           error instanceof Error ? error.message : 'Session not found',
         );
       }
@@ -172,13 +162,12 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle('sessions:delete', async (_event, sessionId: string) => {
     try {
       const deleted = await services.learningService.deleteSession(sessionId);
-      return ok({ deleted });
+      return { deleted };
     } catch (error) {
       logger.error('sessions:delete failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      return fail(
-        IPC_ERROR_CODES.sessions.notFound,
+      throw new Error(
         error instanceof Error ? error.message : 'Failed to delete session',
       );
     }
@@ -193,15 +182,14 @@ export const setupSessionsHandlers = (
       try {
         const updated = await services.learningService.updateSessionTitle(sessionId, title);
         if (!updated) {
-          return fail(IPC_ERROR_CODES.sessions.notFound, 'Session not found');
+          throw new Error('Session not found');
         }
-        return ok(undefined);
+        return undefined;
       } catch (error) {
         logger.error('sessions:update-title failed', {
           message: error instanceof Error ? error.message : String(error),
         });
-        return fail(
-          IPC_ERROR_CODES.sessions.notFound,
+        throw new Error(
           error instanceof Error ? error.message : 'Session not found',
         );
       }
@@ -215,13 +203,12 @@ export const setupSessionsHandlers = (
     try {
       const limit = options?.limit ?? 10;
       const sessions = await services.learningService.getRecentSessions({ limit });
-      return ok(sessions.map(toSessionDisplay));
+      return sessions.map(toSessionDisplay);
     } catch (error) {
       logger.error('sessions:get-recent failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      return fail(
-        IPC_ERROR_CODES.sessions.notFound,
+      throw new Error(
         error instanceof Error ? error.message : 'Failed to get recent sessions',
       );
     }
@@ -236,18 +223,17 @@ export const setupSessionsHandlers = (
         payload.query ?? '',
         payload.filters,
       );
-      return ok({
+      return {
         sessions: result.sessions.map(toSessionDisplay),
         total: result.totalResults,
         query: result.query,
         hasMore: false,
-      });
+      };
     } catch (error) {
       logger.error('sessions:search failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      return fail(
-        IPC_ERROR_CODES.sessions.notFound,
+      throw new Error(
         error instanceof Error ? error.message : 'Failed to search sessions',
       );
     }
@@ -259,16 +245,15 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle('sessions:get-statistics', async () => {
     try {
       const stats = await services.learningService.getSessionStatistics();
-      return ok({
+      return {
         ...stats,
         totalTokensUsed: 0, // Not tracked yet
-      } satisfies SessionStatistics);
+      } satisfies SessionStatistics;
     } catch (error) {
       logger.error('sessions:get-statistics failed', {
         message: error instanceof Error ? error.message : String(error),
       });
-      return fail(
-        IPC_ERROR_CODES.sessions.notFound,
+      throw new Error(
         error instanceof Error ? error.message : 'Failed to get session statistics',
       );
     }

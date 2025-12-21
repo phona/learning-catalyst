@@ -77,6 +77,10 @@ export interface SettingsAPI {
       impact: string[];
     }>
   >;
+
+  // Configuration management
+  getConfig: () => Promise<APIResponse<AppConfig>>;
+  setConfig: (config: Partial<AppConfig>) => Promise<APIResponse<void>>;
 }
 
 export interface SettingsUtility {
