@@ -1,8 +1,8 @@
 # OpenSpec Change: Standardize All Renderer IPC Calls
 
-## Problem Statement
+## Why
 
-The renderer process currently has **inconsistent IPC calling patterns**:
+The renderer process currently has **inconsistent IPC calling patterns** that lead to:
 
 1. **Manual Unwrapping** (verbose, error-prone):
    ```typescript
@@ -17,13 +17,13 @@ The renderer process currently has **inconsistent IPC calling patterns**:
    // Later: {item.name} fails because item is wrapped response
    ```
 
-This causes:
+These patterns cause:
 - Runtime errors: "Objects are not valid as a React child"
 - Inconsistent error handling
 - Code duplication
 - Developer confusion
 
-## Solution
+## What Changes
 
 **Standardize all renderer IPC calls** to use the existing `unwrapAPI` helper from `@/renderer/hooks/useElectronAPI.tsx`:
 

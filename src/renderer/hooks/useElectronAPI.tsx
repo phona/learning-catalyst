@@ -57,9 +57,32 @@ function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
 
 /**
  * Helper to unwrap API responses
+ *
+ * This is the STANDARDIZED way to call IPC methods in the renderer. All services should use
+ * unwrapAPI instead of manual response unwrapping.
+ *
  * @param responsePromise - Promise that resolves to APIResponse<T>
  * @param options - Options for unwrapping behavior
  * @returns Promise that resolves to unwrapped data T
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const data = await unwrapAPI(electronAPI.sessions.list());
+ *
+ * // With error handling
+ * try {
+ *   const sessions = await unwrapAPI(electronAPI.sessions.list());
+ *   // Use sessions directly
+ * } catch (error) {
+ *   if (error instanceof IPCError) {
+ *     // Handle specific error codes
+ *   }
+ * }
+ *
+ * // Silent mode (no toast)
+ * const data = await unwrapAPI(electronAPI.backgroundTask(), { silent: true });
+ * ```
  */
 export function unwrapAPI<T>(
   responsePromise: Promise<APIResponse<T>>,

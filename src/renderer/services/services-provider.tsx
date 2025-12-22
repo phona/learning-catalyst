@@ -18,7 +18,6 @@ import {
 } from './concept-parsing/concept-parsing-service';
 import { createFileService, type FileService } from './file/file-service';
 import { type ElectronAPI } from '@/shared/types/electron-api';
-import { createAgentService, type AgentService } from './agents/agent-service';
 
 interface ServiceContextType {
   electronAPIClient: ElectronAPI;
@@ -30,7 +29,6 @@ interface ServiceContextType {
   configService: ConfigurationService;
   fileService: FileService;
   conceptParsing: ConceptParsingService;
-  agentService: AgentService;
 }
 
 const ServiceContext = createContext<ServiceContextType | null>(null);
@@ -47,7 +45,6 @@ export interface ServicesProviderProps {
     configService: ConfigurationService;
     fileService: FileService;
     conceptParsing: ConceptParsingService;
-    agentService: AgentService;
   }>;
 }
 
@@ -73,7 +70,6 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({
   const configService = overrides?.configService ?? createConfigurationService(client);
   const fileService = overrides?.fileService ?? createFileService(client);
   const conceptParsing = overrides?.conceptParsing ?? createConceptParsingService(client);
-  const agentService = overrides?.agentService ?? createAgentService(client);
 
   return (
     <ServiceContext.Provider
@@ -87,7 +83,6 @@ export const ServicesProvider: React.FC<ServicesProviderProps> = ({
         configService,
         fileService,
         conceptParsing,
-        agentService,
       }}
     >
       {children}
@@ -166,14 +161,6 @@ export const useFileService = (): FileService => {
     throw new Error('useFileService must be used within ServicesProvider');
   }
   return context.fileService;
-};
-
-export const useAgentService = (): AgentService => {
-  const context = useContext(ServiceContext);
-  if (!context) {
-    throw new Error('useAgentService must be used within ServicesProvider');
-  }
-  return context.agentService;
 };
 
 // Generic service hook for backward compatibility

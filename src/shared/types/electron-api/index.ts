@@ -35,7 +35,7 @@ import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
 import type { AppConfig } from '../config';
 // Import base types to re-export
 import type { SystemReadyPayload, ConfigChangedPayload, IPCError } from './base';
-import type { ContentAPI, AgentsAPI, AISDKAPI } from './base';
+import type { AISDKAPI } from './base';
 
 // Re-export base types
 export type {
@@ -44,7 +44,6 @@ export type {
   IPCError,
   APIResponse,
   APIResponseError,
-  READY_TIMEOUT_MS,
   AISDKAPI,
   ConversationDisplay,
   MessageDisplay,
@@ -54,15 +53,11 @@ export type {
   ConversationContext,
   PracticeOpportunityResult,
   NaturalPracticeSuggestion,
-  UserLearningContext,
-  AgentDisplay,
-  AgentContext,
-  AgentCapabilitiesDisplay,
-  FeatureDemoDisplay,
-  ImportSessionDisplay,
-  ContentFormat,
-  ConceptExtractionDisplay
+  UserLearningContext
 } from './base';
+
+// Re-export const value
+export { READY_TIMEOUT_MS } from './base';
 
 // Export API interfaces
 export type { ChatAPI };
@@ -72,15 +67,12 @@ export type { SettingsAPI, SettingsUtility };
 export type { SessionsAPI };
 export type { CatalystAPI };
 
-// Also export the domain APIs from base.ts
-export type { ContentAPI, AgentsAPI, LearningAPI } from './base';
-
 // Export the main electronAPI interface
 export interface ElectronAPI {
   // System events
   onceSystemReady: (callback: (payload: SystemReadyPayload) => void) => void;
   onConfigChanged: (callback: (payload: ConfigChangedPayload) => void) => void;
-  awaitReady: () => Promise<SystemReadyPayload>;
+  awaitReady: (options?: { timeoutMs?: number }) => Promise<SystemReadyPayload>;
 
   // Chat domain
   chat: ChatAPI;
@@ -97,14 +89,8 @@ export interface ElectronAPI {
   // Sessions domain
   sessions: SessionsAPI;
 
-  // Content domain
-  content: ContentAPI;
-
   // Catalyst domain
   catalyst: CatalystAPI;
-
-  // Agents domain
-  agents: AgentsAPI;
 
   // AI SDK streaming
   aiSDK: AISDKAPI;
@@ -120,5 +106,19 @@ export interface ElectronAPI {
   existsFile: (filePath: string) => Promise<boolean>;
   readDirectory: (dirPath: string, recursive?: boolean, maxDepth?: number, filterConfig?: DirectoryFilterConfig) => Promise<any[]>;
   getWorkspacePath: () => Promise<string | null>;
+
+  // Error handling
+  onIPCError: (handler: (payload: IPCErrorPayload) => void) => () => void;
+  getErrorBuffer: () => Promise<BufferedIPCError[]>;
+  clearErrorBuffer: () => Promise<{ cleared: boolean }>;
+
+  // System utilities
+  handleError: (error: Error | string, context: string, severity?: string) => void;
+  healthCheck: () => Promise<{ status: 'healthy' | 'degraded' | 'offline'; apis: Record<string, unknown> }>;
+  getVersion: () => Promise<{ version: string; build: string; platform: string }>;
+  trackEvent: (event: { name: string; properties?: object }) => Promise<void>;
+  relaunchApp: () => Promise<{ relaunching: boolean }>;
+  awaitConfigChange: (options?: { timeoutMs?: number }) => Promise<ConfigChangedPayload>;
+  onMenuAction: (handler: (action: string, data?: unknown) => void) => () => void;
 }
 

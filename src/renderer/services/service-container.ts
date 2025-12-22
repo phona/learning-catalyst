@@ -5,7 +5,7 @@
  * with explicit dependencies following the functional factory pattern
  */
 
-import type { ElectronAPI, ChatAPI, KnowledgeAPI, LearningAPI, AnalyticsAPI, SessionStatistics } from '@/shared/types';
+import type { ElectronAPI, ChatAPI, KnowledgeAPI, AnalyticsAPI, SessionStatistics } from '@/shared/types';
 import type { APIResponse, SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api/base';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
 
@@ -566,8 +566,6 @@ export function createTestServiceContainer(
       ) => () => {},
     },
     // Include other required API domains with minimal mocks
-    agents: {} as any,
-    content: {} as any,
     settings: {} as any,
     catalyst: {} as any,
     getWorkspacePath: async () => '/mock/workspace',

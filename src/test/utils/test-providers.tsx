@@ -8,6 +8,7 @@ import { useConfigStore } from '@/renderer/stores/useConfigStore';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AppConfig } from '@/shared/types/config';
 import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
+import { ElectronAPIProvider } from '@/renderer/hooks/useElectronAPI';
 
 const queryClient = new QueryClient();
 
@@ -52,11 +53,13 @@ export const Providers = ({
   serviceOverrides?: React.ComponentProps<typeof ServicesProvider>['overrides'];
 }): React.ReactElement => (
   <QueryLayer>
-    <MemoryRouter {...routerProps}>
-      <ServicesProvider apiClient={electronAPI ?? readyElectronClient} overrides={serviceOverrides}>
-        <ChatStoreProvider>{children}</ChatStoreProvider>
-      </ServicesProvider>
-    </MemoryRouter>
+    <ElectronAPIProvider api={electronAPI ?? readyElectronClient}>
+      <MemoryRouter {...routerProps}>
+        <ServicesProvider apiClient={electronAPI ?? readyElectronClient} overrides={serviceOverrides}>
+          <ChatStoreProvider>{children}</ChatStoreProvider>
+        </ServicesProvider>
+      </MemoryRouter>
+    </ElectronAPIProvider>
   </QueryLayer>
 );
 

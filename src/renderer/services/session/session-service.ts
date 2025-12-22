@@ -9,6 +9,17 @@ import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { SessionCreateRequest } from '@/renderer/types/session';
 
+/**
+ * This service uses the unwrapAPI pattern for consistent IPC error handling.
+ *
+ * All IPC calls use unwrapAPI() from @/renderer/hooks/useElectronAPI which:
+ * - Automatically unwraps APIResponse<T> to T
+ * - Shows error toasts on failures
+ * - Throws IPCError for programmatic error handling
+ *
+ * See docs/DEVELOPER-GUIDE/electron-api.md for details.
+ */
+
 export interface SessionService {
   getRecentSessions(limit?: number): Promise<SessionDisplay[]>;
   getGlobalStatistics(): Promise<SessionStatistics>;

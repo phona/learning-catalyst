@@ -247,6 +247,88 @@ and should be surfaced or thrown. The `error.code` must be provided and non-empt
 Streaming helpers (e.g., `chat.sendMessageStream`) pass chunks as
 they arrive.
 
+## Standardized IPC Calling Pattern
+
+To avoid manual unwrapping and ensure consistent error handling across the renderer, **always use the `unwrapAPI` helper** from `@/renderer/hooks/useElectronAPI`:
+
+```typescript
+import { unwrapAPI, type IPCError } from '@/renderer/hooks/useElectronAPI';
+
+// ❌ DON'T: Manual unwrapping (error-prone)
+const response = await electronAPI.sessions.list();
+const sessions = response?.data || [];
+if (!response?.success) {
+  showError(response.error?.message || 'Unknown error');
+}
+
+// ✅ DO: Use unwrapAPI (consistent, safe)
+const sessions = await unwrapAPI(electronAPI.sessions.list());
+```
+
+### unwrapAPI Benefits
+
+1. **Automatic Error Handling** - Shows toast notifications and throws structured `IPCError`
+2. **Type Safety** - TypeScript ensures proper generic usage
+3. **Consistency** - All IPC calls use the same pattern
+4. **Cleaner Code** - No manual `response?.data` checks
+
+### Error Handling with unwrapAPI
+
+```typescript
+try {
+  const data = await unwrapAPI(electronAPI.someMethod(...));
+  // Use clean data
+} catch (error) {
+  if (error instanceof IPCError) {
+    // Handle specific error codes
+    switch (error.code) {
+      case 'NOT_FOUND':
+        // Handle not found
+        break;
+      case 'UNAUTHORIZED':
+        // Handle auth error
+        break;
+      default:
+        // Handle other errors
+    }
+  }
+}
+```
+
+### Silent Mode
+
+For background operations where you don't want to show error toasts:
+
+```typescript
+const data = await unwrapAPI(
+  electronAPI.backgroundOperation(...),
+  { silent: true }
+);
+```
+
+### Migration from Manual Unwrapping
+
+**Before:**
+```typescript
+const response = await electronAPI.chat.getMessages(threadId);
+if (!response?.success) {
+  return { success: false, error: response.error };
+}
+return { success: true, data: response.data };
+```
+
+**After:**
+```typescript
+try {
+  const messages = await unwrapAPI(electronAPI.chat.getMessages(threadId));
+  return { success: true, data: messages };
+} catch (error) {
+  return { success: false, error: error.message };
+}
+```
+
+**Note:** Some APIs (filesystem operations, certain session methods) return raw data directly and do NOT use `unwrapAPI`. Check the API documentation for each method.
+
 ## Visual Design for Error States and Notifications
 
 Error states and notifications follow these visual design guidelines:

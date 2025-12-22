@@ -10,7 +10,15 @@ import type { StudyMetrics } from '@/renderer/services/analytics/analytics-servi
 import type { LearningSession } from '@/shared/types/analytics';
 import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
 import type { ActiveExecution } from '@/shared/types/electron-api/catalyst-api';
-import type { AgentDisplay as ManagementAgentDisplay } from '@/shared/types/electron-api/agent-api';
+
+// Local type definition for agent display (used only in this component)
+interface AgentDisplayLocal {
+  id: string;
+  name: string;
+  status: string;
+  isAvailable: boolean;
+  capabilities?: string[];
+}
 
 // Manual refresh instead of automatic interval for better user control
 
@@ -18,7 +26,7 @@ export const ProgressPage: React.FC = () => {
   const catalystService = useCatalystService();
   const analyticsService = useAnalyticsService();
   const [metrics, setMetrics] = useState<StudyMetrics | null>(null);
-  const [availableAgents, setAvailableAgents] = useState<ManagementAgentDisplay[]>([]);
+  const [availableAgents, setAvailableAgents] = useState<AgentDisplayLocal[]>([]);
   const [activeExecutions, setActiveExecutions] = useState<ActiveExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -15,6 +15,17 @@ import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AchievementDisplay as APIAchievementDisplay } from '@/shared/types/electron-api/analytics-api';
 import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
+/**
+ * This service uses the unwrapAPI pattern for consistent IPC error handling.
+ *
+ * All IPC calls use unwrapAPI() from @/renderer/hooks/useElectronAPI which:
+ * - Automatically unwraps APIResponse<T> to T
+ * - Shows error toasts on failures
+ * - Throws IPCError for programmatic error handling
+ *
+ * See docs/DEVELOPER-GUIDE/electron-api.md for details.
+ */
+
 export interface Achievement {
   id: string;
   title: string;

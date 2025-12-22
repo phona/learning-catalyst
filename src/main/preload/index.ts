@@ -30,8 +30,6 @@ import {
   SettingsUtility,
   SessionsAPI,
   CatalystAPI,
-  ContentAPI,
-  AgentsAPI,
 } from '@/shared/types/electron-api';
 import type {
   ConceptParsingResult,
@@ -43,8 +41,6 @@ import type { AppConfig } from '@/shared/types/config';
 import { Chan } from 'ts-chan';
 import type { Message as AIMessage } from '@/shared/types/ai';
 import { SessionSearchQuery } from '@/shared/types';
-import type { ContentFormat } from '@/shared/types/electron-api/base';
-import type { DirectoryFilterConfig } from '@/shared/types/filesystem';
 
 // ============================================================================
 // 1. Chat & Conversation API
@@ -346,100 +342,6 @@ const analyticsAPI: AnalyticsAPI = {
     includeBreakdown?: boolean;
     includeComparisons?: boolean;
   }) => ipcRenderer.invoke('analytics:get-time-stats', params),
-};
-
-// ============================================================================
-// 5. Agent Management API
-// ============================================================================
-
-/**
- * Agent Management API
- *
- * Manages AI agent selection, configuration, and interaction preferences.
- * Focuses on personalizing the AI learning experience.
- */
-const agentsAPI: AgentsAPI = {
-  // Agent management
-  listAgents: () => ipcRenderer.invoke('agents:list'),
-  getAgent: (agentId: string) => ipcRenderer.invoke('agents:get', agentId),
-  createAgent: (params: { name: string; type: string; config: any }) =>
-    ipcRenderer.invoke('agents:create', params),
-  updateAgent: (agentId: string, updates: any) =>
-    ipcRenderer.invoke('agents:update', agentId, updates),
-  deleteAgent: (agentId: string) =>
-    ipcRenderer.invoke('agents:delete', agentId),
-
-  // Agent operations
-  executeAgent: (agentId: string, params: any) =>
-    ipcRenderer.invoke('agents:execute', agentId, params),
-  getAgentCapabilities: (agentId: string) =>
-    ipcRenderer.invoke('agents:get-capabilities', agentId),
-
-  /**
-   * Selects an agent for a specific session
-   * Associates the agent with the session and applies preferences
-   * @param params.sessionId - Learning session ID
-   * @param params.agentType - Type of agent to select
-   * @returns Promise<{ success: boolean; agent: AgentDisplay; context: AgentContext }>
-   */
-  selectAgentForSession: (params: { sessionId: string; agentType: string }) =>
-    ipcRenderer.invoke('agents:select-for-session', params),
-
-  /**
-   * Sets personality preferences for an agent
-   * Customizes how the agent interacts and responds
-   * @param params.agentId - Agent ID to configure
-   * @param params.personality - Personality description
-   * @param params.preferences - Additional preferences
-   * @returns Promise<{ success: boolean; updatedSettings: any }>
-   */
-  setAgentPersonality: (params: {
-    agentId: string;
-    personality:
-      | 'friendly encouraging'
-      | 'formal professional'
-      | 'casual friendly'
-      | 'technical expert';
-    preferences?: any;
-  }) => ipcRenderer.invoke('agents:set-personality', params),
-
-};
-
-// ============================================================================
-// 6. Content & Discovery API
-// ============================================================================
-
-/**
- * Content & Discovery API
- *
- * Manages learning content import, discovery, and analysis.
- * Focuses on expanding the knowledge base with relevant content.
- */
-const contentAPI: ContentAPI = {
-  // Import sessions
-  createImportSession: (params: { path: string; options?: any }) =>
-    ipcRenderer.invoke('content:create-import-session', params),
-  getImportSession: (sessionId: string) =>
-    ipcRenderer.invoke('content:get-import-session', sessionId),
-  listImportSessions: () => ipcRenderer.invoke('content:list-import-sessions'),
-
-  // Content parsing
-  parseContent: (params: { filePath: string; format: ContentFormat }) =>
-    ipcRenderer.invoke('content:parse-content', params),
-  extractConcepts: (content: string) => ipcRenderer.invoke('content:extract-concepts', content),
-
-  // Project exploration
-  exploreProject: (path: string) => ipcRenderer.invoke('content:explore-project', path),
-  scanDirectory: (params: DirectoryFilterConfig) =>
-    ipcRenderer.invoke('content:scan-directory', params),
-
-  // Content import
-  importLearningContent: (files: FileList) => ipcRenderer.invoke('content:import-content', files),
-  getRecommendedContent: (params: {
-    topic: string;
-    level: 'beginner' | 'intermediate' | 'advanced';
-    preferences?: any;
-  }) => ipcRenderer.invoke('content:get-recommendations', params),
 };
 
 // ============================================================================

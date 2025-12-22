@@ -4,11 +4,36 @@ import path from 'node:path';
 
 import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
 import type { AiService } from '@/main/services/ai/ai-service';
-import type {
-  ImportSessionDisplay,
-  ContentFormat,
-  ConceptExtractionDisplay,
-} from '@/shared/types/electron-api';
+
+// Local type definitions for content service (not exposed via IPC)
+interface ImportSessionDisplay {
+  id: string;
+  title: string;
+  description: string;
+  estimatedDuration: string;
+  concepts: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  sourceFile: string;
+  prerequisites: string[];
+  learningObjectives: string[];
+}
+
+type ContentFormat = 'text' | 'code' | 'interactive';
+
+interface ConceptExtractionDisplay {
+  concept: string;
+  confidence: number;
+  context: string;
+  relatedTerms: string[];
+  category: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  importanceScore: number;
+  frequency: number;
+  examples: string[];
+  synonyms?: string[];
+  definition?: string;
+}
+
 interface ExploreProject {
   id: string;
   name: string;
