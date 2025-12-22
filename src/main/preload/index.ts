@@ -375,8 +375,7 @@ const catalystAPI: CatalystAPI = {
   cancelAgent: (executionId: string) => ipcRenderer.invoke('catalyst:cancel-agent', executionId),
   getAgentStatus: (executionId: string) =>
     ipcRenderer.invoke('catalyst:get-agent-status', executionId),
-  listAgents: () => ipcRenderer.invoke('catalyst:list-agents'),
-  getActiveExecutions: () => ipcRenderer.invoke('catalyst:get-active-executions'),
+  // Deprecated methods removed: listAgents, getActiveExecutions
   registerAgent: (agentConfig: unknown) =>
     ipcRenderer.invoke('catalyst:register-agent', agentConfig),
   unregisterAgent: (agentId: string) => ipcRenderer.invoke('catalyst:unregister-agent', agentId),

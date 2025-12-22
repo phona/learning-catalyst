@@ -1,7 +1,6 @@
 import type { ElectronAPI } from '../../../shared/types/electron-api';
 import type { ChatOptions } from '../../../shared/types/ai';
 import type {
-  ActiveExecution,
   StreamChunk,
   ChatResponse,
   AgentsResponse,
@@ -27,11 +26,7 @@ export interface CatalystService {
   getAvailableAgents(): Promise<AgentsResponse>;
   getSession(sessionId: string): Promise<SessionResponse>;
   cancelExecution(executionId: string): Promise<ExecutionCancelResponse>;
-  getActiveExecutions(): Promise<{
-    success: boolean;
-    executions?: ActiveExecution[];
-    error?: string;
-  }>;
+  // Deprecated methods removed: getActiveExecutions
 }
 
 /**
@@ -122,11 +117,12 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
 
     async getAvailableAgents(): Promise<AgentsResponse> {
       try {
-        if (!electronAPI?.catalyst?.listAgents) {
-          throw new Error('Catalyst listAgents API not available');
+        // Use the agents API instead of deprecated catalyst.listAgents
+        if (!electronAPI?.agents?.getAvailableAgents) {
+          throw new Error('Agents API not available');
         }
 
-        const agents = await unwrapAPI(electronAPI.catalyst.listAgents());
+        const agents = await unwrapAPI(electronAPI.agents.getAvailableAgents());
 
         return {
           success: true,
@@ -189,30 +185,6 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Failed to cancel execution',
-        };
-      }
-    },
-
-    async getActiveExecutions(): Promise<{
-      success: boolean;
-      executions?: ActiveExecution[];
-      error?: string;
-    }> {
-      try {
-        if (!electronAPI?.catalyst?.getActiveExecutions) {
-          throw new Error('Catalyst getActiveExecutions API not available');
-        }
-
-        const executions = await unwrapAPI(electronAPI.catalyst.getActiveExecutions());
-
-        return {
-          success: true,
-          executions: executions as any,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Failed to get active executions',
         };
       }
     },

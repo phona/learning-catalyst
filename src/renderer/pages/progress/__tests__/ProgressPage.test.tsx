@@ -171,18 +171,8 @@ describe('ProgressPage - Performance Optimized', () => {
   });
 
   it('should coordinate multiple agents', async () => {
-    mockCatalystService.getActiveExecutions.mockResolvedValue({
-      success: true,
-      executions: [
-        {
-          id: 'exec-1',
-          agentId: 'learning-agent',
-          status: 'active',
-          progress: 50,
-          description: 'Explaining React concepts',
-        },
-      ],
-    });
+    // Note: getActiveExecutions is deprecated and removed
+    // This test now focuses on available agents only
 
     render(<ProgressPage />);
 
@@ -193,8 +183,10 @@ describe('ProgressPage - Performance Optimized', () => {
       { timeout: 500 },
     );
 
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByText('learning-agent')).toBeInTheDocument();
+    // Should show available agents
+    expect(screen.getByText('Learning Guide')).toBeInTheDocument();
+    expect(screen.getByText('Assessment Coach')).toBeInTheDocument();
+    expect(screen.getByText('Practice Master')).toBeInTheDocument();
   });
 
   it('should display analytics and statistics', async () => {
@@ -331,47 +323,29 @@ describe('ProgressPage - Performance Optimized', () => {
   });
 
   it('should simulate complete learning session', async () => {
-    mockCatalystService.getActiveExecutions.mockResolvedValue({
-      success: true,
-      executions: [
-        {
-          id: 'session-1',
-          agentId: 'learning-agent',
-          status: 'active',
-          progress: 0,
-          startTime: Date.now(),
-        },
-      ],
-    });
+    // Note: getActiveExecutions is deprecated and removed
+    // This test now focuses on agent availability
 
     render(<ProgressPage />);
 
     await waitFor(
       () => {
-        expect(screen.getByText('learning-agent')).toBeInTheDocument();
+        expect(screen.getByText('Learning Guide')).toBeInTheDocument();
       },
       { timeout: 500 },
     );
 
-    // Simulate session progression
-    mockCatalystService.getActiveExecutions.mockResolvedValue({
+    // Simulate agent availability update
+    mockCatalystService.getAvailableAgents.mockResolvedValue({
       success: true,
-      executions: [
-        {
-          id: 'session-1',
-          agentId: 'learning-agent',
-          status: 'active',
-          progress: 100,
-          startTime: Date.now(),
-        },
-      ],
+      agents: [{ id: 'new-agent', name: 'New Agent', type: 'guide', description: 'New agent', capabilities: ['help'], isAvailable: true }],
     });
 
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
 
     await waitFor(
       () => {
-        expect(screen.getByText('100%')).toBeInTheDocument();
+        expect(screen.getByText('New Agent')).toBeInTheDocument();
       },
       { timeout: 500 },
     );
@@ -423,31 +397,20 @@ describe('ProgressPage - Performance Optimized', () => {
   });
 
   it('should handle interrupted sessions', async () => {
-    mockCatalystService.getActiveExecutions.mockResolvedValue({
-      success: true,
-      executions: [
-        {
-          id: 'session-1',
-          agentId: 'learning-agent',
-          status: 'active',
-          progress: 60,
-          startTime: Date.now(),
-        },
-      ],
-    });
+    // Note: getActiveExecutions is deprecated and removed
+    // This test now verifies that the component handles the absence of active executions gracefully
 
     render(<ProgressPage />);
 
     await waitFor(
       () => {
-        expect(screen.getByText('60%')).toBeInTheDocument();
+        expect(screen.getByText('Learning Dashboard')).toBeInTheDocument();
       },
       { timeout: 500 },
     );
 
-    // The component doesn't show a cancel button in active executions
-    // It only displays status and progress
-    expect(screen.getByText('learning-agent')).toBeInTheDocument();
+    // Should show available agents instead
+    expect(screen.getByText('Learning Guide')).toBeInTheDocument();
   });
 
   it('should handle partial service failures', async () => {

@@ -9,7 +9,6 @@ import {
 import type { StudyMetrics } from '@/renderer/services/analytics/analytics-service';
 import type { LearningSession } from '@/shared/types/analytics';
 import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
-import type { ActiveExecution } from '@/shared/types/electron-api/catalyst-api';
 
 // Local type definition for agent display (used only in this component)
 interface AgentDisplayLocal {
@@ -27,7 +26,6 @@ export const ProgressPage: React.FC = () => {
   const analyticsService = useAnalyticsService();
   const [metrics, setMetrics] = useState<StudyMetrics | null>(null);
   const [availableAgents, setAvailableAgents] = useState<AgentDisplayLocal[]>([]);
-  const [activeExecutions, setActiveExecutions] = useState<ActiveExecution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,13 +40,8 @@ export const ProgressPage: React.FC = () => {
         console.warn('Failed to get available agents:', agentsResponse.error);
       }
 
-      // Get active executions with proper typing
-      const executionsResponse = await catalystService.getActiveExecutions();
-      if (executionsResponse.success && executionsResponse.executions) {
-        setActiveExecutions(executionsResponse.executions);
-      } else {
-        console.warn('Failed to get active executions:', executionsResponse.error);
-      }
+      // Note: getActiveExecutions is deprecated and removed
+      // Active executions feature is no longer available
 
       setError(null); // Clear any previous errors
     } catch (err) {
@@ -338,7 +331,7 @@ export const ProgressPage: React.FC = () => {
               {availableAgents.filter((a) => a.isAvailable).length}/{availableAgents.length}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              {activeExecutions.length} active
+              agents available
             </div>
           </div>
         </div>
@@ -408,7 +401,7 @@ export const ProgressPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Active Executions */}
+          {/* Active Executions - Feature Removed */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
               <svg
@@ -424,37 +417,12 @@ export const ProgressPage: React.FC = () => {
                   d="M13 10V3L4 14h7v7l9-11h-7z"
                 />
               </svg>
-              Active Executions
+              Agent Status
             </h3>
             <div className="space-y-3">
-              {activeExecutions.length === 0 ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                  No active executions
-                </div>
-              ) : (
-                activeExecutions.map((execution) => (
-                  <div
-                    key={execution.id}
-                    className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {execution.agentId || 'Unknown Agent'}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {execution.status} • Started{' '}
-                          {new Date(execution.startTime).toLocaleTimeString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {execution.progress ? `${execution.progress}%` : 'In progress'}
-                    </div>
-                  </div>
-                ))
-              )}
+              <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                Active execution tracking has been deprecated and removed
+              </div>
             </div>
           </div>
         </div>
