@@ -1,10 +1,11 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { LoadingScreen } from '@/renderer/shared/ui/LoadingScreen';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('LoadingScreen', () => {
   it('renders the loading spinner', () => {
-    render(<LoadingScreen />);
+    renderWithServices(<LoadingScreen />);
 
     const spinner = screen
       .getByText('Learning Catalyst')
@@ -21,7 +22,7 @@ describe('LoadingScreen', () => {
   });
 
   it('displays the application title', () => {
-    render(<LoadingScreen />);
+    renderWithServices(<LoadingScreen />);
 
     const title = screen.getByText('Learning Catalyst');
     expect(title).toBeInTheDocument();
@@ -29,14 +30,14 @@ describe('LoadingScreen', () => {
   });
 
   it('shows the initialization message', () => {
-    render(<LoadingScreen />);
+    renderWithServices(<LoadingScreen />);
 
     const message = screen.getByText('Loading configuration...');
     expect(message).toBeInTheDocument();
   });
 
   it('displays animated dots', () => {
-    render(<LoadingScreen />);
+    renderWithServices(<LoadingScreen />);
 
     // Find the animated dots using querySelector instead
     const dots = document.querySelectorAll('.animate-pulse');
@@ -49,7 +50,7 @@ describe('LoadingScreen', () => {
   });
 
   it('has proper dark mode support', () => {
-    render(<LoadingScreen />);
+    renderWithServices(<LoadingScreen />);
 
     // Get the main container element directly
     const container = document.querySelector('.min-h-screen');
@@ -57,7 +58,7 @@ describe('LoadingScreen', () => {
   });
 
   it('centers content properly', () => {
-    render(<LoadingScreen />);
+    renderWithServices(<LoadingScreen />);
 
     // Get the main container element
     const container = document.querySelector('.min-h-screen');
@@ -65,7 +66,7 @@ describe('LoadingScreen', () => {
   });
 
   it('displays state-specific icons', () => {
-    const { rerender } = render(<LoadingScreen state="services" />);
+    const { rerender } = renderWithServices(<LoadingScreen state="services" />);
 
     // Check that the icon changes based on state
     const message = screen.getByText('Initializing services...');
@@ -73,7 +74,7 @@ describe('LoadingScreen', () => {
   });
 
   it('shows error state when error is provided', () => {
-    render(<LoadingScreen error="Something went wrong" />);
+    renderWithServices(<LoadingScreen error="Something went wrong" />);
 
     const errorMessage = screen.getByText('Something went wrong');
     expect(errorMessage).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe('LoadingScreen', () => {
   });
 
   it('uses state-specific messaging and icons', () => {
-    const { rerender } = render(<LoadingScreen state="ai-provider" />);
+    const { rerender } = renderWithServices(<LoadingScreen state="ai-provider" />);
     expect(screen.getByText('Configuring AI provider...')).toBeInTheDocument();
 
     rerender(<LoadingScreen state="ready" />);
@@ -92,13 +93,13 @@ describe('LoadingScreen', () => {
 
   it('invokes onRetry when error and retry clicked', () => {
     const onRetry = vi.fn();
-    render(<LoadingScreen error="boom" onRetry={onRetry} />);
+    renderWithServices(<LoadingScreen error="boom" onRetry={onRetry} />);
     fireEvent.click(screen.getByText('Retry'));
     expect(onRetry).toHaveBeenCalled();
   });
 
   it('shows service-initialization state with spinner and message', () => {
-    render(<LoadingScreen state="services" />);
+    renderWithServices(<LoadingScreen state="services" />);
     expect(screen.getByText('Initializing services...')).toBeInTheDocument();
     const spinner = document.querySelector('.animate-spin');
     expect(spinner).toBeInTheDocument();

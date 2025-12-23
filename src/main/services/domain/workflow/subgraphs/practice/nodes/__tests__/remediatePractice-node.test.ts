@@ -15,27 +15,7 @@ import { DEFAULT_PRACTICE_STATE } from '../../types';
 import type { WorkflowDeps } from '../../../../state';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
-
-// Mock createChunkEmitter - must be defined before vi.mock
-const mockEmitter = {
-  textStart: vi.fn(),
-  textDelta: vi.fn(),
-  textEnd: vi.fn(),
-  toolInputStart: vi.fn(),
-  toolInputAvailable: vi.fn(),
-  toolOutputAvailable: vi.fn(),
-  reasoningStart: vi.fn(),
-  reasoningDelta: vi.fn(),
-  reasoningEnd: vi.fn(),
-  error: vi.fn(),
-  finish: vi.fn(),
-  abort: vi.fn(),
-};
-
-vi.mock('../../../utils/chunk-emitter', () => ({
-  createChunkEmitter: vi.fn(() => mockEmitter),
-  generateId: vi.fn().mockReturnValue('mock-id'),
-}));
+import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
 
 // Mock dependencies
 const mockLoggerService = {
@@ -60,6 +40,13 @@ const mockModel = {
 const createMockConfig = (): LangGraphRunnableConfig => ({
   writer: vi.fn(),
 } as any);
+
+// Track all chunks written to verify streaming behavior
+const getWrittenChunks = (config: LangGraphRunnableConfig) => {
+  return (config.writer as vi.MockedFunction<any>).mock.calls.map(
+    call => call[0]
+  );
+};
 
 const mockDeps: WorkflowDeps = {
   agentManager: {} as any,
@@ -651,9 +638,17 @@ describe('remediatePracticeNode', () => {
         throw error;
       }
 
-      expect(mockEmitter.textStart).toHaveBeenCalled();
-      expect(mockEmitter.textDelta).toHaveBeenCalled();
-      expect(mockEmitter.textEnd).toHaveBeenCalled();
+      const config = createMockConfig();
+      await node(state as any, config);
+
+      const chunks = getWrittenChunks(config);
+      expect(chunks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'text-start' }),
+          expect.objectContaining({ type: 'text-delta' }),
+          expect.objectContaining({ type: 'text-end' })
+        ])
+      );
     });
 
     it('generates unique message IDs', async () => {
@@ -671,10 +666,16 @@ describe('remediatePracticeNode', () => {
         mastery: 0.3,
       };
 
-      await node(state as any, createMockConfig());
+      const config = createMockConfig();
+      await node(state as any, config);
 
-      expect(mockEmitter.textStart).toHaveBeenCalledWith('mock-id');
-      expect(mockEmitter.textDelta).toHaveBeenCalledWith('mock-id', expect.any(String));
+      const chunks = getWrittenChunks(config);
+      const textStartChunk = chunks.find(chunk => chunk.type === 'text-start');
+      const textDeltaChunk = chunks.find(chunk => chunk.type === 'text-delta');
+
+      expect(textStartChunk).toBeDefined();
+      expect(textDeltaChunk).toBeDefined();
+      expect(textStartChunk?.id).toBe(textDeltaChunk?.id);
     });
 
     it('streams complete remediation content', async () => {
@@ -695,12 +696,14 @@ describe('remediatePracticeNode', () => {
       const remediationContent = 'Let me explain closures differently using an analogy...';
       mockModel.invoke.mockResolvedValue({ content: remediationContent });
 
-      await node(state as any, createMockConfig());
+      const config = createMockConfig();
+      await node(state as any, config);
 
-      expect(mockEmitter.textDelta).toHaveBeenCalledWith(
-        'mock-id',
-        remediationContent
-      );
+      const chunks = getWrittenChunks(config);
+      const textDeltaChunk = chunks.find(chunk => chunk.type === 'text-delta');
+
+      expect(textDeltaChunk).toBeDefined();
+      expect(textDeltaChunk?.delta).toBe(remediationContent);
     });
   });
 

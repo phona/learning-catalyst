@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LearningTrends, LearningTrendsType } from '../LearningTrends';
 import { SimpleAnalyticsModule } from '../Achievements';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Mock analytics class that the tests expect
 class MockSimpleAnalyticsModule implements SimpleAnalyticsModule {
@@ -28,7 +29,7 @@ describe('LearningTrends', () => {
   it('renders loading state initially', () => {
     mockAnalytics.getLearningTrends.mockImplementation(() => new Promise(() => {}));
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(screen.getByText('Loading trends...')).toBeInTheDocument();
   });
@@ -36,7 +37,7 @@ describe('LearningTrends', () => {
   it('renders error state when analytics fails', async () => {
     mockAnalytics.getLearningTrends.mockRejectedValue(new Error('Failed to load trends'));
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(
       await screen.findByText('Error loading trends: Failed to load trends'),
@@ -63,7 +64,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Learning Trends')).toBeInTheDocument();
     expect(screen.getByTestId('avg-study-time')).toHaveTextContent('45m');
@@ -80,7 +81,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('7d')).toBeInTheDocument();
     expect(screen.getByText('14d')).toBeInTheDocument();
@@ -96,7 +97,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('No trend data available')).toBeInTheDocument();
   });
@@ -114,7 +115,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Avg Daily Study')).toBeInTheDocument();
     expect(screen.getByTestId('avg-study-time')).toHaveTextContent('60m'); // Average of 30, 60, 90
@@ -133,7 +134,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Session Types')).toBeInTheDocument();
     expect(screen.getByText('study')).toBeInTheDocument();
@@ -162,7 +163,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Recent Activity')).toBeInTheDocument();
 
@@ -189,7 +190,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     // Wait for initial render
     await screen.findByText('Learning Trends');
@@ -221,7 +222,7 @@ describe('LearningTrends', () => {
 
     mockAnalytics.getLearningTrends.mockResolvedValue(mockTrends);
 
-    render(<LearningTrends analytics={mockAnalytics} />);
+    renderWithServices(<LearningTrends analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Learning Trends')).toBeInTheDocument();
 
@@ -231,7 +232,7 @@ describe('LearningTrends', () => {
   it('applies className prop correctly', () => {
     mockAnalytics.getLearningTrends.mockImplementation(() => new Promise(() => {}));
 
-    const { container } = render(
+    const { container } = renderWithServices(
       <LearningTrends analytics={mockAnalytics} className="custom-class" />,
     );
 

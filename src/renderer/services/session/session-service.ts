@@ -3,7 +3,6 @@ import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 import type {
   SessionStatistics,
   SessionListResponse,
-  SessionListData,
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';

@@ -9,6 +9,74 @@ import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AppConfig } from '@/shared/types/config';
 import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
 import { ElectronAPIProvider } from '@/renderer/hooks/useElectronAPI';
+import { AssistantProvider } from '@assistant-ui/react';
+
+// Create a minimal mock Assistant API for testing
+// The assistant-ui library uses ProxiedAssistantState which calls api.threads().getState()
+// and expects threads.threadIds.length and threads.archivedThreadIds.length
+const createMockAssistantApi = () => {
+  const listeners = new Set<() => void>();
+
+  // State structure that matches what assistant-ui expects
+  const threadsState = { threadIds: [], archivedThreadIds: [], isLoading: false };
+  const emptyState = {};
+  const emptyArrayState = { length: 0 };
+
+  return {
+    // Main subscription for useSyncExternalStore
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+
+    // These methods return store-like objects that ProxiedAssistantState uses
+    threads: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => threadsState,
+      getState: () => threadsState,
+    }),
+    tools: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyArrayState,
+      getState: () => emptyArrayState,
+    }),
+    modelContext: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+    thread: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+    threadListItem: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+    composer: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+    message: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+    part: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+    attachment: () => ({
+      subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
+      getSnapshot: () => emptyState,
+      getState: () => emptyState,
+    }),
+  };
+};
 
 const queryClient = new QueryClient();
 
@@ -54,11 +122,13 @@ export const Providers = ({
 }): React.ReactElement => (
   <QueryLayer>
     <ElectronAPIProvider api={electronAPI ?? readyElectronClient}>
-      <MemoryRouter {...routerProps}>
-        <ServicesProvider apiClient={electronAPI ?? readyElectronClient} overrides={serviceOverrides}>
-          <ChatStoreProvider>{children}</ChatStoreProvider>
-        </ServicesProvider>
-      </MemoryRouter>
+      <AssistantProvider api={createMockAssistantApi()}>
+        <MemoryRouter {...routerProps}>
+          <ServicesProvider apiClient={electronAPI ?? readyElectronClient} overrides={serviceOverrides}>
+            <ChatStoreProvider>{children}</ChatStoreProvider>
+          </ServicesProvider>
+        </MemoryRouter>
+      </AssistantProvider>
     </ElectronAPIProvider>
   </QueryLayer>
 );

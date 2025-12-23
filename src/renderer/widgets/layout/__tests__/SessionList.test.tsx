@@ -9,88 +9,33 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { ThreadListSidebar } from '../ThreadListSidebar';
-import { useAppStore } from '@/renderer/stores/useAppStore';
-
-// Mock React Router
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
-  useLocation: () => ({ pathname: '/' }),
-}));
-
-// Mock @assistant-ui/react components
-vi.mock('@assistant-ui/react', () => ({
-  ThreadListPrimitive: {
-    Root: ({ children }: any) => (
-      <div data-testid="thread-list-root">{children}</div>
-    ),
-    New: ({ children, asChild, onClick }: any) =>
-      asChild ? children : (
-        <button data-testid="new-thread-button" onClick={onClick}>
-          {children}
-        </button>
-      ),
-    Items: ({ children, components }: any) => (
-      <div data-testid="thread-items">
-        {components?.ThreadListItem ? (
-          <div data-testid="custom-thread-item" />
-        ) : null}
-        {children}
-      </div>
-    ),
-  },
-  AssistantIf: ({ condition, children }: any) => {
-    // Default to showing children (not loading)
-    return children;
-  },
-}));
-
-// Mock UI components
-vi.mock('@/renderer/shared/ui/Button', () => ({
-  Button: ({ children, onClick, className, ...props }: any) => (
-    <button onClick={onClick} className={className} {...props}>
-      {children}
-    </button>
-  ),
-}));
-
-vi.mock('@/renderer/shared/ui/Separator', () => ({
-  Separator: ({ ...props }: any) => <div data-testid="separator" {...props} />,
-}));
-
-// Mock Zustand store
-vi.mock('@/renderer/stores/useAppStore', () => ({
-  useAppStore: vi.fn(),
-}));
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('ThreadListSidebar', () => {
   const mockSetCurrentView = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    (useAppStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      setCurrentView: mockSetCurrentView,
-    });
   });
 
   describe('Rendering', () => {
     it('should render sidebar when open is true', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByTestId('thread-list-root')).toBeInTheDocument();
     });
 
     it('should not render sidebar when open is false', () => {
-      render(<ThreadListSidebar open={false} />);
+      renderWithServices(<ThreadListSidebar open={false} />);
 
       expect(screen.queryByTestId('thread-list-root')).not.toBeInTheDocument();
     });
 
     it('should render knowledge section with navigation items', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByText('Knowledge')).toBeInTheDocument();
       expect(screen.getByText('Knowledge Map')).toBeInTheDocument();
@@ -100,14 +45,14 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should render conversations section', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByText('Conversations')).toBeInTheDocument();
       expect(screen.getByTestId('new-thread-button')).toBeInTheDocument();
     });
 
     it('should render separator between sections', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByTestId('separator')).toBeInTheDocument();
     });
@@ -115,7 +60,15 @@ describe('ThreadListSidebar', () => {
 
   describe('Knowledge Navigation', () => {
     it('should navigate to knowledge map when Knowledge Map is clicked', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />, {
+        serviceOverrides: {
+          appStore: {
+            state: {
+              setCurrentView: mockSetCurrentView,
+            }
+          }
+        }
+      });
 
       const knowledgeMapButton = screen.getByText('Knowledge Map');
       fireEvent.click(knowledgeMapButton);
@@ -124,7 +77,15 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should navigate to progress when Dashboard is clicked', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />, {
+        serviceOverrides: {
+          appStore: {
+            state: {
+              setCurrentView: mockSetCurrentView,
+            }
+          }
+        }
+      });
 
       const dashboardButton = screen.getByText('Dashboard');
       fireEvent.click(dashboardButton);
@@ -133,7 +94,15 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should navigate to discovery when Discovery is clicked', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />, {
+        serviceOverrides: {
+          appStore: {
+            state: {
+              setCurrentView: mockSetCurrentView,
+            }
+          }
+        }
+      });
 
       const discoveryButton = screen.getByText('Discovery');
       fireEvent.click(discoveryButton);
@@ -142,7 +111,15 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should navigate to settings when Settings is clicked', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />, {
+        serviceOverrides: {
+          appStore: {
+            state: {
+              setCurrentView: mockSetCurrentView,
+            }
+          }
+        }
+      });
 
       const settingsButton = screen.getByText('Settings');
       fireEvent.click(settingsButton);
@@ -153,19 +130,19 @@ describe('ThreadListSidebar', () => {
 
   describe('Assistant UI Integration', () => {
     it('should render ThreadListPrimitive.Root with correct structure', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByTestId('thread-list-root')).toBeInTheDocument();
     });
 
     it('should render ThreadListPrimitive.New for new conversations', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByTestId('new-thread-button')).toBeInTheDocument();
     });
 
     it('should render ThreadListPrimitive.Items container', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       expect(screen.getByTestId('thread-items')).toBeInTheDocument();
     });
@@ -173,7 +150,7 @@ describe('ThreadListSidebar', () => {
 
   describe('Component Structure', () => {
     it('should render as an aside element', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       const sidebar = screen.getByTestId('thread-list-root').closest('aside');
       expect(sidebar).toBeInTheDocument();
@@ -181,7 +158,7 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should have proper CSS classes for styling', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       const sidebar = screen.getByTestId('thread-list-root').closest('aside');
       expect(sidebar).toHaveClass(
@@ -200,7 +177,15 @@ describe('ThreadListSidebar', () => {
 
   describe('Edge Cases', () => {
     it('should handle rapid navigation clicks', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />, {
+        serviceOverrides: {
+          appStore: {
+            state: {
+              setCurrentView: mockSetCurrentView,
+            }
+          }
+        }
+      });
 
       const knowledgeMapButton = screen.getByText('Knowledge Map');
 
@@ -213,7 +198,7 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should handle empty knowledge navigation gracefully', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       // Component should still render the basic structure
       expect(screen.getByTestId('thread-list-root')).toBeInTheDocument();
@@ -224,8 +209,8 @@ describe('ThreadListSidebar', () => {
   describe('TypeScript Compliance', () => {
     it('should accept open prop as boolean', () => {
       expect(() => {
-        render(<ThreadListSidebar open={true} />);
-        render(<ThreadListSidebar open={false} />);
+        renderWithServices(<ThreadListSidebar open={true} />);
+        renderWithServices(<ThreadListSidebar open={false} />);
       }).not.toThrow();
     });
 
@@ -236,7 +221,7 @@ describe('ThreadListSidebar', () => {
 
   describe('Accessibility', () => {
     it('should render semantic HTML structure', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       // Should render as an aside element
       const sidebar = screen.getByTestId('thread-list-root').closest('aside');
@@ -244,7 +229,7 @@ describe('ThreadListSidebar', () => {
     });
 
     it('should include proper button roles', () => {
-      render(<ThreadListSidebar open={true} />);
+      renderWithServices(<ThreadListSidebar open={true} />);
 
       // Navigation buttons should have proper button elements
       const buttons = screen.getAllByRole('button');

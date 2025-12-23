@@ -1,10 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { SyntaxHighlighterWrapper } from '../SyntaxHighlighterWrapper';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('SyntaxHighlighterWrapper', () => {
   it('renders code block with provided language and children', () => {
-    render(
+    renderWithServices(
       <SyntaxHighlighterWrapper language="typescript" showLineNumbers>
         {`const x: number = 1;`}
       </SyntaxHighlighterWrapper>,

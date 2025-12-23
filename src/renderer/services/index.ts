@@ -25,5 +25,3 @@ export { createChatService, type ChatService } from './chat/chat-service';
 export { createAnalyticsService, type AnalyticsService } from './analytics/analytics-service';
 
 export { createFileService, type FileService } from './file/file-service';
-
-export { createAgentService, type AgentService, type AgentStatus } from './agents/agent-service';

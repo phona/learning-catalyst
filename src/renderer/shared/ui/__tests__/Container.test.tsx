@@ -1,10 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { Container } from '../Container';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('Container', () => {
   it('applies max width classes and renders children', () => {
-    render(
+    renderWithServices(
       <Container maxWidth="lg" className="extra">
         <span>inside</span>
       </Container>,
@@ -16,7 +17,7 @@ describe('Container', () => {
   });
 
   it('defaults to full width when no maxWidth provided', () => {
-    render(
+    renderWithServices(
       <Container>
         <span>full</span>
       </Container>,

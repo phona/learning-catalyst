@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Header } from '@/renderer/widgets/layout/Header';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const appStoreState = {
   sidebar_open: true,
@@ -22,14 +23,6 @@ const chatStoreState = {
   updateCurrentSessionTitle: vi.fn(),
 };
 
-vi.mock('@/renderer/stores/useAppStore', () => ({
-  useAppStore: () => appStoreState,
-}));
-
-vi.mock('@/renderer/hooks/useChatStore', () => ({
-  useChatStore: () => chatStoreState,
-}));
-
 describe('Header', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,26 +31,86 @@ describe('Header', () => {
   });
 
   it('toggles sidebar via menu button', () => {
-    render(<Header />);
+    renderWithServices(<Header />, {
+      serviceOverrides: {
+        appStore: {
+          state: {
+            ...appStoreState,
+            subscribe: () => () => {},
+          },
+        },
+        chatStore: {
+          state: {
+            ...chatStoreState,
+            subscribe: () => () => {},
+          },
+        },
+      },
+    });
     const btn = screen.getByTitle('Toggle sidebar');
     fireEvent.click(btn);
     expect(appStoreState.setSidebarOpen).toHaveBeenCalledWith(false);
   });
 
   it('cycles theme when theme button clicked', () => {
-    render(<Header />);
+    renderWithServices(<Header />, {
+      serviceOverrides: {
+        appStore: {
+          state: {
+            ...appStoreState,
+            subscribe: () => () => {},
+          },
+        },
+        chatStore: {
+          state: {
+            ...chatStoreState,
+            subscribe: () => () => {},
+          },
+        },
+      },
+    });
     fireEvent.click(screen.getByTitle(/Theme:/i));
     expect(appStoreState.setTheme).toHaveBeenCalledWith('dark');
   });
 
   it('toggles focus mode on F11', () => {
-    render(<Header />);
+    renderWithServices(<Header />, {
+      serviceOverrides: {
+        appStore: {
+          state: {
+            ...appStoreState,
+            subscribe: () => () => {},
+          },
+        },
+        chatStore: {
+          state: {
+            ...chatStoreState,
+            subscribe: () => () => {},
+          },
+        },
+      },
+    });
     fireEvent.keyDown(document, { key: 'F11' });
     expect(appStoreState.toggleFocusMode).toHaveBeenCalled();
   });
 
   it('enters edit mode and saves session title', async () => {
-    render(<Header />);
+    renderWithServices(<Header />, {
+      serviceOverrides: {
+        appStore: {
+          state: {
+            ...appStoreState,
+            subscribe: () => () => {},
+          },
+        },
+        chatStore: {
+          state: {
+            ...chatStoreState,
+            subscribe: () => () => {},
+          },
+        },
+      },
+    });
     fireEvent.click(screen.getByText('Session 1'));
 
     const input = screen.getByPlaceholderText('Session title');
@@ -68,7 +121,22 @@ describe('Header', () => {
   });
 
   it('opens settings panel', () => {
-    render(<Header />);
+    renderWithServices(<Header />, {
+      serviceOverrides: {
+        appStore: {
+          state: {
+            ...appStoreState,
+            subscribe: () => () => {},
+          },
+        },
+        chatStore: {
+          state: {
+            ...chatStoreState,
+            subscribe: () => () => {},
+          },
+        },
+      },
+    });
     fireEvent.click(screen.getByTitle('Settings'));
     expect(appStoreState.setSettingsPanelOpen).toHaveBeenCalledWith(true);
   });

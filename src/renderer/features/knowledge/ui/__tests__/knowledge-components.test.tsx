@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { ConceptManager } from '../ConceptManager';
 import { KnowledgeSearch } from '../KnowledgeSearch';
 import { RelationshipManager } from '../RelationshipManager';
@@ -10,7 +10,7 @@ import { createMockElectronAPIClient } from '@/renderer/services/api/electron-ap
 
 describe('Knowledge components placeholders', () => {
   it('renders KnowledgeSearch placeholder copy with optional className', () => {
-    render(<KnowledgeSearch className="extra-class" />);
+    renderWithServices(<KnowledgeSearch className="extra-class" />);
 
     expect(screen.getByText(/Knowledge Search/i)).toBeInTheDocument();
     expect(

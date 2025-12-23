@@ -10,12 +10,16 @@ import { ChatOpenAI } from '@langchain/openai';
 import { executeExtractionWorkflow } from '../extraction-workflow';
 import type { AIMessageChunk } from '@langchain/core/messages';
 
-// Mock ChatOpenAI
-vi.mock('@langchain/openai', () => ({
-  ChatOpenAI: vi.fn().mockImplementation(() => ({
-    stream: vi.fn(),
-  })),
-}));
+// Mock ChatOpenAI - Inline factory for hoisting
+vi.mock('@langchain/openai', () => {
+  // Use function keyword (not arrow) so 'new' works
+  const MockChatOpenAI = vi.fn().mockImplementation(function (config: any) {
+    this.stream = vi.fn();
+  });
+  return {
+    ChatOpenAI: MockChatOpenAI,
+  };
+});
 
 // Mock usage_metadata for streaming chunks
 const createMockChunk = (content: string, usage?: any): AIMessageChunk => {

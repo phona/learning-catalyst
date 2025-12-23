@@ -9,7 +9,7 @@ const pickAssistantMessage = (messages: HumanMessage[] | AIMessage[]): AIMessage
   return messages.find(msg => msg._getType() === 'ai') as AIMessage | undefined;
 };
 
-const formatMessages = (messages: HumanMessage[] | AIMessage[], topic?: string): HumanMessage[] | AIMessage[] => {
+const formatMessages = (messages: HumanMessage[] | AIMessage[], topic?: string): (HumanMessage | AIMessage)[] => {
   if (topic && messages.length > 0) {
     // Add topic context if provided
     const contextMessage = new HumanMessage(`Topic: ${topic}`);

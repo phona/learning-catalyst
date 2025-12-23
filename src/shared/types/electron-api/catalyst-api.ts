@@ -9,7 +9,8 @@
 // Import related types from other APIs
 
 import type { SessionDisplay } from './sessions-api';
-import type { APIResponse, AgentDisplay } from './base';
+import type { APIResponse } from './base';
+import type { AgentDisplay } from './chat-api';
 
 /**
  * Main Catalyst API interface for renderer-main communication
@@ -46,18 +47,6 @@ export interface CatalystAPI {
    * @returns Promise<AgentExecutionStatus> - Current execution status
    */
   getAgentStatus: (executionId: string) => Promise<APIResponse<AgentExecutionStatus>>;
-
-  /**
-   * Get all available agents with their configurations
-   * @returns Promise<AgentDisplay[]> - Array of available agents
-   */
-  listAgents: () => Promise<APIResponse<AgentDisplay[]>>;
-
-  /**
-   * Get currently active agent executions
-   * @returns Promise<ActiveExecution[]> - Array of active executions
-   */
-  getActiveExecutions: () => Promise<APIResponse<ActiveExecution[]>>;
 
   /**
    * Register a new agent configuration

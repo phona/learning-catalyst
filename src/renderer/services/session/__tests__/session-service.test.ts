@@ -53,7 +53,7 @@ describe('session-service', () => {
   it('searches sessions and handles missing fields', async () => {
     const api = createMockElectronAPI({
       sessions: {
-        search: async () => ok({ sessions: undefined, total: undefined, hasMore: undefined }),
+        searchSessions: async () => [],
       } as any,
     });
     const svc = createSessionService(api as ElectronAPI);
@@ -64,11 +64,17 @@ describe('session-service', () => {
 
   it('propagates list/search errors', async () => {
     const api = createMockElectronAPI({
-      sessions: { list: async () => fail('bad'), search: async () => fail('worse') } as any,
+      sessions: {
+        list: async () => fail('bad'),
+        searchSessions: async () => {
+          // searchSessions returns Promise<SessionDisplay[]>, so it should throw directly
+          throw new Error('worse');
+        },
+      } as any,
     });
     const svc = createSessionService(api as ElectronAPI);
-    await expect(svc.listSessions()).rejects.toThrow(/Session API request failed/);
-    await expect(svc.searchSessions('x')).rejects.toThrow(/Session search failed/);
+    await expect(svc.listSessions()).rejects.toThrow('bad');
+    await expect(svc.searchSessions('x')).rejects.toThrow('worse');
   });
 
   it('gets recent sessions and global statistics', async () => {
@@ -84,7 +90,7 @@ describe('session-service', () => {
     const api = createMockElectronAPI({
       sessions: {
         getRecentSessions: async () => ok(recentSessions),
-        getStatistics: async () => ok(statistics),
+        getGlobalStatistics: async () => statistics,
       } as any,
     });
     const svc = createSessionService(api as ElectronAPI);
@@ -114,7 +120,7 @@ describe('session-service', () => {
     const svc = createSessionService(api as ElectronAPI);
     await expect(
       svc.createSession({ title: 'Test' }),
-    ).rejects.toThrow(/Session API request failed/);
+    ).rejects.toThrow('Creation failed');
   });
 
   it('handles update title errors', async () => {
@@ -126,7 +132,7 @@ describe('session-service', () => {
     const svc = createSessionService(api as ElectronAPI);
     await expect(
       svc.updateSessionTitle('test-id', 'New Title'),
-    ).rejects.toThrow(/Session API request failed/);
+    ).rejects.toThrow('Update failed');
   });
 
   it('handles delete session errors', async () => {
@@ -138,7 +144,7 @@ describe('session-service', () => {
     const svc = createSessionService(api as ElectronAPI);
     await expect(
       svc.deleteSession('test-id'),
-    ).rejects.toThrow(/Session delete failed/);
+    ).rejects.toThrow('Delete failed');
   });
 
   it('handles get session errors', async () => {

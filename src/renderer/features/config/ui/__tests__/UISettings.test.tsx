@@ -1,9 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { UISettings } from '../UISettings';
 import { createMockConfig } from '@/test/utils/helpers/test-utils';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('UISettings', () => {
   const mockConfig = createMockConfig({
@@ -29,13 +30,13 @@ describe('UISettings', () => {
   });
 
   it('should render interface preferences title', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     expect(screen.getByText('Interface Preferences')).toBeInTheDocument();
   });
 
   it('should render theme selector', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     const themeSelect = screen.getByLabelText('Theme');
     expect(themeSelect).toBeInTheDocument();
@@ -44,7 +45,7 @@ describe('UISettings', () => {
 
   it('should handle theme change', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const themeSelect = screen.getByLabelText('Theme');
     const user = userEvent.setup();
@@ -59,7 +60,7 @@ describe('UISettings', () => {
   });
 
   it('should render font size selector', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     const fontSizeSelect = screen.getByLabelText('Font Size');
     expect(fontSizeSelect).toBeInTheDocument();
@@ -68,7 +69,7 @@ describe('UISettings', () => {
 
   it('should handle font size change', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const fontSizeSelect = screen.getByLabelText('Font Size');
     const user = userEvent.setup();
@@ -83,7 +84,7 @@ describe('UISettings', () => {
   });
 
   it('should render toggle switches for UI options', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Auto Save' })).toBeInTheDocument();
@@ -95,7 +96,7 @@ describe('UISettings', () => {
 
   it('should toggle show token usage setting', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const toggle = screen.getByRole('switch', { name: 'Show Token Usage' });
     const user = userEvent.setup();
@@ -111,7 +112,7 @@ describe('UISettings', () => {
 
   it('should toggle auto save setting', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const toggle = screen.getByRole('switch', { name: 'Auto Save' });
     const user = userEvent.setup();
@@ -127,7 +128,7 @@ describe('UISettings', () => {
 
   it('should toggle auto scroll setting', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const toggle = screen.getByRole('switch', { name: 'Auto Scroll' });
     const user = userEvent.setup();
@@ -143,7 +144,7 @@ describe('UISettings', () => {
 
   it('should toggle enable markdown setting', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const toggle = screen.getByRole('switch', { name: 'Enable Markdown' });
     const user = userEvent.setup();
@@ -159,7 +160,7 @@ describe('UISettings', () => {
 
   it('should toggle syntax highlighting setting', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const toggle = screen.getByRole('switch', { name: 'Syntax Highlighting' });
     const user = userEvent.setup();
@@ -175,7 +176,7 @@ describe('UISettings', () => {
 
   it('should toggle compact mode setting', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const toggle = screen.getByRole('switch', { name: 'Compact Mode' });
     const user = userEvent.setup();
@@ -190,7 +191,7 @@ describe('UISettings', () => {
   });
 
   it('should show correct toggle state for enabled settings', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     // All these settings should be enabled (aria-checked="true")
     expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toHaveAttribute(
@@ -220,7 +221,7 @@ describe('UISettings', () => {
       },
     });
 
-    render(<UISettings config={disabledConfig} onConfigChange={vi.fn()} />);
+    renderWithServices(<UISettings config={disabledConfig} onConfigChange={vi.fn()} />);
 
     expect(screen.getByRole('switch', { name: 'Show Token Usage' })).toHaveAttribute(
       'aria-checked',
@@ -237,7 +238,7 @@ describe('UISettings', () => {
   });
 
   it('should display descriptions for each toggle', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     expect(screen.getByText('Display token usage statistics')).toBeInTheDocument();
     expect(screen.getByText('Automatically save conversations')).toBeInTheDocument();
@@ -248,7 +249,7 @@ describe('UISettings', () => {
   });
 
   it('should have proper accessibility attributes', () => {
-    render(<UISettings {...defaultProps} />);
+    renderWithServices(<UISettings {...defaultProps} />);
 
     // Check ARIA attributes
     expect(screen.getByLabelText('Theme')).toBeInTheDocument();
@@ -263,7 +264,7 @@ describe('UISettings', () => {
 
   it('should handle multiple setting changes', async () => {
     const mockOnChange = vi.fn();
-    render(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={mockConfig} onConfigChange={mockOnChange} />);
 
     const user = userEvent.setup();
 
@@ -290,7 +291,7 @@ describe('UISettings', () => {
     const originalConfig = { ...mockConfig };
     const mockOnChange = vi.fn();
 
-    render(<UISettings config={originalConfig} onConfigChange={mockOnChange} />);
+    renderWithServices(<UISettings config={originalConfig} onConfigChange={mockOnChange} />);
 
     // Make a change
     fireEvent.click(screen.getByRole('switch', { name: 'Auto Save' }));

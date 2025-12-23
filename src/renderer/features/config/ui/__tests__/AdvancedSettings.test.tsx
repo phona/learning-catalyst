@@ -1,9 +1,10 @@
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdvancedSettings } from '../AdvancedSettings';
 import { createMockConfig } from '@/test/utils/helpers/test-utils';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const baseConfig = createMockConfig({
   performance: {
@@ -25,7 +26,7 @@ describe('AdvancedSettings', () => {
   });
 
   it('renders headings and inputs', () => {
-    render(<AdvancedSettings config={baseConfig} onConfigChange={vi.fn()} />);
+    renderWithServices(<AdvancedSettings config={baseConfig} onConfigChange={vi.fn()} />);
 
     expect(screen.getByText(/Advanced Settings/i)).toBeInTheDocument();
     const spinboxes = screen.getAllByRole('spinbutton');
@@ -35,7 +36,7 @@ describe('AdvancedSettings', () => {
 
   it('updates performance fields', async () => {
     const onConfigChange = vi.fn();
-    render(<AdvancedSettings config={baseConfig} onConfigChange={onConfigChange} />);
+    renderWithServices(<AdvancedSettings config={baseConfig} onConfigChange={onConfigChange} />);
     const user = userEvent.setup();
 
     const [cacheInput, maxRequests] = screen.getAllByRole('spinbutton');
@@ -52,7 +53,7 @@ describe('AdvancedSettings', () => {
 
   it('toggles privacy flags', async () => {
     const onConfigChange = vi.fn();
-    render(<AdvancedSettings config={baseConfig} onConfigChange={onConfigChange} />);
+    renderWithServices(<AdvancedSettings config={baseConfig} onConfigChange={onConfigChange} />);
     const user = userEvent.setup();
 
     const storeToggle = screen

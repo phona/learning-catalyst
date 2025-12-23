@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConceptParsingResults } from '../ConceptParsingResults';
 import type { ConceptIngestionAction, ParsedRelationship } from '@/shared/types/electron-api/knowledge-api';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const makeCompletedJob = () => ({
   id: 'job-1',
@@ -84,7 +85,7 @@ describe('ConceptParsingResults', () => {
     const job = makeCompletedJob();
     const onSelect = vi.fn();
 
-    render(<ConceptParsingResults job={job} onConceptSelect={onSelect} />);
+    renderWithServices(<ConceptParsingResults job={job} onConceptSelect={onSelect} />);
 
     expect(screen.getByText(/Concept Parsing Results/i)).toBeInTheDocument();
     expect(screen.getByText(/completed/i)).toBeInTheDocument();
@@ -106,7 +107,7 @@ describe('ConceptParsingResults', () => {
       stages: [],
     };
 
-    render(<ConceptParsingResults job={processingJob as any} />);
+    renderWithServices(<ConceptParsingResults job={processingJob as any} />);
 
     expect(screen.getByText(/Processing Progress/i)).toBeInTheDocument();
     expect(screen.getByText(/Processing your files/i)).toBeInTheDocument();
@@ -123,7 +124,7 @@ describe('ConceptParsingResults', () => {
       errorMessage: 'Extraction crashed',
     };
 
-    render(<ConceptParsingResults job={failedJob as any} />);
+    renderWithServices(<ConceptParsingResults job={failedJob as any} />);
 
     expect(screen.getByText(/Parsing Failed/i)).toBeInTheDocument();
     expect(screen.getByText(/Extraction crashed/)).toBeInTheDocument();
@@ -133,7 +134,7 @@ describe('ConceptParsingResults', () => {
     const job = makeCompletedJob();
     const onExport = vi.fn();
 
-    render(<ConceptParsingResults job={job} onExport={onExport} />);
+    renderWithServices(<ConceptParsingResults job={job} onExport={onExport} />);
 
     fireEvent.click(screen.getByTitle(/Export as JSON/i));
     expect(onExport).toHaveBeenCalledWith('json');
@@ -154,7 +155,7 @@ describe('ConceptParsingResults', () => {
       relationshipsInserted: 0,
     });
 
-    render(<ConceptParsingResults job={job} onIngest={onIngest} />);
+    renderWithServices(<ConceptParsingResults job={job} onIngest={onIngest} />);
 
     fireEvent.click(screen.getByRole('button', { name: /Apply to Knowledge/i }));
     fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
@@ -183,7 +184,7 @@ describe('ConceptParsingResults', () => {
       lowConfidenceSkipped: 2,
     });
 
-    render(<ConceptParsingResults job={job} onIngest={onIngest} />);
+    renderWithServices(<ConceptParsingResults job={job} onIngest={onIngest} />);
 
     fireEvent.click(screen.getByText(/Concept Parsing Results/i));
 
@@ -217,7 +218,7 @@ describe('ConceptParsingResults', () => {
       relationshipsInserted: 0,
     });
 
-    render(<ConceptParsingResults job={job} onIngest={onIngest} />);
+    renderWithServices(<ConceptParsingResults job={job} onIngest={onIngest} />);
 
     fireEvent.click(screen.getByText(/Concepts \(2\)/i));
     const nameInputs = screen.getAllByLabelText('Concept name');
@@ -252,7 +253,7 @@ describe('ConceptParsingResults', () => {
       confidence: 0.4,
     });
 
-    render(<ConceptParsingResults job={job} />);
+    renderWithServices(<ConceptParsingResults job={job} />);
     fireEvent.click(screen.getByText(/Concepts \(3\)/i));
 
     // low-confidence hidden by default threshold
@@ -286,7 +287,7 @@ describe('ConceptParsingResults', () => {
       relationshipsSkipped: 1,
     });
 
-    render(<ConceptParsingResults job={job} onIngest={onIngest} />);
+    renderWithServices(<ConceptParsingResults job={job} onIngest={onIngest} />);
     fireEvent.click(screen.getByText(/Concepts \(2\)/i));
 
     fireEvent.change(screen.getAllByLabelText('Concept action')[0], { target: { value: 'skip' } });
@@ -314,7 +315,7 @@ describe('ConceptParsingResults', () => {
           }),
       );
 
-    render(<ConceptParsingResults job={job} onIngest={onIngest} />);
+    renderWithServices(<ConceptParsingResults job={job} onIngest={onIngest} />);
 
     const applyButton = screen.getByRole('button', { name: /Apply to Knowledge/i });
     fireEvent.click(applyButton);
@@ -330,7 +331,7 @@ describe('ConceptParsingResults', () => {
 
   it('filters concepts by search and type', () => {
     const job = makeCompletedJob();
-    render(<ConceptParsingResults job={job} />);
+    renderWithServices(<ConceptParsingResults job={job} />);
 
     fireEvent.click(screen.getByText(/Concepts \(2\)/i));
 
@@ -352,7 +353,7 @@ describe('ConceptParsingResults', () => {
 
   it('sorts concepts by name when selected', () => {
     const job = makeCompletedJob();
-    render(<ConceptParsingResults job={job} />);
+    renderWithServices(<ConceptParsingResults job={job} />);
 
     fireEvent.click(screen.getByText(/Concepts \(2\)/i));
     fireEvent.change(screen.getByDisplayValue(/Sort by Confidence/i), {
@@ -366,7 +367,7 @@ describe('ConceptParsingResults', () => {
 
   it('shows relationships and statistics tabs', () => {
     const job = makeCompletedJob();
-    render(<ConceptParsingResults job={job} />);
+    renderWithServices(<ConceptParsingResults job={job} />);
 
     fireEvent.click(screen.getByText(/Relationships \(1\)/i));
     expect(screen.getByText(/Gravity/)).toBeInTheDocument();

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AIProviderSettings } from '../AIProviderSettings';
@@ -8,6 +8,7 @@ import {
   createMockConfigurationService,
   createMockFileService,
 } from '@/test/utils/services-provider-stubs';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Temporary debug log to inspect environment.
 console.log('[AIProviderSettings tests] NODE_ENV:', process.env.NODE_ENV);
@@ -65,7 +66,7 @@ describe('AIProviderSettings (current UI)', () => {
   });
 
   it('renders sections and model types', () => {
-    render(
+    renderWithServices(
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
@@ -82,7 +83,7 @@ describe('AIProviderSettings (current UI)', () => {
 
   it('validates provider and enables save', async () => {
     const user = userEvent.setup({ delay: null });
-    render(
+    renderWithServices(
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
@@ -123,7 +124,7 @@ describe('AIProviderSettings (current UI)', () => {
 
   it('lists configured providers and allows fetching models', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithServices(
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}
@@ -160,7 +161,7 @@ describe('AIProviderSettings (current UI)', () => {
     const user = userEvent.setup();
     const onModelAssignmentChange = vi.fn();
 
-    render(
+    renderWithServices(
       <AIProviderSettings
         providerConfigs={baseProviderConfigs as any}
         modelAssignments={baseAssignments as any}

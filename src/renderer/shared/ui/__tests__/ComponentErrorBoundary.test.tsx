@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { vi, beforeEach, afterEach } from 'vitest';
 import { ComponentErrorBoundary } from '@/renderer/shared/ui/ComponentErrorBoundary';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Mock console.error to avoid test noise
 const originalError = console.error;
@@ -23,7 +24,7 @@ const NormalComponent: React.FC = () => <div>Normal component content</div>;
 
 describe('ComponentErrorBoundary', () => {
   it('should render children when there is no error', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary>
         <NormalComponent />
       </ComponentErrorBoundary>,
@@ -33,7 +34,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should use default component name when not specified', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary>
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -43,7 +44,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should use custom component name when specified', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary componentName="MyCustomComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -53,7 +54,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should render minimal variant correctly', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary variant="minimal" componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -65,7 +66,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should render inline variant correctly', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary variant="inline" componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -78,7 +79,7 @@ describe('ComponentErrorBoundary', () => {
   it('should show retry button when onRetry is provided', () => {
     const onRetry = vi.fn();
 
-    render(
+    renderWithServices(
       <ComponentErrorBoundary onRetry={onRetry} componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -92,7 +93,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should hide retry button when onRetry is not provided', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -104,7 +105,7 @@ describe('ComponentErrorBoundary', () => {
   it('should call onError callback when provided', () => {
     const onError = vi.fn();
 
-    render(
+    renderWithServices(
       <ComponentErrorBoundary onError={onError} componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -118,7 +119,7 @@ describe('ComponentErrorBoundary', () => {
     // For now, let's simplify this test to just verify the retry button works
     const onRetry = vi.fn();
 
-    render(
+    renderWithServices(
       <ComponentErrorBoundary onRetry={onRetry} componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,
@@ -137,7 +138,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should use showErrorDetails prop correctly', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary
         variant="inline"
         componentName="TestComponent"
@@ -151,7 +152,7 @@ describe('ComponentErrorBoundary', () => {
   });
 
   it('should apply correct styling and accessibility attributes', () => {
-    render(
+    renderWithServices(
       <ComponentErrorBoundary variant="minimal" componentName="TestComponent">
         <ThrowingComponent />
       </ComponentErrorBoundary>,

@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SessionTracking } from '../SessionTracking';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Define the LearningSession interface to match what the component expects
 interface LearningSession {
@@ -72,7 +73,7 @@ describe('SessionTracking', () => {
 
   it('shows a loading indicator while sessions are fetched', (): void => {
     const loadSessions = (): Promise<AnalyticsSession[]> => new Promise<AnalyticsSession[]>(() => {});
-    const { container } = render(
+    const { container } = renderWithServices(
       <SessionTracking analytics={analytics} loadSessions={loadSessions} />,
     );
 
@@ -104,7 +105,7 @@ describe('SessionTracking', () => {
       }),
     ]);
 
-    render(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);
+    renderWithServices(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);
 
     expect(await screen.findByText('Recent Sessions')).toBeInTheDocument();
     expect(screen.getByText('3 sessions')).toBeInTheDocument();
@@ -120,7 +121,7 @@ describe('SessionTracking', () => {
   it('shows an empty state when no sessions are returned', async () => {
     const loadSessions = vi.fn().mockResolvedValue([]);
 
-    render(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);
+    renderWithServices(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);
 
     expect(await screen.findByText('No sessions yet')).toBeInTheDocument();
     expect(screen.getByText('Start your first learning session')).toBeInTheDocument();
@@ -130,7 +131,7 @@ describe('SessionTracking', () => {
   it('renders an error state when the loader fails', async () => {
     const loadSessions = vi.fn().mockRejectedValue(new Error('network down'));
 
-    render(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);
+    renderWithServices(<SessionTracking analytics={analytics} loadSessions={loadSessions} />);
 
     await waitFor(() => {
       expect(screen.getByText('Error loading sessions: network down')).toBeInTheDocument();

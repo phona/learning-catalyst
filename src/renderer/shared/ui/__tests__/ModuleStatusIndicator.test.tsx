@@ -6,9 +6,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ModuleStatusIndicator } from '../ModuleStatusIndicator';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('ModuleStatusIndicator', () => {
   const baseHealth = {
@@ -27,14 +28,14 @@ describe('ModuleStatusIndicator', () => {
   };
 
   it('shows initializing state when health is not provided', () => {
-    render(<ModuleStatusIndicator systemHealth={null} />);
+    renderWithServices(<ModuleStatusIndicator systemHealth={null} />);
 
     expect(screen.getByText('Module system initializing...')).toBeInTheDocument();
   });
 
   it('renders compact summary with refresh when degraded/failed modules exist', () => {
     const onRefresh = vi.fn();
-    render(<ModuleStatusIndicator systemHealth={baseHealth} onRefresh={onRefresh} compact />);
+    renderWithServices(<ModuleStatusIndicator systemHealth={baseHealth} onRefresh={onRefresh} compact />);
 
     expect(screen.getByText('System Degraded')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Refresh module status'));
@@ -42,7 +43,7 @@ describe('ModuleStatusIndicator', () => {
   });
 
   it('renders detailed module list, issues, and respects status styling', () => {
-    render(<ModuleStatusIndicator systemHealth={baseHealth} />);
+    renderWithServices(<ModuleStatusIndicator systemHealth={baseHealth} />);
 
     // Module rows should display friendly names and status badges
     expect(screen.getByText('Discovery')).toBeInTheDocument();

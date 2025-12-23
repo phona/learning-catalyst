@@ -10,16 +10,17 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Input } from '../Input';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('Input - Critical Reliability Tests', () => {
   it('should handle value changes correctly', async () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
 
-    render(<Input defaultValue="" onChange={handleChange} placeholder="Test input" />);
+    renderWithServices(<Input defaultValue="" onChange={handleChange} placeholder="Test input" />);
 
     const input = screen.getByPlaceholderText('Test input');
     await user.type(input, 'hello world');
@@ -29,7 +30,7 @@ describe('Input - Critical Reliability Tests', () => {
   });
 
   it('should show error message when error prop is provided', () => {
-    render(<Input error="This field is required" />);
+    renderWithServices(<Input error="This field is required" />);
 
     const errorMessage = screen.getByText('This field is required');
     expect(errorMessage).toBeInTheDocument();
@@ -39,14 +40,14 @@ describe('Input - Critical Reliability Tests', () => {
   });
 
   it('should show helper text when provided', () => {
-    render(<Input helperText="Enter your email address" />);
+    renderWithServices(<Input helperText="Enter your email address" />);
 
     const helperText = screen.getByText('Enter your email address');
     expect(helperText).toBeInTheDocument();
   });
 
   it('should not show helper text when error is present', () => {
-    render(<Input error="This field is required" helperText="Enter your email address" />);
+    renderWithServices(<Input error="This field is required" helperText="Enter your email address" />);
 
     // Should show error, not helper text
     expect(screen.getByText('This field is required')).toBeInTheDocument();
@@ -56,7 +57,7 @@ describe('Input - Critical Reliability Tests', () => {
   it('should respect disabled state', async () => {
     const handleChange = vi.fn();
     const user = userEvent.setup();
-    render(<Input disabled defaultValue="readonly" onChange={handleChange} />);
+    renderWithServices(<Input disabled defaultValue="readonly" onChange={handleChange} />);
 
     const input = screen.getByRole('textbox');
     expect(input).toBeDisabled();
@@ -67,7 +68,7 @@ describe('Input - Critical Reliability Tests', () => {
   });
 
   it('should associate label with input correctly', () => {
-    render(<Input label="Email Address" id="email-input" />);
+    renderWithServices(<Input label="Email Address" id="email-input" />);
 
     const label = screen.getByText('Email Address');
     const input = screen.getByRole('textbox');
@@ -80,7 +81,7 @@ describe('Input - Critical Reliability Tests', () => {
     const handleSubmit = vi.fn((e) => e.preventDefault());
     const handleChange = vi.fn();
 
-    render(
+    renderWithServices(
       <form onSubmit={handleSubmit}>
         <Input name="username" onChange={handleChange} />
         <button type="submit">Submit</button>
@@ -100,7 +101,7 @@ describe('Input - Critical Reliability Tests', () => {
   });
 
   it('should handle different input types', () => {
-    const { rerender } = render(<Input type="email" />);
+    const { rerender } = renderWithServices(<Input type="email" />);
     expect(screen.getByRole('textbox')).toHaveAttribute('type', 'email');
 
     rerender(<Input type="password" />);
@@ -112,7 +113,7 @@ describe('Input - Critical Reliability Tests', () => {
 
   it('should be keyboard accessible', () => {
     const handleChange = vi.fn();
-    render(<Input onChange={handleChange} placeholder="Test input" />);
+    renderWithServices(<Input onChange={handleChange} placeholder="Test input" />);
 
     const input = screen.getByPlaceholderText('Test input');
     input.focus();
@@ -133,7 +134,7 @@ describe('Input - Critical Reliability Tests', () => {
     const leftIcon = <span data-testid="left-icon">←</span>;
     const rightIcon = <span data-testid="right-icon">→</span>;
 
-    render(<Input leftIcon={leftIcon} rightIcon={rightIcon} placeholder="With icons" />);
+    renderWithServices(<Input leftIcon={leftIcon} rightIcon={rightIcon} placeholder="With icons" />);
 
     expect(screen.getByTestId('left-icon')).toBeInTheDocument();
     expect(screen.getByTestId('right-icon')).toBeInTheDocument();
@@ -142,17 +143,17 @@ describe('Input - Critical Reliability Tests', () => {
 
   it('should handle edge cases gracefully', () => {
     // Empty props should still render a textbox
-    const { unmount: unmountDefault } = render(<Input />);
+    const { unmount: unmountDefault } = renderWithServices(<Input />);
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     unmountDefault();
 
     // Undefined value should not break controlled behavior
-    const { unmount: unmountUndefined } = render(<Input value={undefined} onChange={vi.fn()} />);
+    const { unmount: unmountUndefined } = renderWithServices(<Input value={undefined} onChange={vi.fn()} />);
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     unmountUndefined();
 
     // Null onChange (defensive) should not throw
-    const { unmount: unmountNullHandler } = render(
+    const { unmount: unmountNullHandler } = renderWithServices(
       <Input onChange={null as unknown as React.ChangeEventHandler<HTMLInputElement>} />,
     );
     expect(screen.getByRole('textbox')).toBeInTheDocument();
@@ -160,7 +161,7 @@ describe('Input - Critical Reliability Tests', () => {
   });
 
   it('should validate required field behavior', () => {
-    render(<Input required />);
+    renderWithServices(<Input required />);
 
     const input = screen.getByRole('textbox');
     expect(input).toBeRequired();
@@ -169,7 +170,7 @@ describe('Input - Critical Reliability Tests', () => {
 
   it('should handle maxLength constraints', () => {
     const handleChange = vi.fn();
-    render(<Input maxLength={10} onChange={handleChange} placeholder="Max 10 chars" />);
+    renderWithServices(<Input maxLength={10} onChange={handleChange} placeholder="Max 10 chars" />);
 
     const input = screen.getByPlaceholderText('Max 10 chars');
     expect(input).toHaveAttribute('maxlength', '10');

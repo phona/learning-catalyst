@@ -38,7 +38,19 @@ export class IPCError extends Error {
  */
 function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
   if (!response.success) {
-    const errorMessage = response.error ?? 'unknown error';
+    const errorMessage = typeof response.error === 'string'
+      ? response.error
+      : response.error?.message ?? 'unknown error';
+
+    // Extract error code - check both response.code and response.error.code
+    const errorCode = response.code
+      ?? (typeof response.error === 'object' ? response.error?.code : undefined)
+      ?? 'UNKNOWN_ERROR';
+
+    // Extract error details if present
+    const errorDetails = typeof response.error === 'object'
+      ? response.error?.details
+      : undefined;
 
     // Toast unless silent
     if (!options.silent) {
@@ -46,10 +58,7 @@ function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
     }
 
     // Re-throw for caller handling
-    throw new IPCError(
-      response.code ?? 'UNKNOWN_ERROR',
-      errorMessage,
-    );
+    throw new IPCError(errorCode, errorMessage, errorDetails);
   }
 
   return response.data as T;

@@ -25,6 +25,21 @@ const makeCallbackApi = () => {
         return { success: true, data: { canceled: true } } as any;
       }),
     } as any,
+    aiSDK: {
+      stream: vi.fn().mockImplementation((_params, onData) => {
+        let i = 0;
+        const chunks = [{ content: 'hello ' }, { content: 'world ' }, { content: 'ignored' }];
+        const emit = () => {
+          if (i < chunks.length) {
+            onData(chunks[i]);
+            i++;
+            setTimeout(emit, 50);
+          }
+        };
+        setTimeout(emit, 10);
+        return vi.fn(); // return unsubscribe function
+      }),
+    } as any,
   };
   return api as ElectronAPI;
 };

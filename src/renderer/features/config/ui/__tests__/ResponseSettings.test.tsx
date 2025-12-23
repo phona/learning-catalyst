@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ResponseSettings } from '../ResponseSettings';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const baseConfig = {
   ai: {
@@ -19,7 +20,7 @@ const baseConfig = {
 
 describe('ResponseSettings', () => {
   it('renders toggles and disables them when config missing', () => {
-    render(<ResponseSettings config={null as any} onConfigChange={vi.fn()} />);
+    renderWithServices(<ResponseSettings config={null as any} onConfigChange={vi.fn()} />);
 
     expect(screen.getByText(/Response Settings/i)).toBeInTheDocument();
     const buttons = screen.getAllByRole('button');
@@ -29,7 +30,7 @@ describe('ResponseSettings', () => {
 
   it('toggles streaming capability', async () => {
     const onConfigChange = vi.fn();
-    render(<ResponseSettings config={baseConfig} onConfigChange={onConfigChange} />);
+    renderWithServices(<ResponseSettings config={baseConfig} onConfigChange={onConfigChange} />);
 
     const streamingToggle = screen
       .getAllByRole('button')
@@ -54,7 +55,7 @@ describe('ResponseSettings', () => {
 
   it('toggles thinking capability', async () => {
     const onConfigChange = vi.fn();
-    render(<ResponseSettings config={baseConfig} onConfigChange={onConfigChange} />);
+    renderWithServices(<ResponseSettings config={baseConfig} onConfigChange={onConfigChange} />);
 
     const thinkingToggle = screen
       .getAllByRole('button')

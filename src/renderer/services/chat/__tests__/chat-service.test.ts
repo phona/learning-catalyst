@@ -18,6 +18,11 @@ const baseApi = (): Partial<ElectronAPI> => ({
   } as any,
   catalyst: {
     cancelAgent: vi.fn(),
+    sendChat: vi.fn(),
+    sendChatStream: vi.fn(),
+  } as any,
+  aiSDK: {
+    stream: vi.fn(),
   } as any,
 });
 
@@ -29,7 +34,7 @@ describe('chat-service', () => {
 
   it('sends message and maps response', async () => {
     const api = baseApi();
-    (api.chat!.sendMessage as any).mockResolvedValue({
+    (api.catalyst!.sendChat as any).mockResolvedValue({
       success: true,
       data: { id: 'm1', role: 'assistant', content: 'hello', timestamp: Date.now(), conversationId: 's1' },
     });
@@ -37,7 +42,7 @@ describe('chat-service', () => {
 
     const msg = await service.sendMessage('hi', { sessionId: 's1' });
 
-    expect(api.chat!.sendMessage).toHaveBeenCalledWith({ conversationId: 's1', message: 'hi' });
+    expect(api.catalyst!.sendChat).toHaveBeenCalledWith({ sessionId: 's1', message: 'hi' });
     expect(msg.id).toBe('m1');
     expect(msg.provider).toBe('s1');
   });

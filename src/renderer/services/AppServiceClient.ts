@@ -54,9 +54,8 @@ export async function getAppVersion(): Promise<string> {
   }
 
   try {
-    const resp = await window.electronAPI.settings.getAppVersion();
-    const data = unwrap(resp as APIResponse<string>);
-    return typeof data === 'string' ? data : 'Unknown';
+    const versionInfo = await window.electronAPI.getVersion();
+    return versionInfo.version;
   } catch (error) {
     console.error('Failed to get app version:', error);
     return 'Unknown';
@@ -72,8 +71,7 @@ export async function quitApp(): Promise<void> {
   }
 
   try {
-    const resp = await window.electronAPI.settings.quit();
-    assertOk(resp as APIResponse<unknown>);
+    await window.electronAPI.relaunchApp();
   } catch (error) {
     console.error('Failed to quit app:', error);
   }
@@ -88,7 +86,7 @@ export async function showOpenDialog(options?: OpenDialogOptions) {
   }
 
   try {
-    return await window.electronAPI.showOpenDialog(options);
+    return await window.electronAPI.showOpenDialog(options || {});
   } catch (error) {
     console.error('Failed to show open dialog:', error);
     return { canceled: true, filePaths: [] };
@@ -104,7 +102,7 @@ export async function showSaveDialog(options?: SaveDialogOptions) {
   }
 
   try {
-    return await window.electronAPI.showSaveDialog(options);
+    return await window.electronAPI.showSaveDialog(options || {});
   } catch (error) {
     console.error('Failed to show save dialog:', error);
     return { canceled: true, filePath: '' };

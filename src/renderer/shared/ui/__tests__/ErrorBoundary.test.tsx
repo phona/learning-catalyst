@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ErrorBoundary } from '@/renderer/shared/ui/ErrorBoundary';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Component that throws an error for testing
 const ThrowError: React.FC<{ shouldThrow?: boolean }> = ({ shouldThrow = true }) => {
@@ -23,7 +24,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('renders children when there is no error', () => {
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <div>Normal content</div>
       </ErrorBoundary>,
@@ -33,7 +34,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('catches errors and displays error UI', () => {
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -49,7 +50,7 @@ describe('ErrorBoundary', () => {
     const originalEnv = process.env.NODE_ENV;
     vi.stubEnv('NODE_ENV', 'development');
 
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -70,7 +71,7 @@ describe('ErrorBoundary', () => {
     const originalEnv = process.env.NODE_ENV;
     vi.stubEnv('NODE_ENV', 'production');
 
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -84,7 +85,7 @@ describe('ErrorBoundary', () => {
   it('renders custom fallback when provided', () => {
     const customFallback = <div>Custom error UI</div>;
 
-    render(
+    renderWithServices(
       <ErrorBoundary fallback={customFallback}>
         <ThrowError />
       </ErrorBoundary>,
@@ -98,7 +99,7 @@ describe('ErrorBoundary', () => {
     const reloadSpy = vi.fn();
     vi.stubGlobal('location', { reload: reloadSpy });
 
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -111,7 +112,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('has a try again button that resets the error state', () => {
-    const { rerender } = render(
+    const { rerender } = renderWithServices(
       <ErrorBoundary>
         <ThrowError shouldThrow={true} />
       </ErrorBoundary>,
@@ -126,7 +127,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('logs errors to console', () => {
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -145,7 +146,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('has proper accessibility attributes', () => {
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -164,7 +165,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('has proper dark mode support', () => {
-    render(
+    renderWithServices(
       <ErrorBoundary>
         <ThrowError />
       </ErrorBoundary>,
@@ -176,7 +177,7 @@ describe('ErrorBoundary', () => {
 
   it('renders inline variant with retry and custom description', () => {
     const onRetry = vi.fn();
-    render(
+    renderWithServices(
       <ErrorBoundary variant="inline" title="Section failed" description="Retry it" onRetry={onRetry}>
         <ThrowError />
       </ErrorBoundary>,
@@ -188,7 +189,7 @@ describe('ErrorBoundary', () => {
   });
 
   it('renders minimal variant without retry when disabled', () => {
-    render(
+    renderWithServices(
       <ErrorBoundary variant="minimal" showRetry={false} title="Mini fail">
         <ThrowError />
       </ErrorBoundary>,
@@ -207,7 +208,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>This should not render</div>
         </ErrorBoundary>,
@@ -227,7 +228,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -247,7 +248,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -269,7 +270,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError} onRestart={onRestartSpy}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -295,7 +296,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -325,7 +326,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -344,7 +345,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary
           variant="full"
           crashError={crashError}
@@ -367,7 +368,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -386,7 +387,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="inline" crashError={crashError}>
           <div>Children should render</div>
         </ErrorBoundary>,
@@ -405,7 +406,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <ThrowError />
         </ErrorBoundary>,
@@ -424,7 +425,7 @@ describe('ErrorBoundary', () => {
         timestamp: Date.now(),
       };
 
-      render(
+      renderWithServices(
         <ErrorBoundary variant="full" crashError={crashError}>
           <div>Should not render</div>
         </ErrorBoundary>,
@@ -434,13 +435,18 @@ describe('ErrorBoundary', () => {
         .getByText('Application Failed to Start')
         .closest('div');
 
-      // Check for gradient background
+      // Check for proper styling
       expect(crashContainer?.parentElement).toHaveClass(
-        'bg-gradient-to-br',
-        'from-red-50',
-        'to-orange-50',
-        'dark:from-gray-900',
-        'dark:to-gray-800',
+        'bg-white',
+        'dark:bg-gray-800',
+        'rounded-lg',
+        'shadow-2xl',
+        'p-8',
+        'max-w-2xl',
+        'w-full',
+        'border',
+        'border-red-200',
+        'dark:border-red-800',
       );
     });
   });

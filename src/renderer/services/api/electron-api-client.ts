@@ -1,16 +1,89 @@
 import type { ElectronAPI, AppConfig } from '@/shared/types';
-import type {
-  AgentDisplay,
-  AgentContext,
-  AgentCapabilitiesDisplay,
-  FeatureDemoDisplay,
-} from '@/shared/types';
+import type { AgentDisplay } from '@/shared/types';
 import type { ProviderConfig } from '@/shared/types';
 import { ChatHistoryMessage, ChatStreamEvent } from '@/shared/types/electron-api/chat-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import { AIMessage } from 'langchain';
 
+// Local type definitions for mock data (removed from shared types)
+interface AgentContext {
+  sessionId: string;
+  agentId: string;
+  agentSettings: {
+    agentId: string;
+    personality: string;
+    responseStyle: {
+      detailLevel: string;
+      includeExamples: boolean;
+      useAnalogies: boolean;
+      provideStepByStep: boolean;
+      language: string;
+      technicalDepth: string;
+    };
+    interaction: {
+      enableFollowUpQuestions: boolean;
+      proactiveSuggestions: boolean;
+      encouragementLevel: string;
+      humorLevel: string;
+    };
+    preferences: {
+      responseLength: string;
+      formalityLevel: string;
+      useEmojis: boolean;
+    };
+  };
+  sessionHistory: {
+    previousSessions: number;
+    avgRating: number;
+    totalInteractionTime: string;
+  };
+  personalizedSettings: {
+    preferredTopics: string[];
+    avoidedTopics: string[];
+    communicationStyle: string;
+    pacePreference: string;
+  };
+  initialContext: unknown[];
+}
+
+interface AgentCapabilitiesDisplay {
+  agentId: string;
+  capabilities: string[];
+  overallStrengths: string[];
+  idealUseCases: string[];
+  limitations: string[];
+  performanceMetrics: {
+    accuracy: number;
+    responseTime: string;
+    userSatisfaction: number;
+  };
+  supportedFeatures: string[];
+  integrationPartners: string[];
+}
+
+interface FeatureDemoDisplay {
+  agentId: string;
+  feature: string;
+  demoType: string;
+  description: string;
+  samplePrompts: string[];
+  demoInteraction: {
+    type: string;
+    steps: unknown[];
+  };
+  expectedOutcome: string;
+  estimatedTime: string;
+  difficulty: string;
+}
+
 type ElectronWindow = Window & { electronAPI?: ElectronAPI };
+
+// Helper to create properly formatted API response errors
+const createAPIError = (code: string, message: string, details?: Record<string, unknown>) => ({
+  code,
+  message,
+  details,
+});
 
 export function createElectronAPIClient(): ElectronAPI {
   const electronAPI = (window as ElectronWindow).electronAPI;
@@ -39,10 +112,6 @@ const mockAgent: AgentDisplay = {
   isAvailable: true,
   category: 'mock',
   stats: agentStats,
-  specialties: ['mocking'],
-  languages: ['en'],
-  difficulty: 'beginner',
-  interactive: true,
 };
 
 const mockAgentContext: AgentContext = {
@@ -394,12 +463,9 @@ export function createMockElectronAPIClient(): ElectronAPI {
           difficulty: 'beginner',
           status: 'active',
           progress: 0,
-          agent: {
-            type: 'learning',
-            name: 'Mock Agent',
-          },
-          lastActivity: new Date().toISOString(),
-          duration: '0m',
+          duration: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         };
         mockSessions.set(sessionId, session);
         return Promise.resolve({
@@ -412,7 +478,7 @@ export function createMockElectronAPIClient(): ElectronAPI {
         if (!session) {
           return Promise.resolve({
             success: false,
-            error: 'Session not found',
+            error: createAPIError('sessions.not_found', 'Session not found'),
           });
         }
         return Promise.resolve({
@@ -425,7 +491,7 @@ export function createMockElectronAPIClient(): ElectronAPI {
         if (!session) {
           return Promise.resolve({
             success: false,
-            error: 'Session not found',
+            error: createAPIError('sessions.not_found', 'Session not found'),
           });
         }
         if (updates.title !== undefined) {
@@ -439,24 +505,17 @@ export function createMockElectronAPIClient(): ElectronAPI {
           data: session,
         });
       },
-      getRecentSessions: () => Promise.resolve({ success: true, data: [] }),
-      search: () =>
+      getRecentSessions: (limit?: number) => Promise.resolve({ success: true, data: [] }),
+      getGlobalStatistics: () =>
         Promise.resolve({
-          success: true,
-          data: { sessions: [], total: 0, query: '', hasMore: false },
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
         }),
-      getStatistics: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            totalSessions: 0,
-            totalMessages: 0,
-            totalUserMessages: 0,
-            totalAssistantMessages: 0,
-            totalTokensUsed: 0,
-            averageMessagesPerSession: 0,
-          },
-        }),
+      searchSessions: (query: string) => Promise.resolve([]),
       delete: (sessionId: string) => {
         mockSessions.delete(sessionId);
         return Promise.resolve({
@@ -469,13 +528,12 @@ export function createMockElectronAPIClient(): ElectronAPI {
         if (!session) {
           return Promise.resolve({
             success: false,
-            error: 'Session not found',
+            error: createAPIError('sessions.not_found', 'Session not found'),
           });
         }
         session.title = title;
         return Promise.resolve({
           success: true,
-          data: undefined,
         });
       },
     },
@@ -901,8 +959,6 @@ export function createMockElectronAPIClient(): ElectronAPI {
         }),
       updateLearningSettings: () =>
         Promise.resolve({ success: true, data: { updatedSettings: {}, impact: [] } }),
-      getAppVersion: () => Promise.resolve({ success: true, data: '1.0.0' }),
-      quit: () => Promise.resolve({ success: true }),
       getConfig: () => Promise.resolve({ success: true, data: mockDefaultConfig }),
       setConfig: () => Promise.resolve({ success: true }),
     },
@@ -913,7 +969,9 @@ export function createMockElectronAPIClient(): ElectronAPI {
     existsFile: () => Promise.resolve(false),
     showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
     showSaveDialog: () => Promise.resolve({ canceled: true, filePath: '' }),
-    onMenuAction: () => {},
+    onMenuAction: () => {
+      return () => {};
+    },
     onIPCError: () => () => {},
     getErrorBuffer: () => Promise.resolve([]),
     clearErrorBuffer: () => Promise.resolve({ cleared: true }),
@@ -954,8 +1012,6 @@ export function createMockElectronAPIClient(): ElectronAPI {
             },
           },
         }),
-      listAgents: () => Promise.resolve({ success: true, data: [mockAgent] }),
-      getActiveExecutions: () => Promise.resolve({ success: true, data: [] }),
       registerAgent: () => Promise.resolve({ success: true, data: { agentId: 'mock-agent' } }),
       unregisterAgent: () =>
         Promise.resolve({ success: true, data: { unregistered: 'mock-agent' } }),

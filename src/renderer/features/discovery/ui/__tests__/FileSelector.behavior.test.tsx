@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { FileSelector } from '../FileSelector';
 import type { FileSystemItem } from '@/shared/types/filesystem';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const mkItem = (overrides: Partial<FileSystemItem>): FileSystemItem => ({
   name: 'file',
@@ -36,7 +37,7 @@ describe('FileSelector', () => {
   ];
 
   const renderSelector = (selectedFiles: string[] = [], selectedDirs: string[] = []) =>
-    render(
+    renderWithServices(
       <FileSelector
         selectedFiles={selectedFiles}
         selectedDirectories={selectedDirs}

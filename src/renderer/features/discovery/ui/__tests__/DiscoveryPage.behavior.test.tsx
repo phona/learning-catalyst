@@ -1,9 +1,8 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 import { DiscoveryPage } from '../index';
-import { ServicesProvider } from '../../../services/services-provider';
 
 const makeDirectoryItem = (overrides: Partial<any> = {}) => ({
   name: 'readme.md',
@@ -22,8 +21,6 @@ const makeDirectoryItem = (overrides: Partial<any> = {}) => ({
 });
 
 describe('DiscoveryPage end-to-end (no Electron)', () => {
-  const queryClient = new QueryClient();
-
   const makeServices = () => {
     const fileService = {
       getWorkspacePath: vi.fn().mockResolvedValue({ success: true, data: '/workspace' }),
@@ -101,13 +98,9 @@ describe('DiscoveryPage end-to-end (no Electron)', () => {
   it('loads workspace, selects markdown, and shows parsing results flow', async () => {
     const { stub } = makeServices();
 
-    render(
-      <QueryClientProvider client={queryClient}>
-        <ServicesProvider apiClient={{} as any} overrides={stub}>
-          <DiscoveryPage />
-        </ServicesProvider>
-      </QueryClientProvider>,
-    );
+    renderWithServices(<DiscoveryPage />, {
+      serviceOverrides: stub,
+    });
 
     await waitFor(() => expect(screen.getByText('/workspace')).toBeInTheDocument());
     const fileRow = screen.getByText('readme.md');

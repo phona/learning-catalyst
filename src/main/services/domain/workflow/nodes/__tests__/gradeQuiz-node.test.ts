@@ -27,6 +27,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { gradeQuizNode } from '../gradeQuiz';
+import { parseScore } from '../../parse-score';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 
@@ -79,7 +80,6 @@ Confidence: High - user shows solid foundational knowledge.`,
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.92);
 
     const deps = createMockDeps();
@@ -118,7 +118,6 @@ Confidence: High - user shows solid foundational knowledge.`,
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.95);
 
     const deps = createMockDeps();
@@ -151,7 +150,6 @@ Confidence: High - user shows solid foundational knowledge.`,
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.75);
 
     const deps = createMockDeps();
@@ -188,7 +186,6 @@ Confidence: High - user shows solid foundational knowledge.`,
         invoke: vi.fn().mockResolvedValue({ content: text }),
       };
 
-      const { parseScore } = await import('../../parse-score');
       vi.mocked(parseScore).mockReturnValue(expected);
 
       const deps = createMockDeps();
@@ -223,7 +220,6 @@ Confidence: High - user shows solid foundational knowledge.`,
         invoke: vi.fn().mockResolvedValue({ content: text }),
       };
 
-      const { parseScore } = await import('../../parse-score');
       vi.mocked(parseScore).mockReturnValue(expected);
 
       const deps = createMockDeps();
@@ -251,7 +247,6 @@ Confidence: High - user shows solid foundational knowledge.`,
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.9);
 
     const deps = createMockDeps();
@@ -280,7 +275,6 @@ Confidence: High - user shows solid foundational knowledge.`,
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.89);
 
     const deps = createMockDeps();
@@ -318,7 +312,6 @@ Areas Needing Review: ["module syntax", "parameter defaults", "spread/rest opera
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.7);
 
     const deps = createMockDeps();
@@ -356,7 +349,6 @@ Keep going - you're making progress!`,
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.78);
 
     const deps = createMockDeps();
@@ -427,7 +419,6 @@ Excellent depth and detail. Minor areas for refinement:
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.88);
 
     const deps = createMockDeps();
@@ -475,7 +466,6 @@ Excellent depth and detail. Minor areas for refinement:
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.8);
 
     const deps = createMockDeps();
@@ -528,7 +518,6 @@ Excellent response showing deep understanding. The examples were clear and the e
       }),
     };
 
-    const { parseScore } = await import('../../parse-score');
     vi.mocked(parseScore).mockReturnValue(0.91);
 
     const deps = createMockDeps();
@@ -567,7 +556,6 @@ Excellent response showing deep understanding. The examples were clear and the e
         }),
       };
 
-      const { parseScore } = await import('../../parse-score');
       vi.mocked(parseScore).mockReturnValue(score);
 
       const deps = createMockDeps();

@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ModelSelect } from '../ModelSelect';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('ModelSelect', () => {
   beforeEach(() => {
@@ -11,7 +12,7 @@ describe('ModelSelect', () => {
 
   it('renders select and triggers onChange', async () => {
     const onChange = vi.fn();
-    render(
+    renderWithServices(
       <div>
         <label htmlFor="model-select">Model</label>
         <ModelSelect
@@ -32,7 +33,7 @@ describe('ModelSelect', () => {
 
   it('supports free input with datalist', async () => {
     const onChange = vi.fn();
-    render(
+    renderWithServices(
       <div>
         <label htmlFor="model-input">Model</label>
         <ModelSelect
@@ -52,7 +53,7 @@ describe('ModelSelect', () => {
   });
 
   it('can be disabled', () => {
-    render(
+    renderWithServices(
       <ModelSelect models={["gpt-4"]} value="" onChange={() => {}} disabled />,
     );
     const el = screen.getByRole('combobox');

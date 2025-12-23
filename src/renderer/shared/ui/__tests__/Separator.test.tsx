@@ -9,9 +9,10 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Separator } from '../Separator';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('Separator', () => {
   beforeEach(() => {
@@ -20,7 +21,7 @@ describe('Separator', () => {
 
   describe('Rendering', () => {
     it('should render horizontal separator by default', () => {
-      render(<Separator />);
+      renderWithServices(<Separator />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toBeInTheDocument();
@@ -29,7 +30,7 @@ describe('Separator', () => {
     });
 
     it('should render vertical separator when specified', () => {
-      render(<Separator orientation="vertical" />);
+      renderWithServices(<Separator orientation="vertical" />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toBeInTheDocument();
@@ -38,14 +39,14 @@ describe('Separator', () => {
     });
 
     it('should render with default variant', () => {
-      render(<Separator />);
+      renderWithServices(<Separator />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toHaveClass('bg-gray-200', 'dark:bg-gray-700');
     });
 
     it('should render with dashed variant', () => {
-      render(<Separator variant="dashed" />);
+      renderWithServices(<Separator variant="dashed" />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toHaveClass('border-dashed');
@@ -54,13 +55,13 @@ describe('Separator', () => {
 
   describe('Accessibility', () => {
     it('should have proper role attribute', () => {
-      render(<Separator />);
+      renderWithServices(<Separator />);
 
       expect(screen.getByRole('separator')).toBeInTheDocument();
     });
 
     it('should set aria-orientation correctly', () => {
-      const { rerender } = render(<Separator orientation="horizontal" />);
+      const { rerender } = renderWithServices(<Separator orientation="horizontal" />);
       expect(screen.getByRole('separator')).toHaveAttribute(
         'aria-orientation',
         'horizontal',
@@ -77,14 +78,14 @@ describe('Separator', () => {
   describe('Styling', () => {
     it('should apply custom className correctly', () => {
       const customClass = 'custom-separator-class';
-      render(<Separator className={customClass} />);
+      renderWithServices(<Separator className={customClass} />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toHaveClass(customClass);
     });
 
     it('should merge cn utility classes correctly', () => {
-      render(<Separator />);
+      renderWithServices(<Separator />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toHaveClass(
@@ -97,7 +98,7 @@ describe('Separator', () => {
     });
 
     it('should apply base styles', () => {
-      render(<Separator />);
+      renderWithServices(<Separator />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toHaveClass(
@@ -111,13 +112,13 @@ describe('Separator', () => {
   describe('Props', () => {
     it('should forward ref correctly', () => {
       const ref = React.createRef<HTMLDivElement>();
-      render(<Separator ref={ref} />);
+      renderWithServices(<Separator ref={ref} />);
 
       expect(ref.current).toBeInstanceOf(HTMLDivElement);
     });
 
     it('should forward HTML div props', () => {
-      render(
+      renderWithServices(
         <Separator
           data-testid="test-separator"
           id="test-id"
@@ -133,7 +134,7 @@ describe('Separator', () => {
 
   describe('Visual Variants', () => {
     it('should render with solid border by default', () => {
-      render(<Separator />);
+      renderWithServices(<Separator />);
 
       const separator = screen.getByRole('separator');
       // Should have background color, not border
@@ -142,7 +143,7 @@ describe('Separator', () => {
     });
 
     it('should render dashed border when specified', () => {
-      render(<Separator variant="dashed" />);
+      renderWithServices(<Separator variant="dashed" />);
 
       const separator = screen.getByRole('separator');
       expect(separator).toHaveClass('border-dashed');

@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Achievements, SimpleAnalyticsModule } from '../Achievements';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Mock analytics class that the tests expect
 class MockSimpleAnalyticsModule implements SimpleAnalyticsModule {
@@ -21,7 +22,7 @@ describe('Achievements', () => {
   it('renders loading state initially', () => {
     mockAnalytics.getAchievements.mockImplementation(() => new Promise(() => {}));
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(screen.getByText('Loading achievements...')).toBeInTheDocument();
   });
@@ -29,7 +30,7 @@ describe('Achievements', () => {
   it('renders error state when analytics fails', async () => {
     mockAnalytics.getAchievements.mockRejectedValue(new Error('Failed to load achievements'));
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Unable to load achievements')).toBeInTheDocument();
     expect(screen.getByText('Failed to load achievements')).toBeInTheDocument();
@@ -69,7 +70,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Achievements')).toBeInTheDocument();
     expect(screen.getByText('1 of 3 unlocked')).toBeInTheDocument();
@@ -95,7 +96,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Unlocked Achievements (1)')).toBeInTheDocument();
     expect(screen.getByText('First Steps')).toBeInTheDocument();
@@ -120,7 +121,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('In Progress (1)')).toBeInTheDocument();
     expect(screen.getByText('Week Warrior')).toBeInTheDocument();
@@ -143,7 +144,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Progress')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
@@ -167,7 +168,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('🌟')).toBeInTheDocument();
   });
@@ -187,7 +188,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByLabelText('No Icon Achievement icon')).toBeInTheDocument();
   });
@@ -195,7 +196,7 @@ describe('Achievements', () => {
   it('shows no achievements message when there are no achievements', async () => {
     mockAnalytics.getAchievements.mockResolvedValue([]);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('No achievements yet')).toBeInTheDocument();
     expect(
@@ -233,7 +234,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByTestId('achievement-icon-time_achievement')).toBeInTheDocument();
     expect(screen.getByTestId('achievement-icon-concepts_achievement')).toBeInTheDocument();
@@ -290,7 +291,7 @@ describe('Achievements', () => {
 
     mockAnalytics.getAchievements.mockResolvedValue(mockAchievements);
 
-    render(<Achievements analytics={mockAnalytics} />);
+    renderWithServices(<Achievements analytics={mockAnalytics} />);
 
     expect(await screen.findByText('Overall Progress')).toBeInTheDocument();
     expect(screen.getByText('2 of 4 unlocked')).toBeInTheDocument();

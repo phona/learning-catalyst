@@ -5,9 +5,10 @@
  * with explicit dependencies following the functional factory pattern
  */
 
-import type { ElectronAPI, ChatAPI, KnowledgeAPI, AnalyticsAPI, SessionStatistics } from '@/shared/types';
+import type { ElectronAPI, ChatAPI, KnowledgeAPI, AnalyticsAPI } from '@/shared/types';
 import type { APIResponse, SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api/base';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
+import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
 
 import type {
   ConversationDisplay,
@@ -575,7 +576,7 @@ export function createTestServiceContainer(
     existsFile: async () => false,
     showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
     showSaveDialog: async () => ({ canceled: true, filePath: '' }),
-    onMenuAction: () => {},
+    onMenuAction: () => () => {},
     onIPCError: () => () => {},
     handleError: () => {},
     healthCheck: async () => ({ status: 'healthy' as const, apis: {} }),

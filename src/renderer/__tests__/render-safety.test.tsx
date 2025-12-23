@@ -6,9 +6,9 @@
  */
 
 import React from 'react';
-import { render } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import { createRenderSafetyTestCases, createProblematicDataObjects } from '@/test/utils/services-provider-stubs';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('Render Safety', () => {
   describe('React Child Type Validation', () => {
@@ -19,7 +19,7 @@ describe('Render Safety', () => {
       // Document what React accepts as valid children
       safeTypes.forEach((value) => {
         expect(() => {
-          render(<div>{value as any}</div>);
+          renderWithServices(<div>{value as any}</div>);
         }).not.toThrow();
       });
     });
@@ -31,7 +31,7 @@ describe('Render Safety', () => {
 
       objectValues.forEach((value) => {
         expect(() => {
-          render(<div>{value as any}</div>);
+          renderWithServices(<div>{value as any}</div>);
         }).toThrow('Objects are not valid as a React child');
       });
     });
@@ -41,7 +41,7 @@ describe('Render Safety', () => {
       const problematicObjects = createProblematicDataObjects();
 
       expect(() => {
-        render(<div>{problematicObjects.apiResponseObject}</div>);
+        renderWithServices(<div>{problematicObjects.apiResponseObject}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
@@ -49,13 +49,13 @@ describe('Render Safety', () => {
       const problematicObjects = createProblematicDataObjects();
 
       expect(() => {
-        render(<div>{problematicObjects.mixedArray}</div>);
+        renderWithServices(<div>{problematicObjects.mixedArray}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
     it('should reject Date objects', () => {
       expect(() => {
-        render(<div>{new Date()}</div>);
+        renderWithServices(<div>{new Date()}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
@@ -63,7 +63,7 @@ describe('Render Safety', () => {
       const problematicObjects = createProblematicDataObjects();
 
       expect(() => {
-        render(<div>{problematicObjects.nestedError}</div>);
+        renderWithServices(<div>{problematicObjects.nestedError}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
   });
@@ -79,7 +79,7 @@ describe('Render Safety', () => {
 
       // This would cause an error in production
       expect(() => {
-        render(<div>{apiResponse}</div>);
+        renderWithServices(<div>{apiResponse}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
@@ -92,7 +92,7 @@ describe('Render Safety', () => {
       };
 
       expect(() => {
-        render(
+        renderWithServices(
           <div>
             <span>Success: {String(apiResponse.success)}</span>
             <span>Data: {apiResponse.data}</span>
@@ -115,12 +115,12 @@ describe('Render Safety', () => {
 
       // Wrong pattern - would crash
       expect(() => {
-        render(<div>{errorResponse}</div>);
+        renderWithServices(<div>{errorResponse}</div>);
       }).toThrow();
 
       // Correct pattern - extract message
       expect(() => {
-        render(<div>Error: {errorResponse.error.message}</div>);
+        renderWithServices(<div>Error: {errorResponse.error.message}</div>);
       }).not.toThrow();
     });
   });
@@ -145,15 +145,15 @@ describe('Render Safety', () => {
 
       // Should handle safe types
       expect(() => {
-        render(<TestComponent data="string" />);
-        render(<TestComponent data={42} />);
-        render(<TestComponent data={null} />);
-        render(<TestComponent data={undefined} />);
+        renderWithServices(<TestComponent data="string" />);
+        renderWithServices(<TestComponent data={42} />);
+        renderWithServices(<TestComponent data={null} />);
+        renderWithServices(<TestComponent data={undefined} />);
       }).not.toThrow();
 
       // Should reject objects
       expect(() => {
-        render(<TestComponent data={{ key: 'value' }} />);
+        renderWithServices(<TestComponent data={{ key: 'value' }} />);
       }).not.toThrow(); // Component handles it gracefully
     });
 
@@ -180,7 +180,7 @@ describe('Render Safety', () => {
       );
 
       expect(() => {
-        render(<SafeComponent title="Test" count={5} items={['a', 'b', 'c']} />);
+        renderWithServices(<SafeComponent title="Test" count={5} items={['a', 'b', 'c']} />);
       }).not.toThrow();
     });
   });
@@ -197,12 +197,12 @@ describe('Render Safety', () => {
 
       // Direct rendering would crash
       expect(() => {
-        render(<div>{errorWithDetails}</div>);
+        renderWithServices(<div>{errorWithDetails}</div>);
       }).toThrow();
 
       // But we should extract the message
       expect(() => {
-        render(<div>Error: {errorWithDetails.message}</div>);
+        renderWithServices(<div>Error: {errorWithDetails.message}</div>);
       }).not.toThrow();
     });
 
@@ -220,12 +220,12 @@ describe('Render Safety', () => {
 
       // Should not render the whole object
       expect(() => {
-        render(<div>{serviceResponse}</div>);
+        renderWithServices(<div>{serviceResponse}</div>);
       }).toThrow();
 
       // Should extract and render specific properties
       expect(() => {
-        render(
+        renderWithServices(
           <div>
             <p>Error: {serviceResponse.error.message}</p>
             <p>Code: {serviceResponse.error.code}</p>
@@ -255,7 +255,7 @@ describe('Render Safety', () => {
       };
 
       expect(() => {
-        render(
+        renderWithServices(
           <div>
             <p>{safeExtract(data, 'user.name')}</p>
             <p>{safeExtract(data, 'user.profile.bio')}</p>
@@ -282,7 +282,7 @@ describe('Render Safety', () => {
       );
 
       expect(() => {
-        render(<SafeComponent />);
+        renderWithServices(<SafeComponent />);
       }).not.toThrow();
     });
 
@@ -298,13 +298,13 @@ describe('Render Safety', () => {
       };
 
       expect(() => {
-        render(<div>{toString('string')}</div>);
-        render(<div>{toString(42)}</div>);
-        render(<div>{toString(true)}</div>);
+        renderWithServices(<div>{toString('string')}</div>);
+        renderWithServices(<div>{toString(42)}</div>);
+        renderWithServices(<div>{toString(true)}</div>);
       }).not.toThrow();
 
       expect(() => {
-        render(<div>{toString({ key: 'value' })}</div>);
+        renderWithServices(<div>{toString({ key: 'value' })}</div>);
       }).toThrow();
     });
   });

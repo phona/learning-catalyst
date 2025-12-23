@@ -6,9 +6,10 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StudyStreak } from '../StudyStreak';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 // Mock date functionality for consistent testing
 const mockDate = new Date('2024-01-15T10:00:00Z');
@@ -25,7 +26,7 @@ afterEach(() => {
 describe('StudyStreak Component', () => {
   describe('Basic Rendering', () => {
     it('renders streak information correctly', () => {
-      render(<StudyStreak streakDays={5} />);
+      renderWithServices(<StudyStreak streakDays={5} />);
 
       expect(screen.getByText('Study Streak')).toBeInTheDocument();
       expect(screen.getByText('5')).toBeInTheDocument();
@@ -33,7 +34,7 @@ describe('StudyStreak Component', () => {
     });
 
     it('displays correct emoji for streak level', () => {
-      const { rerender } = render(<StudyStreak streakDays={0} />);
+      const { rerender } = renderWithServices(<StudyStreak streakDays={0} />);
       expect(screen.getByText('🌱')).toBeInTheDocument();
 
       rerender(<StudyStreak streakDays={1} />);
@@ -53,7 +54,7 @@ describe('StudyStreak Component', () => {
     });
 
     it('displays appropriate streak message', () => {
-      const { rerender } = render(<StudyStreak streakDays={0} />);
+      const { rerender } = renderWithServices(<StudyStreak streakDays={0} />);
       expect(screen.getByText('Start your learning journey!')).toBeInTheDocument();
 
       rerender(<StudyStreak streakDays={1} />);
@@ -76,7 +77,7 @@ describe('StudyStreak Component', () => {
   describe('Last Study Date', () => {
     test('displays last study date when provided', () => {
       const lastStudyDate = new Date('2024-01-14T15:30:00Z');
-      render(<StudyStreak streakDays={5} lastStudyDate={lastStudyDate} />);
+      renderWithServices(<StudyStreak streakDays={5} lastStudyDate={lastStudyDate} />);
 
       expect(screen.getByText(/Last studied:/)).toBeInTheDocument();
       expect(screen.getByTestId('last-study-date')).toHaveTextContent(
@@ -86,13 +87,13 @@ describe('StudyStreak Component', () => {
 
     test('shows checkmark when studied today', () => {
       const today = new Date('2024-01-15T10:00:00Z');
-      render(<StudyStreak streakDays={5} lastStudyDate={today} />);
+      renderWithServices(<StudyStreak streakDays={5} lastStudyDate={today} />);
 
       expect(screen.getByLabelText('Studied today')).toBeInTheDocument();
     });
 
     test('does not show last study info when date not provided', () => {
-      render(<StudyStreak streakDays={5} />);
+      renderWithServices(<StudyStreak streakDays={5} />);
 
       expect(screen.queryByText(/Last studied:/)).not.toBeInTheDocument();
     });
@@ -100,26 +101,26 @@ describe('StudyStreak Component', () => {
 
   describe('Goal Progress', () => {
     test('displays weekly goal progress correctly', () => {
-      render(<StudyStreak streakDays={3} goalDays={7} />);
+      renderWithServices(<StudyStreak streakDays={3} goalDays={7} />);
 
       expect(screen.getByText('Weekly Goal')).toBeInTheDocument();
       expect(screen.getByText('3/7 days')).toBeInTheDocument();
     });
 
     test('shows achievement message when goal is reached', () => {
-      render(<StudyStreak streakDays={7} goalDays={7} />);
+      renderWithServices(<StudyStreak streakDays={7} goalDays={7} />);
 
       expect(screen.getByText('🎉 Weekly goal achieved!')).toBeInTheDocument();
     });
 
     test('does not show achievement when goal not reached', () => {
-      render(<StudyStreak streakDays={5} goalDays={7} />);
+      renderWithServices(<StudyStreak streakDays={5} goalDays={7} />);
 
       expect(screen.queryByText('🎉 Weekly goal achieved!')).not.toBeInTheDocument();
     });
 
     test('progress bar fills correctly based on streak percentage', () => {
-      const { container } = render(<StudyStreak streakDays={3} goalDays={7} />);
+      const { container } = renderWithServices(<StudyStreak streakDays={3} goalDays={7} />);
 
       const progressBar = container.querySelector('.bg-orange-500') as HTMLElement;
       expect(progressBar).not.toBeNull();
@@ -128,7 +129,7 @@ describe('StudyStreak Component', () => {
     });
 
     test('progress bar caps at 100%', () => {
-      const { container } = render(<StudyStreak streakDays={10} goalDays={7} />);
+      const { container } = renderWithServices(<StudyStreak streakDays={10} goalDays={7} />);
 
       const progressBar = container.querySelector('.bg-orange-500') as HTMLElement;
       expect(progressBar).not.toBeNull();
@@ -139,7 +140,7 @@ describe('StudyStreak Component', () => {
 
   describe('Mini Calendar', () => {
     test('displays week calendar correctly', () => {
-      render(<StudyStreak streakDays={3} />);
+      renderWithServices(<StudyStreak streakDays={3} />);
 
       // Check that all weekday labels are present
       ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach((day) => {
@@ -151,14 +152,14 @@ describe('StudyStreak Component', () => {
 
     test('highlights studied days correctly', () => {
       const today = new Date('2024-01-15T10:00:00Z'); // Monday
-      render(<StudyStreak streakDays={3} lastStudyDate={today} />);
+      renderWithServices(<StudyStreak streakDays={3} lastStudyDate={today} />);
 
       const calendarDays = screen.getAllByText('S');
       expect(calendarDays).toHaveLength(2); // Sunday appears twice
     });
 
     test('applies correct styling to calendar days', () => {
-      render(<StudyStreak streakDays={3} />);
+      renderWithServices(<StudyStreak streakDays={3} />);
 
       const dayElements = screen.getAllByTitle(/2024/);
       expect(dayElements.length).toBeGreaterThan(0);
@@ -172,13 +173,13 @@ describe('StudyStreak Component', () => {
 
   describe('Custom Styling', () => {
     test('applies custom className when provided', () => {
-      const { container } = render(<StudyStreak streakDays={5} className="custom-test-class" />);
+      const { container } = renderWithServices(<StudyStreak streakDays={5} className="custom-test-class" />);
 
       expect(container.firstChild).toHaveClass('custom-test-class');
     });
 
     test('maintains default styling with custom className', () => {
-      const { container } = render(<StudyStreak streakDays={5} className="custom-test-class" />);
+      const { container } = renderWithServices(<StudyStreak streakDays={5} className="custom-test-class" />);
 
       const component = container.firstChild as HTMLElement;
       expect(component).toHaveClass(
@@ -196,7 +197,7 @@ describe('StudyStreak Component', () => {
 
   describe('Edge Cases', () => {
     test('handles zero streak gracefully', () => {
-      render(<StudyStreak streakDays={0} />);
+      renderWithServices(<StudyStreak streakDays={0} />);
 
       expect(screen.getByText('0')).toBeInTheDocument();
       expect(screen.getByText('days in a row')).toBeInTheDocument();
@@ -205,7 +206,7 @@ describe('StudyStreak Component', () => {
     });
 
     test('handles very large streak numbers', () => {
-      render(<StudyStreak streakDays={365} />);
+      renderWithServices(<StudyStreak streakDays={365} />);
 
       expect(screen.getByText('365')).toBeInTheDocument();
       expect(screen.getByText('days in a row')).toBeInTheDocument();
@@ -213,11 +214,11 @@ describe('StudyStreak Component', () => {
     });
 
     test('handles custom goal days', () => {
-      render(<StudyStreak streakDays={2} goalDays={3} />);
+      renderWithServices(<StudyStreak streakDays={2} goalDays={3} />);
 
       expect(screen.getByText('2/3 days')).toBeInTheDocument();
 
-      const { container } = render(<StudyStreak streakDays={2} goalDays={3} />);
+      const { container } = renderWithServices(<StudyStreak streakDays={2} goalDays={3} />);
       const progressBar = container.querySelector('.bg-orange-500') as HTMLElement;
       expect(progressBar).not.toBeNull();
       const widthValue = parseFloat(progressBar.style.width);
@@ -227,7 +228,7 @@ describe('StudyStreak Component', () => {
 
   describe('Accessibility', () => {
     test('has proper heading structure', () => {
-      render(<StudyStreak streakDays={5} />);
+      renderWithServices(<StudyStreak streakDays={5} />);
 
       const heading = screen.getByRole('heading', { name: 'Study Streak' });
       expect(heading).toBeInTheDocument();
@@ -235,7 +236,7 @@ describe('StudyStreak Component', () => {
     });
 
     test('provides meaningful text content', () => {
-      render(<StudyStreak streakDays={5} />);
+      renderWithServices(<StudyStreak streakDays={5} />);
 
       // Check that important information is in text, not just icons
       expect(screen.getByText('5')).toBeInTheDocument();
@@ -244,7 +245,7 @@ describe('StudyStreak Component', () => {
     });
 
     test('calendar days have tooltips for context', () => {
-      render(<StudyStreak streakDays={3} />);
+      renderWithServices(<StudyStreak streakDays={3} />);
 
       const dayElements = screen.getAllByTitle(/2024/);
       expect(dayElements.length).toBeGreaterThan(0);

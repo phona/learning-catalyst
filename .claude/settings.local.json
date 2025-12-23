@@ -96,7 +96,10 @@
       "Bash(wmic:*)",
       "Write(/**/*)",
       "Bash(openspec validate:*)",
-      "Bash(openspec list:*)"
+      "Bash(openspec list:*)",
+      "Bash(openspec show:*)",
+      "Skill(openspec:apply)",
+      "Bash(openspec archive:*)"
     ],
     "deny": [],
     "ask": []

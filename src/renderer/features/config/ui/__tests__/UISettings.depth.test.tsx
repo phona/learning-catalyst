@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent, within } from '@testing-library/react';
 import React from 'react';
 import { UISettings } from '../UISettings';
 import type { AppConfig } from '@/shared/types/config';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const baseConfig: AppConfig = {
   ai: { providers: {} },
@@ -60,7 +61,7 @@ describe('UISettings depth', () => {
       cfg = { ...cfg, ...updates, ui: { ...cfg.ui, ...(updates.ui || {}) } };
       rerender(<UISettings config={cfg} onConfigChange={onConfigChange} />);
     };
-    const { rerender } = render(<UISettings config={cfg} onConfigChange={onConfigChange} />);
+    const { rerender } = renderWithServices(<UISettings config={cfg} onConfigChange={onConfigChange} />);
     const select = screen.getByLabelText('Max Title Depth');
     const chips = within(screen.getByLabelText('Included heading levels'));
     expect(chips.getByText('H1').className).toMatch('bg-blue-');

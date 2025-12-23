@@ -9,10 +9,11 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { SidebarTrigger } from '../SidebarTrigger';
 import { Button } from '../Button';
+import { renderWithServices, screen } from '@/test/utils/renderWithServices';
 
 // Mock the Button component
 vi.mock('../Button', () => ({
@@ -30,21 +31,21 @@ describe('SidebarTrigger', () => {
 
   describe('Rendering', () => {
     it('should render as a button by default', () => {
-      render(<SidebarTrigger>Test Trigger</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger>Test Trigger</SidebarTrigger>);
 
       expect(screen.getByTestId('button')).toBeInTheDocument();
       expect(screen.getByText('Test Trigger')).toBeInTheDocument();
     });
 
     it('should use ghost variant by default', () => {
-      render(<SidebarTrigger>Test Trigger</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger>Test Trigger</SidebarTrigger>);
 
       const button = screen.getByTestId('button');
       expect(button).toHaveAttribute('data-variant', 'ghost');
     });
 
     it('should support custom variant', () => {
-      render(<SidebarTrigger variant="primary">Test Trigger</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger variant="primary">Test Trigger</SidebarTrigger>);
 
       const button = screen.getByTestId('button');
       expect(button).toHaveAttribute('data-variant', 'primary');
@@ -53,7 +54,7 @@ describe('SidebarTrigger', () => {
 
   describe('asChild Composition', () => {
     it('should render child element when asChild is true', () => {
-      render(
+      renderWithServices(
         <SidebarTrigger asChild>
           <Button variant="secondary">Custom Button</Button>
         </SidebarTrigger>,
@@ -65,7 +66,7 @@ describe('SidebarTrigger', () => {
 
     it('should merge props into child element', () => {
       const handleClick = vi.fn();
-      render(
+      renderWithServices(
         <SidebarTrigger asChild onClick={handleClick}>
           <Button>Click Me</Button>
         </SidebarTrigger>,
@@ -79,7 +80,7 @@ describe('SidebarTrigger', () => {
 
     it('should pass ref to child element', () => {
       const ref = React.createRef<HTMLButtonElement>();
-      render(
+      renderWithServices(
         <SidebarTrigger asChild ref={ref}>
           <Button>With Ref</Button>
         </SidebarTrigger>,
@@ -92,7 +93,7 @@ describe('SidebarTrigger', () => {
   describe('Event Handling', () => {
     it('should handle click events', () => {
       const handleClick = vi.fn();
-      render(<SidebarTrigger onClick={handleClick}>Test</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger onClick={handleClick}>Test</SidebarTrigger>);
 
       const button = screen.getByTestId('button');
       fireEvent.click(button);
@@ -104,7 +105,7 @@ describe('SidebarTrigger', () => {
       const handleClick = vi.fn();
       const handleMouseEnter = vi.fn();
 
-      render(
+      renderWithServices(
         <SidebarTrigger
           onClick={handleClick}
           onMouseEnter={handleMouseEnter}
@@ -129,7 +130,7 @@ describe('SidebarTrigger', () => {
 
   describe('Props Forwarding', () => {
     it('should forward HTML button attributes', () => {
-      render(
+      renderWithServices(
         <SidebarTrigger
           data-testid="sidebar-trigger"
           id="trigger-id"
@@ -145,7 +146,7 @@ describe('SidebarTrigger', () => {
     });
 
     it('should support custom className', () => {
-      render(<SidebarTrigger className="custom-class">Test</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger className="custom-class">Test</SidebarTrigger>);
 
       const button = screen.getByTestId('button');
       expect(button).toHaveClass('custom-class');
@@ -153,7 +154,7 @@ describe('SidebarTrigger', () => {
 
     it('should support icon prop', () => {
       const Icon = () => <span data-testid="icon">Icon</span>;
-      render(<SidebarTrigger icon={<Icon />}>With Icon</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger icon={<Icon />}>With Icon</SidebarTrigger>);
 
       expect(screen.getByTestId('icon')).toBeInTheDocument();
     });
@@ -161,20 +162,20 @@ describe('SidebarTrigger', () => {
 
   describe('Button Integration', () => {
     it('should render Button component with correct props', () => {
-      render(<SidebarTrigger>Test Button</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger>Test Button</SidebarTrigger>);
 
       const button = screen.getByTestId('button');
       expect(button).toBeInTheDocument();
     });
 
     it('should pass children to Button', () => {
-      render(<SidebarTrigger>Click me</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger>Click me</SidebarTrigger>);
 
       expect(screen.getByText('Click me')).toBeInTheDocument();
     });
 
     it('should apply default variant when not specified', () => {
-      render(<SidebarTrigger>Default</SidebarTrigger>);
+      renderWithServices(<SidebarTrigger>Default</SidebarTrigger>);
 
       const button = screen.getByTestId('button');
       expect(button).toHaveAttribute('data-variant', 'ghost');
@@ -183,7 +184,7 @@ describe('SidebarTrigger', () => {
 
   describe('TypeScript Props', () => {
     it('should accept ButtonProps without variant', () => {
-      render(
+      renderWithServices(
         <SidebarTrigger
           size="lg"
           loading
@@ -208,7 +209,7 @@ describe('SidebarTrigger', () => {
   describe('Edge Cases', () => {
     it('should handle invalid children gracefully when asChild is true', () => {
       // This tests React.cloneElement behavior
-      render(
+      renderWithServices(
         <SidebarTrigger asChild>
           <span>Text Node</span>
         </SidebarTrigger>,
@@ -218,7 +219,7 @@ describe('SidebarTrigger', () => {
     });
 
     it('should not render when children is null with asChild', () => {
-      render(
+      renderWithServices(
         <SidebarTrigger asChild>
           {null}
         </SidebarTrigger>,

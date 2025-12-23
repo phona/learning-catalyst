@@ -1,8 +1,9 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProviderSelect } from '../ProviderSelect';
+import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('ProviderSelect', () => {
   beforeEach(() => {
@@ -11,7 +12,7 @@ describe('ProviderSelect', () => {
 
   it('renders options and placeholder, associates label via id', async () => {
     const onChange = vi.fn();
-    render(
+    renderWithServices(
       <div>
         <label htmlFor="provider-select">Provider</label>
         <ProviderSelect
@@ -39,7 +40,7 @@ describe('ProviderSelect', () => {
   });
 
   it('can be disabled', () => {
-    render(
+    renderWithServices(
       <ProviderSelect
         providers={[{ id: 'openai', label: 'OpenAI' }]}
         value=""

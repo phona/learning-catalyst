@@ -44,8 +44,6 @@ function Invoke-Claude {
             HTTPS_PROXY=$ProxyAddress `
             NO_PROXY=$NoProxyList `
             claude -p "$UserPrompt" `
-            --output-format stream-json `
-            --verbose `
             --allowedTools "Bash,Read,Edit" 2>&1
 
         # 4. 输出调用成功提示
@@ -57,9 +55,37 @@ function Invoke-Claude {
     }
 }
 
-ls .\openspec\changes | Select-String -Pattern 'archive' -NotMatch | ForEach-Object { $_.ToString().Trim() } | ForEach-Object {
-    Invoke-Claude -UserPrompt "/openspec:apply $_"
-    Invoke-Claude -UserPrompt "run tests, lint, type checks and fix all errors"
-    Invoke-Claude -UserPrompt "/openspec:archive $_"
-    Invoke-Claude -UserPrompt "commit all changes of $_ to git"
+function Test-AllTasksFinished {
+    param (
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
+        [string]$InputString
+    )
+
+    # Use Regex to find the pattern: numbers / numbers
+    # \s+ matches spaces, (\d+) captures digits
+    if ($InputString -match '(\d+)\/(\d+)') {
+        $completed = [int]$matches[1]
+        $total = [int]$matches[2]
+
+        if ($completed -ge $total) {
+            Write-Host "✅ All tasks finished ($completed/$total)" -ForegroundColor Green
+            return $true
+        } else {
+            $remaining = $total - $completed
+            Write-Host "⏳ Pending: $remaining tasks remaining ($completed/$total)" -ForegroundColor Yellow
+            return $false
+        }
+    } else {
+        throw "Could not parse task progress from input: $InputString"
+    }
 }
+
+$taskId = $args[0]
+while (-not (openspec list | findstr $taskId | Test-AllTasksFinished)) {
+    Invoke-Claude -UserPrompt "/openspec:apply $taskId"
+    Invoke-Claude -UserPrompt "write tests for changes. and run tests, lint, type checks. fix all errors"
+    Start-Sleep -Seconds 5
+}
+
+Invoke-Claude -UserPrompt "/openspec:archive $taskId"
+Invoke-Claude -UserPrompt "commit all changes of $taskId to git"

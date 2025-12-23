@@ -88,7 +88,11 @@ const createAgentTool = (agentName: Exclude<AgentType, 'supervisor'>, agent: Spe
       });
 
       const assistantMessage = pickAssistantMessage(result.messages ?? []);
-      return assistantMessage?.content ?? `Agent ${agentName} returned no response.`;
+      const content = assistantMessage?.content;
+      if (typeof content === 'string') {
+        return content;
+      }
+      return `Agent ${agentName} returned no response.`;
     },
     {
       name: `${agentName}_assistant`,

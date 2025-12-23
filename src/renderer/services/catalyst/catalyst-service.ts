@@ -1,13 +1,37 @@
 import type { ElectronAPI } from '../../../shared/types/electron-api';
 import type { ChatOptions } from '../../../shared/types/ai';
-import type {
-  StreamChunk,
-  ChatResponse,
-  AgentsResponse,
-  SessionResponse,
-  ExecutionCancelResponse,
-} from '../../../shared/types/electron-api';
 import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+
+// Local type definitions for catalyst service
+interface StreamChunk {
+  type: 'thinking' | 'content' | 'error' | 'complete' | 'data';
+  content: string | object;
+  timestamp: number;
+}
+
+interface ChatResponse {
+  success: boolean;
+  messageId?: string;
+  response?: string;
+  error?: string;
+}
+
+interface AgentsResponse {
+  success: boolean;
+  agents?: unknown[];
+  error?: string;
+}
+
+interface SessionResponse {
+  success: boolean;
+  session?: unknown;
+  error?: string;
+}
+
+interface ExecutionCancelResponse {
+  success: boolean;
+  error?: string;
+}
 
 // Define ChatStreamOptions locally since it's not found
 export interface ChatStreamOptions extends ChatOptions {
@@ -75,14 +99,14 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
       if (!message || message.trim().length === 0) {
         return {
           success: false,
-          error: 'Message cannot be empty',
+          error: { code: 'invalid_message', message: 'Message cannot be empty' },
         };
       }
 
       if (typeof onChunk !== 'function') {
         return {
           success: false,
-          error: 'onChunk callback is required for streaming',
+          error: { code: 'invalid_callback', message: 'onChunk callback is required for streaming' },
         };
       }
 

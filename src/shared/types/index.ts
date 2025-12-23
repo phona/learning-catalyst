@@ -77,9 +77,7 @@ export type {
   APIResponse,
   ChatAPI,
   KnowledgeAPI,
-    AnalyticsAPI,
-
-  ContentAPI,
+  AnalyticsAPI,
   SettingsAPI,
   SessionsAPI,
   CatalystAPI,
@@ -92,12 +90,9 @@ export type {
   PracticeOpportunityResult,
   NaturalPracticeSuggestion,
   UserLearningContext,
-  AgentDisplay,
-  AgentContext,
-  AgentCapabilitiesDisplay,
-  FeatureDemoDisplay,
-  LearningAPI,
 } from './electron-api';
+
+export type { AgentDisplay } from './electron-api/chat-api';
 
 // Export practice types for context-aware practice system
 export * from './practice';
