@@ -40,11 +40,60 @@ Cross IPC path       -> renderer IPC integration test + main contract test
 ## Tips for fast feedback
 - Prefer targeted scripts (`test:main:file`, `test:renderer:file`) while iterating.
 - Keep Electron out of tests; rely on fakes/mocks.
-- Keep tests deterministic: avoid real timers/network; mock time where needed.
+- **Keep tests deterministic: avoid real timers/network; inject controlled time.**
+- **Use dependency injection instead of module-scope mocking** for better test isolation.
+- **Run tests 3x in a row** to verify determinism before committing.
 
 ## Troubleshooting
-- Coverage not printing? Ensure `--coverage` is used (already wired in `*:coverage` scripts).
-- esbuild warnings (e.g., duplicate class members) show during coverage; fix in source or ignore if expected.
+
+### Test Isolation Issues
+
+**Tests pass/fail inconsistently across runs:**
+- ✅ **Solution**: Add `beforeEach/afterEach` with `vi.clearAllMocks()`, `vi.resetModules()`, `vi.useFakeTimers()`
+- ✅ **Verify**: Run tests 3x in a row - should get identical results
+
+**"No export defined" errors:**
+- ✅ **Cause**: Module-scope `vi.mock()` incomplete or missing exports
+- ✅ **Solution**: Replace with dependency injection (pass dependencies as props/parameters)
+- ✅ **Alternative**: Use `renderWithServices` for complex component trees
+
+**Time-dependent test failures:**
+- ✅ **Cause**: Tests use `Date.now()` directly
+- ✅ **Solution**: Use injectable `TimeService` and `vi.setSystemTime()` in tests
+- ✅ **Verify**: All time-based assertions use controlled time
+
+**Mock configuration errors:**
+- ✅ **Cause**: Module-scope mocking causing global state contamination
+- ✅ **Solution**: Move mocks inside test functions, inject dependencies directly
+- ✅ **Pattern**: Create mock objects and pass to service factories
+
+### Common DI Problems
+
+**Service doesn't accept dependencies:**
+- ✅ **Solution**: Refactor service factory to accept optional dependency parameters
+- ✅ **Pattern**: `createService(apiClient, options: ServiceOptions = {})`
+
+**Component hard-codes dependencies:**
+- ✅ **Solution**: Accept dependencies via props or React Context
+- ✅ **Pattern**: `<Component service={injectedService} />`
+
+**Tests still use module-scope mocking:**
+- ✅ **Solution**: Replace with direct mock injection
+- ✅ **Pattern**: `const service = createService(mockAPI, { idGenerator: () => 'test' })`
+
+### General Issues
+
+**Coverage not printing?**
+- Ensure `--coverage` is used (already wired in `*:coverage` scripts).
+
+**esbuild warnings (e.g., duplicate class members) show during coverage;**
+- Fix in source or ignore if expected.
+
+**Tests timeout on async operations:**
+- ✅ **Solution**: Use `vi.useFakeTimers()` and `vi.advanceTimersByTime()` for deterministic async testing
+
+**IPC errors in tests:**
+- ✅ **Solution**: Use `createIpcPair` for integration tests instead of mocking electron module
 
 ## Test Strategy
 
@@ -408,11 +457,360 @@ expect(res.data?.[0].id).toBe('s1');
 
 ## Design for Testability
 
-- Favor pure functions/hooks; inject dependencies via parameters/providers (see `docs/DEVELOPER-GUIDE/services.md`).
-- Split large components into smaller presentational parts plus container logic.
-- Isolate IPC calls behind thin clients; mock at the boundary (`@/renderer/services/api/electron-api-client`).
-- Avoid global state; use test setups under `src/test/setup/*` to configure environment.
-- Keep side-effects behind interfaces to simplify mocking (see `docs/DEVELOPER-GUIDE/architecture.md`).
+- **Favor pure functions/hooks**; inject dependencies via parameters/providers (see `docs/DEVELOPER-GUIDE/services.md`).
+- **Split large components** into smaller presentational parts plus container logic.
+- **Isolate IPC calls** behind thin clients; mock at the boundary (`@/renderer/services/api/electron-api-client`).
+- **Avoid global state**; use test setups under `src/test/setup/*` to configure environment.
+- **Keep side-effects behind interfaces** to simplify mocking (see `docs/DEVELOPER-GUIDE/architecture.md`).
+
+## Dependency Injection Patterns (CRITICAL)
+
+**The Learning Catalyst project MANDATES Dependency Injection (DI) patterns for all testable code. Module-scope mocking (`vi.mock()`) is STRONGLY DISCOURAGED and causes test isolation issues.**
+
+### Core Principle: Inject, Don't Import
+
+**Dependencies should be injected as parameters, not imported or mocked.**
+
+#### Why DI Over Mocking?
+
+| Aspect | Module-Scope Mocking | Dependency Injection |
+|--------|---------------------|---------------------|
+| **Isolation** | ❌ Global state leaks | ✅ Each test isolated |
+| **Determinism** | ❌ Order-dependent | ✅ Order-independent |
+| **Speed** | ❌ Module re-initialization | ✅ No overhead |
+| **Maintainability** | ❌ Must update mocks on changes | ✅ Works with refactoring |
+| **Clarity** | ❌ Hidden dependencies | ✅ Clear dependencies |
+| **Flakiness** | ❌ Pass/fail inconsistent | ✅ Always deterministic |
+
+#### Mandatory Test Setup
+
+**EVERY test file MUST include proper isolation setup:**
+
+```typescript
+// ✅ REQUIRED in every test file
+describe('test suite', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();           // Reset all mocks
+    vi.resetModules();            // Clear module cache
+    vi.useFakeTimers();           // Control time
+    vi.setSystemTime(new Date('2020-01-01')); // Deterministic time
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();           // Restore real timers
+  });
+
+  // tests...
+});
+```
+
+#### Pattern 1: Service Factory with DI
+
+**Services MUST accept dependencies as optional parameters:**
+
+```typescript
+// ✅ GOOD - Service accepts injectable dependencies
+interface ChatServiceOptions {
+  idGenerator?: () => string;
+  timeService?: TimeService;
+  logger?: Logger;
+}
+
+export const createChatService = (
+  apiClient: ElectronAPI,
+  options: ChatServiceOptions = {}
+): ChatService => {
+  const generateId = options.idGenerator ?? (() => `msg_${Date.now()}`);
+  const timeService = options.timeService ?? createTimeService();
+  const logger = options.logger ?? createLogger();
+
+  return {
+    sendMessage: async (content, options) => {
+      logger.info('Sending message');
+      const id = generateId();
+      const timestamp = timeService.now();
+      // Use injected dependencies
+    },
+  };
+};
+
+// ✅ Test - Inject dependencies directly
+test('sendMessage generates predictable ID', async () => {
+  const service = createChatService(mockAPI, {
+    idGenerator: () => 'm1',
+    timeService: { now: () => 0, format: () => '2020-01-01' },
+    logger: { info: vi.fn() },
+  });
+
+  const result = await service.sendMessage('hi', { sessionId: 's1' });
+  expect(result.id).toBe('m1');           // Deterministic!
+  expect(result.timestamp).toBe(0);       // Controlled time!
+});
+
+// ✅ Production - Use defaults
+const service = createChatService(apiClient); // Uses default implementations
+```
+
+#### Pattern 2: Component Props DI
+
+**Components SHOULD accept dependencies via props:**
+
+```typescript
+// ✅ GOOD - Component accepts dependencies
+interface ProviderStatusProps {
+  configurationService: () => ConfigurationService;
+}
+
+export const ProviderStatus = ({ configurationService }: ProviderStatusProps) => {
+  const config = configurationService(); // Injected, not imported!
+  return <div>Status: {config.status}</div>;
+};
+
+// ✅ Test - Inject service directly (NO vi.mock needed!)
+test('renders configuration status', () => {
+  render(
+    <ProviderStatus
+      configurationService={() => ({ status: 'ready', provider: 'openai' })}
+    />
+  );
+
+  expect(screen.getByText('Status: ready')).toBeInTheDocument();
+});
+
+// ✅ Alternative - Context-based DI
+const ServicesContext = createContext<ServicesContextValue | null>(null);
+
+export const ProviderStatus = () => {
+  const { configurationService } = useContext(ServicesContext);
+  const config = configurationService();
+  return <div>Status: {config.status}</div>;
+};
+
+// ✅ Test - Provide via context
+test('renders configuration status', () => {
+  render(
+    <ServicesProvider services={{
+      configurationService: () => ({ status: 'ready', provider: 'openai' })
+    }}>
+      <ProviderStatus />
+    </ServicesProvider>
+  );
+
+  expect(screen.getByText('Status: ready')).toBeInTheDocument();
+});
+```
+
+#### Pattern 3: Direct Mock Injection (No Module Mocking)
+
+**Tests MUST inject mocks directly, NOT use module-scope `vi.mock()`:**
+
+```typescript
+// ✅ GOOD - Direct mock injection
+test('chat service sends message', async () => {
+  const mockAPI = {
+    catalyst: {
+      sendChat: vi.fn().mockResolvedValue({
+        success: true,
+        data: { id: 'm1', role: 'assistant', content: 'hello' },
+      }),
+    },
+  };
+
+  const service = createChatService(mockAPI);
+  const result = await service.sendMessage('hi', { sessionId: 's1' });
+
+  expect(mockAPI.catalyst.sendChat).toHaveBeenCalledWith({
+    message: 'hi',
+    sessionId: 's1',
+  });
+  expect(result.id).toBe('m1');
+});
+
+// ❌ BAD - Module-scope mocking (CAUSES ISOLATION ISSUES!)
+vi.mock('@/renderer/services/api/electron-api-client');
+
+describe('chat service', () => {
+  test('sends message', async () => {
+    // This mock is global and shared - causes flaky tests!
+  });
+});
+```
+
+#### Pattern 4: Time Control for Deterministic Tests
+
+**All time-dependent code MUST use injectable time service:**
+
+```typescript
+// ✅ GOOD - Injectable time service
+interface TimeService {
+  now: () => number;
+  format: (date: Date) => string;
+}
+
+const createTimeService = (): TimeService => ({
+  now: () => Date.now(),
+  format: (date) => date.toISOString(),
+});
+
+// Service uses injected time
+export const createChatService = (apiClient: ElectronAPI, options: ChatServiceOptions = {}) => {
+  const timeService = options.timeService ?? createTimeService();
+
+  return {
+    sendMessage: async (content, options) => {
+      const timestamp = timeService.now(); // Uses injected time
+      return { id: `msg_${timestamp}`, content, timestamp };
+    },
+  };
+};
+
+// ✅ Test - Control time
+test('generates deterministic timestamp', () => {
+  const service = createChatService(mockAPI, {
+    timeService: { now: () => 0, format: () => '2020-01-01T00:00:00Z' },
+  });
+
+  const result = service.sendMessage('hi', { sessionId: 's1' });
+  expect(result.timestamp).toBe(0); // Always deterministic!
+});
+
+// ❌ BAD - Direct Date.now() usage
+export const createChatService = (apiClient: ElectronAPI) => {
+  return {
+    sendMessage: async (content, options) => {
+      const timestamp = Date.now(); // Not injectable - causes flaky tests!
+      return { id: `msg_${timestamp}`, content, timestamp };
+    },
+  };
+};
+```
+
+#### Pattern 5: ID Generation for Testability
+
+**All ID generation MUST use injectable ID generator:**
+
+```typescript
+// ✅ GOOD - Injectable ID generator
+interface IDGenerator {
+  generate: () => string;
+}
+
+const createIDGenerator = (): IDGenerator => ({
+  generate: () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    return `msg_${timestamp}_${random}`;
+  },
+});
+
+// Service uses injected generator
+export const createChatService = (apiClient: ElectronAPI, options: ChatServiceOptions = {}) => {
+  const generateId = options.idGenerator ?? createIDGenerator();
+
+  return {
+    sendMessage: async (content, options) => {
+      const id = generateId.generate(); // Uses injected generator
+      return { id, content };
+    },
+  };
+};
+
+// ✅ Test - Use fixed ID
+test('sendMessage uses predictable ID', () => {
+  const service = createChatService(mockAPI, {
+    idGenerator: { generate: () => 'm1' },
+  });
+
+  const result = service.sendMessage('hi', { sessionId: 's1' });
+  expect(result.id).toBe('m1'); // Always 'm1' - deterministic!
+});
+
+// ❌ BAD - Hardcoded ID generation
+export const createChatService = (apiClient: ElectronAPI) => {
+  return {
+    sendMessage: async (content, options) => {
+      const id = `msg_${Date.now()}`; // Changes every millisecond!
+      return { id, content };
+    },
+  };
+};
+```
+
+### Anti-Patterns to AVOID
+
+#### ❌ Module-Scope Mocking
+```typescript
+// DON'T DO THIS - Causes global contamination!
+vi.mock('@/renderer/services/services-provider', () => ({
+  useConfigurationService: vi.fn(),
+}));
+
+describe('tests', () => {
+  // All tests share this mock - isolation issues!
+});
+```
+
+#### ❌ Time-Dependent Tests Without Control
+```typescript
+// DON'T DO THIS - Flaky on different dates!
+test('generates ID', () => {
+  const id = generateId();
+  expect(id).toBe('msg_1577836800000'); // Breaks on different date!
+});
+```
+
+#### ❌ Direct Imports in Testable Code
+```typescript
+// DON'T DO THIS - Can't inject different implementations!
+import { useConfigurationService } from '@/renderer/services/services-provider';
+
+export const ProviderStatus = () => {
+  const config = useConfigurationService(); // Hard-coded dependency!
+  return <div>{config.status}</div>;
+};
+```
+
+### When DI Isn't Possible
+
+**In rare cases where DI isn't feasible, use `renderWithServices`:**
+
+```typescript
+// Use renderWithServices for complex component trees
+import { renderWithServices } from '@/test/utils/renderWithServices';
+
+test('complex component tree', () => {
+  renderWithServices(<ComplexComponent />, {
+    electronAPI: {
+      sessions: { list: vi.fn().mockResolvedValue([]) },
+      filesystem: { readDirectory: vi.fn() },
+    },
+  });
+
+  // Component receives services via context
+});
+```
+
+### Migration Checklist
+
+**For existing code:**
+
+- [ ] Add `beforeEach/afterEach` with cleanup to all test files
+- [ ] Move module-scope `vi.mock()` inside test functions
+- [ ] Extract time-dependent logic to injectable `TimeService`
+- [ ] Extract ID generation to injectable `IDGenerator`
+- [ ] Update service factories to accept optional dependencies
+- [ ] Update components to accept dependencies via props/context
+- [ ] Replace module mocking with direct mock injection
+- [ ] Run tests 3x to verify determinism
+
+### Benefits of DI Pattern
+
+✅ **Deterministic tests** - Pass consistently across runs
+✅ **No flakiness** - Each test isolated from others
+✅ **Maintainable** - Clear dependencies, easy to update
+✅ **Fast** - No module re-initialization overhead
+✅ **Testable** - All code can be tested without mocking
+✅ **Flexible** - Easy to inject different implementations
 
 ## LangGraph Workflow Node Testing Best Practices
 
@@ -889,6 +1287,7 @@ const makeDeps = () => ({
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.4.0 | 2025-12-23 | **MAJOR UPDATE**: Added comprehensive "Dependency Injection Patterns (CRITICAL)" section emphasizing DI over monkey patching. Includes 5 detailed patterns: Service Factory DI, Component Props DI, Direct Mock Injection, Time Control, and ID Generation. Added extensive anti-patterns section, migration checklist, and troubleshooting for test isolation issues. Updated Tips for Fast Feedback and Troubleshooting sections. |
 | 1.3.0 | 2025-12-21 | Added LangGraph Interrupt Testing patterns with comprehensive examples for testing nodes that call interrupt() using StateGraph streaming. Includes critical guidance on using isInterruptEvent/extractInterrupt helpers and streaming mode for interrupt detection. |
 | 1.2.0 | 2025-12-16 | Added LangGraph Workflow Node Testing Best Practices section with DI pattern, RunnableLambda for .pipe() chains, chunk-emitter testing, and comprehensive code examples from actual implementations. |
 | 1.1.1 | 2025-11-24 | Added fake IPC E2E guidance and corrected contract example. |
