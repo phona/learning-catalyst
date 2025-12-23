@@ -181,6 +181,7 @@ Confidence: High - user shows solid foundational knowledge.`,
 
     for (const { text, expected } of testScores) {
       vi.clearAllMocks();
+      vi.mocked(parseScore).mockReset();
 
       const mockModel = {
         invoke: vi.fn().mockResolvedValue({ content: text }),
@@ -215,6 +216,7 @@ Confidence: High - user shows solid foundational knowledge.`,
 
     for (const { text, expected } of testScores) {
       vi.clearAllMocks();
+      vi.mocked(parseScore).mockReset();
 
       const mockModel = {
         invoke: vi.fn().mockResolvedValue({ content: text }),
@@ -241,6 +243,8 @@ Confidence: High - user shows solid foundational knowledge.`,
   });
 
   it('should handle boundary case at exactly 90%', async () => {
+    vi.clearAllMocks();
+    
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({
         content: 'Mastery Score: 90%',
@@ -269,6 +273,8 @@ Confidence: High - user shows solid foundational knowledge.`,
   });
 
   it('should handle boundary case at just below 90%', async () => {
+    vi.clearAllMocks();
+    
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({
         content: 'Mastery Score: 89%',

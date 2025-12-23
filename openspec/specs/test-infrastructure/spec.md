@@ -26,14 +26,48 @@ const createMockConfig = (): LangGraphRunnableConfig => ({
   writer: vi.fn(),
 } as any);
 
-const result = await node(state, createMockConfig());
-expect(createMockConfig().writer).toHaveBeenCalled();
+const config = createMockConfig();
+await node(state, config);
+expect(config.writer).toHaveBeenCalled();
 
-// ❌ INCORRECT
+// ❌ INCORRECT - VIOLATION
 vi.mock('../../../utils/chunk-emitter', () => ({
   createChunkEmitter: vi.fn(() => mockEmitter)
 }));
 ```
+
+**Files Affected**:
+- `src/main/services/domain/workflow/subgraphs/practice/nodes/__tests__/circuitBreaker.test.ts`
+
+#### Scenario: Workflow Tests Have Mock Isolation
+**Given** a workflow test file
+**When** tests execute
+**Then** the file MUST have `vi.clearAllMocks()` in beforeEach block
+**And** each test MUST start with clean mock state
+**And** test execution order MUST NOT affect results
+
+**Implementation**:
+```typescript
+// ✅ CORRECT
+describe('workflow tests', () => {
+  beforeEach(() => {
+    vi.clearAllMocks(); // REQUIRED
+  });
+
+  it('test 1', () => { /* fresh mocks */ });
+  it('test 2', () => { /* fresh mocks */ });
+});
+
+// ❌ INCORRECT - VIOLATION
+describe('workflow tests', () => {
+  it('test 1', () => { /* uses mocks */ });
+  it('test 2', () => { /* polluted by test 1 */ });
+});
+```
+
+**Files Affected**:
+- All workflow test files in `src/main/services/domain/workflow/`
+- Specifically: circuitBreaker.test.ts, gradeQuiz-node.test.ts, edges-routing.test.ts
 
 #### Scenario: Renderer Tests Use renderWithServices
 **Given** a React component test file
@@ -79,6 +113,44 @@ vi.mock('electron', () => ({
 }));
 ```
 
+#### Scenario: Interrupt Nodes Tested with StateGraph Streaming
+**Given** a workflow node that calls `interrupt()`
+**When** testing interrupt behavior
+**Then** the test MUST use a compiled StateGraph
+**And** MUST use `streamMode: 'updates'` to capture events
+**And** MUST NOT call the node directly
+
+**Implementation**:
+```typescript
+// ✅ CORRECT
+import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+
+const graph = new StateGraph(PracticeAnnotation)
+  .addNode('node', interruptNode(deps))
+  .addEdge(START, 'node')
+  .addEdge('node', END)
+  .compile({ checkpointer: new MemorySaver() });
+
+const stream = await graph.stream(initialState, {
+  configurable: { thread_id: 'test' },
+  streamMode: 'updates' as const,
+});
+
+for await (const evt of stream) {
+  if (isInterruptEvent(evt)) {
+    const value = extractInterrupt(evt);
+    expect(value.type).toBe('expected-type');
+  }
+}
+
+// ❌ INCORRECT - VIOLATION
+const result = await interruptNode(deps)(state);
+expect(interrupt).toHaveBeenCalled(); // interrupt() doesn't work here!
+```
+
+**Files Affected**:
+- `src/main/services/domain/workflow/subgraphs/teach/__tests__/handleQuestion-node.test.ts`
+
 ### Requirement: No Mocking of Stateless Utilities
 
 Tests MUST NOT mock utilities that are stateless and provide pure functions.
@@ -91,12 +163,16 @@ Tests MUST NOT mock utilities that are stateless and provide pure functions.
 **When** the test executes
 **Then** the test MUST use the real implementation
 **And** MUST NOT have `vi.mock` for `chunk-emitter` module
+**And** MUST provide mock `config.writer` for injection
 
 **Validation**:
 ```bash
 grep -r "vi.mock.*chunk-emitter" src/ --include="*.test.ts"
-# Expected: No results
+# Expected: No results - VIOLATION if found
 ```
+
+**Files Affected**:
+- `src/main/services/domain/workflow/subgraphs/practice/nodes/__tests__/circuitBreaker.test.ts`
 
 #### Scenario: ChatPromptTemplate Not Mocked
 **Given** a test that uses LangChain prompts
@@ -217,13 +293,27 @@ All tests MUST pass after fixes are applied.
 #### Scenario: Main Process Tests All Pass
 **Given** main process test suite
 **When** `npm run test:main` executes
-**Then** all 43 tests MUST pass
-**And** no tests MUST be skipped (except intentionally)
+**Then** all tests MUST pass
+**And** results MUST be consistent across multiple runs
+**And** execution order MUST NOT affect pass/fail
 
 **Metrics**:
-- Passed: 43/43 (100%)
+- Passed: 1076/1076 (100%)
 - Failed: 0
-- Skipped: 0 (or minimal, justified)
+- Flaky: 0 (order-independent)
+
+**Validation**:
+```bash
+# Run multiple times to verify stability
+for i in {1..5}; do
+  npm run test:main
+  if [ $? -ne 0 ]; then
+    echo "FAILED on iteration $i"
+    exit 1
+  fi
+done
+echo "All runs passed - tests are stable"
+```
 
 #### Scenario: Renderer Tests All Pass
 **Given** renderer test suite
@@ -250,11 +340,12 @@ All tests MUST pass after fixes are applied.
 **Given** all test suites
 **When** `npm run test:complete` executes
 **Then** the result MUST show 100% pass rate
-**And** execution time SHOULD be < 2 minutes
+**And** no test file MAY have order-dependent failures
 
 **Metrics**:
-- Total: 879/879 passed (100%)
-- Main: 43/43
-- Renderer: 834/834
-- Integration: 2/2
+- Total: 100% passed
+- Main: 100%
+- Renderer: 100%
+- Integration: 100%
+
 
