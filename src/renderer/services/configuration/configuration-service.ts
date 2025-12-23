@@ -132,11 +132,69 @@ export function createConfigurationService(apiClient: ElectronAPI) {
     return { success: true };
   };
 
+  /**
+   * Get the status of the currently configured AI provider
+   */
+  const getProviderStatus = async () => {
+    try {
+      const config = await getConfig();
+      const providers = config?.ai?.providers;
+
+      if (!providers || Object.keys(providers).length === 0) {
+        return {
+          status: 'not-configured' as const,
+          message: 'No AI Provider Configured',
+          details: 'Please configure an AI provider in Settings > AI Providers.',
+          providerInfo: null,
+        };
+      }
+
+      // Get the first configured provider
+      const providerEntries = Object.entries(providers);
+      if (providerEntries.length === 0) {
+        return {
+          status: 'not-configured' as const,
+          message: 'No AI Provider Configured',
+          details: 'Please configure an AI provider in Settings > AI Providers.',
+          providerInfo: null,
+        };
+      }
+
+      const [providerName, providerConfig] = providerEntries[0];
+
+      if (!providerConfig || !providerConfig.apiKey) {
+        return {
+          status: 'incomplete' as const,
+          message: 'AI Provider Incomplete',
+          details: `The ${providerName} provider is not properly configured. Please add a valid API key in Settings > AI Providers.`,
+          providerInfo: { name: providerName, type: 'llm' },
+        };
+      }
+
+      // TODO: Add actual connectivity test
+      return {
+        status: 'ready' as const,
+        message: `${providerName} Ready`,
+        details: 'Provider is configured and ready to use.',
+        providerInfo: { name: providerName, type: 'llm' },
+      };
+    } catch (error) {
+      console.error('Failed to get provider status:', error);
+      return {
+        status: 'error' as const,
+        message: 'Provider Validation Failed',
+        details: 'An error occurred while validating the AI provider. Please check your configuration.',
+        providerInfo: null,
+      };
+    }
+  };
+
   // Return public API
   return {
     getAvailableProviders,
     configureProvider,
     validateProvider,
+    getProviderStatus,
     getProviderModels,
     getConfig,
     setConfig,
@@ -159,6 +217,12 @@ export interface ConfigurationService {
     apiKey: string,
     baseUrl?: string,
   ) => Promise<ProviderValidationResult>;
+  getProviderStatus: () => Promise<{
+    status: 'loading' | 'ready' | 'not-configured' | 'incomplete' | 'error';
+    message: string;
+    details?: string;
+    providerInfo?: { name?: string; type?: string } | null;
+  }>;
   getProviderModels: (providerType: string, apiKey: string, baseUrl?: string) => Promise<string[]>;
   getConfig: () => Promise<AppConfig | null>;
   setConfig: (config: Partial<AppConfig>) => Promise<void>;

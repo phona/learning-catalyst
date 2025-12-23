@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithServices } from '@/test/utils/renderWithServices';
-import { DiscoveryPage } from '../index';
+import { DiscoveryPage } from '@/renderer/pages/discovery/DiscoveryPage';
 
 const makeDirectoryItem = (overrides: Partial<any> = {}) => ({
   name: 'readme.md',

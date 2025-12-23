@@ -77,8 +77,8 @@ describe('SetupPage', () => {
     const electronAPI = createMockElectronAPIClient();
     vi.spyOn(electronAPI.settings, 'configureProvider').mockRejectedValue(new Error('configure failed'));
 
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI });
 
     await screen.findByText('Configure AI Providers');
 
@@ -122,8 +122,8 @@ describe('SetupPage', () => {
       getProviderModels: vi.fn(),
     } as ConfigurationService;
 
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI, serviceOverrides: { configService } });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI, serviceOverrides: { configService } });
 
     await screen.findByText('Configure AI Providers');
 
@@ -146,8 +146,8 @@ describe('SetupPage', () => {
     const electronAPI = createMockElectronAPIClient();
     const setConfigSpy = vi.spyOn(electronAPI.settings, 'setConfig').mockResolvedValue({ success: true } as any);
 
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI });
 
     await screen.findByText('Configure AI Providers');
 
@@ -173,8 +173,8 @@ describe('SetupPage', () => {
     const electronAPI = createMockElectronAPIClient();
     const setConfigSpy = vi.spyOn(electronAPI.settings, 'setConfig').mockResolvedValue({ success: true } as any);
 
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI });
 
     await screen.findByText('Configure AI Providers');
 
@@ -200,8 +200,8 @@ describe('SetupPage', () => {
     const electronAPI = createMockElectronAPIClient();
     const setConfigSpy = vi.spyOn(electronAPI.settings, 'setConfig').mockResolvedValue({ success: true } as any);
 
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI });
 
     await screen.findByText('Configure AI Providers');
 
@@ -249,8 +249,8 @@ describe('SetupPage', () => {
       validateProvider: vi.fn(),
       getProviderModels: vi.fn(),
     } as ConfigurationService;
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI, serviceOverrides: { configService } });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI, serviceOverrides: { configService } });
 
     await screen.findByText('Configure AI Providers');
 
@@ -310,8 +310,8 @@ describe('SetupPage', () => {
       getProviderModels: vi.fn(),
     } as ConfigurationService;
 
-    const { default: SetupScreen } = await import('../SetupScreen');
-    renderWithServices(<SetupScreen />, { electronAPI, serviceOverrides: { configService } });
+    const { default: SetupPage } = await import('../SetupPage');
+    renderWithServices(<SetupPage />, { electronAPI, serviceOverrides: { configService } });
 
     await screen.findByText('Configure AI Providers');
 
@@ -353,7 +353,7 @@ describe('SetupPage', () => {
       },
     } as any);
 
-    const { default: SetupScreen } = await import('../SetupScreen');
+    const { default: SetupPage } = await import('../SetupPage');
     const { render } = await import('@testing-library/react');
     const { Routes, Route } = await import('react-router-dom');
     const { Providers } = await import('@/test/utils/renderWithServices');
@@ -361,7 +361,7 @@ describe('SetupPage', () => {
     render(
       <Providers routerProps={{ initialEntries: ['/setup'] }} electronAPI={electronAPI}>
         <Routes>
-          <Route path="/setup" element={<SetupScreen />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="/" element={<div data-testid="chat-home">CHAT_HOME</div>} />
         </Routes>
       </Providers>,
@@ -411,7 +411,7 @@ describe('SetupPage', () => {
       },
     } as any);
 
-    const { default: SetupScreen } = await import('../SetupScreen');
+    const { default: SetupPage } = await import('../SetupPage');
     const { render } = await import('@testing-library/react');
     const { Routes, Route } = await import('react-router-dom');
     const { Providers } = await import('@/test/utils/renderWithServices');
@@ -419,7 +419,7 @@ describe('SetupPage', () => {
     render(
       <Providers routerProps={{ initialEntries: ['/setup'] }} electronAPI={electronAPI}>
         <Routes>
-          <Route path="/setup" element={<SetupScreen />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route path="/" element={<div data-testid="chat-home">CHAT_HOME</div>} />
         </Routes>
       </Providers>,

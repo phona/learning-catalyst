@@ -36,6 +36,7 @@ vi.mock('@/renderer/services/services-provider', () => ({
     if (name === 'chatService') return mockChatService;
     return {};
   },
+  useChatService: () => mockChatService,
 }));
 
 describe('LocalProjectExplorer - error handling', () => {

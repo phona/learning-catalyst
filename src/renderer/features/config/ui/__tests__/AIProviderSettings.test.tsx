@@ -27,11 +27,15 @@ vi.mock('@/renderer/shared/lib', () => ({
 const configServiceMock = createMockConfigurationService();
 const fileServiceMock = createMockFileService();
 
-vi.mock('@/renderer/services/services-provider', () => ({
-  useService: vi.fn(),
-  useConfigurationService: vi.fn(() => configServiceMock),
-  useFileService: vi.fn(() => fileServiceMock),
-}));
+vi.mock('@/renderer/services/services-provider', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useService: vi.fn(),
+    useConfigurationService: vi.fn(() => configServiceMock),
+    useFileService: vi.fn(() => fileServiceMock),
+  };
+});
 
 describe('AIProviderSettings (current UI)', () => {
   const validateProvider = vi.fn().mockResolvedValue({ success: true });
