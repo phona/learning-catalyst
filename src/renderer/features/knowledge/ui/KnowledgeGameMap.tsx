@@ -9,6 +9,7 @@ import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import type { KnowledgeMapDisplay, KnowledgeMapEdge, KnowledgeMapNode } from '@/shared/types/electron-api/knowledge-api';
 import type { Concept } from '@/shared/types/knowledge';
 import { useElectronAPIClient } from '@/renderer/services/services-provider';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 import { showSuccess } from '@/renderer/shared/lib';
 
 interface KnowledgeGameMapProps {
@@ -102,28 +103,12 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
     setError(null);
 
     try {
-      const resp = await apiClient.knowledge.getKnowledgeMap();
-      console.log(`[KnowledgeGameMap:${callId}] IPC response received`, {
-        success: resp?.success,
-        hasData: !!resp?.data,
-        dataType: typeof resp?.data,
-        dataIsArray: typeof resp?.data === 'object' && resp?.data !== null ? Array.isArray(resp.data) : 'n/a',
-      });
-
-      if (!resp?.success) {
-        const errorMsg = typeof resp.error === 'string'
-          ? resp.error
-          : resp.error?.message ?? 'Unable to load knowledge map';
-        throw new Error(errorMsg);
-      }
-
-      const data = resp.data as KnowledgeMapDisplay;
-      console.log(`[KnowledgeGameMap:${callId}] Knowledge map data structure:`, {
-        nodes: data?.nodes?.length ?? 0,
-        edges: data?.edges?.length ?? 0,
-        nodesIsArray: Array.isArray(data?.nodes),
-        edgesIsArray: Array.isArray(data?.edges),
-        dataKeys: Object.keys(data || {}),
+      const data = await unwrapAPI(apiClient.knowledge.getKnowledgeMap());
+      console.log(`[KnowledgeGameMap:${callId}] Knowledge map data loaded:`, {
+        nodes: data.nodes?.length ?? 0,
+        edges: data.edges?.length ?? 0,
+        layout: data.layout,
+        clusters: data.clusters?.length ?? 0,
       });
 
       setRawNodes(data.nodes ?? []);
@@ -255,7 +240,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
       )}
 
       <RelationGraph ref={graphRef} options={options} onNodeClick={(node: any, e?: any) => {
-        if (node?.data) onConceptSelect?.(toConcept(node.data as KnowledgeMapNode));
+        if (node) onConceptSelect?.(toConcept(node as KnowledgeMapNode));
       }}>
         {filtered.nodes.map((node) => (
           <div key={node.id} onContextMenu={(e) => handleContextMenu(e, node)}>

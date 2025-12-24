@@ -9,7 +9,6 @@ import type {
   ConceptIngestionPlan,
 } from '@/shared/types/electron-api/knowledge-api';
 import type { KnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
-import type { APIResponse } from '@/shared/types/electron-api';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 type KnowledgeHandlersDeps = {
@@ -137,23 +136,16 @@ export const setupKnowledgeHandlers = (
       });
     }
 
-    // Verify object structure before sending
-    const responseData = {
-      nodes: knowledgeMap.nodes ?? [],
-      edges: knowledgeMap.edges ?? [],
-    };
-
-    handlerLogger.info('Prepared response data for IPC', {
+    handlerLogger.info('Returning complete KnowledgeMapDisplay', {
       callId,
-      responseNodesCount: responseData.nodes.length,
-      responseEdgesCount: responseData.edges.length,
-      responseNodesIsArray: Array.isArray(responseData.nodes),
-      responseEdgesIsArray: Array.isArray(responseData.edges),
-      responseNodesKeys: Object.keys(responseData),
-      responseEdgesKeys: Object.keys({ edges: responseData.edges }),
+      nodesCount: knowledgeMap.nodes?.length ?? 0,
+      edgesCount: knowledgeMap.edges?.length ?? 0,
+      layout: knowledgeMap.layout,
+      clustersCount: knowledgeMap.clusters?.length ?? 0,
+      hasMetadata: !!knowledgeMap.metadata,
     });
 
-    return responseData;
+    return knowledgeMap;
   });
 
   handlerLogger.info('? Knowledge handlers registered successfully');
