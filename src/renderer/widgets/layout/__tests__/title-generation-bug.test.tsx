@@ -72,6 +72,14 @@ vi.mock('@assistant-ui/react', () => ({
       return children;
     }
   },
+  useAssistantApi: vi.fn(() => ({
+    threadListItem: vi.fn(() => ({
+      getState: vi.fn(() => ({ id: 'mock-thread-id' })),
+    })),
+    threads: vi.fn(() => ({
+      switchToThread: vi.fn(),
+    })),
+  })),
 }));
 
 vi.mock('@/renderer/shared/ui/Button', () => ({

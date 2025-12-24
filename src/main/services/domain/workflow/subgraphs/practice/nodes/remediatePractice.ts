@@ -23,9 +23,10 @@
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
-import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
+import { streamLLM } from '../../../utils/stream-llm';
 import type { PracticeState } from '../types';
 
 interface RemediationContext {
@@ -92,11 +93,11 @@ function extractFocusConcepts(practice: PracticeState, mastery: number): string[
  */
 export const remediatePracticeNode =
   (deps: WorkflowDeps) =>
-    async (state: typeof PracticeAnnotation.State, _config: LangGraphRunnableConfig) => {
-      const emitter = createChunkEmitter(_config);
+    async (state: typeof PracticeAnnotation.State, config: LangGraphRunnableConfig) => {
       const practice = state.practice!;
       const mastery = state.mastery ?? 0;
       const failureStreak = practice.failureStreak ?? 0;
+      const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
 
       deps.loggerService.info('remediatePracticeNode: providing remediation', {
         topic: state.topic,
@@ -120,18 +121,11 @@ export const remediatePracticeNode =
       });
 
       const messages = [
-        { role: 'system' as const, content: 'You are an expert tutor specializing in clear explanations.' },
-        { role: 'user' as const, content: prompt },
+        new SystemMessage('You are an expert tutor specializing in clear explanations.'),
+        new HumanMessage(prompt),
       ];
 
-      const response = await model.invoke(messages);
-      const content = String(response.content ?? '');
-
-      // Stream remediation message to user
-      const messageId = generateId('msg');
-      emitter.textStart(messageId);
-      emitter.textDelta(messageId, content);
-      emitter.textEnd(messageId);
+      const content = await streamLLM({ model, messages, config, streamMode });
 
       deps.loggerService.info('remediatePracticeNode: remediation delivered', {
         topic: state.topic,

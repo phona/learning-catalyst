@@ -18,7 +18,7 @@ import { AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
-import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
+import { streamLLM } from '../../../utils/stream-llm';
 
 /**
  * Configuration constants
@@ -64,7 +64,6 @@ End by inviting the user to ask for hints if needed.`,
 export const askQuestionNode =
   (deps: WorkflowDeps) =>
     async (state: typeof PracticeAnnotation.State, config: LangGraphRunnableConfig) => {
-      const emitter = createChunkEmitter(config);
       const startTime = Date.now();
 
       deps.loggerService.debug('askQuestionNode: start', {
@@ -130,16 +129,15 @@ export const askQuestionNode =
         relatedConcepts: relatedConcepts.join(', ') || 'None',
       });
 
-      const response = await model.invoke(messages);
-      const questionContent = String(response.content ?? '');
+      const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
+      const questionContent = await streamLLM({
+        model,
+        messages,
+        config,
+        streamMode,
+      });
 
-      // Step 3: Emit question to user
-      const messageId = generateId('msg');
-      emitter.textStart(messageId);
-      emitter.textDelta(messageId, questionContent);
-      emitter.textEnd(messageId);
-
-      // Step 4: Record analytics
+      // Step 3: Record analytics
       await deps.practiceService.recordPracticeAttempt({
         taskId: `practice_${Date.now()}`,
         conceptIds: searchResult.results.map((r) => r.id),
@@ -147,7 +145,7 @@ export const askQuestionNode =
         timestamp: new Date().toISOString(),
       });
 
-      // Step 5: Interrupt for user input
+      // Step 4: Interrupt for user input
       const questionId = randomUUID();
       const resumeValue = await interrupt({
         type: 'practice_question',

@@ -5,6 +5,7 @@ import { interrupt } from '@langchain/langgraph';
 import { randomUUID } from 'crypto';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { streamLLM } from '../utils/stream-llm';
 
 /**
  * Fast Track Quiz Node (ASSISTANT Role)
@@ -107,8 +108,10 @@ export const fastTrackQuizNode = (deps: WorkflowDeps) => async (
    * - Provide topic context
    * - Ask for natural language output
    * - Emphasize diagnostic nature (not grading)
+   * - Use streamLLM for real-time token streaming
    */
   const model = await deps.providerFactory.getModel();
+  const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
 
   /**
    * AI PROMPT DESIGN:
@@ -134,8 +137,12 @@ Present them in a supportive, encouraging tone:
 "Let's see what you already know about [topic]. I'll ask a few quick questions to understand where you're at."
 
 End by asking them to share their thoughts/answers.`;
-  const res = await model.invoke([new HumanMessage(prompt)]);
-  const quizContent = String(res.content ?? res ?? '');
+  const quizContent = await streamLLM({
+    model,
+    messages: [new HumanMessage(prompt)],
+    config,
+    streamMode,
+  });
 
   /**
    * STEP 2: TRACK QUIZ SESSION

@@ -685,10 +685,11 @@ describe('Full Workflow Integration Tests', () => {
       // E2E Assertions: Verify complete workflow execution
       expect(result.messages).toBeDefined();
       expect(Array.isArray(result.messages)).toBe(true);
-      // Full execution should generate multiple messages
-      // With interactive TEACH and removed QA node, expect fewer messages than before
-      // Standard path: TOPIC_PARSE → ASSESS → PLAN → TEACH → PRACTICE → EVALUATE → MASTERY_CHECK → COMPLETE
-      expect(result.messages.length).toBeGreaterThan(3);
+      // Full execution should generate at least 3 messages:
+      // 1. Initial user message
+      // 2. TopicParse acknowledgment (HumanMessage)
+      // 3. Complete node success message (AIMessage)
+      expect(result.messages.length).toBeGreaterThanOrEqual(3);
       // State should be maintained throughout
       expect(result).toHaveProperty('topic');
       expect(typeof result.topic).toBe('string');

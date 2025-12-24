@@ -5,9 +5,11 @@
  * - Data normalization utilities
  * - Node type checking
  * - Assistant-UI Data Stream Protocol conversion
+ * - LLM streaming abstraction
  *
- * See normalization.ts and assistant-ui-stream.ts for detailed documentation.
+ * See normalization.ts, assistant-ui-stream.ts, and stream-llm.ts for detailed documentation.
  */
 
 export * from './normalization';
 export * from './assistant-ui-stream';
+export * from './stream-llm';

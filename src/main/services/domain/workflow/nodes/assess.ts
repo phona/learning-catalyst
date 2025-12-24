@@ -243,13 +243,9 @@ export const assessNode =
       // Clamp confidence to valid range [0, 1]
       const confidence = clamp01(parsedConfidence ?? 0.5);
 
-      // Format confidence message for user
-      const confidenceMessage = `Confidence: ${Math.round(confidence * 100)}%`;
-      const messageId = generateId('assess');
-      // const emitter = createChunkEmitter(config);
-      // emitter.textStart(messageId);
-      // emitter.textDelta(messageId, confidenceMessage);
-      // emitter.textEnd(messageId);
+      // Confidence message is now optional - only emit if streaming is enabled
+      // This is internal diagnostic data that doesn't need to be shown to users
+      // The confidence value is still returned in state for workflow decisions
 
       // Debug: Final result
       const duration = Date.now() - startTime;
@@ -273,10 +269,9 @@ export const assessNode =
 
       // Step 6: Return updated state
       // Remove ToolMessage - just return state directly
-      // The toolOutput data (confidence, gaps) is already in state fields
       return {
         messages: [
-          new AIMessage(confidenceMessage),
+          // new AIMessage(confidenceMessage),
         ],
         confidence,
         gaps: practiceMetrics.gaps,

@@ -105,10 +105,14 @@ export const setupChatHandlers = (
           return m.role === 'user' ? new HumanMessage(content) : new AIMessage(content);
         });
 
+        // Read existing stream config to propagate to workflow nodes
+        const appConfig = await services.configService.getConfig();
+        const llmStreamMode = appConfig?.ai?.modelTypes?.chat?.stream;
+
         const stream = await workflowGraph.stream(
           { messages: lcMessages },
           {
-            configurable: { thread_id: safeConversationId },
+            configurable: { thread_id: safeConversationId, llmStreamMode },
             streamMode: ['messages', 'custom'],
           },
         );

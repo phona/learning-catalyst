@@ -261,9 +261,9 @@ describe('assess node', () => {
     expect(humanMessage.content).toContain('Average Rubric Score: 67%');
 
     // Verify result structure
-    expect(result.messages).toHaveLength(1);
-    expect(result.messages[0]).toBeInstanceOf(AIMessage);
-    expect(result.messages[0].content).toBe('Confidence: 85%');
+    // Note: Assess node no longer adds messages to state - it uses streaming via config.writer
+    // The confidence calculation is internal workflow data
+    expect(result.messages).toHaveLength(0); // No messages added by assess node
     expect(result.confidence).toBe(0.85);
     expect(result.gaps).toEqual(['state-management', 'props']);
   });
@@ -298,9 +298,10 @@ describe('assess node', () => {
 
     const result = await node(state, createMockConfig());
 
+    // Note: Assess node no longer adds messages - confidence is internal workflow data
     expect(result.confidence).toBe(0.5);
     expect(result.gaps).toEqual([]);
-    expect(result.messages[0].content).toBe('Confidence: 50%');
+    expect(result.messages).toHaveLength(0);
   });
 
   it('clamps confidence to valid range [0, 1]', async () => {
@@ -335,7 +336,7 @@ describe('assess node', () => {
 
     // Should clamp to 1.0 (100%)
     expect(result.confidence).toBe(1.0);
-    expect(result.messages[0].content).toBe('Confidence: 100%');
+    expect(result.messages).toHaveLength(0); // No messages added by assess node
   });
 
   it('clamps negative confidence scores to 0', async () => {
@@ -370,7 +371,7 @@ describe('assess node', () => {
 
     // Should be 0%
     expect(result.confidence).toBe(0.0);
-    expect(result.messages[0].content).toBe('Confidence: 0%');
+    expect(result.messages).toHaveLength(0); // No messages added by assess node
   });
 
   it('limits recent messages to last 20', async () => {
@@ -897,7 +898,8 @@ describe('assess node', () => {
     const result = await node(state, config);
 
     // Verify result is properly formatted
-    expect(result.messages).toHaveLength(1);
+    // Note: Assess node no longer adds messages - confidence is internal workflow data
+    expect(result.messages).toHaveLength(0);
     expect(result.confidence).toBe(0.75);
     expect(result.gaps).toEqual([]);
   });

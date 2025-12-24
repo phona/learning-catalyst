@@ -155,7 +155,7 @@ export const assessUnderstandingNode =
         questionsAsked: String(teach.questionsAsked),
       });
 
-      // Get assessment from LLM
+      // Get assessment from LLM (internal, not streamed - structured JSON output)
       const model = await deps.providerFactory.getModel();
       const response = await model.invoke(messages);
       const assessment = parseAssessment(String(response.content ?? ''));
@@ -172,7 +172,7 @@ export const assessUnderstandingNode =
         durationMs: duration,
       });
 
-      // Emit feedback to UI
+      // Generate feedback message (static, not LLM-generated)
       let feedbackMessage: string;
       if (mastered) {
         feedbackMessage =
@@ -187,6 +187,7 @@ export const assessUnderstandingNode =
         `Good effort! Let's explore ${state.topic} a bit more to solidify your understanding.`;
       }
 
+      // Emit feedback to UI (static message, emitted all at once)
       const messageId = generateId('msg');
       emitter.textStart(messageId);
       emitter.textDelta(messageId, feedbackMessage);

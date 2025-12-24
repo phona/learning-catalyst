@@ -20,6 +20,7 @@ import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
 import type { UserIntent } from '../types';
 import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
+import { streamLLM } from '../../../utils/stream-llm';
 
 /**
  * Configuration
@@ -76,24 +77,37 @@ Clarify the question:`,
 
 /**
  * Generate response based on intent
+ *
+ * Handles both LLM-generated responses (hint, clarification) and static responses.
+ * All chunk emission is handled internally via streamLLM for LLM calls or
+ * manual emission for static messages.
  */
 async function generateResponse(
   deps: WorkflowDeps,
   state: typeof PracticeAnnotation.State,
-  intent: UserIntent
+  intent: UserIntent,
+  config: LangGraphRunnableConfig,
+  streamMode: boolean | undefined
 ): Promise<{ message: string; hintsGiven: number; isComplete: boolean }> {
   const practice = state.practice!;
   const question = practice.currentQuestion || state.practicePrompt || '';
   const model = await deps.providerFactory.getModel();
+  const emitter = createChunkEmitter(config);
 
   switch (intent) {
   case 'hint_request': {
     const newHintsGiven = practice.hintsGiven + 1;
 
     if (newHintsGiven > MAX_HINTS) {
+      const staticMessage =
+        "I've given you all the hints I can! Try your best answer, or say 'give up' to see the solution.";
+      // Emit static message
+      const messageId = generateId('msg');
+      emitter.textStart(messageId);
+      emitter.textDelta(messageId, staticMessage);
+      emitter.textEnd(messageId);
       return {
-        message:
-            "I've given you all the hints I can! Try your best answer, or say 'give up' to see the solution.",
+        message: staticMessage,
         hintsGiven: practice.hintsGiven,
         isComplete: false,
       };
@@ -106,8 +120,7 @@ async function generateResponse(
       hintLevel: String(newHintsGiven),
     });
 
-    const response = await model.invoke(messages);
-    const hint = String(response.content ?? '');
+    const hint = await streamLLM({ model, messages, config, streamMode });
 
     return {
       message: `**Hint ${newHintsGiven}/${MAX_HINTS}:**\n\n${hint}\n\nWhat's your answer?`,
@@ -123,8 +136,7 @@ async function generateResponse(
       userResponse: state.userAnswer ?? 'general confusion',
     });
 
-    const response = await model.invoke(messages);
-    const clarification = String(response.content ?? '');
+    const clarification = await streamLLM({ model, messages, config, streamMode });
 
     return {
       message: `${clarification}\n\nDoes that help? What's your answer?`,
@@ -134,20 +146,29 @@ async function generateResponse(
   }
 
   case 'thinking_aloud': {
+    const staticMessage =
+      "Great thinking! Take your time. When you're ready, share your answer. You can also ask for a hint if you'd like.";
+    // Emit static message
+    const messageId = generateId('msg');
+    emitter.textStart(messageId);
+    emitter.textDelta(messageId, staticMessage);
+    emitter.textEnd(messageId);
     return {
-      message:
-          "Great thinking! Take your time. When you're ready, share your answer. You can also ask for a hint if you'd like.",
+      message: staticMessage,
       hintsGiven: practice.hintsGiven,
       isComplete: false,
     };
   }
 
   case 'give_up': {
-    // In a real implementation, you'd fetch or generate the expected answer
     const giveUpMessage = `No worries! Here's a helpful explanation:\n\n` +
         `The key concepts to understand are: **${practice.focusConcepts.join(', ')}**.\n\n` +
         `Let's move on to the next practice!`;
-
+    // Emit static message
+    const messageId = generateId('msg');
+    emitter.textStart(messageId);
+    emitter.textDelta(messageId, giveUpMessage);
+    emitter.textEnd(messageId);
     return {
       message: giveUpMessage,
       hintsGiven: practice.hintsGiven,
@@ -156,19 +177,32 @@ async function generateResponse(
   }
 
   case 'off_topic': {
+    const staticMessage = `Let's focus on the question:\n\n"${question}"\n\nWhat's your answer?`;
+    // Emit static message
+    const messageId = generateId('msg');
+    emitter.textStart(messageId);
+    emitter.textDelta(messageId, staticMessage);
+    emitter.textEnd(messageId);
     return {
-      message: `Let's focus on the question:\n\n"${question}"\n\nWhat's your answer?`,
+      message: staticMessage,
       hintsGiven: practice.hintsGiven,
       isComplete: false,
     };
   }
 
-  default:
+  default: {
+    const staticMessage = "I didn't quite catch that. What's your answer to the question?";
+    // Emit static message
+    const messageId = generateId('msg');
+    emitter.textStart(messageId);
+    emitter.textDelta(messageId, staticMessage);
+    emitter.textEnd(messageId);
     return {
-      message: "I didn't quite catch that. What's your answer to the question?",
+      message: staticMessage,
       hintsGiven: practice.hintsGiven,
       isComplete: false,
     };
+  }
   }
 }
 
@@ -185,6 +219,7 @@ export const handleConversationNode =
       const practice = state.practice!;
       const intent = practice.userIntent ?? 'off_topic';
       const newTurns = practice.conversationTurns + 1;
+      const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
 
       deps.loggerService.debug('handleConversationNode: start', {
         intent,
@@ -226,13 +261,14 @@ export const handleConversationNode =
       }
 
       // Generate appropriate response based on intent
-      const { message, hintsGiven, isComplete } = await generateResponse(deps, state, intent);
-
-      // Emit response
-      const messageId = generateId('msg');
-      emitter.textStart(messageId);
-      emitter.textDelta(messageId, message);
-      emitter.textEnd(messageId);
+      // Note: streamLLM handles chunk emission internally, no manual emit needed
+      const { message, hintsGiven, isComplete } = await generateResponse(
+        deps,
+        state,
+        intent,
+        config,
+        streamMode
+      );
 
       // If complete (give up), don't wait for response
       if (isComplete) {

@@ -6,12 +6,32 @@
  * setup from both renderer and main process environments.
  */
 
+import React from 'react';
 import '@testing-library/jest-dom';
 import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 
 // Set test environment
 process.env.NODE_ENV = 'test';
 process.env.INTEGRATION_TEST = 'true';
+
+// Mock relation-graph-react before importing any React components
+// The module has initialization code that accesses DOM, so we need a proper mock
+const MockRelationGraph = React.forwardRef<any, any>((props, ref) => {
+  React.useImperativeHandle(ref, () => ({
+    getInstance: () => ({
+      setJsonData: vi.fn(),
+    }),
+  }));
+  return React.createElement('div', { 'data-testid': 'rg-mock' }, props.children);
+});
+
+vi.mock('relation-graph-react', () => ({
+  default: MockRelationGraph,
+  RelationGraph: MockRelationGraph,
+  useRelationGraph: vi.fn(() => ({
+    getInstance: vi.fn(),
+  })),
+}));
 
 // Mock Electron APIs for integration testing
 const mockElectron = {

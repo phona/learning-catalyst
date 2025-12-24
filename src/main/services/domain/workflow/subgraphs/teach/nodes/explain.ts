@@ -15,7 +15,7 @@ import { AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { TeachAnnotation } from '../state';
-import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
+import { streamLLM } from '../../../utils/stream-llm';
 
 /**
  * Teaching prompt template with knowledge context
@@ -95,9 +95,9 @@ function buildInstruction(round: number, gaps: string[]): string {
 export const explainNode =
   (deps: WorkflowDeps) =>
     async (state: typeof TeachAnnotation.State, config: LangGraphRunnableConfig) => {
-      const emitter = createChunkEmitter(config);
       const teach = state.teach!;
       const round = teach.teachingRound + 1;
+      const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
 
       deps.loggerService.debug('teach:explain start', {
         topic: state.topic,
@@ -119,16 +119,14 @@ export const explainNode =
         knowledgeContext,
       });
 
-      // Get LLM response
+      // Get LLM response with streaming support
       const model = await deps.providerFactory.getModel();
-      const response = await model.invoke(messages);
-      const content = String(response.content ?? '');
-
-      // Emit to UI
-      const messageId = generateId('msg');
-      emitter.textStart(messageId);
-      emitter.textDelta(messageId, content);
-      emitter.textEnd(messageId);
+      const content = await streamLLM({
+        model,
+        messages,
+        config,
+        streamMode,
+      });
 
       deps.loggerService.info('teach:explain complete', {
         topic: state.topic,

@@ -8,9 +8,28 @@
  * - React testing utilities
  */
 
+import React from 'react';
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
-vi.mock('relation-graph-react');
+
+// Mock relation-graph-react before importing React Testing Library
+// The module has initialization code that accesses DOM, so we need a proper mock
+const MockRelationGraph = React.forwardRef<any, any>((props, ref) => {
+  React.useImperativeHandle(ref, () => ({
+    getInstance: () => ({
+      setJsonData: vi.fn(),
+    }),
+  }));
+  return React.createElement('div', { 'data-testid': 'rg-mock' }, props.children);
+});
+
+vi.mock('relation-graph-react', () => ({
+  default: MockRelationGraph,
+  RelationGraph: MockRelationGraph,
+  useRelationGraph: vi.fn(() => ({
+    getInstance: vi.fn(),
+  })),
+}));
 
 // Import React Testing Library
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
