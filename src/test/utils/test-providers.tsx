@@ -2,6 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import { vi } from 'vitest';
 import { ServicesProvider } from '@/renderer/services/services-provider';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 import { useConfigStore } from '@/renderer/stores/useConfigStore';
@@ -34,6 +35,10 @@ const createMockAssistantApi = () => {
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => threadsState,
       getState: () => threadsState,
+      switchToThread: vi.fn(),
+      switchToNewThread: vi.fn(),
+      item: vi.fn(),
+      thread: vi.fn(),
     }),
     tools: () => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
@@ -52,8 +57,16 @@ const createMockAssistantApi = () => {
     }),
     threadListItem: () => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
-      getSnapshot: () => emptyState,
-      getState: () => emptyState,
+      getSnapshot: () => ({ id: 'thread-123', remoteId: 'remote-123', externalId: 'external-123', title: 'Test Thread', status: 'regular' }),
+      getState: () => ({ id: 'thread-123', remoteId: 'remote-123', externalId: 'external-123', title: 'Test Thread', status: 'regular' }),
+      switchTo: vi.fn(),
+      rename: vi.fn(),
+      archive: vi.fn(),
+      unarchive: vi.fn(),
+      delete: vi.fn(),
+      generateTitle: vi.fn(),
+      initialize: vi.fn(),
+      detach: vi.fn(),
     }),
     composer: () => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),

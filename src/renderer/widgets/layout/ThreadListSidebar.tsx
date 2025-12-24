@@ -11,6 +11,7 @@ import {
   ThreadListPrimitive,
   ThreadListItemPrimitive,
   AssistantIf,
+  useAssistantApi,
 } from '@assistant-ui/react';
 import {
   MapIcon,
@@ -69,11 +70,31 @@ const KNOWLEDGE_NAVIGATION_ITEMS: readonly KnowledgeNavigationItem[] = [
  * Thread list item component - matches official example pattern
  */
 const ThreadListItem: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const api = useAssistantApi();
+
+  const handleClick = useCallback(() => {
+    const threadState = api.threadListItem().getState();
+    const threadId = threadState.id;
+
+    // Navigate to chat page if not already there
+    if (!location.pathname.startsWith('/chat')) {
+      navigate('/chat');
+    }
+
+    // Switch to the clicked thread
+    api.threads().switchToThread(threadId);
+  }, [navigate, location.pathname, api]);
+
   return (
     <ThreadListItemPrimitive.Root className="group flex h-9 items-center rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:bg-gray-100 dark:focus-visible:bg-gray-700 focus-visible:outline-none data-[active]:bg-gray-200 dark:data-[active]:bg-gray-600">
-      <ThreadListItemPrimitive.Trigger className="flex h-full flex-1 items-center truncate px-3 text-start text-sm text-gray-700 dark:text-gray-200">
+      <button
+        onClick={handleClick}
+        className="flex h-full flex-1 items-center truncate px-3 text-start text-sm text-gray-700 dark:text-gray-200"
+      >
         <ThreadListItemPrimitive.Title fallback="New Chat" />
-      </ThreadListItemPrimitive.Trigger>
+      </button>
       <ThreadListItemPrimitive.Archive asChild>
         <button
           className="mr-2 p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
@@ -117,6 +138,14 @@ export const ThreadListSidebar: React.FC<{ readonly open: boolean }> = ({ open }
     [navigate, setCurrentView],
   );
 
+  const handleNewChat = useCallback(() => {
+    // Navigate to chat page if not already there
+    if (!location.pathname.startsWith('/chat')) {
+      navigate('/chat');
+    }
+    // The ThreadListPrimitive.New will handle creating/switching to new thread
+  }, [navigate, location.pathname]);
+
   const knowledgeNavigationElements = useMemo(() => {
     return KNOWLEDGE_NAVIGATION_ITEMS.map((item) => {
       const Icon = item.icon;
@@ -159,7 +188,7 @@ export const ThreadListSidebar: React.FC<{ readonly open: boolean }> = ({ open }
             Conversations
           </div>
           <ThreadListPrimitive.New asChild>
-            <Button variant="ghost" size="sm" className="h-7 px-2">
+            <Button variant="ghost" size="sm" className="h-7 px-2" onClick={handleNewChat}>
               <PlusIcon className="h-4 w-4" />
             </Button>
           </ThreadListPrimitive.New>
