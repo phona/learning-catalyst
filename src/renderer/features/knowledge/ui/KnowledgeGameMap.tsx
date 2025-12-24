@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import RelationGraph, {
-  RGJsonData,
-  RGOptions,
-  JsonNode,
-  JsonLine,
-} from 'relation-graph-react';
+import RelationGraph, { RGJsonData, RGOptions, JsonNode, JsonLine } from 'relation-graph-react';
 import { ExclamationCircleIcon } from '@heroicons/react/24/outline';
-import type { KnowledgeMapDisplay, KnowledgeMapEdge, KnowledgeMapNode } from '@/shared/types/electron-api/knowledge-api';
+import type {
+  KnowledgeMapDisplay,
+  KnowledgeMapEdge,
+  KnowledgeMapNode,
+} from '@/shared/types/electron-api/knowledge-api';
 import type { Concept } from '@/shared/types/knowledge';
 import { useElectronAPIClient } from '@/renderer/services/services-provider';
 import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
@@ -27,13 +26,13 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const typeColor = (type?: string) => {
   switch (type) {
-  case 'prerequisite':
-    return '#f59e0b';
-  case 'contains':
-    return '#ec4899';
-  case 'related':
-  default:
-    return '#0ea5e9';
+    case 'prerequisite':
+      return '#f59e0b';
+    case 'contains':
+      return '#ec4899';
+    case 'related':
+    default:
+      return '#0ea5e9';
   }
 };
 
@@ -48,7 +47,10 @@ const toConcept = (node: KnowledgeMapNode): Concept => ({
   description: '',
   content: '',
   difficultyLevel: 3,
-  masteryLevel: Math.max(1, Math.min(5, Math.round((node.mastery ?? 0) * 5))) as Concept['masteryLevel'],
+  masteryLevel: Math.max(
+    1,
+    Math.min(5, Math.round((node.mastery ?? 0) * 5)),
+  ) as Concept['masteryLevel'],
   tags: [],
   metadata: { category: node.category },
   createdAt: new Date(),
@@ -79,6 +81,8 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
     defaultNodeBorderWidth: 0,
     defaultLineShape: 1,
     defaultJunctionPoint: 'border',
+    defaultNodeWidth: 100,
+    defaultNodeHeight: 50,
     layouts: [
       {
         label: 'Auto Layout',
@@ -171,9 +175,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
       data: n,
       x: n.x || 0,
       y: n.y || 0,
-      // size can be amplified for mastery
-      width: 30 + (n.mastery ?? 0.3) * 10,
-      height: 30 + (n.mastery ?? 0.3) * 10,
+      // Let autoNodeSize handle sizing based on text content
     }));
 
     // Backend already ensures edges have valid from/to IDs
@@ -205,7 +207,6 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
     setContextNode(node);
   };
 
-  
   const closeContext = () => {
     setContextNode(null);
     setContextPos(null);
@@ -227,59 +228,80 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden touch-none ${className}`}
-      style={{ minHeight: 520, height: '100%', touchAction: 'none', overscrollBehavior: 'contain' }}
-    >
-      {error && (
-        <div className="absolute top-2 left-2 right-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2 flex items-center gap-2 z-10">
-          <ExclamationCircleIcon className="w-4 h-4" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <RelationGraph ref={graphRef} options={options} onNodeClick={(node: any, e?: any) => {
-        if (node) onConceptSelect?.(toConcept(node as KnowledgeMapNode));
-      }}>
-        {filtered.nodes.map((node) => (
-          <div key={node.id} onContextMenu={(e) => handleContextMenu(e, node)}>
-            {node.label}
+    <>
+      {/* Hide relation-graph's internal template slots */}
+      <style>{`
+        .rel-canvas-slot-behind,
+        .rel-canvas-slot-above {
+          visibility: hidden;
+          pointer-events: none;
+        }
+      `}</style>
+      <div
+        ref={containerRef}
+        className={`relative bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden touch-none ${className}`}
+        style={{
+          minHeight: 520,
+          height: '100%',
+          touchAction: 'none',
+          overscrollBehavior: 'contain',
+        }}
+      >
+        {error && (
+          <div className="absolute top-2 left-2 right-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2 flex items-center gap-2 z-10">
+            <ExclamationCircleIcon className="w-4 h-4" />
+            <span>{error}</span>
           </div>
-        ))}
-      </RelationGraph>
+        )}
 
-      {/* Context menu */}
-      {contextNode && contextPos && (
-        <div
-          className="absolute z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 text-xs"
-          style={{ left: contextPos.x, top: contextPos.y }}
-          onMouseLeave={closeContext}
+        <RelationGraph
+          ref={graphRef}
+          options={options}
+          onNodeClick={(node: any, e?: any) => {
+            if (node) onConceptSelect?.(toConcept(node as KnowledgeMapNode));
+          }}
         >
-          <div className="font-semibold text-gray-800 dark:text-gray-100 mb-1">{contextNode.label}</div>
-          <div className="flex gap-2">
-            <button
-              className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-500"
-              onClick={() => handleOpen(contextNode)}
-            >
-              Open
-            </button>
-            <button
-              className="px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-400"
-              onClick={() => handlePractice(contextNode)}
-            >
-              Practice
-            </button>
-            <button
-              className="px-2 py-1 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
-              onClick={() => handleHide(contextNode)}
-            >
-              Hide
-            </button>
+          {filtered.nodes.map((node) => (
+            <div key={node.id} onContextMenu={(e) => handleContextMenu(e, node)}>
+              {node.label}
+            </div>
+          ))}
+        </RelationGraph>
+
+        {/* Context menu */}
+        {contextNode && contextPos && (
+          <div
+            className="absolute z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-2 text-xs"
+            style={{ left: contextPos.x, top: contextPos.y }}
+            onMouseLeave={closeContext}
+          >
+            <div className="font-semibold text-gray-800 dark:text-gray-100 mb-1">
+              {contextNode.label}
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-500"
+                onClick={() => handleOpen(contextNode)}
+              >
+                Open
+              </button>
+              <button
+                className="px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-400"
+                onClick={() => handlePractice(contextNode)}
+              >
+                Practice
+              </button>
+              <button
+                className="px-2 py-1 rounded bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                onClick={() => handleHide(contextNode)}
+              >
+                Hide
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 
