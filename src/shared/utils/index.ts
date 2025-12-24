@@ -20,16 +20,6 @@ export {
   OptimizedScrollHandler,
 } from './performance-utils';
 
-// Performance Monitoring
-export {
-  createAppPerformanceMonitor,
-  appPerformanceMonitor,
-  type PerformanceTrend,
-  type PerformanceBottleneck,
-  type MemoryStats,
-} from './performance-monitor';
-
-
 // Test Utilities (Time & ID generation for DI)
 export {
   createTimeService,

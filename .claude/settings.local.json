@@ -99,7 +99,13 @@
       "Bash(openspec list:*)",
       "Bash(openspec show:*)",
       "Skill(openspec:apply)",
-      "Bash(openspec archive:*)"
+      "Bash(openspec archive:*)",
+      "Bash(wc:*)",
+      "Skill(openspec:archive)",
+      "Bash(git add:*)",
+      "Bash(for:*)",
+      "Bash(do:*)",
+      "Bash(done:*)"
     ],
     "deny": [],
     "ask": []

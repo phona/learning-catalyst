@@ -6,9 +6,7 @@
  */
 
 import React, { Component, ReactNode } from 'react';
-import { performanceService } from '@/shared/services/performance-service';
 import { createTypedEventEmitter } from '@/shared/utils/type-utils';
-import type { MemoryStats } from '@/shared/utils/performance-monitor';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -108,14 +106,6 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('[ErrorBoundary] Component error caught:', error, errorInfo);
 
-    // Record performance impact
-    performanceService.recordMetric('error_boundary_error', 0, {
-      component: this.props.componentName || 'Unknown',
-      error: error.message,
-      stack: error.stack,
-      errorInfo: errorInfo.componentStack,
-    });
-
     // Update state
     this.setState((prevState) => ({
       errorInfo,
@@ -170,21 +160,18 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
     console.info(`[ErrorBoundary] Attempting recovery ${attempt}/${this.MAX_RECOVERY_ATTEMPTS}`);
 
     try {
-      // Measure recovery performance
-      await performanceService.measureOperation('error_recovery', async () => {
-        // Clear error state to retry rendering
-        this.setState({
-          hasError: false,
-          error: null,
-          errorInfo: null,
+      // Clear error state to retry rendering
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+        errorCount: 0,
+        healthStatus: {
+          ...this.state.healthStatus,
           errorCount: 0,
-          healthStatus: {
-            ...this.state.healthStatus,
-            errorCount: 0,
-            status: 'healthy',
-            lastCheck: Date.now(),
-          },
-        });
+          status: 'healthy',
+          lastCheck: Date.now(),
+        },
       });
 
       // Record successful recovery
@@ -234,28 +221,27 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
   }
 
   private performHealthCheck(): void {
-    const memoryStats = performanceService.getMemoryStats();
-    const healthStatus = this.calculateHealthStatus(memoryStats);
+    const healthStatus = this.calculateHealthStatus();
 
     this.setState({ healthStatus });
     this.events.emit('health:changed', healthStatus);
   }
 
-  private calculateHealthStatus(memoryStats: MemoryStats): HealthStatus {
+  private calculateHealthStatus(): HealthStatus {
     const uptime = Date.now() - this.startTime;
-    const memoryUsage = memoryStats.percentage || 0;
+    const memoryUsage = 0; // Not available without performance monitoring
 
     let status: HealthStatus['status'] = 'healthy';
     let performanceScore = 100;
 
-    // Determine health status based on metrics
-    if (this.state.errorCount >= 10 || memoryUsage > 90) {
+    // Determine health status based on error count only
+    if (this.state.errorCount >= 10) {
       status = 'critical';
       performanceScore = 20;
-    } else if (this.state.errorCount >= 5 || memoryUsage > 75) {
+    } else if (this.state.errorCount >= 5) {
       status = 'degraded';
       performanceScore = 50;
-    } else if (this.state.errorCount > 0 || memoryUsage > 60) {
+    } else if (this.state.errorCount > 0) {
       status = 'degraded';
       performanceScore = 75;
     }
