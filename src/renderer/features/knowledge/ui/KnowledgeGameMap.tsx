@@ -83,6 +83,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
     defaultJunctionPoint: 'border',
     defaultNodeWidth: 100,
     defaultNodeHeight: 50,
+    backgroundColor: 'transparent',
     layouts: [
       {
         label: 'Auto Layout',
@@ -248,7 +249,7 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
         }}
       >
         {error && (
-          <div className="absolute top-2 left-2 right-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2 flex items-center gap-2 z-10">
+          <div className="absolute top-2 left-2 right-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs rounded px-3 py-2 flex items-center gap-2 z-10">
             <ExclamationCircleIcon className="w-4 h-4" />
             <span>{error}</span>
           </div>
