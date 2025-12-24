@@ -10,6 +10,7 @@ import type {
 import type { RelationshipType } from '@/shared/types/relationship-types';
 import type { LearningPath } from '@/shared/types/learning';
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 import type {
   ConceptParsingResult,
   ParsedConcept,
@@ -20,6 +21,7 @@ import type {
 import type { ConfigurationService } from '../configuration/configuration-service';
 import type { TimeService, IDGenerator } from '@/shared/utils';
 import { createTimeService, createIdGenerator } from '@/shared/utils';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 export interface ConceptParsingServiceOptions {
   confidenceThreshold?: number;
@@ -157,7 +159,8 @@ export const createConceptParsingService = (
       throw new Error(`Content validation failed: ${validation.error}`);
     }
 
-    const result = await apiClient.knowledge.parseConcepts({
+    // Use unwrapAPI for consistent IPC error handling
+    const result = await unwrapAPI(apiClient.knowledge.parseConcepts({
       content,
       jobId: options.jobId,
       resume: options.resume,
@@ -165,15 +168,9 @@ export const createConceptParsingService = (
         confidenceThreshold: options.confidenceThreshold ?? 0.6,
         maxConceptsPerFile: options.maxConceptsPerFile ?? 50,
       },
-    });
+    }));
 
-    if (!result.success || !result.data) {
-      const err = result.error ?? 'Concept parsing failed';
-      const errorMessage = typeof err === 'string' ? err : err?.message ?? 'Concept parsing failed';
-      throw new Error(errorMessage);
-    }
-
-    return result.data;
+    return result;
   };
 
   const ingestParsedResult = async (
@@ -186,18 +183,14 @@ export const createConceptParsingService = (
       source?: string;
     },
   ): Promise<KnowledgeIngestionResult> => {
-    const ingestion = await apiClient.knowledge.ingestConcepts({
+    // Use unwrapAPI for consistent IPC error handling
+    const ingestion = await unwrapAPI(apiClient.knowledge.ingestConcepts({
       result,
       plan,
       options,
-    });
-    if (!ingestion.success || !ingestion.data) {
-      const errorMessage = typeof ingestion.error === 'string'
-        ? ingestion.error
-        : ingestion.error?.message ?? 'Concept ingestion failed';
-      throw new Error(errorMessage);
-    }
-    return ingestion.data;
+    }));
+
+    return ingestion;
   };
 
   const parseFiles = async (
@@ -518,13 +511,15 @@ export const createConceptParsingService = (
 
       for (const filePath of filePaths) {
         try {
-          const fileExists = await apiClient.existsFile(filePath);
+          // Use unwrapAPI for consistent IPC error handling
+          // Note: Type cast needed because API definition incorrectly returns raw type
+          const fileExists = await unwrapAPI(apiClient.existsFile(filePath) as unknown as Promise<APIResponse<boolean>>);
           if (!fileExists) {
             console.warn(`File not found: ${filePath}`);
             continue;
           }
 
-          const content = await apiClient.readFile(filePath);
+          const content = await unwrapAPI(apiClient.readFile(filePath) as unknown as Promise<APIResponse<string>>);
           const validation = validateContent(content);
 
           if (!validation.isValid) {
@@ -572,7 +567,8 @@ export const createConceptParsingService = (
       }, 500);
       progressIntervals.set(jobId, heartbeat);
 
-      const parsingResult = await apiClient.knowledge.parseConcepts({
+      // Use unwrapAPI for consistent IPC error handling
+      const parsingResult = await unwrapAPI(apiClient.knowledge.parseConcepts({
         files,
         jobId,
         resume: options.resume,
@@ -580,30 +576,19 @@ export const createConceptParsingService = (
           confidenceThreshold: options.confidenceThreshold ?? 0.6,
           maxConceptsPerFile: options.maxConceptsPerFile ?? 50,
         },
-      });
-
-      if (!parsingResult.success || !parsingResult.data) {
-        const err = parsingResult.error ?? 'Concept parsing failed';
-        const errorMessage = typeof err === 'string' ? err : err?.message ?? 'Concept parsing failed';
-        throw new Error(errorMessage);
-      }
+      }));
 
       activeJob.progress = 0.75;
       activeJob.status = 'processing';
 
       // Step 2: Ingest parsed concepts into SQLite database
-      const ingestionResult = await apiClient.knowledge.ingestConcepts({
-        result: parsingResult.data,
+      // Use unwrapAPI for consistent IPC error handling
+      const ingestionResult = await unwrapAPI(apiClient.knowledge.ingestConcepts({
+        result: parsingResult,
         options: {
           source: 'file-import',
         },
-      });
-
-      if (!ingestionResult.success) {
-        const err = ingestionResult.error ?? 'Concept ingestion failed';
-        const errorMessage = typeof err === 'string' ? err : err?.message ?? 'Concept ingestion failed';
-        throw new Error(errorMessage);
-      }
+      }));
 
       const interval = progressIntervals.get(jobId);
       if (interval) {
@@ -613,11 +598,11 @@ export const createConceptParsingService = (
 
       activeJob.progress = 1.0;
       activeJob.status = 'completed';
-      activeJob.result = parsingResult.data;
+      activeJob.result = parsingResult;
       activeJob.completedAt = new Date(timeService.now());
       try {
         const storage = window?.localStorage;
-        storage?.setItem(LAST_JOB_KEY, parsingResult.data.metadata?.jobId ?? jobId);
+        storage?.setItem(LAST_JOB_KEY, parsingResult.metadata?.jobId ?? jobId);
         storage?.setItem(LAST_FILES_KEY, JSON.stringify(filePaths));
       } catch {
         // ignore
@@ -652,7 +637,9 @@ export const createConceptParsingService = (
 
       for (const directoryPath of directoryPaths) {
         try {
-          const items = await apiClient.readDirectory(directoryPath, true, 10);
+          // Use unwrapAPI for consistent IPC error handling
+          // Note: Type cast needed because API definition incorrectly returns raw type
+          const items = await unwrapAPI(apiClient.readDirectory(directoryPath, true, 10) as unknown as Promise<APIResponse<any[]>>);
           for (const item of items) {
             if (item?.isFile === true && item?.isMarkdown === true) {
               markdownFiles.push(item.path);
@@ -685,18 +672,13 @@ export const createConceptParsingService = (
     listActiveJobs,
     cancelJob,
     clearSavedJobs: async () => {
-      const res = await apiClient.knowledge.clearParsingJobs();
-      if (!res.success || !res.data) {
-        const errorMessage = typeof res.error === 'string'
-          ? res.error
-          : res.error?.message ?? 'Failed to clear parsing cache';
-        throw new Error(errorMessage);
-      }
+      // Use unwrapAPI for consistent IPC error handling
+      const res = await unwrapAPI(apiClient.knowledge.clearParsingJobs());
       try {
         window?.localStorage?.removeItem(LAST_JOB_KEY);
         window?.localStorage?.removeItem(LAST_FILES_KEY);
       } catch {}
-      return res.data.removed;
+      return res.removed;
     },
     getLastJobId: () => {
       try {

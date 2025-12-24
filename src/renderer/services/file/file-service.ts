@@ -2,9 +2,16 @@
  * File Operations Service
  *
  * Provides secure file operations with validation and error handling
+ *
+ * This service uses the unwrapAPI pattern for consistent IPC error handling.
+ * All IPC calls use unwrapAPI() which:
+ * - Automatically unwraps APIResponse<T> to T
+ * - Shows error toasts on failures
+ * - Throws IPCError for programmatic error handling
  */
 
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
 import type {
   OpenDialogOptions,
@@ -12,6 +19,7 @@ import type {
   SaveDialogOptions,
   SaveDialogReturnValue,
 } from 'electron';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 
 // Fix: Align dialog option/return types with Electron to prevent type mismatch
 // Rationale: Custom options previously allowed invalid 'openFiles' and returned generic string
@@ -175,8 +183,9 @@ export function createFileService(electronAPI: ElectronAPI) {
 
       const fileName = extractFileName(filePath);
 
-      // Read file through Electron API
-      const content = await electronAPI.readFile(filePath);
+      // Read file through Electron API (unwrapAPI extracts response.data)
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      const content = await unwrapAPI(electronAPI.readFile(filePath) as unknown as Promise<APIResponse<string>>);
 
       // Validate content
       const validation = validateFileContent(content, filePath);
@@ -236,7 +245,9 @@ export function createFileService(electronAPI: ElectronAPI) {
         };
       }
 
-      await electronAPI.writeFile(filePath, content);
+      // Write file through Electron API (unwrapAPI extracts response.data)
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      await unwrapAPI(electronAPI.writeFile(filePath, content) as unknown as Promise<APIResponse<void>>);
 
       return { success: true };
     } catch (error) {
@@ -244,8 +255,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       console.error(
         error instanceof Error ? error : String(error),
         'renderer:file-service:writeFile',
-          'error',
-        );
+      );
       return {
         success: false,
         error: {
@@ -272,7 +282,9 @@ export function createFileService(electronAPI: ElectronAPI) {
         };
       }
 
-      const exists = await electronAPI.existsFile(filePath);
+      // Check existence through Electron API (unwrapAPI extracts response.data)
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      const exists = await unwrapAPI(electronAPI.existsFile(filePath) as unknown as Promise<APIResponse<boolean>>);
 
       return {
         success: true,
@@ -283,8 +295,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       console.error(
         error instanceof Error ? error : String(error),
         'renderer:file-service:existsFile',
-          'error',
-        );
+      );
       return {
         success: false,
         error: {
@@ -324,8 +335,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       console.error(
         error instanceof Error ? error : String(error),
         'renderer:file-service:showSaveDialog',
-          'error',
-        );
+      );
       return {
         success: false,
         error: {
@@ -364,7 +374,9 @@ export function createFileService(electronAPI: ElectronAPI) {
         };
       }
 
-      const items = await electronAPI.readDirectory(dirPath, recursive, maxDepth, filterConfig);
+      // Read directory through Electron API (unwrapAPI extracts response.data)
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      const items = await unwrapAPI(electronAPI.readDirectory(dirPath, recursive, maxDepth, filterConfig) as unknown as Promise<APIResponse<any[]>>);
 
       return {
         success: true,
@@ -375,8 +387,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       console.error(
         error instanceof Error ? error : String(error),
         'renderer:file-service:readDirectory',
-          'error',
-        );
+      );
       return {
         success: false,
         error: {
@@ -400,7 +411,9 @@ export function createFileService(electronAPI: ElectronAPI) {
         };
       }
 
-      const workspacePath = await electronAPI.getWorkspacePath();
+      // Get workspace path through Electron API (unwrapAPI extracts response.data)
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      const workspacePath = await unwrapAPI(electronAPI.getWorkspacePath() as unknown as Promise<APIResponse<string | null>>);
 
       return {
         success: true,
@@ -411,8 +424,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       console.error(
         error instanceof Error ? error : String(error),
         'renderer:file-service:getWorkspacePath',
-          'error',
-        );
+      );
       return {
         success: false,
         error: {

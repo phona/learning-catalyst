@@ -5,8 +5,9 @@ import type {
   SessionListResponse,
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
-import type { SessionCreateRequest } from '@/renderer/types/session';
+import type { SessionCreateRequest, SessionUpdateRequest } from '@/renderer/types/session';
 
 /**
  * This service uses the unwrapAPI pattern for consistent IPC error handling.
@@ -31,6 +32,7 @@ export interface SessionService {
   generateAITitle(userMessage: string, provider?: string, model?: string): Promise<string>;
   generateSessionId(): string;
   updateSessionTitle(sessionId: string, title: string): Promise<void>;
+  updateSession(sessionId: string, updates: SessionUpdateRequest): Promise<void>;
   createSession(payload: SessionCreateRequest): Promise<SessionDisplay>;
   deleteSession(sessionId: string): Promise<void>;
   searchSessions(query: string, filters?: Record<string, unknown>): Promise<SessionListData>;
@@ -160,6 +162,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     await unwrapAPI(apiClient.sessions.delete(sessionId));
   };
 
+  const updateSession = async (sessionId: string, updates: SessionUpdateRequest): Promise<void> => {
+    await unwrapAPI(apiClient.sessions.update(sessionId, updates));
+  };
+
   // const searchSessions = async (
 //     query: string,
 //     filters?: Record<string, unknown>,
@@ -204,13 +210,18 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     generateAITitle,
     generateSessionId,
     updateSessionTitle,
+    updateSession,
     createSession,
     deleteSession,
     getGlobalStatistics: async (): Promise<SessionStatistics> => {
-      return await apiClient.sessions.getGlobalStatistics();
+      // Use unwrapAPI for consistent IPC error handling
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      return await unwrapAPI(apiClient.sessions.getGlobalStatistics() as unknown as Promise<APIResponse<SessionStatistics>>);
     },
     searchSessions: async (query: string, filters?: Record<string, unknown>): Promise<SessionListData> => {
-      const response = await apiClient.sessions.searchSessions(query);
+      // Use unwrapAPI for consistent IPC error handling
+      // Note: Type cast needed because API definition incorrectly returns raw type
+      const response = await unwrapAPI(apiClient.sessions.searchSessions(query) as unknown as Promise<APIResponse<SessionDisplay[]>>);
       return {
         sessions: response,
         total: response.length,

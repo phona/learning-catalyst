@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createThreadListAdapter } from '../useThreadListAdapter';
+import { createSessionService } from '@/renderer/services/session/session-service';
+import { createChatService } from '@/renderer/services/chat/chat-service';
 import type { ElectronAPI } from '@/shared/types';
 import { IPCError } from '../useElectronAPI';
 
@@ -37,11 +39,15 @@ const setupWindowMock = (mockAPI: MockElectronAPI) => {
 describe('ThreadListAdapter', () => {
   let mockElectronAPI: ReturnType<typeof createMockElectronAPI>;
   let adapter: ReturnType<typeof createThreadListAdapter>;
+  let sessionService: ReturnType<typeof createSessionService>;
+  let chatService: ReturnType<typeof createChatService>;
 
   beforeEach(() => {
     mockElectronAPI = createMockElectronAPI();
     setupWindowMock(mockElectronAPI);
-    adapter = createThreadListAdapter();
+    sessionService = createSessionService(mockElectronAPI as ElectronAPI);
+    chatService = createChatService(mockElectronAPI as ElectronAPI);
+    adapter = createThreadListAdapter({ sessionService, chatService });
     vi.clearAllMocks();
   });
 
@@ -134,7 +140,9 @@ describe('ThreadListAdapter', () => {
         error: { message: 'API Error', code: 'LIST_ERROR' },
       });
 
-      await expect(adapter.list()).rejects.toThrow(IPCError);
+      // Note: The adapter now uses sessionService which catches errors and returns empty arrays
+      const result = await adapter.list();
+      expect(result.threads).toEqual([]);
     });
 
     it('should return empty threads when no data', async () => {
@@ -425,10 +433,11 @@ describe('ThreadListAdapter', () => {
 
   describe('generateTitle', () => {
     it('should generate title from first user message', async () => {
-      mockElectronAPI.chat.generateTitle.mockResolvedValueOnce({
-        success: true,
-        data: 'Generated Title: How do I learn JavaScript?'
-      });
+      // Note: The adapter now uses sessionService.generateAITitle which doesn't call chat.generateTitle
+      // We spy on sessionService instead
+      const generateTitleSpy = vi.spyOn(sessionService, 'generateAITitle').mockResolvedValueOnce(
+        'Generated Title: How do I learn JavaScript?'
+      );
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({
         success: true,
         data: null
@@ -444,7 +453,7 @@ describe('ThreadListAdapter', () => {
 
       const stream = await adapter.generateTitle('thread-1', messages);
       expect(stream).toBeDefined();
-      expect(mockElectronAPI.chat.generateTitle).toHaveBeenCalledWith('How do I learn JavaScript?');
+      expect(generateTitleSpy).toHaveBeenCalledWith('How do I learn JavaScript?');
 
       // Wait a tick for the async title update to happen
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -456,10 +465,10 @@ describe('ThreadListAdapter', () => {
 
     it('should truncate long titles', async () => {
       const longText = 'This is a very long message that should be truncated to fit within the title limit';
-      mockElectronAPI.chat.generateTitle.mockResolvedValueOnce({
-        success: true,
-        data: 'Generated Title: ' + longText
-      });
+      // Note: The adapter now uses sessionService.generateAITitle
+      const generateTitleSpy = vi.spyOn(sessionService, 'generateAITitle').mockResolvedValueOnce(
+        'Generated Title: ' + longText
+      );
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({
         success: true,
         data: null
@@ -475,7 +484,7 @@ describe('ThreadListAdapter', () => {
 
       const stream = await adapter.generateTitle('thread-1', messages);
       expect(stream).toBeDefined();
-      expect(mockElectronAPI.chat.generateTitle).toHaveBeenCalledWith(longText);
+      expect(generateTitleSpy).toHaveBeenCalledWith(longText);
 
       // Wait a tick for the async title update to happen
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -486,6 +495,8 @@ describe('ThreadListAdapter', () => {
     });
 
     it('should use default title when no user messages', async () => {
+      // Spy on generateAITitle to verify it's not called
+      const generateTitleSpy = vi.spyOn(sessionService, 'generateAITitle');
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({
         success: true,
         data: null
@@ -501,7 +512,8 @@ describe('ThreadListAdapter', () => {
 
       const stream = await adapter.generateTitle('thread-1', messages);
       expect(stream).toBeDefined();
-      expect(mockElectronAPI.chat.generateTitle).not.toHaveBeenCalled();
+      // Note: generateTitle is not called when there are no user messages
+      expect(generateTitleSpy).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { createConceptParsingService } from '@/renderer/services/concept-parsing/concept-parsing-service';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 
 const parsedConceptResult = {
   success: true,
@@ -37,20 +38,28 @@ const parsedConceptResult = {
     modelUsage: { mock: 1 },
   },
   errors: [],
-  metadata: { processingTime: 10, processedAt: new Date().toISOString(), inputFiles: 1 },
+  metadata: { processingTime: 10, processedAt: new Date().toISOString(), inputFiles: 1, jobId: 'test-job' },
 };
+
+// Helper to create a successful API response
+const okResponse = <T>(data: T): APIResponse<T> => ({
+  success: true,
+  data,
+  timestamp: Date.now(),
+});
 
 const buildApi = () => {
   const knowledge = {
-    parseConcepts: vi.fn().mockResolvedValue({ success: true, data: parsedConceptResult }),
-    ingestConcepts: vi.fn().mockResolvedValue({ success: true, data: { ingested: 1 } }),
+    parseConcepts: vi.fn().mockResolvedValue(okResponse(parsedConceptResult)),
+    ingestConcepts: vi.fn().mockResolvedValue(okResponse({ ingested: 1 })),
+    clearParsingJobs: vi.fn().mockResolvedValue(okResponse({ removed: 0 })),
   };
+  const fileContent =
+    '# Title\n\n## Subtitle\n\n- item one\n- item two\n\n```js\nconst x = 1;\n```\n\nA long paragraph explaining the concept to ensure length is sufficient.';
   const api = {
     knowledge,
-    existsFile: vi.fn().mockResolvedValue(true),
-    readFile: vi.fn().mockResolvedValue(
-      '# Title\n\n## Subtitle\n\n- item one\n- item two\n\n```js\nconst x = 1;\n```\n\nA long paragraph explaining the concept to ensure length is sufficient.',
-    ),
+    existsFile: vi.fn().mockResolvedValue(okResponse(true)),
+    readFile: vi.fn().mockResolvedValue(okResponse(fileContent)),
     readDirectory: vi.fn(),
   };
   return api;
@@ -94,10 +103,12 @@ describe('concept-parsing-service happy paths', () => {
 
   it('handles directory parsing by delegating to file parsing', async () => {
     const api = buildApi();
-    api.readDirectory.mockResolvedValue([
-      { path: '/root/docs', isDirectory: true, isFile: false, isMarkdown: false },
-      { path: '/root/docs/guide.md', isDirectory: false, isFile: true, isMarkdown: true },
-    ]);
+    api.readDirectory.mockResolvedValue(
+      okResponse([
+        { path: '/root/docs', isDirectory: true, isFile: false, isMarkdown: false },
+        { path: '/root/docs/guide.md', isDirectory: false, isFile: true, isMarkdown: true },
+      ]),
+    );
     const service = createConceptParsingService(api as any);
 
     const job = await service.parseDirectories(['/root/docs']);
@@ -116,7 +127,7 @@ describe('concept-parsing-service happy paths', () => {
     api.knowledge.parseConcepts.mockImplementation(
       () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve({ success: true, data: parsedConceptResult }), 5);
+          setTimeout(() => resolve(okResponse(parsedConceptResult)), 5);
         }),
     );
 

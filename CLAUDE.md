@@ -539,9 +539,59 @@ const setupChatHandlers = ({ chatService }) => {
   });
 };
 
-// Renderer process - CONSUME electronAPI
-const response = await window.electronAPI.chat.sendMessage(message);
+// Renderer Service Layer - Always use unwrapAPI for IPC calls
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+
+const chatService = {
+  sendMessage: async (message: string) => {
+    // unwrapAPI extracts {success, data, timestamp} -> returns data directly
+    const response = await unwrapAPI(electronAPI.chat.sendMessage(message));
+    return response;
+  }
+};
+
+// Renderer Components/Adapters - Use services, NOT electronAPI directly
+const MyComponent = () => {
+  const chatService = useService('chatService');
+  // ✅ CORRECT: Use service
+  const response = await chatService.sendMessage(message);
+
+  // ❌ WRONG: Direct electronAPI (bypasses service layer)
+  // const response = await window.electronAPI.chat.sendMessage(message);
+};
 ```
+
+**Renderer Service Layer Pattern:**
+
+All renderer-side code follows a consistent 3-layer architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 1: React UI Components/Adapters                                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+  - Feature components use services via `useService()` hook
+  - Adapters (like useThreadListAdapter) use services via `useService()`
+  - App infrastructure (AppContent, SetupPage) uses electronAPI for lifecycle only
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 2: Service Layer (Business Logic + IPC Unwrapping)                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+  - All services use `unwrapAPI()` for IPC calls
+  - Services return domain types or service result types
+  - Services handle business logic, validation, transformations
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 3: electronAPI (IPC Transport)                                          │
+└─────────────────────────────────────────────────────────────────────────────────┘
+  - Provides IPC methods to main process
+  - Returns ApiResponse<T> = {success, data, timestamp}
+```
+
+**Key Rules:**
+- ✅ Services: Use `unwrapAPI(electronAPI.method())` for all IPC calls
+- ✅ Components/Adapters: Use services via `useService()` - never call electronAPI directly
+- ❌ Adapters: Never call `electronAPI.*()` directly (violates separation of concerns)
+- ⚠️ App Infrastructure: May use electronAPI for lifecycle operations (awaitReady, awaitConfigChange)
 
 ### Critical Rules
 
@@ -551,6 +601,12 @@ const response = await window.electronAPI.chat.sendMessage(message);
 - ✅ All Communication: Through IPC contracts in `@/shared/types/electron-api/`
 - ✅ Service Pattern: Pass dependencies as parameters
 - ✅ Functional Approach: Use factories, NOT classes
+
+**Renderer Service Layer Rules:**
+- ✅ Services: Use `unwrapAPI()` for all IPC calls (extracts data from ApiResponse wrapper)
+- ✅ Components/Adapters: Use services via `useService()` - never call `electronAPI` directly
+- ❌ Adapters: Never call `electronAPI.*()` directly (violates separation of concerns)
+- ⚠️ App Infrastructure: May use electronAPI for lifecycle operations only (awaitReady, awaitConfigChange)
 
 ## 🎯 Development Alignment
 

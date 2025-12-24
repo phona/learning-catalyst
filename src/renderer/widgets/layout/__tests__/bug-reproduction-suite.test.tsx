@@ -15,6 +15,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
 import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
+import { createSessionService } from '@/renderer/services/session/session-service';
+import { createChatService } from '@/renderer/services/chat/chat-service';
 
 // Mock dependencies
 vi.mock('react-router-dom', () => ({
@@ -197,7 +199,7 @@ function getMemoryUsage(): number {
   return Date.now();
 }
 
-// Note: createThreadListAdapter is mocked above
+// Note: createThreadListAdapter now uses services instead of being mocked
 
 describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
   let mockElectronAPI: ReturnType<typeof createMockElectronAPI>;
@@ -205,6 +207,8 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
   let mockSetCurrentView: ReturnType<typeof vi.fn>;
   let mockResetChatState: ReturnType<typeof vi.fn>;
   let adapter: any;
+  let sessionService: ReturnType<typeof createSessionService>;
+  let chatService: ReturnType<typeof createChatService>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -219,8 +223,10 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
     (useAppStore as vi.Mock).mockReturnValue({ setCurrentView: mockSetCurrentView });
     (useChatStore as vi.Mock).mockReturnValue({ resetChatState: mockResetChatState });
 
-    // Use the mocked adapter
-    adapter = createThreadListAdapter();
+    // Create services and adapter using new API
+    sessionService = createSessionService(mockElectronAPI as ElectronAPI);
+    chatService = createChatService(mockElectronAPI as ElectronAPI);
+    adapter = createThreadListAdapter({ sessionService, chatService });
   });
 
   describe('Complete User Journey: First Chat', () => {
@@ -246,10 +252,10 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
         },
       ];
 
-      mockElectronAPI.chat.generateTitle.mockResolvedValueOnce({
-        success: true,
-        data: 'How to learn React?',
-      });
+      // Note: Adapter now uses sessionService.generateAITitle
+      const generateTitleSpy = vi.spyOn(sessionService, 'generateAITitle').mockResolvedValueOnce(
+        'How to learn React?'
+      );
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({ success: true });
 
       await adapter.generateTitle('thread-123', messages);
@@ -258,7 +264,7 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
       await waitForAsync(100);
 
       // STEP 3: Verify title generated and persisted
-      expect(mockElectronAPI.chat.generateTitle).toHaveBeenCalledWith('How to learn React?');
+      expect(generateTitleSpy).toHaveBeenCalledWith('How to learn React?');
       expect(mockElectronAPI.sessions.updateTitle).toHaveBeenCalledWith(
         'thread-123',
         expect.stringContaining('React')
@@ -354,6 +360,15 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
           success: true,
           data: { sessionId: 'retry-session' },
         });
+      // Update get mock to return the retry session ID for consistency
+      mockElectronAPI.sessions.get.mockResolvedValueOnce({
+        success: true,
+        data: {
+          id: 'retry-session',
+          title: 'Test Chat',
+          status: 'active',
+        },
+      });
 
       // ACT - Try to create new chat through adapter
       render(<ThreadListSidebar open={true} />);
@@ -399,9 +414,10 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
     });
 
     it('should: Title generation fails → Fallback to message preview', async () => {
-      // ARRANGE - AI generation fails
-      mockElectronAPI.chat.generateTitle.mockRejectedValueOnce(
-        new Error('AI API down')
+      // ARRANGE - Note: The adapter now uses sessionService.generateAITitle which doesn't throw,
+      // it returns a simple fallback title. So updateTitle WILL be called with the fallback.
+      const generateTitleSpy = vi.spyOn(sessionService, 'generateAITitle').mockResolvedValueOnce(
+        'How do I learn programming?' // fallback simple title
       );
       mockElectronAPI.sessions.updateTitle.mockResolvedValue({ success: true });
 
@@ -419,9 +435,12 @@ describe('🚨 BUG REPRODUCTION: Real-World Scenarios', () => {
       // Wait for stream to complete
       await waitForAsync(100);
 
-      // ASSERT - Should NOT call updateTitle when AI throws error (graceful degradation)
-      // The generateTitle function catches the error and doesn't update
-      expect(mockElectronAPI.sessions.updateTitle).not.toHaveBeenCalled();
+      // ASSERT - Should call updateTitle with the fallback title (graceful degradation)
+      expect(generateTitleSpy).toHaveBeenCalledWith('How do I learn programming?');
+      expect(mockElectronAPI.sessions.updateTitle).toHaveBeenCalledWith(
+        'thread-123',
+        expect.stringContaining('How do I learn')
+      );
     });
   });
 

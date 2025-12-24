@@ -11,6 +11,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ThreadListSidebar } from '@/renderer/widgets/layout/ThreadListSidebar';
 import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
+import { createSessionService } from '@/renderer/services/session/session-service';
+import { createChatService } from '@/renderer/services/chat/chat-service';
 import {
   createMockSession,
   createMockMessages,
@@ -99,6 +101,8 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
   let mockSetCurrentView: ReturnType<typeof vi.fn>;
   let mockResetChatState: ReturnType<typeof vi.fn>;
   let adapter: ReturnType<typeof createThreadListAdapter>;
+  let sessionService: ReturnType<typeof createSessionService>;
+  let chatService: ReturnType<typeof createChatService>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,17 +117,17 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
     (useAppStore as vi.Mock).mockReturnValue({ setCurrentView: mockSetCurrentView });
     (useChatStore as vi.Mock).mockReturnValue({ resetChatState: mockResetChatState });
 
-    adapter = createThreadListAdapter();
+    // Create services and adapter using new API
+    sessionService = createSessionService(mockElectronAPI);
+    chatService = createChatService(mockElectronAPI);
+    adapter = createThreadListAdapter({ sessionService, chatService });
   });
 
   describe('Title Generation Flow', () => {
     it('should generate AI title after first message is sent', async () => {
-      // ARRANGE
-      const mockGenerateTitle = vi.fn().mockResolvedValue({
-        success: true,
-        data: 'How to learn JavaScript?',
-      });
-      mockElectronAPI.chat.generateTitle = mockGenerateTitle;
+      // ARRANGE - Spy on sessionService.generateAITitle since the adapter now uses the service layer
+      const mockGenerateTitle = vi.fn().mockResolvedValue('How to learn JavaScript?');
+      vi.spyOn(sessionService, 'generateAITitle').mockImplementation(mockGenerateTitle);
 
       // ACT - Simulate title generation
       const messages = [
@@ -137,7 +141,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
       const titleStream = adapter.generateTitle('thread-123', messages);
       expect(titleStream).toBeDefined();
 
-      // ASSERT - Title should be generated
+      // ASSERT - Title should be generated via sessionService
       expect(mockGenerateTitle).toHaveBeenCalledWith('How to learn JavaScript?');
     });
 

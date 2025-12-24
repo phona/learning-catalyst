@@ -5,8 +5,23 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createFileService } from '../file-service';
 import type { ElectronAPI } from '@/shared/types';
+import type { APIResponse } from '@/shared/types/electron-api/base';
 
-// Mock electronAPI
+// Helper to create a successful API response
+const okResponse = <T>(data: T): APIResponse<T> => ({
+  success: true,
+  data,
+  timestamp: Date.now(),
+});
+
+// Helper to create a failed API response
+const failResponse = (message: string, code = 'ERROR'): APIResponse<never> => ({
+  success: false,
+  error: { message, code },
+  timestamp: Date.now(),
+});
+
+// Mock electronAPI with proper APIResponse return types
 const mockElectronAPI: Partial<ElectronAPI> = {
   showOpenDialog: vi.fn(),
   showSaveDialog: vi.fn(),
@@ -26,7 +41,7 @@ describe('FileService', () => {
   describe('showOpenDialog', () => {
     it('should successfully open dialog', async () => {
       const mockResult = { canceled: false, filePaths: ['/path/to/file.txt'] };
-      vi.mocked(mockElectronAPI.showOpenDialog!).mockResolvedValue(mockResult);
+      vi.mocked(mockElectronAPI.showOpenDialog!).mockResolvedValue(mockResult as any);
 
       const result = await fileService.showOpenDialog();
 
@@ -36,7 +51,7 @@ describe('FileService', () => {
 
     it('should merge defaults with provided options', async () => {
       const mockResult = { canceled: false, filePaths: ['/path/to/dir'] };
-      vi.mocked(mockElectronAPI.showOpenDialog!).mockResolvedValue(mockResult);
+      vi.mocked(mockElectronAPI.showOpenDialog!).mockResolvedValue(mockResult as any);
 
       const options = {
         properties: ['openDirectory', 'multiSelections'] as Array<
@@ -68,7 +83,7 @@ describe('FileService', () => {
   describe('readFile', () => {
     it('should successfully read and validate file', async () => {
       const mockContent = 'Hello, World!';
-      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(mockContent);
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(okResponse(mockContent) as any);
 
       const result = await fileService.readFile('/path/to/file.txt');
 
@@ -86,7 +101,7 @@ describe('FileService', () => {
 
     it('should sanitize content', async () => {
       const maliciousContent = '<script>alert("xss")</script>';
-      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(maliciousContent);
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(okResponse(maliciousContent) as any);
 
       const result = await fileService.readFile('/path/to/file.txt');
 
@@ -96,7 +111,7 @@ describe('FileService', () => {
 
     it('should handle file too large', async () => {
       const largeContent = 'x'.repeat(60000); // Exceeds 50KB limit
-      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(largeContent);
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(okResponse(largeContent) as any);
 
       const result = await fileService.readFile('/path/to/large.txt');
 
@@ -105,7 +120,7 @@ describe('FileService', () => {
     });
 
     it('returns error for non-string content and read failure', async () => {
-      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(123 as any);
+      vi.mocked(mockElectronAPI.readFile!).mockResolvedValue(okResponse(123 as any) as any);
       let result = await fileService.readFile('/path/to/file.txt');
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('INVALID_CONTENT_TYPE');
@@ -119,7 +134,7 @@ describe('FileService', () => {
 
   describe('writeFile', () => {
     it('should successfully write file', async () => {
-      vi.mocked(mockElectronAPI.writeFile!).mockResolvedValue(undefined);
+      vi.mocked(mockElectronAPI.writeFile!).mockResolvedValue(okResponse(undefined) as any);
 
       const result = await fileService.writeFile('/path/to/file.txt', 'Hello, World!');
 
@@ -151,7 +166,7 @@ describe('FileService', () => {
 
   describe('existsFile', () => {
     it('should successfully check file existence', async () => {
-      vi.mocked(mockElectronAPI.existsFile!).mockResolvedValue(true);
+      vi.mocked(mockElectronAPI.existsFile!).mockResolvedValue(okResponse(true) as any);
 
       const result = await fileService.existsFile('/path/to/file.txt');
 
@@ -170,7 +185,7 @@ describe('FileService', () => {
   describe('showSaveDialog', () => {
     it('should successfully open save dialog', async () => {
       const mockResult = { canceled: false, filePath: '/path/to/save.txt' };
-      vi.mocked(mockElectronAPI.showSaveDialog!).mockResolvedValue(mockResult);
+      vi.mocked(mockElectronAPI.showSaveDialog!).mockResolvedValue(mockResult as any);
 
       const result = await fileService.showSaveDialog();
 
@@ -180,7 +195,7 @@ describe('FileService', () => {
 
     it('should pass through provided options', async () => {
       const mockResult = { canceled: false, filePath: '/path/to/save.txt' };
-      vi.mocked(mockElectronAPI.showSaveDialog!).mockResolvedValue(mockResult);
+      vi.mocked(mockElectronAPI.showSaveDialog!).mockResolvedValue(mockResult as any);
 
       const options = { defaultPath: '/path/to/default.txt', title: 'Save As' };
       const result = await fileService.showSaveDialog(options);

@@ -1,5 +1,5 @@
 import type { ElectronAPI } from '../../../shared/types/electron-api';
-import type { PracticeOpportunityResult } from '../../../shared/types/electron-api/chat-api';
+import type { PracticeOpportunityResult, ChatHistoryMessage } from '../../../shared/types/electron-api/chat-api';
 import type { AgentDisplay } from '../../../shared/types/electron-api/agent-api';
 import type { SessionDisplay } from '../../../shared/types/electron-api/sessions-api';
 import type { Message, StreamChunk } from '../../../shared/types/ai';
@@ -51,6 +51,7 @@ export interface ChatService {
   getAvailableAgents?: () => Promise<AgentDisplay[]>;
   cancelExecution?: (executionId: string) => Promise<void>;
   getProviderInfo?: () => { name?: string; provider?: string } | null;
+  getMessages?: (threadId: string, options?: { limit?: number; offset?: number }) => Promise<ChatHistoryMessage[]>;
 }
 
 /**
@@ -313,6 +314,15 @@ export const createChatService = (apiClient: ElectronAPI, options?: ChatServiceO
     }
   };
 
+  const getMessages = async (
+    threadId: string,
+    options?: { limit?: number; offset?: number },
+  ): Promise<ChatHistoryMessage[]> => {
+    // Use unwrapAPI for consistent IPC error handling
+    const result = await unwrapAPI(apiClient.chat.getMessages(threadId, options));
+    return result.sessions || [];
+  };
+
   return {
     sendMessage,
     sendMessageStream,
@@ -324,5 +334,6 @@ export const createChatService = (apiClient: ElectronAPI, options?: ChatServiceO
     getAvailableAgents,
     cancelExecution,
     getProviderInfo,
+    getMessages,
   };
 };

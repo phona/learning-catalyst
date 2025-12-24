@@ -69,6 +69,9 @@ import {
 } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
+import type { SessionService } from '@/renderer/services/session/session-service';
+import type { ChatService } from '@/renderer/services/chat/chat-service';
+import { createChatService } from '@/renderer/services/chat/chat-service';
 import type { ElectronAPI } from '@/shared/types';
 import { useElectronAPI, unwrapAPI } from './useElectronAPI';
 
@@ -82,11 +85,11 @@ import { useElectronAPI, unwrapAPI } from './useElectronAPI';
  *
  * ADAPTER PATTERN:
  * - Assistant UI calls adapter methods when it needs thread operations
- * - We implement the interface with our SQLite-backed persistence
+ * - We implement the interface with our service layer for clean architecture
  * - Adapter is scoped to the CURRENT thread (via useAssistantApi in provider)
  *
  * TWO METHODS:
- * 1. load(): Fetches message history from SQLite -> ExportedMessageRepository
+ * 1. load(): Fetches message history from SQLite via chatService -> ExportedMessageRepository
  *    - Used by runtimes that import ThreadMessage history directly
  *    - Note: when using the AI SDK runtime, history is loaded via withFormat("ai-sdk/v5") instead
  *    - Returns ExportedMessageRepository: { messages: [...] }
@@ -102,9 +105,8 @@ import { useElectronAPI, unwrapAPI } from './useElectronAPI';
  * - threadState.remoteId = SQLite session ID for fetching messages
  * - New threads have no remoteId (haven't been saved yet)
  */
-function useThreadHistoryAdapter(): ThreadHistoryAdapter {
+function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter {
   const store = useAssistantApi();
-  const api = useElectronAPI();
 
   return useMemo(
     () => ({
@@ -124,16 +126,17 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
         }
 
         try {
-          const response = await unwrapAPI(api.chat.getMessages(remoteId));
+          // Use chatService.getMessages() instead of direct API call
+          const sessions = (await chatService.getMessages?.(remoteId)) ?? [];
 
           // Handle empty responses gracefully
-          if (!response || !response.sessions) {
+          if (!sessions || sessions.length === 0) {
             return { messages: [] };
           }
 
           // Convert SQLite message format to Assistant UI's ExportedMessageRepository format
           // Each message needs: message object, parentId for threading
-          const messages = response.sessions.map(
+          const messages = sessions.map(
             (msg: ChatHistoryMessage, idx: number, arr: ChatHistoryMessage[]) => ({
               message: {
                 id: msg.id,
@@ -170,7 +173,11 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
         return {
           async load(): Promise<MessageFormatRepository<TMessage>> {
             const { remoteId } = store.threadListItem().getState();
-            console.log('[ThreadHistoryAdapter.load] Called with format:', formatAdapter.format, remoteId);
+            console.log(
+              '[ThreadHistoryAdapter.load] Called with format:',
+              formatAdapter.format,
+              remoteId,
+            );
             if (!remoteId) return { messages: [] };
 
             // We only store plain text messages today, so we can only synthesize
@@ -181,8 +188,8 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
               );
             }
 
-            const response = await unwrapAPI(api.chat.getMessages(remoteId));
-            const sessions = response?.sessions ?? [];
+            // Use chatService.getMessages() instead of direct API call
+            const sessions = (await chatService.getMessages?.(remoteId)) ?? [];
             console.log('[ThreadHistoryAdapter.load] sessions:', sessions);
             if (sessions.length === 0) return { messages: [] };
 
@@ -209,7 +216,7 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
         };
       },
     }),
-    [store, api],
+    [store, chatService],
   );
 }
 
@@ -223,8 +230,11 @@ function useThreadHistoryAdapter(): ThreadHistoryAdapter {
  * `useExternalHistory()` hook will call `history.withFormat("ai-sdk/v5").load()`
  * and hydrate the AI SDK message store so the <Thread /> UI renders.
  */
-export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
-  const history = useThreadHistoryAdapter();
+export const ThreadHistoryProvider: FC<PropsWithChildren<{ chatService: ChatService }>> = ({
+  children,
+  chatService,
+}) => {
+  const history = useThreadHistoryAdapter(chatService);
   const adapters = useMemo(() => ({ history }), [history]);
 
   return <RuntimeAdapterProvider adapters={adapters}>{children}</RuntimeAdapterProvider>;
@@ -257,44 +267,52 @@ export const ThreadHistoryProvider: FC<PropsWithChildren> = ({ children }) => {
  * - Enables per-thread history loading context
  * - See ThreadHistoryProvider documentation for details
  */
-type WindowWithElectronAPI = Window & { electronAPI?: ElectronAPI };
 
 /**
- * Factory for the thread-list adapter. In production we inject `api` explicitly
- * from the hook; in tests we fall back to `window.electronAPI`.
+ * Factory for the thread-list adapter. Accepts services for clean architecture.
+ *
+ * NEW API (recommended): Pass services for clean architecture
+ *   createThreadListAdapter({ sessionService, chatService })
+ *
+ * OLD API (deprecated, for backward compatibility): Pass ElectronAPI or nothing
+ *   createThreadListAdapter(api)
+ *   createThreadListAdapter()
+ *
+ * - Uses sessionService for thread CRUD operations
+ * - Uses chatService for title generation
+ * - Provides chatService to ThreadHistoryProvider for message loading
  */
-export function createThreadListAdapter(
-  api: ReturnType<typeof useElectronAPI> | ElectronAPI | undefined = undefined,
-): RemoteThreadListAdapter {
-  const resolvedApi =
-    api ??
-    (typeof window !== 'undefined' ? (window as WindowWithElectronAPI).electronAPI : undefined);
-
-  if (!resolvedApi) {
-    throw new Error('Electron API is unavailable; pass api explicitly or set window.electronAPI.');
-  }
-
+export function createThreadListAdapter(deps: {
+  sessionService: SessionService;
+  chatService: ChatService;
+}): RemoteThreadListAdapter {
+  const { sessionService, chatService } = deps;
   return {
     /**
      * List all threads from SQLite learning_sessions table.
      * Returns empty list on error for graceful degradation.
      */
     async list() {
-      const data = await unwrapAPI(resolvedApi.sessions.list({ limit: 100 }));
-      const sessions = Array.isArray(data?.sessions) ? data.sessions : [];
-      if (sessions.length === 0) {
+      try {
+        const data = await sessionService.listSessions({ limit: 100 });
+        const sessions = data.sessions || [];
+        if (sessions.length === 0) {
+          return { threads: [] };
+        }
+        return {
+          threads: sessions.map(
+            (session: { id: string; status?: string; title?: string; topic?: string }) => ({
+              remoteId: session.id,
+              externalId: session.id,
+              status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
+              title: session.title || session.topic || 'New Chat',
+            }),
+          ),
+        };
+      } catch (error) {
+        console.error('[ThreadListAdapter.list] Error:', error);
         return { threads: [] };
       }
-      return {
-        threads: sessions.map(
-          (session: { id: string; status?: string; title?: string; topic?: string }) => ({
-            remoteId: session.id,
-            externalId: session.id,
-            status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
-            title: session.title || session.topic || 'New Chat',
-          }),
-        ),
-      };
     },
 
     /**
@@ -304,35 +322,32 @@ export function createThreadListAdapter(
      */
     async initialize(localId: string) {
       console.log('[ThreadListAdapter.initialize] Called with localId:', localId);
-      const result = await unwrapAPI(
-        resolvedApi.sessions.create({ title: 'New Chat', threadId: localId }),
-      );
-      const { sessionId } = result ?? {};
-      if (!sessionId) {
+      const result = await sessionService.createSession({ title: 'New Chat', threadId: localId });
+      if (!result?.id) {
         throw new Error('Session ID missing from creation response.');
       }
-      console.log('[ThreadListAdapter.initialize] Created session with sessionId:', sessionId);
-      return { remoteId: sessionId, externalId: sessionId };
+      console.log('[ThreadListAdapter.initialize] Created session with sessionId:', result.id);
+      return { remoteId: result.id, externalId: result.id };
     },
 
     /** Rename a thread's title in SQLite. */
     async rename(remoteId: string, title: string) {
-      await unwrapAPI(resolvedApi.sessions.updateTitle(remoteId, title));
+      await sessionService.updateSessionTitle(remoteId, title);
     },
 
     /** Archive a thread by setting status to 'completed'. */
     async archive(remoteId: string) {
-      await unwrapAPI(resolvedApi.sessions.update(remoteId, { status: 'completed' }));
+      await sessionService.updateSession(remoteId, { status: 'completed' });
     },
 
     /** Unarchive a thread by setting status back to 'active'. */
     async unarchive(remoteId: string) {
-      await unwrapAPI(resolvedApi.sessions.update(remoteId, { status: 'active' }));
+      await sessionService.updateSession(remoteId, { status: 'active' });
     },
 
     /** Permanently delete a thread from SQLite. */
     async delete(remoteId: string) {
-      await unwrapAPI(resolvedApi.sessions.delete(remoteId));
+      await sessionService.deleteSession(remoteId);
     },
 
     /**
@@ -354,12 +369,12 @@ export function createThreadListAdapter(
         if (!textContent) return;
 
         try {
-          const title = await unwrapAPI(resolvedApi.chat.generateTitle(textContent));
+          const title = await sessionService.generateAITitle(textContent);
           // Handle null, undefined, or empty title
           const safeTitle = title ?? '';
           const finalTitle = safeTitle.length > 47 ? safeTitle.slice(0, 47) + '...' : safeTitle;
           if (finalTitle) {
-            await unwrapAPI(resolvedApi.sessions.updateTitle(remoteId, finalTitle));
+            await sessionService.updateSessionTitle(remoteId, finalTitle);
           }
         } catch (error) {
           // Silently fail on title generation errors - UI will show "New Chat"
@@ -374,9 +389,14 @@ export function createThreadListAdapter(
     async fetch(threadId: string) {
       console.log('[ThreadListAdapter.fetch] Called with threadId:', threadId);
       try {
-        const session = await unwrapAPI(resolvedApi.sessions.get(threadId));
+        const session = await sessionService.getSession(threadId);
         if (!session) {
-          return { status: 'regular' as const, remoteId: threadId, externalId: threadId, title: 'New Chat' };
+          return {
+            status: 'regular' as const,
+            remoteId: threadId,
+            externalId: threadId,
+            title: 'New Chat',
+          };
         }
         return {
           status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
@@ -385,11 +405,18 @@ export function createThreadListAdapter(
           title: session.title || session.topic || 'New Chat',
         };
       } catch {
-        return { status: 'regular' as const, remoteId: threadId, externalId: threadId, title: 'New Chat' };
+        return {
+          status: 'regular' as const,
+          remoteId: threadId,
+          externalId: threadId,
+          title: 'New Chat',
+        };
       }
     },
 
     /** Provider component that wraps each thread to enable history loading. */
-    unstable_Provider: ThreadHistoryProvider,
+    unstable_Provider: (props: { children?: React.ReactNode }) => (
+      <ThreadHistoryProvider {...props} chatService={chatService} />
+    ),
   };
 }

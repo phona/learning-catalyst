@@ -53,7 +53,7 @@ describe('session-service', () => {
   it('searches sessions and handles missing fields', async () => {
     const api = createMockElectronAPI({
       sessions: {
-        searchSessions: async () => [],
+        searchSessions: async () => ok([]),
       } as any,
     });
     const svc = createSessionService(api as ElectronAPI);
@@ -66,10 +66,7 @@ describe('session-service', () => {
     const api = createMockElectronAPI({
       sessions: {
         list: async () => fail('bad'),
-        searchSessions: async () => {
-          // searchSessions returns Promise<SessionDisplay[]>, so it should throw directly
-          throw new Error('worse');
-        },
+        searchSessions: async () => fail('worse'),
       } as any,
     });
     const svc = createSessionService(api as ElectronAPI);
@@ -90,7 +87,7 @@ describe('session-service', () => {
     const api = createMockElectronAPI({
       sessions: {
         getRecentSessions: async () => ok(recentSessions),
-        getGlobalStatistics: async () => statistics,
+        getGlobalStatistics: async () => ok(statistics),
       } as any,
     });
     const svc = createSessionService(api as ElectronAPI);
