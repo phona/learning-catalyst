@@ -1,3 +1,14 @@
+/**
+ * Concept Parsing IPC Handlers
+ *
+ * Handles knowledge concept parsing operations including material
+ * ingestion, job management, and parsing result retrieval.
+ *
+ * NOTE: All handlers return raw data. The ipc-main-proxy wraps responses in APIResponse<T> format.
+ * - Return raw objects: { success, concepts, relationships, ... }
+ * - Throw errors directly: throw new Error('message')
+ * - No createSuccessResponse/createErrorResponse wrappers needed
+ */
 import { ipcMain } from 'electron';
 import type { ILogger } from '../services/types';
 import type {
@@ -5,8 +16,6 @@ import type {
   ConceptParsingService,
   ConceptParsingSettings,
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
-import type { APIResponse } from '@/shared/types/electron-api';
-import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 import type { ConfigService } from '../services/core/config/config-service';
 
 type ConceptParsingFilePayload = {
@@ -112,86 +121,38 @@ export const setupConceptParsingHandlers = (
   ipcMainInstance.handle(
     'knowledge:parse-concepts',
     async (_event, params: ConceptParsingHandlerParams) => {
-      try {
-        const files = params.files ?? [];
-        handlerLogger.info('Handling concept parsing request', {
-          files: files.length,
-          userId: params.userId,
-        });
+      const files = params.files ?? [];
+      handlerLogger.info('Handling concept parsing request', {
+        files: files.length,
+        userId: params.userId,
+      });
 
-        const materials = files.map((file, index) => normalizeMaterial(file, index));
-        const hasInlineContent =
-          params.content !== undefined && params.content !== null && params.content !== '';
-        if (hasInlineContent) {
-          materials.push({
-            id: params.materialId ?? `inline-${Date.now()}`,
-            title: params.materialId ?? 'inline-content',
-            content: params.content ?? '',
-            format: 'text',
-          });
-        }
-
-        const settings = await buildParsingSettings(params, services.configService);
-        const result = await services.conceptParsingService.parseMaterials(materials, settings);
-        handlerLogger.info('Concept parsing completed', {
-          success: result.success,
-          concepts: result.concepts.length,
-          relationships: result.relationships.length,
+      const materials = files.map((file, index) => normalizeMaterial(file, index));
+      const hasInlineContent =
+        params.content !== undefined && params.content !== null && params.content !== '';
+      if (hasInlineContent) {
+        materials.push({
+          id: params.materialId ?? `inline-${Date.now()}`,
+          title: params.materialId ?? 'inline-content',
+          content: params.content ?? '',
+          format: 'text',
         });
-        return result;
-      } catch (error) {
-        handlerLogger.error('Concept parsing failed', {
-          message: error instanceof Error ? error.message : String(error),
-          name: error instanceof Error ? error.name : 'Error',
-          stack: error instanceof Error ? error.stack : undefined,
-        });
-
-        return {
-          success: false,
-          error: {
-            type: 'SYSTEM_ERROR',
-            code: 'knowledge.parse_failed',
-            message: 'Unable to parse concepts',
-            details: error instanceof Error
-              ? {
-                message: error.message,
-                name: error.name,
-                stack: error.stack,
-              }
-              : { message: String(error) },
-          },
-        };
       }
+
+      const settings = await buildParsingSettings(params, services.configService);
+      const result = await services.conceptParsingService.parseMaterials(materials, settings);
+      handlerLogger.info('Concept parsing completed', {
+        success: result.success,
+        concepts: result.concepts.length,
+        relationships: result.relationships.length,
+      });
+      return result;
     },
   );
 
   ipcMainInstance.handle('knowledge:clear-parsing-jobs', async () => {
-    try {
-      const result = await services.conceptParsingService.clearJobCache();
-      handlerLogger.info('Cleared parsing job cache', result);
-      return result;
-    } catch (error) {
-      handlerLogger.error('Failed to clear parsing job cache', {
-        message: error instanceof Error ? error.message : String(error),
-        name: error instanceof Error ? error.name : 'Error',
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
-      return {
-        success: false,
-        error: {
-          type: 'SYSTEM_ERROR',
-          code: 'knowledge.parse_failed',
-          message: 'Unable to clear parsing cache',
-          details: error instanceof Error
-            ? {
-              message: error.message,
-              name: error.name,
-              stack: error.stack,
-            }
-            : { message: String(error) },
-        },
-      };
-    }
+    const result = await services.conceptParsingService.clearJobCache();
+    handlerLogger.info('Cleared parsing job cache', result);
+    return result;
   });
 };

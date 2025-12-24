@@ -363,40 +363,37 @@ Agent System:
 
 ### IPC Handler Pattern
 
+**IMPORTANT:** All handlers must return raw data. The `ipc-main-proxy` automatically wraps responses in `APIResponse<T>` format. Do not manually wrap responses.
+
 ```typescript
 // src/main/handlers/chat-handlers.ts
 import { ipcMain } from 'electron';
 
-export function setupChatHandlers({ chatService }: Dependencies) {
-  // Send message
+/**
+ * Chat IPC Handlers
+ *
+ * NOTE: All handlers return raw data. The ipc-main-proxy wraps responses.
+ * - Return raw objects: result, { data }
+ * - Throw errors directly: throw new Error('message')
+ * - No manual { success, data } wrapping needed
+ */
+export function setupChatHandlers({ chatService, loggerService }: Dependencies) {
+  const logger = loggerService.child({ handler: 'chat' });
+
+  // Send message - return raw data, proxy wraps it
   ipcMain.handle('chat:sendMessage', async (event, message: string, sessionId?: string) => {
-    try {
-      const result = await chatService.sendMessage(message, sessionId);
-      return { success: true, data: result };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'CHAT_ERROR',
-          message: error.message,
-        },
-      };
-    }
+    const result = await chatService.sendMessage(message, sessionId);
+    return result;  // Raw return - proxy adds { success: true, data: result }
   });
 
-  // Get history
+  // Get history - optional try-catch for logging
   ipcMain.handle('chat:getHistory', async (event, sessionId: string) => {
     try {
       const history = await chatService.getHistory(sessionId);
-      return { success: true, data: history };
+      return history;  // Raw return - proxy wraps it
     } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'HISTORY_ERROR',
-          message: error.message,
-        },
-      };
+      logger.error('chat:getHistory failed', { sessionId, error });
+      throw error;  // Re-throw - proxy catches and wraps as error response
     }
   });
 }

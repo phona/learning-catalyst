@@ -205,8 +205,8 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       );
 
       // Verify session ID matches Assistant UI's threadId
-      expect(sessionResponse.data.sessionId).toBe(assistantUIThreadId);
-      expect(sessionResponse.data.session.id).toBe(assistantUIThreadId);
+      expect(sessionResponse.sessionId).toBe(assistantUIThreadId);
+      expect(sessionResponse.session.id).toBe(assistantUIThreadId);
 
       console.log('✅ Step 1: Assistant UI threadId =', assistantUIThreadId);
       console.log('✅ Step 2: sessions:create passed threadId to learningService');
@@ -260,7 +260,7 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
 
       // Step 1: Get session
       const sessionResponse = await getHandler('sessions:get')(null, sessionId);
-      expect(sessionResponse.success).toBe(true);
+      expect(sessionResponse.id).toBe(sessionId);
 
       // Step 2: Get messages (what Assistant UI does)
       const messagesResponse = await getHandler('chat:get-messages')(null, sessionId);
@@ -269,8 +269,8 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       expect(services.chatService.getMessages).toHaveBeenCalledWith(sessionId);
 
       // Verify messages were retrieved
-      expect(messagesResponse.data.sessions).toHaveLength(1);
-      expect(messagesResponse.data.sessions[0].content).toBe('Hello');
+      expect(messagesResponse.sessions).toHaveLength(1);
+      expect(messagesResponse.sessions[0].content).toBe('Hello');
 
       console.log('✅ Step 1: chat:get-messages called with sessionId =', sessionId);
       console.log('✅ Step 2: chatService.getMessages queried using sessionId');
@@ -339,14 +339,14 @@ describe('Session ↔ Checkpoint Data Flow Integration', () => {
       const messagesResponse = await getHandler('chat:get-messages')(null, consistentId);
 
       // Verify all use same ID
-      expect(createResponse.data.sessionId).toBe(consistentId);
-      expect(getResponse.data.id).toBe(consistentId);
+      expect(createResponse.sessionId).toBe(consistentId);
+      expect(getResponse.id).toBe(consistentId);
       expect(services.chatService.getMessages).toHaveBeenCalledWith(consistentId);
 
       console.log('\n=== ID Consistency Check ===');
       console.log('Assistant UI threadId:', consistentId);
-      console.log('sessions:create returned:', createResponse.data.sessionId);
-      console.log('sessions:get returned:', getResponse.data.id);
+      console.log('sessions:create returned:', createResponse.sessionId);
+      console.log('sessions:get returned:', getResponse.id);
       console.log('chat:get-messages queried:', consistentId);
       console.log('✅ All IDs match!\n');
     });

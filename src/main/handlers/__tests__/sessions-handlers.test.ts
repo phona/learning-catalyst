@@ -128,9 +128,8 @@ describe('sessions handlers', () => {
         title: undefined,
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.sessionId).toBe('session-123');
-      expect(response.data.session.topic).toBe('New Chat');
+      expect(response.sessionId).toBe('session-123');
+      expect(response.session.topic).toBe('New Chat');
       expect(learningService.startLearningSession).toHaveBeenCalledWith({
         topic: 'New Chat',
         goals: [],
@@ -145,8 +144,7 @@ describe('sessions handlers', () => {
         title: 'Custom Thread',
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.session.topic).toBe('Custom Thread');
+      expect(response.session.topic).toBe('Custom Thread');
     });
 
     it('creates session with threadId parameter', async () => {
@@ -155,21 +153,17 @@ describe('sessions handlers', () => {
         threadId: 'thread-123',
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.session.topic).toBe('Thread with ID');
+      expect(response.session.topic).toBe('Thread with ID');
     });
 
-    it('returns error on service failure', async () => {
+    it('throws on service failure', async () => {
       learningService.startLearningSession.mockRejectedValueOnce(
         new Error('Service error'),
       );
 
-      const response = await getHandler('sessions:create')(null, {
+      await expect(getHandler('sessions:create')(null, {
         title: 'Test',
-      });
-
-      expect(response.success).toBe(false);
-      expect(response.error.code).toBe('sessions.create_failed');
+      })).rejects.toThrow('Service error');
     });
   });
 
@@ -177,16 +171,12 @@ describe('sessions handlers', () => {
     it('retrieves session by ID', async () => {
       const response = await getHandler('sessions:get')(null, 'session-123');
 
-      expect(response.success).toBe(true);
-      expect(response.data.id).toBe('session-123');
-      expect(response.data.title).toBe('Test Session');
+      expect(response.id).toBe('session-123');
+      expect(response.title).toBe('Test Session');
     });
 
-    it('returns error for non-existent session', async () => {
-      const response = await getHandler('sessions:get')(null, 'session-missing');
-
-      expect(response.success).toBe(false);
-      expect(response.error.code).toBe('sessions.not_found');
+    it('throws for non-existent session', async () => {
+      await expect(getHandler('sessions:get')(null, 'session-missing')).rejects.toThrow('Session not found');
     });
   });
 
@@ -197,10 +187,9 @@ describe('sessions handlers', () => {
         offset: 0,
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.sessions).toHaveLength(3);
-      expect(response.data.total).toBe(3);
-      expect(response.data.hasMore).toBe(false);
+      expect(response.sessions).toHaveLength(3);
+      expect(response.total).toBe(3);
+      expect(response.hasMore).toBe(false);
     });
 
     it('returns sessions with correct format', async () => {
@@ -209,7 +198,7 @@ describe('sessions handlers', () => {
         offset: 0,
       });
 
-      expect(response.data.sessions[0]).toEqual({
+      expect(response.sessions[0]).toEqual({
         id: 'session-1',
         title: 'Test Session 1',
         topic: 'Test Session 1',
@@ -249,8 +238,7 @@ describe('sessions handlers', () => {
         title: 'Updated Title',
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.title).toBe('Updated Title');
+      expect(response.title).toBe('Updated Title');
       expect(learningService.updateSession).toHaveBeenCalledWith('session-123', {
         title: 'Updated Title',
         status: undefined,
@@ -262,23 +250,19 @@ describe('sessions handlers', () => {
         status: 'completed',
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.status).toBe('completed');
+      expect(response.status).toBe('completed');
       expect(learningService.updateSession).toHaveBeenCalledWith('session-123', {
         title: undefined,
         status: 'completed',
       });
     });
 
-    it('returns error for non-existent session', async () => {
+    it('throws for non-existent session', async () => {
       learningService.updateSession.mockResolvedValueOnce(null);
 
-      const response = await getHandler('sessions:update')(null, 'session-missing', {
+      await expect(getHandler('sessions:update')(null, 'session-missing', {
         title: 'New Title',
-      });
-
-      expect(response.success).toBe(false);
-      expect(response.error.code).toBe('sessions.not_found');
+      })).rejects.toThrow('Session not found');
     });
   });
 
@@ -286,16 +270,14 @@ describe('sessions handlers', () => {
     it('deletes session successfully', async () => {
       const response = await getHandler('sessions:delete')(null, 'session-123');
 
-      expect(response.success).toBe(true);
-      expect(response.data.deleted).toBe(true);
+      expect(response.deleted).toBe(true);
       expect(learningService.deleteSession).toHaveBeenCalledWith('session-123');
     });
 
     it('returns deleted: false for non-existent session', async () => {
       const response = await getHandler('sessions:delete')(null, 'session-missing');
 
-      expect(response.success).toBe(true);
-      expect(response.data.deleted).toBe(false);
+      expect(response.deleted).toBe(false);
     });
   });
 
@@ -303,24 +285,21 @@ describe('sessions handlers', () => {
     it('updates session title', async () => {
       const response = await getHandler('sessions:update-title')(null, 'session-123', 'New Title');
 
-      expect(response.success).toBe(true);
+      expect(response).toBeUndefined();
       expect(learningService.updateSessionTitle).toHaveBeenCalledWith(
         'session-123',
         'New Title',
       );
     });
 
-    it('returns error for non-existent session', async () => {
+    it('throws for non-existent session', async () => {
       learningService.updateSessionTitle.mockResolvedValueOnce(false);
 
-      const response = await getHandler('sessions:update-title')(
+      await expect(getHandler('sessions:update-title')(
         null,
         'session-missing',
         'New Title',
-      );
-
-      expect(response.success).toBe(false);
-      expect(response.error.code).toBe('sessions.not_found');
+      )).rejects.toThrow('Session not found');
     });
   });
 
@@ -328,15 +307,14 @@ describe('sessions handlers', () => {
     it('returns recent sessions with default limit', async () => {
       const response = await getHandler('sessions:get-recent')(null, {});
 
-      expect(response.success).toBe(true);
-      expect(response.data).toHaveLength(3);
+      expect(response).toHaveLength(3);
       expect(learningService.getRecentSessions).toHaveBeenCalledWith({ limit: 10 });
     });
 
     it('returns recent sessions with custom limit', async () => {
       const response = await getHandler('sessions:get-recent')(null, { limit: 5 });
 
-      expect(response.success).toBe(true);
+      expect(response).toHaveLength(3);
       expect(learningService.getRecentSessions).toHaveBeenCalledWith({ limit: 5 });
     });
   });
@@ -364,10 +342,9 @@ describe('sessions handlers', () => {
         query: 'python',
       });
 
-      expect(response.success).toBe(true);
-      expect(response.data.sessions).toHaveLength(1);
-      expect(response.data.total).toBe(1);
-      expect(response.data.query).toBe('python');
+      expect(response.sessions).toHaveLength(1);
+      expect(response.total).toBe(1);
+      expect(response.query).toBe('python');
     });
 
     it('searches sessions with filters', async () => {
@@ -392,11 +369,10 @@ describe('sessions handlers', () => {
 
       const response = await getHandler('sessions:get-statistics')(null);
 
-      expect(response.success).toBe(true);
-      expect(response.data.totalSessions).toBe(10);
-      expect(response.data.totalMessages).toBe(100);
-      expect(response.data.averageSessionDuration).toBe(300);
-      expect(response.data.totalTokensUsed).toBe(0);
+      expect(response.totalSessions).toBe(10);
+      expect(response.totalMessages).toBe(100);
+      expect(response.averageSessionDuration).toBe(300);
+      expect(response.totalTokensUsed).toBe(0);
     });
   });
 

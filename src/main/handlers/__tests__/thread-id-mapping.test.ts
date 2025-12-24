@@ -97,14 +97,13 @@ describe('Thread ID Mapping', () => {
         })
       );
 
-      expect(response.success).toBe(true);
-      expect(response.data.sessionId).toBe(assistantUIThreadId);
-      expect(response.data.session.id).toBe(assistantUIThreadId);
+      expect(response.sessionId).toBe(assistantUIThreadId);
+      expect(response.session.id).toBe(assistantUIThreadId);
 
       console.log('✅ threadId flows correctly:');
       console.log('  Assistant UI threadId:', assistantUIThreadId);
       console.log('  learningService called with sessionId:', assistantUIThreadId);
-      console.log('  Response sessionId:', response.data.sessionId);
+      console.log('  Response sessionId:', response.sessionId);
     });
 
     it('should use provided threadId as sessionId in database', async () => {
@@ -136,13 +135,12 @@ describe('Thread ID Mapping', () => {
       });
 
       // Verify
-      expect(response.success).toBe(true);
-      expect(response.data.sessionId).toBe(customThreadId);
-      expect(response.data.session.id).toBe(customThreadId);
+      expect(response.sessionId).toBe(customThreadId);
+      expect(response.session.id).toBe(customThreadId);
 
       console.log('✅ Custom threadId used correctly:');
       console.log('  Input threadId:', customThreadId);
-      console.log('  Database sessionId:', response.data.sessionId);
+      console.log('  Database sessionId:', response.sessionId);
     });
   });
 
@@ -181,9 +179,8 @@ describe('Thread ID Mapping', () => {
         expect.objectContaining({ sessionId: testThreadId })
       );
 
-      expect(response.success).toBe(true);
-      expect(response.data.sessionId).toBe(testThreadId);
-      expect(response.data.session.id).toBe(testThreadId);
+      expect(response.sessionId).toBe(testThreadId);
+      expect(response.session.id).toBe(testThreadId);
 
       // This demonstrates the key invariant:
       // Assistant UI threadId = learningService sessionId = DB sessionId
@@ -191,7 +188,7 @@ describe('Thread ID Mapping', () => {
       console.log('\n=== ID Consistency Verification ===');
       console.log('Assistant UI threadId:', testThreadId);
       console.log('learningService sessionId param:', testThreadId);
-      console.log('DB session.id:', response.data.sessionId);
+      console.log('DB session.id:', response.sessionId);
       console.log('✅ All IDs match!\n');
       console.log('This ensures:');
       console.log('  • chat:start-stream will use conversationId =', testThreadId);

@@ -15,9 +15,10 @@ const mockIpcMain = {
 describe('concept parsing handlers - error propagation', () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.clearAllMocks();
   });
 
-  it('should return error response when concept parsing fails', async () => {
+  it('should propagate errors when concept parsing fails', async () => {
     const mockErrorLogger = {
       info: vi.fn(),
       debug: vi.fn(),
@@ -62,7 +63,9 @@ describe('concept parsing handlers - error propagation', () => {
     // Invoke the handler
     const listeners = (mockIpcMain.handle as any).mock.calls;
     const handlerFn = listeners.find((call: any[]) => call[0] === 'knowledge:parse-concepts')?.[1];
-    const result = await handlerFn(
+
+    // Should throw error (proxy will wrap it)
+    await expect(handlerFn(
       null,
       {
         files: [
@@ -72,30 +75,12 @@ describe('concept parsing handlers - error propagation', () => {
           },
         ],
       },
-    );
-
-    // Should return a failed API response
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-    expect(result.error.code).toBe('knowledge.parse_failed');
-    expect(result.error.message).toBe('Unable to parse concepts');
-    expect(result.error.details).toMatchObject({
-      message: 'providerName is undefined',
-      name: 'Error',
-    });
-
-    // Should log the error
-    expect(mockErrorLogger.error).toHaveBeenCalledWith(
-      'Concept parsing failed',
-      expect.objectContaining({
-        message: 'providerName is undefined',
-      }),
-    );
+    )).rejects.toThrow('providerName is undefined');
   });
 
-  it('should handle errors without stack traces gracefully', async () => {
+  it('should propagate errors without stack traces gracefully', async () => {
     const mockConceptParsingService = {
-      parseMaterials: vi.fn().mockRejectedValue('String error'),
+      parseMaterials: vi.fn().mockRejectedValue(new Error('String error')),
       clearJobCache: vi.fn().mockResolvedValue({ removed: 0 }),
       rebuild: vi.fn().mockResolvedValue(undefined),
     };
@@ -130,16 +115,13 @@ describe('concept parsing handlers - error propagation', () => {
 
     const listeners = (mockIpcMain.handle as any).mock.calls;
     const handlerFn = listeners.find((call: any[]) => call[0] === 'knowledge:parse-concepts')?.[1];
-    const result = await handlerFn(null, {
-      files: [],
-    });
 
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
-    expect(result.error.details.message).toBe('String error');
+    await expect(handlerFn(null, {
+      files: [],
+    })).rejects.toThrow('String error');
   });
 
-  it('should return error when clearJobCache fails', async () => {
+  it('should propagate errors when clearJobCache fails', async () => {
     const mockConceptParsingService = {
       parseMaterials: vi.fn().mockResolvedValue({
         success: true,
@@ -183,10 +165,7 @@ describe('concept parsing handlers - error propagation', () => {
 
     const listeners = (mockIpcMain.handle as any).mock.calls;
     const handlerFn = listeners.find((call: any[]) => call[0] === 'knowledge:clear-parsing-jobs')?.[1];
-    const result = await handlerFn(null);
 
-    expect(result.success).toBe(false);
-    expect(result.error.code).toBe('knowledge.parse_failed');
-    expect(result.error.message).toBe('Unable to clear parsing cache');
+    await expect(handlerFn(null)).rejects.toThrow('Permission denied');
   });
 });

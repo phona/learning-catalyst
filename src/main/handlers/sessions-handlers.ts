@@ -3,6 +3,11 @@
  *
  * Manages thread metadata using SQLite via learningService.
  * Message history is handled by LangGraph checkpoints.
+ *
+ * NOTE: All handlers return raw data. The ipc-main-proxy wraps responses in APIResponse<T> format.
+ * - Return raw objects: { sessions, total, hasMore }
+ * - Throw errors directly: throw new Error('message')
+ * - No createSuccessResponse/createErrorResponse wrappers needed
  */
 
 import { ipcMain } from 'electron';
@@ -10,7 +15,6 @@ import type { LearningService } from '../services/domain/learning/learning-servi
 import type { LoggerService } from '../services/core/logger/logger-service';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
-import type { APIResponse } from '@/shared/types/electron-api/base';
 
 type SessionsSearchPayload = {
   query?: string;
@@ -21,27 +25,6 @@ type SessionsDeps = {
   learningService: LearningService;
   loggerService: LoggerService;
 };
-
-/**
- * Wrap a successful response in the standard API format
- */
-const createSuccessResponse = <T>(data: T): APIResponse<T> => ({
-  success: true,
-  data,
-});
-
-/**
- * Wrap an error response in the standard API format
- */
-const createErrorResponse = (code: string, message: string, details?: Record<string, unknown>): APIResponse<never> => ({
-  success: false,
-  error: {
-    code,
-    message,
-    details,
-  },
-});
-
 
 /**
  * Convert learning session to SessionDisplay format for UI
@@ -80,27 +63,17 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle(
     'sessions:list',
     async (_event, options?: { query?: string; limit?: number; offset?: number }) => {
-      try {
-        const limit = options?.limit ?? 20;
-        const sessions = await services.learningService.getRecentSessions({
-          limit: limit + (options?.offset ?? 0),
-        });
-        const offset = options?.offset ?? 0;
-        const sliced = sessions.slice(offset, offset + limit);
-        return createSuccessResponse({
-          sessions: sliced.map(toSessionDisplay),
-          total: sessions.length,
-          hasMore: sessions.length > offset + sliced.length,
-        });
-      } catch (error) {
-        logger.error('sessions:list failed', {
-          message: error instanceof Error ? error.message : String(error),
-        });
-        return createErrorResponse(
-          'sessions.list_failed',
-          error instanceof Error ? error.message : 'Failed to list sessions',
-        );
-      }
+      const limit = options?.limit ?? 20;
+      const sessions = await services.learningService.getRecentSessions({
+        limit: limit + (options?.offset ?? 0),
+      });
+      const offset = options?.offset ?? 0;
+      const sliced = sessions.slice(offset, offset + limit);
+      return {
+        sessions: sliced.map(toSessionDisplay),
+        total: sessions.length,
+        hasMore: sessions.length > offset + sliced.length,
+      };
     },
   );
 
@@ -111,26 +84,16 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle(
     'sessions:create',
     async (_event, payload: { title?: string; threadId?: string }) => {
-      try {
-        const session = await services.learningService.startLearningSession({
-          topic: payload.title ?? 'New Chat',
-          goals: [],
-          difficulty: 'intermediate',
-          agentType: 'learning',
-          learningStyle: 'visual',
-          ...(payload.threadId ? { sessionId: payload.threadId } : {}),
-        });
+      const session = await services.learningService.startLearningSession({
+        topic: payload.title ?? 'New Chat',
+        goals: [],
+        difficulty: 'intermediate',
+        agentType: 'learning',
+        learningStyle: 'visual',
+        ...(payload.threadId ? { sessionId: payload.threadId } : {}),
+      });
 
-        return createSuccessResponse({ sessionId: session.id, session: toSessionDisplay(session) });
-      } catch (error) {
-        logger.error('sessions:create failed', {
-          message: error instanceof Error ? error.message : String(error),
-        });
-        return createErrorResponse(
-          'sessions.create_failed',
-          error instanceof Error ? error.message : 'Failed to create session',
-        );
-      }
+      return { sessionId: session.id, session: toSessionDisplay(session) };
     },
   );
 
@@ -138,21 +101,11 @@ export const setupSessionsHandlers = (
    * Get thread metadata by ID
    */
   ipcMainInstance.handle('sessions:get', async (_event, sessionId: string) => {
-    try {
-      const session = await services.learningService.getSession(sessionId);
-      if (!session) {
-        throw new Error('Session not found');
-      }
-      return createSuccessResponse(toSessionDisplay(session));
-    } catch (error) {
-      logger.error('sessions:get failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return createErrorResponse(
-        'sessions.not_found',
-        error instanceof Error ? error.message : 'Session not found',
-      );
+    const session = await services.learningService.getSession(sessionId);
+    if (!session) {
+      throw new Error('Session not found');
     }
+    return toSessionDisplay(session);
   });
 
   /**
@@ -161,24 +114,14 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle(
     'sessions:update',
     async (_event, sessionId: string, updates: Partial<SessionDisplay>) => {
-      try {
-        const updated = await services.learningService.updateSession(sessionId, {
-          title: updates.title,
-          status: updates.status as 'active' | 'paused' | 'completed' | undefined,
-        });
-        if (!updated) {
-          throw new Error('Session not found');
-        }
-        return createSuccessResponse(toSessionDisplay(updated));
-      } catch (error) {
-        logger.error('sessions:update failed', {
-          message: error instanceof Error ? error.message : String(error),
-        });
-        return createErrorResponse(
-          'sessions.not_found',
-          error instanceof Error ? error.message : 'Session not found',
-        );
+      const updated = await services.learningService.updateSession(sessionId, {
+        title: updates.title,
+        status: updates.status as 'active' | 'paused' | 'completed' | undefined,
+      });
+      if (!updated) {
+        throw new Error('Session not found');
       }
+      return toSessionDisplay(updated);
     },
   );
 
@@ -186,18 +129,8 @@ export const setupSessionsHandlers = (
    * Delete a thread
    */
   ipcMainInstance.handle('sessions:delete', async (_event, sessionId: string) => {
-    try {
-      const deleted = await services.learningService.deleteSession(sessionId);
-      return createSuccessResponse({ deleted });
-    } catch (error) {
-      logger.error('sessions:delete failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return createErrorResponse(
-        'sessions.delete_failed',
-        error instanceof Error ? error.message : 'Failed to delete session',
-      );
-    }
+    const deleted = await services.learningService.deleteSession(sessionId);
+    return { deleted };
   });
 
   /**
@@ -206,21 +139,11 @@ export const setupSessionsHandlers = (
   ipcMainInstance.handle(
     'sessions:update-title',
     async (_event, sessionId: string, title: string) => {
-      try {
-        const updated = await services.learningService.updateSessionTitle(sessionId, title);
-        if (!updated) {
-          throw new Error('Session not found');
-        }
-        return createSuccessResponse(undefined);
-      } catch (error) {
-        logger.error('sessions:update-title failed', {
-          message: error instanceof Error ? error.message : String(error),
-        });
-        return createErrorResponse(
-          'sessions.not_found',
-          error instanceof Error ? error.message : 'Session not found',
-        );
+      const updated = await services.learningService.updateSessionTitle(sessionId, title);
+      if (!updated) {
+        throw new Error('Session not found');
       }
+      return undefined;
     },
   );
 
@@ -228,66 +151,36 @@ export const setupSessionsHandlers = (
    * Get recent threads
    */
   ipcMainInstance.handle('sessions:get-recent', async (_event, options?: { limit?: number }) => {
-    try {
-      const limit = options?.limit ?? 10;
-      const sessions = await services.learningService.getRecentSessions({ limit });
-      return createSuccessResponse(sessions.map(toSessionDisplay));
-    } catch (error) {
-      logger.error('sessions:get-recent failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return createErrorResponse(
-        'sessions.get_recent_failed',
-        error instanceof Error ? error.message : 'Failed to get recent sessions',
-      );
-    }
+    const limit = options?.limit ?? 10;
+    const sessions = await services.learningService.getRecentSessions({ limit });
+    return sessions.map(toSessionDisplay);
   });
 
   /**
    * Search threads
    */
   ipcMainInstance.handle('sessions:search', async (_event, payload: SessionsSearchPayload) => {
-    try {
-      const result = await services.learningService.searchSessions(
-        payload.query ?? '',
-        payload.filters,
-      );
-      return createSuccessResponse({
-        sessions: result.sessions.map(toSessionDisplay),
-        total: result.totalResults,
-        query: result.query,
-        hasMore: false,
-      });
-    } catch (error) {
-      logger.error('sessions:search failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return createErrorResponse(
-        'sessions.search_failed',
-        error instanceof Error ? error.message : 'Failed to search sessions',
-      );
-    }
+    const result = await services.learningService.searchSessions(
+      payload.query ?? '',
+      payload.filters,
+    );
+    return {
+      sessions: result.sessions.map(toSessionDisplay),
+      total: result.totalResults,
+      query: result.query,
+      hasMore: false,
+    };
   });
 
   /**
    * Get session statistics
    */
   ipcMainInstance.handle('sessions:get-statistics', async () => {
-    try {
-      const stats = await services.learningService.getSessionStatistics();
-      return createSuccessResponse({
-        ...stats,
-        totalTokensUsed: 0, // Not tracked yet
-      } satisfies SessionStatistics);
-    } catch (error) {
-      logger.error('sessions:get-statistics failed', {
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return createErrorResponse(
-        'sessions.get_statistics_failed',
-        error instanceof Error ? error.message : 'Failed to get session statistics',
-      );
-    }
+    const stats = await services.learningService.getSessionStatistics();
+    return {
+      ...stats,
+      totalTokensUsed: 0, // Not tracked yet
+    } satisfies SessionStatistics;
   });
 
   logger.info('Sessions handlers registered (SQLite-backed, thread-focused)');
