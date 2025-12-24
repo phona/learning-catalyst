@@ -37,10 +37,10 @@ describe('electron-api-client mock behavior', () => {
   it('provides settings/config accessors', async () => {
     const client = createMockElectronAPIClient();
     const cfg = await client.settings.getConfig();
-    const version = await client.settings.getAppVersion();
+    const versionInfo = await client.getVersion();
 
     expect(cfg.success).toBe(true);
     expect(cfg.data?.ui?.theme).toBe('light');
-    expect(version.data).toBe('1.0.0');
+    expect(versionInfo.version).toBe('1.0.0');
   });
 });

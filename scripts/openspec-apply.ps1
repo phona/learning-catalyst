@@ -44,7 +44,9 @@ function Invoke-Claude {
             HTTPS_PROXY=$ProxyAddress `
             NO_PROXY=$NoProxyList `
             claude -p "$UserPrompt" `
-            --allowedTools "Bash,Read,Edit" 2>&1
+            --output-format stream-json `
+            --verbose `
+            --allowedTools "Bash,Read,Edit,Write" 2>&1
 
         # 4. 输出调用成功提示
         Write-Host "`n✅ Claude invocation completed successfully." -ForegroundColor Green
@@ -75,6 +77,9 @@ function Test-AllTasksFinished {
             Write-Host "⏳ Pending: $remaining tasks remaining ($completed/$total)" -ForegroundColor Yellow
             return $false
         }
+    } elseif ($InputString -match 'Complete') {
+        Write-Host "✅ No tasks found" -ForegroundColor Green
+        return $true
     } else {
         throw "Could not parse task progress from input: $InputString"
     }

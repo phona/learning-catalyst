@@ -43,6 +43,7 @@ const parsedConceptResult = {
 const buildApi = () => {
   const knowledge = {
     parseConcepts: vi.fn().mockResolvedValue({ success: true, data: parsedConceptResult }),
+    ingestConcepts: vi.fn().mockResolvedValue({ success: true, data: { ingested: 1 } }),
   };
   const api = {
     knowledge,
