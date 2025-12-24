@@ -15,8 +15,10 @@ describe('parseScore', () => {
   });
 
   it('parses decimal scores', () => {
-    expect(parseScore('score: 0.5')).toBe(0.005); // This seems wrong, let me check the regex
-    expect(parseScore('confidence: 0.8')).toBe(0.008); // Also seems wrong
+    // Decimal scores in 0-1 range should be returned as-is
+    expect(parseScore('score: 0.5')).toBe(0.5);
+    expect(parseScore('confidence: 0.8')).toBe(0.8);
+    // Integer scores > 1 are treated as percentages and divided by 100
     expect(parseScore('Score: 85.5')).toBe(0.855);
   });
 

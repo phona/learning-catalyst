@@ -172,9 +172,9 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
 
     // Transform the API response to match the IAnalyticsService Achievement interface
     // The API returns AchievementDisplay from analytics-api.ts which has 'name' property
-    return apiData.map((achievement: APIAchievementDisplay) => ({
+    return apiData.map((achievement) => ({
       id: achievement.id,
-      title: achievement.name, // Convert 'name' to 'title'
+      title: (achievement as any).name || achievement.id, // Fallback to name if available
       description: achievement.description,
       category: achievement.category as
         | 'time'
@@ -183,7 +183,9 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
         | 'performance'
         | 'engagement',
       requirement: {}, // Default empty requirement object
-      progress: achievement.progress.percentage, // Extract percentage from nested progress object
+      progress: typeof achievement.progress === 'number'
+        ? achievement.progress
+        : (achievement.progress as any).percentage || 0, // Handle both number and object
       icon: achievement.icon,
       unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined,
     }));
@@ -194,9 +196,9 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
 
     // Transform the API response to match the IAnalyticsService Achievement interface
     // The API returns AchievementDisplay from analytics-api.ts which has 'name' property
-    return apiData.map((achievement: APIAchievementDisplay) => ({
+    return apiData.map((achievement) => ({
       id: achievement.id,
-      title: achievement.name, // Convert 'name' to 'title'
+      title: (achievement as any).name || achievement.id, // Fallback to name if available
       description: achievement.description,
       category: achievement.category as
         | 'time'
@@ -205,7 +207,9 @@ export const createAnalyticsService = (apiClient: ElectronAPI) => {
         | 'performance'
         | 'engagement',
       requirement: {}, // Default empty requirement object
-      progress: achievement.progress.percentage, // Extract percentage from nested progress object
+      progress: typeof achievement.progress === 'number'
+        ? achievement.progress
+        : (achievement.progress as any).percentage || 0, // Handle both number and object
       icon: achievement.icon,
       unlockedAt: achievement.unlockedAt ? new Date(achievement.unlockedAt) : undefined,
     }));

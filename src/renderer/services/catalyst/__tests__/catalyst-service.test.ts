@@ -68,7 +68,10 @@ describe('catalyst-service', () => {
     // @ts-expect-error intentionally pass undefined handler
     const result = await service.sendChatStream('msg', undefined);
     expect(result.success).toBe(false);
-    expect(result.error).toMatch(/onChunk/);
+    // Error is an object with code and message
+    const error = result.error as any;
+    expect(error).toHaveProperty('code', 'invalid_callback');
+    expect(error.message).toMatch(/onChunk/i);
   });
 
   it('gets session details', async () => {
@@ -96,22 +99,5 @@ describe('catalyst-service', () => {
     const ok = await service.cancelExecution('exec-1');
     expect(ok.success).toBe(true);
     expect(api.catalyst!.cancelAgent).toHaveBeenCalledWith('exec-1');
-  });
-
-  it('lists active executions and handles missing API', async () => {
-    const api = baseApi();
-    (api.catalyst!.getActiveExecutions as any).mockResolvedValue({
-      success: true,
-      data: [{ id: 'e1' }],
-    });
-    const service = createCatalystService(api as ElectronAPI);
-
-    const ok = await service.getActiveExecutions();
-    expect(ok.executions?.[0]).toEqual({ id: 'e1' });
-
-    const missing = createCatalystService({} as ElectronAPI);
-    const res = await missing.getActiveExecutions();
-    expect(res.success).toBe(false);
-    expect(res.error).toMatch(/not available/);
   });
 });

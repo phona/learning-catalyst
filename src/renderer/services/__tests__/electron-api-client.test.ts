@@ -76,7 +76,7 @@ describe('Simplified electronAPI Abstraction', () => {
 
       expect(sessions).toHaveLength(1);
       expect(sessions[0].id).toBe('session-1');
-      expect(mockAPIClient.sessions.getRecentSessions).toHaveBeenCalledWith({ limit: 5 });
+      expect(mockAPIClient.sessions.getRecentSessions).toHaveBeenCalledWith(5);
     });
   });
 

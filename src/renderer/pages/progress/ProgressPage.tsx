@@ -17,6 +17,8 @@ interface AgentDisplayLocal {
   status: string;
   isAvailable: boolean;
   capabilities?: string[];
+  type?: string;
+  description?: string;
 }
 
 // Manual refresh instead of automatic interval for better user control
@@ -35,7 +37,7 @@ export const ProgressPage: React.FC = () => {
       // Get available agents with proper typing
       const agentsResponse = await catalystService.getAvailableAgents();
       if (agentsResponse.success && agentsResponse.agents) {
-        setAvailableAgents(agentsResponse.agents);
+        setAvailableAgents(agentsResponse.agents as AgentDisplayLocal[]);
       } else {
         console.warn('Failed to get available agents:', agentsResponse.error);
       }
@@ -376,7 +378,7 @@ export const ProgressPage: React.FC = () => {
                           {agent.name}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {agent.type} • {agent.description}
+                          {agent.type ?? 'Agent'} • {agent.description ?? 'AI assistant'}
                         </div>
                       </div>
                     </div>

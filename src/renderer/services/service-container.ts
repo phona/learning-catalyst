@@ -569,11 +569,20 @@ export function createTestServiceContainer(
     // Include other required API domains with minimal mocks
     settings: {} as any,
     catalyst: {} as any,
+    agents: {} as any,
+    content: {} as any,
+    // System events
+    onceSystemReady: () => {},
+    onConfigChanged: () => {},
+    // File operations
     getWorkspacePath: async () => '/mock/workspace',
     readDirectory: async () => [],
     readFile: async () => '',
     writeFile: async () => Promise.resolve(),
     existsFile: async () => false,
+    openFile: async () => ({ canceled: true, filePaths: [] }),
+    saveFile: async () => ({ canceled: true, filePath: '' }),
+    showDirectoryDialog: async () => ({ canceled: true, filePaths: [] }),
     showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
     showSaveDialog: async () => ({ canceled: true, filePath: '' }),
     onMenuAction: () => () => {},

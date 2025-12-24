@@ -17,17 +17,25 @@ export function createMockElectronAPI(overrides: Partial<any> = {}) {
   return {
     ...baseAPI,
     // Add chat methods for title generation tests
+    // Spread baseAPI.chat first, then override with vi.fn() mocks, then apply overrides
     chat: {
-      generateTitle: vi.fn().mockResolvedValue('Generated Title'),
+      ...baseAPI.chat,
+      generateTitle: vi.fn().mockResolvedValue({
+        success: true,
+        data: 'Generated Title',
+      }),
       sendMessage: vi.fn(),
       streamMessage: vi.fn(),
-      ...baseAPI.chat,
+      getMessages: vi.fn().mockResolvedValue({
+        success: true,
+        data: { sessions: [] },
+      }),
       ...overrides.chat,
     },
     // Add crash-specific methods
+    // Spread baseAPI.sessions first, then override with vi.fn() mocks, then apply overrides
     sessions: {
       ...baseAPI.sessions,
-      ...overrides.sessions,
       create: vi.fn().mockResolvedValue({
         success: true,
         data: { id: 'new-session-id', title: 'New Chat', status: 'active' },
@@ -42,6 +50,7 @@ export function createMockElectronAPI(overrides: Partial<any> = {}) {
       }),
       updateTitle: vi.fn().mockResolvedValue({ success: true }),
       delete: vi.fn().mockResolvedValue({ success: true }),
+      ...overrides.sessions,
     },
   };
 }

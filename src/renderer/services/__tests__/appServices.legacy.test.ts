@@ -35,6 +35,6 @@ describe('appServices legacy layer', () => {
     expect(() => appServices.getDatabase()).toThrow(/not available/);
     expect(() => appServices.getKnowledgeGraph()).toThrow(/not available/);
     expect(() => appServices.getVectorDatabase()).toThrow(/not available/);
-    expect(() => appServices.getAgentManager()).toThrow(/not available/);
+    expect(() => appServices.getProviderFactory()).toThrow(/not available/);
   });
 });

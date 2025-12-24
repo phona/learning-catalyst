@@ -30,6 +30,12 @@ import { showError } from '@/renderer/shared/lib';
 describe('useElectronAPI', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2020-01-01'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('ElectronAPIProvider', () => {

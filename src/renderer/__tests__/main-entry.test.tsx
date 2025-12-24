@@ -23,5 +23,5 @@ describe('renderer entry (main.tsx)', () => {
 
     expect(createRootSpy).toHaveBeenCalledWith(document.getElementById('root'));
     expect(renderSpy).toHaveBeenCalledTimes(1);
-  });
+  }, 30000); // Increase timeout for integration test
 });

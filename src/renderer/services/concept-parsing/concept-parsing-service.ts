@@ -18,6 +18,8 @@ import type {
   KnowledgeIngestionResult,
 } from '@/shared/types/electron-api/knowledge-api';
 import type { ConfigurationService } from '../configuration/configuration-service';
+import type { TimeService, IDGenerator } from '@/shared/utils';
+import { createTimeService, createIdGenerator } from '@/shared/utils';
 
 export interface ConceptParsingServiceOptions {
   confidenceThreshold?: number;
@@ -27,6 +29,8 @@ export interface ConceptParsingServiceOptions {
   aiModel?: string;
   jobId?: string;
   resume?: boolean;
+  timeService?: TimeService;
+  idGenerator?: IDGenerator;
 }
 
 interface ActiveJob {
@@ -42,6 +46,7 @@ interface ActiveJob {
 export const createConceptParsingService = (
   apiClient: ElectronAPI,
   configService?: ConfigurationService,
+  serviceOptions?: { timeService?: TimeService; idGenerator?: IDGenerator },
 ): {
   parseContent: (
     content: string,
@@ -74,8 +79,12 @@ export const createConceptParsingService = (
   const LAST_JOB_KEY = 'conceptParsing.lastJobId';
   const LAST_FILES_KEY = 'conceptParsing.lastFiles';
 
+  // Use injected dependencies or defaults (real time/id generation for production)
+  const timeService = serviceOptions?.timeService ?? createTimeService();
+  const idGenerator = serviceOptions?.idGenerator ?? createIdGenerator();
+
   const generateJobId = (): string =>
-    `job-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    idGenerator.withPrefix('job');
 
   const transformParsedConceptToConcept = (parsed: ParsedConcept): Concept => {
     const evidence: ConceptEvidence[] = parsed.evidence.map((e) => ({
@@ -95,7 +104,7 @@ export const createConceptParsingService = (
       confidence: parsed.confidence,
       evidence,
       relationships: [],
-      extractedAt: new Date(),
+      extractedAt: new Date(timeService.now()),
       metadata: {
         tags: [],
         learningObjectives: [],
@@ -159,7 +168,8 @@ export const createConceptParsingService = (
     });
 
     if (!result.success || !result.data) {
-      const errorMessage = result.error ?? 'Concept parsing failed';
+      const err = result.error ?? 'Concept parsing failed';
+      const errorMessage = typeof err === 'string' ? err : err?.message ?? 'Concept parsing failed';
       throw new Error(errorMessage);
     }
 
@@ -182,7 +192,9 @@ export const createConceptParsingService = (
       options,
     });
     if (!ingestion.success || !ingestion.data) {
-      const errorMessage = ingestion.error ?? 'Concept ingestion failed';
+      const errorMessage = typeof ingestion.error === 'string'
+        ? ingestion.error
+        : ingestion.error?.message ?? 'Concept ingestion failed';
       throw new Error(errorMessage);
     }
     return ingestion.data;
@@ -195,10 +207,10 @@ export const createConceptParsingService = (
     const jobId = options.jobId ?? generateJobId();
     const job: ParsingJob = {
       id: jobId,
-      materialId: `files-${Date.now()}`,
+      materialId: idGenerator.withPrefix('files'),
       status: 'pending',
       progress: 0,
-      startedAt: new Date(),
+      startedAt: new Date(timeService.now()),
       stages: [
         { name: 'file-collection', status: 'pending', progress: 0 },
         { name: 'content-analysis', status: 'pending', progress: 0 },
@@ -213,7 +225,7 @@ export const createConceptParsingService = (
       id: jobId,
       status: 'pending',
       progress: 0,
-      startedAt: new Date(),
+      startedAt: new Date(timeService.now()),
     });
 
     processFileParsingJob(jobId, filePaths, options).catch((error) => {
@@ -221,11 +233,11 @@ export const createConceptParsingService = (
       if (activeJob) {
         activeJob.status = 'failed';
         activeJob.errorMessage = error instanceof Error ? error.message : String(error);
-        activeJob.completedAt = new Date();
+        activeJob.completedAt = new Date(timeService.now());
       }
       job.status = 'failed';
       job.errorMessage = error instanceof Error ? error.message : String(error);
-      job.completedAt = new Date();
+      job.completedAt = new Date(timeService.now());
     });
 
     return job;
@@ -238,10 +250,10 @@ export const createConceptParsingService = (
     const jobId = options.jobId ?? generateJobId();
     const job: ParsingJob = {
       id: jobId,
-      materialId: `directories-${Date.now()}`,
+      materialId: idGenerator.withPrefix('directories'),
       status: 'pending',
       progress: 0,
-      startedAt: new Date(),
+      startedAt: new Date(timeService.now()),
       stages: [
         { name: 'file-collection', status: 'pending', progress: 0 },
         { name: 'content-analysis', status: 'pending', progress: 0 },
@@ -256,7 +268,7 @@ export const createConceptParsingService = (
       id: jobId,
       status: 'pending',
       progress: 0,
-      startedAt: new Date(),
+      startedAt: new Date(timeService.now()),
     });
 
     processDirectoryParsingJob(jobId, directoryPaths, options).catch((error) => {
@@ -264,11 +276,11 @@ export const createConceptParsingService = (
       if (activeJob) {
         activeJob.status = 'failed';
         activeJob.errorMessage = error instanceof Error ? error.message : String(error);
-        activeJob.completedAt = new Date();
+        activeJob.completedAt = new Date(timeService.now());
       }
       job.status = 'failed';
       job.errorMessage = error instanceof Error ? error.message : String(error);
-      job.completedAt = new Date();
+      job.completedAt = new Date(timeService.now());
     });
 
     return job;
@@ -310,7 +322,7 @@ export const createConceptParsingService = (
                 masteredConcepts: [],
                 timeSpent: 0,
                 assessmentScores: [],
-                lastAccess: new Date(),
+                lastAccess: new Date(timeService.now()),
                 completionRate: 0,
                 masteryLevel: 0,
               },
@@ -330,7 +342,7 @@ export const createConceptParsingService = (
               type: 'parsing' as const,
               message: error,
               severity: 'medium' as const,
-              timestamp: new Date(),
+              timestamp: new Date(timeService.now()),
             })),
           };
         })()
@@ -425,7 +437,7 @@ export const createConceptParsingService = (
                   masteredConcepts: [],
                   timeSpent: 0,
                   assessmentScores: [],
-                  lastAccess: new Date(),
+                  lastAccess: new Date(timeService.now()),
                   completionRate: 0,
                   masteryLevel: 0,
                 },
@@ -445,7 +457,7 @@ export const createConceptParsingService = (
                 type: 'parsing' as const,
                 message: error,
                 severity: 'medium' as const,
-                timestamp: new Date(),
+                timestamp: new Date(timeService.now()),
               })),
             };
           })()
@@ -484,7 +496,7 @@ export const createConceptParsingService = (
 
     activeJob.status = 'failed';
     activeJob.errorMessage = 'Job cancelled by user';
-    activeJob.completedAt = new Date();
+    activeJob.completedAt = new Date(timeService.now());
 
     return true;
   };
@@ -572,7 +584,8 @@ export const createConceptParsingService = (
 
       if (!parsingResult.success || !parsingResult.data) {
         const err = parsingResult.error ?? 'Concept parsing failed';
-        throw new Error(err);
+        const errorMessage = typeof err === 'string' ? err : err?.message ?? 'Concept parsing failed';
+        throw new Error(errorMessage);
       }
 
       activeJob.progress = 0.75;
@@ -588,7 +601,8 @@ export const createConceptParsingService = (
 
       if (!ingestionResult.success) {
         const err = ingestionResult.error ?? 'Concept ingestion failed';
-        throw new Error(err);
+        const errorMessage = typeof err === 'string' ? err : err?.message ?? 'Concept ingestion failed';
+        throw new Error(errorMessage);
       }
 
       const interval = progressIntervals.get(jobId);
@@ -600,7 +614,7 @@ export const createConceptParsingService = (
       activeJob.progress = 1.0;
       activeJob.status = 'completed';
       activeJob.result = parsingResult.data;
-      activeJob.completedAt = new Date();
+      activeJob.completedAt = new Date(timeService.now());
       try {
         const storage = window?.localStorage;
         storage?.setItem(LAST_JOB_KEY, parsingResult.data.metadata?.jobId ?? jobId);
@@ -617,7 +631,7 @@ export const createConceptParsingService = (
 
       activeJob.status = 'failed';
       activeJob.errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      activeJob.completedAt = new Date();
+      activeJob.completedAt = new Date(timeService.now());
       console.error('File parsing job failed:', error);
     }
   };
@@ -657,7 +671,7 @@ export const createConceptParsingService = (
     } catch (error) {
       activeJob.status = 'failed';
       activeJob.errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      activeJob.completedAt = new Date();
+      activeJob.completedAt = new Date(timeService.now());
       console.error('Directory parsing job failed:', error);
     }
   };
@@ -673,7 +687,9 @@ export const createConceptParsingService = (
     clearSavedJobs: async () => {
       const res = await apiClient.knowledge.clearParsingJobs();
       if (!res.success || !res.data) {
-        const errorMessage = res.error ?? 'Failed to clear parsing cache';
+        const errorMessage = typeof res.error === 'string'
+          ? res.error
+          : res.error?.message ?? 'Failed to clear parsing cache';
         throw new Error(errorMessage);
       }
       try {

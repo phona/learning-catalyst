@@ -287,7 +287,7 @@ export function createThreadListAdapter(
       }
       return {
         threads: sessions.map(
-          (session: { id: string; status: string; title?: string; topic?: string }) => ({
+          (session: { id: string; status?: string; title?: string; topic?: string }) => ({
             remoteId: session.id,
             externalId: session.id,
             status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
@@ -353,9 +353,18 @@ export function createThreadListAdapter(
 
         if (!textContent) return;
 
-        const title = await unwrapAPI(resolvedApi.chat.generateTitle(textContent));
-        const finalTitle = title.length > 47 ? title.slice(0, 47) + '...' : title;
-        await unwrapAPI(resolvedApi.sessions.updateTitle(remoteId, finalTitle));
+        try {
+          const title = await unwrapAPI(resolvedApi.chat.generateTitle(textContent));
+          // Handle null, undefined, or empty title
+          const safeTitle = title ?? '';
+          const finalTitle = safeTitle.length > 47 ? safeTitle.slice(0, 47) + '...' : safeTitle;
+          if (finalTitle) {
+            await unwrapAPI(resolvedApi.sessions.updateTitle(remoteId, finalTitle));
+          }
+        } catch (error) {
+          // Silently fail on title generation errors - UI will show "New Chat"
+          console.error('[generateTitle] Failed to generate title:', error);
+        }
       });
     },
 

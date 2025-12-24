@@ -11,14 +11,13 @@ const buildApi = () => {
       success: true,
       data: { messageId: 'm2', response: 'stream-ok' },
     }),
-    listAgents: vi.fn().mockResolvedValue({
+    cancelAgent: vi.fn().mockResolvedValue({ success: true, data: { cancelled: true } }),
+  };
+
+  const agents = {
+    getAvailableAgents: vi.fn().mockResolvedValue({
       success: true,
       data: [{ id: 'agent-1', name: 'Agent', type: 'learning' }],
-    }),
-    cancelAgent: vi.fn().mockResolvedValue({ success: true, data: { cancelled: true } }),
-    getActiveExecutions: vi.fn().mockResolvedValue({
-      success: true,
-      data: [{ id: 'exec-1', status: 'running' as const, agentId: 'agent-1', startTime: Date.now() }],
     }),
   };
 
@@ -29,7 +28,7 @@ const buildApi = () => {
     }),
   };
 
-  return { catalyst, sessions } as any;
+  return { catalyst, agents, sessions } as any;
 };
 
 describe('catalyst-service success paths', () => {
@@ -82,15 +81,13 @@ describe('catalyst-service success paths', () => {
     expect((res.session as any)?.id).toBe('s1');
   });
 
-  it('cancels execution and lists active executions', async () => {
+  it('cancels execution', async () => {
     const api = buildApi();
     const service = createCatalystService(api);
 
     const cancelRes = await service.cancelExecution('exec-1');
-    const active = await service.getActiveExecutions();
 
     expect(cancelRes.success).toBe(true);
     expect(api.catalyst.cancelAgent).toHaveBeenCalledWith('exec-1');
-    expect(active.executions?.[0].id).toBe('exec-1');
   });
 });

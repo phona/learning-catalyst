@@ -1,6 +1,6 @@
 import type { ElectronAPI, AppConfig } from '@/shared/types';
-import type { AgentDisplay } from '@/shared/types';
 import type { ProviderConfig } from '@/shared/types';
+import type { AgentDisplay as AgentsAgentDisplay, AgentContext as AgentsAgentContext } from '@/shared/types/electron-api/agent-api';
 import { ChatHistoryMessage, ChatStreamEvent } from '@/shared/types/electron-api/chat-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import { AIMessage } from 'langchain';
@@ -101,33 +101,76 @@ export function createElectronAPIClient(): ElectronAPI {
 
 const agentStats = { sessionsCount: 0, avgRating: 0 };
 
-const mockAgent: AgentDisplay = {
+const mockAgent: AgentsAgentDisplay = {
   id: 'agent_mock',
   type: 'learning',
   name: 'Mock Agent',
   description: 'Test agent',
-  avatar: '',
-  color: '#10b981',
-  capabilities: ['explanation', 'practice'],
+  status: 'available',
   isAvailable: true,
-  category: 'mock',
-  stats: agentStats,
+  capabilities: ['explanation', 'practice'],
 };
 
-const mockAgentContext: AgentContext = {
+// Local type definitions for mock data
+interface LegacyAgentContext {
+  sessionId: string;
+  agentId: string;
+  agentSettings: {
+    agentId: string;
+    personality: string;
+    responseStyle: string | {
+      detailLevel: string;
+      includeExamples: boolean;
+      useAnalogies: boolean;
+      provideStepByStep: boolean;
+      language: string;
+      technicalDepth: string;
+    };
+    detailLevel?: string;
+    includeExamples?: boolean;
+    useAnalogies?: boolean;
+    provideStepByStep?: boolean;
+    language?: string;
+    technicalDepth?: string;
+    interaction: {
+      enableFollowUpQuestions: boolean;
+      proactiveSuggestions: boolean;
+      encouragementLevel: string;
+      humorLevel: string;
+    };
+    preferences: {
+      responseLength: string;
+      formalityLevel: string;
+      useEmojis: boolean;
+    };
+  };
+  sessionHistory: {
+    previousSessions: number;
+    avgRating: number;
+    totalInteractionTime: string;
+  };
+  personalizedSettings: {
+    preferredTopics: string[];
+    avoidedTopics: string[];
+    communicationStyle: string;
+    pacePreference: string;
+  };
+  initialContext: unknown[];
+}
+
+const mockAgentContext: LegacyAgentContext = {
   sessionId: 'mock-session',
   agentId: mockAgent.id,
   agentSettings: {
     agentId: mockAgent.id,
     personality: 'friendly encouraging',
-    responseStyle: {
-      detailLevel: 'balanced',
-      includeExamples: true,
-      useAnalogies: false,
-      provideStepByStep: false,
-      language: 'en',
-      technicalDepth: 'beginner',
-    },
+    responseStyle: 'balanced' as any, // Cast to any to match the mock structure
+    detailLevel: 'balanced',
+    includeExamples: true,
+    useAnalogies: false,
+    provideStepByStep: false,
+    language: 'en',
+    technicalDepth: 'beginner',
     interaction: {
       enableFollowUpQuestions: true,
       proactiveSuggestions: true,
@@ -154,34 +197,17 @@ const mockAgentContext: AgentContext = {
   initialContext: [],
 };
 
-const mockCapabilities: AgentCapabilitiesDisplay = {
-  agentId: mockAgent.id,
-  capabilities: [],
-  overallStrengths: [],
-  idealUseCases: [],
-  limitations: [],
-  performanceMetrics: {
-    accuracy: 0,
-    responseTime: '0ms',
-    userSatisfaction: 0,
-  },
-  supportedFeatures: [],
-  integrationPartners: [],
+const mockCapabilities = {
+  supportsStreaming: true,
+  supportsContext: true,
+  supportsTools: true,
+  supportedModels: ['gpt-4', 'claude-3'],
 };
 
-const mockFeatureDemo: FeatureDemoDisplay = {
-  agentId: mockAgent.id,
-  feature: 'mock-feature',
-  demoType: 'example',
+const mockFeatureDemo = {
+  featureName: 'mock-feature',
   description: 'Mock feature demo',
-  samplePrompts: [],
-  demoInteraction: {
-    type: 'guided_example',
-    steps: [],
-  },
-  expectedOutcome: 'Mock outcome',
-  estimatedTime: '0m',
-  difficulty: 'easy',
+  result: {},
 };
 
 export function createMockElectronAPIClient(): ElectronAPI {
@@ -554,23 +580,35 @@ export function createMockElectronAPIClient(): ElectronAPI {
     agents: {
       getAvailableAgents: () => Promise.resolve({ success: true, data: [mockAgent] }),
       selectAgentForSession: () =>
-        Promise.resolve({ success: true, data: { agent: mockAgent, context: mockAgentContext } }),
+        Promise.resolve({
+          success: true,
+          data: {
+            agent: mockAgent,
+            context: {
+              agentSettings: {
+                personality: 'friendly',
+                responseStyle: 'balanced',
+                detailLevel: 'medium',
+              },
+            } as AgentsAgentContext,
+          },
+        }),
       setAgentPersonality: () =>
-        Promise.resolve({ success: true, data: mockAgentContext.agentSettings }),
+        Promise.resolve({
+          success: true,
+          data: {
+            personality: 'friendly' as string | undefined,
+            responseStyle: 'balanced' as string | undefined,
+            detailLevel: 'medium' as string | undefined,
+          },
+        }),
       setResponseStyle: () =>
         Promise.resolve({
           success: true,
           data: {
-            detailLevel: 'balanced',
-            includeExamples: true,
-            useAnalogies: false,
-            provideStepByStep: false,
-            language: 'en',
-            technicalDepth: 'beginner',
-            responseLength: 'medium',
-            formalityLevel: 'casual',
-            useVisualAids: true,
-            provideCodeExamples: true,
+            personality: 'friendly' as string | undefined,
+            responseStyle: 'balanced' as string | undefined,
+            detailLevel: 'medium' as string | undefined,
           },
         }),
       getAgentCapabilities: () => Promise.resolve({ success: true, data: mockCapabilities }),
@@ -670,89 +708,6 @@ export function createMockElectronAPIClient(): ElectronAPI {
         Promise.resolve({
           success: true,
           data: { removed: 0 },
-        }),
-    },
-    content: {
-      exploreLocalProjects: () => Promise.resolve({ success: true, data: [] }),
-      importLearningContent: (files: FileList) =>
-        Promise.resolve({
-          success: true,
-          data: {
-            success: true,
-            processedFiles: Array.from(files).length,
-            totalFiles: Array.from(files).length,
-            extractedContent: {
-              concepts: [],
-              codeExamples: 0,
-              documentation: 0,
-              exercises: 0,
-              images: 0,
-            },
-            importedSessions: [],
-            recommendations: [],
-            errors: [],
-            summary: {
-              learningValue: 'medium',
-              estimatedTime: '30m',
-              keyTopics: [],
-              difficulty: 'beginner',
-            },
-          },
-        }),
-      getRecommendedContent: () => Promise.resolve({ success: true, data: [] }),
-      searchLearningResources: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            query: '',
-            totalResults: 0,
-            results: [],
-            filters: { types: [], difficulties: [], sources: [], formats: [], languages: [] },
-            appliedFilters: {},
-            suggestions: [],
-            pagination: { hasMore: false, nextCursor: undefined, limit: 10 },
-            searchTime: '0ms',
-            relatedQueries: [],
-          },
-        }),
-      extractConcepts: () => Promise.resolve({ success: true, data: [] }),
-      analyzeDocument: () =>
-        Promise.resolve({
-          success: true,
-          data: {
-            filePath: '/mock/path/document.pdf',
-            fileName: 'document.pdf',
-            fileType: 'pdf',
-            fileSize: '1024',
-            analysis: {
-              readabilityScore: 85,
-              technicalComplexity: 'beginner',
-              estimatedReadingTime: '5m',
-              learningValue: 'medium',
-              structure: {
-                sections: 5,
-                codeExamples: 2,
-                diagrams: 1,
-                exercises: 3,
-                references: 10,
-              },
-              quality: {
-                completeness: 85,
-                accuracy: 90,
-                clarity: 88,
-                organization: 87,
-              },
-            },
-            extractedConcepts: [],
-            learningObjectives: [],
-            suggestedUse: 'Mock suggested use',
-            prerequisites: [],
-            topics: ['mock-topic'],
-            difficulty: 'beginner',
-            estimatedLearningTime: '30m',
-            relatedDocuments: [],
-            tags: ['mock-tag'],
-          },
         }),
     },
     settings: {
@@ -961,6 +916,22 @@ export function createMockElectronAPIClient(): ElectronAPI {
         Promise.resolve({ success: true, data: { updatedSettings: {}, impact: [] } }),
       getConfig: () => Promise.resolve({ success: true, data: mockDefaultConfig }),
       setConfig: () => Promise.resolve({ success: true }),
+    },
+    content: {
+      importLearningContent: (_fileList?: FileList) =>
+        Promise.resolve({
+          success: true,
+          data: {
+            summary: {
+              difficulty: 'beginner',
+              topics: [],
+              concepts: [],
+              estimatedTime: '5m',
+            },
+            processedFiles: 1,
+            totalFiles: 1,
+          },
+        }),
     },
     getWorkspacePath: () => Promise.resolve('/mock/workspace'),
     readDirectory: () => Promise.resolve([]),

@@ -24,6 +24,7 @@ import type {
 import type { ChatAPI } from './chat-api';
 import type { KnowledgeAPI } from './knowledge-api';
 import type { AnalyticsAPI } from './analytics-api';
+import type { AgentsAPI, ContentAPI } from './agent-api';
 
 
 import type { SettingsAPI, SettingsUtility } from './settings-api';
@@ -63,6 +64,8 @@ export { READY_TIMEOUT_MS } from './base';
 export type { ChatAPI };
 export type { KnowledgeAPI };
 export type { AnalyticsAPI };
+export type { AgentsAPI };
+export type { ContentAPI };
 export type { SettingsAPI, SettingsUtility };
 export type { SessionsAPI };
 export type { CatalystAPI };
@@ -82,6 +85,12 @@ export interface ElectronAPI {
 
   // Analytics domain
   analytics: AnalyticsAPI;
+
+  // Agents domain
+  agents: AgentsAPI;
+
+  // Content domain
+  content: ContentAPI;
 
   // Settings domain
   settings: SettingsAPI;

@@ -23,7 +23,11 @@ describe('catalyst-service error paths', () => {
     const svc = createCatalystService(baseApi);
     const res = await svc.sendChatStream('hi', undefined as any);
     expect(res.success).toBe(false);
-    expect(res.error).toMatch(/onChunk/i);
+    // Error is an object with code and message
+    const error = res.error as any;
+    expect(error).toHaveProperty('code', 'invalid_callback');
+    expect(error).toHaveProperty('message');
+    expect(error.message).toMatch(/onChunk/i);
   });
 
   it('fails when underlying sendChat API throws', async () => {
@@ -44,11 +48,11 @@ describe('catalyst-service error paths', () => {
   it('propagates API error when sendChatStream returns failure', async () => {
     baseApi.catalyst.sendChatStream.mockResolvedValue({
       success: false,
-      error: { message: 'stream failed' },
+      error: 'stream failed',
     });
     const svc = createCatalystService(baseApi);
     const res = await svc.sendChatStream('hello', () => {});
     expect(res.success).toBe(false);
-    expect(res.error).toMatch(/stream failed/);
+    expect(res.error).toBe('stream failed');
   });
 });

@@ -57,7 +57,7 @@ describe('AppServiceClient', () => {
 
   it('getAppVersion returns string when available', async () => {
     (window as any).electronAPI = {
-      settings: { getAppVersion: vi.fn().mockResolvedValue({ success: true, data: '2.0.0' }) },
+      getVersion: vi.fn().mockResolvedValue({ version: '2.0.0', build: 'test', platform: 'web' }),
     };
     const version = await getAppVersion();
     expect(version).toBe('2.0.0');
@@ -67,11 +67,11 @@ describe('AppServiceClient', () => {
     await expect(quitApp()).resolves.toBeUndefined();
   });
 
-  it('quitApp calls settings.quit when present', async () => {
-    const quit = vi.fn().mockResolvedValue({ success: true });
-    (window as any).electronAPI = { settings: { quit } };
+  it('quitApp calls relaunchApp when present', async () => {
+    const relaunch = vi.fn().mockResolvedValue(undefined);
+    (window as any).electronAPI = { relaunchApp: relaunch };
     await quitApp();
-    expect(quit).toHaveBeenCalled();
+    expect(relaunch).toHaveBeenCalled();
   });
 
   it('dialogs fall back when electronAPI missing', async () => {

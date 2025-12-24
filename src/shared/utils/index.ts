@@ -30,6 +30,22 @@ export {
 } from './performance-monitor';
 
 
+// Test Utilities (Time & ID generation for DI)
+export {
+  createTimeService,
+  createFixedTimeService,
+  createIncrementalTimeService,
+  type TimeService,
+} from './time-service';
+
+export {
+  createIdGenerator,
+  createSequentialIdGenerator,
+  createFixedIdGenerator,
+  createArrayIdGenerator,
+  type IDGenerator,
+} from './id-generator';
+
 // Type Utilities
 export {
   createServiceClient,

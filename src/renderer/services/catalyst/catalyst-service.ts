@@ -9,11 +9,16 @@ interface StreamChunk {
   timestamp: number;
 }
 
+interface ChatErrorObject {
+  code: string;
+  message: string;
+}
+
 interface ChatResponse {
   success: boolean;
   messageId?: string;
   response?: string;
-  error?: string;
+  error?: string | ChatErrorObject;
 }
 
 interface AgentsResponse {
@@ -123,7 +128,10 @@ export const createCatalystService = (electronAPI: ElectronAPI): CatalystService
         });
 
         if (!response.success || !response.data) {
-          throw new Error(response.error || 'Chat stream failed');
+          const errorMsg = typeof response.error === 'string'
+            ? response.error
+            : response.error?.message || 'Chat stream failed';
+          throw new Error(errorMsg);
         }
 
         return {

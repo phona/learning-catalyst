@@ -16,6 +16,10 @@ import * as serviceProvider from '@/renderer/services/services-provider';
 const __setService = (serviceProvider as any).__setService as (impl: any) => void;
 
 describe('useGlobalStatistics', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('surfaces initialization error when service missing', async () => {
     __setService(null);
     const { result } = renderHook(() => useGlobalStatistics());

@@ -73,7 +73,10 @@ export const ConceptManager: React.FC<ConceptManagerProps> = ({
     setError(null);
     try {
       const resp = await apiClient.knowledge.getKnowledgeMap();
-      if (!resp?.success) throw new Error(resp?.error ?? 'Unable to load concepts');
+      if (!resp?.success) {
+        const errorMsg = typeof resp?.error === 'string' ? resp.error : resp?.error?.message ?? 'Unable to load concepts';
+        throw new Error(errorMsg);
+      }
       const data = resp.data as KnowledgeMapDisplay;
       const list = data.nodes ?? [];
       setNodes(list);
@@ -168,7 +171,10 @@ export const ConceptManager: React.FC<ConceptManagerProps> = ({
         result: parsedResult,
         options: { source: 'concept-manager' },
       });
-      if (!resp?.success) throw new Error(resp?.error ?? 'Failed to save concept');
+      if (!resp?.success) {
+        const errorMsg = typeof resp?.error === 'string' ? resp.error : resp?.error?.message ?? 'Failed to save concept';
+        throw new Error(errorMsg);
+      }
 
       const updatedNodes = await refresh();
 

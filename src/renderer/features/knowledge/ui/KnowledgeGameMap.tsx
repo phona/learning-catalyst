@@ -110,7 +110,12 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
         dataIsArray: typeof resp?.data === 'object' && resp?.data !== null ? Array.isArray(resp.data) : 'n/a',
       });
 
-      if (!resp?.success) throw new Error(resp.error ?? 'Unable to load knowledge map');
+      if (!resp?.success) {
+        const errorMsg = typeof resp.error === 'string'
+          ? resp.error
+          : resp.error?.message ?? 'Unable to load knowledge map';
+        throw new Error(errorMsg);
+      }
 
       const data = resp.data as KnowledgeMapDisplay;
       console.log(`[KnowledgeGameMap:${callId}] Knowledge map data structure:`, {
@@ -249,9 +254,15 @@ export const KnowledgeGameMap: React.FC<KnowledgeGameMapProps> = ({
         </div>
       )}
 
-      <div className="flex items-center justify-center h-full text-gray-500">
-        Knowledge graph visualization will be rendered here
-      </div>
+      <RelationGraph ref={graphRef} options={options} onNodeClick={(node: any, e?: any) => {
+        if (node?.data) onConceptSelect?.(toConcept(node.data as KnowledgeMapNode));
+      }}>
+        {filtered.nodes.map((node) => (
+          <div key={node.id} onContextMenu={(e) => handleContextMenu(e, node)}>
+            {node.label}
+          </div>
+        ))}
+      </RelationGraph>
 
       {/* Context menu */}
       {contextNode && contextPos && (

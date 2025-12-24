@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Achievements, SimpleAnalyticsModule } from '../Achievements';
 import { renderWithServices } from '@/test/utils/renderWithServices';

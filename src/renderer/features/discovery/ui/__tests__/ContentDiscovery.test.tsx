@@ -9,6 +9,16 @@ vi.mock('../LocalProjectExplorer', () => ({
 }));
 
 describe('ContentDiscovery', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2020-01-01'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('wraps LocalProjectExplorer inside styled container', () => {
     renderWithServices(<ContentDiscovery className="extra-class" />);
 

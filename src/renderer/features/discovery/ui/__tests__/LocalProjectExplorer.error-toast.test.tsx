@@ -3,19 +3,26 @@ import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import { LocalProjectExplorer } from '../LocalProjectExplorer';
+import { ServicesProvider } from '@/renderer/services/services-provider';
+import { createMockElectronAPI } from '@/test/utils/electron-api-fixture';
 
-// Mock the toast utilities before any imports
+// Mock the toast utilities
 vi.mock('@/renderer/shared/lib', () => ({
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }));
 
-const mockFileService = {
+const createMockFileService = () => ({
   getWorkspacePath: vi.fn(),
   readDirectory: vi.fn(),
-};
+  existsFile: vi.fn(),
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  showOpenDialog: vi.fn(),
+  showSaveDialog: vi.fn(),
+});
 
-const mockConceptService = {
+const createMockConceptService = () => ({
   parseDirectories: vi.fn(),
   parseFiles: vi.fn(),
   getLastJobId: vi.fn(() => null),
@@ -23,30 +30,48 @@ const mockConceptService = {
   clearSavedJobs: vi.fn(async () => 0),
   getJobStatus: vi.fn(),
   cancelJob: vi.fn(),
-};
+  listActiveJobs: vi.fn(() => []),
+});
 
-const mockChatService = {
+const createMockChatService = () => ({
   getProviderInfo: vi.fn(() => ({ name: 'OpenAI', type: 'openai' })),
-};
+});
 
-vi.mock('@/renderer/services/services-provider', () => ({
-  useFileService: () => mockFileService,
-  useService: (name: string) => {
-    if (name === 'conceptParsing') return mockConceptService;
-    if (name === 'chatService') return mockChatService;
-    return {};
-  },
-  useChatService: () => mockChatService,
-}));
+const createMockConfigurationService = () => ({
+  getConfiguration: vi.fn().mockResolvedValue({
+    ai: {
+      providers: [],
+      defaultProviderId: null,
+    },
+  }),
+  getProviderStatus: vi.fn().mockResolvedValue({
+    status: 'not-configured',
+    message: 'No provider configured',
+    details: 'Please configure an AI provider',
+  }),
+});
+
+// Import after mocking
+import { showError, showSuccess } from '@/renderer/shared/lib';
 
 describe('LocalProjectExplorer - error handling', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    const toastModule = await import('@/renderer/shared/lib');
-    vi.mocked(toastModule.showError).mockClear();
-    vi.mocked(toastModule.showSuccess).mockClear();
-    mockFileService.getWorkspacePath.mockResolvedValue({ success: true, data: '/workspace' });
-    mockFileService.readDirectory.mockResolvedValue({
+    vi.mocked(showError).mockClear();
+    vi.mocked(showSuccess).mockClear();
+  });
+
+  // Helper to render with ServicesProvider
+  const renderWithProvider = (component: React.ReactNode) => {
+    const mockAPI = createMockElectronAPI();
+    const fileService = createMockFileService();
+    const conceptService = createMockConceptService();
+    const chatService = createMockChatService();
+    const configService = createMockConfigurationService();
+
+    // Default mock setup for fileService
+    fileService.getWorkspacePath.mockResolvedValue({ success: true, data: '/workspace' });
+    fileService.readDirectory.mockResolvedValue({
       success: true,
       data: [
         {
@@ -60,11 +85,61 @@ describe('LocalProjectExplorer - error handling', () => {
         },
       ],
     });
-  });
+
+    return render(
+      <ServicesProvider
+        apiClient={mockAPI}
+        overrides={{
+          fileService,
+          conceptParsing: conceptService,
+          chatService,
+          configService,
+        }}
+      >
+        {component}
+      </ServicesProvider>,
+    );
+  };
 
   it('shows error toast when parsing job fails', async () => {
     const user = userEvent.setup();
-    const toastModule = await import('@/renderer/shared/lib');
+
+    // Get the mock instance by calling renderWithProvider
+    const { rerender } = renderWithProvider(<LocalProjectExplorer />);
+
+    // Wait for file to be loaded
+    await waitFor(() => expect(screen.getByText('test.md')).toBeInTheDocument());
+
+    // Select the markdown file
+    await act(async () => {
+      fireEvent.click(screen.getByText('test.md'));
+    });
+
+    // Get the services from the context
+    // We need to mock parseFiles to return a job
+    // Since we can't easily access the service instances, let's use a different approach
+
+    // Re-render with updated mocks
+    const fileService = createMockFileService();
+    const conceptService = createMockConceptService();
+    const chatService = createMockChatService();
+    const configService = createMockConfigurationService();
+
+    fileService.getWorkspacePath.mockResolvedValue({ success: true, data: '/workspace' });
+    fileService.readDirectory.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          path: '/workspace/test.md',
+          name: 'test.md',
+          isDirectory: false,
+          isFile: true,
+          isMarkdown: true,
+          size: 1024,
+          children: [],
+        },
+      ],
+    });
 
     // Setup: mock parseFiles to return a job
     const mockJob = {
@@ -74,7 +149,7 @@ describe('LocalProjectExplorer - error handling', () => {
       startedAt: new Date(),
       stages: [],
     };
-    mockConceptService.parseFiles.mockResolvedValueOnce(mockJob);
+    conceptService.parseFiles.mockResolvedValueOnce(mockJob);
 
     // Setup: mock getJobStatus to return failed job
     const failedJob = {
@@ -86,17 +161,25 @@ describe('LocalProjectExplorer - error handling', () => {
       errorMessage: 'Cannot read properties of undefined (reading \'providerName\')',
       stages: [],
     };
-    mockConceptService.getJobStatus.mockReturnValue(failedJob);
+    conceptService.getJobStatus.mockReturnValue(failedJob);
 
-    render(<LocalProjectExplorer />);
+    const mockAPI = createMockElectronAPI();
+    rerender(
+      <ServicesProvider
+        apiClient={mockAPI}
+        overrides={{
+          fileService,
+          conceptParsing: conceptService,
+          chatService,
+          configService,
+        }}
+      >
+        <LocalProjectExplorer />
+      </ServicesProvider>,
+    );
 
-    // Wait for file to be loaded
+    // Wait for file to be loaded again
     await waitFor(() => expect(screen.getByText('test.md')).toBeInTheDocument());
-
-    // Select the markdown file
-    await act(async () => {
-      fireEvent.click(screen.getByText('test.md'));
-    });
 
     // Click "Parse Concepts" button
     const parseButton = screen.getByText(/Parse Concepts/i);
@@ -105,23 +188,43 @@ describe('LocalProjectExplorer - error handling', () => {
     // Wait for the job to be checked and detected as failed
     await waitFor(
       () => {
-        expect(vi.mocked(toastModule.showError)).toHaveBeenCalled();
+        expect(vi.mocked(showError)).toHaveBeenCalled();
       },
       { timeout: 3000 },
     );
 
     // Verify the error toast was shown with the error message
-    expect(vi.mocked(toastModule.showError)).toHaveBeenCalledWith(
+    expect(vi.mocked(showError)).toHaveBeenCalledWith(
       expect.stringContaining('Concept parsing failed'),
     );
-    expect(vi.mocked(toastModule.showError)).toHaveBeenCalledWith(
+    expect(vi.mocked(showError)).toHaveBeenCalledWith(
       expect.stringContaining('Cannot read properties of undefined'),
     );
   });
 
   it('shows success toast when parsing starts', async () => {
     const user = userEvent.setup();
-    const toastModule = await import('@/renderer/shared/lib');
+
+    const fileService = createMockFileService();
+    const conceptService = createMockConceptService();
+    const chatService = createMockChatService();
+    const configService = createMockConfigurationService();
+
+    fileService.getWorkspacePath.mockResolvedValue({ success: true, data: '/workspace' });
+    fileService.readDirectory.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          path: '/workspace/test.md',
+          name: 'test.md',
+          isDirectory: false,
+          isFile: true,
+          isMarkdown: true,
+          size: 1024,
+          children: [],
+        },
+      ],
+    });
 
     // Setup: mock parseFiles to return a job that will succeed
     const mockJob = {
@@ -131,7 +234,7 @@ describe('LocalProjectExplorer - error handling', () => {
       startedAt: new Date(),
       stages: [],
     };
-    mockConceptService.parseFiles.mockResolvedValueOnce(mockJob);
+    conceptService.parseFiles.mockResolvedValueOnce(mockJob);
 
     // Setup: mock getJobStatus to return completed job
     const completedJob = {
@@ -146,9 +249,22 @@ describe('LocalProjectExplorer - error handling', () => {
         relationships: [],
       },
     };
-    mockConceptService.getJobStatus.mockReturnValue(completedJob);
+    conceptService.getJobStatus.mockReturnValue(completedJob);
 
-    render(<LocalProjectExplorer />);
+    const mockAPI = createMockElectronAPI();
+    render(
+      <ServicesProvider
+        apiClient={mockAPI}
+        overrides={{
+          fileService,
+          conceptParsing: conceptService,
+          chatService,
+          configService,
+        }}
+      >
+        <LocalProjectExplorer />
+      </ServicesProvider>,
+    );
 
     await waitFor(() => expect(screen.getByText('test.md')).toBeInTheDocument());
 
@@ -161,13 +277,33 @@ describe('LocalProjectExplorer - error handling', () => {
 
     // Should show success toast when parsing starts
     await waitFor(() => {
-      expect(vi.mocked(toastModule.showSuccess)).toHaveBeenCalledWith('Parsing started');
+      expect(vi.mocked(showSuccess)).toHaveBeenCalledWith('Parsing started');
     });
   });
 
   it('handles job failure with empty error message', async () => {
     const user = userEvent.setup();
-    const toastModule = await import('@/renderer/shared/lib');
+
+    const fileService = createMockFileService();
+    const conceptService = createMockConceptService();
+    const chatService = createMockChatService();
+    const configService = createMockConfigurationService();
+
+    fileService.getWorkspacePath.mockResolvedValue({ success: true, data: '/workspace' });
+    fileService.readDirectory.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          path: '/workspace/test.md',
+          name: 'test.md',
+          isDirectory: false,
+          isFile: true,
+          isMarkdown: true,
+          size: 1024,
+          children: [],
+        },
+      ],
+    });
 
     const mockJob = {
       id: 'test-job-3',
@@ -176,7 +312,7 @@ describe('LocalProjectExplorer - error handling', () => {
       startedAt: new Date(),
       stages: [],
     };
-    mockConceptService.parseFiles.mockResolvedValueOnce(mockJob);
+    conceptService.parseFiles.mockResolvedValueOnce(mockJob);
 
     // Job fails with no error message
     const failedJob = {
@@ -188,9 +324,22 @@ describe('LocalProjectExplorer - error handling', () => {
       errorMessage: undefined,
       stages: [],
     };
-    mockConceptService.getJobStatus.mockReturnValue(failedJob);
+    conceptService.getJobStatus.mockReturnValue(failedJob);
 
-    render(<LocalProjectExplorer />);
+    const mockAPI = createMockElectronAPI();
+    render(
+      <ServicesProvider
+        apiClient={mockAPI}
+        overrides={{
+          fileService,
+          conceptParsing: conceptService,
+          chatService,
+          configService,
+        }}
+      >
+        <LocalProjectExplorer />
+      </ServicesProvider>,
+    );
 
     await waitFor(() => expect(screen.getByText('test.md')).toBeInTheDocument());
 
@@ -203,10 +352,10 @@ describe('LocalProjectExplorer - error handling', () => {
 
     await waitFor(
       () => {
-        expect(vi.mocked(toastModule.showError)).toHaveBeenCalledWith(
+        expect(vi.mocked(showError)).toHaveBeenCalledWith(
           expect.stringContaining('Concept parsing failed'),
         );
-        expect(vi.mocked(toastModule.showError)).toHaveBeenCalledWith(
+        expect(vi.mocked(showError)).toHaveBeenCalledWith(
           expect.stringContaining('Unknown error'),
         );
       },

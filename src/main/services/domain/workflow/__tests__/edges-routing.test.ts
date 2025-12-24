@@ -22,7 +22,7 @@
  * - THRESHOLDS constants
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { START, END } from '@langchain/langgraph';
 import { SIMPLE_EDGES, CONDITIONALS } from '../edges';
 import { NodeName } from '../types';
@@ -30,6 +30,11 @@ import { THRESHOLDS } from '../thresholds';
 import type { WorkflowState } from '../state';
 
 describe('Workflow Graph Routing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
   describe('SIMPLE_EDGES', () => {
     it('should be an array', () => {
       expect(SIMPLE_EDGES).toBeInstanceOf(Array);

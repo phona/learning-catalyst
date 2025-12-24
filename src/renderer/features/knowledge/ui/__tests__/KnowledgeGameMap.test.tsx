@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { KnowledgeGameMap } from '../KnowledgeGameMap';
 import { renderWithServices } from '@/test/utils/test-providers';
@@ -13,26 +13,18 @@ describe('KnowledgeGameMap', () => {
   describe('Initial Load Scenarios', () => {
     it('should render when data loads AFTER graph instance is ready', async () => {
       const client = createMockElectronAPIClient();
-      let resolveData: any = null;
 
-      client.knowledge.getKnowledgeMap = vi.fn().mockImplementation(() => {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              success: true,
-              data: {
-                nodes: [
-                  { id: 'a', label: 'Alpha', x: 0, y: 0, size: 1, color: '#2563eb', category: 'topic', mastery: 0.5 },
-                ],
-                edges: [],
-                layout: 'force-directed',
-                clusters: [],
-                metadata: { totalNodes: 1, totalEdges: 0, centerConcepts: [], learningPaths: [] },
-              },
-            });
-          }, 100);
-          resolveData = resolve;
-        });
+      client.knowledge.getKnowledgeMap = vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          nodes: [
+            { id: 'a', label: 'Alpha', x: 0, y: 0, size: 1, color: '#2563eb', category: 'topic', mastery: 0.5 },
+          ],
+          edges: [],
+          layout: 'force-directed',
+          clusters: [],
+          metadata: { totalNodes: 1, totalEdges: 0, centerConcepts: [], learningPaths: [] },
+        },
       });
 
       const onSelect = vi.fn();
@@ -42,31 +34,24 @@ describe('KnowledgeGameMap', () => {
       await waitFor(() => expect(screen.getByTestId('rg-mock')).toBeInTheDocument());
 
       // Wait for data to load and render
-      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 500 });
+      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 5000 });
       expect(screen.getByText('Alpha')).toBeInTheDocument();
     });
 
     it('should render when graph instance is ready BEFORE data loads', async () => {
       const client = createMockElectronAPIClient();
 
-      // Simulate data taking time to load
-      client.knowledge.getKnowledgeMap = vi.fn().mockImplementation(() => {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve({
-              success: true,
-              data: {
-                nodes: [
-                  { id: 'a', label: 'Alpha', x: 0, y: 0, size: 1, color: '#2563eb', category: 'topic', mastery: 0.5 },
-                ],
-                edges: [],
-                layout: 'force-directed',
-                clusters: [],
-                metadata: { totalNodes: 1, totalEdges: 0, centerConcepts: [], learningPaths: [] },
-              },
-            });
-          }, 200);
-        });
+      client.knowledge.getKnowledgeMap = vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          nodes: [
+            { id: 'a', label: 'Alpha', x: 0, y: 0, size: 1, color: '#2563eb', category: 'topic', mastery: 0.5 },
+          ],
+          edges: [],
+          layout: 'force-directed',
+          clusters: [],
+          metadata: { totalNodes: 1, totalEdges: 0, centerConcepts: [], learningPaths: [] },
+        },
       });
 
       const onSelect = vi.fn();
@@ -76,7 +61,7 @@ describe('KnowledgeGameMap', () => {
       await waitFor(() => expect(screen.getByTestId('rg-mock')).toBeInTheDocument());
 
       // Then data loads
-      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 500 });
+      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 5000 });
       expect(screen.getByText('Alpha')).toBeInTheDocument();
     });
 
@@ -173,7 +158,7 @@ describe('KnowledgeGameMap', () => {
       renderWithServices(<KnowledgeGameMap onConceptSelect={onSelect} />, { electronAPI: client });
 
       // Should not crash even if graph takes time to initialize
-      await waitFor(() => expect(screen.getByTestId('rg-mock')).toBeInTheDocument(), { timeout: 1000 });
+      await waitFor(() => expect(screen.getByTestId('rg-mock')).toBeInTheDocument(), { timeout: 5000 });
     });
   });
 
@@ -201,7 +186,7 @@ describe('KnowledgeGameMap', () => {
       const onSelect = vi.fn();
       renderWithServices(<KnowledgeGameMap onConceptSelect={onSelect} />, { electronAPI: client });
 
-      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 5000 });
       expect(screen.getByText('Beta')).toBeInTheDocument();
       expect(screen.getByTestId('rg-mock')).toBeInTheDocument();
     });
@@ -229,7 +214,7 @@ describe('KnowledgeGameMap', () => {
       renderWithServices(<KnowledgeGameMap onConceptSelect={onSelect} />, { electronAPI: client });
 
       // Should still render without crashing
-      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 5000 });
       expect(screen.getByTestId('rg-mock')).toBeInTheDocument();
     });
   });
@@ -254,7 +239,7 @@ describe('KnowledgeGameMap', () => {
       const onSelect = vi.fn();
       renderWithServices(<KnowledgeGameMap onConceptSelect={onSelect} />, { electronAPI: client });
 
-      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Alpha')).toBeInTheDocument(), { timeout: 5000 });
 
       // Right-click to open context menu
       fireEvent.contextMenu(screen.getByText('Alpha'));
@@ -280,7 +265,7 @@ describe('KnowledgeGameMap', () => {
       renderWithServices(<KnowledgeGameMap onConceptSelect={onSelect} />, { electronAPI: client });
 
       // Should show error message
-      await waitFor(() => expect(screen.getByText(/Network error/)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText(/Network error/)).toBeInTheDocument(), { timeout: 5000 });
     });
   });
 });

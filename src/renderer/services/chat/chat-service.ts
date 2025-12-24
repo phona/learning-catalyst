@@ -4,6 +4,8 @@ import type { AgentDisplay } from '../../../shared/types/electron-api/agent-api'
 import type { SessionDisplay } from '../../../shared/types/electron-api/sessions-api';
 import type { Message, StreamChunk } from '../../../shared/types/ai';
 import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import type { TimeService, IDGenerator } from '@/shared/utils';
+import { createTimeService, createIdGenerator } from '@/shared/utils';
 
 /**
  * This service uses the unwrapAPI pattern for consistent IPC error handling.
@@ -15,6 +17,17 @@ import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
  *
  * See docs/DEVELOPER-GUIDE/electron-api.md for details.
  */
+
+/**
+ * Options for creating the ChatService with dependency injection.
+ * Enables deterministic testing by providing controllable time and ID generation.
+ */
+export interface ChatServiceOptions {
+  /** Time service for deterministic timestamp generation in tests */
+  timeService?: TimeService;
+  /** ID generator for deterministic message IDs in tests */
+  idGenerator?: IDGenerator;
+}
 
 export interface ChatService {
   sendMessage(
@@ -38,19 +51,16 @@ export interface ChatService {
   getAvailableAgents?: () => Promise<AgentDisplay[]>;
   cancelExecution?: (executionId: string) => Promise<void>;
   getProviderInfo?: () => { name?: string; provider?: string } | null;
-  resumeWorkflow?: (params: {
-    conversationId: string;
-    checkpointId: string;
-    questionId?: string;
-    action: 'answer' | 'skip' | 'resume_later';
-    input?: string;
-  }) => Promise<{ success: boolean; resumed: boolean }>;
 }
 
 /**
  * Functional implementation of chat service using the unified electronAPI client
  */
-export const createChatService = (apiClient: ElectronAPI): ChatService => {
+export const createChatService = (apiClient: ElectronAPI, options?: ChatServiceOptions): ChatService => {
+  // Use injected dependencies or defaults (real time service for production)
+  const timeService = options?.timeService ?? createTimeService();
+  const idGenerator = options?.idGenerator ?? createIdGenerator();
+
   const pendingStreams = new Map<
     string,
     {
@@ -109,10 +119,10 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
       }));
 
       return {
-        id: data.messageId ?? `msg_${Date.now()}`,
+        id: data.messageId ?? idGenerator.withPrefix('msg'),
         role: 'assistant',
         content: data.response ?? '',
-        timestamp: new Date(),
+        timestamp: new Date(timeService.now()),
         provider: sessionId,
       };
     } catch (error) {
@@ -135,8 +145,8 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
 
     const sessionId = ensureSessionId(options);
     let aggregated = '';
-    const assistantId = `assistant_${Date.now()}`;
-    const startTime = Date.now();
+    const assistantId = idGenerator.withPrefix('assistant');
+    const startTime = timeService.now();
 
     try {
       console.log('[chat-service] sendMessageStream: start', {
@@ -180,12 +190,12 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
         // Setup completion handling (this is a simplified version)
         // In a real implementation, you'd handle the onComplete callback
         setTimeout(() => {
-          const responseTime = Date.now() - startTime;
+          const responseTime = timeService.now() - startTime;
           resolve({
             id: assistantId,
             role: 'assistant',
             content: aggregated,
-            timestamp: new Date(),
+            timestamp: new Date(timeService.now()),
             provider: sessionId,
           });
           pendingStreams.delete(sessionId);
@@ -291,7 +301,7 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
           id: pending.assistantId,
           role: 'assistant',
           content: pending.getContent(),
-          timestamp: new Date(),
+          timestamp: new Date(timeService.now()),
           provider: conversationId,
         });
         pendingStreams.delete(conversationId);
@@ -301,21 +311,6 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
       console.error('[chat-service] cancelStream: failed', err);
       throw err;
     }
-  };
-
-  const resumeWorkflow = async (params: {
-    conversationId: string;
-    checkpointId: string;
-    questionId?: string;
-    action: 'answer' | 'skip' | 'resume_later';
-    input?: string;
-  }): Promise<{ success: boolean; resumed: boolean }> => {
-    // This method doesn't exist in the current API, return a default response
-    // In a real implementation, this would call the appropriate API endpoint
-    return {
-      success: false,
-      resumed: false,
-    };
   };
 
   return {
@@ -329,6 +324,5 @@ export const createChatService = (apiClient: ElectronAPI): ChatService => {
     getAvailableAgents,
     cancelExecution,
     getProviderInfo,
-    resumeWorkflow,
   };
 };

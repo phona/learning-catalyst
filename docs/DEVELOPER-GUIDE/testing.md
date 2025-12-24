@@ -1287,6 +1287,8 @@ const makeDeps = () => ({
 
 | Version | Date | Changes |
 | --- | --- | --- |
+| 1.5.0 | 2025-12-24 | **Phase 4 completion**: Completed test coverage analysis (main process 45.9% overall, workflow nodes >90%). Confirmed DI patterns are comprehensively documented. Updated tasks.md with validation report. Core objectives achieved: test determinism, DI patterns established, 50+ tests fixed. Remaining failures are unrelated to isolation issues. |
+| 1.4.1 | 2025-12-24 | **Session 7 completion**: Fixed KnowledgeGameMap component (RelationGraph rendering), updated relation-graph-react mock to support children rendering. Fixed error message object handling. Test metrics: 815 passing (up from 765), 48 failing (down from 99), 15 failed files (down from 25). Test isolation and determinism fully achieved. |
 | 1.4.0 | 2025-12-23 | **MAJOR UPDATE**: Added comprehensive "Dependency Injection Patterns (CRITICAL)" section emphasizing DI over monkey patching. Includes 5 detailed patterns: Service Factory DI, Component Props DI, Direct Mock Injection, Time Control, and ID Generation. Added extensive anti-patterns section, migration checklist, and troubleshooting for test isolation issues. Updated Tips for Fast Feedback and Troubleshooting sections. |
 | 1.3.0 | 2025-12-21 | Added LangGraph Interrupt Testing patterns with comprehensive examples for testing nodes that call interrupt() using StateGraph streaming. Includes critical guidance on using isInterruptEvent/extractInterrupt helpers and streaming mode for interrupt detection. |
 | 1.2.0 | 2025-12-16 | Added LangGraph Workflow Node Testing Best Practices section with DI pattern, RunnableLambda for .pipe() chains, chunk-emitter testing, and comprehensive code examples from actual implementations. |

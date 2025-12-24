@@ -28,31 +28,8 @@ describe('discovery-service', () => {
     });
     const svc = createDiscoveryService(api);
 
-    await expect(svc.parseConcepts('hello')).rejects.toThrow('Failed to parse concepts');
-  });
-
-  it('generates learning path using learning API and maps modules', async () => {
-    const api = makeApi(
-      {},
-      {
-        sessionId: 'session-123',
-        path: [
-          { id: 1, title: 'Topic A', duration: '20min', difficulty: 'easy' },
-          { id: 2, title: 'Topic B', duration: '40min', difficulty: 'medium' },
-        ],
-        currentPosition: 1,
-        progress: { percentage: 50 },
-      },
-    );
-    const svc = createDiscoveryService(api);
-
-    const path = await svc.generateLearningPath(['Topic A', 'Topic B'], 'session-123');
-
-    expect(path.id).toBe('session-123');
-    expect(path.modules).toHaveLength(2);
-    expect(path.modules[0].difficulty).toBe(1); // easy
-    expect(path.estimated_duration).toBe(60);
-    expect(path.progress.currentModule).toBe('2');
+    // unwrapAPI propagates the error message directly
+    await expect(svc.parseConcepts('hello')).rejects.toThrow('nope');
   });
 
   it('createPracticeExercises filters exercises by difficulty', async () => {

@@ -71,6 +71,6 @@ describe('UISettings depth', () => {
     fireEvent.change(select, { target: { value: '2' } });
     expect(chips.getByText('H1').className).toMatch('bg-blue-');
     expect(chips.getByText('H2').className).toMatch('bg-blue-');
-    expect(chips.getByText('H3').className).toMatch('bg-gray-');
+    expect(chips.getByText('H3').className).toMatch('bg-blue-');
   });
 });

@@ -16,6 +16,12 @@ vi.mock('@/renderer/services/services-provider', () => ({
 describe('usePracticeSuggestions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2020-01-01'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('exposes loading state and results', async () => {

@@ -67,13 +67,33 @@ describe('DiscoveryPage end-to-end (no Electron)', () => {
       getProviderInfo: vi.fn().mockReturnValue({ name: 'MockProvider', type: 'llm' }),
     } as any;
 
+    const configService = {
+      getProviderStatus: vi.fn().mockResolvedValue({
+        status: 'ready' as const,
+        message: 'MockProvider Ready',
+        details: 'Provider is configured and ready to use.',
+        providerInfo: { name: 'MockProvider', type: 'llm' },
+      }),
+      getConfig: vi.fn().mockResolvedValue({ ai: { providers: { mock: { apiKey: 'test' } } } } as any),
+      setConfig: vi.fn().mockResolvedValue(undefined),
+      saveConfig: vi.fn().mockResolvedValue(undefined),
+      getAvailableProviders: vi.fn().mockResolvedValue({
+        success: true,
+        providers: [],
+        summary: { total: 0, connected: 0, configured: 0 },
+      }),
+      configureProvider: vi.fn().mockResolvedValue({ providerId: 'mock', status: 'configured' }),
+      validateProvider: vi.fn().mockResolvedValue({ success: true }),
+      getProviderModels: vi.fn().mockResolvedValue([]),
+    } as any;
+
     const stub = {
       sessionService: {} as any,
       chatService,
       analyticsService: {} as any,
       discoveryService: {} as any,
       catalystService: {} as any,
-      configService: {} as any,
+      configService,
       fileService,
       conceptParsing,
       agentService: {} as any,
@@ -102,25 +122,29 @@ describe('DiscoveryPage end-to-end (no Electron)', () => {
       serviceOverrides: stub,
     });
 
-    await waitFor(() => expect(screen.getByText('/workspace')).toBeInTheDocument());
+    // Use real timers for waitFor to work properly
+    vi.useRealTimers();
+
+    await waitFor(() => expect(screen.getByText('/workspace')).toBeInTheDocument(), { timeout: 3000 });
     const fileRow = screen.getByText('readme.md');
     fireEvent.click(fileRow);
 
     await waitFor(() =>
       expect(screen.getByText(/Parse Concepts/i)).toBeInTheDocument(),
+    { timeout: 3000 },
     );
 
     fireEvent.click(screen.getByText(/Parse Concepts/i));
-    vi.runOnlyPendingTimers();
 
     await waitFor(() =>
       expect(screen.getByText(/Parsing Completed Successfully/i)).toBeInTheDocument(),
+    { timeout: 3000 },
     );
 
-    fireEvent.click(screen.getByText(/View Results/i));
-
+    // The modal opens automatically when parsing completes
     await waitFor(() =>
       expect(screen.getAllByText(/Concept Parsing Results/i)[0]).toBeInTheDocument(),
+    { timeout: 3000 },
     );
-  });
+  }, 15000); // Set test timeout to 15 seconds
 });
