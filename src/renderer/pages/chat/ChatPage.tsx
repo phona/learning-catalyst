@@ -23,7 +23,6 @@ export const ChatPage: React.FC = () => {
   const threadState = threadListItem?.getState();
   const currentThreadId = threadState?.id;
   const currentRemoteId = threadState?.remoteId;
-  const isHydrating = !!sessionId && (!threadState || !currentRemoteId);
 
   // Ensure the runtime thread matches the route on refresh / deep-link.
   React.useEffect(() => {
@@ -45,14 +44,6 @@ export const ChatPage: React.FC = () => {
 
   return (
     <div className="h-full bg-gray-50">
-      {isHydrating && (
-        <div
-          className="flex items-center justify-center h-full text-sm text-gray-500"
-          data-testid="chat-loading"
-        >
-          Loading chat…
-        </div>
-      )}
       <Thread
         key={currentThreadId}
         assistantMessage={{
