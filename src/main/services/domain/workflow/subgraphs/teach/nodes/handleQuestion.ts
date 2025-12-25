@@ -178,16 +178,10 @@ export const handleQuestionNode =
           emitter.textEnd(messageId);
         }
 
-        let resumeValue: any = undefined;
-        try {
-          resumeValue = await interrupt({
-            type: 'teach_max_questions',
-            prompt: maxQuestionsMessage,
-          });
-        } catch (error) {
-          // interrupt() called outside graph context - this happens in tests
-          deps.loggerService.debug('Skipping interrupt in non-graph context');
-        }
+        const resumeValue = await interrupt({
+          type: 'teach_max_questions',
+          prompt: maxQuestionsMessage,
+        });
 
         const answer =
         typeof resumeValue === 'string'
@@ -224,18 +218,11 @@ export const handleQuestionNode =
 
       // Interrupt and wait for next user response
       // Only call interrupt if in a graph context
-      let resumeValue: any = undefined;
-      try {
-        resumeValue = await interrupt({
-          type: 'teach_followup',
-          prompt: responseContent,
-          questionsAsked: newQuestionsAsked,
-        });
-      } catch (error) {
-        // interrupt() called outside graph context - this happens in tests
-        // For testing purposes, we'll just skip the interrupt
-        deps.loggerService.debug('Skipping interrupt in non-graph context');
-      }
+      const resumeValue = await interrupt({
+        type: 'teach_followup',
+        prompt: responseContent,
+        questionsAsked: newQuestionsAsked,
+      });
 
       const answer =
       typeof resumeValue === 'string'

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { AIMessage } from '@langchain/core/messages';
 import { TeachState, DEFAULT_TEACH_STATE } from '../types';
@@ -26,6 +26,11 @@ vi.mock('../../../utils/chunk-emitter', async () => {
     }),
     generateId: vi.fn().mockReturnValue('test-id'),
   };
+});
+
+afterAll(() => {
+  vi.unmock('../../../utils/chunk-emitter');
+  vi.resetModules();
 });
 
 // Mock dependencies
@@ -320,7 +325,8 @@ What specific edge case were you wondering about?`,
     const deps = createMockDeps();
     deps.providerFactory.getModel = vi.fn().mockResolvedValue(mockModel);
 
-    const { createChunkEmitter } = await import('../../../utils/chunk-emitter');
+    const chunkEmitterModule = await import('../../../utils/chunk-emitter');
+    const createChunkEmitterSpy = vi.spyOn(chunkEmitterModule, 'createChunkEmitter');
 
     const node = explainNode(deps as any);
 
@@ -340,7 +346,7 @@ What specific edge case were you wondering about?`,
     await node(state, createMockConfig());
 
     // Verify chunk emitter was used
-    expect(createChunkEmitter).toHaveBeenCalled();
+    expect(createChunkEmitterSpy).toHaveBeenCalled();
   });
 
   it('should work with minimal config', async () => {
@@ -505,7 +511,8 @@ What specific edge case were you wondering about?`,
     const deps = createMockDeps();
     deps.providerFactory.getModel = vi.fn().mockResolvedValue(mockModel);
 
-    const { generateId } = await import('../../../utils/chunk-emitter');
+    const chunkEmitterModule = await import('../../../utils/chunk-emitter');
+    const generateIdSpy = vi.spyOn(chunkEmitterModule, 'generateId');
 
     const node = explainNode(deps as any);
 
@@ -525,7 +532,7 @@ What specific edge case were you wondering about?`,
     await node(state, createMockConfig());
 
     // Verify ID was generated
-    expect(generateId).toHaveBeenCalled();
+    expect(generateIdSpy).toHaveBeenCalled();
   });
 
   it('should update understanding level if provided', async () => {

@@ -403,36 +403,6 @@ describe('ipcFetch', () => {
     });
   });
 
-  describe('logging', () => {
-    it('should log stream data when sending message', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      let streamCallback: any;
-
-      mockElectronAPI.aiSDK.stream.mockImplementation(
-        (params, onData, onDone) => {
-          streamCallback = onData;
-          return vi.fn(); // cancel function
-        }
-      );
-
-      const payload = {
-        id: 'thread-log-123',
-        messages: [{ role: 'user', content: 'Hello' }],
-      };
-
-      await ipcFetch('test input', {
-        body: JSON.stringify(payload),
-      });
-
-      // Simulate stream data to test logging
-      const testData = 'test stream data';
-      streamCallback(testData);
-
-      expect(consoleSpy).toHaveBeenCalledWith(testData);
-      consoleSpy.mockRestore();
-    });
-  });
-
   describe('edge cases', () => {
     it('should handle empty string id', async () => {
       const payload = {

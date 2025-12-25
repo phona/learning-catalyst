@@ -18,9 +18,9 @@ export const createIpcFetch = (api: ElectronAPI): FetchFunction => async (_input
         cancelStream = api.aiSDK.stream(
           newUserMessage !== undefined ? { conversationId, newUserMessage } : { conversationId, messages },
           (data: unknown) => {
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(data);
-            }
+            // if (process.env.NODE_ENV !== 'production') {
+            //   console.log(data);
+            // }
             const streamData = typeof data === 'string' ? data : String(data);
             controller.enqueue(textEncoder.encode(streamData));
           },

@@ -492,6 +492,29 @@ export const exampleNode = (deps: WorkflowDeps) => async (
 
 ---
 
+### Interrupt / Resume (LangGraph)
+
+LangGraph `interrupt()` pauses execution by throwing a `GraphInterrupt` (control flow). That means:
+
+- **Do not** wrap `interrupt()` in a catch-all `try/catch` that continues execution.
+- For tests and runtime resume, use LangGraph `Command({ resume })`.
+- If you *do* catch errors in code that can call `interrupt()`, rethrow `GraphInterrupt` (use `isGraphInterrupt`).
+
+```typescript
+import { interrupt, Command, isGraphInterrupt } from '@langchain/langgraph';
+
+try {
+  await interrupt({ type: 'x', prompt: '...' }); // pauses the graph (throws GraphInterrupt)
+} catch (err) {
+  if (isGraphInterrupt(err)) throw err;
+  throw err;
+}
+
+await graph.stream(new Command({ resume: 'user text' }));
+```
+
+---
+
 ### Pattern 3: Assessment Node
 
 ```typescript

@@ -1,22 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { LangGraphRunnableConfig, MemorySaver, StateGraph, START, END } from '@langchain/langgraph';
+import { Command, MemorySaver, StateGraph, START, END } from '@langchain/langgraph';
+import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+
 import { handleQuestionNode } from '../nodes/handleQuestion';
-import { DEFAULT_TEACH_STATE, TeachState } from '../types';
-import { AIMessage } from '@langchain/core/messages';
+import { DEFAULT_TEACH_STATE } from '../types';
 import { TeachAnnotation } from '../state';
 import type { WorkflowDeps } from '../../../state';
+import { extractInterrupt, isInterruptEvent } from '../../../interrupt';
 
-// Mock dependencies
-const createMockDeps = (): WorkflowDeps => {
-  const mockProviderFactory = {
-    getModel: vi.fn(),
-    getEmbeddings: vi.fn(),
-    getEmbeddingModel: vi.fn(),
-    getRerankModel: vi.fn(),
-  } as any;
-
-  return {
-    providerFactory: mockProviderFactory,
+const createMockDeps = (): WorkflowDeps =>
+  ({
+    providerFactory: {
+      getModel: vi.fn(),
+      getEmbeddings: vi.fn(),
+      getEmbeddingModel: vi.fn(),
+      getRerankModel: vi.fn(),
+    },
     loggerService: {
       debug: vi.fn(),
       info: vi.fn(),
@@ -27,216 +26,177 @@ const createMockDeps = (): WorkflowDeps => {
         info: vi.fn(),
         warn: vi.fn(),
         error: vi.fn(),
-      }) as any,
+      }),
     },
     agentManager: {} as any,
     checkpointer: {} as any,
-    configService: {
-      getConfig: vi.fn().mockResolvedValue({
-        ai: {
-          modelTypes: {
-            chat: { provider: 'openai', model: 'gpt-4', temperature: 0.7, maxTokens: 2048 },
-            embedding: { provider: 'openai', model: 'text-embedding-3-small', dimensions: 1536 },
-          },
-        },
-      }),
-    } as any,
+    configService: {} as any,
     knowledgeService: {
-      searchKnowledge: vi.fn().mockResolvedValue({
-        results: [],
-      }),
+      searchKnowledge: vi.fn().mockResolvedValue({ results: [] }),
     } as any,
     practiceService: {} as any,
     learningService: {} as any,
-  };
+  }) as unknown as WorkflowDeps;
+
+const createGraph = (deps: WorkflowDeps) =>
+  new StateGraph(TeachAnnotation)
+    .addNode('handleQuestion', handleQuestionNode(deps))
+    .addEdge(START, 'handleQuestion')
+    .addEdge('handleQuestion', END)
+    .compile({ checkpointer: new MemorySaver() });
+
+const consumeUntilInterrupt = async (stream: AsyncIterable<unknown>) => {
+  for await (const evt of stream) {
+    if (isInterruptEvent(evt)) {
+      return extractInterrupt(evt) as any;
+    }
+  }
+
+  return undefined;
 };
 
-const createMockConfig = (): LangGraphRunnableConfig => ({});
+const consumeUntilHandleQuestionUpdate = async (stream: AsyncIterable<unknown>) => {
+  for await (const evt of stream) {
+    if ((evt as any)?.handleQuestion) {
+      return (evt as any).handleQuestion as any;
+    }
+  }
 
-describe('handleQuestion node', () => {
+  return undefined;
+};
+
+describe('handleQuestion node (StateGraph interrupt pattern)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should answer user questions', async () => {
+  it('emits teach_followup interrupt and resumes with Command({ resume })', async () => {
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({
-        content: `Great question! Closures are created when an inner function
-        accesses variables from its outer scope.
-
-        Think of it like this: the inner function "remembers" the environment
-        where it was born, even after the outer function has finished running.
-
-        Example:
-        \`\`\`javascript
-        function outer() {
-          const secret = 'I like pizza';
-          return function inner() {
-            console.log(secret); // Can access secret!
-          };
-        }
-        \`\`\`
-
-        Does this help clarify how closures work?`,
+        content: 'Closures are created when an inner function accesses outer scope variables.',
       }),
     };
 
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
+    const deps = createMockDeps();
+    (deps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
 
-    const node = handleQuestionNode(mockDeps);
+    const graph = createGraph(deps);
+    const threadId = 'teach-handleQuestion-resume';
 
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'JavaScript Closures',
-      userAnswer: 'How are closures created?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Verify answer was generated
-    expect(result.messages).toHaveLength(1);
-    expect(result.messages[0]).toBeInstanceOf(AIMessage);
-    expect(result.messages[0].content).toContain('closure');
-
-    // Verify question count incremented
-    expect(result.teach?.questionsAsked).toBe(1);
-  });
-
-  it('should handle confusion with clarification', async () => {
-    const mockModel = {
-      invoke: vi.fn().mockResolvedValue({
-        content: `I understand this can be confusing! Let me explain differently.
-
-        Think of a closure like a photo album. When you take a photo (create a function),
-        it captures not just what's in the picture, but also the moment and place
-        (the variables and scope) where it was taken.
-
-        Even when you look at the photo later (call the function), it still remembers
-        when and where it was taken (the variables).
-
-        Does this analogy help make it clearer?`,
-      }),
-    };
-
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'JavaScript Closures',
-      userAnswer: "I don't understand closures at all",
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 2,
-        questionsAsked: 1,
-        teachIntent: 'confused' as const,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Should provide clarification
-    expect(result.messages[0].content).toContain('confusing');
-    expect(result.messages[0].content).toContain('differently');
-
-    // Question count should increment
-    expect(result.teach?.questionsAsked).toBe(2);
-  });
-
-  it('should redirect off_topic responses', async () => {
-    const mockDeps = createMockDeps();
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'JavaScript Closures',
-      userAnswer: 'What is the weather like today?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-        teachIntent: 'off_topic' as const,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Should redirect to topic (off_topic uses hardcoded response)
-    expect(result.messages[0].content).toContain('focused');
-    expect(result.messages[0].content).toContain('JavaScript Closures');
-
-    // Question count should increment
-    expect(result.teach?.questionsAsked).toBe(1);
-  });
-
-  it('should track question count across multiple questions', async () => {
-    const questionCount = 5;
-
-    for (let i = 0; i < questionCount; i++) {
-      // Create fresh mocks for each iteration
-      const mockModel = {
-        invoke: vi.fn().mockResolvedValue({
-          content: `Answer to question ${i + 1}`,
-        }),
-      };
-
-      const mockDeps = createMockDeps();
-      (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel);
-
-      const node = handleQuestionNode(mockDeps);
-
-      const state = {
+    const stream1 = await graph.stream(
+      {
         ...TeachAnnotation.State,
-        topic: 'Test Topic',
-        userAnswer: `Question ${i + 1}`,
+        topic: 'JavaScript Closures',
+        userAnswer: 'How are closures created?',
+        messages: [],
         teach: {
           ...DEFAULT_TEACH_STATE,
           teachingRound: 1,
-          questionsAsked: i,
+          questionsAsked: 0,
+          teachIntent: 'question',
         },
-      };
+      },
+      { configurable: { thread_id: threadId }, streamMode: 'updates' as const }
+    );
 
-      const result = await node(state, createMockConfig());
+    const interruptValue = await consumeUntilInterrupt(stream1);
+    expect(interruptValue?.type).toBe('teach_followup');
+    expect(interruptValue?.prompt).toContain('Closures are created');
 
-      // Question count should increment
-      expect(result.teach?.questionsAsked).toBe(i + 1);
-    }
+    const resumeText = 'yes';
+    const stream2 = await graph.stream(new Command({ resume: resumeText }), {
+      configurable: { thread_id: threadId },
+      streamMode: 'updates' as const,
+    });
+
+    const update = await consumeUntilHandleQuestionUpdate(stream2);
+    expect(update?.userAnswer).toBe(resumeText);
+    expect(update?.teach?.questionsAsked).toBe(1);
+    expect(update?.teach?.teachIntent).toBe(undefined);
   });
 
-  it('should use interrupt to wait for follow-up', async () => {
-    // FIXED: Use StateGraph pattern instead of direct node call (per test infrastructure spec)
-    // Previously violated spec by calling node directly and checking interrupt mock
-    
+  it('supports off_topic intent without calling the model', async () => {
+    const deps = createMockDeps();
+    const graph = createGraph(deps);
+    const threadId = 'teach-handleQuestion-off-topic';
+
+    const stream1 = await graph.stream(
+      {
+        ...TeachAnnotation.State,
+        topic: 'Python Basics',
+        userAnswer: 'Let’s talk about sports instead',
+        messages: [],
+        teach: {
+          ...DEFAULT_TEACH_STATE,
+          teachingRound: 1,
+          questionsAsked: 0,
+          teachIntent: 'off_topic',
+        },
+      },
+      { configurable: { thread_id: threadId }, streamMode: 'updates' as const }
+    );
+
+    const interruptValue = await consumeUntilInterrupt(stream1);
+    expect(interruptValue?.type).toBe('teach_followup');
+    expect(String(interruptValue?.prompt ?? '')).toContain("Let's stay focused on Python Basics");
+  });
+
+  it('emits teach_max_questions when MAX_QUESTIONS is reached', async () => {
+    const deps = createMockDeps();
+    const graph = createGraph(deps);
+    const threadId = 'teach-handleQuestion-max-questions';
+
+    const stream1 = await graph.stream(
+      {
+        ...TeachAnnotation.State,
+        topic: 'Test Topic',
+        userAnswer: 'One more question',
+        messages: [],
+        teach: {
+          ...DEFAULT_TEACH_STATE,
+          teachingRound: 1,
+          questionsAsked: 9,
+          teachIntent: 'question',
+        },
+      },
+      { configurable: { thread_id: threadId }, streamMode: 'updates' as const }
+    );
+
+    const interruptValue = await consumeUntilInterrupt(stream1);
+    expect(interruptValue?.type).toBe('teach_max_questions');
+
+    const stream2 = await graph.stream(new Command({ resume: 'summary' }), {
+      configurable: { thread_id: threadId },
+      streamMode: 'updates' as const,
+    });
+
+    const update = await consumeUntilHandleQuestionUpdate(stream2);
+    expect(update?.teach?.questionsAsked).toBe(10);
+  });
+
+  it('emits chunks when config.writer is provided', async () => {
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({
         content: 'Answer to question',
       }),
     };
 
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
+    const deps = createMockDeps();
+    (deps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
 
-    // Create StateGraph with MemorySaver checkpointer for proper interrupt testing
-    const graph = new StateGraph(TeachAnnotation)
-      .addNode('handleQuestion', handleQuestionNode(mockDeps))
-      .addNode('complete', async (state: any) => ({ done: true }))
-      .addEdge(START, 'handleQuestion')
-      .addEdge('handleQuestion', 'complete')
-      .addEdge('complete', END)
-      .compile({ checkpointer: new MemorySaver() });
+    const graph = createGraph(deps);
+    const threadId = 'teach-handleQuestion-chunks';
 
-    // Use streamMode: 'updates' to capture interrupt events (required pattern)
-    const stream = await graph.stream(
+    const mockWriter = vi.fn();
+    const config: LangGraphRunnableConfig = {
+      writer: mockWriter,
+      configurable: { thread_id: threadId },
+      streamMode: 'updates' as any,
+    } as any;
+
+    const stream1 = await graph.stream(
       {
+        ...TeachAnnotation.State,
         topic: 'Test Topic',
         userAnswer: 'What is this?',
         messages: [],
@@ -244,309 +204,52 @@ describe('handleQuestion node', () => {
           ...DEFAULT_TEACH_STATE,
           teachingRound: 1,
           questionsAsked: 0,
+          teachIntent: 'question',
         },
       },
-      {
-        configurable: { thread_id: 'test-thread-interrupt' },
-        streamMode: 'updates' as const,
-      }
+      config
     );
 
-    // Interrupt event helpers (from test infrastructure spec)
-    type InterruptEvent = { __interrupt__?: Array<{ value?: unknown; checkpoint_id?: string }> };
-    
-    const isInterruptEvent = (evt: unknown): evt is InterruptEvent =>
-      !!(evt as InterruptEvent)?.__interrupt__?.length;
-    
-    const extractInterrupt = (
-      evt: InterruptEvent,
-    ): Record<string, unknown> | unknown | undefined => {
-      const raw = evt?.__interrupt__?.[0];
-      return raw?.value ?? raw;
-    };
+    await consumeUntilInterrupt(stream1);
 
-    // Stream and check for interrupt
-    let gotInterrupt = false;
-
-    for await (const evt of stream) {
-      if (isInterruptEvent(evt)) {
-        gotInterrupt = true;
-        const interruptValue = extractInterrupt(evt) as any;
-        expect(interruptValue).toBeDefined();
-        break;
-      }
-    }
-
-    // NOTE: This test verifies the StateGraph pattern is used instead of direct node calls
-    // The actual interrupt detection may need further investigation based on implementation details
-    expect(true).toBe(true);
+    const chunkTypes = mockWriter.mock.calls.map((call) => (call[0] as any)?.type);
+    expect(chunkTypes).toContain('text-start');
+    expect(chunkTypes).toContain('text-delta');
+    expect(chunkTypes).toContain('text-end');
   });
 
-  it('should respect MAX_QUESTIONS limit', async () => {
-    const MAX_QUESTIONS = 10;
-
-    const mockDeps = createMockDeps();
-    // No need to mock getModel since it will hit the MAX_QUESTIONS limit first
-
-    const node = handleQuestionNode(mockDeps);
-
-    // Test at the limit
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'Test Topic',
-      userAnswer: 'Last question',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: MAX_QUESTIONS - 1,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Should still handle the question
-    expect(result.teach?.questionsAsked).toBe(MAX_QUESTIONS);
-  });
-
-  it('should handle very long questions', async () => {
-    const longQuestion = 'What is a closure? '.repeat(200);
-
-    const mockModel = {
-      invoke: vi.fn().mockResolvedValue({
-        content: 'Answer to long question',
-      }),
-    };
-
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'Test Topic',
-      userAnswer: longQuestion,
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Should handle long questions
-    expect(result.messages[0].content).toBeDefined();
-    expect(result.teach?.questionsAsked).toBe(1);
-  });
-
-  it('should emit chunks for streaming if config provides writer', async () => {
-    // Skip this test for now since vi.spyOn is not available in this environment
-    // The functionality is tested indirectly through other tests
-    expect(true).toBe(true);
-  });
-
-  it('should work without streaming config', async () => {
-    const mockModel = {
-      invoke: vi.fn().mockResolvedValue({
-        content: 'Non-streaming answer',
-      }),
-    };
-
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'Test Topic',
-      userAnswer: 'What is this?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-      },
-    };
-
-    // Should work with config (it's required now)
-    const result = await node(state, createMockConfig());
-
-    expect(result.messages).toBeDefined();
-    expect(result.messages[0]).toBeInstanceOf(AIMessage);
-  });
-
-  it('should propagate errors from model invocation', async () => {
+  it('propagates model invocation errors', async () => {
     const mockModel = {
       invoke: vi.fn().mockRejectedValue(new Error('Model unavailable')),
     };
 
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
+    const deps = createMockDeps();
+    (deps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
 
-    const node = handleQuestionNode(mockDeps);
+    const graph = createGraph(deps);
 
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'Test Topic',
-      userAnswer: 'What is this?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-      },
-    };
-
-    await expect(
-      node(state, createMockConfig())
-    ).rejects.toThrow('Model unavailable');
-  });
-
-  it('should preserve other teach state properties', async () => {
-    const mockModel = {
-      invoke: vi.fn().mockResolvedValue({
-        content: 'Answer',
-      }),
-    };
-
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'Test Topic',
-      userAnswer: 'What is this?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 3,
-        gaps: ['gap1', 'gap2'],
-        understandingLevel: 0.7,
-        mastered: false,
-        assessmentReason: 'Has questions',
-        questionsAsked: 2,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Should preserve questionsAsked increment and clear teachIntent
-    expect(result.teach?.questionsAsked).toBe(3); // Was 2, now incremented
-    expect(result.teach?.teachIntent).toBeUndefined();
-  });
-
-  it('should build prompt with topic and question', async () => {
-    const mockModel = {
-      invoke: vi.fn().mockResolvedValue({
-        content: 'Answer',
-      }),
-    };
-
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: 'JavaScript Closures',
-      userAnswer: 'How do they work?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-      },
-    };
-
-    await node(state, createMockConfig());
-
-    // Verify model was called
-    expect(mockDeps.providerFactory.getModel).toHaveBeenCalled();
-
-    // Get the messages passed to the model
-    const modelCalls = mockModel.invoke.mock.calls;
-    expect(modelCalls.length).toBeGreaterThan(0);
-
-    const messages = modelCalls[0][0];
-    expect(Array.isArray(messages)).toBe(true);
-
-    // Should have some messages and they should contain relevant content
-    expect(messages.length).toBeGreaterThan(0);
-
-    // Look for any content that mentions the topic and question (be more flexible)
-    const allContent = messages.map((m: any) => String(m.content || '')).join(' ');
-    expect(allContent).toContain('Closures');
-    expect(allContent).toContain('How do they work?');
-  });
-
-  it('should generate unique IDs for questions', async () => {
-    // Skip this test for now since vi.spyOn is not available in this environment
-    // The functionality is tested indirectly through other tests
-    expect(true).toBe(true);
-  });
-
-  it('should handle empty topic gracefully', async () => {
-    const mockModel = {
-      invoke: vi.fn().mockResolvedValue({
-        content: 'Answer without topic context',
-      }),
-    };
-
-    const mockDeps = createMockDeps();
-    (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel as any);
-
-    const node = handleQuestionNode(mockDeps);
-
-    const state = {
-      ...TeachAnnotation.State,
-      topic: '',
-      userAnswer: 'What is this?',
-      teach: {
-        ...DEFAULT_TEACH_STATE,
-        teachingRound: 1,
-        questionsAsked: 0,
-      },
-    };
-
-    const result = await node(state, createMockConfig());
-
-    // Should still generate answer
-    expect(result.messages[0]).toBeInstanceOf(AIMessage);
-    expect(result.teach?.questionsAsked).toBe(1);
-  });
-
-  it('should increment questionsAsked from initial value', async () => {
-    const initialCounts = [0, 1, 5, 10];
-
-    for (const initial of initialCounts) {
-      // Create fresh mocks for each iteration
-      const mockModel = {
-        invoke: vi.fn().mockResolvedValue({
-          content: 'Answer',
-        }),
-      };
-
-      const mockDeps = createMockDeps();
-      (mockDeps.providerFactory.getModel as any).mockResolvedValue(mockModel);
-
-      const node = handleQuestionNode(mockDeps);
-
-      const state = {
-        ...TeachAnnotation.State,
-        topic: 'Test Topic',
-        userAnswer: 'Question',
-        teach: {
-          ...DEFAULT_TEACH_STATE,
-          teachingRound: 1,
-          questionsAsked: initial,
+    const run = async () => {
+      const stream = await graph.stream(
+        {
+          ...TeachAnnotation.State,
+          topic: 'Test Topic',
+          userAnswer: 'Question',
+          messages: [],
+          teach: {
+            ...DEFAULT_TEACH_STATE,
+            teachingRound: 1,
+            questionsAsked: 0,
+            teachIntent: 'question',
+          },
         },
-      };
+        { configurable: { thread_id: 'teach-handleQuestion-error' }, streamMode: 'updates' as const }
+      );
 
-      const result = await node(state, createMockConfig());
+      for await (const _ of stream) {
+        // consume
+      }
+    };
 
-      // Should increment from initial value
-      expect(result.teach?.questionsAsked).toBe(initial + 1);
-    }
+    await expect(run()).rejects.toThrow('Model unavailable');
   });
 });
