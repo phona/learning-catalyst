@@ -6,6 +6,39 @@
 
 import type { Message as AIMessage } from '../ai';
 
+export type AISDKTextPart = { type: 'text'; text: string };
+
+/**
+ * Delta-only user input for Bucket 2 chat transport.
+ * We intentionally keep this minimal: only text parts are supported today.
+ */
+export type AISDKNewUserMessage = string | { content?: string; parts?: AISDKTextPart[] };
+
+export type AISDKStreamParams =
+  | {
+      /**
+       * Stable thread id (maps to LangGraph `thread_id` / checkpoint namespace).
+       */
+      conversationId?: string;
+      /**
+       * Bucket 2: send only the new user message delta.
+       */
+      newUserMessage: AISDKNewUserMessage;
+    }
+  | {
+      /**
+       * Compatibility window (legacy Bucket 1): full history.
+       * Main should prefer `newUserMessage` when present.
+       */
+      conversationId?: string;
+      messages: Array<
+        Pick<AIMessage, 'role' | 'content'> & {
+          parts?: AISDKTextPart[];
+          id?: string;
+        }
+      >;
+    };
+
 export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
@@ -40,10 +73,7 @@ export const READY_TIMEOUT_MS = 5000;
 
 export interface AISDKAPI {
   stream: (
-    params: {
-      messages: Array<Pick<AIMessage, 'role' | 'content'>>;
-      conversationId?: string;
-    },
+    params: AISDKStreamParams,
     callback: (data: unknown) => void,
     onComplete?: () => void,
   ) => () => void;
@@ -106,4 +136,3 @@ export interface UserLearningContext {
   recentConcepts: string[];
   progress: number;
 }
-

@@ -19,13 +19,14 @@ import {
   createFinishChunk,
   createErrorChunk,
 } from '@/main/services/domain/workflow/utils/assistant-ui-stream';
-import { AIMessage, HumanMessage } from 'langchain';
+import { HumanMessage } from 'langchain';
 import { createWorkflowGraph } from '../services/domain/workflow';
 import { ConfigService } from '../services/core/config/config-service';
 import { KnowledgeService } from '../services/domain/knowledge/knowledge-service';
 import { LearningService } from '../services/domain/learning/learning-service';
 import { PracticeService } from '../services/domain/practice/practice-service';
 import { ProviderFactory } from '../services/agent/provider-factory';
+import type { AISDKNewUserMessage, AISDKTextPart } from '@/shared/types/electron-api/base';
 
 type ChatDependencies = {
   chatService: ChatService;
@@ -57,6 +58,42 @@ const hasPendingInterrupt = (checkpointTuple: unknown): boolean => {
   return false;
 };
 
+const partsToText = (parts: AISDKTextPart[] | undefined): string => {
+  if (!Array.isArray(parts)) return '';
+  return parts.map((p) => (p?.type === 'text' ? p.text : '')).join('');
+};
+
+const newUserMessageToText = (newUserMessage: AISDKNewUserMessage): string => {
+  if (typeof newUserMessage === 'string') return newUserMessage;
+  const partsText = partsToText(newUserMessage?.parts);
+  return partsText || (newUserMessage?.content ?? '');
+};
+
+const legacyMessagesToLastUserText = (
+  messages: Array<{ role: string; content?: string; parts?: AISDKTextPart[] }>,
+): string => {
+  const lastUser = [...messages].reverse().find((m) => m?.role === 'user');
+  if (!lastUser) return '';
+  const partsText = partsToText(lastUser.parts);
+  return partsText || (lastUser.content ?? '');
+};
+
+type ChatStartStreamPayload =
+  | {
+      streamId?: string;
+      conversationId?: string;
+      newUserMessage: AISDKNewUserMessage;
+    }
+  | {
+      streamId?: string;
+      conversationId?: string;
+      messages: Array<{
+        role: string;
+        content?: string;
+        parts?: AISDKTextPart[];
+        id?: string;
+      }>;
+    };
 
 export const setupChatHandlers = (
   ipcMainInstance: typeof ipcMain,
@@ -96,41 +133,23 @@ export const setupChatHandlers = (
     'chat:start-stream',
     async (
       event,
-      {
-        messages = [],
-        conversationId,
-      }: {
-        messages: Array<{
-          role: string;
-          content?: string;
-          parts?: Array<{ type: string; text: string }>;
-          id?: string;
-        }>;
-        conversationId?: string;
-      },
+      payload: ChatStartStreamPayload,
     ) => {
       const [replyPort] = event.ports;
 
-      const safeConversationId = conversationId || `thread_${Date.now()}`;
+      const safeConversationId = payload.conversationId || `thread_${Date.now()}`;
+      const lastUserText =
+        'newUserMessage' in payload
+          ? newUserMessageToText(payload.newUserMessage)
+          : legacyMessagesToLastUserText(payload.messages);
       logger.info('chat:start-stream', {
         conversationId: safeConversationId,
-        messageCount: messages.length,
+        input: 'newUserMessage' in payload ? 'delta' : 'legacy',
       });
 
       try {
-        const normalizedMessages = messages.map((m) => {
-          const content = Array.isArray(m.parts)
-            ? m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
-            : (m.content ?? '');
-          return { role: m.role, content };
-        });
-
-        const lcMessages = normalizedMessages.map((m) =>
-          m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content),
-        );
-
-        const lastUserText =
-          [...normalizedMessages].reverse().find((m) => m.role === 'user')?.content ?? '';
+        const lcMessages =
+          lastUserText.trim().length > 0 ? [new HumanMessage(lastUserText)] : [];
 
         // Read existing stream config to propagate to workflow nodes
         const appConfig = await services.configService.getConfig();

@@ -160,11 +160,8 @@ export const createChatService = (apiClient: ElectronAPI, options?: ChatServiceO
       // Use aiSDK API for streaming
       const unsubscribe = apiClient.aiSDK.stream(
         {
-          messages: [
-            { role: 'user', content },
-            // Add existing conversation history if available
-          ],
           conversationId: sessionId,
+          newUserMessage: content,
         },
         (data) => {
           console.debug('[chat-service] aiSDK stream data', data);

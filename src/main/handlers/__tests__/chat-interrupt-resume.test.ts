@@ -94,7 +94,7 @@ describe('chat:start-stream interrupt resume', () => {
       { ports: [replyPort] },
       {
         conversationId,
-        messages: [{ role: 'user', content: 'yes' }],
+        newUserMessage: 'yes',
       },
     );
 
@@ -177,7 +177,7 @@ describe('chat:start-stream interrupt resume', () => {
       { ports: [replyPort] },
       {
         conversationId,
-        messages: [{ role: 'user', content: 'yes' }],
+        newUserMessage: 'yes',
       },
     );
 

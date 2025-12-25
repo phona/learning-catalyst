@@ -9,13 +9,14 @@ export const createIpcFetch = (api: ElectronAPI): FetchFunction => async (_input
 
   // The IpcChatTransport sets body.id to the correct thread localId
   const conversationId = payload?.id;
+  const newUserMessage = payload?.newUserMessage;
   const messages = payload?.messages || [];
 
   return new Response(
     new ReadableStream({
       start(controller) {
         cancelStream = api.aiSDK.stream(
-          { messages, conversationId },
+          newUserMessage !== undefined ? { conversationId, newUserMessage } : { conversationId, messages },
           (data: unknown) => {
             if (process.env.NODE_ENV !== 'production') {
               console.log(data);

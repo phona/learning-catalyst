@@ -19,6 +19,17 @@ import type { HttpChatTransportInitOptions, UIMessage } from 'ai';
 import type { ElectronAPI } from '@/shared/types';
 import { createIpcFetch } from './ipcFetch';
 
+const getLastUserMessageDelta = (messages: UIMessage[]) => {
+  const lastUser = [...messages].reverse().find((m) => m?.role === 'user');
+  if (!lastUser) return '';
+  // Prefer parts if available so we can evolve beyond plain text later.
+  const parts = (lastUser as any).parts as unknown;
+  if (Array.isArray(parts) && parts.length > 0) {
+    return { content: (lastUser as any).content, parts };
+  }
+  return (lastUser as any).content ?? '';
+};
+
 /**
  * Extended AssistantChatTransport that ensures the correct thread ID is used.
  */
@@ -35,7 +46,8 @@ export class IpcChatTransport<UI_MESSAGE extends UIMessage = UIMessage> extends 
         return {
           body: {
             id: finalId,
-            messages: options.messages,
+            // Bucket 2 transport: send only the new user message delta (not full history).
+            newUserMessage: getLastUserMessageDelta(options.messages),
             trigger: options.trigger,
             messageId: options.messageId,
             metadata: options.requestMetadata,

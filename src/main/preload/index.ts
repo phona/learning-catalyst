@@ -72,10 +72,7 @@ const chatAPI: ChatAPI = {
  */
 const aiSDK: AISDKAPI = {
   stream: (
-    params: {
-      messages: Array<Pick<AIMessage, 'role' | 'content'>>;
-      conversationId?: string;
-    },
+    params,
     callback: (data: unknown) => void,
     onComplete?: () => void,
   ) => {
