@@ -20,9 +20,9 @@ export interface HandlerOptions {
  * IPC Proxy interface - describes what the proxy can do
  */
 export interface IIpcProxy {
-  handle<TParams, TReturn>(
+  handle<TArgs extends unknown[], TReturn>(
     channel: string,
-    handler: (event: IpcMainInvokeEvent, params: TParams) => Promise<TReturn>,
+    handler: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TReturn>,
     options?: HandlerOptions
   ): void;
 }
@@ -61,21 +61,21 @@ export function createIpcProxy(
    * 3. Uses simple 2-param handler signature
    * 4. Supports optional registration options
    */
-  function handle<TParams, TReturn>(
+  function handle<TArgs extends unknown[], TReturn>(
     channel: string,
-    handler: (event: IpcMainInvokeEvent, params: TParams) => Promise<TReturn>,
+    handler: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TReturn>,
     options?: HandlerOptions
   ): void {
     const handlerLogger = globalLogger.child({ channel });
 
-    return ipcMain.handle(channel, async (event, params) => {
+    return ipcMain.handle(channel, async (event, ...args) => {
       handlerLogger.info('IPC request received', {
         channel,
-        hasParams: !!params,
+        hasParams: args.length > 0,
       });
 
       try {
-        const result = await handler(event, params);
+        const result = await handler(event, ...(args as TArgs));
 
         // Auto-wrap response
         const response: ApiResponse = {
