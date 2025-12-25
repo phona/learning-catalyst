@@ -5,15 +5,6 @@ import { TeachState, DEFAULT_TEACH_STATE } from '../types';
 import type { TeachSubgraphState } from '../state';
 import { teachStateReducer } from '../state';
 
-// Mock @langchain/langgraph to handle interrupt in tests
-vi.mock('@langchain/langgraph', async () => {
-  const actual = await vi.importActual('@langchain/langgraph');
-  return {
-    ...actual,
-    interrupt: vi.fn().mockResolvedValue({ type: 'resume' }),
-  };
-});
-
 // Mock chunk-emitter module for testing
 vi.mock('../../../utils/chunk-emitter', async () => {
   const actual = await vi.importActual('../../../utils/chunk-emitter');
@@ -95,7 +86,18 @@ describe('explain node', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.doMock('@langchain/langgraph', async () => {
+      const actual = await vi.importActual<typeof import('@langchain/langgraph')>('@langchain/langgraph');
+      return {
+        ...actual,
+        interrupt: vi.fn().mockResolvedValue({ type: 'resume' }),
+      };
+    });
     ({ explainNode } = await import('../nodes/explain'));
+  });
+
+  afterEach(() => {
+    vi.unmock('@langchain/langgraph');
   });
 
   it('should generate initial explanation for round 1', async () => {

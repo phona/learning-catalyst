@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+import { Command, StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
 import { RunnableLambda } from '@langchain/core/runnables';
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
@@ -178,7 +178,7 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       const resumeAnswer = "A closure is a function that remembers its outer variables";
 
       const stream2 = await graph.stream(
-        null, // No new state needed for resume
+        new Command({ resume: resumeAnswer }),
         {
           configurable: { thread_id: 'test-resume-string' },
           streamMode: 'updates' as const,
@@ -186,11 +186,14 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       );
 
       // Check the final state
+      let sawFastTrackQuizUpdate = false;
       for await (const update of stream2) {
         if (update.fastTrackQuiz) {
+          sawFastTrackQuizUpdate = true;
           expect(update.fastTrackQuiz.userAnswer).toBe(resumeAnswer);
         }
       }
+      expect(sawFastTrackQuizUpdate).toBe(true);
     });
 
     it('handles resume with object answer property', async () => {
@@ -230,7 +233,7 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       };
 
       const stream2 = await graph.stream(
-        null,
+        new Command({ resume: resumeAnswer }),
         {
           configurable: { thread_id: 'test-resume-object' },
           streamMode: 'updates' as const,
@@ -238,11 +241,14 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       );
 
       // Check the final state
+      let sawFastTrackQuizUpdate = false;
       for await (const update of stream2) {
         if (update.fastTrackQuiz) {
+          sawFastTrackQuizUpdate = true;
           expect(update.fastTrackQuiz.userAnswer).toBe(resumeAnswer.answer);
         }
       }
+      expect(sawFastTrackQuizUpdate).toBe(true);
     });
 
     it('handles resume with object content property', async () => {
@@ -281,7 +287,7 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       };
 
       const stream2 = await graph.stream(
-        null,
+        new Command({ resume: resumeAnswer }),
         {
           configurable: { thread_id: 'test-resume-content' },
           streamMode: 'updates' as const,
@@ -289,11 +295,14 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       );
 
       // Check the final state
+      let sawFastTrackQuizUpdate = false;
       for await (const update of stream2) {
         if (update.fastTrackQuiz) {
+          sawFastTrackQuizUpdate = true;
           expect(update.fastTrackQuiz.userAnswer).toBe(resumeAnswer.content);
         }
       }
+      expect(sawFastTrackQuizUpdate).toBe(true);
     });
   });
 

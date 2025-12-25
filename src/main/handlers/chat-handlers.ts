@@ -13,6 +13,7 @@ import { ipcMain } from 'electron';
 import { ChatService } from '../services/domain/chat';
 import { LoggerService } from '../services/core/logger/logger-service';
 import { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
+import { Command, INTERRUPT } from '@langchain/langgraph';
 import {
   toAssistantUIStream,
   createFinishChunk,
@@ -35,6 +36,25 @@ type ChatDependencies = {
   knowledgeService: KnowledgeService;
   practiceService: PracticeService;
   learningService: LearningService;
+};
+
+const hasPendingInterrupt = (checkpointTuple: unknown): boolean => {
+  const tuple = checkpointTuple as {
+    checkpoint?: { channel_values?: Record<string, unknown> };
+    pendingWrites?: Array<[string, string, unknown]>;
+  } | undefined;
+
+  const channelValues = tuple?.checkpoint?.channel_values;
+  const interruptChannelValue = channelValues?.[INTERRUPT];
+  if (Array.isArray(interruptChannelValue) && interruptChannelValue.length > 0) {
+    return true;
+  }
+
+  if (Array.isArray(tuple?.pendingWrites)) {
+    return tuple.pendingWrites.some((write) => write?.[1] === INTERRUPT);
+  }
+
+  return false;
 };
 
 
@@ -98,23 +118,53 @@ export const setupChatHandlers = (
       });
 
       try {
-        const lcMessages = messages.map((m) => {
+        const normalizedMessages = messages.map((m) => {
           const content = Array.isArray(m.parts)
             ? m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('')
             : (m.content ?? '');
-          return m.role === 'user' ? new HumanMessage(content) : new AIMessage(content);
+          return { role: m.role, content };
         });
+
+        const lcMessages = normalizedMessages.map((m) =>
+          m.role === 'user' ? new HumanMessage(m.content) : new AIMessage(m.content),
+        );
+
+        const lastUserText =
+          [...normalizedMessages].reverse().find((m) => m.role === 'user')?.content ?? '';
 
         // Read existing stream config to propagate to workflow nodes
         const appConfig = await services.configService.getConfig();
         const llmStreamMode = appConfig?.ai?.modelTypes?.chat?.stream;
 
-        const stream = await workflowGraph.stream(
-          { messages: lcMessages },
-          {
-            configurable: { thread_id: safeConversationId, llmStreamMode },
-            streamMode: ['messages', 'custom'],
+        let checkpointTuple: unknown;
+        try {
+          checkpointTuple = await services.checkpointSaver.getTuple({
+            configurable: { thread_id: safeConversationId },
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.warn('chat:start-stream failed to read checkpoint tuple', { message });
+        }
+
+        const shouldResume =
+          lastUserText.trim().length > 0 && hasPendingInterrupt(checkpointTuple);
+
+        const checkpointId = (checkpointTuple as any)?.config?.configurable?.checkpoint_id as
+          | string
+          | undefined;
+
+        const streamConfig = {
+          configurable: {
+            thread_id: safeConversationId,
+            llmStreamMode,
+            ...(shouldResume && checkpointId ? { checkpoint_id: checkpointId } : {}),
           },
+          streamMode: ['messages', 'custom'] as const,
+        };
+
+        const stream = await workflowGraph.stream(
+          shouldResume ? new Command({ resume: lastUserText }) : { messages: lcMessages },
+          streamConfig,
         );
 
         // Convert workflow stream directly to assistant-ui AI SDK Protocol chunks

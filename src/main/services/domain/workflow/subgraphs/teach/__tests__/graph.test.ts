@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+import { Command, StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { RunnableLambda } from '@langchain/core/runnables';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
