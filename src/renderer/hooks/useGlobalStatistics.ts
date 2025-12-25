@@ -11,7 +11,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { useState, useEffect, useCallback } from 'react';
-import { useSessionService } from '@/renderer/services/services-provider';
+import { useSessionService } from '@/renderer/services/services-context';
 
 export interface GlobalStatistics {
   totalMessages: number;

@@ -3,7 +3,7 @@ import type { PracticeOpportunityResult, ChatHistoryMessage } from '../../../sha
 import type { AgentDisplay } from '../../../shared/types/electron-api/agent-api';
 import type { SessionDisplay } from '../../../shared/types/electron-api/sessions-api';
 import type { Message, StreamChunk } from '../../../shared/types/ai';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 import type { TimeService, IDGenerator } from '@/shared/utils';
 import { createTimeService, createIdGenerator } from '@/shared/utils';
 

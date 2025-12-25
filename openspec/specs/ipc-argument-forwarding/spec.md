@@ -6,6 +6,9 @@ TBD - created by archiving change forward-ipc-args. Update Purpose after archive
 ### Requirement: IPC Proxy Must Forward All Invoke Arguments
 The IPC proxy (`createIpcProxy.handle`) MUST forward every argument received from `ipcRenderer.invoke` to the registered handler, preserving order and arity.
 
+**Priority**: P0 (Critical)
+**Effort**: S
+
 #### Scenario: Two-Argument Handler Receives Both Values
 - **Given** the renderer calls `ipcRenderer.invoke('sessions:update-title', 'session-123', 'AI Title')`
 - **When** the IPC proxy dispatches the request
@@ -19,6 +22,9 @@ The IPC proxy (`createIpcProxy.handle`) MUST forward every argument received fro
 
 ### Requirement: Typings Preserve Handler Signatures
 TypeScript typings for the proxy MUST allow handler signatures with multiple parameters without forcing a single `params` object.
+
+**Priority**: P1 (High)
+**Effort**: S
 
 #### Scenario: Type Check Passes For Multi-Arg Handler
 - **Given** a TypeScript handler signature `(event, sessionId: string, title: string) => Promise<void>`

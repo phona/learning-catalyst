@@ -14,7 +14,7 @@ import { ThreadListSidebar } from '@/renderer/widgets/layout/ThreadListSidebar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
-import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
+import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter.helpers';
 import { createSessionService } from '@/renderer/services/session/session-service';
 import { createChatService } from '@/renderer/services/chat/chat-service';
 

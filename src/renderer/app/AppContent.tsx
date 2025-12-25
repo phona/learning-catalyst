@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
-import { useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-provider';
+import { useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-context';
 import { LoadingScreen, ErrorPage } from '@/renderer/shared/ui';
 import { setConfigurationService } from '@/renderer/stores/useConfigStore';
 import SetupPage from '@/renderer/pages/setup/SetupPage';

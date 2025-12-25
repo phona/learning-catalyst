@@ -1,5 +1,5 @@
 import type { ChatState } from '@/renderer/stores/chat/chatStore';
-import { useChatStoreContext } from '@/renderer/stores/chat/ChatStoreProvider';
+import { useChatStoreContext } from '@/renderer/stores/chat/chat-store-context';
 
 type Selector<T> = (state: ChatState) => T;
 

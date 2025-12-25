@@ -8,7 +8,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { utilityToasts } from '@/renderer/shared/lib';
-import { useService } from '@/renderer/services/services-provider';
+import { useService } from '@/renderer/services/services-context';
 import type { ProviderConfig, ProviderValidationResult, ProviderType } from '@/shared/types';
 import { ModelType } from '@/shared/types/ai';
 import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';

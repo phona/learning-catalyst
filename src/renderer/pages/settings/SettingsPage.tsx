@@ -14,8 +14,7 @@ import type {
   SelectedChatModel,
   SelectedModel,
 } from '@/shared/types';
-import { useService } from '@/renderer/services/services-provider';
-import { useElectronAPI, unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { useService } from '@/renderer/services/services-context';
 
 const modelTypes: ModelType[] = [ModelType.CHAT, ModelType.EMBEDDING, ModelType.RERANK];
 
@@ -124,7 +123,6 @@ export const SettingsPage: React.FC = () => {
     ),
   );
   const configService = useService('configService');
-  const api = useElectronAPI();
 
   // Re-embedding state
   const [isReembedding, setIsReembedding] = useState(false);

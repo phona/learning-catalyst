@@ -1,6 +1,6 @@
 import type { ElectronAPI } from '../../../shared/types/electron-api';
 import type { ChatOptions } from '../../../shared/types/ai';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 
 // Local type definitions for catalyst service
 interface StreamChunk {

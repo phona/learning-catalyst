@@ -3,7 +3,7 @@ import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { UISettings } from '../UISettings';
-import { createMockConfig } from '@/test/utils/helpers/test-utils';
+import { createMockConfig } from '@/test/utils/helpers/test-utils.helpers';
 import { renderWithServices } from '@/test/utils/renderWithServices';
 
 describe('UISettings', () => {

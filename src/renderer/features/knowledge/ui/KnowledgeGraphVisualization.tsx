@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import type { Concept } from '@/shared/types/knowledge';
 import type { KnowledgeMapDisplay, KnowledgeMapNode, KnowledgeMapEdge } from '@/shared/types/electron-api/knowledge-api';
-import { useElectronAPIClient } from '@/renderer/services/services-provider';
+import { useElectronAPIClient } from '@/renderer/services/services-context';
 
 interface KnowledgeGraphVisualizationProps {
   onConceptSelect?: (concept: Concept) => void;

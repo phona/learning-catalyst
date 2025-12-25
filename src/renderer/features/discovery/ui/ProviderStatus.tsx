@@ -5,7 +5,7 @@ import {
   XCircleIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useConfigurationService } from '@/renderer/services/services-provider';
+import { useConfigurationService } from '@/renderer/services/services-context';
 
 interface ProviderStatusProps {
   onConfigure?: () => void;

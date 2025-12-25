@@ -4,7 +4,7 @@ import type {
   PracticeOpportunity,
   PracticeOpportunityResult,
 } from '@/shared/types/electron-api/chat-api';
-import { useChatService } from '@/renderer/services/services-provider';
+import { useChatService } from '@/renderer/services/services-context';
 
 export interface PracticeSuggestionState {
   currentSuggestion: PracticeOpportunity | null;

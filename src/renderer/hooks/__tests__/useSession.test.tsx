@@ -11,7 +11,7 @@ const createSessionService = () => ({
   getSession: vi.fn(),
 });
 
-vi.mock('@/renderer/services/services-provider', () => {
+vi.mock('@/renderer/services/services-context', () => {
   return {
     useSessionService: () => mockService,
   };

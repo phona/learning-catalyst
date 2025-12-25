@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdvancedSettings } from '../AdvancedSettings';
-import { createMockConfig } from '@/test/utils/helpers/test-utils';
+import { createMockConfig } from '@/test/utils/helpers/test-utils.helpers';
 import { renderWithServices } from '@/test/utils/renderWithServices';
 
 const baseConfig = createMockConfig({

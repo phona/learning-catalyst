@@ -8,7 +8,7 @@ import {
 } from '@/renderer/features/analytics';
 import type { StudyMetrics } from '@/renderer/services/analytics/analytics-service';
 import type { LearningSession } from '@/shared/types/analytics';
-import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
+import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-context';
 
 // Local type definition for agent display (used only in this component)
 interface AgentDisplayLocal {

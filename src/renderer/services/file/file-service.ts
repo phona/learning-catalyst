@@ -19,7 +19,7 @@ import type {
   SaveDialogOptions,
   SaveDialogReturnValue,
 } from 'electron';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 
 // Fix: Align dialog option/return types with Electron to prevent type mismatch
 // Rationale: Custom options previously allowed invalid 'openFiles' and returned generic string

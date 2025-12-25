@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { LoadedConceptsPanel } from '../LoadedConceptsPanel';
-import { renderWithServices } from '@/test/utils/test-providers';
+import { renderWithServices } from '@/test/utils/test-providers.helpers';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 
 describe('LoadedConceptsPanel', () => {

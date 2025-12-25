@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProgressPage } from '../ProgressPage';
-import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-provider';
+import { useCatalystService, useAnalyticsService } from '@/renderer/services/services-context';
 import {
   createMockConfigurationService,
   createMockFileService,
@@ -22,7 +22,7 @@ const configServiceMock = createMockConfigurationService();
 const fileServiceMock = createMockFileService();
 
 // Mock the services used by the dashboard
-vi.mock('@/renderer/services/services-provider', () => ({
+vi.mock('@/renderer/services/services-context', () => ({
   useCatalystService: vi.fn(),
   useAnalyticsService: vi.fn(),
   useConfigurationService: vi.fn(() => configServiceMock),

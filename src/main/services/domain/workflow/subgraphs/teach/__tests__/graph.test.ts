@@ -23,9 +23,18 @@ const createMockConfig = (): LangGraphRunnableConfig => ({
 
 // Helper for creating mock dependencies
 const createMockDeps = () => {
+  // Return JSON-like assessment output so downstream nodes behave like
+  // they would with a real model (no infinite loops / recursion limit).
   const mockLlm = new RunnableLambda({
     func: async (_input) => {
-      return new AIMessage('This is an explanation of the concept with examples.');
+      return new AIMessage(
+        JSON.stringify({
+          level: 0.9,
+          gaps: [],
+          mastered: true,
+          reason: 'Mock assessment indicates strong understanding',
+        })
+      );
     },
   });
 
@@ -119,6 +128,9 @@ describe('Teach Subgraph', () => {
         events.push(evt);
         if (isInterruptEvent(evt)) {
           gotInterrupt = true;
+          // Once we observe an interrupt, we can stop consuming further
+          // events to avoid running the graph indefinitely in tests.
+          break;
         }
       }
 

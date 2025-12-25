@@ -1,5 +1,15 @@
 # Proposal: Forward IPC Args Through Proxy
 
+## Why
+
+Session titles generated in the renderer are not being persisted because the IPC proxy drops extra `ipcRenderer.invoke(...)` arguments. Fixing this prevents silent data loss and keeps the UI and SQLite in sync.
+
+## What Changes
+
+- Forward all invoke arguments through the IPC proxy (variadic args, preserve order).
+- Update TypeScript typings so multi-argument handlers are type-safe.
+- Add regression coverage for multi-arg IPC calls (handler + renderer contract).
+
 ## Problem
 Renderer title-generation calls `ipcRenderer.invoke('sessions:update-title', sessionId, title)`, but `ipc-main-proxy.handle` only forwards a single `params` argument. The handler therefore receives `title` as `undefined`, so generated titles never persist to SQLite even though calls appear successful.
 

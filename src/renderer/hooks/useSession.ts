@@ -8,7 +8,7 @@
 
 import { useCallback } from 'react';
 import { useSessionStore } from '@/renderer/stores/sessions/sessionStore';
-import { useSessionService } from '@/renderer/services/services-provider';
+import { useSessionService } from '@/renderer/services/services-context';
 import type { SessionDisplay, SessionSearchFilters, SessionCreateRequest } from '@/renderer/types';
 import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/sessions-api';
 

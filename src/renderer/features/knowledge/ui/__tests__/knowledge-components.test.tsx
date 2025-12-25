@@ -5,7 +5,7 @@ import { ConceptManager } from '../ConceptManager';
 import { KnowledgeSearch } from '../KnowledgeSearch';
 import { RelationshipManager } from '../RelationshipManager';
 import { KnowledgeGraphVisualization } from '../KnowledgeGraphVisualization';
-import { renderWithServices } from '@/test/utils/test-providers';
+import { renderWithServices } from '@/test/utils/test-providers.helpers';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 
 describe('Knowledge components placeholders', () => {

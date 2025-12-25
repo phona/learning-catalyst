@@ -21,7 +21,7 @@ import type {
 import type { ConfigurationService } from '../configuration/configuration-service';
 import type { TimeService, IDGenerator } from '@/shared/utils';
 import { createTimeService, createIdGenerator } from '@/shared/utils';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 
 export interface ConceptParsingServiceOptions {
   confidenceThreshold?: number;

@@ -13,7 +13,7 @@ import {
 } from '@/shared/types/analytics';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AchievementDisplay as APIAchievementDisplay } from '@/shared/types/electron-api/analytics-api';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 
 /**
  * This service uses the unwrapAPI pattern for consistent IPC error handling.

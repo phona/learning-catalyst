@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AIProviderSettings } from '../AIProviderSettings';
-import { useService } from '@/renderer/services/services-provider';
+import { useService } from '@/renderer/services/services-context';
 import {
   createMockConfigurationService,
   createMockFileService,
@@ -27,7 +27,7 @@ vi.mock('@/renderer/shared/lib', () => ({
 const configServiceMock = createMockConfigurationService();
 const fileServiceMock = createMockFileService();
 
-vi.mock('@/renderer/services/services-provider', async (importOriginal) => {
+vi.mock('@/renderer/services/services-context', async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

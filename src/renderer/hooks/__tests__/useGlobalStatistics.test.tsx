@@ -3,7 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react';
 import { useGlobalStatistics } from '../useGlobalStatistics';
 
 // Minimal shim for the provider hook used inside useGlobalStatistics
-vi.mock('@/renderer/services/services-provider', () => {
+vi.mock('@/renderer/services/services-context', () => {
   let service: any = null;
   return {
     useSessionService: () => service,
@@ -12,7 +12,7 @@ vi.mock('@/renderer/services/services-provider', () => {
     },
   };
 });
-import * as serviceProvider from '@/renderer/services/services-provider';
+import * as serviceProvider from '@/renderer/services/services-context';
 const __setService = (serviceProvider as any).__setService as (impl: any) => void;
 
 describe('useGlobalStatistics', () => {

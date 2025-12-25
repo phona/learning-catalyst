@@ -4,7 +4,7 @@ import type {
   KnowledgeSearchResultDisplay,
 } from '@/shared/types/electron-api/knowledge-api';
 import { LearningPath } from '@/shared/types';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 
 /**
  * Functional implementation of discovery service using the unified electronAPI client

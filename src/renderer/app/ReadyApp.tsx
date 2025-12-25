@@ -5,8 +5,8 @@ import {
 } from '@assistant-ui/react';
 import { useChatRuntime } from '@assistant-ui/react-ai-sdk';
 import { useElectronAPI } from '@/renderer/hooks/useElectronAPI';
-import { useSessionService, useChatService } from '@/renderer/services/services-provider';
-import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
+import { useSessionService, useChatService } from '@/renderer/services/services-context';
+import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter.helpers';
 import { IpcChatTransport } from '@/renderer/services/chat/IpcChatTransport';
 import { AppRoutes } from './AppRoutes';
 

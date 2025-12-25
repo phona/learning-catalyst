@@ -9,7 +9,7 @@ const mockChatService: Partial<ChatService> = {
   checkPracticeOpportunity: vi.fn(),
 };
 
-vi.mock('@/renderer/services/services-provider', () => ({
+vi.mock('@/renderer/services/services-context', () => ({
   useChatService: () => mockChatService as ChatService,
 }));
 

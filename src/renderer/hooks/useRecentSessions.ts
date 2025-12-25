@@ -13,7 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@/shared/types/session';
 import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/sessions-api';
-import { useSessionService } from '@/renderer/services/services-provider';
+import { useSessionService } from '@/renderer/services/services-context';
 import { isIPCErrorPayload, isIPCErrorException, requiresSetup, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
 
 const ERROR_MESSAGE_MAP: Record<string, string> = {

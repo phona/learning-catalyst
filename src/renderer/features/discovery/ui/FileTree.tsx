@@ -11,7 +11,7 @@ import {
   HomeIcon,
 } from '@heroicons/react/24/outline';
 import type { DirectoryScanResult, ProjectStructure, DirectoryFilterConfig } from '@/shared/types/filesystem';
-import { useFileService } from '@/renderer/services/services-provider';
+import { useFileService } from '@/renderer/services/services-context';
 
 interface TreeNodeProps {
   item: DirectoryScanResult;
@@ -254,7 +254,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
     } else {
       loadDefaultDirectory();
     }
-  }, [initialPath, loadDefaultDirectory]);
+  }, [initialPath, loadDefaultDirectory, loadDirectory]);
 
   const handleNavigateUp = () => {
     if (currentPath) {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createThreadListAdapter } from '../useThreadListAdapter';
+import { createThreadListAdapter } from '../useThreadListAdapter.helpers';
 import { createSessionService } from '@/renderer/services/session/session-service';
 import { createChatService } from '@/renderer/services/chat/chat-service';
 import type { ElectronAPI } from '@/shared/types';

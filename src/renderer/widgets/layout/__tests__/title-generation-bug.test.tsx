@@ -10,7 +10,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ThreadListSidebar } from '@/renderer/widgets/layout/ThreadListSidebar';
-import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter';
+import { createThreadListAdapter } from '@/renderer/hooks/useThreadListAdapter.helpers';
 import { createSessionService } from '@/renderer/services/session/session-service';
 import { createChatService } from '@/renderer/services/chat/chat-service';
 import {

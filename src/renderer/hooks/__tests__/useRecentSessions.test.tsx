@@ -6,7 +6,7 @@ import type { SessionService } from '@/renderer/services/session/session-service
 
 const mockGetRecentSessions = vi.fn();
 
-vi.mock('@/renderer/services/services-provider', () => ({
+vi.mock('@/renderer/services/services-context', () => ({
   useSessionService: (): SessionService => ({
     getRecentSessions: mockGetRecentSessions,
     getGlobalStatistics: vi.fn(),

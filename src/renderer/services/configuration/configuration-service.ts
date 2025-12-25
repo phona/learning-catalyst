@@ -1,4 +1,4 @@
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 import type { AppConfig, ProviderValidationResult, ProviderConfig } from '@/shared/types/config';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import _ from 'lodash';

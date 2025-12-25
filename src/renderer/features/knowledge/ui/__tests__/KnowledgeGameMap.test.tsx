@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { KnowledgeGameMap } from '../KnowledgeGameMap';
-import { renderWithServices } from '@/test/utils/test-providers';
+import { renderWithServices } from '@/test/utils/test-providers.helpers';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
 
 describe('KnowledgeGameMap', () => {

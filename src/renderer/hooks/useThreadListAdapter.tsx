@@ -58,22 +58,20 @@
 
 import React, { useMemo, FC, PropsWithChildren } from 'react';
 import {
-  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
-  type ThreadMessage,
   RuntimeAdapterProvider,
   useAssistantApi,
   type ThreadHistoryAdapter,
   type ExportedMessageRepository,
   type MessageFormatAdapter,
   type MessageFormatRepository,
+  ThreadMessage,
 } from '@assistant-ui/react';
-import { createAssistantStream } from 'assistant-stream';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
-import type { SessionService } from '@/renderer/services/session/session-service';
 import type { ChatService } from '@/renderer/services/chat/chat-service';
 import { createChatService } from '@/renderer/services/chat/chat-service';
 import type { ElectronAPI } from '@/shared/types';
-import { useElectronAPI, unwrapAPI } from './useElectronAPI';
+import { useElectronAPI } from './useElectronAPI';
+import { unwrapAPI } from './useElectronAPI.helpers';
 
 /**
  * Creates a ThreadHistoryAdapter that loads messages from SQLite.
@@ -268,157 +266,3 @@ export const ThreadHistoryProvider: FC<PropsWithChildren<{ chatService: ChatServ
  * - See ThreadHistoryProvider documentation for details
  */
 
-/**
- * Factory for the thread-list adapter. Accepts services for clean architecture.
- *
- * NEW API (recommended): Pass services for clean architecture
- *   createThreadListAdapter({ sessionService, chatService })
- *
- * OLD API (deprecated, for backward compatibility): Pass ElectronAPI or nothing
- *   createThreadListAdapter(api)
- *   createThreadListAdapter()
- *
- * - Uses sessionService for thread CRUD operations
- * - Uses chatService for title generation
- * - Provides chatService to ThreadHistoryProvider for message loading
- */
-export function createThreadListAdapter(deps: {
-  sessionService: SessionService;
-  chatService: ChatService;
-}): RemoteThreadListAdapter {
-  const { sessionService, chatService } = deps;
-  return {
-    /**
-     * List all threads from SQLite learning_sessions table.
-     * Returns empty list on error for graceful degradation.
-     */
-    async list() {
-      try {
-        const data = await sessionService.listSessions({ limit: 100 });
-        const sessions = data.sessions || [];
-        if (sessions.length === 0) {
-          return { threads: [] };
-        }
-        return {
-          threads: sessions.map(
-            (session: { id: string; status?: string; title?: string; topic?: string }) => ({
-              remoteId: session.id,
-              externalId: session.id,
-              status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
-              title: session.title || session.topic || 'New Chat',
-            }),
-          ),
-        };
-      } catch (error) {
-        console.error('[ThreadListAdapter.list] Error:', error);
-        return { threads: [] };
-      }
-    },
-
-    /**
-     * Initialize a new thread in SQLite.
-     * @param localId - Assistant UI's local thread ID, used as the session ID
-     * @throws IPCError if session creation fails
-     */
-    async initialize(localId: string) {
-      console.log('[ThreadListAdapter.initialize] Called with localId:', localId);
-      const result = await sessionService.createSession({ title: 'New Chat', threadId: localId });
-      if (!result?.id) {
-        throw new Error('Session ID missing from creation response.');
-      }
-      console.log('[ThreadListAdapter.initialize] Created session with sessionId:', result.id);
-      return { remoteId: result.id, externalId: result.id };
-    },
-
-    /** Rename a thread's title in SQLite. */
-    async rename(remoteId: string, title: string) {
-      await sessionService.updateSessionTitle(remoteId, title);
-    },
-
-    /** Archive a thread by setting status to 'completed'. */
-    async archive(remoteId: string) {
-      await sessionService.updateSession(remoteId, { status: 'completed' });
-    },
-
-    /** Unarchive a thread by setting status back to 'active'. */
-    async unarchive(remoteId: string) {
-      await sessionService.updateSession(remoteId, { status: 'active' });
-    },
-
-    /** Permanently delete a thread from SQLite. */
-    async delete(remoteId: string) {
-      await sessionService.deleteSession(remoteId);
-    },
-
-    /**
-     * Generate AI title in background. Returns placeholder immediately,
-     * then updates the title asynchronously without blocking UI.
-     */
-    async generateTitle(remoteId: string, messages: readonly ThreadMessage[]) {
-      const firstUserMessage = messages.find((m) => m.role === 'user');
-      const textContent =
-        firstUserMessage?.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map((c) => c.text)
-          .join(' ') ?? '';
-
-      return createAssistantStream(async (controller) => {
-        controller.appendText('New Chat');
-        controller.close();
-
-        if (!textContent) {
-          return;
-        }
-
-        try {
-          const title = await sessionService.generateAITitle(textContent);
-          // Handle null, undefined, or empty title
-          const safeTitle = title ?? '';
-          const finalTitle = safeTitle.length > 47 ? safeTitle.slice(0, 47) + '...' : safeTitle;
-          if (finalTitle) {
-            await sessionService.updateSessionTitle(remoteId, finalTitle);
-          }
-        } catch (error) {
-          // Silently fail on title generation errors - UI will show "New Chat"
-          console.error('[ThreadListAdapter] Failed to generate title:', error);
-        }
-      });
-    },
-
-    /**
-     * Fetch thread metadata. Returns default on error for graceful degradation.
-     */
-    async fetch(threadId: string) {
-      console.log('[ThreadListAdapter.fetch] Called with threadId:', threadId);
-      try {
-        const session = await sessionService.getSession(threadId);
-        if (!session) {
-          return {
-            status: 'regular' as const,
-            remoteId: threadId,
-            externalId: threadId,
-            title: 'New Chat',
-          };
-        }
-        return {
-          status: session.status === 'completed' ? ('archived' as const) : ('regular' as const),
-          remoteId: threadId,
-          externalId: threadId,
-          title: session.title || session.topic || 'New Chat',
-        };
-      } catch {
-        return {
-          status: 'regular' as const,
-          remoteId: threadId,
-          externalId: threadId,
-          title: 'New Chat',
-        };
-      }
-    },
-
-    /** Provider component that wraps each thread to enable history loading. */
-    unstable_Provider: (props: { children?: React.ReactNode }) => (
-      <ThreadHistoryProvider {...props} chatService={chatService} />
-    ),
-  };
-}

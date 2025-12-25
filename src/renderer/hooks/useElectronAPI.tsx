@@ -1,104 +1,13 @@
 /**
  * Simple ElectronAPI hook - returns plain API without wrapping
  *
- * Provides dependency injection context for testing
- * Use unwrapAPI() helper to unwrap APIResponse
+ * Provides dependency injection context for testing.
+ * Use `unwrapAPI()` helper (from useElectronAPI.helpers.ts) to unwrap APIResponse.
  */
 
 import { createContext, useContext, type FC, type ReactNode } from 'react';
 import type { ElectronAPI } from '@/shared/types';
-import type { APIResponse } from '@/shared/types/electron-api/base';
 import { createElectronAPIClient } from '@/renderer/services/api/electron-api-client';
-import { showError } from '@/renderer/shared/lib';
-
-/** IPC call options */
-export interface IPCCallOptions {
-  /** Suppress toast notification on error */
-  silent?: boolean;
-}
-
-/** Structured IPC error with code for programmatic handling */
-export class IPCError extends Error {
-  constructor(
-    public code: string,
-    message: string,
-    public details?: Record<string, unknown>,
-  ) {
-    super(message);
-    this.name = 'IPCError';
-  }
-}
-
-/**
- * Unwraps APIResponse<T> to T
- * @param response - The API response to unwrap
- * @param options - Options for unwrapping behavior
- * @returns The unwrapped data
- * @throws IPCError if response indicates failure
- */
-function unwrap<T>(response: APIResponse<T>, options: IPCCallOptions = {}): T {
-  if (!response.success) {
-    const errorMessage = typeof response.error === 'string'
-      ? response.error
-      : response.error?.message ?? 'unknown error';
-
-    // Extract error code - check both response.code and response.error.code
-    const errorCode = response.code
-      ?? (typeof response.error === 'object' ? response.error?.code : undefined)
-      ?? 'UNKNOWN_ERROR';
-
-    // Extract error details if present
-    const errorDetails = typeof response.error === 'object'
-      ? response.error?.details
-      : undefined;
-
-    // Toast unless silent
-    if (!options.silent) {
-      showError(errorMessage);
-    }
-
-    // Re-throw for caller handling
-    throw new IPCError(errorCode, errorMessage, errorDetails);
-  }
-
-  return response.data as T;
-}
-
-/**
- * Helper to unwrap API responses
- *
- * This is the STANDARDIZED way to call IPC methods in the renderer. All services should use
- * unwrapAPI instead of manual response unwrapping.
- *
- * @param responsePromise - Promise that resolves to APIResponse<T>
- * @param options - Options for unwrapping behavior
- * @returns Promise that resolves to unwrapped data T
- *
- * @example
- * ```typescript
- * // Basic usage
- * const data = await unwrapAPI(electronAPI.sessions.list());
- *
- * // With error handling
- * try {
- *   const sessions = await unwrapAPI(electronAPI.sessions.list());
- *   // Use sessions directly
- * } catch (error) {
- *   if (error instanceof IPCError) {
- *     // Handle specific error codes
- *   }
- * }
- *
- * // Silent mode (no toast)
- * const data = await unwrapAPI(electronAPI.backgroundTask(), { silent: true });
- * ```
- */
-export function unwrapAPI<T>(
-  responsePromise: Promise<APIResponse<T>>,
-  options: IPCCallOptions = {}
-): Promise<T> {
-  return responsePromise.then((response) => unwrap(response, options));
-}
 
 // Context for dependency injection
 const ElectronAPIContext = createContext<ElectronAPI | null>(null);
@@ -139,24 +48,18 @@ export const ElectronAPIProvider: FC<ElectronAPIProviderProps> = ({ api, childre
 /**
  * React hook that returns the ElectronAPI
  *
+ * NOTE: This file only exports React-facing APIs (provider + hook).
+ * The unwrapAPI helper and IPCError live in useElectronAPI.helpers.ts
+ * to keep Fast Refresh boundaries simple. The react-refresh rule
+ * currently flags this hook export as a false-positive, so we disable
+ * it for this line only.
+ *
  * @example
  * ```tsx
  * const api = useElectronAPI();
- *
- * // Use unwrapAPI to unwrap responses:
- * const data = await unwrapAPI(api.sessions.list());
- * const messages = await unwrapAPI(api.chat.getMessages(id));
- *
- * // Error handling with try/catch:
- * try {
- *   const data = await unwrapAPI(api.sessions.delete(id));
- * } catch (e) {
- *   if (e instanceof IPCError && e.code === 'NOT_FOUND') {
- *     // Handle specific error
- *   }
- * }
  * ```
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useElectronAPI(): ElectronAPI {
   const api = useContext(ElectronAPIContext);
   if (!api) {

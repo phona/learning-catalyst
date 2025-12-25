@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-// Re-export providers from the new dedicated file to avoid Fast Refresh warning
-export { renderWithServices, renderWithSettings, Providers, QueryLayer } from './test-providers';
+// Re-export helpers and providers from dedicated files to avoid Fast Refresh warnings.
+export { Providers, QueryLayer } from './test-providers';
+export { renderWithServices, renderWithSettings } from './test-providers.helpers';
 
 // Re-export testing utilities for convenience
 export { screen, fireEvent, waitFor } from '@testing-library/react';

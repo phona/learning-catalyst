@@ -7,7 +7,7 @@ import {
 } from '@heroicons/react/24/outline';
 import type { Concept } from '@/shared/types/knowledge';
 import type { KnowledgeMapDisplay, KnowledgeMapNode } from '@/shared/types/electron-api/knowledge-api';
-import { useElectronAPIClient } from '@/renderer/services/services-provider';
+import { useElectronAPIClient } from '@/renderer/services/services-context';
 import { showError, showSuccess } from '@/renderer/shared/lib';
 
 interface ConceptManagerProps {

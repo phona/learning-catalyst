@@ -10,7 +10,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import type { ParsingJob, ParsingOptions } from '@/shared/types/concept-parsing';
-import { useService, useChatService } from '@/renderer/services/services-provider';
+import { useService, useChatService } from '@/renderer/services/services-context';
 import type { ConceptIngestionPlan } from '@/shared/types/electron-api/knowledge-api';
 import { showSuccess, showError } from '@/renderer/shared/lib';
 

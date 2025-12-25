@@ -7,8 +7,8 @@ import type {
   KnowledgeMapNode,
 } from '@/shared/types/electron-api/knowledge-api';
 import type { Concept } from '@/shared/types/knowledge';
-import { useElectronAPIClient } from '@/renderer/services/services-provider';
-import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+import { useElectronAPIClient } from '@/renderer/services/services-context';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 import { showSuccess } from '@/renderer/shared/lib';
 
 interface KnowledgeGameMapProps {

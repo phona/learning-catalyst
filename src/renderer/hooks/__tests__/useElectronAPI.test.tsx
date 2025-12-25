@@ -12,12 +12,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import React, { type ReactNode } from 'react';
-import {
-  useElectronAPI,
-  ElectronAPIProvider,
-  IPCError,
-  unwrapAPI,
-} from '../useElectronAPI';
+import { useElectronAPI, ElectronAPIProvider } from '../useElectronAPI';
+import { IPCError, unwrapAPI } from '../useElectronAPI.helpers';
 import type { APIResponse } from '@/shared/types/electron-api/base';
 
 // Mock toast

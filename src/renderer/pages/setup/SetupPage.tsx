@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ProviderSelect, ModelSelect } from '@/renderer/features/config';
 import { useNavigate } from 'react-router-dom';
 import { showError, showSuccess } from '@/renderer/shared/lib';
-import { useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-provider';
+import { useConfigurationService, useElectronAPIClient } from '@/renderer/services/services-context';
 import { READY_TIMEOUT_MS } from '@/shared/types/electron-api';
 import { useSetupWorkflow } from '@/renderer/hooks/useSetupWorkflow';
 import type {
