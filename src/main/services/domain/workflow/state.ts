@@ -6,7 +6,7 @@ import type { ProviderFactory } from '../../agent/provider-factory';
 import type { LearningService } from '../learning/learning-service';
 import type { KnowledgeService } from '../knowledge/knowledge-service';
 import type { PracticeService } from '../practice/practice-service';
-import { SessionBlueprint } from './nodes/plan';
+import type { SessionBlueprint } from './types/session-blueprint';
 
 // Import types and reducers from subgraphs
 import { TeachState, DEFAULT_TEACH_STATE } from './subgraphs/teach/types';

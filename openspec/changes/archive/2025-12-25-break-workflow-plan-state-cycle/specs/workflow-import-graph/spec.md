@@ -1,6 +1,6 @@
 # Capability: Workflow Import Graph Is Acyclic
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Workflow State Does Not Depend On Nodes
 `src/main/services/domain/workflow/state.ts` MUST NOT import from `src/main/services/domain/workflow/nodes/*`.
@@ -24,4 +24,3 @@ The workflow domain MUST not have circular dependencies.
 - **Given** `npx madge --circular --extensions ts,tsx --ts-config tsconfig.json src/main/index.ts`
 - **When** it is run
 - **Then** it reports no cycles in `src/main/services/domain/workflow/**`.
-

@@ -7,7 +7,12 @@ There is a real circular dependency in the workflow domain:
 - `src/main/services/domain/workflow/state.ts` imports `SessionBlueprint` from `nodes/plan.ts`
 - `src/main/services/domain/workflow/nodes/plan.ts` imports `WorkflowStateAnnotation` from `state.ts`
 
-This makes refactors risky and can create subtle runtime issues when code loading order changes.
+This makes refactors risky and can create subtle issues when module loading order changes.
+
+It also breaks a simple layering rule:
+
+- `state.ts` is **core** workflow state (used everywhere)
+- `nodes/*` are **leaf** workflow steps (should depend on state, not the other way around)
 
 Simple picture:
 ```
@@ -21,7 +26,7 @@ state.ts  ----imports---->  plan.ts
 Move shared workflow types so the dependency graph becomes one-directional:
 
 ```
-state.ts  ->  workflow-types.ts  <-  plan.ts
+state.ts  ->  types/session-blueprint.ts  <-  nodes/plan.ts
 ```
 
 ## What Changes
@@ -41,8 +46,8 @@ This module should contain:
 - any helper constants directly related to the blueprint schema
 
 2) Update:
-- `state.ts` to import `SessionBlueprint` from the new module
-- `plan.ts` to import schema/types from the new module (and keep importing `WorkflowStateAnnotation` from `state.ts`)
+- `state.ts` to import `SessionBlueprint` from the new module (prefer `import type` to avoid runtime coupling)
+- `plan.ts` to import schema/types from the new module (it can optionally re-export them to avoid churn in tests/callers)
 
 Now `state.ts` no longer imports from `nodes/`.
 
