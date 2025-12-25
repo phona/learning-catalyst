@@ -69,6 +69,7 @@ export type { ContentAPI };
 export type { SettingsAPI, SettingsUtility };
 export type { SessionsAPI };
 export type { CatalystAPI };
+export type { SessionCreateRequest, SessionUpdateRequest } from './sessions-requests';
 
 // Export the main electronAPI interface
 export interface ElectronAPI {

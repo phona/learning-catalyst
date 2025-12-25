@@ -58,20 +58,4 @@ export interface SessionSearchFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
-export interface SessionCreateRequest {
-  title?: string;
-  threadId?: string;
-  tags?: string[];
-  difficulty?: 'easy' | 'medium' | 'hard' | 'beginner' | 'intermediate' | 'advanced';
-  agentType?: string;
-  description?: string;
-}
-
-export interface SessionUpdateRequest {
-  title?: string;
-  description?: string;
-  tags?: string[];
-  isBookmarked?: boolean;
-  isArchived?: boolean;
-  status?: 'active' | 'paused' | 'completed';
-}
+export type { SessionCreateRequest, SessionUpdateRequest } from '@/shared/types/electron-api/sessions-requests';

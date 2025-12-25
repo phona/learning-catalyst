@@ -5,7 +5,7 @@ import type {
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
-import type { SessionCreateRequest, SessionUpdateRequest } from '@/renderer/types/session';
+import type { SessionCreateRequest, SessionUpdateRequest } from '@/shared/types/electron-api/sessions-requests';
 
 /**
  * This service uses the unwrapAPI pattern for consistent IPC error handling.

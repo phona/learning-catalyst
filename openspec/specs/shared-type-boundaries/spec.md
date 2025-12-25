@@ -1,7 +1,8 @@
-# Capability: Shared Type Boundaries (No `shared -> renderer` Imports)
+# shared-type-boundaries Specification
 
-## MODIFIED Requirements
-
+## Purpose
+TBD - created by archiving change remove-renderer-imports-from-shared. Update Purpose after archive.
+## Requirements
 ### Requirement: Shared Code Does Not Import Renderer Code
 Files under `src/shared/` MUST NOT import from `src/renderer/` (directly or via aliased paths).
 
@@ -24,3 +25,4 @@ Files under `src/shared/` MUST NOT import from `src/renderer/` (directly or via 
 - **When** they import request DTOs
 - **Then** they both import from the shared DTO module
 - **And** no duplicate request DTO definitions exist across layers.
+

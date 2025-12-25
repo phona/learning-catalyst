@@ -25,7 +25,7 @@ import type {
 import type {
   SessionSearchQuery,
 } from '@/shared/types/session';
-import type { SessionCreateRequest, SessionUpdateRequest } from '@/renderer/types/session';
+import type { SessionCreateRequest, SessionUpdateRequest } from '@/shared/types/electron-api/sessions-requests';
 
 import type {
   KnowledgeSearchResultDisplay,

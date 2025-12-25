@@ -3,7 +3,7 @@ import type {
   SessionSearchQuery,
 } from '../session';
 
-import type { SessionUpdateRequest, SessionCreateRequest } from '../../../renderer/types/session';
+import type { SessionCreateRequest, SessionUpdateRequest } from './sessions-requests';
 import type { APIResponse } from './base';
 
 /**
