@@ -584,7 +584,7 @@ All renderer-side code follows a consistent 3-layer architecture:
 │ LAYER 3: electronAPI (IPC Transport)                                          │
 └─────────────────────────────────────────────────────────────────────────────────┘
   - Provides IPC methods to main process
-  - Returns ApiResponse<T> = {success, data, timestamp}
+  - Returns APIResponse<T> = { success, data, error:{code,message,details?}, code?, timestamp? }
 ```
 
 **Key Rules:**
@@ -603,7 +603,7 @@ All renderer-side code follows a consistent 3-layer architecture:
 - ✅ Functional Approach: Use factories, NOT classes
 
 **Renderer Service Layer Rules:**
-- ✅ Services: Use `unwrapAPI()` for all IPC calls (extracts data from ApiResponse wrapper)
+- ✅ Services: Use `unwrapAPI()` for all IPC calls (extracts data from APIResponse wrapper)
 - ✅ Components/Adapters: Use services via `useService()` - never call `electronAPI` directly
 - ❌ Adapters: Never call `electronAPI.*()` directly (violates separation of concerns)
 - ⚠️ App Infrastructure: May use electronAPI for lifecycle operations only (awaitReady, awaitConfigChange)

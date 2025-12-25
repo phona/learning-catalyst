@@ -1,6 +1,6 @@
 # Capability: IPC Response Envelope Consistency
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: IPC Proxy Returns `APIResponse<T>`
 The IPC proxy MUST return responses that match `APIResponse<T>` from `src/shared/types/electron-api/base.ts`.
@@ -38,4 +38,3 @@ If the IPC envelope includes a timestamp, it MUST be an ISO string (not a `Date`
 - **When** the renderer inspects the response
 - **Then** `typeof timestamp === 'string'`
 - **And** it parses as a valid ISO date string.
-

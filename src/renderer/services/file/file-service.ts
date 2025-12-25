@@ -11,7 +11,6 @@
  */
 
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { APIResponse } from '@/shared/types/electron-api/base';
 import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
 import type {
   OpenDialogOptions,
@@ -184,8 +183,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       const fileName = extractFileName(filePath);
 
       // Read file through Electron API (unwrapAPI extracts response.data)
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      const content = await unwrapAPI(electronAPI.readFile(filePath) as unknown as Promise<APIResponse<string>>);
+      const content = await unwrapAPI(electronAPI.readFile(filePath));
 
       // Validate content
       const validation = validateFileContent(content, filePath);
@@ -246,8 +244,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       }
 
       // Write file through Electron API (unwrapAPI extracts response.data)
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      await unwrapAPI(electronAPI.writeFile(filePath, content) as unknown as Promise<APIResponse<void>>);
+      await unwrapAPI(electronAPI.writeFile(filePath, content));
 
       return { success: true };
     } catch (error) {
@@ -283,8 +280,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       }
 
       // Check existence through Electron API (unwrapAPI extracts response.data)
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      const exists = await unwrapAPI(electronAPI.existsFile(filePath) as unknown as Promise<APIResponse<boolean>>);
+      const exists = await unwrapAPI(electronAPI.existsFile(filePath));
 
       return {
         success: true,
@@ -375,8 +371,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       }
 
       // Read directory through Electron API (unwrapAPI extracts response.data)
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      const items = await unwrapAPI(electronAPI.readDirectory(dirPath, recursive, maxDepth, filterConfig) as unknown as Promise<APIResponse<any[]>>);
+      const items = await unwrapAPI(electronAPI.readDirectory(dirPath, recursive, maxDepth, filterConfig));
 
       return {
         success: true,
@@ -412,8 +407,7 @@ export function createFileService(electronAPI: ElectronAPI) {
       }
 
       // Get workspace path through Electron API (unwrapAPI extracts response.data)
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      const workspacePath = await unwrapAPI(electronAPI.getWorkspacePath() as unknown as Promise<APIResponse<string | null>>);
+      const workspacePath = await unwrapAPI(electronAPI.getWorkspacePath());
 
       return {
         success: true,

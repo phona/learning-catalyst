@@ -4,7 +4,6 @@ import type {
   SessionStatistics,
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { APIResponse } from '@/shared/types/electron-api/base';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { SessionCreateRequest, SessionUpdateRequest } from '@/renderer/types/session';
 
@@ -212,13 +211,11 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
     deleteSession,
     getGlobalStatistics: async (): Promise<SessionStatistics> => {
       // Use unwrapAPI for consistent IPC error handling
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      return await unwrapAPI(apiClient.sessions.getGlobalStatistics() as unknown as Promise<APIResponse<SessionStatistics>>);
+      return await unwrapAPI(apiClient.sessions.getGlobalStatistics());
     },
     searchSessions: async (query: string, filters?: Record<string, unknown>): Promise<SessionListData> => {
       // Use unwrapAPI for consistent IPC error handling
-      // Note: Type cast needed because API definition incorrectly returns raw type
-      const response = await unwrapAPI(apiClient.sessions.searchSessions(query) as unknown as Promise<APIResponse<SessionDisplay[]>>);
+      const response = await unwrapAPI(apiClient.sessions.searchSessions(query));
       return {
         sessions: response,
         total: response.length,

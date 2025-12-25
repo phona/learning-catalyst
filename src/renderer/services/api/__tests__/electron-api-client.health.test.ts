@@ -6,26 +6,28 @@ describe('electron-api-client health and lifecycle', () => {
     (globalThis as any).window = {}; // force fallback
     const client = createElectronAPIClient();
     const health = await client.healthCheck();
-    expect(health.status).toBe('healthy');
+    expect(health.success).toBe(true);
+    expect(health.data?.status).toBe('healthy');
   });
 
   it('uses provided electronAPI without warnings when present', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const fake = {
-      healthCheck: vi.fn().mockResolvedValue({ status: 'ok' }),
+      healthCheck: vi.fn().mockResolvedValue({ success: true, data: { status: 'ok', apis: {} } }),
     };
     (globalThis as any).window = { electronAPI: fake };
 
     const client = createElectronAPIClient();
     const res = await client.healthCheck();
 
-    expect(res.status).toBe('ok');
+    expect(res.success).toBe(true);
+    expect(res.data?.status).toBe('ok');
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('mock client exposes writeFile and show dialogs safely', async () => {
     const mock = createMockElectronAPIClient();
-    await expect(mock.writeFile('/tmp/file.txt', 'content')).resolves.toBeUndefined();
+    await expect(mock.writeFile('/tmp/file.txt', 'content')).resolves.toMatchObject({ success: true });
     const open = await mock.showOpenDialog({});
     const save = await mock.showSaveDialog({});
     expect(open.canceled).toBe(true);

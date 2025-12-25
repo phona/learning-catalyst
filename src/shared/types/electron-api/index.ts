@@ -35,7 +35,7 @@ import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
 import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
 import type { AppConfig } from '../config';
 // Import base types to re-export
-import type { SystemReadyPayload, ConfigChangedPayload, IPCError } from './base';
+import type { SystemReadyPayload, ConfigChangedPayload, IPCError, APIResponse } from './base';
 import type { AISDKAPI } from './base';
 
 // Re-export base types
@@ -110,11 +110,16 @@ export interface ElectronAPI {
   showDirectoryDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
   showOpenDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
   showSaveDialog: (options: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
-  readFile: (filePath: string) => Promise<string>;
-  writeFile: (filePath: string, content: string) => Promise<void>;
-  existsFile: (filePath: string) => Promise<boolean>;
-  readDirectory: (dirPath: string, recursive?: boolean, maxDepth?: number, filterConfig?: DirectoryFilterConfig) => Promise<any[]>;
-  getWorkspacePath: () => Promise<string | null>;
+  readFile: (filePath: string) => Promise<APIResponse<string>>;
+  writeFile: (filePath: string, content: string) => Promise<APIResponse<void>>;
+  existsFile: (filePath: string) => Promise<APIResponse<boolean>>;
+  readDirectory: (
+    dirPath: string,
+    recursive?: boolean,
+    maxDepth?: number,
+    filterConfig?: DirectoryFilterConfig,
+  ) => Promise<APIResponse<any[]>>;
+  getWorkspacePath: () => Promise<APIResponse<string | null>>;
 
   // Error handling
   onIPCError: (handler: (payload: IPCErrorPayload) => void) => () => void;
@@ -123,11 +128,12 @@ export interface ElectronAPI {
 
   // System utilities
   handleError: (error: Error | string, context: string, severity?: string) => void;
-  healthCheck: () => Promise<{ status: 'healthy' | 'degraded' | 'offline'; apis: Record<string, unknown> }>;
-  getVersion: () => Promise<{ version: string; build: string; platform: string }>;
-  trackEvent: (event: { name: string; properties?: object }) => Promise<void>;
+  healthCheck: () => Promise<
+    APIResponse<{ status: 'healthy' | 'degraded' | 'offline'; apis: Record<string, unknown> }>
+  >;
+  getVersion: () => Promise<APIResponse<{ version: string; build: string; platform: string }>>;
+  trackEvent: (event: { name: string; properties?: object }) => Promise<APIResponse<void>>;
   relaunchApp: () => Promise<{ relaunching: boolean }>;
   awaitConfigChange: (options?: { timeoutMs?: number }) => Promise<ConfigChangedPayload>;
   onMenuAction: (handler: (action: string, data?: unknown) => void) => () => void;
 }
-

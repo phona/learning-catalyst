@@ -6,7 +6,7 @@
  */
 
 import type { ElectronAPI, ChatAPI, KnowledgeAPI, AnalyticsAPI } from '@/shared/types';
-import type { APIResponse, SystemReadyPayload, ConfigChangedPayload } from '@/shared/types/electron-api/base';
+import type { APIResponse, SystemReadyPayload, ConfigChangedPayload, AISDKStreamParams } from '@/shared/types/electron-api/base';
 import type { ChatHistoryMessage } from '@/shared/types/electron-api/chat-api';
 import type { SessionStatistics } from '@/shared/types/electron-api/sessions-api';
 
@@ -162,15 +162,21 @@ export function createTestServiceContainer(
         success: true,
         data: [],
       }),
-      getGlobalStatistics: async (): Promise<SessionStatistics> => ({
-        totalSessions: 0,
-        totalMessages: 0,
-        totalUserMessages: 0,
-        totalAssistantMessages: 0,
-        totalTokensUsed: 0,
-        averageMessagesPerSession: 0,
+      getGlobalStatistics: async (): Promise<APIResponse<SessionStatistics>> => ({
+        success: true,
+        data: {
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
+        },
       }),
-      searchSessions: async (query: string): Promise<SessionDisplay[]> => [],
+      searchSessions: async (query: string): Promise<APIResponse<SessionDisplay[]>> => ({
+        success: true,
+        data: [],
+      }),
       // getStatistics: async () => ({
       //   success: true,
       //   data: {
@@ -558,11 +564,8 @@ export function createTestServiceContainer(
     },
     aiSDK: {
       stream: (
-        params: {
-          messages: Array<{ role: string; content: string }>;
-          conversationId?: string;
-        },
-        callback: (data?: unknown) => void,
+        _params: AISDKStreamParams,
+        _callback: (data: unknown) => void,
         onComplete?: () => void,
       ) => () => {},
     },
@@ -575,11 +578,11 @@ export function createTestServiceContainer(
     onceSystemReady: () => {},
     onConfigChanged: () => {},
     // File operations
-    getWorkspacePath: async () => '/mock/workspace',
-    readDirectory: async () => [],
-    readFile: async () => '',
-    writeFile: async () => Promise.resolve(),
-    existsFile: async () => false,
+    getWorkspacePath: async () => ({ success: true, data: '/mock/workspace' }),
+    readDirectory: async () => ({ success: true, data: [] }),
+    readFile: async () => ({ success: true, data: '' }),
+    writeFile: async () => ({ success: true, data: undefined }),
+    existsFile: async () => ({ success: true, data: false }),
     openFile: async () => ({ canceled: true, filePaths: [] }),
     saveFile: async () => ({ canceled: true, filePath: '' }),
     showDirectoryDialog: async () => ({ canceled: true, filePaths: [] }),
@@ -588,9 +591,12 @@ export function createTestServiceContainer(
     onMenuAction: () => () => {},
     onIPCError: () => () => {},
     handleError: () => {},
-    healthCheck: async () => ({ status: 'healthy' as const, apis: {} }),
-    getVersion: async () => ({ version: '1.0.0', build: 'mock', platform: 'mock' }),
-    trackEvent: async () => {},
+    healthCheck: async () => ({ success: true, data: { status: 'healthy' as const, apis: {} } }),
+    getVersion: async () => ({
+      success: true,
+      data: { version: '1.0.0', build: 'mock', platform: 'mock' },
+    }),
+    trackEvent: async () => ({ success: true, data: undefined }),
     getErrorBuffer: async () => [],
     clearErrorBuffer: async () => ({ cleared: true }),
     relaunchApp: async () => ({ relaunching: false }),

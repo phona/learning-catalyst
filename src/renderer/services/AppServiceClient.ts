@@ -1,7 +1,6 @@
 import type { AppConfig } from '@/shared/types/config';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
 import { assertOk, unwrap } from '@/renderer/shared/lib';
-import type { ElectronAPI, APIResponse } from '@/shared/types/electron-api';
 
 
 // Menu handlers interface
@@ -54,7 +53,7 @@ export async function getAppVersion(): Promise<string> {
   }
 
   try {
-    const versionInfo = await window.electronAPI.getVersion();
+    const versionInfo = unwrap(await window.electronAPI.getVersion());
     return versionInfo.version;
   } catch (error) {
     console.error('Failed to get app version:', error);
@@ -118,7 +117,7 @@ export async function readFile(path: string): Promise<string> {
   }
 
   try {
-    return await window.electronAPI.readFile(path);
+    return unwrap(await window.electronAPI.readFile(path));
   } catch (error) {
     console.error('Failed to read file:', error);
     throw error;
@@ -134,7 +133,7 @@ export async function writeFile(path: string, content: string): Promise<void> {
   }
 
   try {
-    await window.electronAPI.writeFile(path, content);
+    assertOk(await window.electronAPI.writeFile(path, content));
   } catch (error) {
     console.error('Failed to write file:', error);
     throw error;
@@ -150,7 +149,7 @@ export async function existsFile(path: string): Promise<boolean> {
   }
 
   try {
-    return await window.electronAPI.existsFile(path);
+    return unwrap(await window.electronAPI.existsFile(path));
   } catch (error) {
     console.error('Failed to check file existence:', error);
     return false;

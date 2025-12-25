@@ -57,7 +57,10 @@ describe('AppServiceClient', () => {
 
   it('getAppVersion returns string when available', async () => {
     (window as any).electronAPI = {
-      getVersion: vi.fn().mockResolvedValue({ version: '2.0.0', build: 'test', platform: 'web' }),
+      getVersion: vi.fn().mockResolvedValue({
+        success: true,
+        data: { version: '2.0.0', build: 'test', platform: 'web' },
+      }),
     };
     const version = await getAppVersion();
     expect(version).toBe('2.0.0');
@@ -96,7 +99,7 @@ describe('AppServiceClient', () => {
 
   it('existsFile returns false when missing and delegates when present', async () => {
     expect(await existsFile('/tmp')).toBe(false);
-    const exists = vi.fn().mockResolvedValue(true);
+    const exists = vi.fn().mockResolvedValue({ success: true, data: true });
     (window as any).electronAPI = { existsFile: exists };
     expect(await existsFile('/tmp')).toBe(true);
     expect(exists).toHaveBeenCalledWith('/tmp');

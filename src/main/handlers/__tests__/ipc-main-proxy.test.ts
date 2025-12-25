@@ -43,6 +43,7 @@ describe('ipc-main-proxy argument forwarding', () => {
 
     expect(received).toEqual([['session-123', 'AI Title']]);
     expect(response).toMatchObject({ success: true, data: 'ok' });
+    expect(typeof response?.timestamp).toBe('string');
   });
 
   it('preserves argument order for three arguments', async () => {
@@ -61,5 +62,29 @@ describe('ipc-main-proxy argument forwarding', () => {
 
     expect(captured).toEqual([1, 2, 3]);
     expect(response).toMatchObject({ success: true, data: 6 });
+    expect(typeof response?.timestamp).toBe('string');
+  });
+
+  it('returns structured error envelope on handler failure', async () => {
+    const ipc = createIpcProxy(logger as any);
+
+    ipc.handle('boom:channel', async () => {
+      throw new Error('boom');
+    });
+
+    const handler = handlerMap.get('boom:channel');
+    expect(handler).toBeDefined();
+
+    const response = await handler?.({} as any);
+
+    expect(response).toMatchObject({
+      success: false,
+      code: 'Error',
+      error: {
+        code: 'Error',
+        message: 'boom',
+      },
+    });
+    expect(typeof response?.timestamp).toBe('string');
   });
 });

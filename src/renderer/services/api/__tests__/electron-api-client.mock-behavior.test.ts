@@ -9,9 +9,12 @@ describe('electron-api-client mock behavior', () => {
     const content = await client.readFile('/somewhere.md');
     const workspace = await client.getWorkspacePath();
 
-    expect(exists).toBe(false);
-    expect(content).toContain('Mock file content');
-    expect(workspace).toBe('/mock/workspace');
+    expect(exists.success).toBe(true);
+    expect(exists.data).toBe(false);
+    expect(content.success).toBe(true);
+    expect(content.data).toContain('Mock file content');
+    expect(workspace.success).toBe(true);
+    expect(workspace.data).toBe('/mock/workspace');
   });
 
   it('returns structured content import response', async () => {
@@ -41,6 +44,7 @@ describe('electron-api-client mock behavior', () => {
 
     expect(cfg.success).toBe(true);
     expect(cfg.data?.ui?.theme).toBe('light');
-    expect(versionInfo.version).toBe('1.0.0');
+    expect(versionInfo.success).toBe(true);
+    expect(versionInfo.data?.version).toBe('1.0.0');
   });
 });

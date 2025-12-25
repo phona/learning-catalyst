@@ -3,6 +3,7 @@ import type { ProviderConfig } from '@/shared/types';
 import type { AgentDisplay as AgentsAgentDisplay, AgentContext as AgentsAgentContext } from '@/shared/types/electron-api/agent-api';
 import { ChatHistoryMessage, ChatStreamEvent } from '@/shared/types/electron-api/chat-api';
 import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
+import type { AISDKStreamParams } from '@/shared/types/electron-api/base';
 import { AIMessage } from 'langchain';
 
 // Local type definitions for mock data (removed from shared types)
@@ -219,10 +220,7 @@ export function createMockElectronAPIClient(): ElectronAPI {
   const partial: Partial<ElectronAPI> = {
     aiSDK: {
       stream: (
-        params: {
-          messages: Array<{ role: string; content: string }>;
-          conversationId?: string;
-        },
+        params: AISDKStreamParams,
         callback: (data: unknown) => void,
         onComplete?: () => void,
       ) => {
@@ -233,14 +231,26 @@ export function createMockElectronAPIClient(): ElectronAPI {
         console.log('[Mock aiSDK] stream called with conversationId:', params.conversationId);
 
         // Store the user message
-        const userMessage = params.messages[params.messages.length - 1];
-        if (userMessage) {
+        const userText = (() => {
+          if ('newUserMessage' in params) {
+            const delta = params.newUserMessage;
+            if (typeof delta === 'string') return delta;
+            if (delta?.content) return String(delta.content);
+            const parts = delta?.parts ?? [];
+            return parts.map((p) => (p.type === 'text' ? p.text : '')).join('');
+          }
+          const messages = params.messages ?? [];
+          const last = messages[messages.length - 1] as any;
+          return last?.content ? String(last.content) : '';
+        })();
+
+        if (userText.trim().length > 0) {
           const newMockMessages = mockMessages.get(threadId) || {sessions: [], hasMore: false, total: 0};
           const existingMessages = newMockMessages.sessions || [];
           existingMessages.push({
             id: `${threadId}-${existingMessages.length}`,
             role: 'user',
-            content: String(userMessage.content),
+            content: userText,
             timestamp: new Date().toISOString(),
           });
           mockMessages.set(threadId, newMockMessages);
@@ -534,14 +544,17 @@ export function createMockElectronAPIClient(): ElectronAPI {
       getRecentSessions: (limit?: number) => Promise.resolve({ success: true, data: [] }),
       getGlobalStatistics: () =>
         Promise.resolve({
-          totalSessions: 0,
-          totalMessages: 0,
-          totalUserMessages: 0,
-          totalAssistantMessages: 0,
-          totalTokensUsed: 0,
-          averageMessagesPerSession: 0,
+          success: true,
+          data: {
+            totalSessions: 0,
+            totalMessages: 0,
+            totalUserMessages: 0,
+            totalAssistantMessages: 0,
+            totalTokensUsed: 0,
+            averageMessagesPerSession: 0,
+          },
         }),
-      searchSessions: (query: string) => Promise.resolve([]),
+      searchSessions: (query: string) => Promise.resolve({ success: true, data: [] }),
       delete: (sessionId: string) => {
         mockSessions.delete(sessionId);
         return Promise.resolve({
@@ -933,11 +946,11 @@ export function createMockElectronAPIClient(): ElectronAPI {
           },
         }),
     },
-    getWorkspacePath: () => Promise.resolve('/mock/workspace'),
-    readDirectory: () => Promise.resolve([]),
-    readFile: () => Promise.resolve('Mock file content'),
-    writeFile: () => Promise.resolve(),
-    existsFile: () => Promise.resolve(false),
+    getWorkspacePath: () => Promise.resolve({ success: true, data: '/mock/workspace' }),
+    readDirectory: () => Promise.resolve({ success: true, data: [] }),
+    readFile: () => Promise.resolve({ success: true, data: 'Mock file content' }),
+    writeFile: () => Promise.resolve({ success: true, data: undefined }),
+    existsFile: () => Promise.resolve({ success: true, data: false }),
     showOpenDialog: () => Promise.resolve({ canceled: true, filePaths: [] }),
     showSaveDialog: () => Promise.resolve({ canceled: true, filePath: '' }),
     onMenuAction: () => {
@@ -997,9 +1010,10 @@ export function createMockElectronAPIClient(): ElectronAPI {
       cancelExecution: () => Promise.resolve({ success: true, data: { success: true } }),
     },
     handleError: () => {},
-    healthCheck: () => Promise.resolve({ status: 'healthy', apis: {} }),
-    getVersion: () => Promise.resolve({ version: '1.0.0', build: 'mock', platform: 'web' }),
-    trackEvent: () => Promise.resolve(),
+    healthCheck: () => Promise.resolve({ success: true, data: { status: 'healthy', apis: {} } }),
+    getVersion: () =>
+      Promise.resolve({ success: true, data: { version: '1.0.0', build: 'mock', platform: 'web' } }),
+    trackEvent: () => Promise.resolve({ success: true, data: undefined }),
   };
 
   return createElectronAPIClientWith(partial);

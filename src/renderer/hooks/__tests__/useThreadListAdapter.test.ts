@@ -75,7 +75,8 @@ describe('ThreadListAdapter', () => {
       const localId = 'thread-local-123';
       mockElectronAPI.sessions.create.mockResolvedValueOnce({
         success: false,
-        error: 'Failed to create session',
+        error: { code: 'SESSIONS_CREATE_FAILED', message: 'Failed to create session' },
+        code: 'SESSIONS_CREATE_FAILED',
       });
 
       await expect(adapter.initialize(localId)).rejects.toThrow('Failed to create session');

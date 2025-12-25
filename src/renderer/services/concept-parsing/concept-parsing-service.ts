@@ -10,7 +10,6 @@ import type {
 import type { RelationshipType } from '@/shared/types/relationship-types';
 import type { LearningPath } from '@/shared/types/learning';
 import type { ElectronAPI } from '@/shared/types/electron-api';
-import type { APIResponse } from '@/shared/types/electron-api/base';
 import type {
   ConceptParsingResult,
   ParsedConcept,
@@ -512,14 +511,13 @@ export const createConceptParsingService = (
       for (const filePath of filePaths) {
         try {
           // Use unwrapAPI for consistent IPC error handling
-          // Note: Type cast needed because API definition incorrectly returns raw type
-          const fileExists = await unwrapAPI(apiClient.existsFile(filePath) as unknown as Promise<APIResponse<boolean>>);
+          const fileExists = await unwrapAPI(apiClient.existsFile(filePath));
           if (!fileExists) {
             console.warn(`File not found: ${filePath}`);
             continue;
           }
 
-          const content = await unwrapAPI(apiClient.readFile(filePath) as unknown as Promise<APIResponse<string>>);
+          const content = await unwrapAPI(apiClient.readFile(filePath));
           const validation = validateContent(content);
 
           if (!validation.isValid) {
@@ -638,8 +636,7 @@ export const createConceptParsingService = (
       for (const directoryPath of directoryPaths) {
         try {
           // Use unwrapAPI for consistent IPC error handling
-          // Note: Type cast needed because API definition incorrectly returns raw type
-          const items = await unwrapAPI(apiClient.readDirectory(directoryPath, true, 10) as unknown as Promise<APIResponse<any[]>>);
+          const items = await unwrapAPI(apiClient.readDirectory(directoryPath, true, 10));
           for (const item of items) {
             if (item?.isFile === true && item?.isMarkdown === true) {
               markdownFiles.push(item.path);

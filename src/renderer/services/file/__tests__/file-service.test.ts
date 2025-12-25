@@ -11,14 +11,14 @@ import type { APIResponse } from '@/shared/types/electron-api/base';
 const okResponse = <T>(data: T): APIResponse<T> => ({
   success: true,
   data,
-  timestamp: Date.now(),
+  timestamp: new Date().toISOString(),
 });
 
 // Helper to create a failed API response
 const failResponse = (message: string, code = 'ERROR'): APIResponse<never> => ({
   success: false,
   error: { message, code },
-  timestamp: Date.now(),
+  timestamp: new Date().toISOString(),
 });
 
 // Mock electronAPI with proper APIResponse return types

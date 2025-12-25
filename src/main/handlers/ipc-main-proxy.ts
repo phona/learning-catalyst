@@ -6,7 +6,8 @@
 
 import { ipcMain, IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import type { LoggerService } from '../services/core/logger/logger-service';
-import type { ApiResponse } from '../../shared/types/api';
+import type { APIResponse, APIResponseError } from '@/shared/types/electron-api/base';
+import { isIPCErrorException, isIPCErrorPayload } from '@/shared/types/ipc-error';
 
 /**
  * Handler options - passed to ipc.handle() as 3rd parameter
@@ -23,7 +24,7 @@ export interface IIpcProxy {
   handle<TArgs extends unknown[], TReturn>(
     channel: string,
     handler: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TReturn>,
-    options?: HandlerOptions
+    options?: HandlerOptions,
   ): void;
 }
 
@@ -52,8 +53,58 @@ export interface IIpcProxy {
 export function createIpcProxy(
   globalLogger: LoggerService,
   logSuccess: boolean = false,
-  mapError?: (error: unknown) => { code: string; message: string }
+  mapError?: (error: unknown) => APIResponseError,
 ) {
+  const toAPIResponseError = (channel: string, error: unknown): APIResponseError => {
+    if (mapError) {
+      return mapError(error);
+    }
+
+    if (isIPCErrorException(error)) {
+      return {
+        code: error.payload.code,
+        message: error.payload.message,
+        details: error.payload.details,
+      };
+    }
+
+    if (isIPCErrorPayload(error)) {
+      return {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      };
+    }
+
+    if (error && typeof error === 'object') {
+      const maybe = error as Partial<{
+        code: unknown;
+        message: unknown;
+        details: unknown;
+      }>;
+
+      if (typeof maybe.code === 'string' && typeof maybe.message === 'string') {
+        return {
+          code: maybe.code,
+          message: maybe.message,
+          details:
+            typeof maybe.details === 'object' && maybe.details !== null
+              ? (maybe.details as Record<string, unknown>)
+              : undefined,
+        };
+      }
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    const code = error instanceof Error ? error.name : 'HANDLER_ERROR';
+    const details =
+      error instanceof Error && error.stack
+        ? ({ channel, stack: error.stack } satisfies Record<string, unknown>)
+        : ({ channel } satisfies Record<string, unknown>);
+
+    return { code, message, details };
+  };
+
   /**
    * Wrapped handle method that:
    * 1. Calls the original ipcMain.handle
@@ -64,7 +115,7 @@ export function createIpcProxy(
   function handle<TArgs extends unknown[], TReturn>(
     channel: string,
     handler: (event: IpcMainInvokeEvent, ...args: TArgs) => Promise<TReturn>,
-    options?: HandlerOptions
+    _options?: HandlerOptions,
   ): void {
     const handlerLogger = globalLogger.child({ channel });
 
@@ -77,15 +128,14 @@ export function createIpcProxy(
       try {
         const result = await handler(event, ...(args as TArgs));
 
-        // Auto-wrap response
-        const response: ApiResponse = {
+        const response: APIResponse<TReturn> = {
           success: true,
           data: result,
-          timestamp: new Date(),
+          timestamp: new Date().toISOString(),
         };
 
         if (logSuccess) {
-          handlerLogger.info('✅ IPC request completed', {
+          handlerLogger.info('IPC request completed', {
             channel,
             hasData: !!result,
           });
@@ -93,21 +143,20 @@ export function createIpcProxy(
 
         return response;
       } catch (error: unknown) {
-        const errorInfo = mapError ? mapError(error) : {
-          code: 'HANDLER_ERROR',
-          message: error instanceof Error ? error.message : String(error),
-        };
+        const errorInfo = toAPIResponseError(channel, error);
 
-        handlerLogger.error('❌ IPC request failed', {
+        handlerLogger.error('IPC request failed', {
           channel,
           error: errorInfo.message,
+          code: errorInfo.code,
         });
 
         return {
           success: false,
-          error: errorInfo.message,
-          timestamp: new Date(),
-        } satisfies ApiResponse;
+          code: errorInfo.code,
+          error: errorInfo,
+          timestamp: new Date().toISOString(),
+        } satisfies APIResponse<never>;
       }
     });
   }

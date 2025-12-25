@@ -64,6 +64,6 @@ export interface SessionsAPI {
   delete: (sessionId: string) => Promise<APIResponse<{ deleted: boolean }>>;
   updateTitle: (sessionId: string, title: string) => Promise<APIResponse<void>>;
   getRecentSessions: (limit?: number) => Promise<APIResponse<SessionDisplay[]>>;
-  getGlobalStatistics: () => Promise<SessionStatistics>;
-  searchSessions: (query: string) => Promise<SessionDisplay[]>;
+  getGlobalStatistics: () => Promise<APIResponse<SessionStatistics>>;
+  searchSessions: (query: string) => Promise<APIResponse<SessionDisplay[]>>;
 }

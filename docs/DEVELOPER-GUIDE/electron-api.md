@@ -235,11 +235,15 @@ Every payload follows:
 Every domain returns `APIResponse<T>` (discriminated union):
 
 ```ts
-type APIResponseError = { code: string; message: string; details?: any };
+type APIResponseError = { code: string; message: string; details?: Record<string, unknown> };
 
-type APIResponse<T = any> =
-  | { success: true; data?: T; error?: never; metadata?: { timestamp: string; requestId: string; processingTime: number } }
-  | { success: false; error: APIResponseError; data?: never; metadata?: { timestamp: string; requestId: string; processingTime: number } };
+type APIResponse<T = any> = {
+  success: boolean;
+  data?: T;
+  error?: APIResponseError;
+  code?: string;
+  timestamp?: string; // ISO string (JSON-safe)
+};
 ```
 
 Always check `success` before using `.data`. If `success` is `false`, the `error` object is required

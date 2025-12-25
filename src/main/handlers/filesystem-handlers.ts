@@ -103,6 +103,7 @@ export const setupFilesystemHandlers = (
 
   ipcMainInstance.handle('fs:exists-file', async (_event, filePath: string) => {
     await fs.access(filePath);
+    return true;
   });
 
   logger.info('Filesystem handlers registered');

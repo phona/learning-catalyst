@@ -94,11 +94,11 @@ describe('electronAPI contract', () => {
     // @ts-ignore: Test environment access to mocked electronAPI
     const api = window.electronAPI;
 
-    await expect(api.getWorkspacePath()).resolves.toBeDefined();
-    await expect(api.readDirectory('/tmp')).resolves.toBeInstanceOf(Array);
-    await expect(api.readFile('mock.md')).resolves.toBeDefined();
-    await expect(api.writeFile('mock.md', '# Title')).resolves.toBeUndefined();
-    await expect(api.existsFile('mock.md')).resolves.toBe(true);
+    await expect(api.getWorkspacePath()).resolves.toMatchObject({ success: true });
+    await expect(api.readDirectory('/tmp')).resolves.toMatchObject({ success: true, data: expect.any(Array) });
+    await expect(api.readFile('mock.md')).resolves.toMatchObject({ success: true });
+    await expect(api.writeFile('mock.md', '# Title')).resolves.toMatchObject({ success: true });
+    await expect(api.existsFile('mock.md')).resolves.toMatchObject({ success: true, data: true });
   });
 
   it('exposes dialog and lifecycle helpers', async () => {
@@ -107,7 +107,7 @@ describe('electronAPI contract', () => {
 
     await expect(api.showOpenDialog()).resolves.toHaveProperty('canceled');
     await expect(api.showSaveDialog()).resolves.toHaveProperty('canceled');
-    await expect(api.getVersion()).resolves.toBeDefined();
+    await expect(api.getVersion()).resolves.toMatchObject({ success: true });
     // await expect(api.quit()).resolves.toBeUndefined(); // quit method doesn't exist on ElectronAPI
     expect(typeof api.onMenuAction).toBe('function');
 

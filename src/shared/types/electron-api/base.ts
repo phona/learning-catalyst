@@ -44,6 +44,11 @@ export interface APIResponse<T = unknown> {
   data?: T;
   error?: APIResponseError;
   code?: string;
+  /**
+   * Optional ISO timestamp added by IPC wrappers for tracing/timing.
+   * Kept JSON-safe (string) to avoid Date objects across IPC.
+   */
+  timestamp?: string;
 }
 
 export interface APIResponseError {

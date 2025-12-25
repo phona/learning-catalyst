@@ -178,7 +178,7 @@ export const setupChatHandlers = (
             llmStreamMode,
             ...(shouldResume && checkpointId ? { checkpoint_id: checkpointId } : {}),
           },
-          streamMode: ['messages', 'custom'] as const,
+          streamMode: ['messages', 'custom'] as Array<'messages' | 'custom'>,
         };
 
         const stream = await workflowGraph.stream(

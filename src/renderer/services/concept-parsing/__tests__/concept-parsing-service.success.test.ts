@@ -45,7 +45,7 @@ const parsedConceptResult = {
 const okResponse = <T>(data: T): APIResponse<T> => ({
   success: true,
   data,
-  timestamp: Date.now(),
+  timestamp: new Date().toISOString(),
 });
 
 const buildApi = () => {
