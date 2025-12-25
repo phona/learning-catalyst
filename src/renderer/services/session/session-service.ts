@@ -2,7 +2,6 @@ import { createSessionId as _createSessionId } from '@/shared/utils/helpers';
 import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
 import type {
   SessionStatistics,
-  SessionListResponse,
 } from '@/shared/types/electron-api/sessions-api';
 import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { APIResponse } from '@/shared/types/electron-api/base';
@@ -29,7 +28,7 @@ export interface SessionService {
     offset?: number;
   }): Promise<SessionListData>;
   getSession(sessionId: string): Promise<SessionDisplay | null>;
-  generateAITitle(userMessage: string, provider?: string, model?: string): Promise<string>;
+  generateAITitle(userMessage: string): Promise<string>;
   generateSessionId(): string;
   updateSessionTitle(sessionId: string, title: string): Promise<void>;
   updateSession(sessionId: string, updates: SessionUpdateRequest): Promise<void>;
@@ -48,14 +47,6 @@ type SessionListData = {
  * Functional implementation of session service using the unified electronAPI client
  */
 export const createSessionService = (apiClient: ElectronAPI): SessionService => {
-  const generateSimpleTitle = (text: string): string => {
-    const clean = (text || '').trim().replace(/\s+/g, ' ');
-    if (!clean) return 'New Session';
-    const words = clean.split(' ');
-    const title = words.slice(0, 8).join(' ');
-    return title.length > 0 ? title : 'New Session';
-  };
-
   /**
    * Update the session title
    */
@@ -186,14 +177,10 @@ export const createSessionService = (apiClient: ElectronAPI): SessionService => 
 //   };
 
   /**
-   * Generate a session title using heuristics (no IPC required)
+   * Generate a session title using AI-powered title generation
    */
-  const generateAITitle = async (
-    userMessage: string,
-    _provider?: string,
-    _model?: string,
-  ): Promise<string> => {
-    return generateSimpleTitle(userMessage);
+  const generateAITitle = async (userMessage: string): Promise<string> => {
+    return await unwrapAPI(apiClient.chat.generateTitle(userMessage));
   };
 
   /**

@@ -765,7 +765,7 @@ export const createLearningService = ({
         .where('id', '=', sessionId)
         .executeTakeFirst();
       const updated = (result?.numUpdatedRows ?? 0) > 0;
-      serviceLogger.info('Session title updated', { sessionId, title, updated });
+      serviceLogger.info('[updateSessionTitle] Update result', { sessionId, title, updated, numUpdatedRows: result?.numUpdatedRows });
       return updated;
     },
 

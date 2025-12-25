@@ -56,8 +56,17 @@ export const generateAITitle = async (
     userMessage: text,
   }) as BaseMessage;
 
-  deps.loggerService.info('[TitleGeneration] Generated AI title:', result);
-  if (typeof result === 'string') return result;
-  if (Array.isArray(result.content)) return result.content.map(c => typeof c === 'string' ? c : c.text || '').join('');
-  return String(result.content || '');
+  deps.loggerService.info('[TitleGeneration] Generated AI title result:', result);
+
+  let title: string;
+  if (typeof result === 'string') {
+    title = result;
+  } else if (Array.isArray(result.content)) {
+    title = result.content.map(c => typeof c === 'string' ? c : c.text || '').join('');
+  } else {
+    title = String(result.content || '');
+  }
+
+  deps.loggerService.info('[TitleGeneration] Final title:', { title });
+  return title;
 };

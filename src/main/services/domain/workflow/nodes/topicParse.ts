@@ -58,7 +58,7 @@ export const topicParseNode =
 
       return {
         messages: [
-          new HumanMessage(msgText),
+          // new HumanMessage(msgText),
         ],
         topic: top.name,
         sessionMetadata: {

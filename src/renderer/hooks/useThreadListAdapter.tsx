@@ -366,7 +366,9 @@ export function createThreadListAdapter(deps: {
         controller.appendText('New Chat');
         controller.close();
 
-        if (!textContent) return;
+        if (!textContent) {
+          return;
+        }
 
         try {
           const title = await sessionService.generateAITitle(textContent);
@@ -378,7 +380,7 @@ export function createThreadListAdapter(deps: {
           }
         } catch (error) {
           // Silently fail on title generation errors - UI will show "New Chat"
-          console.error('[generateTitle] Failed to generate title:', error);
+          console.error('[ThreadListAdapter] Failed to generate title:', error);
         }
       });
     },
