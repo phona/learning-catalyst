@@ -4,7 +4,7 @@
 fix-assistant-ui-message-edit
 
 ## Status
-Proposed
+Archived (2025-12-26)
 
 ## Type
 Bug Fix + UX
@@ -16,6 +16,16 @@ The `assistant-ui` "Edit" (re-edit) button shows up in our chat UI, but it does 
 The core issue is that our chat stack is optimized for "append-only delta streaming" and "checkpoint-based history", while `assistant-ui` edit/branching expects the backend to honor a **trimmed history** when the user edits an earlier message.
 
 Today we drop the needed context at the renderer transport boundary and (even if we passed it) the main process ignores it and runs from the latest checkpoint state.
+
+## Why
+
+- Showing a broken "Edit" control causes misleading behavior: the next model run can use the wrong context (latest checkpoint) instead of the user’s edited history.
+- Our current chat architecture is checkpoint-driven and append-only; it cannot yet honor assistant-ui’s trimmed-history edit/branch semantics.
+
+## What Changes
+
+- Phase 1 (this change): hide the user-message Edit (pencil) action in the chat UI (`userMessage.allowEdit = false`), so users can’t enter a broken edit mode.
+- Add a regression test to ensure the Edit action stays unavailable until true branching is implemented.
 
 ## Current Behavior (Bug)
 
@@ -142,4 +152,3 @@ Cons: hard unless we store per-message checkpoint ids (today we do not).
   - branch is visible/selectable in the UI
   - model responses match the trimmed history context
   - persisted history matches the selected branch
-

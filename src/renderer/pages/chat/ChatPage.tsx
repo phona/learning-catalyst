@@ -46,6 +46,7 @@ export const ChatPage: React.FC = () => {
     <div className="h-full bg-gray-50">
       <Thread
         key={currentThreadId}
+        userMessage={{ allowEdit: false }}
         assistantMessage={{
           components: {
             Text: MarkdownText,
