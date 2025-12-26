@@ -20,6 +20,7 @@ import {
   toAssistantUIStream,
   createFinishChunk,
   createErrorChunk,
+  createAbortChunk,
 } from '@/main/services/domain/workflow/utils/assistant-ui-stream';
 import { HumanMessage } from 'langchain';
 import { createWorkflowGraph } from '../services/domain/workflow';
@@ -99,6 +100,52 @@ export const setupChatHandlers = (
     learningService: services.learningService,
   });
 
+  type ReplyPortLike = { postMessage: (message: unknown) => void; close: () => void };
+  type ActiveStreamState = {
+    replyPort: ReplyPortLike;
+    iterator?: AsyncIterator<string>;
+    onCancel?: () => void;
+    cancelled: boolean;
+    terminal: boolean;
+  };
+
+  const activeStreams = new Map<string, ActiveStreamState>();
+
+  ipcMainInstance.on(
+    'chat:cancel-stream',
+    (_event, payload: { streamId?: string } | undefined) => {
+      const streamId = payload?.streamId;
+      if (!streamId) return;
+
+      const streamState = activeStreams.get(streamId);
+      if (!streamState || streamState.terminal) return;
+
+      streamState.cancelled = true;
+      streamState.terminal = true;
+      streamState.onCancel?.();
+
+      try {
+        streamState.iterator?.return?.();
+      } catch {
+        // best-effort cancellation
+      }
+
+      try {
+        streamState.replyPort.postMessage(createAbortChunk());
+      } catch {
+        // best-effort: port may already be closed
+      }
+
+      try {
+        streamState.replyPort.close();
+      } catch {
+        // best-effort: port may already be closed
+      }
+
+      activeStreams.delete(streamId);
+    },
+  );
+
   ipcMainInstance.handle('chat:generate-title', async (_event, messageText: string) => {
     try {
       const title = await services.chatService.generateTitle(messageText);
@@ -125,6 +172,18 @@ export const setupChatHandlers = (
       payload: ChatStartStreamPayload,
     ) => {
       const [replyPort] = event.ports;
+      const streamId = payload.streamId ?? `stream_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      let cancelStreamLoop: (() => void) | undefined;
+      const cancelPromise = new Promise<void>((resolve) => {
+        cancelStreamLoop = resolve;
+      });
+      const streamState: ActiveStreamState = {
+        replyPort: replyPort as ReplyPortLike,
+        onCancel: cancelStreamLoop,
+        cancelled: false,
+        terminal: false,
+      };
+      activeStreams.set(streamId, streamState);
 
       const safeConversationId = payload.conversationId || `thread_${Date.now()}`;
       const lastUserText =
@@ -175,19 +234,43 @@ export const setupChatHandlers = (
         );
 
         // Convert workflow stream directly to assistant-ui AI SDK Protocol chunks
-        for await (const chunk of toAssistantUIStream(stream)) {
-          replyPort.postMessage(chunk);
+        const aiStream = toAssistantUIStream(stream);
+        const iterator = aiStream[Symbol.asyncIterator]();
+        streamState.iterator = iterator;
+
+        while (!streamState.cancelled) {
+          const next = await Promise.race([
+            iterator.next(),
+            cancelPromise.then(() => ({ done: true as const, value: undefined as unknown as string })),
+          ]);
+
+          const { value, done } = next;
+          if (done) break;
+          if (streamState.cancelled) break;
+          replyPort.postMessage(value);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         // Use AI SDK protocol for stream-level errors (transport/runtime failures)
-        logger.error('chat:start-stream failed', { message: errorMessage });
-        replyPort.postMessage(createErrorChunk(errorMessage));
+        if (!streamState.cancelled) {
+          logger.error('chat:start-stream failed', { message: errorMessage });
+          replyPort.postMessage(createErrorChunk(errorMessage));
+        }
         // Do not emit `finish` here; the transport boundary owns it in `finally`.
       } finally {
-        // Send finish event according to AI SDK Protocol
-        replyPort.postMessage(createFinishChunk());
-        replyPort.close();
+        const isActive = activeStreams.get(streamId) === streamState;
+        if (!streamState.terminal && !streamState.cancelled) {
+          streamState.terminal = true;
+          // Send finish event according to AI SDK Protocol
+          try {
+            replyPort.postMessage(createFinishChunk());
+          } finally {
+            replyPort.close();
+          }
+        }
+        if (isActive) {
+          activeStreams.delete(streamId);
+        }
       }
     },
   );

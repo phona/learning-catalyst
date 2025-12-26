@@ -3,14 +3,14 @@
 ## Checklist
 
 - [ ] Confirm current bug (Stop does not cancel) with a simple manual repro
-- [ ] Add/adjust renderer transport so AbortSignal cancels the stream
-- [ ] Add preload -> main cancel IPC (streamId based)
-- [ ] Add main stream registry + cancel handler, emit `abort`, close stream
-- [ ] Add regression tests (renderer + main)
-- [ ] Run `npm run lint`
-- [ ] Run `npm test` (or document unrelated pre-existing failures)
-- [ ] `openspec validate fix-assistant-ui-stop-cancel --strict`
-- [ ] Archive change when complete
+- [x] Add/adjust renderer transport so AbortSignal cancels the stream
+- [x] Add preload -> main cancel IPC (streamId based)
+- [x] Add main stream registry + cancel handler, emit `abort`, close stream
+- [x] Add regression tests (renderer + main)
+- [x] Run `npm run lint`
+- [x] Run `npm test` (or document unrelated pre-existing failures)
+- [x] `openspec validate fix-assistant-ui-stop-cancel --strict`
+- [x] Archive change when complete
 
 ## Repro steps (manual)
 
@@ -37,4 +37,3 @@ Then lint:
 ```
 npm run lint
 ```
-

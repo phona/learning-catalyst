@@ -78,6 +78,7 @@ const aiSDK: AISDKAPI = {
   ) => {
     const { port1, port2 } = new MessageChannel();
     const streamId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    let cancelRequested = false;
 
     console.log('[Preload] DEBUG - params:', JSON.stringify(params, null, 2));
     console.log('[Preload] Creating stream interface:', streamId);
@@ -94,6 +95,9 @@ const aiSDK: AISDKAPI = {
     };
 
     return () => {
+      if (cancelRequested) return;
+      cancelRequested = true;
+      ipcRenderer.send('chat:cancel-stream', { streamId });
       port1.close();
     };
   },

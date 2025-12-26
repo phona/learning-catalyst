@@ -22,6 +22,17 @@ We will wire abort/cancel end-to-end:
 - renderer cancel -> preload cancel -> main cancel
 - main cancel -> stop workflow streaming + emit `abort` chunk + close stream
 
+## Why
+
+Users expect Stop to end generation immediately. When it does not, the UI feels broken and we waste backend work (tokens + tool calls) after the user has already decided to stop.
+
+## What Changes
+
+- Renderer transport now listens to AbortSignal and cancels the active IPC stream.
+- Preload cancel sends a `chat:cancel-stream` IPC message keyed by `streamId`.
+- Main registers active streams by `streamId` and, on cancel, emits a terminal `abort` chunk and closes the stream (without also emitting `finish`).
+- Added regression tests for renderer abort wiring and main cancel behavior.
+
 ## Current Behavior (Bug)
 
 - User sends a message.

@@ -306,6 +306,27 @@ describe('ipcFetch', () => {
       expect(cancelFn).toHaveBeenCalledTimes(1);
     });
 
+    it('should cancel stream when AbortSignal is aborted', async () => {
+      const cancelFn = vi.fn();
+      mockStream.mockReturnValue(cancelFn);
+
+      const payload = {
+        id: 'thread-123',
+        messages: [{ role: 'user', content: 'Hello' }],
+      };
+
+      const controller = new AbortController();
+      const responsePromise = ipcFetch('test input', {
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      controller.abort();
+      await responsePromise;
+
+      expect(cancelFn).toHaveBeenCalledTimes(1);
+    });
+
     it('should handle missing cancel function gracefully', async () => {
       mockStream.mockReturnValue(undefined);
 
