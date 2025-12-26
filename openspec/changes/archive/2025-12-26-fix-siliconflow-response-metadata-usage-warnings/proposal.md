@@ -60,7 +60,7 @@ generic `ChatMessageChunk`). If our sanitization is gated behind `AIMessageChunk
 then those non-AI chunks keep their repeated numeric fields and still trigger warnings when
 LangChain merges chunks.
 
-## What changes (high level)
+## What Changes
 
 Update `SiliconFlowChatModel` streaming sanitization so it removes **all per-chunk usage fields**
 from places that LangChain merges:
