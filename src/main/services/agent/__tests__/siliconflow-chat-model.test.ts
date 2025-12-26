@@ -96,6 +96,52 @@ describe('SiliconFlowChatModel', () => {
     });
   });
 
+  it('avoids duplicate-field warnings when usage fields arrive via generationInfo', async () => {
+    const chunks = [
+      new ChatGenerationChunk({
+        text: 'a',
+        generationInfo: { prompt_tokens: 10, completion_tokens: 1, total_tokens: 11 },
+        message: new AIMessageChunk({ content: 'a' }),
+      }),
+      new ChatGenerationChunk({
+        text: 'b',
+        generationInfo: { prompt_tokens: 10, completion_tokens: 2, total_tokens: 12 },
+        message: new AIMessageChunk({ content: 'b' }),
+      }),
+      new ChatGenerationChunk({
+        text: 'c',
+        generationInfo: { prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 },
+        message: new AIMessageChunk({ content: 'c' }),
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: AIMessageChunk[] = [];
+    const stream = await model.stream([] as any);
+    for await (const chunk of stream as any) {
+      out.push(chunk as AIMessageChunk);
+    }
+
+    expect(out).toHaveLength(3);
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(out[0].response_metadata).toEqual({});
+    expect(out[1].response_metadata).toEqual({});
+    expect(out[2].response_metadata).toEqual({});
+  });
+
   it('avoids duplicate-field merge warnings during AIMessageChunk.concat()', async () => {
     const chunks = [
       createChatChunk('a', {

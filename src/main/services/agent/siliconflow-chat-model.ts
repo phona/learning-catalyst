@@ -30,7 +30,9 @@ export class SiliconFlowChatModel extends ChatOpenAI {
     for await (const chunk of super._streamResponseChunks(messages, options, runManager)) {
       const message = chunk.message;
       if (AIMessageChunk.isInstance(message)) {
-        const cumulative = extractCumulativeUsage(message);
+        const generationInfo = chunk.generationInfo as Record<string, unknown> | undefined;
+
+        const cumulative = extractCumulativeUsage(message) ?? normalizeUsageDict(generationInfo);
         if (cumulative) {
           const currentInputTokens = cumulative.inputTokens ?? lastInputTokens;
           const currentOutputTokens = cumulative.outputTokens ?? lastOutputTokens;
@@ -67,6 +69,7 @@ export class SiliconFlowChatModel extends ChatOpenAI {
 
         stripUsageLikeFields(message.response_metadata);
         stripUsageLikeFields(message.additional_kwargs);
+        stripUsageLikeFields(generationInfo);
       }
 
       yield chunk;
