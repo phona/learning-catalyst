@@ -31,7 +31,7 @@ export const WorkflowStateAnnotation = Annotation.Root({
   messages: Annotation<BaseMessage[]>({ reducer: messagesStateReducer }),
   topic: Annotation<string>({ reducer: (current, update) => update ?? current }),
   error: Annotation<string | null>({
-    reducer: (current, update) => update ?? current,
+    reducer: (current, update) => (update === undefined ? (current ?? null) : update),
     default: () => null,
   }),
   confidence: Annotation<number>({ reducer: (current, update) => update ?? current }),

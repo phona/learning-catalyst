@@ -6,7 +6,7 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { WorkflowStateAnnotation } from '../state';
 
 describe('workflow error persistence regression', () => {
-  it('FAILS (until fixed): COMPLETE should be able to clear error so next user turn does not repeat old error', async () => {
+  it('clears error so the next user turn does not repeat the old error', async () => {
     /**
      * This test captures the reported user flow:
      *
@@ -77,7 +77,11 @@ describe('workflow error persistence regression', () => {
       { configurable: { thread_id: threadId } } as any,
     );
 
-    const lastAssistant = [...(result2.messages ?? [])].reverse().find(AIMessage.isInstance);
-    expect(String(lastAssistant?.content ?? '')).not.toContain('I couldn\'t find learning materials for "1"');
+    // The original bug would route to COMPLETE again, which would append a *new* AI error message.
+    // With the fix, TOPIC_PARSE goes to END and no new AI message is added on turn 2.
+    const messagesAfterTurn2 = result2.messages ?? [];
+    const aiMessagesAfterTurn2 = messagesAfterTurn2.filter(AIMessage.isInstance);
+    expect(aiMessagesAfterTurn2).toHaveLength(1);
+    expect(HumanMessage.isInstance(messagesAfterTurn2.at(-1))).toBe(true);
   });
 });

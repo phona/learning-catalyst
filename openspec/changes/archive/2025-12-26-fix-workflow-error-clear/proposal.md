@@ -13,6 +13,15 @@ We will fix it with a small, targeted change and a TDD workflow:
 - **Green**: update reducer so `error: null` clears the persisted error
 - **Refactor**: keep change minimal, verify determinism, run lint/tests
 
+## Why
+
+Users need to be able to recover after a TOPIC_PARSE error. If `state.error` can’t be cleared, the workflow gets stuck repeating the old error on every next message.
+
+## What Changes
+
+- Allow `error: null` to overwrite the previous error in workflow state (while `undefined` still means “no update”).
+- Add a regression test that covers the “bad topic then retry” flow.
+
 ## User Story
 
 As a user, when I accidentally send a bad topic like `"1"`, I want to retry with a real topic like `"how to learn python?"` and continue the chat, not get stuck repeating the old error.
@@ -130,4 +139,3 @@ Re-run:
 ## Rollback Plan
 
 Revert the reducer change and keep the regression test to prevent re-introducing the bug.
-
