@@ -207,6 +207,20 @@ export const ThreadListSidebar: React.FC<{ readonly open: boolean }> = ({ open }
                 ThreadListItem: ThreadListItem,
               }}
             />
+
+            <AssistantIf
+              condition={({ threads }) => (threads.archivedThreadIds?.length ?? 0) > 0}
+            >
+              <div className="mt-3 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
+                History
+              </div>
+              <ThreadListPrimitive.Items
+                archived={true}
+                components={{
+                  ThreadListItem: ThreadListItem,
+                }}
+              />
+            </AssistantIf>
           </div>
         </AssistantIf>
       </ThreadListPrimitive.Root>

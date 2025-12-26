@@ -17,6 +17,15 @@ Root cause: sessions that come back as `status: "completed"` are mapped to `thre
 
 So the data is present in `threads.archivedThreadIds`, but the UI never displays it.
 
+## Why
+
+Users can refresh `/chat` and see an empty-looking sidebar even though sessions exist, which makes the app feel broken and blocks navigation back to prior conversations.
+
+## What Changes
+
+- Render archived threads under a "History" section in `ThreadListSidebar`.
+- Update the renderer regression test to assert history items render.
+
 ## Current Behavior (Bug)
 
 - Refresh `/chat` (or open the app).
@@ -146,4 +155,3 @@ The same file includes an `it.fails(...)` test that describes the expected behav
   - `npm run test:renderer`
   - `npm run lint`
   - `openspec validate fix-threadlist-history-stuck-loading --strict`
-

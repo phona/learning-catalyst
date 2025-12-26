@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ThreadListSidebar } from '@/renderer/widgets/layout/ThreadListSidebar';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -91,7 +91,7 @@ vi.mock('@assistant-ui/react', () => ({
   }),
 }));
 
-describe('?? BUG: ThreadList sidebar hides archived sessions', () => {
+describe('ThreadList sidebar shows archived sessions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useNavigate as unknown as vi.Mock).mockReturnValue(vi.fn());
@@ -99,7 +99,7 @@ describe('?? BUG: ThreadList sidebar hides archived sessions', () => {
     (useAppStore as unknown as vi.Mock).mockReturnValue({ setCurrentView: vi.fn() });
   });
 
-  it('repro: when only archived sessions exist, sidebar renders empty list', () => {
+  it('renders archived sessions under History when regular list is empty', () => {
     setAssistantThreads({
       isLoading: false,
       threadIds: [],
@@ -108,24 +108,13 @@ describe('?? BUG: ThreadList sidebar hides archived sessions', () => {
 
     render(<ThreadListSidebar open={true} />);
 
-    // Sidebar renders, but no items appear because it only mounts regular items (archived=false).
     expect(screen.getByText('Conversations')).toBeInTheDocument();
-    expect(screen.getByTestId('thread-items-regular')).toBeInTheDocument();
-    expect(screen.queryAllByTestId('threadlist-item')).toHaveLength(0);
-  });
+    expect(screen.getByText('History')).toBeInTheDocument();
 
-  it.fails('BUG: archived sessions should be visible in thread list', () => {
-    setAssistantThreads({
-      isLoading: false,
-      threadIds: [],
-      archivedThreadIds: ['session-1', 'session-2'],
-    });
+    const regular = screen.getByTestId('thread-items-regular');
+    expect(within(regular).queryAllByTestId('threadlist-item')).toHaveLength(0);
 
-    render(<ThreadListSidebar open={true} />);
-
-    // Expected: history sessions render in the sidebar.
-    // Actual (today): they are in archivedThreadIds, but the sidebar only renders threadIds.
-    expect(screen.queryAllByTestId('threadlist-item')).toHaveLength(2);
+    const archived = screen.getByTestId('thread-items-archived');
+    expect(within(archived).queryAllByTestId('threadlist-item')).toHaveLength(2);
   });
 });
-

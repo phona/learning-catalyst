@@ -2,13 +2,13 @@
 
 ## Checklist
 
-- [ ] Confirm bug repro in the running app (refresh with only completed sessions)
-- [ ] Update `ThreadListSidebar` to render archived threads under a "History" section
-- [ ] Update the renderer regression test to assert history items render (remove `it.fails`)
-- [ ] Run `npm run test:renderer`
-- [ ] Run `npm run lint`
-- [ ] `openspec validate fix-threadlist-history-stuck-loading --strict`
-- [ ] Archive change when complete
+- [x] Confirm bug repro via renderer regression test (only archived sessions previously rendered as empty)
+- [x] Update `ThreadListSidebar` to render archived threads under a "History" section
+- [x] Update the renderer regression test to assert history items render (remove `it.fails`)
+- [x] Run `npm run test:renderer`
+- [x] Run `npm run lint`
+- [x] `openspec validate fix-threadlist-history-stuck-loading --strict`
+- [x] Archive change when complete
 
 ## Manual repro steps
 
@@ -30,4 +30,3 @@ Run tests + lint:
 npm run test:renderer
 npm run lint
 ```
-
