@@ -1,6 +1,7 @@
 import type { Embeddings } from '@langchain/core/embeddings';
 import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai';
 import type { ConfigService } from '@/main/services/core/config/config-service';
+import { SiliconFlowChatModel } from './siliconflow-chat-model';
 import type {
   ProviderConfig,
   SelectedChatModel,
@@ -134,6 +135,23 @@ const makeChatModel = (settings: ProviderConfig, modelId: string, selectedModel:
     configuration: settings.baseUrl ? { baseURL: settings.baseUrl } : undefined,
   });
 
+const makeSiliconFlowChatModel = (
+  settings: ProviderConfig,
+  modelId: string,
+  selectedModel: SelectedChatModel,
+) => {
+  const baseUrl = settings.baseUrl || 'https://api.siliconflow.cn/v1';
+  return new SiliconFlowChatModel({
+    modelName: modelId,
+    temperature: selectedModel.temperature,
+    maxTokens: selectedModel.maxTokens,
+    apiKey: settings.apiKey,
+    maxRetries: 1,
+    streamUsage: true,
+    configuration: { baseURL: baseUrl },
+  });
+};
+
 const makeOpenAIEmbeddings = (settings: ProviderConfig, modelId: string, selectedModel: SelectedEmbeddingModel) =>
   new OpenAIEmbeddings({
     apiKey: settings.apiKey,
@@ -264,7 +282,7 @@ const PROVIDER_IMPLEMENTATIONS: Record<string, ProviderImplementation> = {
     createEmbeddings: makeOpenAIEmbeddings,
   },
   siliconflow: {
-    createModel: makeChatModel,
+    createModel: makeSiliconFlowChatModel,
     createEmbeddings: makeSiliconFlowEmbeddings,
     createReranker: makeSiliconFlowReranker,
   },

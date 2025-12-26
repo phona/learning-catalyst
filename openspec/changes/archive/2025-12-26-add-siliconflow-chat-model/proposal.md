@@ -1,8 +1,23 @@
 # Proposal: Custom SiliconFlow Chat Model
 
+## Why
+
+SiliconFlow includes cumulative usage fields in every streamed chunk. In LangChain JS this causes:
+
+- Noisy console warnings when chunk metadata is merged (duplicate numeric fields)
+- Incorrect token accounting when cumulative usage values are summed across chunks
+
+We want clean streaming logs and accurate token usage totals without affecting other providers.
+
 ## Summary
 
 Implement a custom `SiliconFlowChatModel` class that extends `ChatOpenAI` to properly handle SiliconFlow's streaming response format, which includes cumulative token usage metadata in every SSE chunk. This will eliminate console warnings about duplicate field merging and ensure accurate token tracking.
+
+## What Changes
+
+- Add `src/main/services/agent/siliconflow-chat-model.ts` implementing `SiliconFlowChatModel`
+- Update `src/main/services/agent/provider-factory.ts` to use `SiliconFlowChatModel` for `siliconflow`
+- Add `src/main/services/agent/__tests__/siliconflow-chat-model.test.ts` for delta + warning suppression coverage
 
 ## Problem Statement
 
@@ -23,7 +38,7 @@ field[reasoning_tokens] already exists in this message chunk and value has unsup
 
 ### Current Workaround
 
-The current implementation sets `streamUsage: false` for SiliconFlow, which prevents LangChain from adding its own usage metadata but doesn't eliminate the warnings from SiliconFlow's pre-populated fields.
+Toggling LangChain's `streamUsage` alone doesn't solve this because SiliconFlow's provider-sent usage fields can still appear in per-chunk metadata.
 
 ## Proposed Solution
 
@@ -32,7 +47,7 @@ Create a custom `SiliconFlowChatModel` class that extends `ChatOpenAI` and overr
 1. **Track cumulative totals** across chunks (previous input/output tokens)
 2. **Calculate deltas** before yielding each chunk (`current - previous`)
 3. **Replace cumulative values** with deltas in `usage_metadata`
-4. **Eliminate merge conflicts** by ensuring each chunk has unique incrementing values
+4. **Eliminate merge warnings** by stripping repeated usage keys from `response_metadata` / `additional_kwargs`
 
 This approach is modeled after the official [SiliconFlow Python LangChain integration](https://github.com/siliconflow/langchain-siliconflow/blob/main/langchain_siliconflow/chat_models.py), which implements the same delta calculation pattern.
 
