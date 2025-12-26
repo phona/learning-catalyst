@@ -959,7 +959,7 @@ status types include:
 
 - [Architecture Overview](./architecture.md)
 - [Services Guide](./services.md)
-- [Electron API](./electron-api.md)
+- Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
 
 ---
 

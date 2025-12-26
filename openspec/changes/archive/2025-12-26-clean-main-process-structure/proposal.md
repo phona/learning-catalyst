@@ -6,10 +6,10 @@ The main process has multiple overlapping "sources of truth" and duplicated laye
 
 - AI access is split across **ProviderFactory** and **ai-service / ai-service-manager**, leading to drift.
 - Preload exposes IPC channels that are **not implemented** in main (runtime break risk).
-- The developer guide `docs/DEVELOPER-GUIDE/electron-api.md` duplicates the contract and is already drifting; we want **code as the only truth**.
+- The old Developer Guide page for Electron IPC contracts duplicates the contract and is already drifting; we want **code as the only truth**.
 - `src/main/index.ts` is doing too many jobs (window + services + IPC + readiness), which makes it hard to maintain safely.
 
-## What changes (high level)
+## What Changes
 
 ### 1) One AI gateway (Option A)
 Make `ProviderFactory` the only supported AI gateway in the main process.
@@ -28,7 +28,7 @@ Ensure `src/main/preload/*` only calls channels that are actually registered in 
 Keep `src/main/index.ts` as the Electron entrypoint, but move responsibilities into small modules under `src/main/app/*`.
 
 ### 4) Remove drifting doc (code is truth)
-Delete `docs/DEVELOPER-GUIDE/electron-api.md` and remove references to it (including OpenSpec requirements that mention it).
+Delete the old Developer Guide page for Electron IPC contracts and remove references to it (including OpenSpec requirements that mention it).
 
 ## Current behavior (grounding)
 
@@ -49,7 +49,7 @@ In scope:
 - Main process boot structure (`src/main/index.ts` and new `src/main/app/*`)
 - IPC alignment between preload and main handlers
 - Removing `ai-service` and migrating callers to `ProviderFactory`
-- Removing `docs/DEVELOPER-GUIDE/electron-api.md` and removing references
+- Removing the old Developer Guide page for Electron IPC contracts and removing references
 
 Out of scope:
 - New features or new IPC domains
@@ -78,5 +78,5 @@ Out of scope:
 1) No main-process code depends on `src/main/services/ai/*` or `ai-service-manager`.
 2) All preload IPC invocations map to real main handlers (or are removed).
 3) `src/main/index.ts` is small and delegates to `src/main/app/*`.
-4) `docs/DEVELOPER-GUIDE/electron-api.md` is removed and no specs/documents reference it.
+4) The old Developer Guide page for Electron IPC contracts is removed and no specs/documents reference it.
 5) `npm test` and `npm run lint` pass.

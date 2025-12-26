@@ -105,7 +105,7 @@
 ## Documentation
 
 ### Task 6.1: Developer Guide
-- [x] Update `docs/DEVELOPER-GUIDE/electron-api.md`
+- [x] Update Electron IPC contract sources (types + preload + handlers)
 - [x] Add IPC calling patterns section
 - [x] Document `unwrapAPI` usage
 - [x] Add migration examples

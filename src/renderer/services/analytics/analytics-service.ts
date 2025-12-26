@@ -23,7 +23,10 @@ import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
  * - Shows error toasts on failures
  * - Throws IPCError for programmatic error handling
  *
- * See docs/DEVELOPER-GUIDE/electron-api.md for details.
+ * Electron IPC contract lives in code:
+ * - Types: `src/shared/types/electron-api/*`
+ * - Preload bridge: `src/main/preload/index.ts`
+ * - Main registrations: `src/main/handlers/*`
  */
 
 export interface Achievement {

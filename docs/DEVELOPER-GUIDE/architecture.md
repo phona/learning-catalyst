@@ -792,7 +792,7 @@ export function createOpenAIProvider(config: OpenAIConfig): AIProvider {
 
 ## Related Documentation
 
-- [Electron API](./electron-api.md) - IPC contracts
+- Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
 - [Database Design](./database.md) - Schema and queries
 - [Services Guide](./services.md) - Service patterns
 - [Agent System](./agents.md) - Multi-agent orchestration

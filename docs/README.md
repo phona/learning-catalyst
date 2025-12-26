@@ -32,7 +32,7 @@ Technical documentation for contributors and developers:
 
 1. **[Developer Guide](DEVELOPER-GUIDE/)** - Start here for technical details
    - [Architecture](DEVELOPER-GUIDE/architecture.md) - System design
-   - [Electron API](DEVELOPER-GUIDE/electron-api.md) - IPC contracts
+   - Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
    - [Database Design](DEVELOPER-GUIDE/database.md) - Kysely schema
    - [Services](DEVELOPER-GUIDE/services.md) - Main process services
    - [Agent System](DEVELOPER-GUIDE/agents.md) - Multi-agent orchestration
@@ -131,7 +131,7 @@ docs/
 ├── DEVELOPER-GUIDE/                    # Technical documentation
 │   ├── README.md                       # Developer onboarding
 │   ├── architecture.md                 # System design
-│   ├── electron-api.md                 # IPC contracts ⭐
+│   ├── (Electron IPC contract is in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`)
 │   ├── database.md                     # Schema & migrations ⭐
 │   ├── database-clean-architecture.md  # Clean DB pattern ⭐
 │   ├── services.md                     # Main process services
@@ -167,7 +167,7 @@ docs/
 ```
 1. Read: DEVELOPER-GUIDE/README.md
 2. Understand: DEVELOPER-GUIDE/architecture.md
-3. Deep Dive: DEVELOPER-GUIDE/electron-api.md
+3. Deep Dive: Electron IPC contract in code (`src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`)
 4. Database: DEVELOPER-GUIDE/database.md
 5. Services: DEVELOPER-GUIDE/services.md
 6. Start Coding!

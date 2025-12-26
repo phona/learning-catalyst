@@ -57,6 +57,20 @@ export const setupSessionsHandlers = (
 ): void => {
   const logger = services.loggerService.child({ handler: 'sessions' });
 
+  const getRecentSessions = async (options?: { limit?: number }) => {
+    const limit = options?.limit ?? 10;
+    const sessions = await services.learningService.getRecentSessions({ limit });
+    return sessions.map(toSessionDisplay);
+  };
+
+  const getSessionStatistics = async () => {
+    const stats = await services.learningService.getSessionStatistics();
+    return {
+      ...stats,
+      totalTokensUsed: 0, // Not tracked yet
+    } satisfies SessionStatistics;
+  };
+
   /**
    * List all threads from learning_sessions table
    */
@@ -151,10 +165,18 @@ export const setupSessionsHandlers = (
    * Get recent threads
    */
   ipcMainInstance.handle('sessions:get-recent', async (_event, options?: { limit?: number }) => {
-    const limit = options?.limit ?? 10;
-    const sessions = await services.learningService.getRecentSessions({ limit });
-    return sessions.map(toSessionDisplay);
+    return getRecentSessions(options);
   });
+
+  /**
+   * Compat: preload calls `learning:get-recent-sessions`
+   */
+  ipcMainInstance.handle(
+    'learning:get-recent-sessions',
+    async (_event, options?: { limit?: number }) => {
+      return getRecentSessions(options);
+    },
+  );
 
   /**
    * Search threads
@@ -176,11 +198,14 @@ export const setupSessionsHandlers = (
    * Get session statistics
    */
   ipcMainInstance.handle('sessions:get-statistics', async () => {
-    const stats = await services.learningService.getSessionStatistics();
-    return {
-      ...stats,
-      totalTokensUsed: 0, // Not tracked yet
-    } satisfies SessionStatistics;
+    return getSessionStatistics();
+  });
+
+  /**
+   * Compat: preload calls `sessions:get-global-statistics`
+   */
+  ipcMainInstance.handle('sessions:get-global-statistics', async () => {
+    return getSessionStatistics();
   });
 
   logger.info('Sessions handlers registered (SQLite-backed, thread-focused)');

@@ -867,7 +867,7 @@ export function createProvider(type: ProviderType): AIProvider {
 ## Related Documentation
 
 - [Architecture Overview](./architecture.md)
-- [Electron API](./electron-api.md)
+- Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
 - [Database Design](./database.md)
 - [Agent System](./agents.md)
 

@@ -2,7 +2,6 @@
  * Simple tool interfaces for agent tools
  */
 
-import type { AIService } from '@/main/services/ai/ai-service';
 import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { ConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
@@ -19,7 +18,6 @@ export interface ToolResult {
 }
 
 export interface ToolServices {
-  aiService: AIService;
   conceptParsingService: ConceptParsingService;
   learningService: LearningService;
   loggerService: LoggerService;

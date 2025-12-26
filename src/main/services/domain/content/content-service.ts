@@ -3,7 +3,6 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
-import type { AiService } from '@/main/services/ai/ai-service';
 
 // Local type definitions for content service (not exposed via IPC)
 interface ImportSessionDisplay {
@@ -68,13 +67,10 @@ const MAX_DIRECTORY_DEPTH = 2;
 
 export const createContentService = ({
   loggerService,
-  aiService,
 }: {
   loggerService: { child: (meta: Record<string, unknown>) => ILogger };
-  aiService: AiService;
 }) => {
   const serviceLogger = loggerService.child({ service: 'content' });
-  const modelPreset = aiService.getModelPreset('content.analysis');
 
   /**
    * Content domain keeps discovery flows (workspace scanning, recommendations).

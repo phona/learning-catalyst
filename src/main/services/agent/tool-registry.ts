@@ -1,5 +1,4 @@
 import { tool, type Tool } from 'langchain';
-import type { AIService } from '@/main/services/ai/ai-service';
 import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type { ConceptParsingService } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
@@ -68,7 +67,6 @@ type GradeOpenAnswerInput = {
 export type ToolRegistry = Record<string, Tool<string>>;
 
 export interface AgentToolDeps {
-  aiService: AIService;
   conceptParsingService: ConceptParsingService;
   learningService: LearningService;
   loggerService: LoggerService;

@@ -1304,7 +1304,7 @@ for (const session of sessions) {
 ## Related Documentation
 
 - [Architecture Overview](./architecture.md)
-- [Electron API](./electron-api.md)
+- Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
 - [Services Guide](./services.md)
 - [Memory Leak Prevention Guide](../../technical/memory-leak-prevention-guide.md)
 

@@ -1,8 +1,10 @@
 /**
  * Settings & Configuration IPC Handlers
  *
- * Implements the documented settings domain and helpers from
- * docs/DEVELOPER-GUIDE/electron-api.md.
+ * Electron IPC contract lives in code:
+ * - Types: `src/shared/types/electron-api/*`
+ * - Preload bridge: `src/main/preload/index.ts`
+ * - Main registrations: `src/main/handlers/*`
  */
 
 import { ipcMain, app } from 'electron';

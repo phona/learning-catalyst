@@ -319,6 +319,15 @@ describe('sessions handlers', () => {
     });
   });
 
+  describe('learning:get-recent-sessions (compat)', () => {
+    it('returns recent sessions and forwards limit', async () => {
+      const response = await getHandler('learning:get-recent-sessions')(null, { limit: 7 });
+
+      expect(response).toHaveLength(3);
+      expect(learningService.getRecentSessions).toHaveBeenCalledWith({ limit: 7 });
+    });
+  });
+
   describe('sessions:search', () => {
     it('searches sessions with query', async () => {
       learningService.searchSessions.mockResolvedValueOnce({
@@ -368,6 +377,23 @@ describe('sessions handlers', () => {
       });
 
       const response = await getHandler('sessions:get-statistics')(null);
+
+      expect(response.totalSessions).toBe(10);
+      expect(response.totalMessages).toBe(100);
+      expect(response.averageSessionDuration).toBe(300);
+      expect(response.totalTokensUsed).toBe(0);
+    });
+  });
+
+  describe('sessions:get-global-statistics (compat)', () => {
+    it('returns session statistics', async () => {
+      learningService.getSessionStatistics.mockResolvedValueOnce({
+        totalSessions: 10,
+        totalMessages: 100,
+        averageSessionDuration: 300,
+      });
+
+      const response = await getHandler('sessions:get-global-statistics')(null);
 
       expect(response.totalSessions).toBe(10);
       expect(response.totalMessages).toBe(100);

@@ -3,16 +3,17 @@
  * Simple, clean, and maintainable tool implementations
  */
 
-import type { AIService } from '@/main/services/ai/ai-service';
 import type { LoggerService } from '@/main/services/core/logger/logger-service';
 import type {
   ConceptParsingService,
   ConceptParsingMaterial,
 } from '@/main/services/domain/concept-parsing/concept-parsing-service';
 import type { LearningService } from '@/main/services/domain/learning/learning-service';
-import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { ToolServices, ToolResult } from './types';
 import { z } from 'zod';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import type { BaseMessage } from '@langchain/core/messages';
 
 const safeJsonArray = (value?: string): string[] => {
   if (!value) return [];
@@ -39,8 +40,7 @@ const safeJsonObject = <T extends Record<string, any>>(value?: string): T | unde
  * Analyzes content for summary, keypoints, structure, etc.
  */
 export const contentAnalysisTool = (services: {
-  aiService: AIService;
-  configService: ConfigService;
+  providerFactory: ProviderFactory;
   loggerService: LoggerService;
 }) => {
   return async (params: {
@@ -77,48 +77,29 @@ export const contentAnalysisTool = (services: {
 
       const systemPrompt = analysisPrompts[params.analysisType];
 
-      // Get model configuration
-      const configResult = await services.configService.get('ai.modelTypes.chat');
-      const modelConfig =
-        typeof configResult === 'object' && configResult !== null
-          ? (configResult as any)
-          : {
-              provider: 'openai',
-              model: 'gpt-4o',
-              temperature: 0.4,
-              maxTokens: 2048,
-            };
+      const prompt = ChatPromptTemplate.fromMessages([
+        ['system', systemPrompt],
+        ['human', '{content}'],
+      ]);
 
-      // Validate API key exists
-      if (!modelConfig.apiKey) {
-        return {
-          success: false,
-          error: 'API key is required for content analysis operations',
-        };
-      }
+      const model = await services.providerFactory.getModel();
+      const chain = prompt.pipe(model);
+      const result = (await chain.invoke({ content: params.content })) as BaseMessage;
 
-      const result = await services.aiService.chatCompletion({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: params.content },
-        ],
-        modelConfig: {
-          provider: modelConfig.provider || 'openai',
-          model: modelConfig.model || 'gpt-4o',
-          apiKey: modelConfig.apiKey,
-          temperature: modelConfig.temperature || 0.4,
-          maxTokens: modelConfig.maxTokens || 2048,
-        },
-      });
+      const analysis =
+        typeof result === 'string'
+          ? result
+          : Array.isArray(result.content)
+            ? result.content.map((c) => (typeof c === 'string' ? c : c.text || '')).join('')
+            : String(result.content || '');
 
       return {
         success: true,
         data: {
           analysisType: params.analysisType,
           content: params.content,
-          analysis: result.content,
-          model: result.model,
-          usage: result.usage,
+          analysis,
+          model: (model as any)?.modelName ?? 'unknown',
           timestamp: new Date().toISOString(),
         },
       };

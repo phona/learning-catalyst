@@ -1,15 +1,18 @@
 /**
- * Filesystem & Dialog IPC Handlers
+ * Filesystem IPC Handlers
  *
- * Implements the helper surface documented in docs/DEVELOPER-GUIDE/electron-api.md:
+ * Electron IPC contract lives in code:
+ * - Types: `src/shared/types/electron-api/*`
+ * - Preload bridge: `src/main/preload/index.ts`
+ * - Main registrations: `src/main/handlers/*`
+ *
+ * This module implements:
  * - getWorkspacePath
  * - readDirectory
  * - readFile / writeFile / existsFile
- * - showOpenDialog / showSaveDialog
  */
 
-import { ipcMain, dialog } from 'electron';
-import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
+import { ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { LoggerService } from '../services/core/logger/logger-service';

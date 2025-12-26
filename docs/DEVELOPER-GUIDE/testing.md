@@ -100,7 +100,7 @@ Cross IPC path       -> renderer IPC integration test + main contract test
 - Approach: shift-left, risk-based, automation-first. Tests live close to code and run in CI on every PR. Prioritize high-risk surfaces: IPC handlers, data services, critical UI flows.
 - Test levels and targets:
   - Unit testing — target ≥80% coverage for core helpers, hooks, and services. Measure with `npm run test:coverage` and focus on lines/branches for units.
-  - Integration testing — validate API contracts across renderer↔main boundaries using fakes/mocks and contract tests. Ensure channel names, payload shapes, and error codes match `docs/DEVELOPER-GUIDE/electron-api.md`.
+  - Integration testing — validate API contracts across renderer↔main boundaries using fakes/mocks and contract tests. Ensure channel names, payload shapes, and error codes match the code contract (`src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`).
   - System testing — end-to-end workflows simulated without booting Electron by composing renderer components/hooks with stubbed services (see `@/test/setup/integration`). Cover key flows: session start, chat exchange, saving checkpoints, analytics panels.
 
 ### Test Environment Requirements
@@ -1278,7 +1278,7 @@ const makeDeps = () => ({
 ## References
 
 - `docs/DEVELOPER-GUIDE/architecture.md` — module layout and test organization
-- `docs/DEVELOPER-GUIDE/electron-api.md` — IPC channels and payload contracts
+- Electron IPC contract in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
 - `docs/DEVELOPER-GUIDE/services.md` — service boundaries and injection
 - `docs/DEVELOPER-GUIDE/agents.md` — agent tests and integration patterns
 - `CLAUDE.md` — scripts overview and testing commands

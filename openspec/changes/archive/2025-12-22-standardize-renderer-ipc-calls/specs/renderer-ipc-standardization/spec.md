@@ -168,7 +168,10 @@ All service files MUST include comments explaining the unwrapAPI pattern.
  * - Shows error toasts on failures
  * - Throws IPCError for programmatic error handling
  *
- * See docs/DEVELOPER-GUIDE/electron-api.md for details.
+ * Electron IPC contract lives in code:
+ * - Types: `src/shared/types/electron-api/*`
+ * - Preload bridge: `src/main/preload/index.ts`
+ * - Main registrations: `src/main/handlers/*`
  */
 ```
 
@@ -230,13 +233,13 @@ The Electron API documentation MUST include unwrapAPI usage guidelines.
 - Error handling best practices
 
 **Validation:**
-- Documentation section added to electron-api.md
+- Documentation is in code (types + preload + handlers)
 - Examples demonstrate correct usage
 - Migration guide helps existing code
 
 #### Scenario: Documentation Helps New Developer
 **Given** New developer learns IPC patterns
-**When** Developer reads electron-api.md
+**When** Developer reads the Electron IPC contract in code
 **Then** unwrapAPI section explains the pattern
 **And** Examples show correct and incorrect usage
 **And** Developer implements pattern correctly ✅

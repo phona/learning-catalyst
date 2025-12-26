@@ -586,7 +586,7 @@ watch: {
 ### Documentation
 
 - [Architecture](architecture.md) - System design
-- [Electron API](electron-api.md) - IPC contracts
+- Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
 - [Database](database.md) - Schema and queries
 - [Services](services.md) - Service patterns
 - [Agents](agents.md) - Multi-agent system

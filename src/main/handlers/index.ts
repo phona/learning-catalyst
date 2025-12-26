@@ -4,6 +4,8 @@ import { setupSystemHandlers } from './system-handlers';
 
 import { setupCompleteAnalyticsHandlers } from './analytics-complete-handlers';
 import { setupConceptParsingHandlers } from './concept-parsing-handlers';
+import { setupCatalystHandlers } from './catalyst-handlers';
+import { setupDialogHandlers } from './dialog-handlers';
 import { setupFilesystemHandlers } from './filesystem-handlers';
 import { setupSessionsHandlers } from './sessions-handlers';
 import { applyStructuredErrorHandling } from './ipc-error-handler';
@@ -11,7 +13,6 @@ import { createIpcProxy } from './ipc-main-proxy';
 import { KnowledgeService } from '../services/domain/knowledge/knowledge-service';
 import { AnalyticsService } from '../services/domain/analytics/analytics-service';
 
-import { AIService } from '../services/ai/ai-service';
 import { ConceptParsingService } from '../services/domain/concept-parsing/concept-parsing-service';
 import { LoggerService } from '../services/core/logger/logger-service';
 import { ConfigService } from '../services/core/config/config-service';
@@ -34,8 +35,6 @@ export async function setupAllIpcHandlers(
     db: Kysely<Database>;
     knowledgeService: KnowledgeService;
     analyticsService: AnalyticsService;
-    contentService: any;
-    aiService: AIService;
     conceptParsingService: ConceptParsingService;
     practiceService: PracticeService;
     loggerService: LoggerService;
@@ -80,6 +79,9 @@ export async function setupAllIpcHandlers(
     loggerService: services.loggerService,
   });
 
+  // Dialog helpers used by preload
+  setupDialogHandlers(ipc);
+
   // Sessions domain
   setupSessionsHandlers(ipc, {
     loggerService: services.loggerService,
@@ -89,6 +91,17 @@ export async function setupAllIpcHandlers(
   // Chat domain
   setupChatHandlers(ipc, {
     chatService: services.chatService,
+    loggerService: services.loggerService,
+    checkpointSaver: services.checkpointSaver,
+    configService: services.configService,
+    providerFactory: services.providerFactory,
+    knowledgeService: services.knowledgeService,
+    practiceService: services.practiceService,
+    learningService: services.learningService,
+  });
+
+  // Catalyst compat layer (preload expects these channels)
+  setupCatalystHandlers(ipc, {
     loggerService: services.loggerService,
     checkpointSaver: services.checkpointSaver,
     configService: services.configService,

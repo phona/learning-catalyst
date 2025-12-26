@@ -63,7 +63,7 @@ Alternative (if requested): implement `catalyst:*` as a compatibility layer that
 
 ## Removing docs as source of truth
 
-We remove `docs/DEVELOPER-GUIDE/electron-api.md` and update any OpenSpec requirements that reference it.
+We remove the old Developer Guide page for Electron IPC contracts and update any OpenSpec requirements that reference it.
 
 New rule:
 - Types (`src/shared/types/electron-api/*`) + preload (`src/main/preload/*`) + main handlers (`src/main/handlers/*`) are the contract.
@@ -75,4 +75,3 @@ New rule:
 3) Remove ai-service code.
 4) Refactor boot into `src/main/app/*` (no behavior change).
 5) Delete drifting doc + remove all references.
-

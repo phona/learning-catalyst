@@ -44,7 +44,6 @@ vi.mock('../content-service', () => {
 describe('Content Service - Interface Tests', () => {
   let mockDb: any;
   let mockLoggerService: any;
-  let mockAiService: any;
   let contentService: any;
 
   beforeEach(async () => {
@@ -60,18 +59,11 @@ describe('Content Service - Interface Tests', () => {
       })),
     };
 
-    // Mock AI service
-    mockAiService = {
-      chatCompletion: vi.fn(),
-      getModelPreset: vi.fn(),
-    };
-
     // Import content service
     const contentModule = await import('../content-service');
     const { createContentService } = contentModule;
     contentService = createContentService({
       loggerService: mockLoggerService,
-      aiService: mockAiService,
     });
   });
 
@@ -88,6 +80,8 @@ describe('Content Service - Interface Tests', () => {
       expect(typeof contentService.extractContent).toBe('function');
     });
   });
+
+  // Note: content service no longer depends on a separate ai-service layer.
 
   describe('Document Analysis', () => {
     it('should analyze document content', async () => {
@@ -187,11 +181,6 @@ describe('Content Service - Interface Tests', () => {
     it('should accept logger service dependency', () => {
       expect(mockLoggerService).toBeDefined();
       expect(typeof mockLoggerService.child).toBe('function');
-    });
-
-    it('should accept AI service dependency', () => {
-      expect(mockAiService).toBeDefined();
-      expect(typeof mockAiService.chatCompletion).toBe('function');
     });
   });
 

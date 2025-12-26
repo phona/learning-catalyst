@@ -483,11 +483,18 @@ export const createProviderFactory = (configService: ConfigService) => {
     };
   };
 
+  const reset = () => {
+    modelCache.clear();
+    embeddingsCache.clear();
+    rerankerCache.clear();
+  };
+
   return {
     getModel,
     getEmbeddings,
     getEmbeddingModel,
     getRerankModel,
+    reset,
   };
 };
 
