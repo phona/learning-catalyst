@@ -177,17 +177,11 @@ function stripUsageLikeFields(value: unknown) {
 }
 
 const USAGE_LIKE_KEYS = new Set([
-  // OpenAI-compatible nested usage payload (common SiliconFlow behavior):
-  // response_metadata.usage contains cumulative per-chunk usage numbers that LangChain will later try to merge.
-  // Deleting the entire object is the safest way to prevent merge warnings.
+  // Official SiliconFlow usage payload (often cumulative per chunk).
+  // We remove this whole object to prevent LangChain's concat/merge from seeing duplicate numbers.
   'usage',
-  'prompt_tokens_details',
-  'completion_tokens_details',
-  'promptTokensDetails',
-  'completionTokensDetails',
-  'cached_tokens',
-  'audio_tokens',
-  'reasoning_tokens',
+
+  // Token usage counters that frequently repeat across streamed chunks.
   'completionTokens',
   'completion_tokens',
   'inputTokens',
