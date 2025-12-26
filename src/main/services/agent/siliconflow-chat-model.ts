@@ -29,9 +29,9 @@ export class SiliconFlowChatModel extends ChatOpenAI {
 
     for await (const chunk of super._streamResponseChunks(messages, options, runManager)) {
       const message = chunk.message;
-      if (AIMessageChunk.isInstance(message)) {
-        const generationInfo = chunk.generationInfo as Record<string, unknown> | undefined;
+      const generationInfo = chunk.generationInfo as Record<string, unknown> | undefined;
 
+      if (AIMessageChunk.isInstance(message)) {
         const cumulative = extractCumulativeUsage(message) ?? normalizeUsageDict(generationInfo);
         if (cumulative) {
           const currentInputTokens = cumulative.inputTokens ?? lastInputTokens;
@@ -63,14 +63,15 @@ export class SiliconFlowChatModel extends ChatOpenAI {
 
           lastInputTokens = currentInputTokens;
           lastOutputTokens = currentOutputTokens;
-          lastTotalTokens = cumulative.totalTokens !== undefined ? currentTotalTokens : lastTotalTokens + totalDelta;
+          lastTotalTokens =
+            cumulative.totalTokens !== undefined ? currentTotalTokens : lastTotalTokens + totalDelta;
           lastReasoningTokens = currentReasoningTokens;
         }
-
-        stripUsageLikeFields(message.response_metadata);
-        stripUsageLikeFields(message.additional_kwargs);
-        stripUsageLikeFields(generationInfo);
       }
+
+      stripUsageLikeFields(message.response_metadata);
+      stripUsageLikeFields(message.additional_kwargs);
+      stripUsageLikeFields(generationInfo);
 
       yield chunk;
     }
@@ -94,7 +95,9 @@ function extractCumulativeUsage(message: AIMessageChunk): CumulativeUsage | unde
 
   const responseUsage = responseMetadata?.usage;
   if (responseUsage && typeof responseUsage === 'object' && !Array.isArray(responseUsage)) {
-    const maybeFromResponseMetadataUsage = normalizeUsageDict(responseUsage as Record<string, unknown>);
+    const maybeFromResponseMetadataUsage = normalizeUsageDict(
+      responseUsage as Record<string, unknown>,
+    );
     if (maybeFromResponseMetadataUsage) return maybeFromResponseMetadataUsage;
   }
 

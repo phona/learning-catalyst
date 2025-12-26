@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChatOpenAI } from '@langchain/openai';
-import { AIMessageChunk } from '@langchain/core/messages';
+import { AIMessageChunk, ChatMessageChunk } from '@langchain/core/messages';
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import { SiliconFlowChatModel } from '../siliconflow-chat-model';
 
@@ -18,6 +18,67 @@ afterEach(() => {
  * (and token-details numeric fields like cached_tokens/audio_tokens) from streamed chunks.
  */
 describe('SiliconFlowChatModel (RED) - response_metadata.usage warnings', () => {
+  it('does not warn when repeated usage fields come from generationInfo on non-AI chunks', async () => {
+    const chunks = [
+      new ChatGenerationChunk({
+        text: 'a',
+        message: new ChatMessageChunk({
+          content: 'a',
+          role: 'assistant',
+          response_metadata: { model_provider: 'siliconflow' },
+          additional_kwargs: {},
+        }),
+        generationInfo: { completion_tokens: 1, total_tokens: 11 },
+      }),
+      new ChatGenerationChunk({
+        text: 'b',
+        message: new ChatMessageChunk({
+          content: 'b',
+          role: 'assistant',
+          response_metadata: { model_provider: 'siliconflow' },
+          additional_kwargs: {},
+        }),
+        generationInfo: { completion_tokens: 2, total_tokens: 12 },
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: ChatMessageChunk[] = [];
+    const stream = await model.stream([] as any);
+    for await (const chunk of stream as any) {
+      out.push(chunk as ChatMessageChunk);
+    }
+
+    expect(out).toHaveLength(2);
+    expect(ChatMessageChunk.isInstance(out[0])).toBe(true);
+    expect(ChatMessageChunk.isInstance(out[1])).toBe(true);
+
+    // Desired behavior: usage-like numeric fields are stripped before LangChain merges,
+    // so concat cannot warn.
+    expect(out[0].response_metadata).toEqual(
+      expect.not.objectContaining({ completion_tokens: expect.anything(), total_tokens: expect.anything() }),
+    );
+    expect(out[1].response_metadata).toEqual(
+      expect.not.objectContaining({ completion_tokens: expect.anything(), total_tokens: expect.anything() }),
+    );
+
+    out[0].concat(out[1]);
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
   it('does not warn when cumulative usage is repeated under response_metadata.usage', async () => {
     const chunks = [
       new ChatGenerationChunk({

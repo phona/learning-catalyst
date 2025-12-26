@@ -55,6 +55,11 @@ but the real repeated fields also appear under:
 
 If those nested numeric keys remain, LangChain will still warn.
 
+Also, not every streamed `chunk.message` is an `AIMessageChunk` (some providers / paths can yield
+generic `ChatMessageChunk`). If our sanitization is gated behind `AIMessageChunk.isInstance(...)`,
+then those non-AI chunks keep their repeated numeric fields and still trigger warnings when
+LangChain merges chunks.
+
 ## What changes (high level)
 
 Update `SiliconFlowChatModel` streaming sanitization so it removes **all per-chunk usage fields**
@@ -113,4 +118,3 @@ Then implement the fix until the tests are GREEN.
 
 - Risk: removing `response_metadata.usage` drops metadata some feature might read.
   - Mitigation: We treat per-chunk usage as internal streaming noise; we keep the useful result in `usage_metadata`.
-
