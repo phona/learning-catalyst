@@ -178,7 +178,8 @@ export const setupChatHandlers = (
             llmStreamMode,
             ...(shouldResume && checkpointId ? { checkpoint_id: checkpointId } : {}),
           },
-          streamMode: ['messages', 'custom'] as Array<'messages' | 'custom'>,
+          // Include `updates` so interrupt-bearing events surface promptly.
+          streamMode: ['messages', 'custom', 'updates'] as Array<'messages' | 'custom' | 'updates'>,
         };
 
         const stream = await workflowGraph.stream(
@@ -193,11 +194,9 @@ export const setupChatHandlers = (
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         // Use AI SDK protocol for stream-level errors (transport/runtime failures)
+        logger.error('chat:start-stream failed', { message: errorMessage });
         replyPort.postMessage(createErrorChunk(errorMessage));
-        replyPort.postMessage(createFinishChunk());
-        replyPort.close();
-        throw error;
-        // Don't re-throw to ensure finally block executes and stream is properly closed
+        // Do not emit `finish` here; the transport boundary owns it in `finally`.
       } finally {
         // Send finish event according to AI SDK Protocol
         replyPort.postMessage(createFinishChunk());

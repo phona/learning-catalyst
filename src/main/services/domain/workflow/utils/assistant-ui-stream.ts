@@ -25,6 +25,8 @@
  * 4. Ensures consistent protocol compliance across the application
  */
 
+import { isInterruptEvent } from '../interrupt';
+
 /**
  * AI SDK Streaming Protocol chunk types
  * Reference: @assistant-ui/react-ai-sdk runtime
@@ -278,7 +280,7 @@ export type DataStreamChunk =
  * 'data: {"type":"text-end","id":"msg-0"}\n\n'
  */
 export async function* toAssistantUIStream(
-  workflowStream: AsyncIterable<['messages' | 'custom', unknown]>
+  workflowStream: AsyncIterable<[string, unknown]>
 ): AsyncGenerator<string, void, unknown> {
   // Iterate over the workflow stream
   for await (const [eventType, data] of workflowStream) {
@@ -286,8 +288,16 @@ export async function* toAssistantUIStream(
     // Format: ['custom', DataStreamChunk]
     if (eventType === 'custom' && data && typeof data === 'object' && 'type' in data) {
       yield formatSSE(data as DataStreamChunk);
+      continue;
     }
-    // Messages are handled separately by the workflow itself
+
+    // Interrupt is a turn boundary: end iteration immediately so the handler can emit `finish`
+    // and close the stream without waiting for resume.
+    if (eventType !== 'custom' && isInterruptEvent(data)) {
+      return;
+    }
+
+    // Ignore all other non-custom events (messages/updates noise).
   }
 }
 

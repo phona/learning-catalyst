@@ -185,4 +185,92 @@ describe('chat:start-stream interrupt resume', () => {
       expect.stringContaining('could not find learning materials'),
     );
   });
+
+  it('posts finish promptly when the workflow interrupts (no wait for resume)', async () => {
+    const conversationId = 'thread_interrupt_finish_1';
+
+    let streamClosed = false;
+    const interruptingWorkflowStream = (async function* () {
+      try {
+        yield ['custom', { type: 'text-start', id: 'msg-1' }] as ['custom', unknown];
+        yield [
+          'updates',
+          {
+            __interrupt__: [
+              { value: { type: 'teach_response' }, checkpoint_id: 'checkpoint_interrupt_1' },
+            ],
+          },
+        ] as ['updates', unknown];
+
+        // If the adapter doesn't end on interrupt, the handler will hang here.
+        // (This should never be reached once `toAssistantUIStream` returns on interrupt.)
+        await new Promise(() => {});
+      } finally {
+        streamClosed = true;
+      }
+    })();
+
+    const mockWorkflowGraph = {
+      stream: vi.fn().mockResolvedValue(interruptingWorkflowStream),
+    };
+
+    vi.spyOn(workflowModule, 'createWorkflowGraph').mockReturnValue(mockWorkflowGraph as any);
+
+    const services = {
+      chatService: {
+        generateTitle: vi.fn(),
+        getMessages: vi.fn(),
+      },
+      loggerService: {
+        child: vi.fn(() => ({
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          debug: vi.fn(),
+          child: vi.fn(),
+        })),
+      },
+      checkpointSaver: {
+        getTuple: vi.fn().mockResolvedValue(undefined),
+      },
+      configService: {
+        getConfig: vi.fn().mockResolvedValue(undefined),
+      },
+      providerFactory: {},
+      knowledgeService: {},
+      practiceService: {},
+      learningService: {},
+    };
+
+    setupChatHandlers(ipcMain as any, services as any);
+
+    const handler = ipcMain._events.get('chat:start-stream');
+    expect(handler).toBeDefined();
+
+    const replyPort = {
+      postMessage: vi.fn(),
+      close: vi.fn(),
+    };
+
+    const handlerPromise = handler(
+      { ports: [replyPort] },
+      {
+        conversationId,
+        newUserMessage: 'hello',
+      },
+    );
+
+    const result = await Promise.race([
+      handlerPromise.then(() => 'done'),
+      new Promise((resolve) => setTimeout(() => resolve('timeout'), 50)),
+    ]);
+
+    expect(result).toBe('done');
+    expect(streamClosed).toBe(true);
+
+    const finishChunk = 'data: {"type":"finish"}\n\n';
+    const finishCount = replyPort.postMessage.mock.calls.filter(([msg]) => msg === finishChunk).length;
+    expect(finishCount).toBe(1);
+    expect(replyPort.close).toHaveBeenCalledTimes(1);
+  });
 });
