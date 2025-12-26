@@ -209,11 +209,7 @@ describe('Checkpoint Deserialization Debug', () => {
       ];
 
       mockCheckpointSaver = {
-        list: vi.fn().mockImplementation(async function* (config: any) {
-          for (const checkpoint of checkpoints) {
-            yield checkpoint;
-          }
-        })
+        getTuple: vi.fn().mockResolvedValue(checkpoints[0]),
       };
 
       const mockLogger = {
@@ -288,11 +284,7 @@ describe('Checkpoint Deserialization Debug', () => {
       ];
 
       mockCheckpointSaver = {
-        list: vi.fn().mockImplementation(async function* (config: any) {
-          for (const checkpoint of checkpoints) {
-            yield checkpoint;
-          }
-        })
+        getTuple: vi.fn().mockResolvedValue(checkpoints[0]),
       };
 
       const mockLogger = {

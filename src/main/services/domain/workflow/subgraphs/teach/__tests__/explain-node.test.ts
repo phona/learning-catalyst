@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { TeachState, DEFAULT_TEACH_STATE } from '../types';
 import type { TeachSubgraphState } from '../state';
 import { teachStateReducer } from '../state';
@@ -154,10 +154,11 @@ Does this make sense? Would you like me to explain any part in more detail?`,
     expect(deps.providerFactory.getModel).toHaveBeenCalled();
 
     // Verify explanation was generated
-    expect(result.messages).toHaveLength(1);
+    expect(result.messages).toHaveLength(2); // AIMessage prompt + HumanMessage reply
     expect(result.messages[0]).toBeInstanceOf(AIMessage);
     expect(result.messages[0].content).toContain('closure');
     expect(result.messages[0].content).toContain('JavaScript');
+    expect(result.messages[1]).toBeInstanceOf(HumanMessage);
 
     // Verify state updates
     expect(result.teach).toBeDefined();
@@ -313,6 +314,7 @@ What specific edge case were you wondering about?`,
     // Should still generate a response
     expect(result.messages).toBeDefined();
     expect(result.messages[0]).toBeInstanceOf(AIMessage);
+    expect(result.messages[1]).toBeInstanceOf(HumanMessage);
   });
 
   it('should emit chunks for streaming if config provides writer', async () => {
@@ -379,6 +381,7 @@ What specific edge case were you wondering about?`,
 
     expect(result.messages).toBeDefined();
     expect(result.messages[0]).toBeInstanceOf(AIMessage);
+    expect(result.messages[1]).toBeInstanceOf(HumanMessage);
   });
 
   it('should propagate errors from model invocation', async () => {
@@ -589,7 +592,7 @@ What specific edge case were you wondering about?`,
 
     const result = await node(state, createMockConfig());
 
-    // Should handle long content
+    // Should handle long content (AIMessage is at index 1)
     expect(result.messages[0].content.length).toBe(10000);
   });
 

@@ -18,7 +18,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+import { Command, StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { handleConversationNode } from '../handleConversation';
 import { PracticeAnnotation } from '../../state';
 import { DEFAULT_PRACTICE_STATE } from '../../types';
@@ -86,8 +87,10 @@ describe('handleConversationNode', () => {
 
       const result = await node(state as any, createMockConfig());
 
-      expect(result.messages[0].content).toContain('No worries');
-      expect(result.messages[0].content).toContain('closure, scope');
+      expect(result.messages[0]).toBeInstanceOf(HumanMessage);
+      expect(result.messages[1]).toBeInstanceOf(AIMessage);
+      expect(result.messages[1].content).toContain('No worries');
+      expect(result.messages[1].content).toContain('closure, scope');
       expect(result.practice.isComplete).toBe(true);
     });
 
@@ -108,8 +111,10 @@ describe('handleConversationNode', () => {
 
       const result = await node(state as any, createMockConfig());
 
-      expect(result.messages[0].content).toContain('helpful explanation');
-      expect(result.messages[0].content).toContain('next practice');
+      expect(result.messages[0]).toBeInstanceOf(HumanMessage);
+      expect(result.messages[1]).toBeInstanceOf(AIMessage);
+      expect(result.messages[1].content).toContain('helpful explanation');
+      expect(result.messages[1].content).toContain('next practice');
     });
   });
 
@@ -210,8 +215,10 @@ describe('handleConversationNode', () => {
 
       const result = await graph.invoke(state, { configurable: { thread_id: threadId } });
 
-      expect(result.messages[0].content).toContain('No worries');
-      expect(result.messages[0].content).toContain('closure, scope');
+      // Messages now include both HumanMessage (user answer) and AIMessage (assistant response)
+      const lastAIMessage = result.messages.filter((m: any) => m instanceof AIMessage).slice(-1)[0];
+      expect(lastAIMessage.content).toContain('No worries');
+      expect(lastAIMessage.content).toContain('closure, scope');
       expect(result.practice.isComplete).toBe(true);
       expect(result.practice.conversationTurns).toBe(2);
     });
@@ -270,6 +277,72 @@ describe('handleConversationNode', () => {
       }
 
       expect(gotInterrupt).toBe(true);
+    });
+
+    it('resumes practice_followup and persists user reply to checkpoint messages', async () => {
+      const checkpointer = new MemorySaver();
+      const graph = new StateGraph(PracticeAnnotation)
+        .addNode('conversation', handleConversationNode(mockDeps))
+        .addNode('complete', async (_state: any) => ({ done: true }))
+        .addEdge(START, 'conversation')
+        .addEdge('conversation', 'complete')
+        .addEdge('complete', END)
+        .compile({ checkpointer });
+
+      const threadId = 'test-thread-hint-resume-persistence';
+
+      const stream1 = await graph.stream(
+        {
+          practice: {
+            ...DEFAULT_PRACTICE_STATE,
+            userIntent: 'off_topic',
+            hintsGiven: 0,
+            conversationTurns: 0,
+            currentQuestion: 'What is a closure in JavaScript?',
+            focusConcepts: ['closure', 'scope'],
+          },
+          topic: 'JavaScript',
+          userAnswer: 'Let’s talk about something else',
+        },
+        { configurable: { thread_id: threadId }, streamMode: 'updates' as const },
+      );
+
+      let interruptPrompt: string | undefined;
+      for await (const evt of stream1) {
+        if (isInterruptEvent(evt)) {
+          interruptPrompt = String((extractInterrupt(evt) as any)?.prompt ?? '');
+          break;
+        }
+      }
+      expect(interruptPrompt).toContain("Let's focus on the question");
+
+      const resumeText = 'Thanks, let me try again.';
+      const stream2 = await graph.stream(
+        new Command({ resume: resumeText }),
+        { configurable: { thread_id: threadId }, streamMode: 'updates' as const },
+      );
+
+      let lastConversationUpdate: any = null;
+      for await (const evt of stream2) {
+        if ((evt as any)?.conversation) {
+          lastConversationUpdate = (evt as any).conversation;
+        }
+      }
+
+      expect(lastConversationUpdate?.userAnswer).toBe(resumeText);
+      expect(lastConversationUpdate?.messages?.[0]).toBeInstanceOf(AIMessage);
+      expect(lastConversationUpdate?.messages?.[0]?.content).toBe(interruptPrompt);
+      expect(lastConversationUpdate?.messages?.[1]).toBeInstanceOf(HumanMessage);
+      expect(lastConversationUpdate?.messages?.[1]?.content).toBe(resumeText);
+
+      const tuple = await checkpointer.getTuple({ configurable: { thread_id: threadId } } as any);
+      expect(tuple).toBeDefined();
+
+      const savedMessages = (tuple as any)?.checkpoint?.channel_values?.messages as any[] | undefined;
+      expect(Array.isArray(savedMessages)).toBe(true);
+      expect(
+        (savedMessages ?? []).some((m) => HumanMessage.isInstance(m) && m.content === resumeText),
+      ).toBe(true);
     });
 
     it('handles max conversation turns with streaming interrupt', async () => {

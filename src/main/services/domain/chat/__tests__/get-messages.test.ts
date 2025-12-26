@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { INTERRUPT } from '@langchain/langgraph';
 import { createChatService } from '../index';
 import type { ChatService } from '../index';
+import type { ProviderFactory } from '@/main/services/agent/provider-factory';
+import type { LoggerService } from '@/main/services/core/logger/logger-service';
 
 /**
  * Mock checkpoint saver for testing message retrieval
@@ -10,6 +13,7 @@ interface MockCheckpoint {
   checkpoint: {
     channel_values?: {
       messages?: Array<HumanMessage | AIMessage>;
+      [key: string]: unknown;
     };
   };
   metadata: Record<string, unknown>;
@@ -18,6 +22,7 @@ interface MockCheckpoint {
       checkpoint_id?: string;
     };
   };
+  pendingWrites?: Array<[string, string, unknown]>;
 }
 
 /**
@@ -25,11 +30,7 @@ interface MockCheckpoint {
  */
 function createMockCheckpointSaver(checkpoints: MockCheckpoint[]) {
   return {
-    list: vi.fn().mockImplementation(async function* (config: { configurable: { thread_id: string; checkpoint_ns: string } }) {
-      for (const checkpoint of checkpoints) {
-        yield checkpoint;
-      }
-    }),
+    getTuple: vi.fn().mockImplementation(async () => checkpoints[0]),
   };
 }
 
@@ -47,15 +48,17 @@ const mockLogger = {
 describe('ChatService.getMessages', () => {
   let chatService: ChatService;
   let mockCheckpointSaver: ReturnType<typeof createMockCheckpointSaver>;
+  const providerFactory = {} as unknown as ProviderFactory;
+  const loggerService = mockLogger as unknown as LoggerService;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     mockCheckpointSaver = createMockCheckpointSaver([]);
     chatService = createChatService({
-      providerFactory: {} as any,
-      loggerService: mockLogger as any,
-      checkpointSaver: mockCheckpointSaver as any,
+      providerFactory,
+      loggerService,
+      checkpointSaver: mockCheckpointSaver,
     });
   });
 
@@ -64,9 +67,9 @@ describe('ChatService.getMessages', () => {
       // Arrange
       mockCheckpointSaver = createMockCheckpointSaver([]);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -74,7 +77,7 @@ describe('ChatService.getMessages', () => {
 
       // Assert
       expect(result).toEqual([]);
-      expect(mockCheckpointSaver.list).toHaveBeenCalledWith({
+      expect(mockCheckpointSaver.getTuple).toHaveBeenCalledWith({
         configurable: {
           thread_id: 'session-123',
           checkpoint_ns: '',
@@ -100,9 +103,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -161,9 +164,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -204,9 +207,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -239,9 +242,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -265,9 +268,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -289,9 +292,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -300,6 +303,172 @@ describe('ChatService.getMessages', () => {
       // Assert
       expect(result).toEqual([]);
     });
+
+    it('should append pending interrupt prompt when not already in messages', async () => {
+      // Arrange
+      const messages = [new HumanMessage('Hello')];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: {
+            channel_values: {
+              messages,
+              [INTERRUPT]: [
+                {
+                  value: { type: 'practice_question', prompt: 'What is 2 + 2?' },
+                  checkpoint_id: 'cp-1',
+                },
+              ],
+            },
+          },
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      // Act
+      const result = await chatService.getMessages('session-interrupt');
+
+      // Assert
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual({
+        id: 'session-interrupt-1',
+        role: 'assistant',
+        content: 'What is 2 + 2?',
+        timestamp: '2024-01-01T00:00:00Z',
+        tool_calls: [],
+        metadata: {
+          checkpoint_id: 'cp-1',
+          message_index: 1,
+          invalid_tool_calls: [],
+        },
+      });
+    });
+
+    it('should not append pending interrupt prompt when already present in messages', async () => {
+      // Arrange
+      const messages = [new AIMessage('Pending prompt')];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: {
+            channel_values: {
+              messages,
+              [INTERRUPT]: [
+                {
+                  value: { type: 'teach_response', prompt: 'Pending prompt' },
+                  checkpoint_id: 'cp-1',
+                },
+              ],
+            },
+          },
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      // Act
+      const result = await chatService.getMessages('session-interrupt-dedupe');
+
+      // Assert
+      expect(result).toHaveLength(1);
+      expect(result[0].content).toBe('Pending prompt');
+    });
+
+    it('should append pending interrupt prompt from pendingWrites when channel value is missing', async () => {
+      // Arrange
+      const messages = [new HumanMessage('Hello')];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: {
+            channel_values: {
+              messages,
+            },
+          },
+          pendingWrites: [
+            [
+              'main',
+              INTERRUPT,
+              [{ value: { type: 'practice_question', prompt: 'Pending via writes' }, checkpoint_id: 'cp-1' }],
+            ],
+          ],
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      // Act
+      const result = await chatService.getMessages('session-interrupt-writes');
+
+      // Assert
+      expect(result).toHaveLength(2);
+      expect(result[1].content).toBe('Pending via writes');
+      expect(result[1].role).toBe('assistant');
+    });
+
+    it('should append pending interrupt prompt from pendingWrites when stored as { id, value } wrapper', async () => {
+      // Arrange
+      const messages = [new HumanMessage('Hello')];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: {
+            channel_values: { messages },
+          },
+          // Real SQLite checkpoint_writes rows often persist interrupt values like:
+          //   { id: "...", value: { type: "...", prompt: "..." } }
+          pendingWrites: [
+            [
+              'main',
+              INTERRUPT,
+              {
+                id: 'persisted-interrupt-id',
+                value: { type: 'teach_response', prompt: 'Pending via wrapper' },
+              },
+            ],
+          ],
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      // Act
+      const result = await chatService.getMessages('session-interrupt-writes-wrapper');
+
+      // Assert
+      expect(result).toHaveLength(2);
+      expect(result[1].role).toBe('assistant');
+      expect(result[1].content).toBe('Pending via wrapper');
+    });
   });
 
   describe('Error handling', () => {
@@ -307,15 +476,13 @@ describe('ChatService.getMessages', () => {
       // Arrange
       const error = new Error('Database connection failed');
       mockCheckpointSaver = {
-        list: vi.fn().mockImplementation(async function* () {
-          throw error;
-        }),
+        getTuple: vi.fn().mockRejectedValue(error),
       };
 
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act & Assert
@@ -339,9 +506,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -367,9 +534,9 @@ describe('ChatService.getMessages', () => {
 
       mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act
@@ -387,9 +554,9 @@ describe('ChatService.getMessages', () => {
       const loggerSpy = mockLogger.child();
       mockCheckpointSaver = createMockCheckpointSaver([]);
       chatService = createChatService({
-        providerFactory: {} as any,
-        loggerService: mockLogger as any,
-        checkpointSaver: mockCheckpointSaver as any,
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
       });
 
       // Act

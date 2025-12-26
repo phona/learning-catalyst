@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command, MemorySaver, StateGraph, START, END } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 
 import { TeachAnnotation } from '../state';
@@ -37,11 +37,12 @@ describe('explain node interrupt resume (streaming)', () => {
       },
     } as any;
 
+    const checkpointer = new MemorySaver();
     const graph = new StateGraph(TeachAnnotation)
       .addNode('explain', explainNode(deps))
       .addEdge(START, 'explain')
       .addEdge('explain', END)
-      .compile({ checkpointer: new MemorySaver() });
+      .compile({ checkpointer });
 
     const threadId = 'test-explain-resume';
 
@@ -78,15 +79,25 @@ describe('explain node interrupt resume (streaming)', () => {
       },
     );
 
-    let sawUserAnswer = false;
+    let lastExplainUpdate: any = null;
     for await (const update of stream2) {
-      if ((update as any)?.explain?.userAnswer) {
-        sawUserAnswer = true;
-        expect((update as any).explain.userAnswer).toBe(resumeText);
-        break;
+      if ((update as any)?.explain) {
+        lastExplainUpdate = (update as any).explain;
       }
     }
-    expect(sawUserAnswer).toBe(true);
+
+    expect(lastExplainUpdate?.userAnswer).toBe(resumeText);
+    expect(lastExplainUpdate?.messages?.[0]).toBeInstanceOf(AIMessage);
+    expect(lastExplainUpdate?.messages?.[1]).toBeInstanceOf(HumanMessage);
+    expect(lastExplainUpdate?.messages?.[1]?.content).toBe(resumeText);
+
+    const tuple = await checkpointer.getTuple({ configurable: { thread_id: threadId } } as any);
+    expect(tuple).toBeDefined();
+
+    const savedMessages = (tuple as any)?.checkpoint?.channel_values?.messages as any[] | undefined;
+    expect(Array.isArray(savedMessages)).toBe(true);
+    expect(
+      (savedMessages ?? []).some((m) => HumanMessage.isInstance(m) && m.content === resumeText),
+    ).toBe(true);
   });
 });
-

@@ -628,11 +628,7 @@ function createConverter() {
  */
 function createTestService(checkpoints: any[]) {
   const mockCheckpointSaver = {
-    list: vi.fn().mockImplementation(async function* (config: any) {
-      for (const checkpoint of checkpoints) {
-        yield checkpoint;
-      }
-    })
+    getTuple: vi.fn().mockResolvedValue(checkpoints[0]),
   };
 
   const mockLogger = {

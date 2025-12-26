@@ -18,10 +18,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
+import { Command, StateGraph, MemorySaver, START, END } from '@langchain/langgraph';
 import { askQuestionNode } from '../nodes/askQuestion';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { DEFAULT_PRACTICE_STATE } from '../types';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
@@ -294,6 +294,76 @@ Give it a try!`,
       }
 
       expect(gotInterrupt).toBe(true);
+    });
+
+    it('persists resume answer as HumanMessage in checkpoint', async () => {
+      const checkpointer = new MemorySaver();
+      const graph = new StateGraph(PracticeAnnotation)
+        .addNode('askQuestion', askQuestionNode(createMockDeps()))
+        .addNode('complete', async (_state: any) => ({ done: true }))
+        .addEdge(START, 'askQuestion')
+        .addEdge('askQuestion', 'complete')
+        .addEdge('complete', END)
+        .compile({ checkpointer });
+
+      const threadId = 'test-thread-persist-answer';
+
+      // First run: hit interrupt and capture the question prompt
+      const stream1 = await graph.stream(
+        {
+          practice: {
+            ...DEFAULT_PRACTICE_STATE,
+            attemptCount: 0,
+            focusConcepts: ['closures'],
+            relatedConcepts: ['functions'],
+          },
+          topic: 'JavaScript Closures',
+          userAnswer: '',
+        },
+        {
+          configurable: { thread_id: threadId },
+          streamMode: 'updates' as const,
+        }
+      );
+
+      let questionPrompt: string | undefined;
+      for await (const evt of stream1) {
+        if (isInterruptEvent(evt)) {
+          questionPrompt = String((extractInterrupt(evt) as any)?.prompt ?? '');
+          break;
+        }
+      }
+      expect(questionPrompt).toBeTruthy();
+
+      // Second run: resume and verify node update includes the user message
+      const resumeAnswer = 'Here is my best guess...';
+      const stream2 = await graph.stream(
+        new Command({ resume: resumeAnswer }),
+        { configurable: { thread_id: threadId }, streamMode: 'updates' as const }
+      );
+
+      let lastAskQuestionUpdate: any = null;
+      for await (const evt of stream2) {
+        if ((evt as any)?.askQuestion) {
+          lastAskQuestionUpdate = (evt as any).askQuestion;
+        }
+      }
+
+      expect(lastAskQuestionUpdate?.userAnswer).toBe(resumeAnswer);
+      expect(lastAskQuestionUpdate?.messages?.[0]).toBeInstanceOf(AIMessage);
+      expect(lastAskQuestionUpdate?.messages?.[0]?.content).toBe(questionPrompt);
+      expect(lastAskQuestionUpdate?.messages?.[1]).toBeInstanceOf(HumanMessage);
+      expect(lastAskQuestionUpdate?.messages?.[1]?.content).toBe(resumeAnswer);
+
+      // Verify checkpoint contains the resumed user reply as a HumanMessage
+      const tuple = await checkpointer.getTuple({ configurable: { thread_id: threadId } } as any);
+      expect(tuple).toBeDefined();
+
+      const savedMessages = (tuple as any)?.checkpoint?.channel_values?.messages as any[] | undefined;
+      expect(Array.isArray(savedMessages)).toBe(true);
+      expect(
+        (savedMessages ?? []).some((m) => HumanMessage.isInstance(m) && m.content === resumeAnswer),
+      ).toBe(true);
     });
 
     it('handles streaming chunk emission through StateGraph', async () => {

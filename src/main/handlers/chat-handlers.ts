@@ -13,7 +13,9 @@ import { ipcMain } from 'electron';
 import { ChatService } from '../services/domain/chat';
 import { LoggerService } from '../services/core/logger/logger-service';
 import { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
-import { Command, INTERRUPT } from '@langchain/langgraph';
+import { Command } from '@langchain/langgraph';
+import type { CheckpointTuple } from '@langchain/langgraph-checkpoint';
+import { hasPendingInterrupt } from '@/main/services/domain/workflow/pending-interrupt';
 import {
   toAssistantUIStream,
   createFinishChunk,
@@ -39,23 +41,10 @@ type ChatDependencies = {
   learningService: LearningService;
 };
 
-const hasPendingInterrupt = (checkpointTuple: unknown): boolean => {
-  const tuple = checkpointTuple as {
-    checkpoint?: { channel_values?: Record<string, unknown> };
-    pendingWrites?: Array<[string, string, unknown]>;
-  } | undefined;
-
-  const channelValues = tuple?.checkpoint?.channel_values;
-  const interruptChannelValue = channelValues?.[INTERRUPT];
-  if (Array.isArray(interruptChannelValue) && interruptChannelValue.length > 0) {
-    return true;
-  }
-
-  if (Array.isArray(tuple?.pendingWrites)) {
-    return tuple.pendingWrites.some((write) => write?.[1] === INTERRUPT);
-  }
-
-  return false;
+const getCheckpointIdFromTuple = (checkpointTuple: unknown): string | undefined => {
+  const tuple = checkpointTuple as { config?: { configurable?: { checkpoint_id?: unknown } } } | undefined;
+  const checkpointId = tuple?.config?.configurable?.checkpoint_id;
+  return typeof checkpointId === 'string' ? checkpointId : undefined;
 };
 
 const partsToText = (parts: AISDKTextPart[] | undefined): string => {
@@ -155,7 +144,7 @@ export const setupChatHandlers = (
         const appConfig = await services.configService.getConfig();
         const llmStreamMode = appConfig?.ai?.modelTypes?.chat?.stream;
 
-        let checkpointTuple: unknown;
+        let checkpointTuple: CheckpointTuple | undefined;
         try {
           checkpointTuple = await services.checkpointSaver.getTuple({
             configurable: { thread_id: safeConversationId },
@@ -168,9 +157,7 @@ export const setupChatHandlers = (
         const shouldResume =
           lastUserText.trim().length > 0 && hasPendingInterrupt(checkpointTuple);
 
-        const checkpointId = (checkpointTuple as any)?.config?.configurable?.checkpoint_id as
-          | string
-          | undefined;
+        const checkpointId = getCheckpointIdFromTuple(checkpointTuple);
 
         const streamConfig = {
           configurable: {

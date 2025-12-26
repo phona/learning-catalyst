@@ -1,17 +1,25 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
+import type { ChatService } from '@/renderer/services/chat/chat-service';
 
-let capturedAdapters: any;
+let capturedAdapters: unknown;
+
+type HistoryAdapterLike = {
+  withFormat: (formatAdapter: {
+    format: string;
+    decode: (storage: unknown) => unknown;
+  }) => { load: () => Promise<unknown> };
+};
 
 vi.mock('@assistant-ui/react', () => ({
-  RuntimeAdapterProvider: ({ adapters, children }: any) => {
+  RuntimeAdapterProvider: ({ adapters, children }: { adapters: unknown; children: React.ReactNode }) => {
     capturedAdapters = adapters;
     return <>{children}</>;
   },
   useAssistantApi: () => ({
     threadListItem: () => ({
-      getState: () => ({ remoteId: 'session-123' }),
+      getState: () => ({ id: 'thread-123', remoteId: 'session-123' }),
     }),
   }),
   ThreadMessage: {},
@@ -33,24 +41,26 @@ describe('Thread history hydration', () => {
     };
 
     render(
-      <ThreadHistoryProvider chatService={chatService as any}>
+      <ThreadHistoryProvider chatService={chatService as unknown as ChatService}>
         <div />
       </ThreadHistoryProvider>,
     );
 
-    expect(capturedAdapters?.history).toBeTruthy();
+    const adapters = capturedAdapters as { history?: unknown };
+    expect(adapters?.history).toBeTruthy();
 
     const formatAdapter = {
       format: 'ai-sdk/v5',
-      decode: vi.fn((storage: any) => storage),
+      decode: vi.fn((storage: unknown) => storage),
     };
 
-    const result = await capturedAdapters.history.withFormat(formatAdapter).load();
+    const history = adapters.history as unknown;
+    const result = await (history as HistoryAdapterLike).withFormat(formatAdapter).load();
+    const typedResult = result as { headId?: unknown; messages?: unknown[] };
 
-    expect(chatService.getMessages).toHaveBeenCalledWith('session-123');
+    expect(chatService.getMessages).toHaveBeenCalledWith('thread-123');
     expect(formatAdapter.decode).toHaveBeenCalledTimes(2);
-    expect(result.headId).toBe('m2');
-    expect(result.messages).toHaveLength(2);
+    expect(typedResult.headId).toBe('m2');
+    expect(typedResult.messages).toHaveLength(2);
   });
 });
-

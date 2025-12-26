@@ -173,6 +173,8 @@ describe('[TC-401] fastTrackQuiz Node', () => {
       }
 
       expect(interruptEvent).not.toBeNull();
+      const quizPrompt = String((extractInterrupt(interruptEvent as InterruptEvent) as any)?.prompt ?? '');
+      expect(quizPrompt).toContain('quickly check what you know');
 
       // Resume with string answer
       const resumeAnswer = "A closure is a function that remembers its outer variables";
@@ -191,6 +193,10 @@ describe('[TC-401] fastTrackQuiz Node', () => {
         if (update.fastTrackQuiz) {
           sawFastTrackQuizUpdate = true;
           expect(update.fastTrackQuiz.userAnswer).toBe(resumeAnswer);
+          expect(update.fastTrackQuiz.messages?.[0]).toBeInstanceOf(AIMessage);
+          expect(update.fastTrackQuiz.messages?.[0]?.content).toBe(quizPrompt);
+          expect(update.fastTrackQuiz.messages?.[1]).toBeInstanceOf(HumanMessage);
+          expect(update.fastTrackQuiz.messages?.[1]?.content).toBe(resumeAnswer);
         }
       }
       expect(sawFastTrackQuizUpdate).toBe(true);

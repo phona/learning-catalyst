@@ -11,7 +11,7 @@
 
 import { interrupt } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { TeachAnnotation } from '../state';
@@ -189,7 +189,7 @@ export const handleQuestionNode =
           : (resumeValue as { answer?: string })?.answer ?? '';
 
         return {
-          messages: [new AIMessage(maxQuestionsMessage)],
+          messages: [new AIMessage(maxQuestionsMessage), new HumanMessage(answer)],
           userAnswer: answer,
           teach: {
             questionsAsked: newQuestionsAsked,
@@ -232,7 +232,7 @@ export const handleQuestionNode =
           '';
 
       return {
-        messages: [new AIMessage(responseContent)],
+        messages: [new AIMessage(responseContent), new HumanMessage(answer)],
         userAnswer: answer,
         teach: {
           questionsAsked: newQuestionsAsked,

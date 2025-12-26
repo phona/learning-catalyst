@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command, MemorySaver, StateGraph, START, END } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 
 import { handleQuestionNode } from '../nodes/handleQuestion';
 import { DEFAULT_TEACH_STATE } from '../types';
@@ -113,6 +114,10 @@ describe('handleQuestion node (StateGraph interrupt pattern)', () => {
     expect(update?.userAnswer).toBe(resumeText);
     expect(update?.teach?.questionsAsked).toBe(1);
     expect(update?.teach?.teachIntent).toBe(undefined);
+    expect(update?.messages?.[0]).toBeInstanceOf(AIMessage);
+    expect(update?.messages?.[0]?.content).toBe(interruptValue?.prompt);
+    expect(update?.messages?.[1]).toBeInstanceOf(HumanMessage);
+    expect(update?.messages?.[1]?.content).toBe(resumeText);
   });
 
   it('supports off_topic intent without calling the model', async () => {

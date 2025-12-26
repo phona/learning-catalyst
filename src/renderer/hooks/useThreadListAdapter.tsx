@@ -116,16 +116,17 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
       async load(): Promise<ExportedMessageRepository> {
         // Get the current thread's state to extract the remoteId (SQLite session ID)
         const threadState = store.threadListItem().getState();
-        const remoteId = threadState.remoteId;
+        const threadId = threadState.id;
 
-        // New threads without remoteId haven't been persisted yet - return empty
-        if (!remoteId) {
+        // New threads may not have a remoteId yet, but message checkpoints are keyed
+        // by the Assistant UI thread localId (options.id). Always prefer threadId.
+        if (!threadId) {
           return { messages: [] };
         }
 
         try {
           // Use chatService.getMessages() instead of direct API call
-          const sessions = (await chatService.getMessages?.(remoteId)) ?? [];
+          const sessions = (await chatService.getMessages?.(threadId)) ?? [];
 
           // Handle empty responses gracefully
           if (!sessions || sessions.length === 0) {
@@ -170,13 +171,13 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
       ) {
         return {
           async load(): Promise<MessageFormatRepository<TMessage>> {
-            const { remoteId } = store.threadListItem().getState();
+            const { id: threadId } = store.threadListItem().getState();
             console.log(
               '[ThreadHistoryAdapter.load] Called with format:',
               formatAdapter.format,
-              remoteId,
+              threadId,
             );
-            if (!remoteId) return { messages: [] };
+            if (!threadId) return { messages: [] };
 
             // We only store plain text messages today, so we can only synthesize
             // the AI SDK v5 UIMessage storage format.
@@ -187,7 +188,7 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
             }
 
             // Use chatService.getMessages() instead of direct API call
-            const sessions = (await chatService.getMessages?.(remoteId)) ?? [];
+            const sessions = (await chatService.getMessages?.(threadId)) ?? [];
             console.log('[ThreadHistoryAdapter.load] sessions:', sessions);
             if (sessions.length === 0) return { messages: [] };
 
