@@ -13,4 +13,3 @@
 ### Phase 3: Validate
 - [x] Run `npm test`
 - [x] Run `npm run lint`
-
