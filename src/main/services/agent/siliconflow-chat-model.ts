@@ -92,6 +92,12 @@ function extractCumulativeUsage(message: AIMessageChunk): CumulativeUsage | unde
   const maybeFromUsageMetadata = normalizeUsageDict(usageMetadata);
   if (maybeFromUsageMetadata) return maybeFromUsageMetadata;
 
+  const responseUsage = responseMetadata?.usage;
+  if (responseUsage && typeof responseUsage === 'object' && !Array.isArray(responseUsage)) {
+    const maybeFromResponseMetadataUsage = normalizeUsageDict(responseUsage as Record<string, unknown>);
+    if (maybeFromResponseMetadataUsage) return maybeFromResponseMetadataUsage;
+  }
+
   const maybeFromResponseMetadata = normalizeUsageDict(responseMetadata);
   if (maybeFromResponseMetadata) return maybeFromResponseMetadata;
 
@@ -168,6 +174,17 @@ function stripUsageLikeFields(value: unknown) {
 }
 
 const USAGE_LIKE_KEYS = new Set([
+  // OpenAI-compatible nested usage payload (common SiliconFlow behavior):
+  // response_metadata.usage contains cumulative per-chunk usage numbers that LangChain will later try to merge.
+  // Deleting the entire object is the safest way to prevent merge warnings.
+  'usage',
+  'prompt_tokens_details',
+  'completion_tokens_details',
+  'promptTokensDetails',
+  'completionTokensDetails',
+  'cached_tokens',
+  'audio_tokens',
+  'reasoning_tokens',
   'completionTokens',
   'completion_tokens',
   'inputTokens',
