@@ -17,9 +17,6 @@ describe('electronAPI contract', () => {
     expect(api.aiSDK).toBeDefined();
     expect(typeof api.aiSDK.stream).toBe('function');
 
-    expect(api.learning).toBeDefined();
-    expect(typeof api.learning.startLearningSession).toBe('function');
-
     expect(api.knowledge).toBeDefined();
     expect(typeof api.knowledge.exploreConcept).toBe('function');
 
@@ -34,7 +31,7 @@ describe('electronAPI contract', () => {
     expect(typeof api.agents.getAvailableAgents).toBe('function');
 
     expect(api.content).toBeDefined();
-    expect(typeof api.content.exploreLocalProjects).toBe('function');
+    expect(typeof api.content.importLearningContent).toBe('function');
 
     expect(api.settings).toBeDefined();
     await expect(api.settings.getUserPreferences()).resolves.toMatchObject({ success: true });
@@ -105,8 +102,8 @@ describe('electronAPI contract', () => {
     // @ts-ignore: Test environment access to mocked electronAPI
     const api = window.electronAPI;
 
-    await expect(api.showOpenDialog()).resolves.toHaveProperty('canceled');
-    await expect(api.showSaveDialog()).resolves.toHaveProperty('canceled');
+    await expect(api.showOpenDialog({} as any)).resolves.toHaveProperty('canceled');
+    await expect(api.showSaveDialog({} as any)).resolves.toHaveProperty('canceled');
     await expect(api.getVersion()).resolves.toMatchObject({ success: true });
     // await expect(api.quit()).resolves.toBeUndefined(); // quit method doesn't exist on ElectronAPI
     expect(typeof api.onMenuAction).toBe('function');

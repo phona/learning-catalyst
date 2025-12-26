@@ -41,7 +41,7 @@ describe('Integration: setup + loading to chat navigation', () => {
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/" element={<ChatHome />} />
       </Routes>,
-      { routerProps: { initialEntries: ['/setup'] }, electronAPI },
+      { routerProps: { initialEntries: ['/setup'] }, electronAPI, withAssistantProvider: false },
     );
 
     await screen.findByText('Configure AI Providers');
@@ -85,7 +85,7 @@ describe('Integration: setup + loading to chat navigation', () => {
         },
       } as any);
 
-    renderWithServices(<App />, { electronAPI });
+    renderWithServices(<App />, { electronAPI, withAssistantProvider: false });
 
     expect(await screen.findByText(/Checking workspace configuration/i)).toBeInTheDocument();
 

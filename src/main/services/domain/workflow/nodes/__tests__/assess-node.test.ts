@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { assessNode } from '../assess';
 import { WorkflowStateAnnotation } from '../../state';
+import type { WorkflowDeps, WorkflowState } from '../../state';
+import { DEFAULT_PRACTICE_STATE } from '../../subgraphs/practice/types';
+import { DEFAULT_TEACH_STATE } from '../../subgraphs/teach/types';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import type { SearchResult } from '../../../../../../../shared/types/electron-api/knowledge-api';
+import type { SearchResult } from '@/shared/types/electron-api/knowledge-api';
 
 // Mock chunk emitter utilities
 vi.mock('../utils/chunk-emitter', () => ({
@@ -93,17 +96,36 @@ const createMockPracticeService = (overrides = {}) => ({
   ...overrides,
 });
 
-// Helper function to create complete mock dependencies
-const createMockDeps = (overrides = {}) => ({
-  agentManager: createMockAgentManager(),
-  loggerService: createMockLoggerService(),
-  checkpointer: createMockCheckpointer(),
-  configService: createMockConfigService(),
-  providerFactory: createMockProviderFactory(),
-  knowledgeService: createMockKnowledgeService(),
-  practiceService: createMockPracticeService(),
-  learningService: createMockLearningService(),
+const makeState = (overrides: Partial<WorkflowState>): WorkflowState => ({
+  messages: [],
+  topic: '',
+  error: null,
+  confidence: 0,
+  mastery: 0,
+  attemptCount: 0,
+  practicePrompt: '',
+  gaps: [],
+  userAnswer: '',
+  sessionBlueprint: undefined,
+  interactionCount: 0,
+  understandingLevel: 0,
+  readyForPractice: false,
+  sessionMetadata: {},
+  practice: DEFAULT_PRACTICE_STATE,
+  teach: DEFAULT_TEACH_STATE,
   ...overrides,
+});
+
+// Helper function to create complete mock dependencies
+const createMockDeps = (overrides: Partial<WorkflowDeps> = {}): WorkflowDeps => ({
+  loggerService: createMockLoggerService() as any,
+  checkpointer: createMockCheckpointer() as any,
+  configService: createMockConfigService() as any,
+  providerFactory: createMockProviderFactory() as any,
+  knowledgeService: createMockKnowledgeService() as any,
+  practiceService: createMockPracticeService() as any,
+  learningService: createMockLearningService() as any,
+  ...(overrides as any),
 });
 
 // Helper function to create complete mock knowledge service
@@ -124,6 +146,9 @@ const createMockLearningService = (overrides = {}) => ({
   getLearningPath: vi.fn(),
   getUserProgress: vi.fn(),
   startLearningSession: vi.fn(),
+  pauseSession: vi.fn(),
+  resumeSession: vi.fn(),
+  completeSession: vi.fn(),
   getSessionProgress: vi.fn(),
   getRecentSessions: vi.fn(),
   searchSessions: vi.fn(),
@@ -226,13 +251,13 @@ describe('assess node', () => {
 
     const node = assessNode(mockDeps);
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [
         new HumanMessage('I want to learn React'),
         new AIMessage('Let me help you with React'),
       ],
       topic: 'React Components',
-    };
+    });
 
     const result = await node(state, createMockConfig());
 
@@ -291,10 +316,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'New Topic',
-    };
+    });
 
     const result = await node(state, createMockConfig());
 
@@ -327,10 +352,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     const result = await node(state, createMockConfig());
 
@@ -362,10 +387,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     const result = await node(state, createMockConfig());
 
@@ -404,10 +429,10 @@ describe('assess node', () => {
         : new AIMessage(`Assistant message ${i}`);
     });
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: conversationMessages,
       topic: 'Test',
-    };
+    });
 
     await node(state, createMockConfig());
 
@@ -445,10 +470,10 @@ describe('assess node', () => {
 
     const longMessage = new HumanMessage('x'.repeat(500));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [longMessage],
       topic: 'Test',
-    };
+    });
 
     await node(state, createMockConfig());
 
@@ -517,10 +542,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     await node(state, createMockConfig());
 
@@ -581,10 +606,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     await node(state, createMockConfig());
 
@@ -652,10 +677,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     const result = await node(state, createMockConfig());
 
@@ -726,10 +751,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     await node(state, createMockConfig());
 
@@ -763,10 +788,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     const result = await node(state, createMockConfig());
 
@@ -797,10 +822,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     await expect(node(state, createMockConfig())).rejects.toThrow('Knowledge service unavailable');
   });
@@ -828,10 +853,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     await expect(node(state, createMockConfig())).rejects.toThrow('Learning service unavailable');
   });
@@ -859,10 +884,10 @@ describe('assess node', () => {
       learningService: mockLearningService,
     }));
 
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
 
     await expect(node(state, createMockConfig())).rejects.toThrow('Model unavailable');
   });
@@ -891,10 +916,10 @@ describe('assess node', () => {
     }));
 
     const config = createMockConfig();
-    const state: typeof WorkflowStateAnnotation.State = {
+    const state = makeState({
       messages: [],
       topic: 'Test',
-    };
+    });
     const result = await node(state, config);
 
     // Verify result is properly formatted
@@ -935,10 +960,10 @@ describe('assess node', () => {
         learningService: mockLearningService,
       }));
 
-      const state: typeof WorkflowStateAnnotation.State = {
+      const state = makeState({
         messages: [],
         topic: 'Test',
-      };
+      });
 
       const result = await node(state, createMockConfig());
 

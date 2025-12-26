@@ -32,7 +32,7 @@ describe('useConfigStore', () => {
       validateProvider: vi.fn().mockResolvedValue({ success: true }),
       getProviderModels: vi.fn().mockResolvedValue(['test-model']),
       setConfig: vi.fn().mockResolvedValue(undefined),
-    } as ConfigurationService);
+    } as unknown as ConfigurationService);
   });
 
   it('loadConfig returns null when service missing and sets error', async () => {
@@ -44,7 +44,7 @@ describe('useConfigStore', () => {
   });
 
   it('loadConfig merges defaults from service', async () => {
-    const getConfig = vi.fn().mockResolvedValue({ ui: { theme: 'dark' } });
+    const getConfig = vi.fn().mockResolvedValue({ ui: { theme: 'dark' } } as unknown as AppConfig);
     setConfigurationService({
       getConfig,
       saveConfig: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +53,7 @@ describe('useConfigStore', () => {
       validateProvider: vi.fn().mockResolvedValue({ success: true }),
       getProviderModels: vi.fn().mockResolvedValue(['test-model']),
       setConfig: vi.fn().mockResolvedValue(undefined),
-    } as ConfigurationService);
+    } as unknown as ConfigurationService);
 
     const loaded = await useConfigStore.getState().loadConfig();
     expect(loaded?.ui.theme).toBe('dark');
@@ -71,7 +71,7 @@ describe('useConfigStore', () => {
       validateProvider: vi.fn().mockResolvedValue({ success: true }),
       getProviderModels: vi.fn().mockResolvedValue(['test-model']),
       setConfig: vi.fn().mockResolvedValue(undefined),
-    } as ConfigurationService);
+    } as unknown as ConfigurationService);
     await useConfigStore.getState().saveConfig(baseConfig);
     expect(saveConfig).toHaveBeenCalledWith(baseConfig);
     expect(useConfigStore.getState().loading).toBe(false);
@@ -94,7 +94,7 @@ describe('useConfigStore', () => {
       validateProvider: vi.fn().mockResolvedValue({ success: true }),
       getProviderModels: vi.fn().mockResolvedValue(['test-model']),
       setConfig: vi.fn().mockResolvedValue(undefined),
-    } as ConfigurationService);
+    } as unknown as ConfigurationService);
     useConfigStore.setState({ config: baseConfig, loading: false, error: null });
 
     const provider: ProviderConfig = { providerType: 'openai', baseUrl: 'u', apiKey: 'k', models: ['gpt-4'] };
@@ -119,7 +119,7 @@ describe('useConfigStore', () => {
       validateProvider: vi.fn().mockResolvedValue({ success: true }),
       getProviderModels: vi.fn().mockResolvedValue(['test-model']),
       setConfig: vi.fn().mockResolvedValue(undefined),
-    } as ConfigurationService);
+    } as unknown as ConfigurationService);
     const config = await useConfigStore.getState().resetConfig();
     expect(config.ui.theme).toBe('light');
     expect(saveConfig).toHaveBeenCalled();

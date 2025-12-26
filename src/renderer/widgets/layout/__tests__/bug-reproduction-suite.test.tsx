@@ -110,7 +110,9 @@ vi.mock('@/renderer/pages/chat/ChatPage', () => ({
 }));
 
 // Inline utility functions since external file doesn't exist
-function createMockElectronAPI(): Partial<ElectronAPI> {
+// This suite exercises a lot of mocked IPC surface area (including legacy/experimental methods).
+// Use `any` here to keep the test focused on behavior instead of fighting strict ElectronAPI typing.
+function createMockElectronAPI(): any {
   return {
     sessions: {
       list: vi.fn().mockResolvedValue({

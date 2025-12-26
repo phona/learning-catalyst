@@ -1,18 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createIpcFetch } from '../ipcFetch';
 import type { ElectronAPI } from '@/shared/types';
+import type { AISDKStreamParams } from '@/shared/types/electron-api/base';
 
 describe('ipcFetch', () => {
   let ipcFetch: ReturnType<typeof createIpcFetch>;
   let mockElectronAPI: ElectronAPI;
+  let mockStream: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockStream = vi.fn();
     mockElectronAPI = {
       aiSDK: {
-        stream: vi.fn(),
+        stream: mockStream,
       },
-    } as ElectronAPI;
+    } as unknown as ElectronAPI;
 
     ipcFetch = createIpcFetch(mockElectronAPI);
   });
@@ -169,13 +172,13 @@ describe('ipcFetch', () => {
   describe('stream handling', () => {
     it('should create Response with ReadableStream', async () => {
       const streamData = 'test stream data';
-      let streamCallback: any;
+      let streamCallback: ((data: unknown) => void) | undefined;
 
-      mockElectronAPI.aiSDK.stream.mockImplementation(
-        (params, onData, onDone) => {
+      mockStream.mockImplementation(
+        (params: AISDKStreamParams, onData: (data: unknown) => void, onDone?: () => void) => {
           streamCallback = onData;
           return vi.fn(); // cancel function
-        }
+        },
       );
 
       const payload = {
@@ -196,15 +199,15 @@ describe('ipcFetch', () => {
 
     it('should stream data to controller', async () => {
       const streamData = 'chunk: test data';
-      let streamCallback: any;
-      let closeCallback: any;
+      let streamCallback: ((data: unknown) => void) | undefined;
+      let closeCallback: (() => void) | undefined;
 
-      mockElectronAPI.aiSDK.stream.mockImplementation(
-        (params, onData, onDone) => {
+      mockStream.mockImplementation(
+        (params: AISDKStreamParams, onData: (data: unknown) => void, onDone?: () => void) => {
           streamCallback = onData;
           closeCallback = onDone;
           return vi.fn(); // cancel function
-        }
+        },
       );
 
       const payload = {
@@ -217,22 +220,22 @@ describe('ipcFetch', () => {
       });
 
       // Simulate stream data
-      streamCallback(streamData);
+      streamCallback?.(streamData);
 
       // Verify the stream was created
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledTimes(1);
     });
 
     it('should close controller after stream completes', async () => {
-      let streamCallback: any;
-      let closeCallback: any;
+      let streamCallback: ((data: unknown) => void) | undefined;
+      let closeCallback: (() => void) | undefined;
 
-      mockElectronAPI.aiSDK.stream.mockImplementation(
-        (params, onData, onDone) => {
+      mockStream.mockImplementation(
+        (params: AISDKStreamParams, onData: (data: unknown) => void, onDone?: () => void) => {
           streamCallback = onData;
           closeCallback = onDone;
           return vi.fn(); // cancel function
-        }
+        },
       );
 
       const payload = {
@@ -253,13 +256,13 @@ describe('ipcFetch', () => {
     });
 
     it('should handle multiple stream chunks', async () => {
-      let streamCallback: any;
+      let streamCallback: ((data: unknown) => void) | undefined;
 
-      mockElectronAPI.aiSDK.stream.mockImplementation(
-        (params, onData, onDone) => {
+      mockStream.mockImplementation(
+        (params: AISDKStreamParams, onData: (data: unknown) => void, onDone?: () => void) => {
           streamCallback = onData;
           return vi.fn(); // cancel function
-        }
+        },
       );
 
       const payload = {
@@ -272,9 +275,9 @@ describe('ipcFetch', () => {
       });
 
       // Simulate multiple chunks
-      streamCallback('chunk 1');
-      streamCallback('chunk 2');
-      streamCallback('chunk 3');
+      streamCallback?.('chunk 1');
+      streamCallback?.('chunk 2');
+      streamCallback?.('chunk 3');
 
       expect(mockElectronAPI.aiSDK.stream).toHaveBeenCalledTimes(1);
     });
@@ -283,7 +286,7 @@ describe('ipcFetch', () => {
   describe('cancel functionality', () => {
     it('should cancel stream when ReadableStream is cancelled', async () => {
       const cancelFn = vi.fn();
-      mockElectronAPI.aiSDK.stream.mockReturnValue(cancelFn);
+      mockStream.mockReturnValue(cancelFn);
 
       const payload = {
         id: 'thread-123',
@@ -304,7 +307,7 @@ describe('ipcFetch', () => {
     });
 
     it('should handle missing cancel function gracefully', async () => {
-      mockElectronAPI.aiSDK.stream.mockReturnValue(undefined);
+      mockStream.mockReturnValue(undefined);
 
       const payload = {
         id: 'thread-123',

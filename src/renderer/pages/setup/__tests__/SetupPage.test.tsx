@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { renderWithServices, screen, fireEvent, waitFor } from '@/test/utils/renderWithServices';
 import { createMockElectronAPIClient } from '@/renderer/services/api/electron-api-client';
-import { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
+import type { AppConfig } from '@/shared/types/config';
+import type { ConfigurationService } from '@/renderer/services/configuration/configuration-service';
 
 vi.mock('@/renderer/shared/lib', () => ({
   showError: vi.fn(),
@@ -115,12 +116,12 @@ describe('SetupPage', () => {
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
       setConfig: vi.fn().mockRejectedValue(new Error('persist failed')),
-      saveConfig: async (config: unknown) => {
-        await electronAPI.settings.setConfig(config);
+      saveConfig: async (config: Partial<AppConfig>) => {
+        await electronAPI.settings.setConfig(config as any);
       },
       validateProvider: vi.fn(),
       getProviderModels: vi.fn(),
-    } as ConfigurationService;
+    } as unknown as ConfigurationService;
 
     const { default: SetupPage } = await import('../SetupPage');
     renderWithServices(<SetupPage />, { electronAPI, serviceOverrides: { configService } });
@@ -242,13 +243,13 @@ describe('SetupPage', () => {
         return { success: true, providerId: resp.data.providerId, status: resp.data.status };
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
-      saveConfig: async (config: unknown) => {
-        await electronAPI.settings.setConfig(config);
+      saveConfig: async (config: Partial<AppConfig>) => {
+        await electronAPI.settings.setConfig(config as any);
       },
       setConfig: vi.fn(),
       validateProvider: vi.fn(),
       getProviderModels: vi.fn(),
-    } as ConfigurationService;
+    } as unknown as ConfigurationService;
     const { default: SetupPage } = await import('../SetupPage');
     renderWithServices(<SetupPage />, { electronAPI, serviceOverrides: { configService } });
 
@@ -303,12 +304,12 @@ describe('SetupPage', () => {
       },
       getConfig: async () => (await electronAPI.settings.getConfig()).data as any,
       setConfig: vi.fn(),
-      saveConfig: async (config: unknown) => {
-        await electronAPI.settings.setConfig(config);
+      saveConfig: async (config: Partial<AppConfig>) => {
+        await electronAPI.settings.setConfig(config as any);
       },
       validateProvider: vi.fn(),
       getProviderModels: vi.fn(),
-    } as ConfigurationService;
+    } as unknown as ConfigurationService;
 
     const { default: SetupPage } = await import('../SetupPage');
     renderWithServices(<SetupPage />, { electronAPI, serviceOverrides: { configService } });

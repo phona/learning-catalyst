@@ -1,80 +1,57 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createIpcPair } from '@/test/utils/fakes/ipc-fake';
 import { setupSettingsHandlers } from '../settings-handlers';
-import { ipcMain } from 'electron';
-import type { ConfigService } from '@/main/services/core/config/config-service';
 import type { AppConfig } from '@/shared/types';
 
-type IpcHandler = (event: unknown, ...args: unknown[]) => unknown | Promise<unknown>;
-
-const electronMocks = vi.hoisted(() => ({
-  handlerMap: new Map<string, IpcHandler>(),
-  app: {
-    getVersion: vi.fn().mockReturnValue('9.9.9'),
-    quit: vi.fn(),
-  },
-}));
-
-const mockConfigServiceFns = vi.hoisted(() => ({
-  getConfig: vi.fn<() => Promise<AppConfig | null>>(),
-  setConfig: vi.fn<(config: Partial<AppConfig>) => Promise<void>>(),
-}));
-
-const mockConfigService = mockConfigServiceFns as unknown as ConfigService;
-
-vi.mock('electron', () => ({
-  ipcMain: {
-    handle: (channel: string, handler: IpcHandler) =>
-      electronMocks.handlerMap.set(channel, handler),
-  },
-  app: electronMocks.app,
-}));
-
-const getHandler = (channel: string): IpcHandler => {
-  const handler = electronMocks.handlerMap.get(channel);
-  expect(handler).toBeDefined();
-  return handler as IpcHandler;
-};
-
 describe('settings handlers (documented surface)', () => {
+  const configService = {
+    getConfig: vi.fn<() => Promise<AppConfig | null>>(),
+    setConfig: vi.fn<(config: Partial<AppConfig>) => Promise<void>>(),
+  };
+
   beforeEach(() => {
-    electronMocks.handlerMap.clear();
-    mockConfigServiceFns.getConfig.mockReset();
-    mockConfigServiceFns.setConfig.mockReset();
-    Object.values(electronMocks.app).forEach((mockFn) => {
-      if (typeof mockFn === 'function' && 'mockReset' in mockFn) {
-        mockFn.mockReset();
-      }
-    });
-    electronMocks.app.getVersion.mockReturnValue('9.9.9');
-    mockConfigServiceFns.setConfig.mockResolvedValue(undefined);
+    vi.clearAllMocks();
+    configService.setConfig.mockResolvedValue(undefined);
   });
 
   it('loads workspace configuration via ConfigService', async () => {
     const sampleConfig = { ui: { theme: 'dark' } } as unknown as AppConfig;
-    mockConfigServiceFns.getConfig.mockResolvedValue(sampleConfig);
+    configService.getConfig.mockResolvedValue(sampleConfig);
 
-    setupSettingsHandlers(ipcMain, { configService: mockConfigService });
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    setupSettingsHandlers(ipcMain as any, {
+      configService: configService as any,
+      app: { getVersion: () => '9.9.9', quit: vi.fn() },
+    });
 
-    const result = await getHandler('settings:getWorkspaceConfig')(undefined);
+    const result = await ipcRenderer.invoke('settings:getWorkspaceConfig');
 
     expect(result).toEqual(sampleConfig);
-    expect(mockConfigServiceFns.getConfig).toHaveBeenCalledTimes(1);
+    expect(configService.getConfig).toHaveBeenCalledTimes(1);
   });
 
   it('persists workspace configuration when requested', async () => {
-    setupSettingsHandlers(ipcMain, { configService: mockConfigService });
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    setupSettingsHandlers(ipcMain as any, {
+      configService: configService as any,
+      app: { getVersion: () => '9.9.9', quit: vi.fn() },
+    });
 
     const config = { ui: { theme: 'dark' } } as Partial<AppConfig>;
-    const result = await getHandler('settings:setWorkspaceConfig')(undefined, config);
+    const result = await ipcRenderer.invoke('settings:setWorkspaceConfig', config);
     expect(result).toBeUndefined();
 
-    expect(mockConfigServiceFns.setConfig).toHaveBeenCalledWith(config);
+    expect(configService.setConfig).toHaveBeenCalledWith(config);
   });
 
   it('returns app version through settings:getAppVersion', async () => {
-    setupSettingsHandlers(ipcMain, { configService: mockConfigService });
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    setupSettingsHandlers(ipcMain as any, {
+      configService: configService as any,
+      app: { getVersion: () => '9.9.9', quit: vi.fn() },
+    });
 
-    const version = await getHandler('settings:getAppVersion')(undefined);
+    const version = await ipcRenderer.invoke('settings:getAppVersion');
 
     expect(version).toEqual('9.9.9');
   });

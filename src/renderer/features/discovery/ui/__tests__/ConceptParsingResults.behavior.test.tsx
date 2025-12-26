@@ -2,13 +2,13 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { ConceptParsingResults } from '../ConceptParsingResults';
-import type { ConceptIngestionAction, ParsedRelationship } from '@/shared/types/electron-api/knowledge-api';
+import type { ParsingJob } from '@/shared/types/concept-parsing';
 import { renderWithServices } from '@/test/utils/renderWithServices';
 
-const makeCompletedJob = () => ({
+const makeCompletedJob = (): ParsingJob => ({
   id: 'job-1',
   materialId: 'mat-1',
-  status: 'completed' as const,
+  status: 'completed',
   progress: 1,
   stages: [],
   result: {
@@ -58,7 +58,7 @@ const makeCompletedJob = () => ({
       {
         targetConceptId: 'c1',
         targetConceptName: 'Gravity',
-        type: 'related',
+        type: 'related_to',
         strength: 0.6,
         confidence: 0.7,
         evidence: [],
@@ -142,8 +142,8 @@ describe('ConceptParsingResults', () => {
 
   it('applies ingest plan with low-confidence skips', async () => {
     const job = makeCompletedJob();
-    job.result.concepts.push({
-      ...job.result.concepts[0],
+    job.result!.concepts.push({
+      ...job.result!.concepts[0],
       id: 'c-low',
       name: 'Low Concept',
       confidence: 0.4,
@@ -246,8 +246,8 @@ describe('ConceptParsingResults', () => {
 
   it('filters out low-confidence concepts live and reflects in dry-run summary', () => {
     const job = makeCompletedJob();
-    job.result.concepts.push({
-      ...job.result.concepts[0],
+    job.result!.concepts.push({
+      ...job.result!.concepts[0],
       id: 'c-low',
       name: 'Weak',
       confidence: 0.4,
@@ -271,10 +271,10 @@ describe('ConceptParsingResults', () => {
 
   it('honors per-row skip action and removes relationships for skipped nodes', async () => {
     const job = makeCompletedJob();
-    job.result.relationships.push({
+    job.result!.relationships.push({
       targetConceptId: 'c2',
       targetConceptName: 'Acceleration',
-      type: 'related',
+      type: 'related_to',
       strength: 0.6,
       confidence: 0.7,
       evidence: [],

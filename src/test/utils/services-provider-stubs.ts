@@ -271,6 +271,12 @@ export const createMockConfigurationService = (
     .fn()
     .mockResolvedValue({ providerId: 'mock', status: 'configured' }),
   validateProvider: vi.fn().mockResolvedValue({ success: true }),
+  getProviderStatus: vi.fn().mockResolvedValue({
+    status: 'not-configured',
+    message: 'No AI Provider Configured',
+    details: 'Test stub',
+    providerInfo: null,
+  }),
   getProviderModels: vi.fn().mockResolvedValue([]),
   getConfig: vi.fn().mockResolvedValue(config),
   setConfig: vi.fn().mockResolvedValue(undefined),

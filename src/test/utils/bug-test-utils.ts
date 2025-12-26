@@ -7,6 +7,8 @@
 
 import { vi } from 'vitest';
 import { createMockElectronAPI as createBaseMockElectronAPI } from './electron-api-fixture';
+import type { ThreadMessage } from '@assistant-ui/react';
+import { makeThreadUserMessage } from './assistant-messages';
 
 /**
  * Creates a mock ElectronAPI with additional crash testing capabilities
@@ -73,14 +75,13 @@ export function createMockSession(overrides = {}) {
 /**
  * Creates mock messages for testing
  */
-export function createMockMessages(overrides = []) {
+export function createMockMessages(overrides: ThreadMessage[] = []): ThreadMessage[] {
   return [
-    {
+    makeThreadUserMessage({
       id: 'msg-1',
-      role: 'user' as const,
-      content: [{ type: 'text' as const, text: 'How to learn JavaScript?' }],
-      timestamp: new Date('2024-01-01T10:00:00'),
-    },
+      createdAt: new Date('2024-01-01T10:00:00'),
+      text: 'How to learn JavaScript?',
+    }),
     ...overrides,
   ];
 }

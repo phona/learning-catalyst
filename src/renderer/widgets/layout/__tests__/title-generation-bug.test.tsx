@@ -20,6 +20,7 @@ import {
   setupWindowMock,
   waitForAsync,
 } from '@/test/utils/bug-test-utils';
+import { makeThreadAssistantMessage, makeThreadUserMessage } from '@/test/utils/assistant-messages';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/renderer/stores/useAppStore';
 import { useChatStore } from '@/renderer/hooks/useChatStore';
@@ -139,11 +140,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT - Simulate title generation
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'How to learn JavaScript?' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'How to learn JavaScript?' }),
       ];
 
       const titleStream = adapter.generateTitle('thread-123', messages);
@@ -160,11 +157,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT - Simulate title generation
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'How to learn JavaScript?' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'How to learn JavaScript?' }),
       ];
 
       adapter.generateTitle('thread-123', messages);
@@ -286,11 +279,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT - Generate title with failing AI
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'How do I learn?' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'How do I learn?' }),
       ];
 
       // ASSERT - Should not throw even when AI fails
@@ -309,11 +298,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'Some question' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'Some question' }),
       ];
 
       // ASSERT - Should not throw
@@ -332,11 +317,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'Another question' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'Another question' }),
       ];
 
       // ASSERT - Should not throw
@@ -355,11 +336,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'Yet another question' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'Yet another question' }),
       ];
 
       // ASSERT - Should not throw
@@ -379,11 +356,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: longText }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: longText }),
       ];
 
       // ASSERT - Should not throw and return a stream
@@ -442,11 +415,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
       // ARRANGE
       // ACT - Generate title with no user messages
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'assistant' as const,
-          content: [{ type: 'text' as const, text: 'Hello!' }],
-        },
+        makeThreadAssistantMessage({ id: 'msg-1', text: 'Hello!' }),
       ];
 
       // ASSERT - Should not throw and return a stream
@@ -462,11 +431,7 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
 
       // ACT
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'Test' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'Test' }),
       ];
 
       // ASSERT - Should fallback gracefully

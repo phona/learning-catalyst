@@ -3,7 +3,8 @@ import { createThreadListAdapter } from '../useThreadListAdapter.helpers';
 import { createSessionService } from '@/renderer/services/session/session-service';
 import { createChatService } from '@/renderer/services/chat/chat-service';
 import type { ElectronAPI } from '@/shared/types';
-import { IPCError } from '../useElectronAPI';
+import { IPCError } from '../useElectronAPI.helpers';
+import { makeThreadAssistantMessage, makeThreadUserMessage } from '@/test/utils/assistant-messages';
 
 /**
  * Mock electronAPI for testing
@@ -24,15 +25,14 @@ const createMockElectronAPI = () => ({
 });
 
 type MockElectronAPI = ReturnType<typeof createMockElectronAPI>;
-type GlobalWithWindow = typeof globalThis & { window: { electronAPI: MockElectronAPI } };
 
 /**
  * Injects the mock Electron API into the global window so the adapter
  * uses the test double instead of real IPC.
  */
 const setupWindowMock = (mockAPI: MockElectronAPI) => {
-  (globalThis as GlobalWithWindow).window = {
-    electronAPI: mockAPI,
+  (globalThis as any).window = {
+    electronAPI: mockAPI as unknown as ElectronAPI,
   };
 };
 
@@ -45,8 +45,8 @@ describe('ThreadListAdapter', () => {
   beforeEach(() => {
     mockElectronAPI = createMockElectronAPI();
     setupWindowMock(mockElectronAPI);
-    sessionService = createSessionService(mockElectronAPI as ElectronAPI);
-    chatService = createChatService(mockElectronAPI as ElectronAPI);
+    sessionService = createSessionService(mockElectronAPI as unknown as ElectronAPI);
+    chatService = createChatService(mockElectronAPI as unknown as ElectronAPI);
     adapter = createThreadListAdapter({ sessionService, chatService });
     vi.clearAllMocks();
   });
@@ -445,11 +445,7 @@ describe('ThreadListAdapter', () => {
       });
 
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: 'How do I learn JavaScript?' }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: 'How do I learn JavaScript?' }),
       ];
 
       const stream = await adapter.generateTitle('thread-1', messages);
@@ -476,11 +472,7 @@ describe('ThreadListAdapter', () => {
       });
 
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'user' as const,
-          content: [{ type: 'text' as const, text: longText }],
-        },
+        makeThreadUserMessage({ id: 'msg-1', text: longText }),
       ];
 
       const stream = await adapter.generateTitle('thread-1', messages);
@@ -504,11 +496,7 @@ describe('ThreadListAdapter', () => {
       });
 
       const messages = [
-        {
-          id: 'msg-1',
-          role: 'assistant' as const,
-          content: [{ type: 'text' as const, text: 'Hello!' }],
-        },
+        makeThreadAssistantMessage({ id: 'msg-1', text: 'Hello!' }),
       ];
 
       const stream = await adapter.generateTitle('thread-1', messages);

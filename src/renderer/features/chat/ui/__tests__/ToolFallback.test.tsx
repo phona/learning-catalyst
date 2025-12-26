@@ -23,8 +23,12 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
-import { ToolFallback } from '@/renderer/features/chat/ui/ToolFallback';
-import type { ToolCallMessagePartComponent } from '@assistant-ui/react';
+import { ToolFallback as ToolFallbackBase } from '@/renderer/features/chat/ui/ToolFallback';
+
+// ToolFallback is a ToolCallMessagePartComponent and its real prop type is very strict.
+// In tests we only care about rendering/output, so treat it as `any` and use helpers below
+// to provide the required minimal props when we want to be explicit.
+const ToolFallback = ToolFallbackBase as unknown as React.ComponentType<any>;
 
 /**
  * Helper function to create minimal ToolCallMessagePart props for testing

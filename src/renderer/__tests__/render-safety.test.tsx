@@ -41,7 +41,9 @@ describe('Render Safety', () => {
       const problematicObjects = createProblematicDataObjects();
 
       expect(() => {
-        renderWithServices(<div>{problematicObjects.apiResponseObject}</div>);
+        renderWithServices(
+          <div>{problematicObjects.apiResponseObject as unknown as React.ReactNode}</div>,
+        );
       }).toThrow('Objects are not valid as a React child');
     });
 
@@ -49,13 +51,13 @@ describe('Render Safety', () => {
       const problematicObjects = createProblematicDataObjects();
 
       expect(() => {
-        renderWithServices(<div>{problematicObjects.mixedArray}</div>);
+        renderWithServices(<div>{problematicObjects.mixedArray as unknown as React.ReactNode}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
     it('should reject Date objects', () => {
       expect(() => {
-        renderWithServices(<div>{new Date()}</div>);
+        renderWithServices(<div>{new Date() as unknown as React.ReactNode}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
@@ -63,7 +65,7 @@ describe('Render Safety', () => {
       const problematicObjects = createProblematicDataObjects();
 
       expect(() => {
-        renderWithServices(<div>{problematicObjects.nestedError}</div>);
+        renderWithServices(<div>{problematicObjects.nestedError as unknown as React.ReactNode}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
   });
@@ -79,7 +81,7 @@ describe('Render Safety', () => {
 
       // This would cause an error in production
       expect(() => {
-        renderWithServices(<div>{apiResponse}</div>);
+        renderWithServices(<div>{apiResponse as unknown as React.ReactNode}</div>);
       }).toThrow('Objects are not valid as a React child');
     });
 
@@ -115,7 +117,7 @@ describe('Render Safety', () => {
 
       // Wrong pattern - would crash
       expect(() => {
-        renderWithServices(<div>{errorResponse}</div>);
+        renderWithServices(<div>{errorResponse as unknown as React.ReactNode}</div>);
       }).toThrow();
 
       // Correct pattern - extract message
@@ -197,7 +199,7 @@ describe('Render Safety', () => {
 
       // Direct rendering would crash
       expect(() => {
-        renderWithServices(<div>{errorWithDetails}</div>);
+        renderWithServices(<div>{errorWithDetails as unknown as React.ReactNode}</div>);
       }).toThrow();
 
       // But we should extract the message
@@ -220,7 +222,7 @@ describe('Render Safety', () => {
 
       // Should not render the whole object
       expect(() => {
-        renderWithServices(<div>{serviceResponse}</div>);
+        renderWithServices(<div>{serviceResponse as unknown as React.ReactNode}</div>);
       }).toThrow();
 
       // Should extract and render specific properties

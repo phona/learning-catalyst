@@ -154,18 +154,25 @@ const createMockDatabase = () => ({
 });
 
 // Mock global objects
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+  // Some libs pass a callback (ignored in tests)
+  constructor(_callback?: ResizeObserverCallback) {}
+}
+
+class MockIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+
+  constructor(_callback?: IntersectionObserverCallback) {}
+}
+
+(globalThis as any).ResizeObserver = MockResizeObserver;
+(globalThis as any).IntersectionObserver = MockIntersectionObserver;
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {

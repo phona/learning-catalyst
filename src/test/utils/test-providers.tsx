@@ -8,11 +8,12 @@ import type { ElectronAPI } from '@/shared/types/electron-api';
 import { ChatStoreProvider } from '@/renderer/stores/chat/ChatStoreProvider';
 import { ElectronAPIProvider } from '@/renderer/hooks/useElectronAPI';
 import { AssistantProvider } from '@assistant-ui/react';
+import type { AssistantApi } from '@assistant-ui/react';
 
 // Create a minimal mock Assistant API for testing
 // The assistant-ui library uses ProxiedAssistantState which calls api.threads().getState()
 // and expects threads.threadIds.length and threads.archivedThreadIds.length
-const createMockAssistantApi = () => {
+const createMockAssistantApi = (): AssistantApi => {
   const listeners = new Set<() => void>();
 
   // State structure that matches what assistant-ui expects
@@ -20,15 +21,26 @@ const createMockAssistantApi = () => {
   const emptyState = {};
   const emptyArrayState = { length: 0 };
 
+  const createApiField = <T,>(get: () => T) => {
+    const fn = get as any;
+    fn.source = null;
+    fn.query = {};
+    return fn;
+  };
+
   return {
     // Main subscription for useSyncExternalStore
     subscribe: (listener: () => void) => {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
 
+    on: () => () => {},
+
     // These methods return store-like objects that ProxiedAssistantState uses
-    threads: () => ({
+    threads: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => threadsState,
       getState: () => threadsState,
@@ -36,23 +48,23 @@ const createMockAssistantApi = () => {
       switchToNewThread: vi.fn(),
       item: vi.fn(),
       thread: vi.fn(),
-    }),
-    tools: () => ({
+    })),
+    tools: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyArrayState,
       getState: () => emptyArrayState,
-    }),
-    modelContext: () => ({
+    })),
+    modelContext: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyState,
       getState: () => emptyState,
-    }),
-    thread: () => ({
+    })),
+    thread: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyState,
       getState: () => emptyState,
-    }),
-    threadListItem: () => ({
+    })),
+    threadListItem: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => ({ id: 'thread-123', remoteId: 'remote-123', externalId: 'external-123', title: 'Test Thread', status: 'regular' }),
       getState: () => ({ id: 'thread-123', remoteId: 'remote-123', externalId: 'external-123', title: 'Test Thread', status: 'regular' }),
@@ -64,27 +76,27 @@ const createMockAssistantApi = () => {
       generateTitle: vi.fn(),
       initialize: vi.fn(),
       detach: vi.fn(),
-    }),
-    composer: () => ({
+    })),
+    composer: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyState,
       getState: () => emptyState,
-    }),
-    message: () => ({
+    })),
+    message: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyState,
       getState: () => emptyState,
-    }),
-    part: () => ({
+    })),
+    part: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyState,
       getState: () => emptyState,
-    }),
-    attachment: () => ({
+    })),
+    attachment: createApiField(() => ({
       subscribe: (l: () => void) => ({ unsubscribe: () => {} }),
       getSnapshot: () => emptyState,
       getState: () => emptyState,
-    }),
+    })),
   };
 };
 
@@ -100,24 +112,39 @@ export const Providers = ({
   routerProps,
   electronAPI,
   serviceOverrides,
+  withAssistantProvider = true,
 }: {
   children: React.ReactNode;
   routerProps?: React.ComponentProps<typeof MemoryRouter>;
   electronAPI?: ElectronAPI;
-  serviceOverrides?: React.ComponentProps<typeof ServicesProvider>['overrides'];
+  serviceOverrides?: TestServiceOverrides;
+  withAssistantProvider?: boolean;
 }): React.ReactElement => (
   <QueryLayer>
     <ElectronAPIProvider api={electronAPI ?? defaultElectronClient}>
-      <AssistantProvider api={createMockAssistantApi()}>
+      {withAssistantProvider ? (
+        <AssistantProvider api={createMockAssistantApi()}>
+          <MemoryRouter {...routerProps}>
+            <ServicesProvider
+              apiClient={electronAPI ?? defaultElectronClient}
+              overrides={serviceOverrides as any}
+            >
+              <ChatStoreProvider>{children}</ChatStoreProvider>
+            </ServicesProvider>
+          </MemoryRouter>
+        </AssistantProvider>
+      ) : (
         <MemoryRouter {...routerProps}>
-          <ServicesProvider
-            apiClient={electronAPI ?? defaultElectronClient}
-            overrides={serviceOverrides}
-          >
+          <ServicesProvider apiClient={electronAPI ?? defaultElectronClient} overrides={serviceOverrides as any}>
             <ChatStoreProvider>{children}</ChatStoreProvider>
           </ServicesProvider>
         </MemoryRouter>
-      </AssistantProvider>
+      )}
     </ElectronAPIProvider>
   </QueryLayer>
 );
+
+type ProductionServiceOverrides = NonNullable<React.ComponentProps<typeof ServicesProvider>['overrides']>;
+export type TestServiceOverrides = {
+  [K in keyof ProductionServiceOverrides]?: Partial<NonNullable<ProductionServiceOverrides[K]>>;
+};

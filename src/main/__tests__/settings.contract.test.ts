@@ -2,17 +2,70 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createIpcPair } from '@/test/utils/fakes/ipc-fake';
 import { setupSettingsHandlers } from '@/main/handlers/settings-handlers';
 import { IPC_ERROR_CODES } from '@/shared/types/ipc-error';
+import type { AppConfig } from '@/shared/types';
+import type { ConfigService } from '@/main/services/core/config/config-service';
 
 // DI pattern: Create mocked dependencies following testing guide best practices
-const createConfigService = () => ({
-  getConfig: vi.fn(async () => ({ ai: { providers: {} }, ui: {}, learning: {}, privacy: {} })),
-  setConfig: vi.fn(async () => undefined),
-  get: vi.fn(async () => undefined),
-  getProviderConfig: vi.fn(async () => undefined),
-  setProviderConfig: vi.fn(async () => undefined),
-  onConfigChanged: vi.fn(() => vi.fn()),
-  isSetupComplete: vi.fn(async () => true),
-});
+const createConfigService = (): ConfigService => {
+  const config: AppConfig = {
+    ai: { providers: {}, embeddingDimensions: 1536 },
+    ui: {
+      theme: 'light',
+      showTokenUsage: false,
+      displayFormat: 'detailed',
+      sessionDuration: 25,
+      fontSize: 'medium',
+      sidebarWidth: 300,
+      autoSave: true,
+      autoScroll: true,
+      showLineNumbers: false,
+      enableMarkdown: true,
+      enableSyntaxHighlighting: true,
+      compactMode: false,
+    },
+    learning: {
+      autoSave: true,
+      sessionTimeoutMinutes: 60,
+      difficulty: 'intermediate',
+      learningStyle: 'visual',
+      personalizationEnabled: true,
+      checkpointInterval: 15,
+      maxSessionHistory: 100,
+      enableAnalytics: false,
+      preferredExplanationLength: 'detailed',
+    },
+    privacy: {
+      storeConversations: true,
+      retentionDays: 90,
+      anonymousAnalytics: false,
+      crashReporting: true,
+      encryptLocalStorage: false,
+      autoCleanup: true,
+      exportFormat: 'json',
+    },
+    performance: {
+      cacheSizeMb: 100,
+      enableCaching: true,
+      maxConcurrentRequests: 5,
+      requestTimeout: 30,
+      memoryLimitMb: 512,
+      gpuAcceleration: false,
+      backgroundProcessing: true,
+      preloadModels: false,
+    },
+    parsing: {},
+  };
+
+  return {
+    getConfig: vi.fn(async () => config),
+    setConfig: vi.fn(async () => undefined),
+    get: vi.fn(async () => undefined) as any,
+    getProviderConfig: vi.fn(async () => undefined),
+    setProviderConfig: vi.fn(async () => undefined),
+    onConfigChanged: vi.fn(() => vi.fn()),
+    isSetupComplete: vi.fn(async () => true),
+  };
+};
 
 describe('[TC-501] settings IPC contract', () => {
   beforeEach(() => {

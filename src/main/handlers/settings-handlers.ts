@@ -29,9 +29,16 @@ const configuredProviders: Record<string, ProviderConfig> = {};
 
 export const setupSettingsHandlers = (
   ipcMainInstance: typeof ipcMain,
-  deps: { configService: ConfigService },
+  deps: {
+    configService: ConfigService;
+    app?: {
+      getVersion: () => string;
+      quit: () => void;
+    };
+  },
 ): void => {
   const configService = deps.configService;
+  const appInstance = deps.app ?? app;
 
   ipcMainInstance.handle('settings:get-user-preferences', async () => userPreferences);
 
@@ -83,10 +90,10 @@ export const setupSettingsHandlers = (
     return undefined;
   });
 
-  ipcMainInstance.handle('settings:getAppVersion', async () => app.getVersion());
+  ipcMainInstance.handle('settings:getAppVersion', async () => appInstance.getVersion());
 
   ipcMainInstance.handle('settings:quitApp', async () => {
-    app.quit();
+    appInstance.quit();
     return undefined;
   });
 };

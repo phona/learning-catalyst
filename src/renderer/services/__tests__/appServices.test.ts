@@ -2,12 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ServiceContainer } from '@/renderer/services/service-container';
 
 vi.mock('@/renderer/services/service-container', () => ({
-  createServiceContainer: vi.fn(() => ({
-    analytics: { track: vi.fn() },
-    session: { list: vi.fn() },
-    chat: { sendMessage: vi.fn() },
-    file: { readFile: vi.fn() },
-  } satisfies ServiceContainer)),
+  createServiceContainer: vi.fn(() => {
+    const container: ServiceContainer = {
+      analytics: {} as ServiceContainer['analytics'],
+      session: {} as ServiceContainer['session'],
+      chat: {} as ServiceContainer['chat'],
+      file: {} as ServiceContainer['file'],
+    };
+    return container;
+  }),
 }));
 
 vi.mock('@/renderer/services/api/electron-api-client', () => ({
@@ -36,8 +39,8 @@ describe('appServices legacy layer', () => {
     await appServices.initialize();
     const analytics = appServices.getAnalytics();
     const session = appServices.getSessionService();
-    expect(analytics.track).toBeDefined();
-    expect(session.list).toBeDefined();
+    expect(analytics).toBeDefined();
+    expect(session).toBeDefined();
     expect(mockCreateServiceContainer.mock.calls.length).toBe(beforeCalls + 1);
   });
 

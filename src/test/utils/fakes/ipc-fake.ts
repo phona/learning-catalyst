@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 
-type IpcHandler = (event: { sender: IpcRendererFake }, ...args: unknown[]) => unknown | Promise<unknown>;
+type IpcHandler = (event: any, ...args: any[]) => unknown | Promise<unknown>;
 type HandlerMap = Map<string, IpcHandler>;
 
 class IpcMainFake extends EventEmitter {
@@ -9,6 +9,14 @@ class IpcMainFake extends EventEmitter {
 
   handle(channel: string, handler: IpcHandler) {
     this.handlers.set(channel, handler);
+  }
+
+  handleOnce(channel: string, handler: IpcHandler) {
+    const wrapped: IpcHandler = async (event, ...args) => {
+      this.handlers.delete(channel);
+      return handler(event, ...args);
+    };
+    this.handlers.set(channel, wrapped);
   }
 
   removeHandler(channel: string) {
@@ -24,7 +32,7 @@ class IpcMainFake extends EventEmitter {
     if (!handler) {
       throw new Error(`No handler registered for ${channel}`);
     }
-    return handler({ sender: this.defaultSender ?? rendererSentinel }, ...args);
+    return await handler({ sender: this.defaultSender ?? rendererSentinel }, ...args);
   }
 }
 
@@ -39,7 +47,7 @@ class IpcRendererFake extends EventEmitter {
   }
 
   async invoke(channel: string, ...args: unknown[]) {
-    return this.main.invoke(channel, ...args);
+    return (await this.main.invoke(channel, ...args)) as any;
   }
 }
 

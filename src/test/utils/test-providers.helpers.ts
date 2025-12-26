@@ -11,6 +11,7 @@ import type { ElectronAPI } from '@/shared/types/electron-api';
 import type { AppConfig } from '@/shared/types/config';
 import { Providers } from './test-providers';
 import { MemoryRouter } from 'react-router-dom';
+import type { TestServiceOverrides } from './test-providers';
 
 const readyElectronClient: ElectronAPI = (() => {
   const client = createMockElectronAPIClient();
@@ -46,13 +47,15 @@ export const renderWithServices = (
     renderOptions,
     serviceOverrides,
     preloadedConfig,
+    withAssistantProvider,
   }: {
     routerProps?: React.ComponentProps<typeof MemoryRouter>;
     electronUnavailable?: boolean;
     electronAPI?: ElectronAPI;
     renderOptions?: Parameters<typeof render>[1];
-    serviceOverrides?: React.ComponentProps<typeof ServicesProvider>['overrides'];
+    serviceOverrides?: TestServiceOverrides;
     preloadedConfig?: AppConfig;
+    withAssistantProvider?: boolean;
   } = {},
 ): ReturnType<typeof render> => {
   const noWindowElectron =
@@ -87,7 +90,7 @@ export const renderWithServices = (
   return render(
     React.createElement(
       Providers,
-      { routerProps, electronAPI: client, serviceOverrides },
+      { routerProps, electronAPI: client, serviceOverrides, withAssistantProvider },
       ui,
     ),
     renderOptions,
@@ -115,4 +118,3 @@ export const renderWithSettings = (
     renderOptions,
   );
 };
-
