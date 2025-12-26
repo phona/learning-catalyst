@@ -11,7 +11,7 @@
 
 import { interrupt } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { TeachAnnotation } from '../state';
@@ -121,7 +121,7 @@ export const explainNode =
 
       // Get LLM response with streaming support
       const model = await deps.providerFactory.getModel();
-      const content = await streamLLM({
+      const { content } = await streamLLM({
         model,
         messages,
         config,
@@ -150,7 +150,7 @@ export const explainNode =
           '';
 
       return {
-        messages: [new AIMessage(content)],
+        messages: [new AIMessage(content), new HumanMessage(userAnswer)],
         userAnswer,
         teach: {
           teachingRound: round,

@@ -125,7 +125,7 @@ export const remediatePracticeNode =
         new HumanMessage(prompt),
       ];
 
-      const content = await streamLLM({ model, messages, config, streamMode });
+      const { content } = await streamLLM({ model, messages, config, streamMode });
 
       deps.loggerService.info('remediatePracticeNode: remediation delivered', {
         topic: state.topic,

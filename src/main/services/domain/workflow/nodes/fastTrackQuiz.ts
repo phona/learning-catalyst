@@ -133,11 +133,11 @@ Generate 2-3 diagnostic questions that:
 - Help identify specific knowledge gaps
 - Teach something even while assessing
 
-Present them in a supportive, encouraging tone:
-"Let's see what you already know about [topic]. I'll ask a few quick questions to understand where you're at."
+  Present them in a supportive, encouraging tone:
+  "Let's see what you already know about [topic]. I'll ask a few quick questions to understand where you're at."
 
-End by asking them to share their thoughts/answers.`;
-  const quizContent = await streamLLM({
+  End by asking them to share their thoughts/answers.`;
+  const { content: quizContent } = await streamLLM({
     model,
     messages: [new HumanMessage(prompt)],
     config,
@@ -203,8 +203,11 @@ End by asking them to share their thoughts/answers.`;
    * Provide all necessary data for next node (GRADE_QUIZ)
    */
   return {
-    // Add quiz content as assistant message for conversation flow
-    messages: [new AIMessage(quizContent)],
+    // Persist both quiz prompt and the user's reply (in chronological order)
+    messages: [
+      new AIMessage(quizContent),
+      new HumanMessage(answer),
+    ],
     // Store quiz content for potential UI rendering
     practicePrompt: quizContent,
     // Store user's answer for grading

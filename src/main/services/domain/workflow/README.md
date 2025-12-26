@@ -515,6 +515,76 @@ await graph.stream(new Command({ resume: 'user text' }));
 
 ---
 
+### Interrupt and Message Persistence
+
+When using `interrupt()` to wait for user input, nodes **MUST return both** the user's reply and the assistant's response to ensure complete conversation history is persisted to checkpoints.
+
+**Why this matters:**
+- When resuming from an interrupt, `Command({ resume: value })` passes the user's input directly to the interrupt point
+- Without creating a `HumanMessage`, the user's reply is processed but NOT saved to checkpoints
+- After page refresh, the conversation history is missing the user's input
+
+**Correct pattern:**
+
+```typescript
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { interrupt } from '@langchain/langgraph';
+
+export const exampleNode = (deps: WorkflowDeps) => async (
+  state: typeof WorkflowStateAnnotation.State,
+  config: LangGraphRunnableConfig
+) => {
+  // Generate or stream assistant response
+  const { content } = await streamLLM({ model, messages, config, streamMode });
+
+  // Interrupt for user input
+  const resumeValue = await interrupt({
+    type: 'example_type',
+    prompt: content,
+  });
+
+  // Extract user's reply from resume value
+  const userAnswer = typeof resumeValue === 'string'
+    ? resumeValue
+    : (resumeValue as { answer?: string })?.answer ?? '';
+
+  // Return BOTH messages - prompt first, then the user's reply (chronological)
+  return {
+    messages: [
+      new AIMessage(content),        // Assistant prompt - persisted to checkpoint
+      new HumanMessage(userAnswer),  // User's reply - persisted to checkpoint
+    ],
+    // ... other state updates
+  };
+};
+```
+
+**Correct order:** Return messages in **chronological order** (earlier first).
+
+- If `interrupt({ prompt })` shows the assistant prompt *before* the user replies, persist as `[new AIMessage(prompt), new HumanMessage(userAnswer)]`.
+- If you generate an assistant response *after* reading the user's input (no prompt-before-reply), persist as `[new HumanMessage(userAnswer), new AIMessage(response)]`.
+
+**Common mistake to avoid:**
+
+```typescript
+// ❌ BAD: User's reply missing from conversation history
+return {
+  messages: [new AIMessage(content)],  // Only assistant message saved!
+  userAnswer,  // Stored in separate state field, NOT as message
+};
+
+// ✅ GOOD: Complete conversation pair persisted
+return {
+  messages: [
+    new HumanMessage(userAnswer),  // User's reply
+    new AIMessage(content),        // Assistant's response
+  ],
+  userAnswer,
+};
+```
+
+---
+
 ### Pattern 3: Assessment Node
 
 ```typescript

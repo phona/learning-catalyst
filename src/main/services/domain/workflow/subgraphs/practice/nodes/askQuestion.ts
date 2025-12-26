@@ -14,7 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import { interrupt } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
@@ -76,9 +76,10 @@ export const askQuestionNode =
         deps.loggerService.debug('askQuestionNode: resuming with existing question');
 
         // Wait for user input on existing question
+        const prompt = state.practice.currentQuestion;
         const resumeValue = await interrupt({
           type: 'practice_question',
-          prompt: state.practice.currentQuestion,
+          prompt,
           questionId: randomUUID(),
         });
 
@@ -89,7 +90,16 @@ export const askQuestionNode =
             (resumeValue as { answer?: string; content?: string })?.content ??
             '';
 
+        const lastMessage = state.messages?.[state.messages.length - 1];
+        const alreadyHasPrompt =
+          !!lastMessage &&
+          AIMessage.isInstance(lastMessage) &&
+          String((lastMessage as any).content ?? '') === prompt;
+
         return {
+          messages: alreadyHasPrompt
+            ? [new HumanMessage(answer)]
+            : [new AIMessage(prompt), new HumanMessage(answer)],
           userAnswer: answer,
         };
       }
@@ -130,7 +140,7 @@ export const askQuestionNode =
       });
 
       const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
-      const questionContent = await streamLLM({
+      const { content: questionContent } = await streamLLM({
         model,
         messages,
         config,
@@ -169,7 +179,10 @@ export const askQuestionNode =
       });
 
       return {
-        messages: [new AIMessage(questionContent)],
+        messages: [
+          new AIMessage(questionContent),
+          new HumanMessage(answer),
+        ],
         practicePrompt: questionContent,
         userAnswer: answer,
         practice: {

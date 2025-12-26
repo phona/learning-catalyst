@@ -47,7 +47,7 @@ describe('streamLLM', () => {
 
   describe('streaming path (streamMode === true)', () => {
     it('should stream tokens and emit chunks', async () => {
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: mockModel,
         messages,
         config: mockConfig,
@@ -59,7 +59,8 @@ describe('streamLLM', () => {
       expect(mockModel.invoke).not.toHaveBeenCalled();
 
       // Verify complete content was returned
-      expect(content).toBe('Hello world!');
+      expect(result.content).toBe('Hello world!');
+      expect(result.reasoning).toBeUndefined();
 
       // Verify chunks were emitted in correct order
       expect(mockWriter).toHaveBeenCalledTimes(5); // text-start, 3x text-delta, text-end
@@ -112,21 +113,22 @@ describe('streamLLM', () => {
         }),
       } as unknown as BaseChatModel;
 
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: emptyModel,
         messages,
         config: mockConfig,
         streamMode: true,
       });
 
-      expect(content).toBe('');
+      expect(result.content).toBe('');
+      expect(result.reasoning).toBeUndefined();
       expect(mockWriter).toHaveBeenCalledTimes(2); // text-start, text-end (no deltas)
     });
   });
 
   describe('non-streaming path (streamMode !== true)', () => {
     it('should invoke and emit as single chunk when streamMode is false', async () => {
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: mockModel,
         messages,
         config: mockConfig,
@@ -138,7 +140,8 @@ describe('streamLLM', () => {
       expect(mockModel.stream).not.toHaveBeenCalled();
 
       // Verify complete content was returned
-      expect(content).toBe('Complete response');
+      expect(result.content).toBe('Complete response');
+      expect(result.reasoning).toBeUndefined();
 
       // Verify chunks were emitted (when writer is available)
       expect(mockWriter).toHaveBeenCalledTimes(3); // text-start, text-delta, text-end
@@ -155,7 +158,7 @@ describe('streamLLM', () => {
     it('should invoke without emitting when streamMode is false and no writer', async () => {
       const configWithoutWriter = {} as LangGraphRunnableConfig;
 
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: mockModel,
         messages,
         config: configWithoutWriter,
@@ -167,13 +170,14 @@ describe('streamLLM', () => {
       expect(mockModel.stream).not.toHaveBeenCalled();
 
       // Verify complete content was returned
-      expect(content).toBe('Complete response');
+      expect(result.content).toBe('Complete response');
+      expect(result.reasoning).toBeUndefined();
 
       // No writer = no emission (no errors thrown)
     });
 
     it('should invoke and emit as single chunk when streamMode is undefined', async () => {
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: mockModel,
         messages,
         config: mockConfig,
@@ -185,7 +189,8 @@ describe('streamLLM', () => {
       expect(mockModel.stream).not.toHaveBeenCalled();
 
       // Verify complete content was returned
-      expect(content).toBe('Complete response');
+      expect(result.content).toBe('Complete response');
+      expect(result.reasoning).toBeUndefined();
 
       // Verify chunks were emitted
       expect(mockWriter).toHaveBeenCalledTimes(3);
@@ -254,14 +259,15 @@ describe('streamLLM', () => {
         invoke: vi.fn().mockResolvedValue({ content: 'String content' }),
       } as unknown as BaseChatModel;
 
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: stringModel,
         messages,
         config: mockConfig,
         streamMode: false,
       });
 
-      expect(content).toBe('String content');
+      expect(result.content).toBe('String content');
+      expect(result.reasoning).toBeUndefined();
     });
 
     it('should handle empty content from invoke', async () => {
@@ -269,14 +275,15 @@ describe('streamLLM', () => {
         invoke: vi.fn().mockResolvedValue({ content: null }),
       } as unknown as BaseChatModel;
 
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: emptyModel,
         messages,
         config: mockConfig,
         streamMode: false,
       });
 
-      expect(content).toBe('');
+      expect(result.content).toBe('');
+      expect(result.reasoning).toBeUndefined();
     });
 
     it('should handle undefined content from invoke', async () => {
@@ -284,14 +291,254 @@ describe('streamLLM', () => {
         invoke: vi.fn().mockResolvedValue({ content: undefined }),
       } as unknown as BaseChatModel;
 
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: undefinedModel,
         messages,
         config: mockConfig,
         streamMode: false,
       });
 
-      expect(content).toBe('');
+      expect(result.content).toBe('');
+      expect(result.reasoning).toBeUndefined();
+    });
+  });
+
+  describe('reasoning content handling', () => {
+    it('should detect reasoning in content blocks', async () => {
+      const reasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [
+            { type: 'reasoning', reasoning: 'Let me think...' },
+            { type: 'text', text: 'Final answer.' },
+          ],
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: reasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.reasoning).toBe('Let me think...');
+      expect(result.content).toBe('Final answer.');
+    });
+
+    it('should emit reasoning chunks in streaming mode', async () => {
+      const reasoningStreamingModel = {
+        stream: vi.fn().mockImplementation(async function* () {
+          yield { content: [{ type: 'reasoning', reasoning: 'A' }] };
+          yield { content: [{ type: 'reasoning', reasoning: 'B' }] };
+          yield { content: [{ type: 'text', text: 'C' }] };
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: reasoningStreamingModel,
+        messages,
+        config: mockConfig,
+        streamMode: true,
+      });
+
+      expect(result.reasoning).toBe('AB');
+      expect(result.content).toBe('C');
+
+      const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
+      const types = chunks.map((c) => c.type);
+      expect(types).toEqual([
+        'text-start',
+        'reasoning-start',
+        'reasoning-delta',
+        'reasoning-delta',
+        'reasoning-end',
+        'text-delta',
+        'text-end',
+      ]);
+    });
+
+    it('should return reasoning in result', async () => {
+      const reasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [{ type: 'reasoning', reasoning: 'Reason' }],
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: reasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.content).toBe('');
+      expect(result.reasoning).toBe('Reason');
+    });
+
+    it('should handle mixed reasoning and text chunks', async () => {
+      const mixedModel = {
+        stream: vi.fn().mockImplementation(async function* () {
+          yield {
+            content: [
+              { type: 'reasoning', reasoning: 'R1' },
+              { type: 'text', text: 'T1' },
+            ],
+          };
+          yield {
+            content: [
+              { type: 'reasoning', reasoning: 'R2' },
+              { type: 'text', text: 'T2' },
+            ],
+          };
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: mixedModel,
+        messages,
+        config: mockConfig,
+        streamMode: true,
+      });
+
+      expect(result.reasoning).toBe('R1R2');
+      expect(result.content).toBe('T1T2');
+    });
+
+    it('should handle reasoning-only response', async () => {
+      const reasoningOnlyModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [{ type: 'reasoning', reasoning: 'Only reasoning' }],
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: reasoningOnlyModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.content).toBe('');
+      expect(result.reasoning).toBe('Only reasoning');
+    });
+
+    it('should handle text-only response (no reasoning)', async () => {
+      const textOnlyModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [{ type: 'text', text: 'Text only' }],
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: textOnlyModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.content).toBe('Text only');
+      expect(result.reasoning).toBeUndefined();
+    });
+
+    it('should emit reasoning in non-streaming mode', async () => {
+      const reasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [
+            { type: 'reasoning', reasoning: 'Think' },
+            { type: 'text', text: 'Speak' },
+          ],
+        }),
+      } as unknown as BaseChatModel;
+
+      await streamLLM({
+        model: reasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
+      const types = chunks.map((c) => c.type);
+      expect(types).toEqual([
+        'text-start',
+        'reasoning-start',
+        'reasoning-delta',
+        'reasoning-end',
+        'text-delta',
+        'text-end',
+      ]);
+    });
+
+    it('should use same messageId for reasoning and text', async () => {
+      const reasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [
+            { type: 'reasoning', reasoning: 'Think' },
+            { type: 'text', text: 'Speak' },
+          ],
+        }),
+      } as unknown as BaseChatModel;
+
+      await streamLLM({
+        model: reasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+        messageId: 'msg-same-id',
+      });
+
+      const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
+      const ids = chunks
+        .filter((c) => 'id' in c)
+        .map((c) => (c as { id: string }).id);
+      expect(new Set(ids)).toEqual(new Set(['msg-same-id']));
+    });
+
+    it('should handle empty reasoning block', async () => {
+      const emptyReasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [
+            { type: 'reasoning', reasoning: '' },
+            { type: 'text', text: 'Answer' },
+          ],
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: emptyReasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.reasoning).toBe('');
+      expect(result.content).toBe('Answer');
+
+      const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
+      const reasoningDeltas = chunks.filter((c) => c.type === 'reasoning-delta');
+      expect(reasoningDeltas).toHaveLength(0);
+    });
+
+    it('should handle multiple reasoning blocks', async () => {
+      const multiReasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: [
+            { type: 'reasoning', reasoning: 'R1' },
+            { type: 'reasoning', reasoning: 'R2' },
+            { type: 'text', text: 'T' },
+          ],
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: multiReasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.reasoning).toBe('R1R2');
+      expect(result.content).toBe('T');
     });
   });
 
@@ -341,7 +588,7 @@ describe('streamLLM', () => {
         configurable: {},
       } as LangGraphRunnableConfig;
 
-      const content = await streamLLM({
+      const result = await streamLLM({
         model: mockModel,
         messages,
         config: configWithWriter,
@@ -349,7 +596,8 @@ describe('streamLLM', () => {
       });
 
       // Verify content
-      expect(content).toBe('Hello world!');
+      expect(result.content).toBe('Hello world!');
+      expect(result.reasoning).toBeUndefined();
 
       // Verify all chunks were captured
       expect(capturedChunks.length).toBeGreaterThan(0);

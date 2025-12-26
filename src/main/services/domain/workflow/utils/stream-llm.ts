@@ -9,12 +9,12 @@
  * - Single function for both streaming and non-streaming modes
  * - Reuses existing createChunkEmitter for token emission
  * - Explicit === true check for stream mode (undefined/false both use invoke)
- * - Returns complete content for both modes (nodes need full response)
+ * - Returns complete response content (and optional reasoning) for both modes
  *
  * USAGE:
  * ```typescript
  * const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
- * const content = await streamLLM({
+ * const { content, reasoning } = await streamLLM({
  *   model,
  *   messages,
  *   config,
@@ -26,12 +26,12 @@
  * PHILOSOPHY:
  * - Consistent pattern across all user-facing nodes
  * - Streaming behavior controlled by single config
- * - Backward compatible (undefined = non-streaming)
+ * - Backward compatible streaming toggle (undefined = non-streaming)
  * - Minimal code changes in nodes
  */
 
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { BaseMessage } from '@langchain/core/messages';
+import type { AIMessageChunk, BaseMessage, ContentBlock } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { createChunkEmitter, generateId } from './chunk-emitter';
 
@@ -49,6 +49,88 @@ export interface StreamLLMOptions {
   messageId?: string;
   /** Enable streaming mode (explicit === true check) */
   streamMode?: boolean;
+}
+
+/**
+ * Result of a streamLLM call.
+ *
+ * - `content`: The user-visible response text.
+ * - `reasoning`: Optional model reasoning/thinking text (if provided via content blocks).
+ */
+export interface StreamLLMResult {
+  content: string;
+  reasoning?: string;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isTextBlock(block: unknown): block is ContentBlock.Text {
+  return (
+    isObject(block) &&
+    block.type === 'text' &&
+    typeof (block as Record<string, unknown>).text === 'string'
+  );
+}
+
+function isReasoningBlock(block: unknown): block is ContentBlock.Reasoning {
+  return (
+    isObject(block) &&
+    block.type === 'reasoning' &&
+    typeof (block as Record<string, unknown>).reasoning === 'string'
+  );
+}
+
+/**
+ * Extract reasoning text from LangChain content blocks.
+ *
+ * Returns:
+ * - `undefined` when no reasoning blocks exist
+ * - `''` when reasoning blocks exist but are empty
+ */
+function extractReasoning(chunk: Pick<AIMessageChunk, 'content'>): string | undefined {
+  const { content } = chunk;
+
+  if (!Array.isArray(content)) {
+    return undefined;
+  }
+
+  let sawReasoning = false;
+  let reasoning = '';
+
+  for (const block of content) {
+    if (isReasoningBlock(block)) {
+      sawReasoning = true;
+      reasoning += block.reasoning;
+    }
+  }
+
+  return sawReasoning ? reasoning : undefined;
+}
+
+/**
+ * Extract user-visible text from LangChain content.
+ */
+function extractText(chunk: Pick<AIMessageChunk, 'content'>): string {
+  const { content } = chunk;
+
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  if (!Array.isArray(content)) {
+    return '';
+  }
+
+  let text = '';
+  for (const block of content) {
+    if (isTextBlock(block)) {
+      text += block.text;
+    }
+  }
+
+  return text;
 }
 
 /**
@@ -71,12 +153,12 @@ export interface StreamLLMOptions {
  * Callers should NOT manually emit after calling this function when writer is present.
  *
  * @param options - StreamLLMOptions containing model, messages, config, and stream mode
- * @returns Complete LLM response content as string
+ * @returns Object containing `content` and optional `reasoning`
  *
  * @example
  * ```typescript
  * const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
- * const content = await streamLLM({
+ * const { content, reasoning } = await streamLLM({
  *   model: await deps.providerFactory.getModel(),
  *   messages: formattedMessages,
  *   config,
@@ -85,7 +167,7 @@ export interface StreamLLMOptions {
  * // No manual emitter calls needed - streamLLM handles it
  * ```
  */
-export async function streamLLM(options: StreamLLMOptions): Promise<string> {
+export async function streamLLM(options: StreamLLMOptions): Promise<StreamLLMResult> {
   const { model, messages, config, streamMode } = options;
   const messageId = options.messageId ?? generateId('msg');
 
@@ -105,30 +187,69 @@ export async function streamLLM(options: StreamLLMOptions): Promise<string> {
     emitter.textStart(messageId);
 
     let fullContent = '';
+    let fullReasoning = '';
+    let reasoningStarted = false;
+    let reasoningEnded = false;
     const stream = await model.stream(messages);
 
     for await (const chunk of stream) {
-      const delta = chunk.content ?? '';
-      if (typeof delta === 'string') {
-        fullContent += delta;
-        emitter.textDelta(messageId, delta);
+      const reasoningDelta = extractReasoning(chunk);
+      if (reasoningDelta !== undefined) {
+        if (!reasoningStarted) {
+          emitter.reasoningStart(messageId);
+          reasoningStarted = true;
+        }
+
+        fullReasoning += reasoningDelta;
+        if (reasoningDelta.length > 0) {
+          emitter.reasoningDelta(messageId, reasoningDelta);
+        }
+      }
+
+      const textDelta = extractText(chunk);
+      if (textDelta.length > 0) {
+        if (reasoningStarted && !reasoningEnded && reasoningDelta === undefined) {
+          emitter.reasoningEnd(messageId);
+          reasoningEnded = true;
+        }
+        fullContent += textDelta;
+        emitter.textDelta(messageId, textDelta);
       }
     }
 
+    if (reasoningStarted && !reasoningEnded) {
+      emitter.reasoningEnd(messageId);
+    }
     emitter.textEnd(messageId);
-    return fullContent;
+    return {
+      content: fullContent,
+      reasoning: reasoningStarted ? fullReasoning : undefined,
+    };
   }
 
   // Non-streaming: invoke and optionally emit as single chunk
   const response = await model.invoke(messages);
-  const content = String(response.content ?? '');
+  const content = extractText(response);
+  const reasoningDelta = extractReasoning(response);
 
   if (hasWriter) {
     const emitter = createChunkEmitter(config);
     emitter.textStart(messageId);
+
+    if (reasoningDelta !== undefined) {
+      emitter.reasoningStart(messageId);
+      if (reasoningDelta.length > 0) {
+        emitter.reasoningDelta(messageId, reasoningDelta);
+      }
+      emitter.reasoningEnd(messageId);
+    }
+
     emitter.textDelta(messageId, content);
     emitter.textEnd(messageId);
   }
 
-  return content;
+  return {
+    content,
+    reasoning: reasoningDelta !== undefined ? reasoningDelta : undefined,
+  };
 }

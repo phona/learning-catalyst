@@ -14,7 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import { interrupt } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
@@ -120,7 +120,7 @@ async function generateResponse(
       hintLevel: String(newHintsGiven),
     });
 
-    const hint = await streamLLM({ model, messages, config, streamMode });
+    const { content: hint } = await streamLLM({ model, messages, config, streamMode });
 
     return {
       message: `**Hint ${newHintsGiven}/${MAX_HINTS}:**\n\n${hint}\n\nWhat's your answer?`,
@@ -136,7 +136,7 @@ async function generateResponse(
       userResponse: state.userAnswer ?? 'general confusion',
     });
 
-    const clarification = await streamLLM({ model, messages, config, streamMode });
+    const { content: clarification } = await streamLLM({ model, messages, config, streamMode });
 
     return {
       message: `${clarification}\n\nDoes that help? What's your answer?`,
@@ -250,7 +250,7 @@ export const handleConversationNode =
           : (resumeValue as { answer?: string })?.answer ?? '';
 
         return {
-          messages: [new AIMessage(maxTurnsMessage)],
+          messages: [new AIMessage(maxTurnsMessage), new HumanMessage(answer)],
           userAnswer: answer,
           practice: {
             conversationTurns: newTurns,
@@ -279,8 +279,17 @@ export const handleConversationNode =
           durationMs: duration,
         });
 
+        const userAnswer = state.userAnswer ?? '';
+        const lastMessage = state.messages?.[state.messages.length - 1];
+        const alreadyHasUserAnswer =
+          !!lastMessage &&
+          HumanMessage.isInstance(lastMessage) &&
+          String((lastMessage as any).content ?? '') === userAnswer;
+
         return {
-          messages: [new AIMessage(message)],
+          messages: alreadyHasUserAnswer
+            ? [new AIMessage(message)]
+            : [new HumanMessage(userAnswer), new AIMessage(message)],
           practice: {
             conversationTurns: newTurns,
             hintsGiven,
@@ -312,7 +321,7 @@ export const handleConversationNode =
       });
 
       return {
-        messages: [new AIMessage(message)],
+        messages: [new AIMessage(message), new HumanMessage(answer)],
         userAnswer: answer,
         practice: {
           conversationTurns: newTurns,
