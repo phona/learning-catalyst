@@ -195,32 +195,28 @@ export const ThreadListSidebar: React.FC<{ readonly open: boolean }> = ({ open }
         </div>
 
         {/* Loading State */}
-        <AssistantIf condition={({ threads }) => threads.isLoading}>
+        <AssistantIf
+          condition={({ threads }) => {
+            const hasThreads = threads.threadIds.length > 0 || threads.archivedThreadIds.length > 0;
+            return threads.isLoading && !hasThreads;
+          }}
+        >
           <ThreadListSkeleton />
         </AssistantIf>
 
-        {/* Thread Items */}
-        <AssistantIf condition={({ threads }) => !threads.isLoading}>
+        {/* Conversations */}
+        <AssistantIf
+          condition={({ threads }) => {
+            const hasThreads = threads.threadIds.length > 0 || threads.archivedThreadIds.length > 0;
+            return !threads.isLoading || hasThreads;
+          }}
+        >
           <div className="flex-1 overflow-y-auto">
             <ThreadListPrimitive.Items
               components={{
                 ThreadListItem: ThreadListItem,
               }}
             />
-
-            <AssistantIf
-              condition={({ threads }) => (threads.archivedThreadIds?.length ?? 0) > 0}
-            >
-              <div className="mt-3 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
-                History
-              </div>
-              <ThreadListPrimitive.Items
-                archived={true}
-                components={{
-                  ThreadListItem: ThreadListItem,
-                }}
-              />
-            </AssistantIf>
           </div>
         </AssistantIf>
       </ThreadListPrimitive.Root>

@@ -1,10 +1,8 @@
 # threadlist-history-refresh-and-tests Specification
 
 ## Purpose
-Prevent “history looks stuck loading / empty after refresh” and ensure tests cover the real runtime wiring.
-
-## ADDED Requirements
-
+TBD - created by archiving change fix-threadlist-history-refresh-and-tests. Update Purpose after archive.
+## Requirements
 ### Requirement: Refresh renders History when archived exists
 If there are archived threads, the sidebar MUST render them under a visible “History” section after loading completes.
 
@@ -45,3 +43,4 @@ ReadyApp -> remote thread list runtime -> adapter -> ThreadListSidebar
 - **Given** the renderer test suite is run
 - **When** tests execute
 - **Then** at least one integration test mounts the real runtime wiring and asserts History renders
+
