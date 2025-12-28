@@ -73,6 +73,15 @@ import type { ElectronAPI } from '@/shared/types';
 import { useElectronAPI } from './useElectronAPI';
 import { unwrapAPI } from './useElectronAPI.helpers';
 
+function toAssistantParts(msg: ChatHistoryMessage) {
+  const parts: Array<{ type: 'text' | 'reasoning'; text: string }> = [];
+  if (typeof msg.reasoning_content === 'string' && msg.reasoning_content.length > 0) {
+    parts.push({ type: 'reasoning', text: msg.reasoning_content });
+  }
+  parts.push({ type: 'text', text: msg.content });
+  return parts;
+}
+
 /**
  * Creates a ThreadHistoryAdapter that loads messages from SQLite.
  *
@@ -140,7 +149,7 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
               message: {
                 id: msg.id,
                 role: msg.role as 'user' | 'assistant' | 'system',
-                content: [{ type: 'text' as const, text: msg.content }],
+                content: toAssistantParts(msg),
                 createdAt: new Date(msg.timestamp),
                 status: { type: 'complete' as const, reason: 'stop' },
                 metadata: { custom: {} },
@@ -172,11 +181,6 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
         return {
           async load(): Promise<MessageFormatRepository<TMessage>> {
             const { id: threadId } = store.threadListItem().getState();
-            console.log(
-              '[ThreadHistoryAdapter.load] Called with format:',
-              formatAdapter.format,
-              threadId,
-            );
             if (!threadId) return { messages: [] };
 
             // We only store plain text messages today, so we can only synthesize
@@ -189,7 +193,6 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
 
             // Use chatService.getMessages() instead of direct API call
             const sessions = (await chatService.getMessages?.(threadId)) ?? [];
-            console.log('[ThreadHistoryAdapter.load] sessions:', sessions);
             if (sessions.length === 0) return { messages: [] };
 
             const messages = sessions.map((msg, idx, arr) =>
@@ -199,13 +202,12 @@ function useThreadHistoryAdapter(chatService: ChatService): ThreadHistoryAdapter
                 format: formatAdapter.format,
                 content: {
                   role: msg.role as 'user' | 'assistant' | 'system',
-                  parts: [{ type: 'text', text: msg.content }],
+                  parts: toAssistantParts(msg),
                 } as unknown as TStorageFormat,
               }),
             );
 
             const headId = sessions.length ? sessions[sessions.length - 1]!.id : null;
-            console.log('[ThreadHistoryAdapter.load] headId:', headId, JSON.stringify(messages));
             return { headId, messages };
           },
 

@@ -21,11 +21,11 @@
  */
 
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
 import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
+import { createAssistantMessageWithReasoning, getMessageReasoning } from '../../../utils/assistant-message';
 
 interface CircuitBreakerContext {
   topic: string;
@@ -92,6 +92,7 @@ export const circuitBreakerNode =
 
       const response = await model.invoke(messages);
       const content = String(response.content ?? '');
+      const reasoning = getMessageReasoning(response);
 
       // Stream supportive message to user
       const messageId = generateId('msg');
@@ -106,7 +107,9 @@ export const circuitBreakerNode =
 
       // Exit the practice subgraph with circuit breaker status
       return {
-        messages: [new AIMessage(content)],
+        messages: [
+          createAssistantMessageWithReasoning(content, reasoning),
+        ],
         practice: {
           ...practice,
           isComplete: true,

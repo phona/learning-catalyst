@@ -1,11 +1,13 @@
 import { HumanMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 import type { ChatMessage } from './chat-message-types';
 import { convertToolCall } from './tool-call-converter';
+import { extractContentParts, resolveMessageContent } from './message-content';
 
 type SerializedCheckpointMessage = {
   id?: unknown;
   kwargs?: Record<string, unknown> & {
     content?: unknown;
+    additional_kwargs?: unknown;
     tool_calls?: unknown;
   };
 };
@@ -41,6 +43,14 @@ export function convertToChatMessage(
   ) {
     const messageType = serialized.id[2]; // e.g., "HumanMessage", "AIMessage", "ToolMessage"
     const content = serialized.kwargs.content;
+    const additionalKwargs = serialized.kwargs.additional_kwargs;
+    const extracted = extractContentParts(content);
+    const reasoningContent =
+      extracted.reasoning ??
+      (typeof (additionalKwargs as any)?.reasoning_content === 'string'
+        ? ((additionalKwargs as any).reasoning_content as string)
+        : undefined);
+    const messageContent = resolveMessageContent(content, extracted);
 
     const role =
       messageType === 'HumanMessage'
@@ -52,7 +62,8 @@ export function convertToChatMessage(
     return {
       id: `${sessionId}-${index}`,
       role,
-      content: typeof content === 'string' ? content : JSON.stringify(content),
+      content: messageContent,
+      ...(reasoningContent && reasoningContent.length > 0 ? { reasoning_content: reasoningContent } : {}),
       timestamp:
         typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
@@ -84,10 +95,12 @@ export function convertToChatMessage(
 
   // Class instances (in-memory)
   if (HumanMessage.isInstance(msg)) {
+    const extracted = extractContentParts(msg.content);
+    const messageContent = resolveMessageContent(msg.content, extracted);
     return {
       id: `${sessionId}-${index}`,
       role: 'user',
-      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      content: messageContent,
       timestamp:
         typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
@@ -98,10 +111,18 @@ export function convertToChatMessage(
       },
     };
   } else if (msg instanceof AIMessage) {
+    const extracted = extractContentParts(msg.content);
+    const reasoningContent =
+      extracted.reasoning ??
+      (typeof (msg as any)?.additional_kwargs?.reasoning_content === 'string'
+        ? ((msg as any).additional_kwargs.reasoning_content as string)
+        : undefined);
+    const messageContent = resolveMessageContent(msg.content, extracted);
     return {
       id: `${sessionId}-${index}`,
       role: 'assistant',
-      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      content: messageContent,
+      ...(reasoningContent && reasoningContent.length > 0 ? { reasoning_content: reasoningContent } : {}),
       timestamp:
         typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
@@ -116,10 +137,12 @@ export function convertToChatMessage(
       },
     };
   } else if (ToolMessage.isInstance(msg)) {
+    const extracted = extractContentParts(msg.content);
+    const messageContent = resolveMessageContent(msg.content, extracted);
     return {
       id: `${sessionId}-${index}`,
       role: 'assistant',
-      content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+      content: messageContent,
       timestamp:
         typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
@@ -147,4 +170,3 @@ export function convertToChatMessage(
     },
   };
 }
-

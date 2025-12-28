@@ -3,7 +3,10 @@ import type { BaseCheckpointSaver } from '@langchain/langgraph-checkpoint';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { generateAITitle } from './title-generation';
 import type { LoggerService } from '../../core/logger/logger-service';
-import { getPendingInterruptPrompt } from '@/main/services/domain/workflow/pending-interrupt';
+import {
+  getPendingInterruptDetails,
+  getPendingInterruptPrompt,
+} from '@/main/services/domain/workflow/pending-interrupt';
 import type { ChatMessage } from './chat-message-types';
 import { getCheckpointIdFromTupleConfig, getCreatedAtFromMetadata } from './checkpoint-readers';
 import { convertToChatMessage } from './message-converter';
@@ -96,11 +99,15 @@ export const createChatService = ({
       const interruptPrompt = getPendingInterruptPrompt(latestTuple);
 
       if (interruptPrompt && shouldAppendInterruptPrompt(formattedMessages, interruptPrompt)) {
+        const interruptDetails = getPendingInterruptDetails(latestTuple);
         const nextIndex = formattedMessages.length;
         formattedMessages.push({
           id: `${sessionId}-${nextIndex}`,
           role: 'assistant',
           content: interruptPrompt,
+          ...(interruptDetails?.reasoning
+            ? { reasoning_content: interruptDetails.reasoning }
+            : {}),
           timestamp: getCreatedAtFromMetadata(latestTuple.metadata) ?? new Date().toISOString(),
           tool_calls: [],
           metadata: {
@@ -120,4 +127,3 @@ export const createChatService = ({
     },
   };
 };
-

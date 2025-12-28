@@ -13,3 +13,5 @@
 export * from './normalization';
 export * from './assistant-ui-stream';
 export * from './stream-llm';
+export * from './interrupt-payload';
+export * from './assistant-message';

@@ -147,6 +147,115 @@ describe('ChatService.getMessages', () => {
       });
     });
 
+    it('should include reasoning_content when present on AIMessage.additional_kwargs', async () => {
+      const messages = [
+        new HumanMessage('Hello'),
+        new AIMessage({
+          content: 'Answer',
+          additional_kwargs: { reasoning_content: 'Because' },
+        }),
+      ];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: { channel_values: { messages } },
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      const result = await chatService.getMessages('session-reasoning');
+
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual(
+        expect.objectContaining({
+          role: 'assistant',
+          content: 'Answer',
+          reasoning_content: 'Because',
+        }),
+      );
+    });
+
+    it('should restore reasoning_content from content blocks', async () => {
+      const messages = [
+        new HumanMessage('Hello'),
+        new AIMessage({
+          content: [
+            { type: 'reasoning', reasoning: 'Let me think.' },
+            { type: 'text', text: 'Final answer.' },
+          ],
+        }),
+      ];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: { channel_values: { messages } },
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      const result = await chatService.getMessages('session-reasoning-blocks');
+
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual(
+        expect.objectContaining({
+          role: 'assistant',
+          content: 'Final answer.',
+          reasoning_content: 'Let me think.',
+        }),
+      );
+    });
+
+    it('should keep content empty when only reasoning blocks are present', async () => {
+      const messages = [
+        new HumanMessage('Hello'),
+        new AIMessage({
+          content: [{ type: 'reasoning', reasoning: 'Let me think.' }],
+        }),
+      ];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: { channel_values: { messages } },
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      const result = await chatService.getMessages('session-reasoning-only');
+
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual(
+        expect.objectContaining({
+          role: 'assistant',
+          content: '',
+          reasoning_content: 'Let me think.',
+        }),
+      );
+    });
+
     it('should handle complex message content (non-string)', async () => {
       // Arrange
       const messages = [
@@ -173,8 +282,8 @@ describe('ChatService.getMessages', () => {
       const result = await chatService.getMessages('session-789');
 
       // Assert
-      expect(result[0].content).toBe('[{"type":"text","text":"Text message"}]');
-      expect(result[1].content).toBe('[{"type":"text","text":"Array message"}]');
+      expect(result[0].content).toBe('Text message');
+      expect(result[1].content).toBe('Array message');
     });
 
     it('should use latest checkpoint when multiple exist', async () => {
@@ -468,6 +577,52 @@ describe('ChatService.getMessages', () => {
       expect(result).toHaveLength(2);
       expect(result[1].role).toBe('assistant');
       expect(result[1].content).toBe('Pending via wrapper');
+    });
+
+    it('should include reasoning_content from pending interrupt payload', async () => {
+      const messages = [new HumanMessage('Hello')];
+
+      const checkpoints: MockCheckpoint[] = [
+        {
+          checkpoint: {
+            channel_values: { messages },
+          },
+          pendingWrites: [
+            [
+              'main',
+              INTERRUPT,
+              {
+                id: 'interrupt-with-reasoning',
+                value: {
+                  type: 'teach_response',
+                  prompt: 'Pending with reasoning',
+                  reasoning: 'Because it helps.',
+                },
+              },
+            ],
+          ],
+          metadata: { created_at: '2024-01-01T00:00:00Z' },
+          config: { configurable: { checkpoint_id: 'cp-1' } },
+        },
+      ];
+
+      mockCheckpointSaver = createMockCheckpointSaver(checkpoints);
+      chatService = createChatService({
+        providerFactory,
+        loggerService,
+        checkpointSaver: mockCheckpointSaver,
+      });
+
+      const result = await chatService.getMessages('session-interrupt-reasoning');
+
+      expect(result).toHaveLength(2);
+      expect(result[1]).toEqual(
+        expect.objectContaining({
+          role: 'assistant',
+          content: 'Pending with reasoning',
+          reasoning_content: 'Because it helps.',
+        }),
+      );
     });
   });
 

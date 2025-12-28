@@ -3,6 +3,7 @@ import { useAssistantApi } from '@assistant-ui/react';
 import { Thread } from '@assistant-ui/react-ui';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ToolFallback, MarkdownText } from '@/renderer/features/chat';
+import { AssistantMessageWithReasoning } from '@/renderer/features/chat/ui/AssistantMessageWithReasoning';
 
 /**
  * ChatPage Component
@@ -46,6 +47,9 @@ export const ChatPage: React.FC = () => {
     <div className="h-full bg-gray-50">
       <Thread
         key={currentThreadId}
+        components={{
+          AssistantMessage: AssistantMessageWithReasoning,
+        }}
         userMessage={{ allowEdit: false }}
         assistantMessage={{
           components: {

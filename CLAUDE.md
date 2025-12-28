@@ -386,7 +386,7 @@ import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 
 **Advanced Features:**
 
-- Real-time reasoning visualization (ChatGLM)
+- Real-time reasoning visualization (ChatGLM + providers that emit `reasoning_content` like SiliconFlow)
 - Seamless provider switching
 - Automatic model discovery with timeout
 - Custom model support

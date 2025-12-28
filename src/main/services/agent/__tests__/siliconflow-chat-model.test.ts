@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { ChatOpenAI } from '@langchain/openai';
-import { AIMessageChunk } from '@langchain/core/messages';
+import { AIMessage, AIMessageChunk } from '@langchain/core/messages';
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import type { AppConfig } from '@/shared/types';
 import type { ConfigService } from '@/main/services/core/config/config-service';
@@ -235,6 +235,142 @@ describe('SiliconFlowChatModel', () => {
     }
 
     expect(out).toHaveLength(0);
+  });
+
+  it('extracts streaming reasoning_content from raw responses and removes __raw_response', async () => {
+    const chunks = [
+      createChatChunk('', {
+        additionalKwargs: {
+          __raw_response: {
+            choices: [{ index: 0, delta: { reasoning_content: 'Think' } }],
+          },
+        },
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: ChatGenerationChunk[] = [];
+    for await (const chunk of (model as any)._streamResponseChunks([], {})) {
+      out.push(chunk);
+    }
+
+    expect(out).toHaveLength(1);
+    const message = out[0].message as AIMessageChunk;
+    expect(message.additional_kwargs).toEqual(
+      expect.objectContaining({ reasoning_content: 'Think' }),
+    );
+    expect(message.additional_kwargs).toEqual(
+      expect.not.objectContaining({ __raw_response: expect.anything() }),
+    );
+  });
+
+  it('supports OpenRouter streaming delta.reasoning and removes __raw_response', async () => {
+    const chunks = [
+      createChatChunk('', {
+        additionalKwargs: {
+          __raw_response: {
+            choices: [{ index: 0, delta: { reasoning: 'R' } }],
+          },
+        },
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: ChatGenerationChunk[] = [];
+    for await (const chunk of (model as any)._streamResponseChunks([], {})) {
+      out.push(chunk);
+    }
+
+    expect(out).toHaveLength(1);
+    const message = out[0].message as AIMessageChunk;
+    expect(message.additional_kwargs).toEqual(expect.objectContaining({ reasoning_content: 'R' }));
+    expect(message.additional_kwargs).toEqual(
+      expect.not.objectContaining({ __raw_response: expect.anything() }),
+    );
+  });
+
+  it('removes __raw_response even when no reasoning fields are present', async () => {
+    const chunks = [
+      createChatChunk('hi', {
+        additionalKwargs: {
+          __raw_response: {
+            choices: [{ index: 0, delta: { content: 'hi' } }],
+          },
+        },
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: ChatGenerationChunk[] = [];
+    for await (const chunk of (model as any)._streamResponseChunks([], {})) {
+      out.push(chunk);
+    }
+
+    expect(out).toHaveLength(1);
+    const message = out[0].message as AIMessageChunk;
+    expect(message.additional_kwargs).toEqual(
+      expect.not.objectContaining({ __raw_response: expect.anything() }),
+    );
+  });
+
+  it('extracts non-stream reasoning_content from raw responses and removes __raw_response', async () => {
+    vi.spyOn(ChatOpenAI.prototype as any, 'invoke').mockResolvedValue(
+      new AIMessage({
+        content: 'Answer',
+        additional_kwargs: {
+          __raw_response: {
+            choices: [{ message: { reasoning_content: 'Because', content: 'Answer' } }],
+          },
+        },
+      }),
+    );
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const response = await model.invoke([] as any);
+    expect(response.additional_kwargs).toEqual(
+      expect.objectContaining({ reasoning_content: 'Because' }),
+    );
+    expect(response.additional_kwargs).toEqual(
+      expect.not.objectContaining({ __raw_response: expect.anything() }),
+    );
   });
 });
 

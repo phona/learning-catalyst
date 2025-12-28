@@ -24,6 +24,21 @@ export function createThreadListAdapter(deps: {
   chatService: ChatService;
 }): RemoteThreadListAdapter {
   const { sessionService, chatService } = deps;
+  const listTimeoutMs = process.env.NODE_ENV === 'test' ? 25 : 2000;
+  const updateTimeoutMs = process.env.NODE_ENV === 'test' ? 25 : 2000;
+
+  const withTimeout = async <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<T>((resolve) => {
+      timeoutId = setTimeout(() => resolve(fallback), ms);
+    });
+    const result = await Promise.race([promise, timeoutPromise]);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    return result;
+  };
+
   return {
     /**
      * List all threads from SQLite learning_sessions table.
@@ -31,7 +46,14 @@ export function createThreadListAdapter(deps: {
      */
     async list() {
       try {
-        const data = await sessionService.listSessions({ limit: 100 });
+        const data = await withTimeout(
+          sessionService.listSessions({ limit: 100 }).catch((error) => {
+            console.error('[ThreadListAdapter.list] Error:', error);
+            return { sessions: [] as Array<{ id: string; status?: string; title?: string; topic?: string }> };
+          }),
+          listTimeoutMs,
+          { sessions: [] as Array<{ id: string; status?: string; title?: string; topic?: string }> },
+        );
         const sessions = data.sessions || [];
         if (sessions.length === 0) {
           return { threads: [] };
@@ -79,7 +101,17 @@ export function createThreadListAdapter(deps: {
 
     /** Unarchive a thread by setting status back to 'active'. */
     async unarchive(remoteId: string) {
-      await sessionService.updateSession(remoteId, { status: 'active' });
+      const updatePromise = sessionService.updateSession(remoteId, { status: 'active' });
+      const timeoutPromise = new Promise<'timeout'>((resolve) => {
+        setTimeout(() => resolve('timeout'), updateTimeoutMs);
+      });
+
+      const result = await Promise.race([updatePromise.then(() => 'done' as const), timeoutPromise]);
+      if (result === 'timeout') {
+        updatePromise.catch((error) => {
+          console.error('[ThreadListAdapter.unarchive] Error:', error);
+        });
+      }
     },
 
     /** Permanently delete a thread from SQLite. */

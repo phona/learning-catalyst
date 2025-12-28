@@ -219,5 +219,177 @@ describe('SiliconFlowChatModel (RED) - response_metadata.usage warnings', () => 
     out[0].concat(out[1]);
     expect(warnSpy).not.toHaveBeenCalled();
   });
-});
 
+  it('extracts delta.reasoning_content from __raw_response and keeps it LangChain-friendly (string)', async () => {
+    const chunks = [
+      new ChatGenerationChunk({
+        text: '',
+        message: new AIMessageChunk({
+          content: '',
+          additional_kwargs: {
+            __raw_response: {
+              id: 'test-id',
+              object: 'chat.completion.chunk',
+              created: 0,
+              model: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
+              choices: [{ index: 0, delta: { content: null, reasoning_content: '', role: 'assistant' } }],
+              usage: { prompt_tokens: 83, completion_tokens: 0, total_tokens: 83 },
+            },
+          },
+          response_metadata: {
+            model_provider: 'openai',
+            usage: { prompt_tokens: 83, completion_tokens: 0, total_tokens: 83 },
+          },
+        }),
+      }),
+      new ChatGenerationChunk({
+        text: '',
+        message: new AIMessageChunk({
+          content: '',
+          additional_kwargs: {
+            __raw_response: {
+              id: 'test-id',
+              object: 'chat.completion.chunk',
+              created: 0,
+              model: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
+              choices: [{ index: 0, delta: { content: null, reasoning_content: '\n', role: 'assistant' } }],
+              usage: { prompt_tokens: 83, completion_tokens: 1, total_tokens: 84 },
+            },
+          },
+          response_metadata: {
+            model_provider: 'openai',
+            usage: {
+              prompt_tokens: 83,
+              completion_tokens: 1,
+              total_tokens: 84,
+              completion_tokens_details: { reasoning_tokens: 1 },
+            },
+          },
+        }),
+      }),
+      new ChatGenerationChunk({
+        text: '',
+        message: new AIMessageChunk({
+          content: '',
+          additional_kwargs: {
+            __raw_response: {
+              id: 'test-id',
+              object: 'chat.completion.chunk',
+              created: 0,
+              model: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B',
+              choices: [{ index: 0, delta: { content: null, reasoning_content: 'Okay', role: 'assistant' } }],
+              usage: { prompt_tokens: 83, completion_tokens: 2, total_tokens: 85 },
+            },
+          },
+          response_metadata: {
+            model_provider: 'openai',
+            usage: {
+              prompt_tokens: 83,
+              completion_tokens: 2,
+              total_tokens: 85,
+              completion_tokens_details: { reasoning_tokens: 2 },
+            },
+          },
+        }),
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: AIMessageChunk[] = [];
+    const stream = await model.stream([] as any);
+    for await (const chunk of stream as any) {
+      out.push(chunk as AIMessageChunk);
+    }
+
+    expect(out).toHaveLength(3);
+
+    // Each chunk carries only the delta. Accumulation is done by the consumer (or via concat).
+    const r0 = (out[0].additional_kwargs as any).reasoning_content;
+    const r1 = (out[1].additional_kwargs as any).reasoning_content;
+    const r2 = (out[2].additional_kwargs as any).reasoning_content;
+    expect([r0, r1, r2]).toEqual(['', '\n', 'Okay']);
+
+    // Raw payload is removed to avoid retaining large SSE chunks in memory.
+    expect(out[0].additional_kwargs).toEqual(expect.not.objectContaining({ __raw_response: expect.anything() }));
+    expect(out[1].additional_kwargs).toEqual(expect.not.objectContaining({ __raw_response: expect.anything() }));
+    expect(out[2].additional_kwargs).toEqual(expect.not.objectContaining({ __raw_response: expect.anything() }));
+
+    // Usage keys are stripped so LangChain merge/concat cannot warn on repeated numbers.
+    expect(out[0].response_metadata).toEqual(expect.not.objectContaining({ usage: expect.anything() }));
+    expect(out[1].response_metadata).toEqual(expect.not.objectContaining({ usage: expect.anything() }));
+    expect(out[2].response_metadata).toEqual(expect.not.objectContaining({ usage: expect.anything() }));
+
+    const combined = out[0].concat(out[1]).concat(out[2]);
+    expect((combined.additional_kwargs as any).reasoning_content).toBe('\nOkay');
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('extracts delta.reasoning_content into additional_kwargs for non-AI chunks (ChatMessageChunk)', async () => {
+    const chunks = [
+      new ChatGenerationChunk({
+        text: '',
+        message: new ChatMessageChunk({
+          content: '',
+          role: 'assistant',
+          response_metadata: { model_provider: 'openai' },
+          additional_kwargs: {
+            __raw_response: {
+              choices: [{ index: 0, delta: { content: null, reasoning_content: 'R1', role: 'assistant' } }],
+            },
+          },
+        }),
+      }),
+      new ChatGenerationChunk({
+        text: '',
+        message: new ChatMessageChunk({
+          content: '',
+          role: 'assistant',
+          response_metadata: { model_provider: 'openai' },
+          additional_kwargs: {
+            __raw_response: {
+              choices: [{ index: 0, delta: { content: null, reasoning_content: 'R2', role: 'assistant' } }],
+            },
+          },
+        }),
+      }),
+    ];
+
+    vi.spyOn(ChatOpenAI.prototype as any, '_streamResponseChunks').mockImplementation(
+      async function* () {
+        for (const chunk of chunks) yield chunk;
+      },
+    );
+
+    const model = new SiliconFlowChatModel({
+      modelName: 'siliconflow-test',
+      apiKey: 'test-key',
+      configuration: { baseURL: 'https://api.siliconflow.cn/v1' },
+    });
+
+    const out: ChatMessageChunk[] = [];
+    const stream = await model.stream([] as any);
+    for await (const chunk of stream as any) {
+      out.push(chunk as ChatMessageChunk);
+    }
+
+    expect(out).toHaveLength(2);
+    expect((out[0].additional_kwargs as any).reasoning_content).toBe('R1');
+    expect((out[1].additional_kwargs as any).reasoning_content).toBe('R2');
+    expect(out[0].additional_kwargs).toEqual(expect.not.objectContaining({ __raw_response: expect.anything() }));
+    expect(out[1].additional_kwargs).toEqual(expect.not.objectContaining({ __raw_response: expect.anything() }));
+  });
+});

@@ -3,7 +3,7 @@
 ## Purpose
 Prevent regressions where ending a “turn stream” at a LangGraph interrupt cancels the upstream stream too early and causes interrupt checkpoints (or equivalent post-interrupt persistence) to be lost.
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Turn Stream Ends Promptly On Interrupt
 When an interrupt event is observed in the workflow stream, the adapter MUST stop yielding UI chunks immediately so the transport can send `finish` promptly.

@@ -17,6 +17,8 @@ import type { WorkflowDeps } from '../../../state';
 import { TeachAnnotation } from '../state';
 import type { TeachIntent } from '../types';
 import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
+import { buildInterruptPayload } from '../../../utils/interrupt-payload';
+import { createAssistantMessageWithReasoning, getMessageReasoning } from '../../../utils/assistant-message';
 
 /**
  * Configuration
@@ -105,7 +107,7 @@ async function generateResponse(
   deps: WorkflowDeps,
   state: typeof TeachAnnotation.State,
   intent: TeachIntent
-): Promise<string> {
+): Promise<AIMessage> {
   const model = await deps.providerFactory.getModel();
   const userInput = state.userAnswer ?? '';
 
@@ -118,7 +120,9 @@ async function generateResponse(
       knowledgeContext,
     });
     const response = await model.invoke(messages);
-    return String(response.content ?? '');
+    const content = String(response.content ?? '');
+    const reasoning = getMessageReasoning(response);
+    return createAssistantMessageWithReasoning(content, reasoning);
   }
 
   case 'confused': {
@@ -127,20 +131,22 @@ async function generateResponse(
       userConfusion: userInput,
     });
     const response = await model.invoke(messages);
-    return String(response.content ?? '');
+    const content = String(response.content ?? '');
+    const reasoning = getMessageReasoning(response);
+    return createAssistantMessageWithReasoning(content, reasoning);
   }
 
   case 'off_topic': {
-    return (
+    return new AIMessage(
       `Let's stay focused on ${state.topic}. ` +
-        `What would you like to know about it? Or are you ready to practice?`
+        `What would you like to know about it? Or are you ready to practice?`,
     );
   }
 
   default: {
-    return (
+    return new AIMessage(
       `I'm not sure I understood that. ` +
-        `Do you have a question about ${state.topic}, or are you ready to practice?`
+        `Do you have a question about ${state.topic}, or are you ready to practice?`,
     );
   }
   }
@@ -178,10 +184,12 @@ export const handleQuestionNode =
           emitter.textEnd(messageId);
         }
 
-        const resumeValue = await interrupt({
-          type: 'teach_max_questions',
-          prompt: maxQuestionsMessage,
-        });
+        const resumeValue = await interrupt(
+          buildInterruptPayload({
+            type: 'teach_max_questions',
+            prompt: maxQuestionsMessage,
+          })
+        );
 
         const answer =
         typeof resumeValue === 'string'
@@ -199,7 +207,8 @@ export const handleQuestionNode =
       }
 
       // Generate appropriate response based on intent
-      const responseContent = await generateResponse(deps, state, intent);
+      const responseMessage = await generateResponse(deps, state, intent);
+      const responseContent = String(responseMessage.content ?? '');
 
       // Emit to UI
       const messageId = generateId('msg');
@@ -218,11 +227,16 @@ export const handleQuestionNode =
 
       // Interrupt and wait for next user response
       // Only call interrupt if in a graph context
-      const resumeValue = await interrupt({
-        type: 'teach_followup',
-        prompt: responseContent,
-        questionsAsked: newQuestionsAsked,
-      });
+      const resumeValue = await interrupt(
+        buildInterruptPayload(
+          {
+            type: 'teach_followup',
+            prompt: responseContent,
+            questionsAsked: newQuestionsAsked,
+          },
+          { message: responseMessage }
+        )
+      );
 
       const answer =
       typeof resumeValue === 'string'
@@ -232,7 +246,7 @@ export const handleQuestionNode =
           '';
 
       return {
-        messages: [new AIMessage(responseContent), new HumanMessage(answer)],
+        messages: [responseMessage, new HumanMessage(answer)],
         userAnswer: answer,
         teach: {
           questionsAsked: newQuestionsAsked,

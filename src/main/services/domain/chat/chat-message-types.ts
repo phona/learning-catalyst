@@ -6,6 +6,7 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  reasoning_content?: string;
   timestamp?: string;
   tool_calls?: Array<{
     id: string;
@@ -28,4 +29,3 @@ export interface ChatMessage {
     artifact?: unknown;
   };
 }
-

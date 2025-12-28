@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HumanMessage, AIMessage, ToolMessage } from '@langchain/core/messages';
 import { createChatService } from '../index';
 import type { ChatService } from '../index';
+import { extractContentParts, resolveMessageContent } from '../message-content';
 
 /**
  * Comprehensive test suite for checkpoint message deserialization
@@ -150,6 +151,24 @@ describe('Checkpoint Deserialization - Comprehensive', () => {
 
       expect(result.content).toBe('{"type":"image","url":"https://example.com/image.png"}');
       expect(result.role).toBe('assistant');
+    });
+
+    it('should keep content empty when only reasoning blocks are present', () => {
+      const serializedMessage = {
+        id: ["langchain_core", "messages", "AIMessage"],
+        kwargs: {
+          additional_kwargs: {},
+          content: [{ type: "reasoning", reasoning: "Let me think." }],
+          response_metadata: {}
+        },
+        lc: 1,
+        type: "constructor"
+      };
+
+      const result = createConverter()(serializedMessage, 0, 'session-123');
+
+      expect(result.content).toBe('');
+      expect(result.reasoning_content).toBe('Let me think.');
     });
 
     it('should handle empty content', () => {
@@ -517,6 +536,14 @@ function createConverter() {
 
       const messageType = msg.id[2];
       const content = msg.kwargs.content;
+      const additionalKwargs = msg.kwargs.additional_kwargs;
+      const extracted = extractContentParts(content);
+      const reasoningContent =
+        extracted.reasoning ??
+        (typeof additionalKwargs?.reasoning_content === 'string'
+          ? additionalKwargs.reasoning_content
+          : undefined);
+      const messageContent = resolveMessageContent(content, extracted);
 
       const role = messageType === 'HumanMessage' ? 'user'
         : messageType === 'ToolMessage' ? 'assistant'
@@ -525,7 +552,8 @@ function createConverter() {
       return {
         id: `${sessionId}-${index}`,
         role,
-        content: typeof content === 'string' ? content : JSON.stringify(content),
+        content: messageContent,
+        ...(reasoningContent && reasoningContent.length > 0 ? { reasoning_content: reasoningContent } : {}),
         timestamp: typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
           : new Date().toISOString(),
@@ -554,10 +582,12 @@ function createConverter() {
 
     // Handle class instances
     if (HumanMessage.isInstance(msg)) {
+      const extracted = extractContentParts(msg.content);
+      const messageContent = resolveMessageContent(msg.content, extracted);
       return {
         id: `${sessionId}-${index}`,
         role: 'user',
-        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        content: messageContent,
         timestamp: typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
           : new Date().toISOString(),
@@ -567,10 +597,18 @@ function createConverter() {
         },
       };
     } else if (msg instanceof AIMessage) {
+      const extracted = extractContentParts(msg.content);
+      const reasoningContent =
+        extracted.reasoning ??
+        (typeof msg.additional_kwargs?.reasoning_content === 'string'
+          ? msg.additional_kwargs.reasoning_content
+          : undefined);
+      const messageContent = resolveMessageContent(msg.content, extracted);
       return {
         id: `${sessionId}-${index}`,
         role: 'assistant',
-        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        content: messageContent,
+        ...(reasoningContent && reasoningContent.length > 0 ? { reasoning_content: reasoningContent } : {}),
         timestamp: typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
           : new Date().toISOString(),
@@ -591,10 +629,12 @@ function createConverter() {
         },
       };
     } else if (ToolMessage.isInstance(msg)) {
+      const extracted = extractContentParts(msg.content);
+      const messageContent = resolveMessageContent(msg.content, extracted);
       return {
         id: `${sessionId}-${index}`,
         role: 'assistant',
-        content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+        content: messageContent,
         timestamp: typeof checkpointMetadata?.created_at === 'string'
           ? checkpointMetadata.created_at
           : new Date().toISOString(),

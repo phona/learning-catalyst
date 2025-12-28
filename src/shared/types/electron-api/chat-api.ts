@@ -91,7 +91,25 @@ export interface PromptSearchResponse {
 /**
  * Display-ready message from chat history
  */
-export interface ChatHistoryMessage {  id: string;  role: 'user' | 'assistant' | 'system';  content: string;  timestamp: string;  tool_calls?: Array<{    id: string;    type: string;    function: {      name: string;      arguments: string;    };  }>;  metadata?: {    checkpoint_id?: string;    message_index: number;  };}
+export interface ChatHistoryMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  reasoning_content?: string;
+  timestamp: string;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+  metadata?: {
+    checkpoint_id?: string;
+    message_index: number;
+  };
+}
 
 export interface ChatAPI {
   /**

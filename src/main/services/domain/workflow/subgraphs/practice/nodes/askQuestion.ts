@@ -19,6 +19,8 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
 import { streamLLM } from '../../../utils/stream-llm';
+import { buildInterruptPayload } from '../../../utils/interrupt-payload';
+import { createAssistantMessageWithReasoning } from '../../../utils/assistant-message';
 
 /**
  * Configuration constants
@@ -77,11 +79,13 @@ export const askQuestionNode =
 
         // Wait for user input on existing question
         const prompt = state.practice.currentQuestion;
-        const resumeValue = await interrupt({
-          type: 'practice_question',
-          prompt,
-          questionId: randomUUID(),
-        });
+        const resumeValue = await interrupt(
+          buildInterruptPayload({
+            type: 'practice_question',
+            prompt,
+            questionId: randomUUID(),
+          })
+        );
 
         const answer =
         typeof resumeValue === 'string'
@@ -140,7 +144,7 @@ export const askQuestionNode =
       });
 
       const streamMode = config.configurable?.llmStreamMode as boolean | undefined;
-      const { content: questionContent } = await streamLLM({
+      const { content: questionContent, reasoning } = await streamLLM({
         model,
         messages,
         config,
@@ -157,12 +161,17 @@ export const askQuestionNode =
 
       // Step 4: Interrupt for user input
       const questionId = randomUUID();
-      const resumeValue = await interrupt({
-        type: 'practice_question',
-        prompt: questionContent,
-        questionId,
-        instruction: 'Answer the question, or ask for hints/clarification if needed.',
-      });
+      const resumeValue = await interrupt(
+        buildInterruptPayload(
+          {
+            type: 'practice_question',
+            prompt: questionContent,
+            questionId,
+            instruction: 'Answer the question, or ask for hints/clarification if needed.',
+          },
+          { reasoning }
+        )
+      );
 
       const answer =
       typeof resumeValue === 'string'
@@ -180,7 +189,7 @@ export const askQuestionNode =
 
       return {
         messages: [
-          new AIMessage(questionContent),
+          createAssistantMessageWithReasoning(questionContent, reasoning),
           new HumanMessage(answer),
         ],
         practicePrompt: questionContent,

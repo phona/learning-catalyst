@@ -18,6 +18,17 @@ and (via OpenRouter) `reasoning`. LangChain JS drops these fields when convertin
 This change proposes a small SiliconFlow-only adapter fix to preserve reasoning text and a small
 workflow helper extension so the UI can stream it using our existing `reasoning-*` chunk protocol.
 
+## Why
+
+Reasoning text is lost today, so users see an empty reasoning panel even when the model provides it.
+We need to keep that text so the UI can show it.
+
+## What Changes
+
+- Keep raw SiliconFlow response data long enough to extract reasoning.
+- Copy reasoning into `additional_kwargs.reasoning_content` and then drop the raw payload.
+- Let `streamLLM()` read `additional_kwargs.reasoning_content` as a fallback source.
+
 ## Current Behavior (Problem)
 
 - SiliconFlow streaming works for normal text (`delta.content`), but reasoning text is lost.
@@ -141,4 +152,3 @@ This keeps the change minimal and avoids changing `chunk.content` shapes.
 ## Rollback Plan
 
 Revert the SiliconFlow-only adapter changes and the `streamLLM()` fallback logic. No data migrations.
-

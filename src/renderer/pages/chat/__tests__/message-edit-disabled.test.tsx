@@ -40,6 +40,11 @@ vi.mock('@/renderer/features/chat', () => ({
   MarkdownText: ({ children }: any) => <>{children}</>,
 }));
 
+const MockAssistantMessageWithReasoning = () => <div />;
+vi.mock('@/renderer/features/chat/ui/AssistantMessageWithReasoning', () => ({
+  AssistantMessageWithReasoning: MockAssistantMessageWithReasoning,
+}));
+
 describe('ChatPage', () => {
   beforeEach(() => {
     lastThreadProps = null;
@@ -54,5 +59,11 @@ describe('ChatPage', () => {
     expect(screen.getByTestId('thread')).toBeInTheDocument();
     expect(lastThreadProps?.userMessage?.allowEdit).toBe(false);
   });
-});
 
+  it('wires AssistantMessageWithReasoning into Thread components', async () => {
+    const { ChatPage } = await import('@/renderer/pages/chat/ChatPage');
+    render(<ChatPage />);
+
+    expect(lastThreadProps?.components?.AssistantMessage).toBe(MockAssistantMessageWithReasoning);
+  });
+});

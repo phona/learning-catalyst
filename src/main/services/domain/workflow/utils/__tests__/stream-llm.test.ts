@@ -21,6 +21,8 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { BaseMessage } from '@langchain/core/messages';
 import type { DataStreamChunk } from '../assistant-ui-stream';
 
+vi.mock('../chunk-emitter', async () => await vi.importActual('../chunk-emitter'));
+
 describe('streamLLM', () => {
   let mockWriter: ReturnType<typeof vi.fn>;
   let mockConfig: LangGraphRunnableConfig;
@@ -357,6 +359,36 @@ describe('streamLLM', () => {
       ]);
     });
 
+    it('should fallback to additional_kwargs.reasoning_content in streaming mode', async () => {
+      const reasoningStreamingModel = {
+        stream: vi.fn().mockImplementation(async function* () {
+          yield { content: '', additional_kwargs: { reasoning_content: 'R1' } };
+          yield { content: 'T1' };
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: reasoningStreamingModel,
+        messages,
+        config: mockConfig,
+        streamMode: true,
+      });
+
+      expect(result.reasoning).toBe('R1');
+      expect(result.content).toBe('T1');
+
+      const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
+      const types = chunks.map((c) => c.type);
+      expect(types).toEqual([
+        'text-start',
+        'reasoning-start',
+        'reasoning-delta',
+        'reasoning-end',
+        'text-delta',
+        'text-end',
+      ]);
+    });
+
     it('should return reasoning in result', async () => {
       const reasoningModel = {
         invoke: vi.fn().mockResolvedValue({
@@ -456,6 +488,36 @@ describe('streamLLM', () => {
         config: mockConfig,
         streamMode: false,
       });
+
+      const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
+      const types = chunks.map((c) => c.type);
+      expect(types).toEqual([
+        'text-start',
+        'reasoning-start',
+        'reasoning-delta',
+        'reasoning-end',
+        'text-delta',
+        'text-end',
+      ]);
+    });
+
+    it('should fallback to additional_kwargs.reasoning_content in non-streaming mode', async () => {
+      const reasoningModel = {
+        invoke: vi.fn().mockResolvedValue({
+          content: 'Speak',
+          additional_kwargs: { reasoning_content: 'Think' },
+        }),
+      } as unknown as BaseChatModel;
+
+      const result = await streamLLM({
+        model: reasoningModel,
+        messages,
+        config: mockConfig,
+        streamMode: false,
+      });
+
+      expect(result.reasoning).toBe('Think');
+      expect(result.content).toBe('Speak');
 
       const chunks = mockWriter.mock.calls.map((call) => call[0]) as DataStreamChunk[];
       const types = chunks.map((c) => c.type);

@@ -11,11 +11,13 @@
 
 import { interrupt } from '@langchain/langgraph';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { HumanMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { WorkflowDeps } from '../../../state';
 import { TeachAnnotation } from '../state';
 import { streamLLM } from '../../../utils/stream-llm';
+import { buildInterruptPayload } from '../../../utils/interrupt-payload';
+import { createAssistantMessageWithReasoning } from '../../../utils/assistant-message';
 
 /**
  * Teaching prompt template with knowledge context
@@ -121,7 +123,7 @@ export const explainNode =
 
       // Get LLM response with streaming support
       const model = await deps.providerFactory.getModel();
-      const { content } = await streamLLM({
+      const { content, reasoning } = await streamLLM({
         model,
         messages,
         config,
@@ -135,11 +137,16 @@ export const explainNode =
       });
 
       // Interrupt and wait for user response
-      const resumeValue = await interrupt({
-        type: 'teach_response',
-        prompt: content,
-        round,
-      });
+      const resumeValue = await interrupt(
+        buildInterruptPayload(
+          {
+            type: 'teach_response',
+            prompt: content,
+            round,
+          },
+          { reasoning }
+        )
+      );
 
       // Extract user answer from resume value
       const userAnswer =
@@ -150,7 +157,10 @@ export const explainNode =
           '';
 
       return {
-        messages: [new AIMessage(content), new HumanMessage(userAnswer)],
+        messages: [
+          createAssistantMessageWithReasoning(content, reasoning),
+          new HumanMessage(userAnswer),
+        ],
         userAnswer,
         teach: {
           teachingRound: round,

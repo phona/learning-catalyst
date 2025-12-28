@@ -4,6 +4,7 @@ import {
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
 } from '@assistant-ui/react-markdown';
+import { TextMessagePartProvider } from '@assistant-ui/react';
 import remarkGfm from 'remark-gfm';
 import { CheckIcon, CopyIcon } from 'lucide-react';
 
@@ -109,12 +110,27 @@ const defaultComponents = memoizeMarkdownComponents({
 /**
  * MarkdownText component for rendering assistant messages with markdown
  */
-const MarkdownTextImpl = () => {
-  return (
+type MarkdownTextProps = {
+  text?: string;
+  isRunning?: boolean;
+};
+
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({ text, isRunning = false }) => {
+  const content = (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
       components={defaultComponents}
     />
+  );
+
+  if (text == null) {
+    return content;
+  }
+
+  return (
+    <TextMessagePartProvider text={text} isRunning={isRunning}>
+      {content}
+    </TextMessagePartProvider>
   );
 };
 

@@ -16,6 +16,19 @@ import type { ChatGenerationChunk } from '@langchain/core/outputs';
  * don't warn).
  */
 export class SiliconFlowChatModel extends ChatOpenAI {
+  constructor(fields?: ConstructorParameters<typeof ChatOpenAI>[0]) {
+    // LangChain drops `delta.reasoning_content` during streaming conversion. We temporarily
+    // include the raw response payload so we can extract reasoning and then remove it to
+    // avoid retaining large payloads in long-lived state.
+    super({ ...(fields ?? {}), __includeRawResponse: true } as any);
+  }
+
+  override async invoke(...args: Parameters<ChatOpenAI['invoke']>) {
+    const response = await super.invoke(...args);
+    attachReasoningFromRawResponse(response);
+    return response;
+  }
+
   // Note: This is a protected method in LangChain; we override to rewrite streamed chunks.
   async *_streamResponseChunks(
     messages: BaseMessage[],
@@ -72,6 +85,7 @@ export class SiliconFlowChatModel extends ChatOpenAI {
       stripUsageLikeFields(message.response_metadata);
       stripUsageLikeFields(message.additional_kwargs);
       stripUsageLikeFields(generationInfo);
+      attachReasoningFromRawResponse(message);
 
       yield chunk;
     }
@@ -84,6 +98,62 @@ type CumulativeUsage = {
   totalTokens?: number;
   reasoningTokens?: number;
 };
+
+function stripRawResponse(message: unknown) {
+  if (!message || typeof message !== 'object') return;
+
+  const dict = message as Record<string, unknown>;
+  const additionalKwargs = dict.additional_kwargs;
+  if (additionalKwargs && typeof additionalKwargs === 'object' && !Array.isArray(additionalKwargs)) {
+    delete (additionalKwargs as Record<string, unknown>).__raw_response;
+  }
+
+  const lcKwargs = (dict as any).lc_kwargs as Record<string, unknown> | undefined;
+  const lcAdditional = lcKwargs?.additional_kwargs;
+  if (lcAdditional && typeof lcAdditional === 'object' && !Array.isArray(lcAdditional)) {
+    delete (lcAdditional as Record<string, unknown>).__raw_response;
+  }
+}
+
+function attachReasoningFromRawResponse(message: unknown) {
+  if (!message || typeof message !== 'object') return;
+
+  const dict = message as Record<string, unknown>;
+  const additionalKwargs = dict.additional_kwargs;
+  if (!additionalKwargs || typeof additionalKwargs !== 'object' || Array.isArray(additionalKwargs)) return;
+
+  const additional = additionalKwargs as Record<string, unknown>;
+  const rawResponse = additional.__raw_response;
+  const reasoning = extractReasoningFromRawResponse(rawResponse);
+
+  // Memory guardrail: never keep the raw payload on the message/chunk.
+  stripRawResponse(message);
+
+  if (reasoning !== undefined) {
+    additional.reasoning_content = reasoning;
+  }
+}
+
+function extractReasoningFromRawResponse(rawResponse: unknown): string | undefined {
+  if (!rawResponse || typeof rawResponse !== 'object') return undefined;
+
+  const raw = rawResponse as Record<string, unknown>;
+  const choices = raw.choices;
+  if (!Array.isArray(choices) || choices.length === 0) return undefined;
+
+  const first = choices[0] as Record<string, unknown> | undefined;
+  if (!first || typeof first !== 'object') return undefined;
+
+  const delta = first.delta;
+  const message = first.message;
+
+  return (
+    pickString(delta, 'reasoning_content') ??
+    pickString(delta, 'reasoning') ??
+    pickString(message, 'reasoning_content') ??
+    pickString(message, 'reasoning')
+  );
+}
 
 function extractCumulativeUsage(message: AIMessageChunk): CumulativeUsage | undefined {
   const usageMetadata = message.usage_metadata as Record<string, unknown> | undefined;
@@ -156,6 +226,13 @@ function normalizeUsageDict(dict?: Record<string, unknown>): CumulativeUsage | u
 function pickNumber(dict: Record<string, unknown>, key: string): number | undefined {
   const value = dict[key];
   return typeof value === 'number' ? value : undefined;
+}
+
+function pickString(value: unknown, key: string): string | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const dict = value as Record<string, unknown>;
+  const maybe = dict[key];
+  return typeof maybe === 'string' ? maybe : undefined;
 }
 
 function stripUsageLikeFields(value: unknown) {

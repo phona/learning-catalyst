@@ -197,7 +197,11 @@ export const ThreadListSidebar: React.FC<{ readonly open: boolean }> = ({ open }
         {/* Loading State */}
         <AssistantIf
           condition={({ threads }) => {
-            const hasThreads = threads.threadIds.length > 0 || threads.archivedThreadIds.length > 0;
+            const threadIds = Array.isArray(threads.threadIds) ? threads.threadIds : [];
+            const archivedThreadIds = Array.isArray(threads.archivedThreadIds)
+              ? threads.archivedThreadIds
+              : [];
+            const hasThreads = threadIds.length > 0 || archivedThreadIds.length > 0;
             return threads.isLoading && !hasThreads;
           }}
         >
@@ -207,7 +211,11 @@ export const ThreadListSidebar: React.FC<{ readonly open: boolean }> = ({ open }
         {/* Conversations */}
         <AssistantIf
           condition={({ threads }) => {
-            const hasThreads = threads.threadIds.length > 0 || threads.archivedThreadIds.length > 0;
+            const threadIds = Array.isArray(threads.threadIds) ? threads.threadIds : [];
+            const archivedThreadIds = Array.isArray(threads.archivedThreadIds)
+              ? threads.archivedThreadIds
+              : [];
+            const hasThreads = threadIds.length > 0 || archivedThreadIds.length > 0;
             return !threads.isLoading || hasThreads;
           }}
         >

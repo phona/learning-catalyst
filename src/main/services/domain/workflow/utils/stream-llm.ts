@@ -92,21 +92,28 @@ function isReasoningBlock(block: unknown): block is ContentBlock.Reasoning {
 function extractReasoning(chunk: Pick<AIMessageChunk, 'content'>): string | undefined {
   const { content } = chunk;
 
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
-
   let sawReasoning = false;
   let reasoning = '';
 
-  for (const block of content) {
-    if (isReasoningBlock(block)) {
-      sawReasoning = true;
-      reasoning += block.reasoning;
+  if (Array.isArray(content)) {
+    for (const block of content) {
+      if (isReasoningBlock(block)) {
+        sawReasoning = true;
+        reasoning += block.reasoning;
+      }
     }
   }
 
-  return sawReasoning ? reasoning : undefined;
+  if (sawReasoning) {
+    return reasoning;
+  }
+
+  const additionalKwargs = (chunk as Pick<AIMessageChunk, 'additional_kwargs'>).additional_kwargs as
+    | Record<string, unknown>
+    | undefined;
+
+  const fromAdditional = additionalKwargs?.reasoning_content;
+  return typeof fromAdditional === 'string' ? fromAdditional : undefined;
 }
 
 /**

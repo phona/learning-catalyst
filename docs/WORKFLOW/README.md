@@ -17,6 +17,7 @@ This directory documents the Learning Catalyst workflow with one clear purpose p
 ## 🔍 Essential Concepts
 
 - Normalization: convert LangChain messages to OpenAI format and attach minimal metadata for rendering
+- Streaming: `streamLLM()` emits `text-*` and `reasoning-*` chunks; reasoning can come from LangChain reasoning blocks or `additional_kwargs.reasoning_content` (e.g. SiliconFlow)
 
 ## 🔗 Related Guides
 

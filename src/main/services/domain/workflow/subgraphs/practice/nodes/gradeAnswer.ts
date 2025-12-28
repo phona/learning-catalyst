@@ -19,6 +19,7 @@ import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
 import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
 import { parseScore } from '../../../parse-score';
+import { createAssistantMessageWithReasoning, getMessageReasoning } from '../../../utils/assistant-message';
 
 /**
  * Grading prompt template
@@ -106,6 +107,7 @@ export const gradeAnswerNode =
 
       const response = await model.invoke(messages);
       const feedbackContent = String(response.content ?? '');
+      const reasoning = getMessageReasoning(response);
 
       // Parse score from response
       const parsedScore = parseScore(feedbackContent);
@@ -138,7 +140,9 @@ export const gradeAnswerNode =
 
       // Return updated state - clean up practice state for next round
       return {
-        messages: [new AIMessage(feedbackContent)],
+        messages: [
+          createAssistantMessageWithReasoning(feedbackContent, reasoning),
+        ],
         mastery,
         attemptCount: (state.practice.attemptCount ?? 0) + 1,
         // Clear practice state for next question

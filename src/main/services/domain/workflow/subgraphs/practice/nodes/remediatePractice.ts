@@ -21,13 +21,13 @@
  */
 
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
-import { AIMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { SystemMessage, HumanMessage } from '@langchain/core/messages';
 import type { WorkflowDeps } from '../../../state';
 import { PracticeAnnotation } from '../state';
 import { streamLLM } from '../../../utils/stream-llm';
 import type { PracticeState } from '../types';
+import { createAssistantMessageWithReasoning } from '../../../utils/assistant-message';
 
 interface RemediationContext {
   topic: string;
@@ -125,7 +125,7 @@ export const remediatePracticeNode =
         new HumanMessage(prompt),
       ];
 
-      const { content } = await streamLLM({ model, messages, config, streamMode });
+      const { content, reasoning } = await streamLLM({ model, messages, config, streamMode });
 
       deps.loggerService.info('remediatePracticeNode: remediation delivered', {
         topic: state.topic,
@@ -135,7 +135,9 @@ export const remediatePracticeNode =
 
       // Update practice state for next round
       return {
-        messages: [new AIMessage(content)],
+        messages: [
+          createAssistantMessageWithReasoning(content, reasoning),
+        ],
         practice: {
           ...practice,
           needsRemediation: false,

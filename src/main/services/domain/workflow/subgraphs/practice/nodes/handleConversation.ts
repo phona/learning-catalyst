@@ -21,6 +21,8 @@ import { PracticeAnnotation } from '../state';
 import type { UserIntent } from '../types';
 import { createChunkEmitter, generateId } from '../../../utils/chunk-emitter';
 import { streamLLM } from '../../../utils/stream-llm';
+import { buildInterruptPayload } from '../../../utils/interrupt-payload';
+import { createAssistantMessageWithReasoning } from '../../../utils/assistant-message';
 
 /**
  * Configuration
@@ -88,7 +90,7 @@ async function generateResponse(
   intent: UserIntent,
   config: LangGraphRunnableConfig,
   streamMode: boolean | undefined
-): Promise<{ message: string; hintsGiven: number; isComplete: boolean }> {
+): Promise<{ message: string; reasoning?: string; hintsGiven: number; isComplete: boolean }> {
   const practice = state.practice!;
   const question = practice.currentQuestion || state.practicePrompt || '';
   const model = await deps.providerFactory.getModel();
@@ -120,10 +122,11 @@ async function generateResponse(
       hintLevel: String(newHintsGiven),
     });
 
-    const { content: hint } = await streamLLM({ model, messages, config, streamMode });
+    const { content: hint, reasoning } = await streamLLM({ model, messages, config, streamMode });
 
     return {
       message: `**Hint ${newHintsGiven}/${MAX_HINTS}:**\n\n${hint}\n\nWhat's your answer?`,
+      reasoning,
       hintsGiven: newHintsGiven,
       isComplete: false,
     };
@@ -136,10 +139,11 @@ async function generateResponse(
       userResponse: state.userAnswer ?? 'general confusion',
     });
 
-    const { content: clarification } = await streamLLM({ model, messages, config, streamMode });
+    const { content: clarification, reasoning } = await streamLLM({ model, messages, config, streamMode });
 
     return {
       message: `${clarification}\n\nDoes that help? What's your answer?`,
+      reasoning,
       hintsGiven: practice.hintsGiven,
       isComplete: false,
     };
@@ -238,11 +242,13 @@ export const handleConversationNode =
         emitter.textEnd(messageId);
 
         // Wait for final attempt
-        const resumeValue = await interrupt({
-          type: 'practice_final_attempt',
-          prompt: maxTurnsMessage,
-          questionId: randomUUID(),
-        });
+        const resumeValue = await interrupt(
+          buildInterruptPayload({
+            type: 'practice_final_attempt',
+            prompt: maxTurnsMessage,
+            questionId: randomUUID(),
+          })
+        );
 
         const answer =
         typeof resumeValue === 'string'
@@ -262,13 +268,15 @@ export const handleConversationNode =
 
       // Generate appropriate response based on intent
       // Note: streamLLM handles chunk emission internally, no manual emit needed
-      const { message, hintsGiven, isComplete } = await generateResponse(
+      const { message, reasoning, hintsGiven, isComplete } = await generateResponse(
         deps,
         state,
         intent,
         config,
         streamMode
       );
+
+      const assistantMessage = createAssistantMessageWithReasoning(message, reasoning);
 
       // If complete (give up), don't wait for response
       if (isComplete) {
@@ -288,8 +296,8 @@ export const handleConversationNode =
 
         return {
           messages: alreadyHasUserAnswer
-            ? [new AIMessage(message)]
-            : [new HumanMessage(userAnswer), new AIMessage(message)],
+            ? [assistantMessage]
+            : [new HumanMessage(userAnswer), assistantMessage],
           practice: {
             conversationTurns: newTurns,
             hintsGiven,
@@ -299,11 +307,16 @@ export const handleConversationNode =
       }
 
       // Wait for next user input
-      const resumeValue = await interrupt({
-        type: 'practice_followup',
-        prompt: message,
-        questionId: randomUUID(),
-      });
+      const resumeValue = await interrupt(
+        buildInterruptPayload(
+          {
+            type: 'practice_followup',
+            prompt: message,
+            questionId: randomUUID(),
+          },
+          { reasoning }
+        )
+      );
 
       const answer =
       typeof resumeValue === 'string'
@@ -321,7 +334,7 @@ export const handleConversationNode =
       });
 
       return {
-        messages: [new AIMessage(message), new HumanMessage(answer)],
+        messages: [assistantMessage, new HumanMessage(answer)],
         userAnswer: answer,
         practice: {
           conversationTurns: newTurns,

@@ -1,9 +1,9 @@
 import type { WorkflowDeps } from '../state';
 import { WorkflowStateAnnotation } from '../state';
 import { parseScore } from '../parse-score';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { createAssistantMessageWithReasoning, getMessageReasoning } from '../utils/assistant-message';
 
 /**
  * Default mastery score when parsing fails
@@ -152,6 +152,7 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (
    * This will be displayed as an assistant message
    */
   const content = String(res.content ?? res ?? '');
+  const reasoning = getMessageReasoning(res);
 
   /**
    * STEP 3: PARSE MASTERY SCORE
@@ -183,6 +184,8 @@ export const gradeQuizNode = (deps: WorkflowDeps) => async (
    */
   return {
     mastery,
-    messages: [new AIMessage(content)],
+    messages: [
+      createAssistantMessageWithReasoning(content, reasoning),
+    ],
   };
 };

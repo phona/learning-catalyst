@@ -6,6 +6,8 @@ import { randomUUID } from 'crypto';
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import { streamLLM } from '../utils/stream-llm';
+import { buildInterruptPayload } from '../utils/interrupt-payload';
+import { createAssistantMessageWithReasoning } from '../utils/assistant-message';
 
 /**
  * Fast Track Quiz Node (ASSISTANT Role)
@@ -137,7 +139,7 @@ Generate 2-3 diagnostic questions that:
   "Let's see what you already know about [topic]. I'll ask a few quick questions to understand where you're at."
 
   End by asking them to share their thoughts/answers.`;
-  const { content: quizContent } = await streamLLM({
+  const { content: quizContent, reasoning } = await streamLLM({
     model,
     messages: [new HumanMessage(prompt)],
     config,
@@ -171,12 +173,18 @@ Generate 2-3 diagnostic questions that:
    * - User reads and answers
    * - Workflow resumes automatically
    */
-  const resumeValue = await interrupt({
-    type: 'await_user_input',
-    prompt: quizContent,
-    questionId,
-    instruction: 'Answer the diagnostic questions. Share your thoughts and knowledge - there are no wrong answers!',
-  });
+  const resumeValue = await interrupt(
+    buildInterruptPayload(
+      {
+        type: 'await_user_input',
+        prompt: quizContent,
+        questionId,
+        instruction:
+          'Answer the diagnostic questions. Share your thoughts and knowledge - there are no wrong answers!',
+      },
+      { reasoning }
+    )
+  );
 
   /**
    * STEP 4: EXTRACT USER ANSWER
@@ -205,7 +213,7 @@ Generate 2-3 diagnostic questions that:
   return {
     // Persist both quiz prompt and the user's reply (in chronological order)
     messages: [
-      new AIMessage(quizContent),
+      createAssistantMessageWithReasoning(quizContent, reasoning),
       new HumanMessage(answer),
     ],
     // Store quiz content for potential UI rendering
