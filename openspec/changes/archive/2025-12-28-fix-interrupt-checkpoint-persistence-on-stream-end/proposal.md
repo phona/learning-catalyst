@@ -19,6 +19,15 @@ This change proposes:
 - a small fix in the stream adapter to avoid “cancel too early on interrupt”
 - stronger regression tests that model a cancel-sensitive upstream stream (so we can catch this class of bug again)
 
+## Why
+
+Interrupt checkpoints must persist so the next user message can resume the pending interrupt. When the adapter cancels the upstream stream immediately, that persistence can be skipped, which makes the assistant restart TEACH instead of answering the new question.
+
+## What Changes
+
+- Avoid synchronous upstream cancellation when an interrupt is observed (defer the close by one tick).
+- Add regression tests that model a cancel-sensitive upstream stream.
+
 ## Current Behavior (Problem)
 
 Today `toAssistantUIStream()` ends immediately when it detects an interrupt event.
@@ -118,4 +127,3 @@ We add deterministic, cancel-sensitive tests (no real Electron):
 ## Rollback Plan
 
 Revert the adapter changes and remove the new tests. No data migrations required.
-

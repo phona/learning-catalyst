@@ -266,6 +266,9 @@ describe('chat:start-stream interrupt resume', () => {
     ]);
 
     expect(result).toBe('done');
+    expect(streamClosed).toBe(false);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(streamClosed).toBe(true);
 
     const finishChunk = 'data: {"type":"finish"}\n\n';

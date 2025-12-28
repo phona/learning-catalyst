@@ -282,22 +282,44 @@ export type DataStreamChunk =
 export async function* toAssistantUIStream(
   workflowStream: AsyncIterable<[string, unknown]>
 ): AsyncGenerator<string, void, unknown> {
-  // Iterate over the workflow stream
-  for await (const [eventType, data] of workflowStream) {
-    // Handle custom events (AI SDK chunks emitted directly from nodes)
-    // Format: ['custom', DataStreamChunk]
-    if (eventType === 'custom' && data && typeof data === 'object' && 'type' in data) {
-      yield formatSSE(data as DataStreamChunk);
-      continue;
-    }
+  const iterator = workflowStream[Symbol.asyncIterator]();
+  let interrupted = false;
+  let completed = false;
 
-    // Interrupt is a turn boundary: end iteration immediately so the handler can emit `finish`
-    // and close the stream without waiting for resume.
-    if (eventType !== 'custom' && isInterruptEvent(data)) {
-      return;
-    }
+  try {
+    while (true) {
+      const { value, done } = await iterator.next();
+      if (done) {
+        completed = true;
+        break;
+      }
 
-    // Ignore all other non-custom events (messages/updates noise).
+      const [eventType, data] = value;
+
+      // Handle custom events (AI SDK chunks emitted directly from nodes)
+      // Format: ['custom', DataStreamChunk]
+      if (eventType === 'custom' && data && typeof data === 'object' && 'type' in data) {
+        yield formatSSE(data as DataStreamChunk);
+        continue;
+      }
+
+      // Interrupt is a turn boundary: end iteration immediately so the handler can emit `finish`
+      // and close the stream without waiting for resume.
+      if (eventType !== 'custom' && isInterruptEvent(data)) {
+        interrupted = true;
+        break;
+      }
+
+      // Ignore all other non-custom events (messages/updates noise).
+    }
+  } finally {
+    if (interrupted) {
+      // End UI stream now, but wait one tick before canceling upstream
+      // so post-interrupt checkpoint writes can finish.
+      deferIteratorCloseForInterrupt(iterator);
+    } else if (!completed) {
+      await closeIteratorNow(iterator);
+    }
   }
 }
 
@@ -315,6 +337,33 @@ export async function* toAssistantUIStream(
  */
 function formatSSE(chunk: DataStreamChunk): string {
   return `data: ${JSON.stringify(chunk)}\n\n`;
+}
+
+function ignoreCancelError(_error: unknown): void {
+  // Cleanup errors are not actionable here; keep stream stable.
+}
+
+async function closeIteratorNow(iterator: AsyncIterator<unknown>): Promise<void> {
+  if (typeof iterator.return !== 'function') return;
+  try {
+    await iterator.return();
+  } catch (error) {
+    ignoreCancelError(error);
+  }
+}
+
+function deferIteratorCloseForInterrupt(iterator: AsyncIterator<unknown>): void {
+  if (typeof iterator.return !== 'function') return;
+  setTimeout(() => {
+    try {
+      const result = iterator.return?.();
+      if (result && typeof (result as Promise<unknown>).catch === 'function') {
+        void (result as Promise<unknown>).catch(ignoreCancelError);
+      }
+    } catch (error) {
+      ignoreCancelError(error);
+    }
+  }, 0);
 }
 
 /**

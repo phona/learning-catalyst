@@ -13,7 +13,7 @@
  * 5. Verify SSE formatting
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { toAssistantUIStream } from '../assistant-ui-stream';
 import type { DataStreamChunk } from '../assistant-ui-stream';
 
@@ -125,39 +125,47 @@ describe('toAssistantUIStream Integration', () => {
 
   describe('Interrupt Handling', () => {
     it('should end the generator when an interrupt event is observed', async () => {
-      let upstreamClosed = false;
-      const stream = async function* () {
-        try {
-          yield [
-            'custom',
-            { type: 'text-start', id: 'msg-1' }
-          ] as ['custom', DataStreamChunk];
+      vi.useFakeTimers();
+      try {
+        let upstreamClosed = false;
+        const stream = async function* () {
+          try {
+            yield [
+              'custom',
+              { type: 'text-start', id: 'msg-1' }
+            ] as ['custom', DataStreamChunk];
 
-          yield [
-            'updates',
-            {
-              __interrupt__: [{ value: { type: 'teach_response' }, checkpoint_id: 'checkpoint_1' }]
-            }
-          ] as ['updates', unknown];
+            yield [
+              'updates',
+              {
+                __interrupt__: [{ value: { type: 'teach_response' }, checkpoint_id: 'checkpoint_1' }]
+              }
+            ] as ['updates', unknown];
 
-          // Should never be observed once interrupt is detected.
-          yield [
-            'custom',
-            { type: 'text-delta', id: 'msg-1', delta: 'should not appear' }
-          ] as ['custom', DataStreamChunk];
-        } finally {
-          upstreamClosed = true;
+            // Should never be observed once interrupt is detected.
+            yield [
+              'custom',
+              { type: 'text-delta', id: 'msg-1', delta: 'should not appear' }
+            ] as ['custom', DataStreamChunk];
+          } finally {
+            upstreamClosed = true;
+          }
+        };
+
+        const chunks: string[] = [];
+        for await (const chunk of toAssistantUIStream(stream())) {
+          chunks.push(chunk);
         }
-      };
 
-      const chunks: string[] = [];
-      for await (const chunk of toAssistantUIStream(stream())) {
-        chunks.push(chunk);
+        expect(chunks).toHaveLength(1);
+        expect(parseSSE(chunks[0])?.type).toBe('text-start');
+        expect(upstreamClosed).toBe(false);
+
+        await vi.runOnlyPendingTimersAsync();
+        expect(upstreamClosed).toBe(true);
+      } finally {
+        vi.useRealTimers();
       }
-
-      expect(chunks).toHaveLength(1);
-      expect(parseSSE(chunks[0])?.type).toBe('text-start');
-      expect(upstreamClosed).toBe(true);
     });
 
     it('should ignore non-custom non-interrupt events', async () => {
