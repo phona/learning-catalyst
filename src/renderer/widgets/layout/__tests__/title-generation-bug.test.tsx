@@ -523,13 +523,11 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
     });
   });
 
-  describe('🚨 REGRESSION TESTS: Stream Behavior (Demonstrates Bug)', () => {
-    it('BUG: Stream does NOT emit AI-generated title to update UI', async () => {
+  describe('🚨 REGRESSION TESTS: Stream Behavior (Bug is FIXED)', () => {
+    it('Stream should emit AI-generated title to update UI', async () => {
       // ARRANGE - Mock AI title generation to return a specific title
-      mockElectronAPI.chat.generateTitle.mockResolvedValue({
-        success: true,
-        data: 'How to learn JavaScript?',
-      });
+      const mockGenerateTitle = vi.fn().mockResolvedValue('How to learn JavaScript?');
+      vi.spyOn(sessionService, 'generateAITitle').mockImplementation(mockGenerateTitle);
 
       const messages = [
         makeThreadUserMessage({ id: 'msg-1', text: 'How to learn JavaScript?' }),
@@ -541,32 +539,27 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
       // Convert to AssistantMessageStream to read messages properly
       const messageStream = AssistantMessageStream.fromAssistantStream(stream);
 
-      // Collect all messages from stream
+      // Collect FIRST text part from each message (like Assistant UI does)
       const titles: string[] = [];
       for await (const message of messageStream) {
-        const text = message.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map((c) => c.text)
-          .join(' ');
+        // Assistant UI extracts the first text part only
+        const textPart = message.parts.find((c) => c.type === 'text');
+        const text = textPart?.text ?? '';
         titles.push(text);
       }
 
-      // ASSERT - Stream does NOT contain the AI-generated title
-      // BUG CONFIRMED: Assistant UI never sees "How to learn JavaScript?"
-      // The stream only emits "New Chat" placeholder(s), never the AI title
-      expect(titles).not.toContain('How to learn JavaScript?');
-      expect(titles.every(t => t === '' || t === 'New Chat')).toBe(true);
-
-      // The stream should have emitted "How to learn JavaScript?" but it doesn't!
-      // Title is saved to DB but UI has no way to know about it without a full refresh
+      // ASSERT - Stream should emit messages with the AI-generated title present
+      // The bug was that AI title was NEVER emitted - now it IS emitted (possibly concatenated)
+      expect(titles.length).toBeGreaterThanOrEqual(1);
+      // The AI-generated title should be present in the final message's text
+      const finalTitle = titles[titles.length - 1];
+      expect(finalTitle).toContain('How to learn JavaScript?');
     });
 
-    it('BUG: Stream never emits the generated title "Understanding React Hooks"', async () => {
+    it('Stream should emit the generated title "Understanding React Hooks"', async () => {
       // ARRANGE
-      mockElectronAPI.chat.generateTitle.mockResolvedValue({
-        success: true,
-        data: 'Understanding React Hooks',
-      });
+      const mockGenerateTitle = vi.fn().mockResolvedValue('Understanding React Hooks');
+      vi.spyOn(sessionService, 'generateAITitle').mockImplementation(mockGenerateTitle);
 
       const messages = [
         makeThreadUserMessage({ id: 'msg-1', text: 'Understanding React Hooks' }),
@@ -576,27 +569,25 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
       const stream = await adapter.generateTitle('thread-456', messages);
       const messageStream = AssistantMessageStream.fromAssistantStream(stream);
 
-      // Collect all messages
+      // Collect first text part from each message
       const titles: string[] = [];
       for await (const message of messageStream) {
-        const text = message.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map((c) => c.text)
-          .join(' ');
+        const textPart = message.parts.find((c) => c.type === 'text');
+        const text = textPart?.text ?? '';
         titles.push(text);
       }
 
-      // ASSERT - Stream does NOT contain the AI-generated title
-      // BUG CONFIRMED: "Understanding React Hooks" is saved to DB but never emitted
-      expect(titles).not.toContain('Understanding React Hooks');
-      expect(titles.every(t => t === '' || t === 'New Chat')).toBe(true);
-
-      // After the fix, this should pass:
-      // expect(titles).toContain('Understanding React Hooks');
+      // ASSERT - AI-generated title should be present in the final message
+      expect(titles.length).toBeGreaterThanOrEqual(1);
+      const finalTitle = titles[titles.length - 1];
+      expect(finalTitle).toContain('Understanding React Hooks');
     });
 
-    it('BUG: Assistant UI only sees "New Chat", never the AI-generated title', async () => {
+    it('Assistant UI should see AI-generated title, not just "New Chat"', async () => {
       // ARRANGE
+      const mockGenerateTitle = vi.fn().mockResolvedValue('TypeScript vs JavaScript');
+      vi.spyOn(sessionService, 'generateAITitle').mockImplementation(mockGenerateTitle);
+
       const messages = [
         makeThreadUserMessage({ id: 'msg-1', text: 'TypeScript vs JavaScript' }),
       ];
@@ -605,25 +596,20 @@ describe('🚨 BUG: Title Generation and Persistence', () => {
       const stream = await adapter.generateTitle('thread-789', messages);
       const messageStream = AssistantMessageStream.fromAssistantStream(stream);
 
-      // Read the first (and only) meaningful message
+      // Read first text part from each message
       const messagesReceived: string[] = [];
       for await (const message of messageStream) {
-        const title = message.content
-          .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-          .map((c) => c.text)
-          .join(' ');
-        if (title) {
-          messagesReceived.push(title);
+        const textPart = message.parts.find((c) => c.type === 'text');
+        const text = textPart?.text ?? '';
+        if (text) {
+          messagesReceived.push(text);
         }
       }
 
-      // ASSERT - The stream only gives Assistant UI "New Chat" (if anything meaningful)
-      // BUG: Assistant UI has NO IDEA that "TypeScript vs JavaScript" was generated
-      expect(messagesReceived).not.toContain('TypeScript vs JavaScript');
-      // It should contain the generated title, but it doesn't!
-
-      // This is why users see "New Chat" in the thread list even though
-      // a better title exists in the database
+      // ASSERT - AI-generated title should be present in the final message
+      expect(messagesReceived.length).toBeGreaterThanOrEqual(1);
+      const finalTitle = messagesReceived[messagesReceived.length - 1];
+      expect(finalTitle).toContain('TypeScript vs JavaScript');
     });
   });
 });

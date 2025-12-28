@@ -108,9 +108,8 @@ function extractReasoning(chunk: Pick<AIMessageChunk, 'content'>): string | unde
     return reasoning;
   }
 
-  const additionalKwargs = (chunk as Pick<AIMessageChunk, 'additional_kwargs'>).additional_kwargs as
-    | Record<string, unknown>
-    | undefined;
+  const additionalKwargs = (chunk as unknown as { additional_kwargs?: Record<string, unknown> })
+    .additional_kwargs;
 
   const fromAdditional = additionalKwargs?.reasoning_content;
   return typeof fromAdditional === 'string' ? fromAdditional : undefined;

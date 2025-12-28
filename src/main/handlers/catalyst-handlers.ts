@@ -108,7 +108,7 @@ export const setupCatalystHandlers = (ipcMainInstance: typeof ipcMain, services:
       ? new Command({ resume: lastUserText })
       : { messages: [new HumanMessage(lastUserText)] };
 
-    const resultState = await workflowGraph.invoke(input, invokeConfig);
+    const resultState = await workflowGraph.invoke(input as any, invokeConfig);
     const response = extractLatestAssistantText((resultState as any)?.messages);
 
     return response;
