@@ -8,3 +8,4 @@
 export * from './practice-context';
 export * from './vibe-types';
 export * from './user-context';
+export * from './mastery-types';

@@ -57,6 +57,7 @@ sqlite-electron-example
 # Learning space data
 **/.learningspace/
 .testenv
+.testconfig.json
 **/.catalyst/
 .mypy_cache
 .pytest_cache
@@ -86,3 +87,6 @@ nul
 .tmp
 test-results
 coverage
+playwright-report
+.qdrant-initialized
+.concept-parse-jobs

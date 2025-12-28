@@ -8,8 +8,28 @@
  * - React testing utilities
  */
 
+import React from 'react';
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
+
+// Mock relation-graph-react before importing React Testing Library
+// The module has initialization code that accesses DOM, so we need a proper mock
+const MockRelationGraph = React.forwardRef<any, any>((props, ref) => {
+  React.useImperativeHandle(ref, () => ({
+    getInstance: () => ({
+      setJsonData: vi.fn(),
+    }),
+  }));
+  return React.createElement('div', { 'data-testid': 'rg-mock' }, props.children);
+});
+
+vi.mock('relation-graph-react', () => ({
+  default: MockRelationGraph,
+  RelationGraph: MockRelationGraph,
+  useRelationGraph: vi.fn(() => ({
+    getInstance: vi.fn(),
+  })),
+}));
 
 // Import React Testing Library
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -22,56 +42,75 @@ process.env.NODE_ENV = 'test';
 // Mock window.electronAPI for IPC communication
 Object.defineProperty(window, 'electronAPI', {
   value: {
+    relaunchApp: vi.fn().mockResolvedValue(undefined),
     getConfig: vi.fn().mockResolvedValue({}),
+    aiSDK: {
+      stream: vi.fn().mockReturnValue(vi.fn()),
+    },
     chat: {
-      sendMessage: vi.fn().mockResolvedValue({ success: true }),
+      generateTitle: vi.fn().mockResolvedValue({ success: true, data: 'Test Title' }),
+      getMessages: vi.fn().mockResolvedValue({ success: true, data: [] }),
       sendMessageStream: vi.fn(),
-      startConversation: vi.fn().mockResolvedValue({}),
-      getConversationHistory: vi.fn().mockResolvedValue([])
+      startConversation: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getConversationHistory: vi.fn().mockResolvedValue({ success: true, data: [] }),
     },
     learning: {
-      startSession: vi.fn().mockResolvedValue({}),
-      getProgress: vi.fn().mockResolvedValue({}),
-      listSessions: vi.fn().mockResolvedValue([])
+      startLearningSession: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getSessionProgress: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getLearningPath: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      searchSessions: vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { sessions: [], totalResults: 0 } }),
     },
     knowledge: {
-      exploreConcept: vi.fn().mockResolvedValue({}),
-      parseConcepts: vi.fn().mockResolvedValue({ concepts: [] })
+      exploreConcept: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      parseConcepts: vi.fn().mockResolvedValue({ success: true, data: { concepts: [] } }),
     },
     analytics: {
-      getDashboard: vi.fn().mockResolvedValue({}),
-      getProgressChart: vi.fn().mockResolvedValue({}),
-      getAchievements: vi.fn().mockResolvedValue([]),
-      trackSession: vi.fn().mockResolvedValue({ success: true })
+      getDashboard: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getProgressChart: vi.fn().mockResolvedValue({ success: true, data: {} }),
+      getAchievements: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      trackSession: vi.fn().mockResolvedValue({ success: true }),
     },
     agents: {
-      list: vi.fn().mockResolvedValue([]),
-      getStatus: vi.fn().mockResolvedValue({ status: 'idle' })
+      getAvailableAgents: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      getAgentCapabilities: vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { capabilities: [] } }),
     },
     content: {
-      exploreLocalProjects: vi.fn().mockResolvedValue([]),
-      importLearningContent: vi.fn().mockResolvedValue({ success: true })
+      exploreLocalProjects: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      importLearningContent: vi.fn().mockResolvedValue({ success: true }),
     },
-    getWorkspacePath: vi.fn().mockResolvedValue('/mock/workspace'),
-    readDirectory: vi.fn().mockResolvedValue([]),
-    readFile: vi.fn().mockResolvedValue('# mock file'),
-    writeFile: vi.fn().mockResolvedValue(undefined),
-    existsFile: vi.fn().mockResolvedValue(true),
+    getWorkspacePath: vi.fn().mockResolvedValue({ success: true, data: '/mock/workspace' }),
+    readDirectory: vi.fn().mockResolvedValue({ success: true, data: [] }),
+    readFile: vi.fn().mockResolvedValue({ success: true, data: '# mock file' }),
+    writeFile: vi.fn().mockResolvedValue({ success: true, data: undefined }),
+    existsFile: vi.fn().mockResolvedValue({ success: true, data: true }),
     showOpenDialog: vi.fn().mockResolvedValue({ canceled: true, filePaths: [] }),
     showSaveDialog: vi.fn().mockResolvedValue({ canceled: true, filePath: '' }),
     getAppVersion: vi.fn().mockResolvedValue('0.0.0'),
+    getVersion: vi
+      .fn()
+      .mockResolvedValue({
+        success: true,
+        data: { version: '1.0.0-test', build: 'local', platform: 'test' },
+      }),
     quit: vi.fn().mockResolvedValue(undefined),
     setConfig: vi.fn().mockResolvedValue(undefined),
     onMenuAction: vi.fn(),
     catalyst: {
       executeAgent: vi.fn().mockResolvedValue({ success: true }),
       executeAgentStream: vi.fn(),
-      listAgents: vi.fn().mockResolvedValue({ agents: [] }),
+      listAgents: vi.fn().mockResolvedValue({ success: true, data: [] }),
       cancelAgent: vi.fn().mockResolvedValue({ success: true }),
       sendChat: vi.fn().mockResolvedValue({
         success: true,
-        messageId: 'test-message-id',
-        response: 'Test response from CatalystService'
+        data: {
+          messageId: 'test-message-id',
+          response: 'Test response from CatalystService',
+        },
       }),
       sendChatStream: vi.fn().mockImplementation(async (message, options, onChunk) => {
         // Simulate streaming response
@@ -80,90 +119,121 @@ Object.defineProperty(window, 'electronAPI', {
         onChunk({ type: 'complete', content: '', timestamp: Date.now() });
         return {
           success: true,
-          messageId: 'test-stream-id'
+          data: { messageId: 'test-stream-id' },
         };
       }),
       getAvailableAgents: vi.fn().mockResolvedValue({
         success: true,
-        agents: [
+        data: [
           {
             id: 'test-agent-1',
             name: 'Test Agent 1',
             description: 'A test agent for unit testing',
-            capabilities: ['chat', 'thinking']
+            capabilities: ['chat', 'thinking'],
           },
           {
             id: 'test-agent-2',
             name: 'Test Agent 2',
             description: 'Another test agent',
-            capabilities: ['chat', 'tool-calling']
-          }
-        ]
+            capabilities: ['chat', 'tool-calling'],
+          },
+        ],
       }),
       getSession: vi.fn().mockResolvedValue({
         success: true,
-        session: {
+        data: {
           id: 'test-session-id',
           title: 'Test Session',
-          messages: []
-        }
+          messages: [],
+        },
       }),
       cancelExecution: vi.fn().mockResolvedValue({
-        success: true
+        success: true,
       }),
     },
     sessions: {
       create: vi.fn().mockResolvedValue({
         success: true,
-        session: { id: 'test-new-session', title: 'New Session' }
+        data: {
+          sessionId: 'test-new-session',
+          session: { id: 'test-new-session', title: 'New Session' },
+        },
       }),
       get: vi.fn().mockResolvedValue({
         success: true,
-        session: { id: 'test-session', title: 'Test Session' }
+        data: { id: 'test-session', title: 'Test Session' },
       }),
       list: vi.fn().mockResolvedValue({
         success: true,
-        sessions: [
-          { id: 'session-1', title: 'Session 1' },
-          { id: 'session-2', title: 'Session 2' }
-        ]
+        data: {
+          sessions: [
+            { id: 'session-1', title: 'Session 1' },
+            { id: 'session-2', title: 'Session 2' },
+          ],
+          total: 2,
+          hasMore: false,
+        },
       }),
       update: vi.fn().mockResolvedValue({
-        success: true
+        success: true,
       }),
       delete: vi.fn().mockResolvedValue({
-        success: true
+        success: true,
+      }),
+      saveMessage: vi.fn().mockResolvedValue({ success: true }),
+      saveSessionWithMessages: vi
+        .fn()
+        .mockResolvedValue({ success: true, data: { sessionId: 'test-new-session' } }),
+      updateTitle: vi.fn().mockResolvedValue({ success: true }),
+      getRecentSessions: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      search: vi.fn().mockResolvedValue({
+        success: true,
+        data: { sessions: [], total: 0, query: '', hasMore: false },
+      }),
+      getStatistics: vi.fn().mockResolvedValue({
+        success: true,
+        data: {
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
+        },
       }),
       associateAgent: vi.fn().mockResolvedValue({
-        success: true
+        success: true,
       }),
       removeAgent: vi.fn().mockResolvedValue({
-        success: true
+        success: true,
       }),
       getAgents: vi.fn().mockResolvedValue({
         success: true,
-        agents: []
+        agents: [],
       }),
     },
     settings: {
       getUserPreferences: vi.fn().mockResolvedValue({
-        interface: {
-          theme: 'dark',
-          fontSize: 'medium',
-          compactMode: false,
-          showProgressIndicators: true,
-        },
-        learning: {
-          preferredDifficulty: 'intermediate',
-          learningStyle: 'visual',
-          preferredSessionDuration: '45',
-          tracking: {
-            enableAnalytics: true,
+        success: true,
+        data: {
+          interface: {
+            theme: 'dark',
+            fontSize: 'medium',
+            compactMode: false,
+            showProgressIndicators: true,
           },
-        },
-        privacy: {
-          saveConversationHistory: true,
-          shareAnalytics: false,
+          learning: {
+            preferredDifficulty: 'intermediate',
+            learningStyle: 'visual',
+            preferredSessionDuration: '45',
+            tracking: {
+              enableAnalytics: true,
+            },
+          },
+          privacy: {
+            saveConversationHistory: true,
+            shareAnalytics: false,
+          },
         },
       }),
       updatePreferences: vi.fn().mockResolvedValue({
@@ -216,7 +286,7 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -254,31 +324,8 @@ Object.defineProperty(window, 'innerHeight', {
 
 // ==================== STORAGE API MOCKS ====================
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  key: vi.fn(),
-  length: 0,
-};
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-});
-
-// Mock sessionStorage
-const sessionStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
-  key: vi.fn(),
-  length: 0,
-};
-Object.defineProperty(window, 'sessionStorage', {
-  value: sessionStorageMock,
-});
+const localStorageMock = window.localStorage as any;
+const sessionStorageMock = window.sessionStorage as any;
 
 // ==================== NAVIGATION API MOCKS ====================
 
@@ -392,20 +439,20 @@ export function createMockSession(overrides: any = {}) {
         type: 'user',
         content: 'Test message',
         timestamp: Date.now(),
-        metadata: {}
+        metadata: {},
       },
       {
         id: 'msg-2',
         type: 'assistant',
         content: 'Test response',
         timestamp: Date.now(),
-        metadata: {}
-      }
+        metadata: {},
+      },
     ],
     createdAt: Date.now(),
     updatedAt: Date.now(),
     agentId: 'test-agent-1',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -422,10 +469,10 @@ export function createMockAgent(overrides: any = {}) {
     modelConfig: {
       provider: 'openai',
       model: 'gpt-3.5-turbo',
-      temperature: 0.7
+      temperature: 0.7,
     },
     status: 'inactive',
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -439,15 +486,15 @@ export function createMockMessage(overrides: any = {}) {
     content: 'Test message content',
     timestamp: Date.now(),
     metadata: {},
-    ...overrides
+    ...overrides,
   };
 }
 
 /**
  * Wait for DOM updates in React tests
  */
-export async function waitForDOMUpdate(ms: number = 0): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms));
+export async function waitForDOMUpdate(ms = 0): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -457,13 +504,13 @@ export function simulateKeyboardEvent(
   element: HTMLElement,
   eventType: string,
   key: string,
-  options: KeyboardEventInit = {}
+  options: KeyboardEventInit = {},
 ): void {
   const event = new KeyboardEvent(eventType, {
     key,
     bubbles: true,
     cancelable: true,
-    ...options
+    ...options,
   });
   element.dispatchEvent(event);
 }
@@ -474,12 +521,12 @@ export function simulateKeyboardEvent(
 export function simulateMouseEvent(
   element: HTMLElement,
   eventType: string,
-  options: MouseEventInit = {}
+  options: MouseEventInit = {},
 ): void {
   const event = new MouseEvent(eventType, {
     bubbles: true,
     cancelable: true,
-    ...options
+    ...options,
   });
   element.dispatchEvent(event);
 }
@@ -492,7 +539,7 @@ export const RendererTestUtils = {
   createMockMessage,
   waitForDOMUpdate,
   simulateKeyboardEvent,
-  simulateMouseEvent
+  simulateMouseEvent,
 };
 
 // Export mock implementations
@@ -527,7 +574,7 @@ vi.mock('@/renderer/stores/useAppStore', () => {
     setSuccess: vi.fn(),
     clearMessages: vi.fn(),
   };
-  
+
   // Create a properly typed mock store with Zustand methods
   const mockStoreWithMethods = {
     ...mockStore,
@@ -536,10 +583,10 @@ vi.mock('@/renderer/stores/useAppStore', () => {
     destroy: vi.fn(),
     setState: vi.fn(),
   };
-  
+
   // Create mock hook function with Zustand methods
   const mockUseAppStore = vi.fn(() => mockStoreWithMethods);
-  
+
   // Add Zustand store methods to hook function itself
   Object.assign(mockUseAppStore, {
     getState: vi.fn(() => mockStoreWithMethods),
@@ -547,9 +594,9 @@ vi.mock('@/renderer/stores/useAppStore', () => {
     destroy: vi.fn(),
     setState: vi.fn(),
   });
-  
+
   return {
-    useAppStore: mockUseAppStore
+    useAppStore: mockUseAppStore,
   };
 });
 
@@ -559,7 +606,7 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
     config: {
       ai: {
         providers: {},
-        model_types: {
+        modelTypes: {
           chat: {
             provider: 'openai',
             model: 'gpt-3.5-turbo',
@@ -568,8 +615,8 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
             top_p: 1,
             enable_thinking: false,
             stream: true,
-          }
-        }
+          },
+        },
       },
       ui: {
         theme: 'light',
@@ -628,7 +675,7 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
     removeProviderConfig: vi.fn(),
     setDefaultProvider: vi.fn(),
   };
-  
+
   // Create a properly typed mock store with Zustand methods
   const mockStoreWithMethods = {
     ...mockStore,
@@ -637,10 +684,10 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
     destroy: vi.fn(),
     setState: vi.fn(),
   };
-  
+
   // Create the mock hook function with Zustand methods
   const mockUseConfigStore = vi.fn(() => mockStoreWithMethods);
-  
+
   // Add Zustand store methods to the hook function itself
   Object.assign(mockUseConfigStore, {
     getState: vi.fn(() => mockStoreWithMethods),
@@ -648,17 +695,18 @@ vi.mock('@/renderer/stores/useConfigStore', () => {
     destroy: vi.fn(),
     setState: vi.fn(),
   });
-  
+
   return {
-    useConfigStore: mockUseConfigStore
+    useConfigStore: mockUseConfigStore,
+    setConfigurationService: vi.fn(),
   };
 });
 
 // Mock service hooks
 vi.mock('@/renderer/hooks/useAppServices', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as Record<string, unknown>;
   return {
-    ...actual,
+    ...(actual as object),
     // Make sure we export the components
     ServicesProvider: ({ children }: any) => children,
     ConfigServiceProvider: ({ children }: any) => children,
@@ -666,9 +714,9 @@ vi.mock('@/renderer/hooks/useAppServices', async (importOriginal) => {
 });
 
 vi.mock('@/renderer/hooks/useServices', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as Record<string, unknown>;
   return {
-    ...actual,
+    ...(actual as object),
     // Make sure we export the ServicesProvider component
     ServicesProvider: ({ children }: any) => children,
   };

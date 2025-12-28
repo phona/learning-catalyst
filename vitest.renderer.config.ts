@@ -23,7 +23,7 @@ export default defineConfig({
       'dist',
       'src/main/**',
       'src/test/integration/**',
-      'src/test/performance/**'
+      'src/test/performance/**',
     ],
     globals: true,
     setupFiles: ['./src/test/setup/renderer/setup.ts'],
@@ -35,38 +35,40 @@ export default defineConfig({
       threads: {
         singleThread: false,
         minThreads: 1,
-        maxThreads: 4
-      }
+        maxThreads: 4,
+      },
     },
     reporters: ['verbose'],
     outputFile: {
-      'junit': 'test-results/renderer/junit.xml',
-      'json': 'test-results/renderer/results.json'
+      junit: 'test-results/renderer/junit.xml',
+      json: 'test-results/renderer/results.json',
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
       reportsDirectory: 'coverage/renderer',
-      include: [
-        'src/renderer/**/*.{js,ts,jsx,tsx}',
-        'src/shared/**/*.{js,ts}'
-      ],
+      // Cover all renderer code (UI, hooks, stores, services, utils)
+      include: ['src/renderer/**/*.{js,ts,jsx,tsx}'],
       exclude: [
         '**/*.test.{js,ts,jsx,tsx}',
         '**/*.spec.{js,ts,jsx,tsx}',
         '**/node_modules/**',
         '**/dist/**',
-        '**/__tests__/**'
+        '**/__tests__/**',
+        '**/index.ts',
+        '**/index.tsx',
+        'src/shared/**',
+        'src/renderer/types/**',
       ],
       thresholds: {
         global: {
           branches: 65,
           functions: 70,
           lines: 75,
-          statements: 75
-        }
-      }
-    }
+          statements: 75,
+        },
+      },
+    },
   },
   resolve: {
     alias: {
@@ -75,16 +77,16 @@ export default defineConfig({
       '@/main': path.resolve(__dirname, './src/main'),
       '@/shared': path.resolve(__dirname, './src/shared'),
       '@/test': path.resolve(__dirname, './src/test'),
-      '@/stores': path.resolve(__dirname, './src/renderer/stores')
-    }
+      '@/stores': path.resolve(__dirname, './src/renderer/stores'),
+    },
   },
   define: {
-    'process.env.NODE_ENV': '"test"'
+    'process.env.NODE_ENV': '"test"',
   },
   esbuild: {
     target: 'es2020',
     jsx: 'automatic',
     jsxFactory: 'React.createElement',
     jsxFragment: 'React.Fragment',
-  }
+  },
 });

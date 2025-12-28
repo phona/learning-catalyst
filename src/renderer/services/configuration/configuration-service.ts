@@ -1,36 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
-import { PREDEFINED_PROVIDERS } from '@/shared/constants/providers';
-import type {
-  AppConfig,
-  ProviderValidationResult,
-  SelectedModel,
-  ModelTypeConfig,
-} from '@/shared/types/config';
-import { ModelType } from '@/shared/types/ai';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
+import type { AppConfig, ProviderValidationResult, ProviderConfig } from '@/shared/types/config';
+import type { ElectronAPI } from '@/shared/types/electron-api';
+import _ from 'lodash';
 
 /**
  * Configuration Service
@@ -51,375 +22,209 @@ export interface ConfigurationSection {
 
 /**
  * Configuration Service for managing application settings
+ * Factory function to create configuration service instance
  */
-export class ConfigurationService {
-  private readonly cache: Map<string, ConfigurationValue> = new Map();
-  private currentConfig: AppConfig | null = null;
-
-  /**
-   * Get configuration value
-   */
-  async getConfiguration(key?: string): Promise<ConfigurationValue | Record<string, ConfigurationValue>> {
-    // Mock implementation for testing
-    if (key) {
-      const mockValue: ConfigurationValue = {
-        key,
-        value: key === 'ai.provider' ? 'openai' : 'default_value',
-        dataType: 'string',
-        lastModified: new Date()
-      };
-      return mockValue;
-    }
-
-    // Return all configuration if no key specified
-    const allConfig: Record<string, ConfigurationValue> = {
-      'ai.provider': {
-        key: 'ai.provider',
-        value: 'openai',
-        dataType: 'string',
-        lastModified: new Date()
-      },
-      'ai.model': {
-        key: 'ai.model',
-        value: 'gpt-3.5-turbo',
-        dataType: 'string',
-        lastModified: new Date()
-      }
-    };
-
-    return allConfig;
-  }
-
+export function createConfigurationService(apiClient: ElectronAPI) {
   /**
    * Set configuration value
    */
-  async setConfiguration(key: string, value: unknown, dataType?: string): Promise<boolean> {
-    try {
-      // Mock implementation for testing
-      const configValue: ConfigurationValue = {
-        key,
-        value,
-        dataType: (dataType as any) || typeof value,
-        lastModified: new Date()
-      };
-
-      this.cache.set(key, configValue);
-
-      // Simulate IPC call to main process
-      if (window.electronAPI?.setConfig) {
-        await window.electronAPI.setConfig(key, value);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Failed to set configuration:', error);
-      return false;
-    }
-  }
+  const setConfig = async (config: Partial<AppConfig>): Promise<void> => {
+    const currentConfig = (await getConfig()) ?? {};
+    const newConfig = _.merge({}, currentConfig, config);
+    await unwrapAPI(apiClient.settings.setConfig(newConfig as AppConfig));
+  };
 
   /**
-   * Save full application configuration.
-   * Keeps a local copy and updates persisted preferences via Electron API when available.
+   * Fetch the persisted application configuration.
    */
-  async saveConfig(config: AppConfig): Promise<void> {
-    try {
-      this.currentConfig = config;
-      // Best-effort bridge to preload settings API
-      if (window?.electronAPI?.settings?.updatePreferences) {
-        // Map a minimal subset to user preferences; the main store handles full shape
-        const preferences = {
-          interface: {
-            theme: config.ui?.theme,
-            fontSize: config.ui?.font_size,
-            compactMode: config.ui?.compact_mode,
-            showProgressIndicators: config.ui?.show_token_usage,
-          },
-          learning: {
-            preferredDifficulty: config.learning?.difficulty,
-            learningStyle: config.learning?.learning_style,
-          },
-          privacy: {
-            saveConversationHistory: config.privacy?.store_conversations,
-            shareAnalytics: config.privacy?.anonymous_analytics,
-          },
-        } as any;
-        await window.electronAPI.settings.updatePreferences(preferences);
-      }
-    } catch (err) {
-      // Surface consistent error behavior for callers
-      const message = err instanceof Error ? err.message : 'Failed to save configuration';
-      throw new Error(message);
-    }
-  }
-
-  /**
-   * Update a specific model type assignment and persist into currentConfig (if any).
-   * Accepts either SelectedModel or a ModelTypeConfig-like shape.
-   */
-  async updateModelTypeConfig(
-    modelType: ModelType,
-    modelConfig: SelectedModel | ModelTypeConfig
-  ): Promise<void> {
-    // Normalize input to SelectedModel
-    const normalized: SelectedModel = (
-      (modelConfig as any).provider && (modelConfig as any).model
-    )
-      ? { provider: (modelConfig as any).provider, model: (modelConfig as any).model }
-      : {
-        provider: (modelConfig as any).default_provider ?? '',
-        model: (modelConfig as any).default_model ?? '',
-      };
-
-    if (!normalized.provider || !normalized.model) {
-      throw new Error('Provider and model are required to update model type configuration');
-    }
-
-    // Update local copy if available
-    if (this.currentConfig) {
-      const next: AppConfig = {
-        ...this.currentConfig,
-        ai: {
-          ...this.currentConfig.ai,
-          model_types: {
-            ...this.currentConfig.ai.model_types,
-            [modelType]: normalized,
-          },
-        },
-      };
-      this.currentConfig = next;
-    }
-  }
-
-  /**
-   * Get configuration section
-   */
-  async getConfigurationSection(section: string): Promise<ConfigurationSection> {
-    // Mock implementation
-    const sections: Record<string, ConfigurationSection> = {
-      ai: {
-        provider: 'openai',
-        model: 'gpt-3.5-turbo',
-        temperature: 0.7,
-        maxTokens: 2048
-      },
-      ui: {
-        theme: 'dark',
-        language: 'en',
-        fontSize: 14
-      },
-      learning: {
-        dailyGoal: 60, // minutes
-        reminderEnabled: true,
-        autoSave: true
-      }
-    };
-
-    return sections[section] || {};
-  }
-
-  /**
-   * Reset configuration to defaults
-   */
-  async resetConfiguration(section?: string): Promise<boolean> {
-    try {
-      // Mock implementation
-      if (section) {
-        // Reset specific section
-        console.log(`Resetting configuration section: ${section}`);
-      } else {
-        // Reset all configuration
-        this.cache.clear();
-        console.log('Resetting all configuration');
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Failed to reset configuration:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Export configuration
-   */
-  async exportConfiguration(format: 'json' = 'json'): Promise<string> {
-    const config = await this.getConfiguration();
-
-    if (format === 'json') {
-      return JSON.stringify(config, null, 2);
-    }
-
-    throw new Error(`Unsupported export format: ${format}`);
-  }
+  const getConfig = async (): Promise<AppConfig | null> => {
+    const resp = await unwrapAPI(apiClient.settings.getConfig());
+    return resp;
+  };
 
   /**
    * Import configuration
    */
-  async importConfiguration(configData: string, format: 'json' = 'json'): Promise<boolean> {
-    try {
-      if (format === 'json') {
-        const config = JSON.parse(configData);
-
-        // Apply configuration
-        for (const [key, value] of Object.entries(config)) {
-          await this.setConfiguration(key, value);
-        }
-
-        return true;
-      }
-
-      throw new Error(`Unsupported import format: ${format}`);
-    } catch (error) {
-      console.error('Failed to import configuration:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Validate configuration value
-   */
-  private validateConfigValue(key: string, value: unknown): boolean {
-    // Mock validation logic
-    const validations: Record<string, (value: unknown) => boolean> = {
-      'ai.temperature': (v) => typeof v === 'number' && v >= 0 && v <= 2,
-      'ai.maxTokens': (v) => typeof v === 'number' && v > 0,
-      'ui.fontSize': (v) => typeof v === 'number' && v >= 8 && v <= 32,
-      'learning.dailyGoal': (v) => typeof v === 'number' && v > 0
-    };
-
-    const validator = validations[key];
-    return validator ? validator(value) : true;
-  }
-
-  /**
-   * Get cached configuration value
-   */
-  getCachedValue(key: string): ConfigurationValue | undefined {
-    return this.cache.get(key);
-  }
-
-  /**
-   * Clear configuration cache
-   */
-  clearCache(): void {
-    this.cache.clear();
-  }
-
-  /**
-   * Validate provider credentials and connectivity.
-   */
-  async validateProvider(
-    providerType: string,
-    apiKey: string,
-    baseUrl?: string
-  ): Promise<ProviderValidationResult> {
-    const endpoint = this.resolveProviderEndpoint(providerType, baseUrl);
-    if (!endpoint) {
-      return { success: false, error: `Unknown provider: ${providerType}` };
-    }
-
-    try {
-      const response = await fetch(`${endpoint}/models`, {
-        method: 'GET',
-        headers: this.buildProviderHeaders(apiKey),
-      });
-
-      if (response.ok) {
-        return { success: true };
-      }
-
-      const payload = await response.json().catch(() => null);
-      const errorMessage =
-        payload?.error?.message ||
-        `${response.status} ${response.statusText}` ||
-        'Unknown provider validation error';
-
-      return { success: false, error: errorMessage };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to reach provider',
-      };
-    }
-  }
+  const importConfig = async (configData: string, format: 'json' = 'json'): Promise<void> => {
+    throw new Error('Import configuration not implemented');
+  };
 
   /**
    * Fetch available models for a provider.
    */
-  async getProviderModels(
+  const getProviderModels = async (
     providerType: string,
     apiKey: string,
-    baseUrl?: string
-  ): Promise<string[]> {
-    const endpoint = this.resolveProviderEndpoint(providerType, baseUrl);
-    if (!endpoint) {
+    baseUrl?: string,
+  ): Promise<string[]> => {
+    // Get available providers from settings API
+    const response = await unwrapAPI(apiClient.settings.getAvailableProviders());
+    const result = response;
+    const providers = (result.providers || []) as {
+      providerType?: string;
+      models?: string[];
+    }[];
+    const provider = providers.find((p) => p.providerType === providerType);
+
+    if (!provider) {
       throw new Error(`Unknown provider: ${providerType}`);
     }
 
-    const response = await fetch(`${endpoint}/models`, {
-      method: 'GET',
-      headers: this.buildProviderHeaders(apiKey),
-    });
+    return Array.isArray(provider.models) ? provider.models! : [];
+  };
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => null);
-      const errorMessage =
-        payload?.error?.message ||
-        `${response.status} ${response.statusText}` ||
-        'Failed to fetch models';
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json().catch(() => null);
-
-    if (!data) {
-      return [];
-    }
-
-    if (Array.isArray(data)) {
-      return this.extractModelIdentifiers(data);
-    }
-
-    if (Array.isArray(data.data)) {
-      return this.extractModelIdentifiers(data.data);
-    }
-
-    if (Array.isArray(data.models)) {
-      return this.extractModelIdentifiers(data.models);
-    }
-
-    return [];
-  }
-
-  private resolveProviderEndpoint(providerType: string, override?: string): string | null {
-    const rawUrl = override?.trim() || PREDEFINED_PROVIDERS[providerType]?.base_url;
-    if (!rawUrl) {
-      return null;
-    }
-
-    return rawUrl.replace(/\/+$/, '');
-  }
-
-  private buildProviderHeaders(apiKey: string): Record<string, string> {
+  /**
+   * Get available AI providers and their status
+   */
+  const getAvailableProviders = async () => {
+    const response = await unwrapAPI(apiClient.settings.getAvailableProviders());
+    const result = response;
+    const { providers = [], summary } = result;
     return {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      success: true,
+      providers,
+      summary: {
+        total: providers.length,
+        connected: summary?.connected || 0,
+        configured: summary?.configured || 0,
+      },
     };
-  }
+  };
 
-  private extractModelIdentifiers(models: Array<any>): string[] {
-    return models
-      .map((model) => {
-        if (typeof model === 'string') {
-          return model;
-        }
+  /**
+   * Configure an AI provider (alias for addProvider to maintain compatibility)
+   */
+  const configureProvider = async (params: {
+    provider: string;
+    config: Partial<ProviderConfig>;
+  }) => {
+    const currentConfig = (await getConfig()) ?? {};
+    const newConfig = _.merge(
+      {},
+      (currentConfig as AppConfig)?.ai?.providers?.[params.provider] || {},
+      params.config
+    );
 
-        if (model && typeof model === 'object') {
-          return model.id || model.name || model.model || null;
-        }
+    const response = await unwrapAPI(apiClient.settings.configureProvider({
+      provider: params.provider,
+      config: newConfig,
+    }));
+    return response;
+  };
 
-        return null;
-      })
-      .filter((value): value is string => Boolean(value));
-  }
+  const validateProvider = async (
+    providerType: string,
+    apiKey: string,
+    baseUrl?: string,
+  ): Promise<ProviderValidationResult> => {
+    if (!providerType || !apiKey.trim()) {
+      return { success: false, error: 'Provider and API key are required' };
+    }
+    const providersResp = await unwrapAPI(apiClient.settings.getAvailableProviders());
+    const { providers } = providersResp;
+    const known = providers.find((p) => p.providerType === providerType);
+    if (!known && !baseUrl) {
+      return {
+        success: false,
+        error: 'Unknown provider. Provide a base URL for custom providers',
+      };
+    }
+    return { success: true };
+  };
+
+  /**
+   * Get the status of the currently configured AI provider
+   */
+  const getProviderStatus = async () => {
+    try {
+      const config = await getConfig();
+      const providers = config?.ai?.providers;
+
+      if (!providers || Object.keys(providers).length === 0) {
+        return {
+          status: 'not-configured' as const,
+          message: 'No AI Provider Configured',
+          details: 'Please configure an AI provider in Settings > AI Providers.',
+          providerInfo: null,
+        };
+      }
+
+      // Get the first configured provider
+      const providerEntries = Object.entries(providers);
+      if (providerEntries.length === 0) {
+        return {
+          status: 'not-configured' as const,
+          message: 'No AI Provider Configured',
+          details: 'Please configure an AI provider in Settings > AI Providers.',
+          providerInfo: null,
+        };
+      }
+
+      const [providerName, providerConfig] = providerEntries[0];
+
+      if (!providerConfig || !providerConfig.apiKey) {
+        return {
+          status: 'incomplete' as const,
+          message: 'AI Provider Incomplete',
+          details: `The ${providerName} provider is not properly configured. Please add a valid API key in Settings > AI Providers.`,
+          providerInfo: { name: providerName, type: 'llm' },
+        };
+      }
+
+      // TODO: Add actual connectivity test
+      return {
+        status: 'ready' as const,
+        message: `${providerName} Ready`,
+        details: 'Provider is configured and ready to use.',
+        providerInfo: { name: providerName, type: 'llm' },
+      };
+    } catch (error) {
+      console.error('Failed to get provider status:', error);
+      return {
+        status: 'error' as const,
+        message: 'Provider Validation Failed',
+        details: 'An error occurred while validating the AI provider. Please check your configuration.',
+        providerInfo: null,
+      };
+    }
+  };
+
+  // Return public API
+  return {
+    getAvailableProviders,
+    configureProvider,
+    validateProvider,
+    getProviderStatus,
+    getProviderModels,
+    getConfig,
+    setConfig,
+    saveConfig: setConfig,
+  };
+}
+
+export interface ConfigurationService {
+  getAvailableProviders: () => Promise<{
+    success: boolean;
+    providers: ProviderConfig[];
+    summary: { total: number; connected: number; configured: number };
+  }>;
+  configureProvider: (params: {
+    provider: string;
+    config: Partial<ProviderConfig>;
+  }) => Promise<{ providerId: string; status: string }>;
+  validateProvider: (
+    providerType: string,
+    apiKey: string,
+    baseUrl?: string,
+  ) => Promise<ProviderValidationResult>;
+  getProviderStatus: () => Promise<{
+    status: 'loading' | 'ready' | 'not-configured' | 'incomplete' | 'error';
+    message: string;
+    details?: string;
+    providerInfo?: { name?: string; type?: string } | null;
+  }>;
+  getProviderModels: (providerType: string, apiKey: string, baseUrl?: string) => Promise<string[]>;
+  getConfig: () => Promise<AppConfig | null>;
+  setConfig: (config: Partial<AppConfig>) => Promise<void>;
+  saveConfig: (config: Partial<AppConfig>) => Promise<void>;
 }

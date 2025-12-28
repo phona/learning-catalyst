@@ -6,23 +6,18 @@ export type {
   TokenUsage,
   ChatResponse as AIChatResponse,
   AIModel,
-  ModelType,
-  ProviderConfig as AIProviderConfig,
   AIProvider,
   ChatOptions,
   ModelList,
   ProviderFactory,
-  OpenAIConfig,
-  ChatGLMConfig,
-  DeepSeekConfig,
-  SiliconFlowConfig,
   AIError,
   AuthenticationError,
   ModelNotFoundError,
   ProviderError,
   RateLimitError,
-  TimeoutError
+  TimeoutError,
 } from './ai';
+export { ModelType } from './ai';
 export type {
   AppConfig,
   AIConfig,
@@ -30,18 +25,22 @@ export type {
   LearningConfig,
   PrivacyConfig,
   PerformanceConfig,
-  ProviderConfig as ConfigProviderConfig,
+  ProviderType,
+  ProviderConfig,
+  SelectedModel,
+  SelectedChatModel,
   ModelTypeConfig,
   ModelCapabilities,
   ModelTestResult,
   ModelValidationResult,
+  ProviderValidationResult,
   ValidationError,
   ValidationResult,
   ConfigMigration,
   ConfigSchema,
   ThemeConfig,
   ConfigPreset,
-  ConfigChangeEvent
+  ConfigChangeEvent,
 } from './config';
 export type {
   Session,
@@ -60,21 +59,40 @@ export type {
   SessionExportOptions,
   SessionImportResult,
   SessionEvent,
-  MessageEvent
+  MessageEvent,
 } from './session';
 export type {
   LearningObjective,
   LearningMaterial,
   AssessmentCriteria,
   LearningPath,
-  LearningProgress as ObjectiveLearningProgress
+  LearningProgress as ObjectiveLearningProgress,
 } from './learning';
 export * from './ui';
 export * from './api';
+export type { Database, SessionDatabase } from './database';
+
 export type {
-  Database,
-  SessionDatabase
-} from './database';
+  ElectronAPI,
+  APIResponse,
+  ChatAPI,
+  KnowledgeAPI,
+  AnalyticsAPI,
+  SettingsAPI,
+  SessionsAPI,
+  CatalystAPI,
+  ConversationDisplay,
+  MessageDisplay,
+  TypingIndicator,
+  ConversationSummary,
+  ConversationHistory,
+  ConversationContext,
+  PracticeOpportunityResult,
+  NaturalPracticeSuggestion,
+  UserLearningContext,
+} from './electron-api';
+
+export type { AgentDisplay } from './electron-api/chat-api';
 
 // Export practice types for context-aware practice system
 export * from './practice';

@@ -20,9 +20,9 @@ export class LRUCache<TKey, TValue> {
   private currentMemory = 0;
 
   constructor(
-    maxSize: number = 100,
+    maxSize = 100,
     maxMemoryMB?: number,
-    cleanupIntervalMs = 60 * 1000 // 1 minute
+    cleanupIntervalMs = 60 * 1000, // 1 minute
   ) {
     this.maxSize = maxSize;
     this.maxMemory = maxMemoryMB ? maxMemoryMB * 1024 * 1024 : undefined;
@@ -39,7 +39,10 @@ export class LRUCache<TKey, TValue> {
     }
 
     // Evict if over capacity
-    if (this.cache.size >= this.maxSize || (this.maxMemory && this.currentMemory >= this.maxMemory)) {
+    if (
+      this.cache.size >= this.maxSize ||
+      (this.maxMemory && this.currentMemory >= this.maxMemory)
+    ) {
       this.evictOldest();
     }
 
@@ -98,12 +101,13 @@ export class LRUCache<TKey, TValue> {
     let oldestKey: TKey | null = null;
     let oldestTimestamp = Infinity;
 
-    for (const [key, entry] of this.cache.entries()) {
+    // Convert to array to avoid downlevelIteration issues
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if (entry.timestamp < oldestTimestamp) {
         oldestTimestamp = entry.timestamp;
         oldestKey = key;
       }
-    }
+    });
 
     if (oldestKey) {
       this.remove(oldestKey);
@@ -116,14 +120,14 @@ export class LRUCache<TKey, TValue> {
     let evictedCount = 0;
 
     // Find stale entries (older than 30 minutes)
-    for (const [key, entry] of this.cache.entries()) {
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if (now - entry.timestamp > 30 * 60 * 1000) {
         staleEntries.push(key);
       }
-    }
+    });
 
     // Remove stale entries
-    staleEntries.forEach(key => {
+    staleEntries.forEach((key) => {
       if (this.remove(key)) {
         evictedCount++;
       }
@@ -154,7 +158,7 @@ export class LRUCache<TKey, TValue> {
       memoryUsageMB: this.maxMemory ? this.currentMemory / (1024 * 1024) : undefined,
       memoryLimitMB: this.maxMemory ? this.maxMemory / (1024 * 1024) : undefined,
       utilizationPercent: (this.cache.size / this.maxSize) * 100,
-      cleanupIntervalMs: this.cleanupInterval ? undefined : undefined
+      cleanupIntervalMs: this.cleanupInterval ? undefined : undefined,
     };
   }
 
@@ -171,8 +175,8 @@ export class LRUCache<TKey, TValue> {
  * Memory-optimized promise cache with automatic cleanup
  */
 export class PromiseCache {
-  private readonly cache = new LRUCache<string, Promise<any>>();
-  private readonly loadingPromises = new Map<string, Promise<any>>();
+  private readonly cache = new LRUCache<string, Promise<unknown>>();
+  private readonly loadingPromises = new Map<string, Promise<unknown>>();
 
   /**
    * Get or create a cached promise
@@ -183,15 +187,15 @@ export class PromiseCache {
     options?: {
       ttl?: number; // time to live in milliseconds
       maxSize?: number;
-    }
+    },
   ): Promise<T> {
-    const existing = this.cache.get(key);
+    const existing = this.cache.get(key) as Promise<T> | undefined;
     if (existing) {
       return existing;
     }
 
     // Check if promise is already loading
-    const loading = this.loadingPromises.get(key);
+    const loading = this.loadingPromises.get(key) as Promise<T> | undefined;
     if (loading) {
       return loading;
     }
@@ -230,7 +234,7 @@ export class PromiseCache {
   /**
    * Get cache statistics
    */
-  getStats(): any {
+  getStats(): unknown {
     return this.cache.getStats();
   }
 
@@ -258,12 +262,12 @@ export class PerformanceMonitor {
   /**
    * Record a performance metric
    */
-  recordMetric(name: string, duration: number, metadata?: any): void {
+  recordMetric(name: string, duration: number, metadata?: unknown): void {
     const metric: PerformanceMetric = {
       name,
       duration,
       timestamp: Date.now(),
-      metadata
+      metadata: metadata as { [key: string]: unknown },
     };
 
     let nameMetrics = this.metrics.get(name);
@@ -283,10 +287,7 @@ export class PerformanceMonitor {
   /**
    * Measure an async operation
    */
-  async measureAsync<T>(
-    name: string,
-    operation: () => Promise<T>
-  ): Promise<T> {
+  async measureAsync<T>(name: string, operation: () => Promise<T>): Promise<T> {
     const start = performance.now();
     let error: Error | undefined;
 
@@ -312,11 +313,9 @@ export class PerformanceMonitor {
       return null;
     }
 
-    const durations = nameMetrics
-      .filter(m => !m.metadata?.error)
-      .map(m => m.duration);
+    const durations = nameMetrics.filter((m) => !m.metadata?.error).map((m) => m.duration);
 
-    const errorCount = nameMetrics.filter(m => m.metadata?.error).length;
+    const errorCount = nameMetrics.filter((m) => m.metadata?.error).length;
     const totalCount = nameMetrics.length;
 
     if (durations.length === 0) {
@@ -328,7 +327,7 @@ export class PerformanceMonitor {
         maxDuration: 0,
         medianDuration: 0,
         p95Duration: 0,
-        p99Duration: 0
+        p99Duration: 0,
       };
     }
 
@@ -347,7 +346,7 @@ export class PerformanceMonitor {
       maxDuration: durations[durations.length - 1],
       medianDuration: median,
       p95Duration: p95,
-      p99Duration: p99
+      p99Duration: p99,
     };
   }
 
@@ -370,7 +369,7 @@ export class PerformanceMonitor {
             if (entry.entryType === 'longtask') {
               this.recordMetric('longtask', entry.duration, {
                 type: entry.name,
-                start: entry.startTime
+                start: entry.startTime,
               });
             }
           }
@@ -387,7 +386,7 @@ export class PerformanceMonitor {
           for (const entry of list.getEntries()) {
             if (entry.entryType === 'measure') {
               this.recordMetric(entry.name, entry.duration, {
-                startTime: entry.startTime
+                startTime: entry.startTime,
               });
             }
           }
@@ -404,7 +403,7 @@ export class PerformanceMonitor {
    * Stop monitoring and clean up
    */
   stopMonitoring(): void {
-    this.observers.forEach(observer => {
+    this.observers.forEach((observer) => {
       try {
         observer.disconnect();
       } catch (err) {
@@ -446,9 +445,7 @@ export class PerformanceMonitor {
 
   private calculateMedian(values: number[]): number {
     const mid = Math.floor(values.length / 2);
-    return values.length % 2
-      ? values[mid]
-      : (values[mid - 1] + values[mid]) / 2;
+    return values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
   }
 
   private calculatePercentile(values: number[], percentile: number): number {
@@ -464,7 +461,7 @@ interface PerformanceMetric {
   name: string;
   duration: number;
   timestamp: number;
-  metadata?: Record<string, any>;
+  metadata?: { [key: string]: unknown };
 }
 
 /**
@@ -485,17 +482,50 @@ interface PerformanceStats {
 // Memory Management Utilities
 // ============================================================================
 
+// Type declarations for WeakRef and FinalizationRegistry
+declare const WeakRef: {
+  new <T extends object>(target: T): WeakRef<T>;
+  prototype: WeakRef<any>;
+};
+
+interface WeakRef<T extends object> {
+  deref(): T | undefined;
+}
+
+declare const FinalizationRegistry: {
+  new <T>(cleanupCallback: (heldValue: T) => void): FinalizationRegistry<T>;
+  prototype: FinalizationRegistry<any>;
+};
+
+interface FinalizationRegistry<T> {
+  register(target: object, heldValue: T): void;
+  unregister(target: object): void;
+}
+
 /**
  * Weak reference wrapper for garbage collection
  */
 export class WeakReference<T extends object> {
-  private readonly ref: WeakRef<T>;
-  private readonly registry: FinalizationRegistry<string>;
+  private readonly ref: WeakRef<T> | { deref: () => T | undefined };
+  private readonly registry: FinalizationRegistry<string> | { register: () => void };
 
   constructor(value: T, id: string, cleanupCallback: (id: string) => void) {
-    this.ref = new WeakRef(value);
-    this.registry = new FinalizationRegistry(cleanupCallback);
-    this.registry.register(value, id);
+    // Check if WeakRef is supported (Node.js 14.6+)
+    if (typeof WeakRef !== 'undefined') {
+      this.ref = new WeakRef(value);
+    } else {
+      // Fallback for older environments
+      this.ref = { deref: () => value };
+    }
+
+    // Check if FinalizationRegistry is supported (Node.js 14.6+)
+    if (typeof FinalizationRegistry !== 'undefined') {
+      this.registry = new FinalizationRegistry(cleanupCallback);
+      this.registry.register(value, id);
+    } else {
+      // No-op fallback for older environments
+      this.registry = { register: () => {} };
+    }
   }
 
   get(): T | undefined {
@@ -516,20 +546,14 @@ export class MemoryPool<T> {
   private readonly factory: () => T;
   private readonly reset: (obj: T) => void;
 
-  constructor(
-    factory: () => T,
-    reset: (obj: T) => void,
-    maxSize: number = 100
-  ) {
+  constructor(factory: () => T, reset: (obj: T) => void, maxSize = 100) {
     this.factory = factory;
     this.reset = reset;
     this.maxSize = maxSize;
   }
 
   acquire(): T {
-    const obj = this.pool.length > 0
-      ? this.pool.pop()!
-      : this.factory();
+    const obj = this.pool.length > 0 ? this.pool.pop()! : this.factory();
 
     return obj;
   }
@@ -548,7 +572,7 @@ export class MemoryPool<T> {
   getStats(): { poolSize: number; maxSize: number } {
     return {
       poolSize: this.pool.length,
-      maxSize: this.maxSize
+      maxSize: this.maxSize,
     };
   }
 }
@@ -560,7 +584,7 @@ export class MemoryPool<T> {
 /**
  * Debounce utility with cancellation support
  */
-export class Debounced<T extends (...args: any[]) => any> {
+export class Debounced<T extends (...args: unknown[]) => unknown> {
   private timeout: NodeJS.Timeout | null = null;
   private lastArgs: Parameters<T> | null = null;
   private lastCallTime = 0;
@@ -573,7 +597,7 @@ export class Debounced<T extends (...args: any[]) => any> {
       leading?: boolean;
       trailing?: boolean;
       maxWait?: number;
-    } = { leading: false, trailing: true }
+    } = { leading: false, trailing: true },
   ) {}
 
   cancel(): void {
@@ -591,7 +615,8 @@ export class Debounced<T extends (...args: any[]) => any> {
     // Handle leading execution
     if (this.options.leading && !this.timeout) {
       this.lastCallTime = now;
-      return this.func(...args);
+      const result = this.func(...args);
+      return Promise.resolve(result) as Promise<ReturnType<T>>;
     }
 
     this.lastArgs = args;
@@ -605,10 +630,14 @@ export class Debounced<T extends (...args: any[]) => any> {
 
           if (this.lastArgs && (this.options.trailing || !this.options.leading)) {
             try {
-              resolve(this.func(...this.lastArgs));
+              const result = this.func(...this.lastArgs);
+              resolve(result as ReturnType<T>);
             } catch (err) {
               reject(err);
             }
+          } else {
+            // Resolve with undefined if no execution
+            resolve(undefined as ReturnType<T>);
           }
         };
 
@@ -641,14 +670,14 @@ export class Debounced<T extends (...args: any[]) => any> {
 /**
  * Throttle utility
  */
-export class Throttled<T extends (...args: any[]) => any> {
+export class Throttled<T extends (...args: unknown[]) => unknown> {
   private lastCall = 0;
   private lastArgs: Parameters<T> | null = null;
   private timeout: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly func: T,
-    private readonly limit: number
+    private readonly limit: number,
   ) {}
 
   execute(...args: Parameters<T>): void {
@@ -686,13 +715,13 @@ export class Throttled<T extends (...args: any[]) => any> {
 /**
  * Create a memoized async function with caching
  */
-export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
+export function memoizeAsync<T extends (...args: unknown[]) => Promise<unknown>>(
   func: T,
   options?: {
     ttl?: number;
     maxSize?: number;
     keyGenerator?: (...args: Parameters<T>) => string;
-  }
+  },
 ): T {
   const cache = new PromiseCache();
   const { keyGenerator, ttl = 5 * 60 * 1000 } = options || {};
@@ -702,7 +731,7 @@ export function memoizeAsync<T extends (...args: any[]) => Promise<any>>(
 
     return await cache.get(key, () => func(...args), {
       ttl,
-      maxSize: options?.maxSize
+      maxSize: options?.maxSize,
     });
   }) as T;
 }
@@ -726,7 +755,7 @@ export class EventBatcher<T> {
     options: {
       batchSize?: number;
       flushInterval?: number;
-    } = {}
+    } = {},
   ) {
     this.handler = handler;
     this.batchSize = options.batchSize || 50;
@@ -789,7 +818,7 @@ export class OptimizedScrollHandler {
     options?: {
       throttleMs?: number;
       passive?: boolean;
-    }
+    },
   ) {
     this.handler = handler;
     this.throttleDelay = options?.throttleMs || this.throttleDelay;
@@ -818,7 +847,7 @@ export class OptimizedScrollHandler {
   }
 
   detach(): void {
-    this.cleanupCallbacks.forEach(cleanup => cleanup());
+    this.cleanupCallbacks.forEach((cleanup) => cleanup());
     this.cleanupCallbacks = [];
   }
 }

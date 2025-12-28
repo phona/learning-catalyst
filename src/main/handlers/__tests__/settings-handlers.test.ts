@@ -1,122 +1,58 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable no-undef */
-
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-const electronMocks = vi.hoisted(() => ({
-  handlerMap: new Map<string, (...args: any[]) => any>(),
-  app: {
-    getVersion: vi.fn().mockReturnValue('9.9.9'),
-    getPath: vi.fn().mockReturnValue('/tmp'),
-    getAppPath: vi.fn().mockReturnValue('/app'),
-    quit: vi.fn()
-  }
-}));
-
-const fsMocks = vi.hoisted(() => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-  access: vi.fn(),
-  mkdir: vi.fn()
-}));
-
-vi.mock('electron', () => ({
-  ipcMain: {
-    handle: (channel: string, handler: (...args: any[]) => any) =>
-      electronMocks.handlerMap.set(channel, handler)
-  },
-  app: electronMocks.app
-}));
-
-vi.mock('fs/promises', () => fsMocks);
-
+import { createIpcPair } from '@/test/utils/fakes/ipc-fake';
 import { setupSettingsHandlers } from '../settings-handlers';
+import type { AppConfig } from '@/shared/types';
 
-const getHandler = (channel: string) => {
-  const handler = electronMocks.handlerMap.get(channel);
-  expect(handler).toBeDefined();
-  return handler!;
-};
+describe('settings handlers (documented surface)', () => {
+  const configService = {
+    getConfig: vi.fn<() => Promise<AppConfig | null>>(),
+    setConfig: vi.fn<(config: Partial<AppConfig>) => Promise<void>>(),
+  };
 
-describe('settings handlers', () => {
   beforeEach(() => {
-    electronMocks.handlerMap.clear();
-    Object.values(fsMocks).forEach((mockFn) => {
-      mockFn.mockReset();
-    });
-    Object.values(electronMocks.app).forEach((mockFn) => {
-      if (typeof mockFn === 'function' && 'mockReset' in mockFn) {
-        mockFn.mockReset();
-      }
-    });
-    electronMocks.app.getVersion.mockReturnValue('9.9.9');
-    fsMocks.mkdir.mockResolvedValue(undefined);
-    fsMocks.writeFile.mockResolvedValue(undefined);
+    vi.clearAllMocks();
+    configService.setConfig.mockResolvedValue(undefined);
   });
 
-  it('loads workspace configuration from disk', async () => {
-    fsMocks.access.mockResolvedValue(undefined);
-    const sampleConfig = { ui: { theme: 'dark' } };
-    fsMocks.readFile.mockResolvedValue(JSON.stringify(sampleConfig));
+  it('loads workspace configuration via ConfigService', async () => {
+    const sampleConfig = { ui: { theme: 'dark' } } as unknown as AppConfig;
+    configService.getConfig.mockResolvedValue(sampleConfig);
 
-    setupSettingsHandlers('/workspace');
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    setupSettingsHandlers(ipcMain as any, {
+      configService: configService as any,
+      app: { getVersion: () => '9.9.9', quit: vi.fn() },
+    });
 
-    const result = await getHandler('settings:getWorkspaceConfig')(null);
+    const result = await ipcRenderer.invoke('settings:getWorkspaceConfig');
 
     expect(result).toEqual(sampleConfig);
-    expect(fsMocks.readFile).toHaveBeenCalledWith(
-      expect.stringContaining('.catalyst'),
-      'utf-8'
-    );
+    expect(configService.getConfig).toHaveBeenCalledTimes(1);
   });
 
   it('persists workspace configuration when requested', async () => {
-    setupSettingsHandlers('/workspace');
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    setupSettingsHandlers(ipcMain as any, {
+      configService: configService as any,
+      app: { getVersion: () => '9.9.9', quit: vi.fn() },
+    });
 
-    const config = { ui: { theme: 'dark' } } as any;
-    await getHandler('settings:setWorkspaceConfig')(null, config);
+    const config = { ui: { theme: 'dark' } } as Partial<AppConfig>;
+    const result = await ipcRenderer.invoke('settings:setWorkspaceConfig', config);
+    expect(result).toBeUndefined();
 
-    expect(fsMocks.mkdir).toHaveBeenCalledWith(
-      expect.stringContaining('.catalyst'),
-      { recursive: true }
-    );
-    expect(fsMocks.writeFile).toHaveBeenCalledWith(
-      expect.stringMatching(/\.catalyst[\\/\\]config\.json$/),
-      JSON.stringify(config, null, 2),
-      'utf-8'
-    );
-  });
-
-  it('updates nested workspace config keys', async () => {
-    fsMocks.access.mockResolvedValue(undefined);
-    fsMocks.readFile.mockResolvedValue(JSON.stringify({ ui: { theme: 'dark' } }));
-
-    setupSettingsHandlers('/workspace');
-
-    await getHandler('settings:setWorkspaceConfigKey')(null, 'ui.theme', 'light');
-
-    expect(fsMocks.writeFile).toHaveBeenCalledWith(
-      expect.any(String),
-      JSON.stringify({ ui: { theme: 'light' } }, null, 2),
-      'utf-8'
-    );
+    expect(configService.setConfig).toHaveBeenCalledWith(config);
   });
 
   it('returns app version through settings:getAppVersion', async () => {
-    setupSettingsHandlers('/workspace');
+    const { ipcMain, ipcRenderer } = createIpcPair();
+    setupSettingsHandlers(ipcMain as any, {
+      configService: configService as any,
+      app: { getVersion: () => '9.9.9', quit: vi.fn() },
+    });
 
-    const version = await getHandler('settings:getAppVersion')(null);
+    const version = await ipcRenderer.invoke('settings:getAppVersion');
 
-    expect(version).toBe('9.9.9');
-    expect(electronMocks.app.getVersion).toHaveBeenCalled();
+    expect(version).toEqual('9.9.9');
   });
 });

@@ -1,0 +1,33 @@
+# Type-only exports (used for type annotations)
+**/*.d.ts
+**/*.interface.ts
+**/*.types.ts
+**/*.model.ts
+**/*.schema.ts
+
+# Index files (re-export files)
+**/index.ts
+**/index.tsx
+
+# Test and mock files
+**/__tests__/**
+**/__mocks__/**
+**/*.test.ts
+**/*.spec.ts
+**/*.mock.ts
+
+# Constants and enums (often exported for consistency)
+**/constants/*.ts
+**/enums/*.ts
+
+# Built-in constants and configuration
+src/main/index.ts - MAIN_DIST
+src/main/index.ts - RENDERER_DIST
+
+# Service types and interfaces
+src/main/services/**/*.ts - (used in module)
+src/renderer/**/*.ts - (used in module)
+
+# Store and hook types
+src/renderer/stores/**
+src/renderer/hooks/**

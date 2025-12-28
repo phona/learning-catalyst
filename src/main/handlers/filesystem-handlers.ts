@@ -1,115 +1,113 @@
-import { dialog, ipcMain } from 'electron';
-import path from 'node:path';
-import { promises as fs, constants as fsConstants } from 'node:fs';
-import type { DirectoryFilterConfig, DirectoryScanResult } from '@/shared/types/filesystem';
+/**
+ * Filesystem IPC Handlers
+ *
+ * Electron IPC contract lives in code:
+ * - Types: `src/shared/types/electron-api/*`
+ * - Preload bridge: `src/main/preload/index.ts`
+ * - Main registrations: `src/main/handlers/*`
+ *
+ * This module implements:
+ * - getWorkspacePath
+ * - readDirectory
+ * - readFile / writeFile / existsFile
+ */
 
-const MARKDOWN_REGEX = /\.md$/i;
+import { ipcMain } from 'electron';
+import { promises as fs } from 'fs';
+import path from 'path';
+import type { LoggerService } from '../services/core/logger/logger-service';
 
-export function setupFilesystemHandlers(workspacePath?: string): void {
-  const defaultWorkspace = workspacePath || process.cwd();
+type DirectoryFilterConfig = {
+  showHiddenFiles?: boolean;
+  excludePatterns?: string[];
+};
 
-  ipcMain.handle('filesystem:get-workspace-path', () => defaultWorkspace);
+type DirectoryEntry = {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  isFile: boolean;
+  size: number;
+  extension: string;
+  modifiedTime: Date;
+  createdTime: Date;
+  accessedTime: Date;
+  depth: number;
+  children: DirectoryEntry[];
+};
 
-  ipcMain.handle(
-    'filesystem:read-directory',
+export const setupFilesystemHandlers = (
+  ipcMainInstance: typeof ipcMain,
+  deps: { workspacePath: string; loggerService: LoggerService },
+): void => {
+  const logger = deps.loggerService.child({ handler: 'filesystem' });
+
+  ipcMainInstance.handle('fs:get-workspace-path', async () => {
+    logger.info('Returning workspace path', { workspacePath: deps.workspacePath });
+    return deps.workspacePath;
+  });
+
+  ipcMainInstance.handle(
+    'fs:read-directory',
     async (
       _event,
-      dirPath: string,
-      recursive: boolean = true,
-      maxDepth: number = 3,
-      filterConfig?: DirectoryFilterConfig
-    ) => {
-      const targetPath = dirPath || defaultWorkspace;
-      return await collectEntries(
-        targetPath,
-        recursive ? maxDepth : 1,
-        filterConfig ?? { excludePatterns: ['node_modules', '.git'] }
-      );
-    }
+      targetPath: string,
+      recursive = false,
+      maxDepth = 3,
+      filterConfig?: DirectoryFilterConfig,
+    ): Promise<DirectoryEntry[]> => {
+      const visit = async (dir: string, depth: number): Promise<DirectoryEntry[]> => {
+        const entries = await fs.readdir(dir, { withFileTypes: true });
+        const results: DirectoryEntry[] = [];
+        for (const entry of entries) {
+          if (!filterConfig?.showHiddenFiles && entry.name.startsWith('.')) continue;
+          const fullPath = path.join(dir, entry.name);
+          if (filterConfig?.excludePatterns?.some((pat) => fullPath.includes(pat))) continue;
+          const stat = await fs.stat(fullPath);
+          const item: DirectoryEntry = {
+            name: entry.name,
+            path: fullPath,
+            isDirectory: entry.isDirectory(),
+            isFile: entry.isFile(),
+            size: stat.size,
+            extension: path.extname(entry.name).replace('.', ''),
+            modifiedTime: stat.mtime,
+            createdTime: stat.ctime,
+            accessedTime: stat.atime,
+            depth,
+            children: [],
+          };
+          if (recursive && entry.isDirectory() && depth < maxDepth) {
+            item.children = await visit(fullPath, depth + 1);
+          }
+          results.push(item);
+        }
+        return results;
+      };
+
+      const items = await visit(targetPath, 0);
+      return items;
+    },
   );
 
-  ipcMain.handle('filesystem:read-file', async (_event, filePath: string, encoding: BufferEncoding = 'utf-8') => {
-    return await fs.readFile(filePath, { encoding });
-  });
+  ipcMainInstance.handle(
+    'fs:read-file',
+    async (_event, filePath: string, encoding: BufferEncoding = 'utf-8') => {
+      return await fs.readFile(filePath, encoding);
+    },
+  );
 
-  ipcMain.handle(
-    'filesystem:write-file',
+  ipcMainInstance.handle(
+    'fs:write-file',
     async (_event, filePath: string, content: string, encoding: BufferEncoding = 'utf-8') => {
       await fs.writeFile(filePath, content, { encoding });
-    }
+    },
   );
 
-  ipcMain.handle('filesystem:path-exists', async (_event, filePath: string) => {
-    try {
-      await fs.access(filePath, fsConstants.F_OK);
-      return true;
-    } catch {
-      return false;
-    }
-  });
-
-  ipcMain.handle('dialog:show-open', async (_event, options: Electron.OpenDialogOptions = {}) => {
-    return await dialog.showOpenDialog(options);
-  });
-
-  ipcMain.handle('dialog:show-save', async (_event, options: Electron.SaveDialogOptions = {}) => {
-    return await dialog.showSaveDialog(options);
-  });
-}
-
-async function collectEntries(
-  directory: string,
-  maxDepth: number,
-  filterConfig: DirectoryFilterConfig,
-  currentDepth = 0,
-  results: DirectoryScanResult[] = []
-): Promise<DirectoryScanResult[]> {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (shouldExclude(entry.name, filterConfig)) {
-      continue;
-    }
-
-    const fullPath = path.join(directory, entry.name);
-    const stats = await fs.stat(fullPath);
-
-    const record: DirectoryScanResult = {
-      name: entry.name,
-      path: fullPath,
-      isDirectory: entry.isDirectory(),
-      isFile: entry.isFile(),
-      size: stats.size,
-      extension: entry.isFile() ? path.extname(entry.name) : '',
-      modifiedTime: stats.mtime,
-      createdTime: stats.ctime,
-      accessedTime: stats.atime,
-      isMarkdown: entry.isFile() && MARKDOWN_REGEX.test(entry.name),
-      depth: currentDepth,
-      children: []
-    };
-
-    results.push(record);
-
-    if (entry.isDirectory() && currentDepth + 1 < maxDepth) {
-      await collectEntries(fullPath, maxDepth, filterConfig, currentDepth + 1, results);
-    }
-  }
-
-  return results;
-}
-
-function shouldExclude(name: string, filterConfig: DirectoryFilterConfig): boolean {
-  if (!filterConfig.showHiddenFiles && name.startsWith('.')) {
+  ipcMainInstance.handle('fs:exists-file', async (_event, filePath: string) => {
+    await fs.access(filePath);
     return true;
-  }
+  });
 
-  if (filterConfig.excludePatterns?.length) {
-    return filterConfig.excludePatterns.some(pattern => {
-      if (!pattern) return false;
-      return name.toLowerCase().includes(pattern.toLowerCase());
-    });
-  }
-
-  return false;
-}
+  logger.info('Filesystem handlers registered');
+};

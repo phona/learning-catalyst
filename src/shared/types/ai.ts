@@ -31,26 +31,32 @@ export interface ToolDefinition {
     description: string;
     parameters: {
       type: 'object';
-      properties: Record<string, {
-        type: string;
-        description?: string;
-        enum?: string[];
-        items?: Record<string, any>;
-        properties?: Record<string, any>;
-        required?: string[];
-      }>;
+      properties: Record<
+        string,
+        {
+          type: string;
+          description?: string;
+          enum?: string[];
+          items?: Record<string, unknown>;
+          properties?: Record<string, unknown>;
+          required?: string[];
+        }
+      >;
       required: string[];
     };
   };
 }
 
 export interface StreamChunk {
+  type?: 'content' | 'metadata' | 'tool_call' | 'error' | 'complete' | 'status';
   content?: string;
   reasoning_content?: string;
   thinkingContent?: string; // Alias for reasoning_content for consistency
   done?: boolean;
   usage?: TokenUsage;
   error?: string;
+  status?: unknown;
+  tool_calls?: ToolCall[];
 }
 
 export interface TokenUsage {
@@ -81,32 +87,22 @@ export interface AIModel {
 export enum ModelType {
   CHAT = 'chat',
   EMBEDDING = 'embedding',
-  RERANK = 'rerank'
-}
-
-export interface ProviderConfig {
-  name: string;
-  api_key: string;
-  base_url?: string;
-  timeout?: number;
-  max_retries?: number;
-  organization_id?: string;
-  custom_headers?: Record<string, string>;
+  RERANK = 'rerank',
 }
 
 export interface AIProvider {
   name: string;
   type: string;
   initialized: boolean;
-  config: ProviderConfig;
+  config: Record<string, unknown>;
 
-  initialize(config: ProviderConfig): Promise<void>;
+  initialize(config: Record<string, unknown>): Promise<void>;
   sendMessage(
     messages: Message[],
-    options?: ChatOptions
+    options?: ChatOptions,
   ): Promise<ChatResponse | AsyncGenerator<StreamChunk>>;
   listModels(): Promise<ModelList>;
-  validateConfig(config: ProviderConfig): Promise<boolean>;
+  validateConfig(config: Record<string, unknown>): Promise<boolean>;
   supportsStreaming(): boolean;
   supportsThinking(): boolean;
   supportsTools(): boolean;
@@ -137,28 +133,12 @@ export interface ProviderFactory {
   providers: Map<string, () => AIProvider>;
 
   register(name: string, factory: () => AIProvider): void;
-  create(name: string, config: ProviderConfig): AIProvider;
+  create(name: string, config: Record<string, unknown>): AIProvider;
   getAvailableProviders(): string[];
   isProviderRegistered(name: string): boolean;
 }
 
-// Specific provider types
-export interface OpenAIConfig extends ProviderConfig {
-  organization_id?: string;
-  base_url?: string;
-}
-
-export interface ChatGLMConfig extends ProviderConfig {
-  base_url: string; // Required for ChatGLM
-}
-
-export interface DeepSeekConfig extends ProviderConfig {
-  base_url: string; // Required for DeepSeek
-}
-
-export interface SiliconFlowConfig extends ProviderConfig {
-  base_url: string; // Required for SiliconFlow
-}
+// Specific provider types removed to avoid redundancy with config ProviderConfig
 
 // Error types
 export class AIError extends Error {
@@ -166,7 +146,7 @@ export class AIError extends Error {
     message: string,
     public provider: string,
     public code?: string,
-    public statusCode?: number
+    public statusCode?: number,
   ) {
     super(message);
     this.name = 'AIError';

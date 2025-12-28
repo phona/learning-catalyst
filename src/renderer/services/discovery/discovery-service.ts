@@ -1,174 +1,117 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
-import type { ElectronAPIClient } from '../api/electron-api-client';
+import type { ElectronAPI } from '@/shared/types/electron-api';
 import type {
-  Concept,
-  ConceptEvidence,
-  ProposedRelationship,
-  LearningMaterial,
-  DiscoveryRequest,
-  DiscoveryResponse,
-  LearningPath,
-  PracticeExercise,
-  KnowledgeAssessment
-} from '@/shared/types/discovery';
-
-export interface DiscoveryService {
-  parseConcepts(content: string, sessionId?: string): Promise<DiscoveryResponse>;
-  generateLearningPath(concepts: string[], sessionId?: string): Promise<LearningPath>;
-  createPracticeExercises(topic: string, difficulty: 'easy' | 'medium' | 'hard', sessionId?: string): Promise<PracticeExercise[]>;
-  assessKnowledge(topic: string, currentUnderstanding: string, sessionId?: string): Promise<KnowledgeAssessment>;
-}
+  ConceptParsingResult,
+  KnowledgeSearchResultDisplay,
+} from '@/shared/types/electron-api/knowledge-api';
+import { LearningPath } from '@/shared/types';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
 
 /**
  * Functional implementation of discovery service using the unified electronAPI client
  */
-export const createDiscoveryService = (apiClient: ElectronAPIClient): DiscoveryService => {
+export const createDiscoveryService = (apiClient: ElectronAPI) => {
   return {
-    async parseConcepts(content: string, sessionId?: string): Promise<DiscoveryResponse> {
-      const response = await apiClient.discovery.parseConcepts({
+    async parseConcepts(content: string, sessionId?: string): Promise<ConceptParsingResult> {
+      return await unwrapAPI(apiClient.knowledge.parseConcepts({
         content,
-        sessionId,
         options: {
           confidenceThreshold: 0.6,
-          maxConcepts: 50,
-          includeRelationships: true,
-          extractLearningPaths: true,
-          extractAssessments: true
-        }
-      });
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to parse concepts');
-      }
-
-      return response.data || {
-        concepts: [],
-        relationships: [],
-        learningPaths: [],
-        statistics: { totalConcepts: 0, extractedFiles: 0, processingTime: 0 },
-        errors: []
-      };
+          maxConceptsPerFile: 50,
+        },
+      }));
     },
 
-    async generateLearningPath(concepts: string[], sessionId?: string): Promise<LearningPath> {
-      const response = await apiClient.discovery.generateLearningPath({
-        concepts,
-        sessionId,
-        options: {
-          style: 'adaptive',
-          difficulty: 'intermediate',
-          includePrerequisites: true,
-          maxDepth: 3
-        }
-      });
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to generate learning path');
-      }
-
-      return response.data || {
-        id: 'default-path',
-        title: 'Learning Path',
-        description: 'Generated learning path',
-        concepts: [],
-        estimatedDuration: 0,
-        difficulty: 'beginner',
-        modules: [],
-        prerequisites: [],
-        targetMastery: 0,
-        adaptations: [],
-        progress: {
-          userId: 'current-user',
-          currentModule: '',
-          completedModules: [],
-          currentConcept: '',
-          masteredConcepts: [],
-          timeSpent: 0,
-          assessmentScores: [],
-          lastAccess: new Date(),
-          completionRate: 0,
-          masteryLevel: 0
-        }
-      };
-    },
+    // NOTE: Learning API has been removed - this method is disabled
+    // async generateLearningPath(concepts: string[], sessionId?: string): Promise<LearningPath> {
+    //   throw new Error('Learning API has been removed - generateLearningPath is no longer available');
+    // },
 
     async createPracticeExercises(
       topic: string,
       difficulty: 'easy' | 'medium' | 'hard',
-      sessionId?: string
-    ): Promise<PracticeExercise[]> {
-      const response = await apiClient.discovery.generatePracticeExercises({
-        topic,
-        difficulty,
-        sessionId,
-        options: {
-          count: 5,
-          style: 'interactive',
-          includeExplanations: true,
-          randomize: true
-        }
-      });
+      sessionId?: string,
+    ): Promise<any[]> {
+      const searchResults = (await unwrapAPI(apiClient.knowledge.searchKnowledge(topic)) as KnowledgeSearchResultDisplay).results ?? [];
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to create practice exercises');
-      }
+      const exercises = searchResults
+        .filter((result) => result.type === 'exercise')
+        .filter((result) => {
+          // Map difficulty levels
+          const resultDifficulty = result.difficulty || 'basic';
+          const requestedLevel =
+            difficulty === 'easy' ? 'basic' : difficulty === 'medium' ? 'intermediate' : 'advanced';
+          return resultDifficulty === requestedLevel;
+        })
+        .slice(0, 5); // Limit to 5 exercises
 
-      return response.data || [];
+      return exercises.map((exercise) => ({
+        id: exercise.id,
+        title: exercise.title,
+        type: 'practice',
+        description: exercise.preview,
+        difficulty: difficulty,
+        concepts: [topic],
+        estimatedTime: exercise.estimatedTime || '15min',
+        instructions: `Complete this exercise about ${topic}`,
+        hints: [],
+        solution: null,
+        feedback: `This exercise tests your understanding of ${topic}`,
+      }));
     },
 
     async assessKnowledge(
       topic: string,
       currentUnderstanding: string,
-      sessionId?: string
-    ): Promise<KnowledgeAssessment> {
-      const response = await apiClient.discovery.assessKnowledge({
-        topic,
-        currentUnderstanding,
-        sessionId,
-        options: {
-          depth: 'comprehensive',
-          includeGapAnalysis: true,
-          suggestNextSteps: true
-        }
-      });
+      sessionId?: string,
+    ): Promise<any> {
+      // First, explore the concept to get detailed information
+      const conceptResponse = await unwrapAPI(apiClient.knowledge.exploreConcept({
+        conceptName: topic,
+        depth: 'intermediate',
+      }));
 
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to assess knowledge');
-      }
+      // Search for related content to assess understanding
+      const searchResponse = await unwrapAPI(apiClient.knowledge.searchKnowledge(currentUnderstanding));
 
-      return response.data || {
+      // Calculate understanding level based on search relevance
+      const relevantResults =
+        searchResponse.results?.filter(
+          (result) => result.type === 'concept' && result.relevanceScore > 0.5,
+        ) ?? [];
+
+      const understandingLevel = Math.min(relevantResults.length / 5, 1); // Normalize to 0-1
+
+      // Identify strengths and gaps
+      const strengths = (conceptResponse.keyPoints ?? []).filter((point) =>
+        currentUnderstanding.toLowerCase().includes(point.toLowerCase()),
+      );
+
+      const gaps = (conceptResponse.keyPoints ?? []).filter(
+        (point) => !currentUnderstanding.toLowerCase().includes(point.toLowerCase()),
+      );
+
+      // Generate recommendations based on gaps
+      const recommendations = gaps.map((gap) => `Focus on understanding: ${gap}`);
+
+      // Suggest next steps
+      const nextSteps = (conceptResponse.relatedConcepts ?? [])
+        .filter((related) => related.strength > 0.7)
+        .slice(0, 3)
+        .map((related) => `Learn about ${related.name}`);
+
+      return {
         topic,
-        understandingLevel: 0,
-        strengths: [],
-        gaps: [],
-        recommendations: [],
-        nextSteps: [],
-        estimatedTimeToMastery: 0
+        understandingLevel,
+        strengths,
+        gaps,
+        recommendations,
+        nextSteps,
+        estimatedTimeToMastery: conceptResponse.estimatedLearningTime
+          ? parseInt(conceptResponse.estimatedLearningTime.replace('min', '') || '60')
+          : 60,
       };
-    }
+    },
   };
 };
+
+export type DiscoveryService = ReturnType<typeof createDiscoveryService>;

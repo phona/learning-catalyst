@@ -1,18 +1,29 @@
 import type {
   SessionSearchResult,
   SessionSearchQuery,
-  MemorySession,
-  ConversationMessage
-} from '@/shared/types/session';
+} from '../session';
 
-import type {
-  SessionDisplay
-} from './learning-api';
+import type { SessionCreateRequest, SessionUpdateRequest } from './sessions-requests';
+import type { APIResponse } from './base';
 
-import type {
-  SessionUpdateRequest,
-  SessionCreateRequest
-} from '@/renderer/types/session';
+/**
+ * Display-ready session for lists
+ */
+export interface SessionDisplay {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount?: number;
+  archived?: boolean;
+  pinned?: boolean;
+  topic?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  status?: 'active' | 'paused' | 'completed' | 'archived';
+  progress?: number;
+  duration?: number;
+  agentType?: string;
+}
 
 export interface SessionStatistics {
   totalSessions: number;
@@ -23,40 +34,36 @@ export interface SessionStatistics {
   averageMessagesPerSession: number;
 }
 
-export interface SessionListResponse {
-  success: boolean;
+export type SessionListResponse = APIResponse<{
   sessions: SessionDisplay[];
   total: number;
   hasMore: boolean;
-  error?: string;
-}
+}>;
 
-export interface SessionMutationResponse {
-  success: boolean;
-  sessionId?: string;
+export type SessionMutationResponse = APIResponse<{
+  sessionId: string;
   session?: SessionDisplay;
-  error?: string;
-}
+}>;
 
 export interface SessionsAPI {
-  list: (options?: { query?: string; limit?: number; offset?: number }) => Promise<SessionListResponse>;
-  create: (payload: SessionCreateRequest) => Promise<SessionMutationResponse>;
-  get: (sessionId: string) => Promise<{ success: boolean; session?: SessionDisplay; error?: string }>;
+  list: (options?: { query?: string; limit?: number; offset?: number }) => Promise<
+    APIResponse<{
+      sessions: SessionDisplay[];
+      total: number;
+      hasMore: boolean;
+    }>
+  >;
+  create: (
+    payload: SessionCreateRequest,
+  ) => Promise<APIResponse<{ sessionId: string; session?: SessionDisplay }>>;
+  get: (sessionId: string) => Promise<APIResponse<SessionDisplay | undefined>>;
   update: (
     sessionId: string,
-    updates: SessionUpdateRequest
-  ) => Promise<{ success: boolean; session?: SessionDisplay; error?: string }>;
-  delete: (sessionId: string) => Promise<{ success: boolean; deleted?: boolean; error?: string }>;
-  saveMessage: (
-    sessionId: string,
-    message: ConversationMessage
-  ) => Promise<{ success: boolean; error?: string }>;
-  saveSessionWithMessages: (
-    session: MemorySession,
-    messages: ConversationMessage[]
-  ) => Promise<{ success: boolean; sessionId?: string; error?: string }>;
-  updateTitle: (sessionId: string, title: string) => Promise<{ success: boolean; error?: string }>;
-  getRecentSessions: (options?: { limit?: number }) => Promise<{ success: boolean; sessions: SessionDisplay[]; error?: string }>;
-  search: (query: SessionSearchQuery) => Promise<{ success: boolean; results: SessionSearchResult; error?: string }>;
-  getStatistics: () => Promise<{ success: boolean; statistics: SessionStatistics; error?: string }>;
+    updates: SessionUpdateRequest,
+  ) => Promise<APIResponse<SessionDisplay | undefined>>;
+  delete: (sessionId: string) => Promise<APIResponse<{ deleted: boolean }>>;
+  updateTitle: (sessionId: string, title: string) => Promise<APIResponse<void>>;
+  getRecentSessions: (limit?: number) => Promise<APIResponse<SessionDisplay[]>>;
+  getGlobalStatistics: () => Promise<APIResponse<SessionStatistics>>;
+  searchSessions: (query: string) => Promise<APIResponse<SessionDisplay[]>>;
 }

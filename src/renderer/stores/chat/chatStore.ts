@@ -1,336 +1,109 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
-/**
- * Chat Store - Frontend state management for chat functionality
- * Clean architecture with display-optimized state
- */
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/strict-boolean-expressions, @typescript-eslint/no-explicit-any, @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-unused-vars, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-unsafe-return */
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { MessageDisplay, AgentDisplay } from '../../types';
-import type { SessionService } from '../../services/session/session-service';
-import type { ChatAPI, SessionsAPI } from '@/shared/types/electron-api';
+import type { SessionsAPI } from '@/shared/types/electron-api';
+import type { Session, SessionMetadata, SessionStatistics } from '@/shared/types/session';
 
-// Factory dependencies interface
 export interface ChatStoreDependencies {
-  sessionService: SessionService;
   electronAPI: {
-    chat: ChatAPI;
     sessions: SessionsAPI;
   };
 }
 
-// Chat store state interface
-export interface ChatState {
-  // Current session state
-  currentSessionId: string | null;
-  currentSession: {
-    id: string;
-    title: string;
-    createdAt: string;
-  } | null;
-  messages: MessageDisplay[];
-  currentAgent: AgentDisplay | null;
-  isTyping: boolean;
-  isLoading: boolean;
-  isStreaming: boolean;
-  error: string | null;
-
-  // UI state
-  autoScroll: boolean;
-  fontSize: 'small' | 'medium' | 'large';
-  showThinking: boolean;
-  thinkingContent: string;
-
-  // Streaming state
-  streamingMessageId: string | null;
-  streamingContent: string;
-
-  // Actions
-  setCurrentSession: (sessionId: string) => void;
-  addMessage: (message: MessageDisplay) => void;
-  updateMessage: (messageId: string, updates: Partial<MessageDisplay>) => void;
-  removeMessage: (messageId: string) => void;
-  clearMessages: () => void;
-  setTyping: (isTyping: boolean) => void;
-  setLoading: (isLoading: boolean) => void;
-  setError: (error: string | null) => void;
-  setCurrentAgent: (agent: AgentDisplay | null) => void;
-  setAutoScroll: (autoScroll: boolean) => void;
-  setFontSize: (fontSize: 'small' | 'medium' | 'large') => void;
-  setShowThinking: (showThinking: boolean) => void;
-  setThinkingContent: (thinkingContent: string) => void;
-  startStreamingMessage: (messageId: string) => void;
-  appendStreamingContent: (content: string) => void;
-  finishStreamingMessage: (finalContent?: string) => void;
-  resetChatState: () => void;
-  createNewSession: () => Promise<string>;
-  saveCurrentSession: () => Promise<{ success: boolean }>;
-  sendMessage: (content: string) => Promise<void>;
-}
-
-// Initial state for the chat store
-const initialState = {
-  // Current session state
-  currentSessionId: null,
-  currentSession: null,
-  messages: [],
-  currentAgent: null,
-  isTyping: false,
-  isLoading: false,
-  isStreaming: false,
-  error: null,
-
-  // UI state
-  autoScroll: true,
-  fontSize: 'medium' as const,
-  showThinking: false,
-  thinkingContent: '',
-
-  // Streaming state
-  streamingMessageId: null,
-  streamingContent: '',
+const DEFAULT_METADATA: SessionMetadata = {
+  title: '',
+  description: '',
+  tags: [],
+  category: undefined,
+  difficulty: 'beginner',
+  learningObjectives: [],
+  topicsCovered: [],
+  userId: undefined,
+  archived: false,
+  pinned: false,
+  color: undefined,
+  primaryAgentId: undefined,
+  agentMode: undefined,
 };
 
-// Clean factory function for creating chat store instances
+const DEFAULT_STATS: SessionStatistics = {
+  totalMessages: 0,
+  userMessages: 0,
+  assistantMessages: 0,
+  totalTokensUsed: 0,
+  totalThinkingTokens: 0,
+  sessionDuration: 0,
+  averageResponseTime: 0,
+  conceptsLearned: 0,
+  checkpointsCreated: 0,
+  productivityScore: 0,
+  engagementScore: 0,
+};
+
+const normalizeSession = (partial: Partial<Session>): Session => ({
+  id: partial.id ?? `session_${Date.now()}`,
+  title: partial.title ?? 'Untitled Session',
+  createdAt: partial.createdAt ?? new Date(),
+  updatedAt: partial.updatedAt ?? new Date(),
+  messages: partial.messages ?? [],
+  metadata: { ...DEFAULT_METADATA, ...(partial.metadata ?? {}) },
+  context: partial.context ?? {} as any,
+  checkpoints: partial.checkpoints ?? [],
+  statistics: { ...DEFAULT_STATS, ...(partial.statistics ?? {}) },
+  agents: partial.agents ?? [],
+  agent_states: partial.agent_states ?? [],
+});
+
+export interface ChatState {
+  currentSessionId: string | null;
+  currentSession: Session | null;
+  currentAgent: string | null;
+  setCurrentSession: (sessionId: string | null) => Promise<void>;
+  setCurrentAgent: (agent: string | null) => void;
+  updateCurrentSessionTitle: (title: string) => Promise<void>;
+  resetChatState: () => void;
+}
+
 export function createChatStore(dependencies: ChatStoreDependencies) {
-  const { sessionService, electronAPI } = dependencies;
+  const { sessions } = dependencies.electronAPI;
 
   return create<ChatState>()(
-    subscribeWithSelector((set, get) => {
-      return {
-        ...initialState,
+    subscribeWithSelector((set, get) => ({
+      currentSessionId: null,
+      currentSession: null,
+      currentAgent: null,
 
-        setCurrentSession: (sessionId) => {
-          set({ currentSessionId: sessionId });
-
-          // Load conversation history using injected electronAPI
-          electronAPI.sessions.getSession({ sessionId })
-            .then((response) => {
-              if (response.success && response.session) {
-                set({
-                  messages: (response.session.messages as MessageDisplay[]) || [],
-                  error: null
-                });
-              }
-            })
-            .catch((error) => {
-              console.error('Failed to load conversation history:', error);
-              set({ error: (error as Error).message });
-            });
-        },
-
-        addMessage: (message) => {
-          const messageWithThinking = {
-            ...message,
-            showThinking: message.showThinking ?? false
-          };
-
-          set((state) => {
-            const newMessages = [...state.messages, messageWithThinking];
-
-            // Check if this is the first assistant message and trigger AI title generation
-            const assistantMessages = newMessages.filter(msg => msg.role === 'assistant');
-            if (assistantMessages.length === 1 && message.role === 'assistant') {
-              const userMessages = newMessages.filter(msg => msg.role === 'user');
-              if (userMessages.length > 0) {
-                // Use the first user message as the basis for title generation
-                setTimeout(() => {
-                  sessionService.generateAITitle(
-                    userMessages[0].content,
-                    'default-provider',
-                    'default-model'
-                  ).catch(error => {
-                    console.warn('Failed to generate AI title:', error);
-                  });
-                }, 500);
-              }
-            }
-
-            return { messages: newMessages };
-          });
-        },
-
-        updateMessage: (messageId, updates) => set((state) => ({
-          messages: state.messages.map(msg =>
-            msg.id === messageId ? { ...msg, ...updates } : msg
-          )
-        })),
-
-        removeMessage: (messageId) => set((state) => ({
-          messages: state.messages.filter(msg => msg.id !== messageId)
-        })),
-
-        clearMessages: () => set({ messages: [] }),
-
-        setTyping: (isTyping) => set({ isTyping }),
-        setLoading: (isLoading) => set({ isLoading }),
-        setError: (error) => set({ error }),
-
-        setCurrentAgent: (agent) => set({ currentAgent: agent }),
-
-        setAutoScroll: (autoScroll) => set({ autoScroll }),
-        setFontSize: (fontSize) => set({ fontSize }),
-        setShowThinking: (showThinking) => set({ showThinking }),
-        setThinkingContent: (thinkingContent) => set({ thinkingContent }),
-
-        startStreamingMessage: (messageId) => set({
-          streamingMessageId: messageId,
-          streamingContent: '',
-          isTyping: true
-        }),
-
-        appendStreamingContent: (content) => set((state) => ({
-          streamingContent: state.streamingContent + content
-        })),
-
-        finishStreamingMessage: (finalContent) => {
-          const { streamingMessageId, streamingContent } = get();
-
-          if (streamingMessageId) {
-            const messageContent = finalContent || streamingContent;
-
-            set({
-              messages: get().messages.map(msg =>
-                msg.id === streamingMessageId
-                  ? { ...msg, content: messageContent, status: 'delivered' }
-                  : msg
-              ),
-              streamingMessageId: null,
-              streamingContent: '',
-              isTyping: false
-            });
-          }
-        },
-
-        resetChatState: () => set(initialState),
-
-        createNewSession: async () => {
-          try {
-            const response = await electronAPI.sessions.createSession({
-              title: 'Untitled Session'
-            });
-
-            if (response.success && response.sessionId) {
-              set({
-                currentSessionId: response.sessionId,
-                currentSession: {
-                  id: response.sessionId,
-                  title: 'Untitled Session',
-                  createdAt: new Date().toISOString()
-                },
-                messages: [],
-                error: null
-              });
-              return response.sessionId;
-            } else {
-              throw new Error(response.error || 'Failed to create session');
-            }
-          } catch (error) {
-            // Fallback to local generation
-            const timestamp = Date.now();
-            const randomStr = Math.random().toString(36).substr(2, 9);
-            const sessionId = `session_${timestamp}_${randomStr}`;
-
-            set({
-              currentSessionId: sessionId,
-              currentSession: {
-                id: sessionId,
-                title: 'Untitled Session',
-                createdAt: new Date().toISOString()
-              },
-              messages: [],
-              error: null
-            });
-            return sessionId;
-          }
-        },
-
-        saveCurrentSession: async () => {
-          const { currentSessionId, messages } = get();
-          if (!currentSessionId) {
-            return { success: false };
-          }
-
-          try {
-            await sessionService.saveSessionWithMessages(currentSessionId, messages);
-            return { success: true };
-          } catch (error) {
-            console.error('Failed to save session:', error);
-            return { success: false };
-          }
-        },
-
-        sendMessage: async (content: string) => {
-          const { currentSessionId } = get();
-
-          try {
-            set({ isLoading: true, error: null });
-
-            const userMessage: MessageDisplay = {
-              id: `msg_${Date.now()}`,
-              role: 'user',
-              content,
-              timestamp: new Date().toISOString(),
-              status: 'delivered',
-              showThinking: false
-            };
-
-            set((state) => ({
-              messages: [...state.messages, userMessage]
-            }));
-
-            const response = await electronAPI.chat.sendMessage({
-              conversationId: currentSessionId || '',
-              message: content
-            });
-
-            const assistantMessage: MessageDisplay = {
-              id: `msg_${Date.now()}_assistant`,
-              role: 'assistant',
-              content: response.content || 'Response from AI',
-              timestamp: new Date().toISOString(),
-              status: 'delivered',
-              showThinking: false
-            };
-
-            set((state) => ({
-              messages: [...state.messages, assistantMessage]
-            }));
-
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
-            set({ error: errorMessage });
-            throw new Error(errorMessage);
-          } finally {
-            set({ isLoading: false });
-          }
+      setCurrentSession: async (sessionId: string | null) => {
+        if (!sessionId) {
+          set({ currentSessionId: null, currentSession: null });
+          return;
         }
-      };
-    })
+
+        const sessionData = await sessions.get(sessionId);
+        if (!sessionData) {
+          throw new Error('Failed to load session');
+        }
+        const session = normalizeSession(sessionData as unknown as Session & { createdAt: string; updatedAt: string });
+        set({ currentSessionId: session.id, currentSession: session });
+      },
+
+      setCurrentAgent: (agent) => set({ currentAgent: agent }),
+
+      updateCurrentSessionTitle: async (title: string) => {
+        const { currentSessionId, currentSession } = get();
+        if (!currentSessionId) return;
+        await sessions.update(currentSessionId, { title });
+        if (currentSession) {
+          set({
+            currentSession: {
+              ...currentSession,
+              title,
+              metadata: { ...currentSession.metadata, title },
+            },
+          });
+        }
+      },
+
+      resetChatState: () => set({ currentSessionId: null, currentSession: null, currentAgent: null }),
+    })),
   );
 }

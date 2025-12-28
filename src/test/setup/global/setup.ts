@@ -26,7 +26,7 @@ const mockElectronAPI = {
       }
     }),
     getVersion: vi.fn(() => '1.0.0-test'),
-    getName: vi.fn(() => 'Learning Catalyst Test')
+    getName: vi.fn(() => 'Learning Catalyst Test'),
   },
 
   ipcRenderer: {
@@ -36,18 +36,18 @@ const mockElectronAPI = {
     on: vi.fn(),
     off: vi.fn(),
     removeAllListeners: vi.fn(),
-    once: vi.fn()
+    once: vi.fn(),
   },
 
   shell: {
-    openExternal: vi.fn()
+    openExternal: vi.fn(),
   },
 
   dialog: {
     showOpenDialog: vi.fn(),
     showSaveDialog: vi.fn(),
-    showErrorBox: vi.fn()
-  }
+    showErrorBox: vi.fn(),
+  },
 };
 
 // Mock browser APIs
@@ -55,13 +55,13 @@ const mockBrowserAPIs = {
   ResizeObserver: vi.fn(() => ({
     observe: vi.fn(),
     unobserve: vi.fn(),
-    disconnect: vi.fn()
+    disconnect: vi.fn(),
   })),
 
   IntersectionObserver: vi.fn(() => ({
     observe: vi.fn(),
     unobserve: vi.fn(),
-    disconnect: vi.fn()
+    disconnect: vi.fn(),
   })),
 
   matchMedia: vi.fn(() => ({
@@ -72,22 +72,22 @@ const mockBrowserAPIs = {
     removeListener: vi.fn(),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn()
+    dispatchEvent: vi.fn(),
   })),
 
   localStorage: {
     getItem: vi.fn(),
     setItem: vi.fn(),
     removeItem: vi.fn(),
-    clear: vi.fn()
+    clear: vi.fn(),
   },
 
   sessionStorage: {
     getItem: vi.fn(),
     setItem: vi.fn(),
     removeItem: vi.fn(),
-    clear: vi.fn()
-  }
+    clear: vi.fn(),
+  },
 };
 
 /**
@@ -99,42 +99,42 @@ beforeAll(() => {
     // Mock Electron APIs
     Object.defineProperty(window, 'electronAPI', {
       value: mockElectronAPI,
-      writable: true
+      writable: true,
     });
 
     // Mock browser APIs
     Object.defineProperty(window, 'ResizeObserver', {
       value: mockBrowserAPIs.ResizeObserver,
-      writable: true
+      writable: true,
     });
 
     Object.defineProperty(window, 'IntersectionObserver', {
       value: mockBrowserAPIs.IntersectionObserver,
-      writable: true
+      writable: true,
     });
 
     Object.defineProperty(window, 'matchMedia', {
       value: mockBrowserAPIs.matchMedia,
-      writable: true
+      writable: true,
     });
 
     Object.defineProperty(window, 'localStorage', {
       value: mockBrowserAPIs.localStorage,
-      writable: true
+      writable: true,
     });
 
     Object.defineProperty(window, 'sessionStorage', {
       value: mockBrowserAPIs.sessionStorage,
-      writable: true
+      writable: true,
     });
 
     // Mock clipboard API
     Object.defineProperty(navigator, 'clipboard', {
       value: {
         writeText: vi.fn().mockResolvedValue(undefined),
-        readText: vi.fn().mockResolvedValue('')
+        readText: vi.fn().mockResolvedValue(''),
       },
-      writable: true
+      writable: true,
     });
   }
 
@@ -151,17 +151,17 @@ afterAll(() => {
 // Mock console methods to reduce noise in tests
 Object.defineProperty(console, 'log', {
   value: vi.fn(() => {}),
-  writable: true
+  writable: true,
 });
 
 Object.defineProperty(console, 'warn', {
   value: vi.fn(() => {}),
-  writable: true
+  writable: true,
 });
 
 Object.defineProperty(console, 'error', {
   value: vi.fn(() => {}),
-  writable: true
+  writable: true,
 });
 
 // Global cleanup after each test

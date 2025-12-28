@@ -5,7 +5,12 @@
  * Part of Phase 1 implementation for vibe detection and natural practice flow.
  */
 
-export type VibeType = 'understanding' | 'confused' | 'breakthrough' | 'practicing' | 'misunderstanding';
+export type VibeType =
+  | 'understanding'
+  | 'confused'
+  | 'breakthrough'
+  | 'practicing'
+  | 'misunderstanding';
 
 export interface PracticeVibeResult {
   vibe: VibeType;
@@ -50,7 +55,7 @@ export interface UserContext {
   preferences: {
     practiceFrequency: 'high' | 'medium' | 'low';
     difficultyPreference: 'easy' | 'medium' | 'hard' | 'adaptive';
-    feedbackStyle: 'gentle' | 'direct' | 'encouraging';
+    feedbackStyle: 'gentle' | 'direct' | 'encouraging' | 'constructive';
   };
   statistics: {
     totalPracticeSessions: number;
@@ -128,21 +133,13 @@ export interface VibeDetectionConfig {
 }
 
 export interface LearningPattern {
-  id: string;
-  concept: string;
-  startTime: number;
-  endTime?: number;
-  status: 'learning' | 'practicing' | 'mastered' | 'stuck' | 'abandoned';
-  confidenceProgression: number[];
-  practiceAttempts: number;
-  successRate: number;
-  stuckPoints: string[];
-  breakthroughMoments: Array<{
-    timestamp: number;
-    trigger: string;
-    confidenceBefore: number;
-    confidenceAfter: number;
-  }>;
+  type: string;
+  description: string;
+  frequency: number;
+  confidence: number;
+  indicators: string[];
+  implications: string[];
+  recommendations: string[];
 }
 
 export interface ContextAnalysisResult {
@@ -205,46 +202,50 @@ export const DEFAULT_VIBE_DETECTION_CONFIG: VibeDetectionConfig = {
     confused: 0.2,
     breakthrough: 0.25,
     practicing: 0.15,
-    misunderstanding: 0.1
+    misunderstanding: 0.1,
   },
   contextWindow: 10,
-  maxPracticeOpportunities: 3
+  maxPracticeOpportunities: 3,
 };
 
 // Vibe type descriptions for prompting
 export const VIBE_TYPE_DESCRIPTIONS: Record<VibeType, string> = {
-  understanding: 'User demonstrates comprehension of concepts, asks clarifying questions, and shows readiness to apply knowledge',
-  confused: 'User shows uncertainty, asks for clarification, expresses difficulty understanding concepts',
-  breakthrough: 'User has sudden insight or understanding, often expressed with excitement or "aha!" moments',
-  practicing: 'User is actively applying concepts, experimenting with code, or working on exercises',
-  misunderstanding: 'User demonstrates incorrect understanding, needs correction or guidance'
+  understanding:
+    'User demonstrates comprehension of concepts, asks clarifying questions, and shows readiness to apply knowledge',
+  confused:
+    'User shows uncertainty, asks for clarification, expresses difficulty understanding concepts',
+  breakthrough:
+    'User has sudden insight or understanding, often expressed with excitement or "aha!" moments',
+  practicing:
+    'User is actively applying concepts, experimenting with code, or working on exercises',
+  misunderstanding: 'User demonstrates incorrect understanding, needs correction or guidance',
 };
 
 // Practice opportunity templates
 export const PRACTICE_TEMPLATES: Record<VibeType, string[]> = {
   understanding: [
-    "Great! Now that you understand {concept}, try {practice_suggestion}",
-    "Nice grasp of {concept}! Want to challenge yourself with {practice_suggestion}?",
-    "You've got {concept} down. How about we apply it with {practice_suggestion}?"
+    'Great! Now that you understand {concept}, try {practice_suggestion}',
+    'Nice grasp of {concept}! Want to challenge yourself with {practice_suggestion}?',
+    "You've got {concept} down. How about we apply it with {practice_suggestion}?",
   ],
   confused: [
     "Let's clarify {concept} with a hands-on approach: {practice_suggestion}",
-    "Sometimes practice helps understanding. Try {practice_suggestion} to get {concept}",
-    "Let's work through {concept} together with {practice_suggestion}"
+    'Sometimes practice helps understanding. Try {practice_suggestion} to get {concept}',
+    "Let's work through {concept} together with {practice_suggestion}",
   ],
   breakthrough: [
     "Excellent breakthrough! Since you've cracked {concept}, let's solidify it with {practice_suggestion}",
     "That 'aha!' moment for {concept} is perfect! Now try {practice_suggestion}",
-    "Fantastic insight on {concept}! Let's build on that with {practice_suggestion}"
+    "Fantastic insight on {concept}! Let's build on that with {practice_suggestion}",
   ],
   practicing: [
     "Great work practicing {concept}! Here's a related challenge: {practice_suggestion}",
     "Since you're working on {concept}, try this next step: {practice_suggestion}",
-    "Your {concept} practice is going well! Let's extend it with {practice_suggestion}"
+    "Your {concept} practice is going well! Let's extend it with {practice_suggestion}",
   ],
   misunderstanding: [
     "Let's clear up that {concept} misunderstanding with {practice_suggestion}",
     "I see where {concept} might be confusing. Let's correct it with {practice_suggestion}",
-    "That's a common {concept} misunderstanding. Try {practice_suggestion} to see the right approach"
-  ]
+    "That's a common {concept} misunderstanding. Try {practice_suggestion} to see the right approach",
+  ],
 };

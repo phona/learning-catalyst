@@ -1,37 +1,229 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
-import type { ElectronAPIClient } from '../api/electron-api-client';
-import { DefaultSessionService, type SessionService } from './SessionService';
+import { createSessionId as _createSessionId } from '@/shared/utils/helpers';
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI.helpers';
+import type {
+  SessionStatistics,
+} from '@/shared/types/electron-api/sessions-api';
+import type { ElectronAPI } from '@/shared/types/electron-api';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
+import type { SessionCreateRequest, SessionUpdateRequest } from '@/shared/types/electron-api/sessions-requests';
 
 /**
- * Factory function to create a session service instance
+ * This service uses the unwrapAPI pattern for consistent IPC error handling.
+ *
+ * All IPC calls use unwrapAPI() from @/renderer/hooks/useElectronAPI which:
+ * - Automatically unwraps APIResponse<T> to T
+ * - Shows error toasts on failures
+ * - Throws IPCError for programmatic error handling
+ *
+ * Electron IPC contract lives in code:
+ * - Types: `src/shared/types/electron-api/*`
+ * - Preload bridge: `src/main/preload/index.ts`
+ * - Main registrations: `src/main/handlers/*`
  */
-export const createSessionService = (apiClient: ElectronAPIClient): SessionService => {
-  return new DefaultSessionService(apiClient);
+
+export interface SessionService {
+  getRecentSessions(limit?: number): Promise<SessionDisplay[]>;
+  getGlobalStatistics(): Promise<SessionStatistics>;
+  listSessions(options?: {
+    query?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<SessionListData>;
+  getSession(sessionId: string): Promise<SessionDisplay | null>;
+  generateAITitle(userMessage: string): Promise<string>;
+  generateSessionId(): string;
+  updateSessionTitle(sessionId: string, title: string): Promise<void>;
+  updateSession(sessionId: string, updates: SessionUpdateRequest): Promise<void>;
+  createSession(payload: SessionCreateRequest): Promise<SessionDisplay>;
+  deleteSession(sessionId: string): Promise<void>;
+  searchSessions(query: string, filters?: Record<string, unknown>): Promise<SessionListData>;
+}
+
+type SessionListData = {
+  sessions: SessionDisplay[];
+  total: number;
+  hasMore: boolean;
 };
 
-// Re-export the SessionService type for convenience
-export type { SessionService } from './SessionService';
+/**
+ * Functional implementation of session service using the unified electronAPI client
+ */
+export const createSessionService = (apiClient: ElectronAPI): SessionService => {
+  /**
+   * Update the session title
+   */
+  const updateSessionTitle = async (sessionId: string, title: string): Promise<void> => {
+    await unwrapAPI(apiClient.sessions.updateTitle(sessionId, title));
+  };
+
+  /**
+   * Fetch recent sessions for the UI
+   */
+  const getRecentSessions = async (limit = 10): Promise<SessionDisplay[]> => {
+    await apiClient.awaitReady();
+    const data = await unwrapAPI(apiClient.sessions.getRecentSessions(limit));
+    return data || [];
+  };
+
+  /**
+   * Fetch global session statistics for dashboards
+   * TODO: Implement when getStatistics API is available
+   */
+  // const getGlobalStatistics = async (): Promise<SessionStatistics> => {
+  //   const response = await apiClient.sessions.getStatistics();
+  //
+  //   if (!response.success) {
+  //     throw new Error(typeof response.error === 'string' ? response.error : 'Session API request failed');
+  //   }
+  //
+  //   return response.data as SessionStatistics;
+  // };
+
+  /**
+   * List sessions with optional filters
+   */
+  const listSessions = async (options?: {
+    query?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<SessionListData> => {
+    const data = await unwrapAPI(apiClient.sessions.list(options));
+
+    return (
+      data ?? {
+        sessions: [],
+        total: 0,
+        hasMore: false,
+      }
+    );
+  };
+
+  const getSession = async (sessionId: string): Promise<SessionDisplay | null> => {
+    console.log('[SessionService] getSession request', { sessionId });
+    try {
+      const data = await unwrapAPI(apiClient.sessions.get(sessionId));
+      console.log('[SessionService] getSession success', { sessionId });
+      return data as SessionDisplay;
+    } catch (error) {
+      console.warn('[SessionService] getSession not found or failed', {
+        sessionId,
+        error: error instanceof Error ? error.message : error,
+      });
+      return null;
+    }
+  };
+
+  const createSession = async (payload: SessionCreateRequest): Promise<SessionDisplay> => {
+    console.log('[SessionService] createSession request', { title: payload?.title });
+    try {
+      const data = await unwrapAPI(apiClient.sessions.create(payload));
+
+      // Fetch full session details if returned
+      if (data.session) {
+        console.log('[SessionService] createSession returned full session');
+        return data.session as SessionDisplay;
+      }
+
+      const created = await getSession(data.sessionId);
+      if (!created) {
+        // Fallback minimal structure
+        console.log('[SessionService] createSession fallback minimal record', {
+          id: data.sessionId,
+        });
+        return {
+          id: data.sessionId,
+          title: payload.title,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          messages: [],
+        } as unknown as SessionDisplay;
+      }
+      console.log('[SessionService] createSession fetched full record', {
+        id: created.id,
+        title: (created as any)?.title,
+      });
+      return created;
+    } catch (error) {
+      console.warn('[SessionService] createSession failed', {
+        error: error instanceof Error ? error.message : error,
+      });
+      throw new Error(error instanceof Error ? error.message : 'Session API request failed');
+    }
+  };
+
+  const deleteSession = async (sessionId: string): Promise<void> => {
+    await unwrapAPI(apiClient.sessions.delete(sessionId));
+  };
+
+  const updateSession = async (sessionId: string, updates: SessionUpdateRequest): Promise<void> => {
+    await unwrapAPI(apiClient.sessions.update(sessionId, updates));
+  };
+
+  // const searchSessions = async (
+//     query: string,
+//     filters?: Record<string, unknown>,
+//   ): Promise<SessionListData> => {
+//     // TODO: Implement when search API is available
+//     // For now, use the list method with query filter
+//     const response = await apiClient.sessions.list({ query, limit: 50 });
+//     if (!response.success) {
+//       throw new Error(typeof response.error === 'string' ? response.error : 'Session search failed');
+//     }
+//     const data = response.data;
+//
+//     return {
+//       sessions: data?.sessions ?? [],
+//       total: data?.total ?? 0,
+//       hasMore: data?.hasMore ?? false,
+//     };
+//   };
+
+  /**
+   * Generate a session title using AI-powered title generation
+   */
+  const generateAITitle = async (userMessage: string): Promise<string> => {
+    const normalized = String(userMessage ?? '').trim();
+    if (!normalized) {
+      return 'New Session';
+    }
+
+    if (!apiClient.chat?.generateTitle) {
+      // Defensive fallback for tests/mocks that don't provide chat.generateTitle.
+      return normalized;
+    }
+
+    return await unwrapAPI(apiClient.chat.generateTitle(normalized));
+  };
+
+  /**
+   * Provide session identifiers compatible with previous implementation
+   */
+  const generateSessionId = (): string => {
+    return _createSessionId();
+  };
+
+  return {
+    getRecentSessions,
+    listSessions,
+    getSession,
+    generateAITitle,
+    generateSessionId,
+    updateSessionTitle,
+    updateSession,
+    createSession,
+    deleteSession,
+    getGlobalStatistics: async (): Promise<SessionStatistics> => {
+      // Use unwrapAPI for consistent IPC error handling
+      return await unwrapAPI(apiClient.sessions.getGlobalStatistics());
+    },
+    searchSessions: async (query: string, filters?: Record<string, unknown>): Promise<SessionListData> => {
+      // Use unwrapAPI for consistent IPC error handling
+      const response = await unwrapAPI(apiClient.sessions.searchSessions(query));
+      return {
+        sessions: response,
+        total: response.length,
+        hasMore: false,
+      };
+    },
+  };
+};

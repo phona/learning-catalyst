@@ -1,28 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
 /**
  * Message representation optimized for UI display
  * Transforms complex message data into frontend-friendly format
@@ -36,15 +11,15 @@ export interface ToolCallResult {
   text?: string;
   number?: number;
   boolean?: boolean;
-  
+
   // Complex data types
   data?: Record<string, unknown>;
   array?: unknown[];
-  
+
   // Structured results for common use cases
   success?: boolean;
   message?: string;
-  
+
   // Metadata about the result
   metadata?: {
     timestamp?: string;
@@ -56,10 +31,24 @@ export interface ToolCallResult {
 
 export interface MessageDisplay {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  timestamp: string;         // Relative time for display
-  status: 'sending' | 'delivered' | 'error' | 'typing';
+  timestamp: string | Date;
+  status?: 'sending' | 'delivered' | 'error' | 'typing' | 'awaiting_input';
+  provider?: string;
+  thinking_content?: string;
+  showThinking?: boolean;
+  awaitingInput?: {
+    prompt: string;
+    checkpointId?: string;
+    questionId?: string;
+  };
+  tool_calls?: ToolCallDisplay[];
+  tokens_used?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
   agentInfo?: {
     type: string;
     avatar: string;
@@ -69,6 +58,27 @@ export interface MessageDisplay {
     emoji: string;
     count: number;
   }[];
+  // Enhanced fields for DetailsPanel progressive disclosure
+  reasoning?: string;  // AI reasoning/thinking (from thinking_content)
+  tools?: Array<{
+    id: string;
+    name: string;
+    duration: number;
+    phase: 'start' | 'end' | 'error';
+    input?: string;
+    output?: string;
+  }>;
+  performance?: {
+    responseTime: number;  // milliseconds
+    tokens?: number;  // total tokens generated
+    speed?: number;  // tokens per second
+    memory?: number;  // MB used
+  };
+  timeline?: Array<{
+    id: string;
+    offset: string;  // e.g., "0.2s", "1.5s"
+    description: string;  // e.g., "Searching knowledge base"
+  }>;
   metadata?: {
     confidence?: number;
     concepts?: string[];
@@ -79,8 +89,12 @@ export interface MessageDisplay {
 
 export interface ToolCallDisplay {
   id: string;
-  name: string;
-  status: 'pending' | 'running' | 'completed' | 'error';
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+  status?: 'pending' | 'running' | 'completed' | 'error';
   result?: ToolCallResult;
   error?: string;
   duration?: number;

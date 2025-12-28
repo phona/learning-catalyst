@@ -14,18 +14,11 @@ export interface ProviderModelInfo {
 }
 
 export interface ProviderConfig {
-  provider_type: ProviderType;
-  api_key?: string;
-  base_url?: string;
+  providerType: ProviderType;
+  displayName?: string;
+  apiKey?: string;
+  baseUrl?: string;
   models?: string[]; // Available models for this provider
-  // Legacy fields for backward compatibility
-  type?: ProviderType;
-  model?: string;
-  temperature?: number;
-  max_tokens?: number;
-  streaming?: boolean;
-  custom_headers?: Record<string, string>;
-  customHeaders?: Record<string, string>; // Legacy support
 }
 
 export interface AppConfig {
@@ -34,126 +27,172 @@ export interface AppConfig {
   learning: LearningConfig;
   privacy: PrivacyConfig;
   performance: PerformanceConfig;
+  parsing?: ParsingConfig;
 }
 
 export interface SelectedModel {
-	provider?: string;
-	model?: string;
+  provider: string;
+  model: string;
+  customHeaders?: Record<string, string>;
+  timeout?: number;
 }
 
 export interface SelectedChatModel extends SelectedModel {
   temperature?: number;
-  max_tokens?: number;
-  top_p?: number;
-  enable_thinking?: boolean;
+  maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  enableThinking?: boolean;
   stream?: boolean;
+  defaultProvider?: string;
+  defaultModel?: string;
+  capabilities?: ModelCapabilities;
+  retry?: number;
+}
+
+export interface SelectedEmbeddingModel extends SelectedModel {
+  dimensions?: number;
+  timeout?: number;
+}
+
+export interface SelectedRerankModel extends SelectedModel {
+  threshold?: number;
+  timeout?: number;
 }
 
 export interface AIConfig {
   providers: Record<string, ProviderConfig>;
   // Enhanced model type support
-  model_types: {
+  modelTypes?: {
     chat?: SelectedChatModel;
-    embedding?: SelectedModel;
-    rerank?: SelectedModel;
+    embedding?: SelectedEmbeddingModel;
+    rerank?: SelectedRerankModel;
   };
   metadata?: {
-    model_tests?: ModelTestResult[];
-    [key: string]: any;
+    modelTests?: ModelTestResult[];
+    [key: string]: unknown;
   };
+  defaultProvider?: string;
+  defaultModel?: string;
+  temperature?: number;
+  maxTokens?: number;
+  streaming?: boolean;
+  enableThinking?: boolean;
+  contextWindowSize?: number;
+  embeddingDimensions?: number;
 }
 
 export interface UIConfig {
   theme: 'light' | 'dark' | 'auto';
-  show_token_usage: boolean;
-  display_format: 'detailed' | 'compact' | 'minimal';
-  session_duration: number; // minutes
-  font_size: 'small' | 'medium' | 'large';
-  sidebar_width: number;
-  auto_save: boolean;
-  auto_scroll: boolean;
-  show_line_numbers: boolean;
-  enable_markdown: boolean;
-  enable_syntax_highlighting: boolean;
-  compact_mode: boolean;
+  showTokenUsage: boolean;
+  displayFormat: 'detailed' | 'compact' | 'minimal';
+  sessionDuration: number; // minutes
+  fontSize: 'small' | 'medium' | 'large';
+  sidebarWidth: number;
+  autoSave: boolean;
+  autoScroll: boolean;
+  showLineNumbers: boolean;
+  enableMarkdown: boolean;
+  enableSyntaxHighlighting: boolean;
+  compactMode: boolean;
+  documentHeadingDepth?: number;
 }
 
 export interface LearningConfig {
-  auto_save: boolean;
-  session_timeout_minutes: number;
+  autoSave: boolean;
+  sessionTimeoutMinutes: number;
   difficulty: 'beginner' | 'intermediate' | 'advanced' | 'adaptive';
-  learning_style: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
-  personalization_enabled: boolean;
-  checkpoint_interval: number; // minutes
-  max_session_history: number; // number of sessions
-  enable_analytics: boolean;
-  preferred_explanation_length: 'brief' | 'detailed' | 'comprehensive';
+  learningStyle: 'visual' | 'auditory' | 'kinesthetic' | 'reading';
+  personalizationEnabled: boolean;
+  checkpointInterval: number; // minutes
+  maxSessionHistory: number; // number of sessions
+  enableAnalytics: boolean;
+  preferredExplanationLength: 'brief' | 'detailed' | 'comprehensive';
 }
 
 export interface PrivacyConfig {
-  store_conversations: boolean;
-  retention_days: number;
-  anonymous_analytics: boolean;
-  crash_reporting: boolean;
-  encrypt_local_storage: boolean;
-  auto_cleanup: boolean;
-  export_format: 'json' | 'markdown' | 'txt';
+  storeConversations: boolean;
+  retentionDays: number;
+  anonymousAnalytics: boolean;
+  crashReporting: boolean;
+  encryptLocalStorage: boolean;
+  autoCleanup: boolean;
+  exportFormat: 'json' | 'markdown' | 'txt';
 }
 
 export interface PerformanceConfig {
-  cache_size_mb: number;
-  enable_caching: boolean;
-  max_concurrent_requests: number;
-  request_timeout: number; // seconds
-  memory_limit_mb: number;
-  gpu_acceleration: boolean;
-  background_processing: boolean;
-  preload_models: boolean;
+  cacheSizeMb: number;
+  enableCaching: boolean;
+  maxConcurrentRequests: number;
+  requestTimeout: number; // seconds
+  memoryLimitMb: number;
+  gpuAcceleration: boolean;
+  backgroundProcessing: boolean;
+  preloadModels: boolean;
+}
+
+export interface ParsingConfig {
+  maxSegmentChars?: number;
+  minSegmentChars?: number;
+  maxConcurrentSegments?: number;
+  vectorize?: boolean;
+  chatTimeoutSeconds?: number;
 }
 
 // Model type configuration for multi-model support
 export interface ModelTypeConfig {
-  default_provider: string;
-  default_model: string;
-  available_providers: ProviderType[];
-  custom_provider_url?: string; // For openai-compatible providers
-  api_key?: string;
+  defaultProvider: string;
+  defaultModel: string;
+  availableProviders: ProviderType[];
+  customProviderUrl?: string; // For openai-compatible providers
+  apiKey?: string;
   settings: {
     temperature?: number;
-    max_tokens?: number;
-    top_p?: number;
-    frequency_penalty?: number;
-    presence_penalty?: number;
+    maxTokens?: number;
+    topP?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
   };
   capabilities: ModelCapabilities;
+  // Legacy aliases (deprecated)
+  default_provider?: string;
+  default_model?: string;
+  available_providers?: ProviderType[];
+  custom_provider_url?: string;
+  api_key?: string;
+  max_tokens?: number;
+  top_p?: number;
+  frequency_penalty?: number;
+  presence_penalty?: number;
 }
 
 export interface ModelCapabilities {
   streaming: boolean;
   thinking: boolean;
-  function_calling: boolean;
+  functionCalling: boolean;
   vision: boolean;
-  max_input_tokens?: number;
-  max_output_tokens?: number;
+  maxInputTokens?: number;
+  maxOutputTokens?: number;
 }
 
 // Model validation and testing
 export interface ModelTestResult {
-  model_id: string;
+  modelId: string;
   provider: string;
-  model_type: string;
+  modelType: string;
   status: 'success' | 'error';
-  response_time_ms?: number;
-  error_message?: string;
-  test_timestamp: Date;
-  capabilities_tested?: string[];
+  responseTimeMs?: number;
+  errorMessage?: string;
+  testTimestamp: Date;
+  capabilitiesTested?: string[];
 }
 
 export interface ModelValidationResult {
   valid: boolean;
   errors: string[];
   warnings: string[];
-  tested_capabilities: string[];
+  testedCapabilities: string[];
   recommendations: string[];
 }
 
@@ -161,7 +200,7 @@ export interface ModelValidationResult {
 export interface ValidationError {
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ValidationResult {
@@ -179,80 +218,105 @@ export interface ProviderValidationResult {
 export interface ConfigMigration {
   version: string;
   description: string;
-  migrate: (config: any) => any;
+  migrate: (config: unknown) => unknown;
 }
 
 // Default provider configurations for ModelFactory compatibility
 export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = {
   openai: {
-    provider_type: 'openai',
-    base_url: 'https://api.openai.com/v1',
+    providerType: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
     models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'text-embedding-ada-002'],
-    api_key: '',
+    apiKey: '',
   },
   chatglm: {
-    provider_type: 'chatglm',
-    base_url: 'https://open.bigmodel.cn/api/paas/v4',
+    providerType: 'chatglm',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     models: ['glm-4', 'glm-4-plus', 'glm-3-turbo'],
-    api_key: '',
+    apiKey: '',
   },
   deepseek: {
-    provider_type: 'deepseek',
-    base_url: 'https://api.deepseek.com/v1',
+    providerType: 'deepseek',
+    baseUrl: 'https://api.deepseek.com/v1',
     models: ['deepseek-chat', 'deepseek-coder'],
-    api_key: '',
+    apiKey: '',
   },
   siliconflow: {
-    provider_type: 'siliconflow',
-    base_url: 'https://api.siliconflow.cn/v1',
+    providerType: 'siliconflow',
+    baseUrl: 'https://api.siliconflow.cn/v1',
     models: ['Qwen/Qwen2.5-7B-Instruct', 'BAAI/bge-large-en-v1.5'],
-    api_key: '',
+    apiKey: '',
   },
   'openai-compatible': {
-    provider_type: 'openai-compatible',
-    base_url: 'http://localhost:11434/v1',
+    providerType: 'openai-compatible',
+    baseUrl: 'http://localhost:11434/v1',
     models: ['llama3.1:8b'],
-    api_key: '',
+    apiKey: '',
   },
 };
 
 export const AVAILABLE_PROVIDERS: ProviderConfig[] = [
   {
-    provider_type: 'openai',
-    models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-3.5-turbo-16k', 'text-embedding-ada-002', 'text-embedding-3-small', 'text-embedding-3-large'],
-    base_url: 'https://api.openai.com/v1',
-    api_key: '',
+    providerType: 'openai',
+    models: [
+      'gpt-4',
+      'gpt-4-turbo',
+      'gpt-3.5-turbo',
+      'gpt-3.5-turbo-16k',
+      'text-embedding-ada-002',
+      'text-embedding-3-small',
+      'text-embedding-3-large',
+    ],
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
   },
   {
-    provider_type: 'chatglm',
-    models: ['glm-4', 'glm-4-0520', 'glm-3-turbo', 'glm-4-plus', 'glm-4-air', 'glm-4-airx', 'glm-4-long', 'embedding-2', 'embedding-3'],
-    base_url: 'https://open.bigmodel.cn/api/paas/v4/',
-    api_key: '',
+    providerType: 'chatglm',
+    models: [
+      'glm-4',
+      'glm-4-0520',
+      'glm-3-turbo',
+      'glm-4-plus',
+      'glm-4-air',
+      'glm-4-airx',
+      'glm-4-long',
+      'embedding-2',
+      'embedding-3',
+    ],
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4/',
+    apiKey: '',
   },
   {
-    provider_type: 'deepseek',
+    providerType: 'deepseek',
     models: ['deepseek-chat', 'deepseek-coder'],
-    base_url: 'https://api.deepseek.com',
-    api_key: '',
+    baseUrl: 'https://api.deepseek.com',
+    apiKey: '',
   },
   {
-    provider_type: 'siliconflow',
-    models: ['deepseek-ai/DeepSeek-V3', 'meta-llama/Meta-Llama-3.1-8B-Instruct', '01-ai/Yi-1.5-9B-Chat-16K', 'BAAI/bge-large-en-v1.5', 'BAAI/bge-large-zh-v1.5', 'BAAI/bge-reranker-v2-m3'],
-    base_url: 'https://api.siliconflow.cn',
-    api_key: '',
+    providerType: 'siliconflow',
+    models: [
+      'deepseek-ai/DeepSeek-V3',
+      'meta-llama/Meta-Llama-3.1-8B-Instruct',
+      '01-ai/Yi-1.5-9B-Chat-16K',
+      'BAAI/bge-large-en-v1.5',
+      'BAAI/bge-large-zh-v1.5',
+      'BAAI/bge-reranker-v2-m3',
+    ],
+    baseUrl: 'https://api.siliconflow.cn',
+    apiKey: '',
   },
   {
-    provider_type: 'openai-compatible',
+    providerType: 'openai-compatible',
     models: ['llama3.1:8b'],
-    base_url: 'http://localhost:11434/v1',
-    api_key: '',
+    baseUrl: 'http://localhost:11434/v1',
+    apiKey: '',
   },
-]
+];
 
 // Configuration schema for validation
 export interface ConfigSchema {
   type: 'object';
-  properties: Record<string, any>;
+  properties: Record<string, unknown>;
   required: string[];
   additionalProperties: boolean;
 }
@@ -302,7 +366,7 @@ export interface ConfigPreset {
 // Configuration events
 export interface ConfigChangeEvent {
   key: string;
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   timestamp: Date;
 }

@@ -1,275 +1,365 @@
-# Learning Catalyst CLI Documentation
+# Learning Catalyst Documentation
 
----
-title: Learning Catalyst CLI Documentation
-description: Command-line interface documentation for Learning Catalyst AI-powered learning assistant
-version: 1.0.0
-last_updated: 2025-10-07
----
+> Transform learning from boring studying into exciting discovery through AI-powered exploration
 
 ## Overview
 
-This directory contains comprehensive documentation for Learning Catalyst, an AI-powered learning assistant that operates entirely within the command line interface. Learning Catalyst helps you organize, navigate, and master complex knowledge domains through terminal-based interactions and personalized challenges.
+Learning Catalyst is an **AI-powered desktop application** built with Electron, TypeScript, React,
+and LangChain. It helps you master any subject through conversational learning, visual knowledge
+maps, and personalized practice.
+
+**Current branch**: `feature-main-process-bak2` - Layered Qdrant architecture (Dec 2025)
+
+## Quick Navigation
+
+### 👤 For New Users
+
+Start here if you're new to Learning Catalyst:
+
+1. **[Getting Started](GETTING-STARTED.md)** - Install and run in 5 minutes
+2. **[User Guide](USER-GUIDE/)** - Learn how to use the desktop application
+   - [Dashboard Overview](USER-GUIDE/dashboard.md)
+   - [Chat Interface](USER-GUIDE/chat-interface.md)
+   - [Knowledge Graphs](USER-GUIDE/knowledge-graphs.md)
+   - [Learning Sessions](USER-GUIDE/learning-sessions.md)
+   - [Settings](USER-GUIDE/settings.md)
+
+3. **[Product Vision](product-blueprint.md)** - Understand the learning philosophy
+
+### 🚀 For Developers
+
+Technical documentation for contributors and developers:
+
+1. **[Developer Guide](DEVELOPER-GUIDE/)** - Start here for technical details
+   - [Architecture](DEVELOPER-GUIDE/architecture.md) - System design
+   - Electron IPC contract lives in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`
+   - [Database Design](DEVELOPER-GUIDE/database.md) - Kysely schema
+   - [Services](DEVELOPER-GUIDE/services.md) - Main process services
+   - [Agent System](DEVELOPER-GUIDE/agents.md) - Multi-agent orchestration
+   - [Performance](DEVELOPER-GUIDE/performance.md) - Memory optimization
+
+## Key Features
+
+### 🧠 AI-Powered Learning
+
+- **Natural Conversations**: Chat with AI tutors about any topic
+- **Multi-Provider Support**: OpenAI, ChatGLM, DeepSeek, local models
+- **Real-time Streaming**: Watch responses appear with live metrics
+- **Thinking Visualization**: See AI reasoning (ChatGLM models)
+
+### 🗺️ Visual Knowledge Discovery
+
+- **Knowledge Maps**: Explore concept relationships visually
+- **Progress Tracking**: See what you've mastered and what's next
+- **Learning Paths**: Personalized sequences based on your goals
+- **Achievement System**: Earn badges for milestones
+
+### 💾 Session Management
+
+- **Save & Resume**: Pick up where you left off anytime
+- **Checkpoints**: Create snapshots of important learning moments
+- **Full History**: Complete conversation transcripts
+- **Export Data**: Take your learning elsewhere
+
+### 📊 Analytics & Insights
+
+- **Learning Analytics**: Track progress across sessions
+- **Token Usage**: Monitor API costs in real-time
+- **Performance Metrics**: Understand your learning patterns
+- **Achievement Dashboard**: Celebrate your progress
+
+### ⚙️ Configurable & Private
+
+- **AI Provider Switching**: Change models without losing context
+- **Local-First Storage**: Your data stays on your machine
+- **Offline Mode**: Continue learning without internet
+- **Custom Models**: Use local models (Ollama, Llama.cpp)
+
+## System Architecture
+
+### Multi-Process Design
+
+```
+Learning Catalyst Application
+├── Main Process (Node.js)
+│   ├── AI Providers & Models
+│   ├── Database (SQLite + Kysely)
+│   ├── Agent Orchestration
+│   ├── File System
+│   └── IPC Handlers (8 API domains)
+│
+├── Renderer Process (React)
+│   ├── Dashboard & UI
+│   ├── Chat Interface
+│   ├── Knowledge Visualization
+│   └── State Management (Zustand)
+│
+└── IPC Communication
+    ├── Preload Script (Security)
+    ├── Type-Safe Contracts
+    └── Streaming Support
+```
+
+### Core Technologies
+
+| Layer                 | Technology           | Purpose                         |
+| --------------------- | -------------------- | ------------------------------- |
+| **Desktop Framework** | Electron             | Cross-platform desktop app      |
+| **Frontend**          | React + TypeScript   | Modern UI components            |
+| **State Management**  | Zustand              | Lightweight state store         |
+| **Backend**           | Node.js Main Process | AI services & data layer        |
+| **Database**          | SQLite + Kysely      | Type-safe relational storage    |
+| **Vector DB**         | Qdrant               | Semantic search & discovery     |
+| **AI Integration**    | LangChain            | Multi-provider AI orchestration |
+| **Build Tool**        | Vite                 | Fast dev & optimized builds     |
 
 ## Documentation Structure
 
-### 🚀 [Getting Started](#getting-started)
-*Quick start guides for new users*
+```
+docs/
+├── README.md                           # This file
+├── GETTING-STARTED.md                  # Quick start guide
+├── product-blueprint.md                # User vision & philosophy
+│
+├── USER-GUIDE/                         # End-user documentation
+│   ├── dashboard.md                    # Desktop app overview
+│   ├── chat-interface.md               # AI chat features
+│   ├── knowledge-graphs.md             # Visual learning
+│   ├── learning-sessions.md            # Save/restore progress
+│   └── settings.md                     # Configuration
+│
+├── DEVELOPER-GUIDE/                    # Technical documentation
+│   ├── README.md                       # Developer onboarding
+│   ├── architecture.md                 # System design
+│   ├── (Electron IPC contract is in code: `src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`)
+│   ├── database.md                     # Schema & migrations ⭐
+│   ├── database-clean-architecture.md  # Clean DB pattern ⭐
+│   ├── services.md                     # Main process services
+│   ├── agents.md                       # Multi-agent system
+│   └── performance.md                  # Memory optimization
+│
+├── TESTING/                            # Testing documentation
+│   ├── README.md                       # Testing overview
+│   ├── status.md                       # Current test status
+│   ├── improvements.md                 # Testing best practices
+│   └── complete-workflow-tests.md      # Workflow testing
+│
+└── WORKFLOW/                           # Workflow documentation
+    ├── README.md                       # Workflow overview
+    ├── workflow-overview.md            # End-to-end flow
+    └── normalization-usage.md          # Message normalization
+```
 
-- [Installation Guide](installation/) - Install and set up Learning Catalyst CLI
-- [Quick Start](installation/quick-start.md) - Get started in 5 minutes
+## Learning Paths
 
-### 📋 [Command Reference](commands/)
-*Complete command-line interface documentation*
+### Path 1: New User → Happy Learner
 
-- [System Commands](commands/system.md) - Help, quit, clear screen
-- [Configuration Commands](commands/configuration.md) - Models, preferences, config
-- [Learning Commands](commands/learning.md) - Knowledge map and natural learning
-- [Session Commands](commands/session.md) - Save and restore learning progress
-- [Analytics Commands](commands/analytics.md) - Tokens, statistics, usage tracking
-- [Context Commands](commands/context.md) - Context management and debug commands
+```
+1. Read: GETTING-STARTED.md
+2. Install: npm install && npm run dev
+3. Watch: USER-GUIDE/dashboard.md
+4. Explore: USER-GUIDE/chat-interface.md
+5. Practice: Ask questions naturally!
+```
 
-### ⚙️ [Configuration](configuration/)
-*CLI configuration and customization*
+### Path 2: Developer → Contributor
 
-- [Configuration Guide](configuration/README.md) - Essential settings and setup
-- [Command Configuration](commands/configuration.md) - Configure using CLI commands
+```
+1. Read: DEVELOPER-GUIDE/README.md
+2. Understand: DEVELOPER-GUIDE/architecture.md
+3. Deep Dive: Electron IPC contract in code (`src/shared/types/electron-api/*`, `src/main/preload/index.ts`, `src/main/handlers/*`)
+4. Database: DEVELOPER-GUIDE/database.md
+5. Services: DEVELOPER-GUIDE/services.md
+6. Start Coding!
+```
 
-### 💡 [Usage Examples](examples/)
-*Practical CLI examples and tutorials*
+### Path 3: Power User → Expert
 
-- [Examples Overview](examples/README.md) - Guide to all examples
-- [Basic Workflows](examples/basic-workflows.md) - Everyday learning scenarios
-- [Integration Examples](examples/integration.md) - AI provider setup and configuration
-- [Advanced Usage](examples/advanced.md) - Power user techniques and optimization
-- [Troubleshooting](examples/troubleshooting.md) - Common issues and solutions
+```
+1. Understand: product-blueprint.md (vision)
+2. Master: USER-GUIDE/knowledge-graphs.md
+3. Optimize: USER-GUIDE/settings.md
+4. Scale: USER-GUIDE/learning-sessions.md
+```
 
-### 🛠️ [Technical Documentation](technical/)
-*In-depth technical guides and implementation details*
+### Path 4: Maintainer → Architect
 
-- [Technical Overview](technical/README.md) - System architecture and design
-- [Implementation Guides](technical/implementation-guides/) - Step-by-step development tutorials
-- [Technical Workflows](technical/workflows/) - Development and deployment procedures
-- [API Reference](technical/api-reference/) - Complete API documentation
-- [System Architecture](technical/system-architecture/) - System design and architecture patterns
-- [Performance Optimization](technical/performance-optimization/) - Performance tuning and optimization
+```
+1. Architecture: DEVELOPER-GUIDE/architecture.md
+2. Performance: DEVELOPER-GUIDE/performance.md
+3. Agents: DEVELOPER-GUIDE/agents.md
+4. Database: DEVELOPER-GUIDE/database.md
+5. Design: API contracts & evolution
+```
 
-### 🗺️ Learning Path Guide
-*Structured learning paths for different user types*
+## Current Implementation Status
 
-- **New Users**: Start with [Quick Start](installation/quick-start.md), then [Basic Workflows](examples/basic-workflows.md)
-- **Power Users**: Learn [Session Management](commands/session.md) and [Context Commands](commands/context.md)
-- **Developers**: See [Development Setup](development/README.md) for extending the CLI
-- **System Administrators**: Check [Technical Overview](technical/README.md) for deployment
-- **AI Integrators**: Explore [Configuration Commands](commands/configuration.md) for provider setup
+### ✅ Implemented & Working
 
-### 👨‍💻 [Development](development/)
-*CLI development and contribution*
+- **Database Layer**: Kysely with SQLite, 15+ migrations
+- **Electron API**: 8 domains (chat, learning, knowledge, analytics, sessions, agents, content,
+  settings)
+- **Main Process Services**: Functional pattern with dependency injection
+- **Memory System**: Multi-layer memory (episodic, semantic, procedural)
+- **Agent Lifecycle**: Agent creation, activation, state management
+- **Performance**: Memory leak prevention, Vite optimization
 
-- [Development Overview](development/README.md) - Set up development environment
-- [CLI Development](development/cli-development.md) - CLI command development
-- [Testing Guide](development/testing/) - CLI testing procedures
+### 🚧 In Development
 
-## Quick Start
+- **Renderer Components**: React UI for all features
+- **Knowledge Visualization**: Graph rendering & interaction
+- **Agent Tools**: Specialized learning/practice agents
+- **Analytics Dashboard**: Progress charts & insights
+
+### 📋 Planned
+
+- **Multi-User Support**: User authentication & profiles
+- **Collaboration Features**: Shared learning sessions
+- **Plugin System**: Extensible agent capabilities
+- **Cloud Sync**: Optional cloud backup
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js**: 18+ (LTS recommended)
+- **npm**: 9+ or **pnpm**: 8+
+- **OS**: Windows 10+, macOS 10.15+, or Linux
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 1GB free space
 
 ### Installation
+
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/learning-catalyst.git
+# Clone repository
+git clone https://github.com/your-org/learning-catalyst.git
 cd learning-catalyst
 
 # Install dependencies
-pip install -e .
+npm install
 
-# Start Learning Catalyst
-python -m src.cli.main
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-### Basic Usage
+### First Run
+
+1. Launch: `npm run dev`
+2. Configure AI provider (Settings)
+3. Start chatting: Ask "What can you help me learn?"
+4. Explore: Check out your knowledge map
+5. Save progress: Create a checkpoint
+
+## Troubleshooting
+
+### Common Issues
+
+**Build fails**
+
 ```bash
-# Start a learning session
-learning-catalyst
-
-# Essential commands
-/help                    # Show available commands
-/quit                    # Exit the application
-/clear                   # Clear the terminal screen
-
-# Learning and interaction
-/knowledge-map          # Visualize knowledge connections
-# Natural learning: just ask questions directly!
-# "Explain machine learning" or "Test me on Python lists"
-
-# Configuration
-/config                 # Manage AI providers and settings
-/tokens                 # Check token usage
-
-# Session management
-/checkpoint save [name] # Save current learning session
-/checkpoint load [name] # Restore a saved session
-
-# Context management
-/context                # Show current conversation context
-/compress               # Compress context to save tokens
+# Clear cache and reinstall
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
 ```
 
-## CLI Features
+**Database errors**
 
-### 🎯 Terminal-First Design
-- **Native CLI Experience**: Built specifically for command-line users
-- **Rich Terminal Interface**: Colored output, progress indicators, and formatting
-- **Keyboard Shortcuts**: Efficient navigation and command completion
-- **Session Management**: Save and resume learning sessions with `/checkpoint`
-- **Context Management**: Optimize AI interactions with `/context` and `/compress`
-
-### 🤖 AI-Powered Learning
-- **Natural Language Interaction**: Talk to your AI tutor in plain English - no commands needed!
-- **Contextual Responses**: AI understands your learning materials and history
-- **Adaptive Difficulty**: Challenges adapt to your skill level
-- **Multi-Provider Support**: Works with OpenAI, Deepseek, SiliconFlow, ChatGLM, and local models
-
-### 📊 Local-First Approach
-- **Privacy Focused**: All data stored locally on your machine
-- **Offline Capable**: Works without internet after initial setup
-- **Custom Materials**: Use your own Markdown files as learning content
-- **No Vendor Lock-in**: Export your data anytime
-
-### ⚡ Performance Optimized
-- **Fast Startup**: Optimized loading for quick access
-- **Lazy Loading**: Content loads only when needed
-- **Caching System**: Intelligent caching for improved performance
-- **Resource Efficient**: Low memory and CPU usage
-- **Token Optimization**: Context compression and management to reduce API costs
-
-## Command Categories
-
-### System Commands
-Essential system operations:
-- `/help` - Show help and available commands
-- `/quit` - Exit the application
-- `/clear` - Clear the terminal screen
-
-### Configuration Commands
-Manage your CLI setup:
-- `/config` - Configure AI providers and application settings
-- `/config provider` - Switch between AI providers
-- `/config model` - Switch between AI models
-
-### Learning Commands
-Core learning functionality:
-- `/knowledge-map` - Visualize knowledge connections and progress
-- **Natural Learning**: Ask questions directly without commands - "Explain neural networks" or "Test me on Python"
-
-### Session Commands
-Save and restore learning progress:
-- `/checkpoint save [name]` - Save current session state
-- `/checkpoint load [name]` - Restore a saved session
-
-### Analytics Commands
-Track your progress:
-- `/tokens` - Monitor API token usage and costs
-
-### Context Commands
-Manage conversation context and system behavior:
-- `/context` - Show current conversation context
-- `/compress` - Compress conversation context to save tokens
-- `/wait [seconds]` - Set delay between API requests
-- `/verbose [on/off]` - Toggle debug mode
-
-## Key Workflows
-
-### Start Learning
 ```bash
-# Launch and start learning naturally
-learning-catalyst
-/knowledge-map      # See your learning progress
-# Or just ask: "Explain machine learning basics"
+# Reset database
+rm -rf .catalyst
+npm run dev
 ```
 
-### Save & Resume Learning
+**High memory usage**
+
+- Check: DEVELOPER-GUIDE/performance.md
+- Run: Multi-process memory monitor
+
+### Getting Help
+
+- **Documentation**: This docs folder
+- **Issues**: GitHub Issues
+- **Discussions**: GitHub Discussions
+- **Code**: Browse the codebase directly
+
+## Contributing
+
+We welcome contributions! Please see our contributing guidelines:
+
+1. **Read**: DEVELOPER-GUIDE/README.md
+2. **Understand**: Architecture & coding patterns
+3. **Follow**: TypeScript strict mode
+4. **Test**: All tests must pass
+5. **Document**: Update docs for new features
+
+### Development Workflow
+
 ```bash
-# Save your current session
-/checkpoint save python-basics
-# Resume later
-/checkpoint load python-basics
+# Install dependencies
+npm install
+
+# Run in development mode
+npm run dev
+
+# Run tests
+npm test
+
+# Type check
+npm run type-check
+
+# Lint
+npm run lint
 ```
 
-### Configuration
-```bash
-# Set up AI provider
-/config
-/config provider openai
-/config model
-```
+## Technology Highlights
 
-### Context Management
-```bash
-# Check conversation context
-/context
-# Save tokens by compressing context
-/compress
-```
+### Type-Safe Database
 
-## Navigation Guide
+- **Kysely Query Builder**: Type-safe SQL queries
+- **Generated Types**: Full TypeScript coverage
+- **Migration System**: Versioned schema changes
 
-### For New Users
-1. [Installation Guide](installation/) - Get Learning Catalyst running
-2. [Quick Start](installation/quick-start.md) - Learn basics in 5 minutes
-3. [Command Reference](commands/) - Explore available commands
-4. [Basic Workflows](examples/basic-workflows.md) - See practical examples
+### Secure IPC
 
-### For Power Users
-1. [Session Commands](commands/session.md) - Save and restore learning progress
-2. [Context Commands](commands/context.md) - Advanced context management
-3. [Integration Examples](examples/integration.md) - CLI with other tools
-4. [Advanced Usage](examples/advanced.md) - Power user techniques
+- **8 API Domains**: Organized by functionality
+- **Preload Script**: Secure boundary
+- **Type Contracts**: Compile-time API safety
 
-### For Developers
-1. [Development Overview](development/README.md) - Set up development environment
-2. [CLI Development](development/cli-development.md) - Understand CLI architecture
-3. [Testing Guide](development/testing/) - Testing procedures
-4. [Technical Documentation](technical/) - System architecture and implementation
+### Modern Architecture
 
-## Getting Help
+- **Functional Pattern**: Services with injected dependencies
+- **No Classes**: Pure functions and factories
+- **Testable**: Easy to mock and test
 
-### Self-Service Resources
-- 📖 **Documentation**: Browse the sections above
-- 🔍 **Command Help**: Use `/help [command]` for command-specific help
-- 💡 **Examples**: Check the [Examples](examples/) directory for use cases
+### Performance First
 
-### Community Support
-- 💬 **Discussions**: Join community discussions
-- 🐛 **Issues**: Report bugs or request features via GitHub Issues
-- 📝 **Feedback**: Share your experience and suggestions
+- **Memory Monitoring**: Multi-process memory tracking
+- **Vite Optimization**: Fast dev builds
+- **Lazy Loading**: Components load on demand
 
-### In-Application Help
-```bash
-# General help
-/help
+## License
 
-# Command-specific help
-/help knowledge-map
-/help checkpoint
+MIT License - see LICENSE file for details
 
-# List all commands
-/help --all
-```
+## Support
 
-## System Requirements
-
-### Prerequisites
-- **Python**: 3.8 or higher
-- **Terminal**: Any modern terminal emulator
-- **OS**: Linux, macOS, or Windows (with WSL)
-- **Memory**: 512MB RAM minimum
-- **Storage**: 100MB free space
-
-### Optional Requirements
-- **AI Provider Account**: OpenAI, Deepseek, SiliconFlow, or supported providers
-- **Local Models**: For offline AI processing (optional)
+- **Documentation**: This folder
+- **Community**: GitHub Discussions
+- **Bugs**: GitHub Issues
+- **Security**: security@learningcatalyst.dev
 
 ---
 
-*Last updated: October 7, 2025*
-*Version: 1.0.0*
-*Platform: Command-Line Interface*
+**Ready to start learning?** → [GETTING-STARTED.md](GETTING-STARTED.md)
+
+**Want to contribute?** → [DEVELOPER-GUIDE/README.md](DEVELOPER-GUIDE/README.md)
+
+**Need help?** → Check the USER-GUIDE or open an issue
+
+---
+
+_Last Updated: November 2025_ _Version: 1.0_

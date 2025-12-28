@@ -15,205 +15,126 @@
  */
 
 // Import individual API interfaces from the 8-domain structure
-import type { OpenDialogOptions, OpenDialogReturnValue, SaveDialogOptions, SaveDialogReturnValue } from 'electron'
-import type { ChatAPI } from './chat-api'
-import type { LearningAPI } from './learning-api'
-import type { KnowledgeAPI } from './knowledge-api'
-import type { AnalyticsAPI } from './analytics-api'
-import type { AgentsAPI } from './agent-api'
-import type { ContentAPI } from './content-api'
-import type { SettingsAPI } from './settings-api'
-import type { CatalystAPI } from './catalyst-api'
-import type { SessionsAPI } from './sessions-api'
-import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem'
+import type {
+  OpenDialogOptions,
+  OpenDialogReturnValue,
+  SaveDialogOptions,
+  SaveDialogReturnValue,
+} from 'electron';
+import type { ChatAPI } from './chat-api';
+import type { KnowledgeAPI } from './knowledge-api';
+import type { AnalyticsAPI } from './analytics-api';
+import type { AgentsAPI, ContentAPI } from './agent-api';
 
 
+import type { SettingsAPI, SettingsUtility } from './settings-api';
+import type { CatalystAPI } from './catalyst-api';
+import type { Message as AIMessage } from '../ai';
+import type { SessionsAPI } from './sessions-api';
+import type { DirectoryFilterConfig, DirectoryScanResult } from '../filesystem';
+import type { IPCErrorPayload, BufferedIPCError } from '../ipc-error';
+import type { AppConfig } from '../config';
+// Import base types to re-export
+import type { SystemReadyPayload, ConfigChangedPayload, IPCError, APIResponse } from './base';
+import type { AISDKAPI } from './base';
 
-// Re-export individual API interfaces
+// Re-export base types
 export type {
-  ChatAPI,
-  LearningAPI,
-  KnowledgeAPI,
-  AnalyticsAPI,
-  AgentsAPI,
-  ContentAPI,
-  SettingsAPI,
-  SessionsAPI,
-  CatalystAPI
-}
-
-// Export key display-optimized types for convenience
-export type {
+  SystemReadyPayload,
+  ConfigChangedPayload,
+  IPCError,
+  APIResponse,
+  APIResponseError,
+  AISDKAPI,
   ConversationDisplay,
   MessageDisplay,
-  AgentDisplay as ChatAgentDisplay,
   TypingIndicator,
-  ConversationSummary
-} from './chat-api'
+  ConversationSummary,
+  ConversationHistory,
+  ConversationContext,
+  PracticeOpportunityResult,
+  NaturalPracticeSuggestion,
+  UserLearningContext
+} from './base';
 
-export type {
-  LearningSessionDisplay,
-  SessionDisplay,
-  LearningProgressDisplay,
-  AchievementDisplay,
-  LearningPathDisplay
-} from './learning-api'
+// Re-export const value
+export { READY_TIMEOUT_MS } from './base';
 
-export type {
-  ConceptExplorationDisplay,
-  KnowledgeMapDisplay,
-  RelatedConceptsDisplay,
-  ExplanationDisplay,
-  ExerciseDisplay
-} from './knowledge-api'
+// Export API interfaces
+export type { ChatAPI };
+export type { KnowledgeAPI };
+export type { AnalyticsAPI };
+export type { AgentsAPI };
+export type { ContentAPI };
+export type { SettingsAPI, SettingsUtility };
+export type { SessionsAPI };
+export type { CatalystAPI };
+export type { SessionCreateRequest, SessionUpdateRequest } from './sessions-requests';
 
-export type {
-  DashboardDisplay,
-  ProgressChartDisplay,
-  AchievementDisplay as AnalyticsAchievementDisplay,
-  UsageStatsDisplay,
-  TokenUsageDisplay
-} from './analytics-api'
-
-export type {
-  AgentDisplay as ManagementAgentDisplay,
-  AgentCapabilitiesDisplay,
-  AgentSettings,
-  FeatureDemoDisplay
-} from './agent-api'
-
-export type {
-  ContentRecommendationDisplay,
-  ResourceSearchResultDisplay,
-  DocumentAnalysisDisplay,
-  ProjectDisplay,
-  ImportResultDisplay
-} from './content-api'
-
-export type {
-  UserPreferencesDisplay,
-  ProviderDisplay,
-  LearningSettingsDisplay,
-  ProviderConfig
-} from './settings-api'
-
-/**
- * Main ElectronAPI interface - 8 Complete Domains
- *
- * This composite interface combines all 8 API domains to provide a unified
- * interface that matches the documented electronAPI specification.
- *
- * Features:
- * - Display-optimized types ready for UI consumption
- * - Comprehensive error handling and validation
- * - Streaming support for real-time interactions
- * - Progressive enhancement patterns
- * - Type-safe communication between processes
- */
+// Export the main electronAPI interface
 export interface ElectronAPI {
-  // 7 Complete API Domains
-  chat: ChatAPI;
-  learning: LearningAPI;
-  knowledge: KnowledgeAPI;
-  analytics: AnalyticsAPI;
-  sessions: SessionsAPI;
-  agents: AgentsAPI;
-  content: ContentAPI;
-  settings: SettingsAPI;
-  getWorkspacePath: () => Promise<string>;
-  readDirectory: (
-    path: string,
-    recursive?: boolean,
-    maxDepth?: number,
-    filterConfig?: DirectoryFilterConfig
-  ) => Promise<DirectoryScanResult[]>;
-  readFile: (filePath: string, encoding?: BufferEncoding) => Promise<string>;
-  writeFile: (filePath: string, content: string, encoding?: BufferEncoding) => Promise<void>;
-  existsFile: (filePath: string) => Promise<boolean>;
-  showOpenDialog: (options?: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
-  showSaveDialog: (options?: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
-  getAppVersion: () => Promise<string>;
-  quit: () => Promise<void>;
-  getConfig: () => Promise<any>;
-  setConfig: (config: any) => Promise<void>;
-  onMenuAction: (handler: (action: string, data?: unknown) => void) => void;
+  // System events
+  onceSystemReady: (callback: (payload: SystemReadyPayload) => void) => void;
+  onConfigChanged: (callback: (payload: ConfigChangedPayload) => void) => void;
+  awaitReady: (options?: { timeoutMs?: number }) => Promise<SystemReadyPayload>;
 
-  // Catalyst API for main process service communication
+  // Chat domain
+  chat: ChatAPI;
+
+  // Knowledge domain
+  knowledge: KnowledgeAPI;
+
+  // Analytics domain
+  analytics: AnalyticsAPI;
+
+  // Agents domain
+  agents: AgentsAPI;
+
+  // Content domain
+  content: ContentAPI;
+
+  // Settings domain
+  settings: SettingsAPI;
+
+  // Sessions domain
+  sessions: SessionsAPI;
+
+  // Catalyst domain
   catalyst: CatalystAPI;
 
-  // Utility methods for better error handling and debugging
+  // AI SDK streaming
+  aiSDK: AISDKAPI;
 
-  /**
-   * Centralized error handling and reporting
-   * Logs errors to backend for debugging and analytics
-   * @param error - Error object or message
-   * @param context - Context where the error occurred
-   * @param severity - 'info' | 'warning' | 'error' | 'critical'
-   */
-  handleError: (error: Error | string, context: string, severity?: 'info' | 'warning' | 'error' | 'critical') => void;
+  // File operations
+  openFile: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
+  saveFile: (options: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
+  showDirectoryDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
+  showOpenDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
+  showSaveDialog: (options: SaveDialogOptions) => Promise<SaveDialogReturnValue>;
+  readFile: (filePath: string) => Promise<APIResponse<string>>;
+  writeFile: (filePath: string, content: string) => Promise<APIResponse<void>>;
+  existsFile: (filePath: string) => Promise<APIResponse<boolean>>;
+  readDirectory: (
+    dirPath: string,
+    recursive?: boolean,
+    maxDepth?: number,
+    filterConfig?: DirectoryFilterConfig,
+  ) => Promise<APIResponse<any[]>>;
+  getWorkspacePath: () => Promise<APIResponse<string | null>>;
 
-  /**
-   * Checks API health and connectivity
-   * Useful for debugging connection issues
-   * @returns Promise<{ status: 'healthy' | 'degraded' | 'offline', apis: Object }>
-   */
-  healthCheck: () => Promise<{ status: 'healthy' | 'degraded' | 'offline'; apis: object }>;
+  // Error handling
+  onIPCError: (handler: (payload: IPCErrorPayload) => void) => () => void;
+  getErrorBuffer: () => Promise<BufferedIPCError[]>;
+  clearErrorBuffer: () => Promise<{ cleared: boolean }>;
 
-  /**
-   * Gets application version and build information
-   * Useful for debugging and support
-   * @returns Promise<{ version: string, build: string, platform: string }>
-   */
-  getVersion: () => Promise<{ version: string; build: string; platform: string }>;
-
-  /**
-   * Logs user interactions for analytics
-   * Helps understand how users interact with the application
-   * @param event - Event name and properties
-   */
-  trackEvent: (event: { name: string; properties?: object }) => Promise<void>;
-}
-
-/**
- * Type helpers for dependency injection and testing
- */
-
-/**
- * Create a partial ElectronAPI for testing or mocking
- */
-export type PartialElectronAPI<T extends keyof ElectronAPI> = Pick<ElectronAPI, T>
-
-/**
- * Helper type for creating API mocks
- */
-export type ElectronAPIMock = Partial<ElectronAPI>
-
-/**
- * Utility type for extracting specific API functionality
- */
-export type ExtractAPI<T> = T extends keyof ElectronAPI
-  ? Pick<ElectronAPI, T>
-  : never
-
-/**
- * Type-safe API domain selector
- */
-export type APIDomain = 'chat' | 'learning' | 'knowledge' | 'analytics' | 'sessions' | 'agents' | 'content' | 'settings'
-
-/**
- * API response wrapper for consistent error handling
- */
-export interface APIResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: any;
-  };
-  metadata?: {
-    timestamp: string;
-    requestId: string;
-    processingTime: number;
-  };
+  // System utilities
+  handleError: (error: Error | string, context: string, severity?: string) => void;
+  healthCheck: () => Promise<
+    APIResponse<{ status: 'healthy' | 'degraded' | 'offline'; apis: Record<string, unknown> }>
+  >;
+  getVersion: () => Promise<APIResponse<{ version: string; build: string; platform: string }>>;
+  trackEvent: (event: { name: string; properties?: object }) => Promise<APIResponse<void>>;
+  relaunchApp: () => Promise<{ relaunching: boolean }>;
+  awaitConfigChange: (options?: { timeoutMs?: number }) => Promise<ConfigChangedPayload>;
+  onMenuAction: (handler: (action: string, data?: unknown) => void) => () => void;
 }

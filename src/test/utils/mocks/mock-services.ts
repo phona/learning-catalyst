@@ -14,63 +14,30 @@ export const mockAgentRegistry = vi.fn().mockReturnValue({
     name: 'Mock Agent',
     type: 'chat',
     capabilities: ['text-generation', 'analysis'],
-    status: 'ready'
+    status: 'ready',
   }),
   registerAgent: vi.fn().mockResolvedValue(true),
   unregisterAgent: vi.fn().mockResolvedValue(true),
-  listAgents: vi.fn().mockResolvedValue([])
+  listAgents: vi.fn().mockResolvedValue([]),
 });
 
-// Mock Database Service
-export const mockDatabaseService = {
-  connect: vi.fn().mockResolvedValue(true),
-  disconnect: vi.fn().mockResolvedValue(true),
-  query: vi.fn().mockResolvedValue([]),
-  execute: vi.fn().mockResolvedValue({ success: true }),
-  transaction: vi.fn().mockImplementation(async (fn) => {
-    await fn();
-    return { success: true };
-  }),
-  // For error simulation
-  _simulateError: false,
-  simulateError() {
-    this._simulateError = true;
-    this.query = vi.fn().mockRejectedValue(new Error('Database connection lost'));
-  },
-  resetError() {
-    this._simulateError = false;
-    this.query = vi.fn().mockResolvedValue([]);
-  }
-};
-
 // Mock LangChain Service
-export const mockLangChainService = {
-  processMessage: vi.fn().mockResolvedValue({
-    type: 'learning_explanation',
-    content: 'Mock LangChain response',
-    metadata: { tokensUsed: 100, modelUsed: 'gpt-3.5-turbo' }
+// Mock Domain Agent
+export const mockDomainAgent = {
+  run: vi.fn().mockResolvedValue({
+    content: 'Mock Domain agent response',
+    model: 'mock-domain',
+    provider: 'openai',
+    agentType: 'domain',
   }),
-  initialize: vi.fn().mockResolvedValue(undefined),
-  cleanup: vi.fn(),
-  // For error simulation
-  _simulateError: false,
-  simulateError() {
-    this._simulateError = true;
-    this.processMessage = vi.fn().mockRejectedValue(new Error('API rate limit exceeded'));
-  },
-  resetError() {
-    this._simulateError = false;
-    this.processMessage = vi.fn().mockResolvedValue({
-      type: 'learning_explanation',
-      content: 'Mock LangChain response',
-      metadata: { tokensUsed: 100, modelUsed: 'gpt-3.5-turbo' }
-    });
-  }
+  stream: vi.fn().mockImplementation(async function* () {
+    yield 'Mock stream chunk';
+  }),
 };
 
 // Mock Catalyst Service
 export const mockCatalystService = () => {
-  let sessionIdCounter = 1;
+  // let sessionIdCounter = 1; // Unused variable - kept for future use
   const mockSessions = new Map();
   const globalSessionData = new Map(); // Track session data across calls
   let simulateLangChainError = false;
@@ -107,7 +74,7 @@ export const mockCatalystService = () => {
           agentsInvolved: [agentId],
           conceptsDiscussed: [],
           totalTokensUsed: 0,
-          agentHandoffs: []
+          agentHandoffs: [],
         });
       }
 
@@ -125,8 +92,8 @@ export const mockCatalystService = () => {
             timestamp: Date.now(),
             modelUsed: 'gpt-3.5-turbo',
             retryAfter: 30000,
-            errorId: 'LC_ERROR_001'
-          }
+            errorId: 'LC_ERROR_001',
+          },
         };
       }
 
@@ -140,8 +107,8 @@ export const mockCatalystService = () => {
             timestamp: Date.now(),
             modelUsed: 'gpt-3.5-turbo',
             offlineMode: true,
-            dataPersisted: false
-          }
+            dataPersisted: false,
+          },
         };
       }
 
@@ -150,18 +117,27 @@ export const mockCatalystService = () => {
       let type = 'learning_explanation';
 
       if (message.includes('React Hooks') || message.includes('What are React Hooks')) {
-        content = 'React Hooks are functions that let you use state and other React features in functional components without writing a class.';
+        content =
+          'React Hooks are functions that let you use state and other React features in functional components without writing a class.';
       } else if (message.includes('useCallback optimization')) {
-        content = 'useCallback is a React Hook that returns a memoized callback function. It only changes when one of its dependencies changes.';
+        content =
+          'useCallback is a React Hook that returns a memoized callback function. It only changes when one of its dependencies changes.';
       } else if (message.includes('React performance')) {
-        content = 'React performance can be optimized through memoization, lazy loading, virtualization, and proper state management.';
+        content =
+          'React performance can be optimized through memoization, lazy loading, virtualization, and proper state management.';
       } else if (message.includes('database transactions')) {
-        content = 'Database transactions ensure data integrity by grouping multiple operations into a single unit of work that either completely succeeds or fails.';
-      } else if (message.includes('advanced React patterns') || message.includes('React patterns')) {
-        content = 'Advanced React patterns include higher-order components, render props, compound components, and custom hooks for building scalable applications.';
+        content =
+          'Database transactions ensure data integrity by grouping multiple operations into a single unit of work that either completely succeeds or fails.';
+      } else if (
+        message.includes('advanced React patterns') ||
+        message.includes('React patterns')
+      ) {
+        content =
+          'Advanced React patterns include higher-order components, render props, compound components, and custom hooks for building scalable applications.';
         type = 'learning_explanation';
       } else if (message.includes('system design')) {
-        content = 'System design involves creating scalable, maintainable architectures that can handle load and provide reliability.';
+        content =
+          'System design involves creating scalable, maintainable architectures that can handle load and provide reliability.';
         type = 'learning_explanation';
       }
 
@@ -180,19 +156,28 @@ export const mockCatalystService = () => {
         type = 'practice_exercise';
         content = JSON.stringify({
           exerciseDescription: 'Practice exercise for React patterns',
-          starterCode: 'function MyComponent() { return <div>...</div>; }'
+          starterCode: 'function MyComponent() { return <div>...</div>; }',
         });
       }
       if (message.includes('stuck on this exercise') || message.includes('step by step')) {
         type = 'tutoring_guidance';
         content = JSON.stringify({
-          stepByStepInstructions: ['Step 1: Identify the problem', 'Step 2: Break it down', 'Step 3: Implement solution'],
-          hints: ['Hint: Consider using React Hooks', 'Hint: Check component lifecycle']
+          stepByStepInstructions: [
+            'Step 1: Identify the problem',
+            'Step 2: Break it down',
+            'Step 3: Implement solution',
+          ],
+          hints: ['Hint: Consider using React Hooks', 'Hint: Check component lifecycle'],
         });
       }
 
       // Add sessionRestored flag for restored sessions
-      const metadata: any = { tokensUsed: 50, agentId, timestamp: Date.now(), modelUsed: 'gpt-3.5-turbo' };
+      const metadata: Record<string, any> = {
+        tokensUsed: 50,
+        agentId,
+        timestamp: Date.now(),
+        modelUsed: 'gpt-3.5-turbo',
+      };
       if (message.includes('Continue with the next practice problem')) {
         metadata.sessionRestored = true;
       }
@@ -200,11 +185,11 @@ export const mockCatalystService = () => {
       return {
         type,
         content,
-        metadata
+        metadata,
       };
     }),
     selectAgent: vi.fn().mockImplementation(async (data) => {
-      const { userInput, context } = data;
+      const { userInput /* context */ } = data;
 
       // Dynamic agent selection based on context
       let agentType = 'learning';
@@ -224,7 +209,7 @@ export const mockCatalystService = () => {
       return {
         agentType,
         agentId,
-        confidence
+        confidence,
       };
     }),
     generatePracticeQuestions: vi.fn().mockImplementation(async (data) => {
@@ -236,7 +221,7 @@ export const mockCatalystService = () => {
         questions.push({
           question: `Test question ${i + 1} about ${concept}`,
           options: ['Option A', 'Option B', 'Option C'],
-          correctAnswer: `Option ${String.fromCharCode(65 + i % 3)}`
+          correctAnswer: `Option ${String.fromCharCode(65 + (i % 3))}`,
         });
       }
 
@@ -252,7 +237,7 @@ export const mockCatalystService = () => {
       return {
         score,
         feedback: score > 0.7 ? 'Great job!' : 'Keep practicing!',
-        masteryLevel
+        masteryLevel,
       };
     }),
     updateSessionProgress: vi.fn().mockImplementation(async (data) => {
@@ -261,16 +246,16 @@ export const mockCatalystService = () => {
       return {
         masteryLevel: masteryGained,
         totalTimeSpent: 1200,
-        completedConcepts: conceptsCovered
+        completedConcepts: conceptsCovered,
       };
     }),
     completeSession: vi.fn().mockImplementation(async (data) => {
-      const { sessionId, finalMastery, userFeedback } = data;
+      const { sessionId, finalMastery /* userFeedback */ } = data;
 
       return {
         sessionId,
         finalMastery,
-        analyticsUpdated: true
+        analyticsUpdated: true,
       };
     }),
     getSessionData: vi.fn().mockImplementation(async (sessionId) => {
@@ -278,7 +263,7 @@ export const mockCatalystService = () => {
         agentsInvolved: ['learning-agent-001'],
         conceptsDiscussed: ['react-hooks', 'database-transactions'],
         totalTokensUsed: 150,
-        agentHandoffs: []
+        agentHandoffs: [],
       };
 
       // Add assessment agent if practice questions were generated
@@ -288,7 +273,7 @@ export const mockCatalystService = () => {
           fromAgent: 'learning-agent-001',
           toAgent: 'assessment-agent-001',
           reason: 'assessment requested',
-          timestamp: '2023-01-01T00:00:00Z'
+          timestamp: '2023-01-01T00:00:00Z',
         });
       }
 
@@ -296,14 +281,14 @@ export const mockCatalystService = () => {
     }),
     getSessionCheckpoints: vi.fn().mockResolvedValue([
       { agentState: 'test-state', contextData: 'test-context' },
-      { agentState: 'test-state-2', contextData: 'test-context-2' }
+      { agentState: 'test-state-2', contextData: 'test-context-2' },
     ]),
     restoreSession: vi.fn().mockImplementation(async (sessionId) => {
       return {
         sessionId,
         currentContext: { topic: 'React' },
         agentHistory: ['learning-agent-001', 'practice-agent-001'],
-        lastCheckpoint: { timestamp: '2023-01-01T00:00:00Z' }
+        lastCheckpoint: { timestamp: '2023-01-01T00:00:00Z' },
       };
     }),
     evaluateAgentHandoff: vi.fn().mockImplementation(async (data) => {
@@ -311,21 +296,31 @@ export const mockCatalystService = () => {
 
       return {
         shouldHandoff: userInput.includes('practice') || userInput.includes('exercises'),
-        targetAgentType: userInput.includes('practice') || userInput.includes('exercises') ? 'practice' : 'assessment',
-        targetAgentId: userInput.includes('practice') || userInput.includes('exercises') ? 'practice-agent-001' : 'assessment-agent-001'
+        targetAgentType:
+          userInput.includes('practice') || userInput.includes('exercises')
+            ? 'practice'
+            : 'assessment',
+        targetAgentId:
+          userInput.includes('practice') || userInput.includes('exercises')
+            ? 'practice-agent-001'
+            : 'assessment-agent-001',
       };
     }),
     startStreamingSession: vi.fn().mockImplementation(async (data) => {
       const streamSession = new EventEmitter();
-      streamSession.streamId = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      streamSession.estimatedChunks = Math.max(5, Math.ceil((data.message?.length || 1000) / 50));
+      (streamSession as any).streamId =
+        `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      (streamSession as any).estimatedChunks = Math.max(
+        5,
+        Math.ceil((data.message?.length || 1000) / 50),
+      );
 
       // Mock streaming chunks
       setTimeout(() => {
         streamSession.emit('chunk', {
           index: 0,
           content: 'Microservices architecture is an approach...',
-          metadata: { tokens: 15, model: 'gpt-4' }
+          metadata: { tokens: 15, model: 'gpt-4' },
         });
       }, 10);
 
@@ -333,7 +328,7 @@ export const mockCatalystService = () => {
         streamSession.emit('chunk', {
           index: 1,
           content: 'where a single application is composed of...',
-          metadata: { tokens: 12, model: 'gpt-4' }
+          metadata: { tokens: 12, model: 'gpt-4' },
         });
       }, 20);
 
@@ -341,7 +336,7 @@ export const mockCatalystService = () => {
         streamSession.emit('end', {
           totalChunks: 2,
           totalTokens: 27,
-          sessionId: data.sessionId
+          sessionId: data.sessionId,
         });
       }, 30);
 
@@ -355,7 +350,7 @@ export const mockCatalystService = () => {
       id: 'test-agent-id',
       type: 'learning',
       name: 'Test Agent',
-      status: 'ready'
+      status: 'ready',
     }),
 
     invokeWithRetry: vi.fn().mockImplementation(async (method, ...args) => {
@@ -367,14 +362,14 @@ export const mockCatalystService = () => {
       createStream: vi.fn().mockReturnValue({
         id: 'test-stream-id',
         write: vi.fn(),
-        close: vi.fn()
-      })
+        close: vi.fn(),
+      }),
     }),
 
     saveSessionProgress: vi.fn().mockResolvedValue({
       success: true,
       sessionId: 'test-session',
-      progress: 0.75
+      progress: 0.75,
     }),
 
     setMaxConcurrentRequests: vi.fn().mockResolvedValue(true),
@@ -383,10 +378,10 @@ export const mockCatalystService = () => {
       isOpen: vi.fn().mockReturnValue(false),
       recordSuccess: vi.fn(),
       recordFailure: vi.fn(),
-      getState: vi.fn().mockReturnValue('closed')
+      getState: vi.fn().mockReturnValue('closed'),
     }),
 
-    setServiceAvailability: vi.fn().mockImplementation((serviceName, available) => {
+    setServiceAvailability: vi.fn().mockImplementation((_serviceName, _available) => {
       // Mock service availability control
       return true;
     }),
@@ -394,21 +389,21 @@ export const mockCatalystService = () => {
     restartService: vi.fn().mockResolvedValue({
       success: true,
       service: 'catalyst-service',
-      restartTime: Date.now()
+      restartTime: Date.now(),
     }),
 
     // Additional methods needed by error recovery tests
     attemptStreamReconnection: vi.fn().mockResolvedValue({
       success: true,
       attempts: 2,
-      reconnected: true
+      reconnected: true,
     }),
 
     getSessionState: vi.fn().mockResolvedValue({
       sessionId: 'test-session',
       messageHistory: ['message1', 'message2'],
-      conceptsDiscussed: ['react-hooks']
-    })
+      conceptsDiscussed: ['react-hooks'],
+    }),
   };
 };
 
@@ -418,49 +413,49 @@ export const mockErrorRecoveryManager = {
     corruptionDetected: true,
     backupRestored: true,
     restoredFromBackup: 'backup-001',
-    sessionFunctional: true
+    sessionFunctional: true,
   }),
   attemptSystemRecovery: vi.fn().mockResolvedValue({
     attempted: true,
     servicesRecoveryAttempted: ['langchain', 'agents'],
-    recoveryStrategies: ['service_restart', 'cache_warmup']
+    recoveryStrategies: ['service_restart', 'cache_warmup'],
   }),
   formatErrorForUser: vi.fn().mockReturnValue({
     message: 'Service temporarily unavailable',
     recoveryOptions: ['retry', 'try_later'],
     estimatedRecoveryTime: 30000,
-    canRetry: true
-  })
+    canRetry: true,
+  }),
 };
 
 // Mock System Health Monitor
 export const mockSystemHealthMonitor = {
   checkSystemHealth: vi.fn().mockResolvedValue({
     memoryPressure: 'high',
-    actionsTaken: ['garbage_collection_triggered', 'non_essential_processes_paused']
+    actionsTaken: ['garbage_collection_triggered', 'non_essential_processes_paused'],
   }),
   getCPUUsage: vi.fn().mockReturnValue(95),
   checkServiceHealth: vi.fn().mockResolvedValue({
     langchain: false,
     database: true,
-    agents: false
-  })
+    agents: false,
+  }),
 };
 
 // Mock Electron IPC
 export const mockElectronIPC = {
-  invoke: vi.fn().mockImplementation(async (channel: string, data: any) => {
+  invoke: vi.fn().mockImplementation(async (channel: string, data?: unknown) => {
     // Provide mock responses for specific IPC channels
     if (channel === 'catalyst:process-input') {
       return {
         success: true,
         result: {
           type: 'learning_explanation',
-          content: data?.message?.includes('useCallback')
+          content: (data as any)?.message?.includes('useCallback')
             ? 'useCallback is a React Hook that returns a memoized callback function. It only changes when one of its dependencies changes.'
             : 'Mock response from CatalystService',
-          metadata: { tokensUsed: 50, modelUsed: 'gpt-3.5-turbo' }
-        }
+          metadata: { tokensUsed: 50, modelUsed: 'gpt-3.5-turbo' },
+        },
       };
     }
 
@@ -470,8 +465,8 @@ export const mockElectronIPC = {
         chunks: [
           { content: 'React performance can be optimized', chunkIndex: 0 },
           { content: 'through memoization, lazy loading,', chunkIndex: 1 },
-          { content: 'virtualization, and proper state management.', chunkIndex: 2 }
-        ]
+          { content: 'virtualization, and proper state management.', chunkIndex: 2 },
+        ],
       };
     }
 
@@ -480,12 +475,12 @@ export const mockElectronIPC = {
   send: vi.fn(),
   on: vi.fn(),
   once: vi.fn(),
-  removeAllListeners: vi.fn()
+  removeAllListeners: vi.fn(),
 };
 
 // Mock Session Service
 export const mockSessionService = {
-  createSession: vi.fn().mockImplementation(async (sessionData) => {
+  createSession: vi.fn().mockImplementation(async (_sessionData) => {
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     return sessionId;
   }),
@@ -493,18 +488,20 @@ export const mockSessionService = {
   searchSessions: vi.fn().mockResolvedValue({
     sessions: [],
     total: 0,
-    hasMore: false
+    hasMore: false,
   }),
   getRecentSessions: vi.fn().mockResolvedValue([]),
   saveMessage: vi.fn().mockResolvedValue(undefined),
   saveMessages: vi.fn().mockResolvedValue(undefined),
   updateMessage: vi.fn().mockResolvedValue(undefined),
   deleteSession: vi.fn().mockResolvedValue(true),
-  saveSessionWithMessages: vi.fn().mockImplementation(async (memorySession, messages) => {
+  saveSessionWithMessages: vi.fn().mockImplementation(async (memorySession, _messages) => {
     return memorySession.id || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }),
   updateSessionTitle: vi.fn().mockResolvedValue(undefined),
-  generateSessionId: vi.fn().mockReturnValue(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
+  generateSessionId: vi
+    .fn()
+    .mockReturnValue(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`),
   generateAITitle: vi.fn().mockResolvedValue('Test Session'),
   generateSimpleTitle: vi.fn().mockReturnValue('Test Session'),
   getGlobalMessageCount: vi.fn().mockResolvedValue(0),
@@ -514,29 +511,27 @@ export const mockSessionService = {
     totalUserMessages: 0,
     totalAssistantMessages: 0,
     averageMessagesPerSession: 0,
-    totalTokensUsed: 0
-  })
+    totalTokensUsed: 0,
+  }),
 };
 
 // Mock Service Factory
 export const createMockServices = () => ({
   agentRegistry: mockAgentRegistry,
-  databaseService: mockDatabaseService,
   catalystService: mockCatalystService(),
-  langChainService: mockLangChainService,
+  domainAgent: mockDomainAgent,
   errorRecoveryManager: mockErrorRecoveryManager,
   healthMonitor: mockSystemHealthMonitor,
   ipc: mockElectronIPC,
-  sessionService: mockSessionService
+  sessionService: mockSessionService,
 });
 
 export default {
   mockAgentRegistry,
-  mockDatabaseService,
   mockCatalystService,
-  mockLangChainService,
+  mockDomainAgent,
   mockErrorRecoveryManager,
   mockSystemHealthMonitor,
   mockElectronIPC,
-  createMockServices
+  createMockServices,
 };

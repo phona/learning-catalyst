@@ -5,7 +5,23 @@
  * Focuses on conceptual understanding and knowledge exploration.
  */
 
+import type { APIResponse } from './base';
+
 export interface KnowledgeAPI {
+  /**
+   * Ingests a parsed result into the knowledge graph for downstream queries
+   */
+  ingestConcepts: (params: {
+    result: ConceptParsingResult;
+    plan?: ConceptIngestionPlan;
+    options?: {
+      userId?: string;
+      materialId?: string;
+      sessionId?: string;
+      source?: string;
+    };
+  }) => Promise<APIResponse<KnowledgeIngestionResult>>;
+
   /**
    * Explores a concept in detail with related information
    * Provides comprehensive concept analysis for learning
@@ -16,7 +32,7 @@ export interface KnowledgeAPI {
   exploreConcept: (params: {
     conceptName: string;
     depth: 'basic' | 'intermediate' | 'advanced';
-  }) => Promise<ConceptExplorationDisplay>;
+  }) => Promise<APIResponse<ConceptExplorationDisplay>>;
 
   /**
    * Gets concepts related to a given concept
@@ -24,7 +40,7 @@ export interface KnowledgeAPI {
    * @param conceptId - ID of the concept to find relations for
    * @returns Promise<RelatedConceptsDisplay> - Array of related concepts with relationships
    */
-  getRelatedConcepts: (conceptId: string) => Promise<RelatedConceptsDisplay>;
+  getRelatedConcepts: (conceptId: string) => Promise<APIResponse<RelatedConceptsDisplay>>;
 
   /**
    * Gets knowledge map data for visualization
@@ -32,7 +48,7 @@ export interface KnowledgeAPI {
    * @param sessionId - Optional session ID to focus on session-specific knowledge
    * @returns Promise<KnowledgeMapDisplay> - Knowledge graph data for visualization
    */
-  getKnowledgeMap: (sessionId?: string) => Promise<KnowledgeMapDisplay>;
+  getKnowledgeMap: (sessionId?: string) => Promise<APIResponse<KnowledgeMapDisplay>>;
 
   /**
    * Searches the knowledge base for specific content
@@ -40,31 +56,7 @@ export interface KnowledgeAPI {
    * @param query - Search query string
    * @returns Promise<KnowledgeSearchResultDisplay> - Search results with relevance scores
    */
-  searchKnowledge: (query: string) => Promise<KnowledgeSearchResultDisplay>;
-
-  /**
-   * Gets explanation for a concept in specific style
-   * Provides different ways to understand the same concept
-   * @param params.conceptId - ID of the concept to explain
-   * @param params.style - 'simple' | 'technical' | 'analogy' | 'example' | 'visual'
-   * @returns Promise<ExplanationDisplay> - Concept explanation in requested style
-   */
-  getExplanation: (params: {
-    conceptId: string;
-    style: 'simple' | 'technical' | 'analogy' | 'example' | 'visual';
-  }) => Promise<ExplanationDisplay>;
-
-  /**
-   * Gets practice exercises for a specific concept
-   * Provides hands-on learning opportunities with varying difficulty
-   * @param params.conceptId - ID of the concept to practice
-   * @param params.difficulty - 'beginner' | 'intermediate' | 'advanced'
-   * @returns Promise<ExerciseDisplay[]> - Array of practice exercises
-   */
-  getPracticeExercises: (params: {
-    conceptId: string;
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-  }) => Promise<ExerciseDisplay[]>;
+  searchKnowledge: (query: string) => Promise<APIResponse<KnowledgeSearchResultDisplay>>;
 
   /**
    * Parse concepts from files and content using AI
@@ -84,11 +76,57 @@ export interface KnowledgeAPI {
     materialId?: string;
     title?: string;
     format?: 'markdown' | 'text' | 'html';
+    jobId?: string;
+    resume?: boolean;
     options?: {
       confidenceThreshold?: number;
       maxConceptsPerFile?: number;
     };
-  }) => Promise<ConceptParsingResult>;
+  }) => Promise<APIResponse<ConceptParsingResult>>;
+
+  /**
+   * Clears persisted parsing job cache on disk
+   */
+  clearParsingJobs: () => Promise<APIResponse<{ removed: number }>>;
+}
+
+export interface KnowledgeExtractionDisplay {
+  nodes: KnowledgeNodeDisplay[];
+  relationships: KnowledgeRelationshipDisplay[];
+  summary: string;
+  focusAreas: string[];
+  recommendations: string[];
+  metadata: {
+    source: string;
+    processedAt: string;
+    stats: Record<string, unknown>;
+    snippetCount: number;
+  };
+}
+
+export interface KnowledgeNodeDisplay {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  difficultyLevel: number;
+  masteryLevel: number;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface KnowledgeRelationshipDisplay {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  relationshipType: string;
+  strength: number;
+  description?: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ============================================================================
@@ -271,6 +309,21 @@ export interface ConceptParsingResult {
     typeDistribution: Record<string, number>;
     processingTime: number;
     modelUsage: Record<string, number>;
+    tokenUsage?: {
+      total: number;
+      prompt: number;
+      completion: number;
+      estimated?: boolean;
+    };
+    deduplication?: {
+      duplicatesMerged: number;
+      relationshipsSkipped?: number;
+      deduplicationStrategy: string;
+      originalCounts?: {
+        concepts: number;
+        relationships: number;
+      };
+    };
   };
   errors: string[];
   metadata: {
@@ -279,6 +332,24 @@ export interface ConceptParsingResult {
     inputFiles: number;
     aiProvider?: string;
     aiModel?: string;
+    jobId?: string;
+    segmentsProcessed?: number;
+    segmentsTotal?: number;
+    resumed?: boolean;
+  };
+}
+
+export interface KnowledgeIngestionResult {
+  conceptsInserted: number;
+  conceptsUpdated: number;
+  relationshipsInserted: number;
+  conceptsSkipped?: number;
+  conceptsMerged?: number;
+  relationshipsSkipped?: number;
+  lowConfidenceSkipped?: number;
+  metadata: {
+    processedAt: string;
+    source?: string;
   };
 }
 
@@ -288,6 +359,7 @@ export interface ConceptParsingResult {
 export interface ParsedConcept {
   id: string;
   name: string;
+  canonicalName?: string;
   description: string;
   type: string;
   confidence: number;
@@ -297,7 +369,7 @@ export interface ParsedConcept {
     text: string;
     relevance: number;
   }>;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 /**
@@ -307,7 +379,78 @@ export interface ParsedRelationship {
   sourceId: string;
   targetId: string;
   type: string;
-  strength: number;
-  confidence: number;
+  strength?: number;
+  confidence?: number;
   description?: string;
+}
+
+export type ConceptIngestionAction = 'insert' | 'overwrite' | 'skip' | 'merge';
+
+export type ConceptFieldKey = 'name' | 'type' | 'description' | 'difficulty' | 'tags';
+
+export interface ConceptCanonicalizationChoice {
+  canonicalName?: string;
+  aliases?: string[];
+  applyAlias?: boolean;
+}
+
+export interface ConceptIngestionPlan {
+  /**
+   * Default action for concepts that already exist in the database
+   * when no explicit action is provided.
+   */
+  defaultExistingAction?: Extract<ConceptIngestionAction, 'overwrite' | 'skip'>;
+  /**
+   * Rules for skipping low-confidence concepts.
+   */
+  lowConfidence?: {
+    defaultThreshold?: number;
+    overrides?: Record<string, number>;
+  };
+  /**
+   * Per-parsed-concept action overrides keyed by parsed concept id.
+   */
+  actions?: Record<string, ConceptIngestionAction>;
+  /**
+   * Field-level overwrite toggles keyed by parsed concept id.
+   */
+  fieldToggles?: Record<string, Partial<Record<ConceptFieldKey, boolean>>>;
+  /**
+   * Canonicalization and alias choices keyed by parsed concept id.
+   */
+  canonicalization?: Record<string, ConceptCanonicalizationChoice>;
+  /**
+   * Merge directives: parsed concept id -> target existing concept id.
+   */
+  mergeTargets?: Record<string, string>;
+  /**
+   * Auto-deduplication configuration for Stage 2 (knowledge base check).
+   * When enabled, concepts will be checked against existing knowledge base
+   * and merged if similarity exceeds threshold.
+   */
+  autoDeduplicate?: {
+    /**
+     * Enable auto-deduplication during ingestion (Stage 2).
+     * @default false
+     */
+    enabled?: boolean;
+    /**
+     * Vector similarity threshold for considering concepts as duplicates.
+     * Range: 0.85 - 0.99 (higher = more strict)
+     * @default 0.92
+     */
+    threshold?: number;
+    /**
+     * Strategy for handling duplicates found during KB check.
+     * - 'skip': Don't store new concept (keep existing)
+     * - 'merge_metadata': Merge metadata into existing, don't store new
+     * @default 'skip'
+     */
+    strategy?: 'skip' | 'merge_metadata';
+    /**
+     * Whether to update relationship pointers when merging.
+     * @default true
+     */
+    updateRelationships?: boolean;
+  };
 }

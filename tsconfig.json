@@ -4,7 +4,7 @@
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "downlevelIteration": true,
-    "types": ["node"],
+    "types": ["node", "vitest/globals", "@testing-library/jest-dom"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": false,
@@ -12,7 +12,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -20,23 +20,14 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@/renderer/*": [
-        "src/renderer/*"
-      ],
-      "@/main/*": [
-        "src/main/*"
-      ],
-      "@/shared/*": [
-        "src/shared/*"
-      ],
-      "@/test/*": [
-        "src/test/*"
-      ]
+      "@/*": ["src/*"],
+      "@/renderer/*": ["src/renderer/*"],
+      "@/main/*": ["src/main/*"],
+      "@/shared/*": ["src/shared/*"],
+      "@/test/*": ["src/test/*"]
     },
+    "allowImportingTsExtensions": false
   },
-  "include": ["src"],
-  "exclude": ["src/**/__tests__/**/*", "src/test/**/*", "**/*.test.*", "**/*.spec.*", "node_modules", "vite.config.ts"]
+  "include": ["src", "tests"],
+  "exclude": ["node_modules", "vite.config.ts"]
 }

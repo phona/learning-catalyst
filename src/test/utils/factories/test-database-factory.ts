@@ -15,12 +15,12 @@ export const createTestSession = (overrides?: any) => ({
   title: 'Test Session',
   messages: JSON.stringify([
     { role: 'user', content: 'Hello', timestamp: Date.now() - 60000 },
-    { role: 'assistant', content: 'Hi there!', timestamp: Date.now() - 55000 }
+    { role: 'assistant', content: 'Hi there!', timestamp: Date.now() - 55000 },
   ]),
   created_at: Date.now() - 300000,
   updated_at: Date.now() - 60000,
   metadata: JSON.stringify({ test: true }),
-  ...overrides
+  ...overrides,
 });
 
 export const createTestConcept = (overrides?: any) => ({
@@ -30,10 +30,10 @@ export const createTestConcept = (overrides?: any) => ({
   metadata: JSON.stringify({
     difficulty: 'intermediate',
     category: 'testing',
-    tags: ['test', 'concept']
+    tags: ['test', 'concept'],
   }),
   created_at: Date.now() - 86400000,
-  ...overrides
+  ...overrides,
 });
 
 export const createTestAnalytics = (overrides?: any) => ({
@@ -44,7 +44,7 @@ export const createTestAnalytics = (overrides?: any) => ({
   model_used: 'gpt-3.5-turbo',
   timestamp: Date.now() - 3600000,
   metadata: JSON.stringify({ test: true }),
-  ...overrides
+  ...overrides,
 });
 
 export const createTestCheckpoint = (overrides?: any) => ({
@@ -54,11 +54,11 @@ export const createTestCheckpoint = (overrides?: any) => ({
   checkpoint: JSON.stringify({
     step: 1,
     data: { test: 'data' },
-    metadata: { version: '1.0' }
+    metadata: { version: '1.0' },
   }),
   metadata: JSON.stringify({ test: true }),
   created_at: Date.now() - 1800000,
-  ...overrides
+  ...overrides,
 });
 
 // In-memory database factory
@@ -69,11 +69,13 @@ export class TestDatabaseFactory {
   /**
    * Create a new test database instance with mock data
    */
-  static async createTestDatabase(options: {
-    name?: string;
-    withData?: boolean;
-    customData?: any;
-  } = {}): Promise<any> {
+  static async createTestDatabase(
+    options: {
+      name?: string;
+      withData?: boolean;
+      customData?: any;
+    } = {},
+  ): Promise<any> {
     const { name = `test-db-${++this.testCounter}`, withData = true, customData = {} } = options;
 
     // Check if instance already exists
@@ -90,16 +92,16 @@ export class TestDatabaseFactory {
         concepts: [],
         analytics: [],
         checkpoints: [],
-        ...customData
+        ...customData,
       },
       _internalData: {
         nextIds: {
           sessions: 1,
           concepts: 1,
           analytics: 1,
-          checkpoints: 1
-        }
-      }
+          checkpoints: 1,
+        },
+      },
     };
 
     // Override mock methods to use in-memory data
@@ -138,8 +140,8 @@ export class TestDatabaseFactory {
    * Drop all test database instances
    */
   static async dropAllTestDatabases(): Promise<void> {
-    const dropPromises = Array.from(this.instances.keys()).map(name =>
-      this.dropTestDatabase(name)
+    const dropPromises = Array.from(this.instances.keys()).map((name) =>
+      this.dropTestDatabase(name),
     );
     await Promise.all(dropPromises);
     this.testCounter = 0;
@@ -155,13 +157,13 @@ export class TestDatabaseFactory {
         sessions: [],
         concepts: [],
         analytics: [],
-        checkpoints: []
+        checkpoints: [],
       };
       database._internalData.nextIds = {
         sessions: 1,
         concepts: 1,
         analytics: 1,
-        checkpoints: 1
+        checkpoints: 1,
       };
 
       // Clear mock history
@@ -172,29 +174,27 @@ export class TestDatabaseFactory {
   /**
    * Populate database with test data
    */
-  static async populateTestData(name: string, dataOptions?: {
-    sessions?: number;
-    concepts?: number;
-    analytics?: number;
-    checkpoints?: number;
-  }): Promise<void> {
+  static async populateTestData(
+    name: string,
+    dataOptions?: {
+      sessions?: number;
+      concepts?: number;
+      analytics?: number;
+      checkpoints?: number;
+    },
+  ): Promise<void> {
     const database = this.instances.get(name);
     if (!database) {
       throw new Error(`Test database '${name}' not found`);
     }
 
-    const {
-      sessions = 3,
-      concepts = 5,
-      analytics = 10,
-      checkpoints = 2
-    } = dataOptions || {};
+    const { sessions = 3, concepts = 5, analytics = 10, checkpoints = 2 } = dataOptions || {};
 
     // Add test sessions
     for (let i = 0; i < sessions; i++) {
       const session = createTestSession({
         id: database._internalData.nextIds.sessions++,
-        title: `Test Session ${i + 1}`
+        title: `Test Session ${i + 1}`,
       });
       database.data.sessions.push(session);
     }
@@ -204,7 +204,7 @@ export class TestDatabaseFactory {
       const concept = createTestConcept({
         id: database._internalData.nextIds.concepts++,
         name: `Test Concept ${i + 1}`,
-        description: `Description for test concept ${i + 1}`
+        description: `Description for test concept ${i + 1}`,
       });
       database.data.concepts.push(concept);
     }
@@ -215,7 +215,7 @@ export class TestDatabaseFactory {
         id: database._internalData.nextIds.analytics++,
         session_id: Math.floor(Math.random() * sessions) + 1,
         tokens_used: 100 + Math.floor(Math.random() * 200),
-        response_time: 1000 + Math.floor(Math.random() * 4000)
+        response_time: 1000 + Math.floor(Math.random() * 4000),
       });
       database.data.analytics.push(analyticsEntry);
     }
@@ -224,7 +224,7 @@ export class TestDatabaseFactory {
     for (let i = 0; i < checkpoints; i++) {
       const checkpoint = createTestCheckpoint({
         id: database._internalData.nextIds.checkpoints++,
-        thread_id: `test-thread-${i + 1}`
+        thread_id: `test-thread-${i + 1}`,
       });
       database.data.checkpoints.push(checkpoint);
     }
@@ -236,7 +236,7 @@ export class TestDatabaseFactory {
   private static _configureDatabaseMethods(database: any): void {
     // Override fetchOne to use in-memory data
     database.fetchOne = vi.fn().mockImplementation(async (query: string, params?: any[]) => {
-      await new Promise(resolve => setTimeout(resolve, 5)); // Simulate async
+      await new Promise((resolve) => setTimeout(resolve, 5)); // Simulate async
 
       // Handle different query patterns
       if (query.includes('SELECT 1')) {
@@ -263,7 +263,7 @@ export class TestDatabaseFactory {
 
     // Override fetchAll to use in-memory data
     database.fetchAll = vi.fn().mockImplementation(async (query: string, params?: any[]) => {
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
       if (query.includes('sessions')) {
         if (query.includes('WHERE')) {
@@ -297,13 +297,13 @@ export class TestDatabaseFactory {
 
     // Override executeQuery to use in-memory data
     database.executeQuery = vi.fn().mockImplementation(async (query: string, params?: any[]) => {
-      await new Promise(resolve => setTimeout(resolve, 15));
+      await new Promise((resolve) => setTimeout(resolve, 15));
 
       // Handle INSERT operations
       if (query.includes('INSERT INTO sessions')) {
         const newSession = createTestSession({
           id: database._internalData.nextIds.sessions++,
-          ...this._extractInsertData(query, params)
+          ...this._extractInsertData(query, params),
         });
         database.data.sessions.push(newSession);
         return { insertId: newSession.id, affectedRows: 1 };
@@ -312,7 +312,7 @@ export class TestDatabaseFactory {
       if (query.includes('INSERT INTO concepts')) {
         const newConcept = createTestConcept({
           id: database._internalData.nextIds.concepts++,
-          ...this._extractInsertData(query, params)
+          ...this._extractInsertData(query, params),
         });
         database.data.concepts.push(newConcept);
         return { insertId: newConcept.id, affectedRows: 1 };
@@ -321,7 +321,7 @@ export class TestDatabaseFactory {
       if (query.includes('INSERT INTO analytics')) {
         const newAnalytics = createTestAnalytics({
           id: database._internalData.nextIds.analytics++,
-          ...this._extractInsertData(query, params)
+          ...this._extractInsertData(query, params),
         });
         database.data.analytics.push(newAnalytics);
         return { insertId: newAnalytics.id, affectedRows: 1 };
@@ -379,7 +379,7 @@ export class TestDatabaseFactory {
       title: 'Test Session',
       messages: '[]',
       created_at: Date.now(),
-      updated_at: Date.now()
+      updated_at: Date.now(),
     };
   }
 
@@ -389,7 +389,7 @@ export class TestDatabaseFactory {
   private static _extractUpdateData(query: string, params?: any[]): any {
     // Mock implementation - in reality would parse SQL properly
     return {
-      updated_at: Date.now()
+      updated_at: Date.now(),
     };
   }
 
@@ -397,18 +397,13 @@ export class TestDatabaseFactory {
    * Populate initial test data
    */
   private static async _populateTestData(database: any): Promise<void> {
-    const {
-      sessions = 3,
-      concepts = 5,
-      analytics = 10,
-      checkpoints = 2
-    } = {};
+    const { sessions = 3, concepts = 5, analytics = 10, checkpoints = 2 } = {};
 
     // Add test sessions
     for (let i = 0; i < sessions; i++) {
       const session = createTestSession({
         id: database._internalData.nextIds.sessions++,
-        title: `Test Session ${i + 1}`
+        title: `Test Session ${i + 1}`,
       });
       database.data.sessions.push(session);
     }
@@ -418,7 +413,7 @@ export class TestDatabaseFactory {
       const concept = createTestConcept({
         id: database._internalData.nextIds.concepts++,
         name: `Test Concept ${i + 1}`,
-        description: `Description for test concept ${i + 1}`
+        description: `Description for test concept ${i + 1}`,
       });
       database.data.concepts.push(concept);
     }
@@ -429,7 +424,7 @@ export class TestDatabaseFactory {
         id: database._internalData.nextIds.analytics++,
         session_id: Math.floor(Math.random() * sessions) + 1,
         tokens_used: 100 + Math.floor(Math.random() * 200),
-        response_time: 1000 + Math.floor(Math.random() * 4000)
+        response_time: 1000 + Math.floor(Math.random() * 4000),
       });
       database.data.analytics.push(analyticsEntry);
     }
@@ -438,7 +433,7 @@ export class TestDatabaseFactory {
     for (let i = 0; i < checkpoints; i++) {
       const checkpoint = createTestCheckpoint({
         id: database._internalData.nextIds.checkpoints++,
-        thread_id: `test-thread-${i + 1}`
+        thread_id: `test-thread-${i + 1}`,
       });
       database.data.checkpoints.push(checkpoint);
     }
@@ -459,11 +454,11 @@ export class TestDatabaseFactory {
         sessions: database.data.sessions.length,
         concepts: database.data.concepts.length,
         analytics: database.data.analytics.length,
-        checkpoints: database.data.checkpoints.length
+        checkpoints: database.data.checkpoints.length,
       },
       nextIds: { ...database._internalData.nextIds },
       connected: database.connected,
-      closed: database.closed
+      closed: database.closed,
     };
   }
 
@@ -482,7 +477,7 @@ export class TestDatabaseFactory {
   /**
    * Import database data for testing
    */
-  static async importDatabaseData(name: string, data: any): Promise<void> {
+  static async importDatabaseData(name: string, data?: unknown): Promise<void> {
     const database = this.instances.get(name);
     if (!database) {
       throw new Error(`Test database '${name}' not found`);
@@ -495,7 +490,7 @@ export class TestDatabaseFactory {
       sessions: Math.max(...database.data.sessions.map((s: any) => s.id), 0) + 1,
       concepts: Math.max(...database.data.concepts.map((c: any) => c.id), 0) + 1,
       analytics: Math.max(...database.data.analytics.map((a: any) => a.id), 0) + 1,
-      checkpoints: Math.max(...database.data.checkpoints.map((cp: any) => cp.id), 0) + 1
+      checkpoints: Math.max(...database.data.checkpoints.map((cp: any) => cp.id), 0) + 1,
     };
   }
 
@@ -512,19 +507,19 @@ export class TestDatabaseFactory {
         withData: true,
         customData: {
           sessions: [createTestSession({ id: 1, title: 'Minimal Session' })],
-          concepts: [createTestConcept({ id: 1, name: 'Minimal Concept' })]
-        }
+          concepts: [createTestConcept({ id: 1, name: 'Minimal Concept' })],
+        },
       });
 
     case 'full':
       return this.createTestDatabase({
-        withData: true
-      }).then(db => {
+        withData: true,
+      }).then((db) => {
         return this.populateTestData(db.name, {
           sessions: 10,
           concepts: 20,
           analytics: 50,
-          checkpoints: 10
+          checkpoints: 10,
         }).then(() => db);
       });
 
@@ -533,8 +528,8 @@ export class TestDatabaseFactory {
         withData: true,
         customData: {
           sessions: [createTestSession({ id: 1, messages: 'invalid-json' })],
-          concepts: [createTestConcept({ id: 1, metadata: null })]
-        }
+          concepts: [createTestConcept({ id: 1, metadata: null })],
+        },
       });
 
     default:

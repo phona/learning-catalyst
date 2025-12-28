@@ -5,7 +5,7 @@
  * Provides learning analytics and progress tracking with proper IPC communication.
  */
 
-import type { APIResponse } from './index';
+import type { APIResponse } from './base';
 import type {
   DashboardDisplay as DashboardDisplayResp,
   SessionDisplay,
@@ -15,8 +15,8 @@ import type {
   StudyStreakDisplay,
   TimeStatsDisplay,
   CreateLearningSessionRequest,
-  ConceptProgressUpdate
-} from '@/shared/interfaces/analytics.interface';
+  ConceptProgressUpdate,
+} from '../analytics';
 
 export interface AnalyticsAPI {
   /**
@@ -82,7 +82,7 @@ export interface AnalyticsAPI {
    */
   updateConceptProgress: (
     conceptId: string,
-    update: ConceptProgressUpdate
+    update: ConceptProgressUpdate,
   ) => Promise<APIResponse<void>>;
 
   /**
@@ -103,7 +103,7 @@ export interface AnalyticsAPI {
 
   /**
    * Checks for new achievements
-   * Evaluates and returns any newly unlocked achievements
+   * Evaluates and returns unknown newly unlocked achievements
    * @param sessionId - Optional session ID to check achievements for
    * @returns Promise<APIResponse<AchievementDisplay[]>> - New achievements
    */
@@ -232,14 +232,14 @@ export interface ImportError {
   record: number;
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 export interface ImportWarning {
   record: number;
   field: string;
   message: string;
-  value: any;
+  value: unknown;
 }
 
 // ============================================================================
@@ -303,7 +303,7 @@ export interface RecentActivity {
   time: string; // Relative time
   icon: string;
   color: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -487,6 +487,6 @@ export interface LearningInsight {
   actionable: boolean;
   priority: 'low' | 'medium' | 'high';
   category: 'productivity' | 'learning' | 'engagement' | 'goals';
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   suggestedActions: string[];
 }

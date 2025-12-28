@@ -1,0 +1,4 @@
+- [x] Update `ipc-main-proxy` to forward variadic invoke args (`...args`) to handlers; keep response wrapping behavior unchanged.
+- [x] Tighten TypeScript typings so handlers retain their declared parameter shapes when using variadic forwarding.
+- [x] Add regression test(s) covering multi-arg handler invocation (e.g., `sessions:update-title` receiving both `sessionId` and `title`).
+- [x] Run `npm test` and `npm lint`; address any related failures.

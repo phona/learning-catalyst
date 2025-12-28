@@ -17,28 +17,24 @@ export {
   Throttled,
   memoizeAsync,
   EventBatcher,
-  OptimizedScrollHandler
+  OptimizedScrollHandler,
 } from './performance-utils';
 
-// Performance Monitoring
+// Test Utilities (Time & ID generation for DI)
 export {
-  AppPerformanceMonitor,
-  appPerformanceMonitor,
-  type PerformanceTrend,
-  type PerformanceBottleneck,
-  type MemoryStats
-} from './performance-monitor';
+  createTimeService,
+  createFixedTimeService,
+  createIncrementalTimeService,
+  type TimeService,
+} from './time-service';
 
-// Optimization Patterns
 export {
-  DataProcessor,
-  StreamProcessor,
-  MultiLevelCache,
-  RequestDeduplicator,
-  CircuitBreaker,
-  MemoryEfficientQueue,
-  createRetryPolicy
-} from './optimization-patterns';
+  createIdGenerator,
+  createSequentialIdGenerator,
+  createFixedIdGenerator,
+  createArrayIdGenerator,
+  type IDGenerator,
+} from './id-generator';
 
 // Type Utilities
 export {
@@ -71,7 +67,7 @@ export {
   type TypedEventEmitter,
   type CacheEntry,
   type TypeSafeCache,
-  type PerformanceMetrics
+  type PerformanceMetrics,
 } from './type-utils';
 
 // IPC Types
@@ -97,7 +93,7 @@ export type {
   ServiceHealthCheck,
   ValidationOptions,
   IPCHandlerOptions,
-  StreamOptions
+  StreamOptions,
 } from '../types/ipc/base-types';
 
 // IPC Utility Functions
@@ -106,17 +102,7 @@ export {
   isErrorResponse,
   createSuccessResponse,
   createErrorResponse,
-  createServiceError
+  createServiceError,
 } from '../types/ipc/base-types';
 
-// Knowledge graph modules (legacy)
-export { KnowledgeGraphModule } from './knowledge-graph';
-
-// Module type definitions for convenience (legacy)
-export type {
-  Concept,
-  Relationship,
-  ConceptNode,
-  KnowledgeGraphStats,
-  ConceptPath
-} from './knowledge-graph';
+// Deprecated knowledge-graph utilities removed

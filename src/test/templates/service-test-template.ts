@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Service Test Template
  *
@@ -11,7 +12,7 @@ import {
   createMockAsyncLocalStorage,
   createMockAIProvider,
   cleanupMockService,
-  expectValidResponse
+  expectValidResponse,
 } from '../utils/shared-test-utils';
 
 // Mock dependencies
@@ -27,15 +28,15 @@ vi.mock('../path/to/real/logger', () => {
         createLogger: vi.fn().mockReturnValue(mockLogger),
         runWithContext: vi.fn().mockImplementation(async (context, fn) => fn()),
         getCurrentContext: vi.fn(),
-        createContext: vi.fn()
-      })
-    }
+        createContext: vi.fn(),
+      }),
+    },
   };
 });
 
 // Mock external dependencies (LangChain, etc.)
 vi.mock('@langchain/openai', () => ({
-  ChatOpenAI: vi.fn().mockImplementation(() => createMockAIProvider('openai'))
+  ChatOpenAI: vi.fn().mockImplementation(() => createMockAIProvider('openai')),
 }));
 
 describe('ServiceName Tests', () => {
@@ -72,7 +73,7 @@ describe('ServiceName Tests', () => {
     it('should handle initialization failures gracefully', async () => {
       const faultyConfig = {
         // Create configuration that will fail
-        invalidOption: 'invalid'
+        invalidOption: 'invalid',
       };
 
       const faultyService = new ServiceName(faultyConfig);
@@ -93,15 +94,14 @@ describe('ServiceName Tests', () => {
       expectValidResponse(result);
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Operation completed'),
-        expect.any(Object)
+        expect.any(Object),
       );
     });
 
     it('should handle invalid input gracefully', async () => {
       const invalidInput = null;
 
-      await expect(service.performBasicOperation(invalidInput))
-        .rejects.toThrow();
+      await expect(service.performBasicOperation(invalidInput)).rejects.toThrow();
     });
   });
 
@@ -112,11 +112,13 @@ describe('ServiceName Tests', () => {
 
     it('should handle external service errors', async () => {
       // Mock external service failure
-      vi.spyOn(service, 'externalServiceCall')
-        .mockRejectedValueOnce(new Error('External service unavailable'));
+      vi.spyOn(service, 'externalServiceCall').mockRejectedValueOnce(
+        new Error('External service unavailable'),
+      );
 
-      await expect(service.performOperationWithDependencies())
-        .rejects.toThrow('External service unavailable');
+      await expect(service.performOperationWithDependencies()).rejects.toThrow(
+        'External service unavailable',
+      );
     });
 
     it('should provide fallback behavior on errors', async () => {

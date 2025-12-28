@@ -1,30 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
 import type { AppConfig } from '@/shared/types/config';
 import type { OpenDialogOptions, SaveDialogOptions } from 'electron';
+import { assertOk, unwrap } from '@/renderer/shared/lib';
+
 
 // Menu handlers interface
 interface MenuHandlers {
@@ -57,7 +34,7 @@ export function setupMenuHandlers(handlers: MenuHandlers): void {
     return;
   }
 
-  window.electronAPI.onMenuAction((action: string, data?: any) => {
+  window.electronAPI.onMenuAction((action: string, data?: unknown) => {
     const handler = handlers[action];
     if (handler) {
       handler();
@@ -76,7 +53,8 @@ export async function getAppVersion(): Promise<string> {
   }
 
   try {
-    return await window.electronAPI.getAppVersion();
+    const versionInfo = unwrap(await window.electronAPI.getVersion());
+    return versionInfo.version;
   } catch (error) {
     console.error('Failed to get app version:', error);
     return 'Unknown';
@@ -92,7 +70,7 @@ export async function quitApp(): Promise<void> {
   }
 
   try {
-    await window.electronAPI.quit();
+    await window.electronAPI.relaunchApp();
   } catch (error) {
     console.error('Failed to quit app:', error);
   }
@@ -107,7 +85,7 @@ export async function showOpenDialog(options?: OpenDialogOptions) {
   }
 
   try {
-    return await window.electronAPI.showOpenDialog(options);
+    return await window.electronAPI.showOpenDialog(options || {});
   } catch (error) {
     console.error('Failed to show open dialog:', error);
     return { canceled: true, filePaths: [] };
@@ -123,7 +101,7 @@ export async function showSaveDialog(options?: SaveDialogOptions) {
   }
 
   try {
-    return await window.electronAPI.showSaveDialog(options);
+    return await window.electronAPI.showSaveDialog(options || {});
   } catch (error) {
     console.error('Failed to show save dialog:', error);
     return { canceled: true, filePath: '' };
@@ -139,7 +117,7 @@ export async function readFile(path: string): Promise<string> {
   }
 
   try {
-    return await window.electronAPI.readFile(path);
+    return unwrap(await window.electronAPI.readFile(path));
   } catch (error) {
     console.error('Failed to read file:', error);
     throw error;
@@ -155,7 +133,7 @@ export async function writeFile(path: string, content: string): Promise<void> {
   }
 
   try {
-    await window.electronAPI.writeFile(path, content);
+    assertOk(await window.electronAPI.writeFile(path, content));
   } catch (error) {
     console.error('Failed to write file:', error);
     throw error;
@@ -171,7 +149,7 @@ export async function existsFile(path: string): Promise<boolean> {
   }
 
   try {
-    return await window.electronAPI.existsFile(path);
+    return unwrap(await window.electronAPI.existsFile(path));
   } catch (error) {
     console.error('Failed to check file existence:', error);
     return false;
@@ -181,29 +159,36 @@ export async function existsFile(path: string): Promise<boolean> {
 /**
  * Validate configuration
  */
-export function validateConfig(config: any): config is AppConfig {
+export function validateConfig(config: unknown): config is AppConfig {
   if (!config || typeof config !== 'object') {
     return false;
   }
 
+  const configObj = config as Record<string, unknown>;
+
   // Basic structure validation
   const requiredSections = ['ai', 'ui', 'learning', 'privacy', 'performance'];
   for (const section of requiredSections) {
-    if (!config[section] || typeof config[section] !== 'object') {
+    if (!configObj[section] || typeof configObj[section] !== 'object') {
       return false;
     }
   }
 
   // AI section validation
-  if (!config.ai.default_provider || typeof config.ai.default_provider !== 'string') {
+  const aiConfig = configObj.ai as Record<string, unknown>;
+  if (!aiConfig.default_provider || typeof aiConfig.default_provider !== 'string') {
     return false;
   }
 
-  if (!config.ai.default_model || typeof config.ai.default_model !== 'string') {
+  if (!aiConfig.default_model || typeof aiConfig.default_model !== 'string') {
     return false;
   }
 
-  if (typeof config.ai.temperature !== 'number' || config.ai.temperature < 0 || config.ai.temperature > 2) {
+  if (
+    typeof aiConfig.temperature !== 'number' ||
+    aiConfig.temperature < 0 ||
+    aiConfig.temperature > 2
+  ) {
     return false;
   }
 

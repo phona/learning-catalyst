@@ -1,0 +1,130 @@
+/* Timeline Event Styling */
+
+.timeline-container {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.timeline-event {
+  @apply mb-3 pb-3 border-l-2 pl-4 ml-2;
+  position: relative;
+}
+
+.timeline-event::before {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+}
+
+.thought-bubble {
+  @apply bg-blue-50 rounded-r-lg p-3;
+  border-left-color: #3b82f6;
+}
+
+.tool-call {
+  @apply bg-gray-50 rounded-r-lg p-3;
+  border-left-color: #6b7280;
+}
+
+.tool-call.start {
+  border-left-color: #f59e0b;
+}
+
+.tool-call.end {
+  border-left-color: #10b981;
+}
+
+.tool-call.error {
+  border-left-color: #ef4444;
+}
+
+.event-header {
+  @apply flex items-center gap-2 text-sm font-medium mb-2;
+}
+
+.agent-name {
+  @apply text-gray-700;
+}
+
+.tool-name {
+  @apply text-gray-800;
+}
+
+.phase-label {
+  @apply text-xs px-2 py-1 rounded bg-gray-200 text-gray-600;
+  font-weight: 500;
+}
+
+.expand-btn {
+  @apply text-xs text-blue-600 hover:text-blue-800 mt-2 hover:underline cursor-pointer;
+  transition: color 0.2s;
+}
+
+.thought-detail,
+.tool-detail {
+  @apply mt-2 p-3 bg-white rounded text-xs overflow-x-auto border;
+  font-family: 'Courier New', 'Monaco', 'Menlo', monospace;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.thought-detail::-webkit-scrollbar,
+.tool-detail::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thought-detail::-webkit-scrollbar-track,
+.tool-detail::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.thought-detail::-webkit-scrollbar-thumb,
+.tool-detail::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.thought-detail::-webkit-scrollbar-thumb:hover,
+.tool-detail::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Pulse animation for active state */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse-dot {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Icon styling */
+.icon {
+  font-size: 1.1em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .timeline-event {
+    @apply pl-3 ml-1;
+  }
+
+  .event-header {
+    @apply text-xs;
+    gap: 0.5rem;
+  }
+
+  .tool-name {
+    @apply text-xs;
+  }
+}

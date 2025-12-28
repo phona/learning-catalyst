@@ -1,22 +1,43 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # CLAUDE.md
 
-Learning Catalyst - AI-powered desktop application for personalized learning with multi-agent orchestration. Built with TypeScript, Electron, React, and LangChain integration.
+Learning Catalyst - AI-powered desktop application for personalized learning with multi-agent
+orchestration. Built with TypeScript, Electron, React, and LangChain integration.
 
-## 🎯 Product Vision Index
+## 🎯 Product Vision
 
-**Core Mission**: Transform learning from passive reading into active discovery through AI-guided exploration.
+**Core Mission**: Transform learning from passive reading into active discovery through AI-guided
+exploration.
 
-**User Experience Goal**: Make the study → assess → review loop feel like an engaging game, not studying.
+**User Experience**: Make the study → assess → review loop feel like an engaging game:
+
+- **Discovery** 🗺️, not studying
+- **Conversation** 💬, not lectures
+- **Achievement** 🏆, not testing
+- **Adventure** 🚀, not curriculum
 
 **Key Documents**:
-- 📋 [Product Blueprint](./docs/product-blueprint.md) - User-focused vision and experience design
-- 🏗️ This document - Technical implementation and development guidelines
 
-**Development Alignment**: Every feature must serve the core user experience of making learning feel like:
-- **Discovery**, not studying
-- **Conversation**, not lectures
-- **Achievement**, not testing
-- **Adventure**, not curriculum
+- 📋 [Product Blueprint](./docs/product-blueprint.md) - User-focused vision
+- 🏗️ This document - Technical implementation
 
 ## Quick Start
 
@@ -29,351 +50,445 @@ npm run lint         # Check code quality
 npm run type-check   # TypeScript validation
 ```
 
-## Testing
+### Testing
 
 ```bash
-npm run test:main      # Main process (Node.js) tests
-npm run test:renderer  # Renderer (React) tests
-npm run test:integration  # Cross-process tests
-npm run test:performance   # Memory & performance tests
-npm run test:complete   # All test suites
-npm run test:coverage  # Generate coverage reports
+npm run test:main        # Main process tests
+npm run test:renderer    # Renderer tests
+npm run test:integration # Cross-process tests
+npm run test:performance # Memory & performance tests
+npm run test:complete    # All test suites
+npm run test:coverage    # Coverage reports
 ```
+
+Deep dives:
+
+- Test Strategy → [docs/DEVELOPER-GUIDE/testing.md#test-strategy](./docs/DEVELOPER-GUIDE/testing.md#test-strategy)
+- Test Cases Template → [docs/DEVELOPER-GUIDE/testing.md#test-cases](./docs/DEVELOPER-GUIDE/testing.md#test-cases)
+- Test Execution Process → [docs/DEVELOPER-GUIDE/testing.md#test-execution](./docs/DEVELOPER-GUIDE/testing.md#test-execution)
+- Design for Testability → [docs/DEVELOPER-GUIDE/testing.md#design-for-testability](./docs/DEVELOPER-GUIDE/testing.md#design-for-testability)
+- AI-Assisted Testing → [docs/DEVELOPER-GUIDE/testing.md#ai-assisted-testing](./docs/DEVELOPER-GUIDE/testing.md#ai-assisted-testing)
+
+Targeted iteration scripts:
+
+- `npm run test:main:file -- <file>`
+- `npm run test:renderer:file -- <file>`
+- `npm run test:main:ui` / `npm run test:renderer:ui`
 
 ## Architecture
 
 **Multi-Process Electron App:**
-- **Main Process** (Node.js): AI services, database, agent orchestration, **provides electronAPI**
-- **Renderer Process** (Browser): React UI, state management, user interactions, **consumes electronAPI**
-- **IPC Layer**: Secure communication via preload scripts that expose electronAPI to renderer
-- **Storage**: SQLite + Qdrant vector database
-- **AI**: Multi-provider abstraction (OpenAI, ChatGLM, DeepSeek, local models)
 
-**Multi-Agent System:**
-- Lifecycle management with state tracking
-- Agent registry and configuration
-- Tool-calling, handoff, and hybrid orchestration
-- Specialized agents: learning, assessment, tutoring, practice
+- **Main Process** (Node.js): AI services, database, agent orchestration → **provides electronAPI**
+- **Renderer Process** (Browser): React UI, state management → **consumes electronAPI**
+- **IPC Layer**: Secure communication via preload scripts
+- **Storage**: SQLite (source of truth) + Qdrant (vector index only)
+- **AI**: Multi-provider (OpenAI, ChatGLM, DeepSeek, local models)
 
-**Key Principles:**
-- Process separation with secure IPC
-- Main process **provides** electronAPI through IPC handlers and preload scripts **(NEVER consumes electronAPI)**
-- Renderer process **consumes** electronAPI via window.electronAPI interface
+**📚 Database Architecture**: [ARCHITECTURE-CLEAN-DATABASE.md](./docs/ARCHITECTURE-CLEAN-DATABASE.md) - Clean separation of SQLite (full data) and Qdrant (vectors + conceptId)
+
+### Functional Pattern (All Modules)
+
+**All code uses React-style functional factories - NO classes:**
+
+```typescript
+// ✅ Service Factory
+export function createService(deps: Dependencies) {
+  const internalState = { data: null };
+
+  return {
+    method: (input: Input) => {
+      internalState.data = process(input);
+      return internalState.data;
+    }
+  };
+}
+
+// ✅ Agent Factory
+export function createAgent(deps: Dependencies) {
+  return {
+    process: async (input: Input) => {
+      return await deps.service.method(input);
+    }
+  };
+}
+
+// ✅ React Component
+export function Component({ prop }: Props) {
+  const [state, setState] = useState<Type>();
+  return <div>{/* JSX */}</div>;
+}
+```
+
+### Key Principles
+
+- **Process Separation**: Main (provides) ↔ Renderer (consumes)
+- **electronAPI Flow**: One-way only
+  ```
+  Main → IPC Handler → Preload → window.electronAPI → Renderer
+  ```
+- Renderer code now subscribes to `onIPCError` so structured IPC payloads surface as toasts/setup
+  guidance whenever the main process cannot initialize (missing chat config, startup failures). That
+  ensures the UI never falls back to hidden defaults.
+- Readiness + config propagation rely on buffered `ts-chan` channels in preload; use
+  `awaitReady/awaitConfigChange` rather than polling or timeouts to gate renderer flows. After a
+  `status: 'ready'` snapshot is observed, later non-ready snapshots are ignored to avoid UI
+  regressions/timeouts. The main process also caches the latest readiness snapshot and replays it on
+  `did-finish-load`, and preload hydrates from `system:get-latest-ready` on reload to avoid missed
+  events during development.
+- **Main Process**: NEVER accesses electronAPI (only provides it)
+- **Service Pattern**: Pass dependencies as function parameters
+- **Agent Tools**: Call service functions only (not lower-level APIs)
+
+### Chat streaming status
+
+- Chat streaming now emits `chat:status` frames (retry/tip/fail/tool) on the same MessageChannel used for chunks; renderers can ignore if unsupported.
+- Retry policy is bounded (2 attempts, 20s per attempt) with fast-fail for auth/quota/validation so the UI doesn’t wait on hidden backoff loops.
+- **State**: Tracked via Kysely/SQLite tables (not separate stores)
+
+### Implementation Guidelines
+
 - Agent-first design with sophisticated orchestration
 - Provider abstraction for multiple AI services
 - Local-first data storage
 - Memory-optimized development environment
 - Full TypeScript coverage with strict mode
-- Use correct file extensions: `.tsx` for React components/JSX, `.ts` for TypeScript-only files
-- IPC contracts defined in `@/shared/types/electron-api/` ensure type safety across processes
-- Main process internal communication through dependency injection (NEVER window.electronAPI)
-- Main process should NEVER invoke or access electronAPI - it only provides it
-- Dependency injection for loose coupling and testability
-- Direct and purposeful code modifications without unnecessary prefixes
-- Avoid overuse of 'any' type to maintain type safety
-- Avoid adding unnecessary try-catch blocks or defensive code that merely suppresses errors
-- Propagate errors to the UI layer where they should be rendered as user-friendly messages
+- Use `.tsx` for React components/JSX and `.ts` for TypeScript-only files
+- IPC contracts defined in `@/shared/types/electron-api/` ensure type-safe communication
+- Maintain dependency injection for internal communication (never access `window.electronAPI` from
+  the main process)
+- Favor direct, purposeful code modifications without unnecessary prefixes
+- Limit `any` usage to maintain type safety
+- Avoid try/catch blocks that only silence errors
+- Propagate errors to the UI layer so they render user-friendly messages
+
+### Knowledge ingestion plan (new)
+
+- `knowledge.ingestConcepts` accepts an optional `plan` with per-concept `actions`, field toggles, canonical/alias choices, merge targets, and low-confidence thresholds.
+- Defaults stay the same (`overwrite` existing names, keep relationships) when no plan is provided.
+- Relationships are pruned when their source/target is skipped or merged; ingestion results now include `conceptsSkipped`, `conceptsMerged`, `relationshipsSkipped`, and `lowConfidenceSkipped`.
 
 ## Project Structure
 
 ```
 src/
-├── main/                 # Electron main process (Node.js) - PROVIDES electronAPI
-│   ├── services/
-│   │   ├── agents/       # Multi-agent system
-│   │   ├── catalyst/     # AI orchestration
-│   │   ├── database/     # SQLite + Qdrant
-│   │   └── langchain/    # AI provider abstraction
-│   ├── handlers/         # IPC handlers that expose electronAPI
-│   └── preload/          # Preload scripts that secure electronAPI exposure
-├── renderer/             # React frontend (Browser) - CONSUMES electronAPI
-│   ├── components/       # UI components by feature
-│   ├── hooks/            # Custom React hooks
-│   ├── services/         # Frontend services using window.electronAPI
-│   ├── stores/           # Zustand state management
-│   └── App.tsx           # React app root
-└── shared/               # Shared between processes
-    ├── types/            # TypeScript interfaces for electronAPI contracts
-    ├── utils/            # Shared utilities
-    └── interfaces/       # Shared interfaces
+├── main/                    # Electron main process (Node.js)
+│   ├── services/            # Functional service layer
+│   │   ├── core/            # Infrastructure (database, config, logger)
+│   │   ├── domain/          # Business logic (chat, learning, knowledge, analytics)
+│   │   └── ai/              # AI operations and providers
+│   ├── agents/              # Agent layer (factories + tools)
+│   ├── handlers/            # IPC handlers (expose electronAPI)
+│   └── preload/             # Preload scripts
+├── renderer/                # React frontend (Browser)
+│   ├── components/          # UI components
+│   ├── hooks/               # Custom hooks
+│   ├── services/            # Frontend services (consume electronAPI)
+│   └── stores/              # Zustand state
+└── shared/                  # Shared utilities and types
+    ├── types/               # TypeScript interfaces
+    └── utils/               # Shared utilities
 ```
+
+## Error Handling Architecture
+
+Learning Catalyst implements a **comprehensive multi-layered error handling system** that ensures the application never crashes and users can always recover from errors.
+
+### Core Error Systems
+
+**1. IPC Error System** (Main ↔ Renderer Communication)
+- Structured error payloads with type, code, message, and details
+- Automatic error serialization in all IPC handlers
+- Error buffering for startup issues before renderer is ready
+- Error codes organized by domain (provider, chat, learning, etc.)
+
+**2. React Error Boundaries** (UI Layer)
+- Three-tier boundary system: `full`, `inline`, `minimal`
+- Specialized wrappers: `ComponentErrorBoundary`, `SettingsErrorBoundary`
+- Automatic error recovery with retry mechanisms
+- ProductionErrorBoundary available with auto-recovery (not currently integrated)
+
+**3. Toast Notifications** (User Feedback)
+- Automatic error display for IPC errors
+- Suppression option for background errors
+- Categorized toast helpers for different operations
+
+### Error Flow
+
+```
+Component Error -> ErrorBoundary (full/inline/minimal) -> Error UI + Retry
+     |
+Main Process Error -> serializeIPCError -> IPC Channel -> Renderer -> Toast
+     |
+Renderer Init Flow -> ServicesProvider normalizes IPC errors (fatal => crash, config => setup, other => nonfatal) -> reducer in AppContent drives loading/setup/crash/ready screens
+```
+
+### Key Error Types
+
+- **CONFIG_ERROR**: Missing configuration, API keys, provider setup → Setup Screen
+- **SYSTEM_ERROR**: Internal failures, service unavailable → Toast or Error Page
+- **NETWORK_ERROR**: Connection issues, timeouts → Toast with retry
+
+### Documentation
+
+📖 **Complete Error Handling Guide**: [docs/DEVELOPER-GUIDE/error-handling.md](./docs/DEVELOPER-GUIDE/error-handling.md)
+- Architecture overview with visual diagrams
+- Error boundary patterns and best practices
+- IPC error handling patterns
+- Testing strategies
+
+⚡ **Error Codes Quick Reference**: [docs/DEVELOPER-GUIDE/error-codes-quick-reference.md](./docs/DEVELOPER-GUIDE/error-codes-quick-reference.md)
+- All error codes organized by category
+- When to use each error code
+- Code examples and patterns
+
+📝 **Code Examples**: [docs/DEVELOPER-GUIDE/error-handling-examples.md](./docs/DEVELOPER-GUIDE/error-handling-examples.md)
+- Copy-paste templates for services, handlers, components
+- Testing examples
+- Custom hook patterns
+
+### Usage Examples
+
+**Service Layer:**
+```typescript
+throw createIPCError({
+  type: 'CONFIG_ERROR',
+  code: 'provider.config.missing_api_key',
+  message: 'OpenAI API key is required',
+  details: { provider: 'openai', guidance: 'Add API key in Settings > AI Providers' }
+});
+```
+
+**Component Error Boundary:**
+```tsx
+<ErrorBoundary
+  variant="inline"
+  title="Chat Error"
+  description="The chat encountered an error. Try reloading."
+  onRetry={handleChatRetry}
+>
+  <ChatInterface />
+</ErrorBoundary>
+```
+
+**Renderer Error Handling:**
+```typescript
+try {
+  const data = await unwrapAPI(api.sessions.list());
+} catch (e) {
+  if (e instanceof IPCError && e.code === 'sessions.not_found') {
+    // Handle specific error
+  }
+}
+```
+
+### Best Practices
+
+✅ **DO**:
+- Use specific error codes from the organized catalog
+- Include relevant context in error details
+- Provide meaningful recovery mechanisms
+- Test error scenarios thoroughly
+- Use appropriate error boundary variants
+
+❌ **DON'T**:
+- Catch errors only to log them
+- Use generic error messages
+- Forget to provide retry mechanisms
+- Wrap every small component in error boundaries
+- Throw strings instead of structured errors
 
 ## Development Guidelines
 
-**Architecture Status:** ✅ Migration completed from `src/modules` to proper service-oriented architecture
+### Service Architecture
 
-**Import Patterns:**
+**Core Services** (Infrastructure):
+
+- Database: `createDatabase()`, `createSqliteDriverFactory()`
+- Config: `createConfigService()`
+- Logger: `createLoggerService()`
+
+**Domain Services** (Business Logic):
+
+- `createChatService({ db, loggerService })`
+- `createLearningService({ db, aiService })`
+- `createKnowledgeService({ db, vectorService })`
+- `createAnalyticsService({ db })`
+
+**AI Services**:
+
+- `createAIService({ config, logger })`
+- Provider modules: `openai-provider.ts`, `chatglm-provider.ts`, etc.
+
+### Import Patterns
+
 ```typescript
-// Main process services
-import { AgentLifecycleManager } from '@/main/services/agents/agent-lifecycle-manager';
-import { CatalystService } from '@/main/services/catalyst/catalyst-service';
-import { DatabaseFactory } from '@/main/services/database/kysely-database';
+// Core services
+import { createDatabase } from '@/main/services/core/database/kysely-database';
+import { createConfigService } from '@/main/services/core/config/config-service';
 
-// Shared
-import {hdonModelType } from '@/shared/types/ai';
+// Domain services
+import { createChatService } from '@/main/services/domain/chat/chat-service';
+import { createKnowledgeService } from '@/main/services/domain/knowledge/knowledge-service';
+
+// AI services
+import { createAIService } from '@/main/services/ai/ai-service';
+
+// Agent factories
+import { createLearningAgent } from '@/main/agents/learning-agent';
+import { createTutoringAgent } from '@/main/agents/tutoring-agent';
+
+// IPC handlers
+import { setupChatHandlers } from '@/main/handlers/chat-handlers';
 ```
 
-**Key Principles:**
-- **Main Process**: System operations, database, AI providers, **exposes electronAPI via IPC handlers (NEVER consumes electronAPI)**
-- **Renderer Process**: UI components, state management, user interactions, **consumes electronAPI via window.electronAPI**
-- **Shared modules**: Pure business logic reusable across processes
-- **IPC Communication**: One-way flow - Main process provides, renderer process consumes
-- Use TypeScript interfaces for all props and IPC contracts
-- Follow React best practices (hooks, memo, useCallback)
-- IPC contracts defined in `@/shared/types/electron-api/` ensure type-safe communication
-- Main process internal services use dependency injection (NEVER window.electronAPI)
-- **CRITICAL**: Main process should NEVER attempt to access or invoke electronAPI - it only provides it to renderer
-- Use dependency injection containers for service management and testing
+### Component Development
+
+**React Best Practices:**
+
+- ✅ Functional components with hooks
+- ✅ TypeScript interfaces for props
+- ✅ useCallback, useMemo for optimization
+- ❌ Class components
+
+**State Management:**
+
+- Zustand: Global application state
+- React useState: Component-local state
+- Electron store: Persistent configuration
 
 ## Key Features
 
 **Modern Desktop App:**
-- React UI with Tailwind CSS and TypeScript
-- Real-time streaming responses with visual feedback
-- Zustand state management with hot reload
-- Cross-platform support (Windows, macOS, Linux)
-- User-friendly error handling and recovery
+
+- React UI with Tailwind CSS
+- Real-time streaming responses
+- Zustand state management
+- Cross-platform support
 
 **Core Capabilities:**
-- AI chat with multiple providers (OpenAI, ChatGLM, DeepSeek, local models) → **Conversational Learning Adventures**
-- Interactive knowledge graphs and learning paths → **Visual Knowledge Discovery Maps**
-- Session management with save/restore functionality → **Learning Quest Persistence**
-- Analytics dashboard for progress tracking → **Achievement & Progress Celebration**
-- Settings panel for provider configuration → **Learning Experience Personalization**
-- Import/export for learning data → **Learning Material Library Management**
 
-**Feature Development Guideline**: Every technical capability must be expressed through user-facing language that emphasizes discovery, achievement, and adventure over traditional education terminology.
+- AI chat (multiple providers) → **Conversational Learning Adventures**
+- Knowledge graphs → **Visual Knowledge Discovery Maps**
+- Session management → **Learning Quest Persistence**
+- Analytics dashboard → **Achievement & Progress Celebration**
+- Settings panel → **Learning Experience Personalization**
+- Import/export → **Learning Material Library**
 
 ## AI Integration
 
 **Supported Providers:**
+
 - OpenAI (GPT models)
-- ChatGLM (Zhipu AI) with thinking process visualization
+- ChatGLM (thinking process visualization)
 - DeepSeek, SiliconFlow
 - Local models (Ollama, Llama.cpp)
 
 **Advanced Features:**
-- Real-time reasoning process visualization (ChatGLM)
-- Seamless provider switching without session interruption
-- Automatic model discovery with timeout fallback
-- Custom model ID support for experimental models
-- Real-time streaming across all providers
 
-**Architecture:**
-- Unified `ModelAbstractionLayer` interface
-- `ModelFactory` for provider instantiation
-- Secure API key storage via Electron store
-- Comprehensive retry logic and error handling
-- Configurable timeouts for all operations
+- Real-time reasoning visualization (ChatGLM + providers that emit `reasoning_content` like SiliconFlow)
+- Seamless provider switching
+- Automatic model discovery with timeout
+- Custom model support
+- Streaming across all providers
 
-## Multi-Agent System
+## AI Model Access System
 
-**Core Components:**
-- **AgentLifecycleManager**: Complete agent lifecycle with state tracking
-- **AgentRegistry**: Centralized registration and discovery
-- **AgentStatePersistence**: SQLite-backed state persistence
+**Provider Factory Pattern:**
 
-**Lifecycle States:** `inactive` → `active` → `error` → `deleted`
+The application now uses a direct `ProviderFactory` approach for AI model access instead of agent management abstraction:
 
-**Orchestration Strategies:**
-- **Tool-Calling**: External tool and API execution
-- **Handoff**: Agent-to-agent collaboration
-- **Hybrid**: Adaptive strategy selection
+- **Provider Factory** -> Direct AI model access via `getModel()`, `getEmbeddings()`, `getRerankModel()`
+- **Multi-Provider Support** -> OpenAI, ChatGLM, DeepSeek, local models (Ollama, Llama.cpp)
+- **Workflow Nodes** -> Direct model access using `deps.providerFactory.getModel()`
+- **Tool Registry** -> Dynamic tool loading and execution framework
 
-**Specialized Agents:**
-- **Learning**: Personalized learning paths and concept explanation → **Learning Guide**: Explores concepts conversationally
-- **Assessment**: Knowledge evaluation and gap identification → **Understanding Coach**: Checks mastery naturally
-- **Tutoring**: Interactive guidance and real-time feedback → **Learning Mentor**: Personalized help and motivation
-- **Practice**: Skill development through adaptive exercises → **Practice Master**: Gamified challenges and puzzles
-
-**User Experience Alignment**: Each agent serves the study → assess → review loop while making learning feel like an adventure.
+**Benefits:**
+- Simplified architecture with single point of AI model access
+- Better performance with direct model calls (no unnecessary indirection)
+- Clearer intent in code (explicitly shows AI model usage)
+- Easier testing with simpler mock patterns
 
 **Configuration Schema:**
+
 ```typescript
-interface AgentConfiguration {
+interface ProviderConfiguration {
   id: string;
   name: string;
-  type: 'learning' | 'assessment' | 'tutoring' | 'practice';
-  modelConfig: { provider: string; model: string; temperature: number };
-  tools: string[];
-  capabilities: string[];
+  provider: string; // 'openai' | 'chatglm' | 'deepseek' | 'ollama'
+  model: string;
+  apiKey?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxTokens?: number;
+  timeout?: number;
+}
+
+interface ModelCapabilities {
+  streaming: boolean;
+  functionCalling: boolean;
+  vision: boolean;
+  embeddings: boolean;
+  rerank: boolean;
 }
 ```
 
-## Development Best Practices
+## Code Standards
 
-**Code Standards:**
-- TypeScript strict mode with comprehensive type checking
-- 130-character line length with Prettier formatting
+- TypeScript strict mode
+- 130-character line length
 - ESLint with React/TypeScript plugins
-- Functional components with hooks pattern
-- Organized imports with consistent ordering
-- Import clauses should be placed at the top of files whenever possible
-- When adding a new file, check for duplicates or similar functionality to avoid redundancy
-- Don't add prefixes or postfixes to distinguish class or function usage - organize by layer instead
-- Use appropriate file extensions: `.tsx` for files containing JSX/React components, `.ts` for TypeScript-only files
+- Functional pattern everywhere (NO classes)
+- Organized imports
+- `.tsx` for React/JSX, `.ts` for TypeScript-only
 
-## File and Folder Naming Guidelines
+### Naming Guidelines
 
-### General Principles
-- **kebab-case for folders**: `user-management`, `agent-orchestration`, `knowledge-graph`
-- **PascalCase for React components**: `UserProfile.tsx`, `LearningDashboard.tsx`
-- **camelCase for utilities/services**: `databaseManager.ts`, `chatService.ts`
-- **Descriptive but concise**: Names should clearly indicate purpose without being overly long
+**Folders**: kebab-case (`user-management`, `knowledge-graph`) **Components**: PascalCase
+(`UserProfile.tsx`, `ChatInterface.tsx`) **Services**: camelCase (`chatService.ts`,
+`databaseManager.ts`) **Utilities**: camelCase (`dateUtils.ts`, `validationHelpers.ts`)
 
-### Folder Structure Best Practices
-```
-src/
-├── main/
-│   ├── services/
-│   │   ├── agents/              # Agent-related services
-│   │   │   ├── agent-lifecycle-manager.ts
-│   │   │   ├── agent-registry.ts
-│   │   │   └── orchestration/
-│   │   ├── catalyst/            # AI orchestration services
-│   │   ├── database/            # Database services
-│   │   └── langchain/           # AI provider abstraction
-│   ├── handlers/                # IPC handlers
-│   └── integration/             # Integration tests
-├── renderer/
-│   ├── components/
-│   │   ├── Chat/               # Feature-based organization
-│   │   ├── Dashboard/
-│   │   ├── Knowledge/
-│   │   └── Analytics/
-│   ├── hooks/                  # Custom React hooks
-│   ├── services/               # Frontend services
-│   └── stores/                 # State management
-└── shared/
-    ├── types/                  # TypeScript interfaces
-    ├── utils/                  # Shared utilities
-    └── interfaces/             # Shared interfaces
-```
+### Anti-Patterns to Avoid
 
-### File Naming Patterns
+❌ `IUserInterface.ts` (prefixes) ❌ `UserServiceClass.ts` (suffixes) ❌ `utils.ts` (too generic) ❌
+`component1.ts` (non-descriptive)
 
-#### Components (`.tsx`)
-- **PascalCase**: `UserProfile.tsx`, `ChatInterface.tsx`
-- **Feature-specific**: `KnowledgeGraphVisualization.tsx`
-- **Avoid prefixes**: No `Component`, `View`, `Page` suffixes unless necessary
-
-#### Services (`.ts`)
-- **camelCase**: `chatService.ts`, `databaseManager.ts`
-- **Descriptive**: `conceptParsingService.ts`
-- **Layer-appropriate**: Place in appropriate service folder
-
-#### Utilities (`.ts`)
-- **camelCase**: `typeUtils.ts`, `performanceMonitor.ts`
-- **Functional naming**: `dateHelpers.ts`, `validationUtils.ts`
-
-#### Types (`.ts`)
-- **camelCase**: `electron-api.ts`, `ai-types.ts`
-- **Domain-specific**: `knowledge-graph-types.ts`
-
-### Naming Anti-Patterns to Avoid
-
-❌ **Bad naming:**
-- `IUserInterface.ts` (prefixes)
-- `UserServiceClass.ts` (suffixes)
-- `utils.ts` (too generic)
-- `component1.ts`, `component2.ts` (non-descriptive)
-- `NewFolder/`, `TempFiles/` (temporary names)
-
-✅ **Good naming:**
-- `user-types.ts` (clear purpose)
-- `UserService.ts` (clean naming)
-- `dateUtils.ts`, `validationHelpers.ts` (specific functionality)
-- `UserProfile.tsx`, `ChatInterface.tsx` (descriptive components)
-- `agent-management/`, `knowledge-graph/` (feature-based folders)
-
-### Layer-Based Organization
-
-Organize by architectural layers rather than naming conventions:
-1. **Presentation Layer**: Components, hooks, UI state
-2. **Service Layer**: Business logic, data transformation
-3. **Data Layer**: Database operations, external APIs
-4. **Shared Layer**: Types, utilities, constants
-
-### Consistency Rules
-- Stick to established patterns within the project
-- Use singular for types: `UserType` not `UsersTypes`
-- Use plural for collections: `users/` folder not `user/`
-- Match import paths: `@/main/services/agents/agent-lifecycle-manager`
-- Keep names searchable: Avoid abbreviations unless widely understood
-
-**Component Development:**
-- TypeScript interfaces for all props
-- React best practices (hooks, memo, useCallback)
-- Reusable, composable components
-- Proper error boundaries and loading states
-
-**State Management:**
-- Zustand for global application state
-- React useState for component-local state
-- TanStack Query for server state
-- React Hook Form for forms
-- Electron store for persistent configuration
-
-**Configuration:**
-- TypeScript for type safety
-- Electron store for settings (not env variables)
-- JSON schema validation
-- Secure API key storage
-- Dependency injection with inversion of control containers
+✅ `user-types.ts` (clear purpose) ✅ `UserService.ts` (clean naming) ✅ `dateUtils.ts` (specific
+functionality) ✅ `UserProfile.tsx` (descriptive)
 
 ## Testing Strategy
 
-**Multi-Environment Testing:**
-- **Main Process** (Node.js): AI services, database, agent lifecycle
-- **Renderer Process** (Browser): React components, hooks, UI interactions
-- **Integration**: Cross-process IPC communication
-- **Performance**: Memory leaks and resource management
+**Multi-Environment:**
 
-**Test Frameworks:**
+- **Main Process**: AI services, database, agents
+- **Renderer**: React components, hooks, UI
+- **Integration**: IPC communication
+- **Performance**: Memory leaks, resource management
+
+**Frameworks:**
+
 - Vitest + React Testing Library
 - jsdom for DOM simulation
 - Custom Electron integration setup
-- Performance monitoring tools
 
 **Coverage Targets:**
-- Main Process: >90% business logic coverage
-- Renderer: >85% UI component coverage
-- Integration: >80% workflow coverage
-- Overall: >85% combined coverage
 
-**Quality Gates:**
-- All tests must pass strict TypeScript compilation
-- ESLint compliance for all test files
-- Performance thresholds and memory leak detection
-
-## Key Files
-
-**Core Implementation:**
-- `src/main/index.ts` - Electron main process entry
-- `src/renderer/App.tsx` - React app root with routing
-- `package.json` - Project configuration and scripts
-- `vite.config.ts` - Vite + Electron setup with memory optimization
-
-**Business Logic:**
-- `src/main/services/agents/` - Multi-agent system management
-- `src/main/services/catalyst/` - AI orchestration and concept parsing
-- `src/main/services/langchain/` - AI provider abstraction
-- `src/main/services/database/` - SQLite database operations
-
-**Testing:**
-- `vitest*.config.ts` - Multiple test environment configurations
-- `src/test/` - Global test utilities and setup
-- Component tests co-located with source code
+- Main Process: >90%
+- Renderer: >90%
+- Integration: >80%
+- Overall: >85%
 
 ## Memory & Performance
 
 **Development Optimization:**
-- Node.js memory limits: 512MB heap, 64MB semispace
-- Manual code splitting to reduce memory usage
-- Optimized file watching (excludes large directories)
-- Built-in memory monitoring and alerts
+
+- Node.js: 512MB heap, 64MB semispace
+- Manual code splitting
+- Optimized file watching
+- Memory monitoring and alerts
 
 **Best Practices:**
+
 - Monitor memory usage during development
 - Use performance test suite regularly
 - Follow cleanup patterns for event listeners
@@ -381,92 +496,218 @@ Organize by architectural layers rather than naming conventions:
 
 ## Working with the Codebase
 
-**Development Workflow:**
-1. `npm run dev` - Start development server with hot reload
-2. Understand process separation: Main (provides electronAPI) ↔ Renderer (consumes electronAPI)
-3. **CRITICAL**: Never use window.electronAPI in main process code
+### Development Workflow
+
+1. `npm run dev:workspace` - Start development server
+2. Understand: Main (provides) ↔ Renderer (consumes)
+3. **NEVER** use `window.electronAPI` in main process
 4. Run tests regularly across all environments
-5. Use TypeScript strictly - all code must compile before committing
-6. Monitor memory usage in development environment
+5. Use TypeScript strictly
+6. Monitor memory usage
 
-**Key Patterns:**
+### Key Patterns
 
-**Adding AI Providers:**
-- Implement in `src/main/services/langchain/`
-- Update `ModelFactory.ts` and shared types
-- Add main process tests
+**Creating Services:**
 
-**Creating Components:**
-- Organize by feature in `src/renderer/components/`
-- Use TypeScript interfaces for props
-- Follow React best practices (hooks, memo, useCallback)
-- Include renderer tests
+```ts
+const dbPath = getDefaultDatabasePath();
+const driverFactory = await createSqliteDriverFactory(dbPath);
+await runMigrations(driverFactory);
+const db = createDatabase(driverFactory);
 
-**Database Changes:**
-- Create migrations in `src/main/services/database/migrations/`
-- Update Kysely schema and shared types
-- Add database tests
+// Use factory pattern
+const chatService = createChatService({ db, loggerService });
+```
+
+**Creating Agents:**
+
+```ts
+const agent = createLearningAgent({
+  learningService,
+  knowledgeService,
+  aiService,
+});
+```
 
 **IPC Communication:**
-- **Main Process** exposes APIs via IPC handlers that become part of electronAPI **(NEVER consumes electronAPI)**
-- **Renderer Process** consumes these APIs through window.electronAPI (exposed via preload script)
-- Use TypeScript interfaces for contracts
-- All IPC contracts must be defined in `@/shared/types/electron-api/`
-- Test in integration suite
-- Main process internal services use dependency injection (NEVER window.electronAPI)
-- **IMPORTANT**: Main process code should NEVER reference, import, or access window.electronAPI
 
-**electronAPI Flow (One-Way):**
+```ts
+// Main process - EXPOSE electronAPI
+const setupChatHandlers = ({ chatService }) => {
+  ipcMain.handle('chat:sendMessage', async (event, input) => {
+    return await chatService.sendMessage(input);
+  });
+};
+
+// Renderer Service Layer - Always use unwrapAPI for IPC calls
+import { unwrapAPI } from '@/renderer/hooks/useElectronAPI';
+
+const chatService = {
+  sendMessage: async (message: string) => {
+    // unwrapAPI extracts {success, data, timestamp} -> returns data directly
+    const response = await unwrapAPI(electronAPI.chat.sendMessage(message));
+    return response;
+  }
+};
+
+// Renderer Components/Adapters - Use services, NOT electronAPI directly
+const MyComponent = () => {
+  const chatService = useService('chatService');
+  // ✅ CORRECT: Use service
+  const response = await chatService.sendMessage(message);
+
+  // ❌ WRONG: Direct electronAPI (bypasses service layer)
+  // const response = await window.electronAPI.chat.sendMessage(message);
+};
 ```
-Main Process (Provider ONLY) → IPC Handler → Preload Script → window.electronAPI → Renderer Process (Consumer ONLY)
+
+**Renderer Service Layer Pattern:**
+
+All renderer-side code follows a consistent 3-layer architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 1: React UI Components/Adapters                                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+  - Feature components use services via `useService()` hook
+  - Adapters (like useThreadListAdapter) use services via `useService()`
+  - App infrastructure (AppContent, SetupPage) uses electronAPI for lifecycle only
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 2: Service Layer (Business Logic + IPC Unwrapping)                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+  - All services use `unwrapAPI()` for IPC calls
+  - Services return domain types or service result types
+  - Services handle business logic, validation, transformations
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ LAYER 3: electronAPI (IPC Transport)                                          │
+└─────────────────────────────────────────────────────────────────────────────────┘
+  - Provides IPC methods to main process
+  - Returns APIResponse<T> = { success, data, error:{code,message,details?}, code?, timestamp? }
 ```
 
-**Example Usage:**
-```typescript
-// ❌ WRONG - Main Process should NEVER do this:
-// const response = await window.electronAPI.someAPI(); // NEVER IN MAIN PROCESS!
+**Key Rules:**
+- ✅ Services: Use `unwrapAPI(electronAPI.method())` for all IPC calls
+- ✅ Components/Adapters: Use services via `useService()` - never call electronAPI directly
+- ❌ Adapters: Never call `electronAPI.*()` directly (violates separation of concerns)
+- ⚠️ App Infrastructure: May use electronAPI for lifecycle operations (awaitReady, awaitConfigChange)
 
-// ✅ CORRECT - Main Process (Provider ONLY) - src/main/handlers/
-ipcMain.handle('chat:sendMessage', async (event, message) => {
-  return await catalystService.sendMessage(message);
-});
+### Critical Rules
 
-// ✅ CORRECT - Renderer Process (Consumer ONLY) - src/renderer/services/
-const response = await window.electronAPI.chat.sendMessage(message);
-```
-
-**Critical Rules:**
 - ✅ Main Process: Provides electronAPI via IPC handlers
-- ❌ Main Process: NEVER accesses or invokes electronAPI
-- ✅ Renderer Process: Consumes electronAPI via window.electronAPI
-- ✅ All Communication: Must flow through IPC contracts in `@/shared/types/electron-api/`
+- ❌ Main Process: NEVER accesses electronAPI
+- ✅ Renderer Process: Consumes electronAPI
+- ✅ All Communication: Through IPC contracts in `@/shared/types/electron-api/`
+- ✅ Service Pattern: Pass dependencies as parameters
+- ✅ Functional Approach: Use factories, NOT classes
 
-## 🎯 Development Alignment Checklist
+**Renderer Service Layer Rules:**
+- ✅ Services: Use `unwrapAPI()` for all IPC calls (extracts data from APIResponse wrapper)
+- ✅ Components/Adapters: Use services via `useService()` - never call `electronAPI` directly
+- ❌ Adapters: Never call `electronAPI.*()` directly (violates separation of concerns)
+- ⚠️ App Infrastructure: May use electronAPI for lifecycle operations only (awaitReady, awaitConfigChange)
+
+## 🎯 Development Alignment
 
 **Before implementing any feature, ask:**
+
 - Does this make learning feel like discovery? 🗺️
 - Does this create conversational interaction? 💬
 - Does this provide achievement and progress? 🏆
 - Does this feel like an adventure, not studying? 🚀
 
 **User Experience Validation:**
-- [ ] Feature supports study → assess → review loop naturally
-- [ ] Technical complexity is hidden from users
+
+- [ ] Feature supports study → assess → review loop
+- [ ] Technical complexity hidden from users
 - [ ] Language emphasizes exploration over education
 - [ ] Progress feels like achievement, not evaluation
 - [ ] Interaction feels conversational, not mechanical
 
 **Implementation Priority:**
+
 1. User experience > Technical sophistication
 2. Conversational flow > Feature completeness
 3. Achievement motivation > Data accuracy
 4. Adventure framing > Traditional education patterns
 
-**Refer to [Product Blueprint](./docs/product-blueprint.md) for detailed user experience guidelines.**
+## Key Files
 
-**Important Notes:**
-- Uses `sqlite-electron` (not `sqlite3`) for Electron compatibility
-- Configuration via Electron store (not environment variables)
-- Memory-optimized development environment
-- Multi-process debugging support in VSCode
-- Service location via dependency injection for modularity
+**Core Implementation:**
+
+- `src/main/index.ts` - Electron main entry
+- `src/renderer/App.tsx` - React app root
+- `package.json` - Project configuration
+- `vite.config.ts` - Build setup
+
+**Business Logic:**
+
+- Database: `src/main/services/core/database/`
+- Config: `src/main/services/core/config/`
+- Chat: `src/main/services/domain/chat/`
+- Learning: `src/main/services/domain/learning/`
+- Knowledge: `src/main/services/domain/knowledge/`
+- Analytics: `src/main/services/domain/analytics/`
+- AI: `src/main/services/ai/`
+- Agents: `src/main/agents/`
+- IPC Handlers: `src/main/handlers/`
+
+**Testing:**
+
+- `vitest*.config.ts` - Test configurations
+- `src/test/` - Global test utilities
+
+**Documentation:**
+
+- `docs/ARCHITECTURE-CLEAN-DATABASE.md` - Clean database architecture guide (SQLite + Qdrant separation)
+
+## Assistant UI Integration (Dec 5, 2025)
+
+**Migration from Custom Chat Components:**
+
+The project has migrated from custom-built chat UI components to the `assistant-ui` library for a more robust and feature-rich chat experience.
+
+**Removed Components:**
+- `ChatArea.tsx` - Custom chat display area
+- `MessageBubble.tsx` - Individual message rendering
+- `TimelineView.tsx` - Timeline/thread display
+- `ChatProcessingOverlay.tsx` - Processing state overlay
+- `DetailsPanel.tsx` - Message details sidebar
+- `PracticeSuggestionBubble.tsx` - Practice prompts
+- Associated test files for all above components
+
+**New Architecture:**
+
+- **UI Library**: `@assistant-ui/react` provides the core `Thread` component for chat interface
+- **Message Components**: Custom message types implemented in `src/renderer/components/Chat/MessageComponents.tsx`
+- **Better Thread**: Enhanced thread component in `src/renderer/components/Chat/BetterThread.tsx`
+- **LangGraph Integration**: New IPC route `chat:stream-ai-sdk` streams LangGraph output via `MessagePort`
+- **Transport Bridge**: Preload exposes `electronAPI.aiSDK.stream(params)` for renderer communication
+- **Simplified State**: Chat store (`chatStore.ts`) slimmed to session/agent selectors only; Assistant UI owns all message state and rendering
+
+**Benefits:**
+- More polished and accessible chat UI out-of-the-box
+- Better message streaming and real-time updates
+- Simplified renderer code and state management
+- Built-in support for message actions, loading states, and error handling
+- Easier to maintain and extend with new chat features
+
+**Key Files:**
+- `src/renderer/components/Chat/BetterThread.tsx` - Main thread component
+- `src/renderer/components/Chat/MessageComponents.tsx` - Custom message types
+- `src/renderer/services/chat/chat-service.ts` - Updated chat service
+- `src/renderer/services/api/electron-api-client.ts` - API client updates
+
+## Important Notes
+
+- Uses `sqlite-electron` (not `sqlite3`)
+- Configuration via Electron store (not env variables)
+- Multi-process debugging in VSCode
+- Services use dependency injection for modularity
+- All main process code should NEVER reference or access `window.electronAPI`
+- `electronAPI` now exposes documented sessions/catalyst domains and filesystem/dialog helpers with
+  matching IPC handlers.
+
+
+

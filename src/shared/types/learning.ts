@@ -42,6 +42,43 @@ export interface LearningPath {
   difficulty_progression: 'linear' | 'adaptive';
   prerequisites: string[];
   tags: string[];
+  difficulty: number;
+  modules: LearningModule[];
+  targetMastery: number;
+  adaptations: string[];
+  progress: {
+    currentModule: string;
+    completedModules: string[];
+    currentConcept: string;
+    masteredConcepts: never[];
+    timeSpent: number;
+    assessmentScores: never[];
+    lastAccess: Date;
+    completionRate: number;
+    masteryLevel: number;
+  };
+}
+
+export interface LearningModule {
+  id: string;
+  title: string;
+  description: string;
+  type: 'concept' | 'module';
+  concepts?: string[];
+  order?: number;
+  objectives?: LearningObjective[];
+  content?: string[];
+  isOptional: boolean;
+  estimatedTime: number;
+  difficulty: number;
+  resources: string[];
+  assessments: string[];
+  completionCriteria: {
+    type: 'assessment' | 'time';
+    threshold: number;
+    assessments?: string[];
+    required: boolean;
+  };
 }
 
 export interface LearningProgress {

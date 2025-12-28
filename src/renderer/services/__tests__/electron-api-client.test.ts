@@ -1,36 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 
-
-import { describe, it, expect, vi } from "vitest";
-import { createElectronAPIClient, createMockElectronAPIClient } from "../api/electron-api-client";
-import { createSessionService } from "../session/session-service";
-import { createAnalyticsService } from "../analytics/analytics-service";
-import { createChatService } from "../chat/chat-service";
-import { SessionDisplay } from "@/shared/types/session";
+import { describe, it, expect, vi } from 'vitest';
+import {
+  createElectronAPIClient,
+  createMockElectronAPIClient,
+  createElectronAPIClientWith,
+} from '../api/electron-api-client';
+import { createSessionService } from '../session/session-service';
+import { createAnalyticsService } from '../analytics/analytics-service';
+import { createChatService } from '../chat/chat-service';
+import type { SessionDisplay } from '@/renderer/types/session';
 
 describe('Simplified electronAPI Abstraction', () => {
-  describe('ElectronAPIClient', () => {
+  describe('ElectronAPI client', () => {
     it('should create real electronAPI client', () => {
       // Mock window.electronAPI for testing
       const mockElectronAPI = {
@@ -38,7 +20,7 @@ describe('Simplified electronAPI Abstraction', () => {
         sessions: {},
         chat: {},
         agents: {},
-        knowledge: {}
+        knowledge: {},
       };
 
       // @ts-ignore: Allow setting window.electronAPI for testing
@@ -62,6 +44,19 @@ describe('Simplified electronAPI Abstraction', () => {
       expect(client.agents).toBeDefined();
       expect(client.knowledge).toBeDefined();
     });
+
+    it('falls back to mock client when window.electronAPI missing', () => {
+      // @ts-ignore deliberate undefined
+      window.electronAPI = undefined;
+      const client = createElectronAPIClient();
+      expect(client.analytics?.getDashboard).toBeDefined();
+    });
+
+    it('createElectronAPIClientWith returns provided implementation', () => {
+      const marker = { foo: 'bar' } as any;
+      const client = createElectronAPIClientWith(marker);
+      expect(client).toBe(marker);
+    });
   });
 
   describe('Session Service', () => {
@@ -71,9 +66,9 @@ describe('Simplified electronAPI Abstraction', () => {
       // Mock the sessions API
       mockAPIClient.sessions.getRecentSessions = vi.fn().mockResolvedValue({
         success: true,
-        sessions: [
-          { id: 'session-1', title: 'Test Session', lastActivity: '2023-01-01' } as SessionDisplay
-        ]
+        data: [
+          { id: 'session-1', title: 'Test Session', lastActivity: '2023-01-01' } as SessionDisplay,
+        ],
       });
 
       const sessionService = createSessionService(mockAPIClient);
@@ -81,7 +76,7 @@ describe('Simplified electronAPI Abstraction', () => {
 
       expect(sessions).toHaveLength(1);
       expect(sessions[0].id).toBe('session-1');
-      expect(mockAPIClient.sessions.getRecentSessions).toHaveBeenCalledWith({ limit: 5 });
+      expect(mockAPIClient.sessions.getRecentSessions).toHaveBeenCalledWith(5);
     });
   });
 
@@ -92,7 +87,7 @@ describe('Simplified electronAPI Abstraction', () => {
       // Mock the analytics API
       mockAPIClient.analytics.getDashboard = vi.fn().mockResolvedValue({
         success: true,
-        data: { totalSessions: 10, totalConcepts: 5 }
+        data: { totalSessions: 10, totalConcepts: 5 },
       });
 
       const analyticsService = createAnalyticsService(mockAPIClient);

@@ -5,32 +5,46 @@
  * Focuses on personalizing the learning experience and managing technical configurations.
  */
 
+import type { APIResponse } from './base';
+import type { AppConfig, ProviderConfig } from '../config';
+export type { ProviderConfig } from '../config';
+
 export interface SettingsAPI {
   /**
    * Gets comprehensive user preferences
    * Returns all user-configurable settings in display-ready format
    * @returns Promise<UserPreferencesDisplay> - Complete user preferences
    */
-  getUserPreferences: () => Promise<UserPreferencesDisplay>;
+  getUserPreferences: () => Promise<APIResponse<UserPreferencesDisplay>>;
 
   /**
    * Updates user preferences
    * Applies changes to user configuration settings
    * @param preferences - Partial preferences object to update
-   * @returns Promise<{ success: boolean; updatedSettings: any; changes: string[] }>
+   * @returns Promise<{ success: boolean; updatedSettings: unknown; changes: string[] }>
    */
-  updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<{
-    success: boolean;
-    updatedSettings: any;
-    changes: string[];
-  }>;
+  updatePreferences: (preferences: Partial<UserPreferencesUpdate>) => Promise<
+    APIResponse<{
+      updatedSettings: unknown;
+      changes: string[];
+    }>
+  >;
 
   /**
    * Gets available AI providers and their status
    * Returns configured and available AI providers
-   * @returns Promise<ProviderDisplay[]> - Array of AI providers
+   * @returns Promise<{ success: boolean; providers: ProviderDisplay[]; summary: { total: number; connected: number; configured: number } }> - Response with providers and summary
    */
-  getAvailableProviders: () => Promise<ProviderDisplay[]>;
+  getAvailableProviders: () => Promise<
+    APIResponse<{
+      providers: ProviderConfig[];
+      summary: {
+        total: number;
+        connected: number;
+        configured: number;
+      };
+    }>
+  >;
 
   /**
    * Configures an AI provider with authentication and settings
@@ -42,36 +56,40 @@ export interface SettingsAPI {
   configureProvider: (params: {
     provider: string;
     config: ProviderConfig;
-  }) => Promise<{ success: boolean; providerId: string; status: string }>;
+  }) => Promise<APIResponse<{ providerId: string; status: string }>>;
 
   /**
    * Gets learning-specific settings
    * Returns settings related to learning preferences and goals
    * @returns Promise<LearningSettingsDisplay> - Learning configuration settings
    */
-  getLearningSettings: () => Promise<LearningSettingsDisplay>;
+  getLearningSettings: () => Promise<APIResponse<LearningSettingsDisplay>>;
 
   /**
    * Updates learning-specific settings
    * Modifies learning preferences, goals, and tracking settings
    * @param settings - Learning settings to update
-   * @returns Promise<{ success: boolean; updatedSettings: any; impact: string[] }>
+   * @returns Promise<{ success: boolean; updatedSettings: unknown; impact: string[] }>
    */
-  updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<{
-    success: boolean;
-    updatedSettings: any;
-    impact: string[];
-  }>;
+  updateLearningSettings: (settings: Partial<LearningSettingsUpdate>) => Promise<
+    APIResponse<{
+      updatedSettings: unknown;
+      impact: string[];
+    }>
+  >;
 
-  }
+  // Configuration management
+  getConfig: () => Promise<APIResponse<AppConfig>>;
+  setConfig: (config: Partial<AppConfig>) => Promise<APIResponse<void>>;
+}
 
-// ============================================================================
-// Display-Optimized Types
-// ============================================================================
+export interface SettingsUtility {
+  getAppVersion: () => Promise<APIResponse<string>>;
+  quit: () => Promise<APIResponse<void>>;
+  getConfig: () => Promise<APIResponse<AppConfig>>;
+  setConfig: (config: Partial<AppConfig>) => Promise<APIResponse<void>>;
+}
 
-/**
- * Complete user preferences for display
- */
 export interface UserPreferencesDisplay {
   profile: UserProfile;
   learning: LearningPreferences;
@@ -222,68 +240,7 @@ export interface UserPreferencesUpdate {
   advanced?: Partial<AdvancedPreferences>;
 }
 
-/**
- * AI provider display information
- */
-export interface ProviderDisplay {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  models: ProviderModel[];
-  status: 'configured' | 'not_configured' | 'error' | 'testing';
-  isDefault: boolean;
-  capabilities: ProviderCapability[];
-  pricing: 'free' | 'pay-per-use' | 'subscription' | 'freemium';
-  configuredAt?: string;
-  lastTested?: string;
-  icon?: string;
-  website?: string;
-  documentation?: string;
-  features: string[];
-  limitations: string[];
-}
-
-/**
- * Individual provider model
- */
-export interface ProviderModel {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  contextWindow: number;
-  maxTokens: number;
-  pricing: {
-    input: number; // per 1K tokens
-    output: number; // per 1K tokens
-    currency: string;
-  };
-  capabilities: string[];
-  speed: 'fast' | 'medium' | 'slow';
-  quality: 'basic' | 'standard' | 'premium';
-  useCases: string[];
-  status: 'available' | 'deprecated' | 'beta';
-}
-
-/**
- * Provider capability
- */
-export type ProviderCapability = 'chat' | 'completion' | 'embedding' | 'image' | 'audio' | 'function-calling' | 'streaming' | 'long-context';
-
-/**
- * Provider configuration object
- * Re-exported from config types for consistency
- */
-export type ProviderConfig = import('../ai').ProviderConfig & {
-  systemPrompt?: string;
-  isDefault?: boolean;
-  customSettings?: Record<string, any>;
-  rateLimit?: {
-    requestsPerMinute: number;
-    tokensPerMinute: number;
-  };
-};
+// Display-Optimized Types
 
 /**
  * Learning settings display

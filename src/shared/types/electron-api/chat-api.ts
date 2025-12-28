@@ -2,130 +2,129 @@
  * Chat & Conversation API
  *
  * Manages real-time conversations with AI agents.
- * All methods return display-optimized data ready for UI rendering.
+ * All methods return display-optimized data wrapped in APIResponse.
  */
+
+import type { APIResponse } from './base';
+import type { StreamChunk } from '../ai';
+
+// Re-export APIResponse for convenience
+export type { APIResponse };
+
+export type ErrorCategory =
+  | 'rate_limit'
+  | 'quota'
+  | 'auth'
+  | 'timeout'
+  | 'network'
+  | 'tool_fail'
+  | 'validation'
+  | 'unknown';
+
+export type ChatStatus =
+  | { type: 'retry'; attempt: number; max: number; reason: string }
+  | { type: 'tool'; phase: 'start' | 'end' | 'error'; tool: string; detail?: string; durationMs?: number; agent?: string; id?: string; expandable?: boolean }
+  | { type: 'tip'; text: string }
+  | { type: 'fail'; category: ErrorCategory; suggestion?: string }
+  | { type: 'thought'; text: string; agent?: string; id?: string; expandable?: boolean }
+  | { type: 'timeline_event'; event: TimelineEventPayload }
+  | { type: 'timeline_state'; state: string; agent?: string }
+  | {
+      type: 'await_user_input';
+      prompt: string;
+      sessionId: string;
+      checkpointId?: string;
+      questionId?: string;
+      timeoutAt?: number;
+    };
+
+export interface TimelineEventPayload {
+  id: string;
+  type: 'thought' | 'tool' | 'state' | 'error';
+  agent: string;
+  timestamp: number;
+  text?: string;
+  tool?: string;
+  phase?: 'start' | 'end' | 'error';
+  detail?: string;
+  expandable?: boolean;
+}
+
+export type ChatStreamEvent =
+  | { type: 'chunk'; chunk: string | StreamChunk }
+  | { type: 'complete' }
+  | { type: 'error'; error?: string }
+  | { type: 'status'; status: ChatStatus };
+
+// ---------------------------------------------------------------------------
+// Prompt search (cross-session)
+// ---------------------------------------------------------------------------
+
+export type PromptRole = 'user' | 'assistant';
+
+export interface PromptHistoryItem {
+  id: string;
+  sessionId: string;
+  role: PromptRole;
+  text: string;
+  createdAt: string;
+}
+
+export interface PromptSearchRequest {
+  sessionId?: string;
+  role?: PromptRole;
+  query?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PromptSearchResponse {
+  prompts: PromptHistoryItem[];
+  pagination: {
+    total?: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+/**
+ * Display-ready message from chat history
+ */
+export interface ChatHistoryMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  reasoning_content?: string;
+  timestamp: string;
+  tool_calls?: Array<{
+    id: string;
+    type: string;
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+  metadata?: {
+    checkpoint_id?: string;
+    message_index: number;
+  };
+}
 
 export interface ChatAPI {
   /**
-   * Starts a new conversation with an AI agent
-   * @param params.agentType - Type of agent ('learning', 'tutoring', 'assessment', 'practice')
-   * @param params.topic - Optional topic to focus the conversation
-   * @param params.preferences - User preferences for response style, difficulty, etc.
-   * @returns Promise<ConversationDisplay> - Display-ready conversation object
+   * Generate a session title using heuristics (no IPC required)
    */
-  startConversation: (params: {
-    agentType: 'learning' | 'tutoring' | 'assessment' | 'practice';
-    topic?: string;
-    preferences?: {
-      responseStyle?: 'conversational' | 'structured' | 'detailed' | 'concise';
-      difficultyLevel?: 'beginner' | 'intermediate' | 'advanced';
-      language?: string;
-      enableAnimations?: boolean;
-    };
-  }) => Promise<ConversationDisplay>;
+  generateTitle: (messageText: string) => Promise<APIResponse<string>>;
 
   /**
-   * Sends a message and gets response (non-streaming)
-   * Use this for simple Q&A where streaming isn't needed
-   * @param params.conversationId - Active conversation ID
-   * @param params.message - Message content to send
-   * @param params.attachments - Optional file attachments
-   * @returns Promise<MessageDisplay> - Complete response message
+   * Retrieve complete message history for a chat session
+   * Messages are read from LangGraph checkpoints (accumulated state)
    */
-  sendMessage: (params: {
-    conversationId: string;
-    message: string;
-    attachments?: File[];
-  }) => Promise<MessageDisplay>;
-
-  /**
-   * Sends a message with streaming response
-   * Use this for long responses or when you want real-time feedback
-   * @param params.conversationId - Active conversation ID
-   * @param params.message - Message content to send
-   * @param params.attachments - Optional file attachments
-   * @returns Promise<AsyncIterable<string>> - Stream of response chunks
-   */
-  sendMessageStream: (params: {
-    conversationId: string;
-    message: string;
-    attachments?: File[];
-  }) => Promise<AsyncIterable<string>>;
-
-  /**
-   * Gets real-time typing indicator
-   * Use this to show when the AI is typing or processing
-   * @param conversationId - Active conversation ID
-   * @returns Promise<TypingIndicator> - Typing status and agent info
-   */
-  getTypingIndicator: (conversationId: string) => Promise<TypingIndicator>;
-
-  /**
-   * Gets conversation history with display optimization
-   * Returns messages formatted for UI display with relative timestamps
-   * @param conversationId - Conversation ID
-   * @param options.limit - Number of messages to retrieve (default: 50)
-   * @param options.before - Get messages before this message ID (for pagination)
-   * @param options.filter - Filter by message type or content
-   * @returns Promise<ConversationHistory> - Paginated message history
-   */
-  getConversationHistory: (conversationId: string, options?: {
-    limit?: number;
-    before?: string;
-    filter?: {
-      messageType?: 'user' | 'assistant' | 'all';
-      dateRange?: { start: Date; end: Date };
-      hasAttachments?: boolean;
-    };
-  }) => Promise<ConversationHistory>;
-
-  /**
-   * Pauses an active conversation
-   * Use this when user wants to temporarily stop the conversation
-   * @param conversationId - Active conversation ID
-   * @returns Promise<{ success: boolean; message: string }>
-   */
-  pauseConversation: (conversationId: string) => Promise<{ success: boolean; message: string }>;
-
-  /**
-   * Resumes a paused conversation
-   * Restores the conversation context and continues
-   * @param conversationId - Paused conversation ID
-   * @returns Promise<{ success: boolean; context: ConversationContext }>
-   */
-  resumeConversation: (conversationId: string) => Promise<{ success: boolean; context: ConversationContext }>;
-
-  /**
-   * Ends a conversation and generates summary
-   * Returns a summary of key points covered in the conversation
-   * @param conversationId - Conversation to end
-   * @returns Promise<ConversationSummary> - Summary and key takeaways
-   */
-  endConversation: (conversationId: string) => Promise<ConversationSummary>;
-
-  /**
-   * Checks for practice opportunities in conversation
-   * Analyzes conversation context to suggest relevant practice moments
-   * @param params.conversationId - Active conversation ID
-   * @param params.userMessage - Latest user message for context
-   * @returns Promise<PracticeOpportunityResult> - Practice suggestion or null
-   */
-  checkPracticeOpportunity: (params: {
-    conversationId: string;
-    userMessage: string;
-  }) => Promise<PracticeOpportunityResult>;
-
-  /**
-   * Gets natural practice suggestion based on conversation context
-   * Returns a conversational practice suggestion that feels natural
-   * @param params.opportunity - Practice opportunity from checkPracticeOpportunity
-   * @param params.userContext - User's learning context and preferences
-   * @returns Promise<NaturalPracticeSuggestion> - Contextual practice suggestion
-   */
-  getPracticeSuggestion: (params: {
-    opportunity: PracticeOpportunity;
-    userContext?: UserLearningContext;
-  }) => Promise<NaturalPracticeSuggestion>;
+  getMessages: (
+    threadId: string,
+    options?: { limit?: number; offset?: number },
+  ) => Promise<APIResponse<{sessions: ChatHistoryMessage[], hasMore: boolean, total: number}>>;
 }
 
 // ============================================================================
@@ -198,7 +197,7 @@ export interface AttachmentDisplay {
   size: string; // Human-readable size
   url?: string;
   thumbnail?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -242,7 +241,7 @@ export interface ConversationContext {
   agentState: {
     currentTopic?: string;
     contextPoints: string[];
-    userPreferences: Record<string, any>;
+    userPreferences: Record<string, unknown>;
   };
   suggestedReopenings: string[];
 }

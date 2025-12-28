@@ -5,6 +5,9 @@
  * parsing and adaptive learning platform.
  */
 
+import { RelationshipType } from './relationship-types';
+import { LearningPath } from './learning';
+
 export interface Concept {
   id: string;
   name: string;
@@ -33,9 +36,11 @@ export interface ConceptEvidence {
 }
 
 export interface ProposedRelationship {
+  sourceConceptId?: string;
+  sourceConceptName?: string;
   targetConceptId?: string;
   targetConceptName?: string;
-  type: 'prerequisite' | 'related' | 'contains' | 'example' | 'application' | 'contrasts';
+  type: RelationshipType;
   strength: number; // 0-1
   confidence: number; // 0-1
   description?: string;
@@ -69,7 +74,7 @@ export interface LearningMaterial {
   estimatedDuration: number;
   difficultyLevel: number;
   tags: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   processedAt: Date;
 }
 
@@ -82,21 +87,9 @@ export interface LearningSection {
   concepts: string[]; // concept IDs
   prerequisites: string[]; // concept IDs
   estimatedTime: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
-export interface LearningPath {
-  id: string;
-  title: string;
-  description: string;
-  estimatedDuration: number;
-  difficulty: number;
-  modules: LearningModule[];
-  prerequisites: string[];
-  targetMastery: number;
-  adaptations: PathAdaptation[];
-  progress: PathProgress;
-}
 
 export interface LearningModule {
   id: string;
@@ -134,8 +127,8 @@ export interface PathAdaptation {
   id: string;
   userId: string;
   type: 'difficulty' | 'pace' | 'content' | 'prerequisite';
-  originalValue: any;
-  adaptedValue: any;
+  originalValue: unknown;
+  adaptedValue: unknown;
   reason: string;
   appliedAt: Date;
   performance: PerformanceMetric[];
@@ -176,7 +169,7 @@ export interface Assessment {
   passingScore: number;
   concepts: string[];
   prerequisites: string[];
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface Question {
@@ -184,7 +177,7 @@ export interface Question {
   type: 'multiple-choice' | 'true-false' | 'short-answer' | 'coding' | 'essay';
   question: string;
   options?: string[]; // for multiple choice
-  correctAnswer: any;
+  correctAnswer: unknown;
   explanation?: string;
   hints: string[];
   difficulty: number;
@@ -303,7 +296,7 @@ export interface ParsingStage {
   startedAt?: Date;
   completedAt?: Date;
   errorMessage?: string;
-  result?: any;
+  result?: unknown;
 }
 
 export interface ParsingResult {
@@ -408,7 +401,7 @@ export interface LangChainConfig {
 
 export interface DocumentLoaderConfig {
   type: 'text' | 'pdf' | 'markdown' | 'html' | 'json';
-  options: Record<string, any>;
+  options: Record<string, unknown>;
   enabled: boolean;
 }
 
@@ -479,7 +472,7 @@ export class ConceptParsingError extends Error {
     message: string,
     public type: 'parsing' | 'extraction' | 'validation' | 'generation',
     public context?: string,
-    public cause?: Error
+    public cause?: Error,
   ) {
     super(message);
     this.name = 'ConceptParsingError';
@@ -492,7 +485,7 @@ export class AIExtractionError extends ConceptParsingError {
     public model: string,
     public provider: string,
     context?: string,
-    cause?: Error
+    cause?: Error,
   ) {
     super(message, 'extraction', context, cause);
     this.name = 'AIExtractionError';
@@ -503,8 +496,8 @@ export class ValidationError extends ConceptParsingError {
   constructor(
     message: string,
     public field: string,
-    public value: any,
-    context?: string
+    public value: unknown,
+    context?: string,
   ) {
     super(message, 'validation', context);
     this.name = 'ValidationError';
@@ -516,7 +509,13 @@ export class ValidationError extends ConceptParsingError {
 export type ConceptStatus = 'extracted' | 'validated' | 'approved' | 'rejected' | 'pending';
 export type LearningStatus = 'not_started' | 'in_progress' | 'completed' | 'mastered';
 export type AssessmentType = 'diagnostic' | 'formative' | 'summative' | 'practice';
-export type QuestionType = 'recall' | 'comprehension' | 'application' | 'analysis' | 'synthesis' | 'evaluation';
+export type QuestionType =
+  | 'recall'
+  | 'comprehension'
+  | 'application'
+  | 'analysis'
+  | 'synthesis'
+  | 'evaluation';
 
 export interface PaginationOptions {
   page: number;
@@ -557,4 +556,59 @@ export interface ImportOptions {
   validateOnImport?: boolean;
   mergeStrategy?: 'skip' | 'overwrite' | 'merge' | 'append';
   updateExisting?: boolean;
+}
+
+/**
+ * ============================================================================
+ * CONCEPT PARSING SEGMENTATION AND EXTRACTION CONFIGURATION
+ * ============================================================================
+ *
+ * These types define the configuration and structure for the AI-powered
+ * concept parsing pipeline. The system optimizes LLM usage through intelligent
+ * segment merging and context limiting.
+ */
+
+// Configuration for concept parsing operation
+export interface ConceptParsingSettings {
+  /** Minimum character threshold for creating a segment */
+  minSegmentChars: number;
+
+  /** Maximum character threshold for splitting content into segments */
+  maxSegmentChars: number;
+
+  /**
+   * Maximum characters to feed to LLM per concept extraction call.
+   * -1 = unlimited (feed entire segment to LLM)
+   * 300-500 = fast processing with limited context
+   * 800-1200 = balanced processing with good context
+   */
+  maxCharPerConcept: number;
+
+  /** Heading depth level to include in segmentation (1=H1, 2=H1+H2, etc.) */
+  includeHeadingDepth: number;
+
+  /** Whether to vectorize extracted concepts */
+  vectorize: boolean;
+
+  /** Whether to store relationships in vector database */
+  storeRelationships: boolean;
+
+  /** Concurrency limit for parallel processing */
+  concurrency: number;
+}
+
+// A segment of content extracted from source material for LLM processing
+export interface ConceptSegment {
+  /** Unique identifier for the segment */
+  id: string;
+
+  /**
+   * Segment content with embedded markdown headings.
+   * Heading structure is preserved (e.g., "# Title\nContent...").
+   * LLM uses headings to identify ROOT TOPIC and relationships.
+   */
+  content: string;
+
+  /** Sequential order of segment in original document */
+  order: number;
 }

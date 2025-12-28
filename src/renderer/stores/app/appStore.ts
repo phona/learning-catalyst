@@ -1,28 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
 /**
  * App Store - Global application state management
  * Clean architecture with display-optimized state
@@ -34,7 +9,8 @@ import type { UIState } from '../../types';
 
 interface AppState extends UIState {
   // Navigation state
-  currentView: 'chat' | 'sessions' | 'settings' | 'progress' | 'knowledge-map' | 'discovery';
+  currentView: 'chat' | 'sessions' | 'settings' | 'progress' | 'knowledge-map';
+  current_view: 'chat' | 'sessions' | 'settings' | 'progress' | 'knowledge-map';
   navigationHistory: string[];
   canGoBack: boolean;
   canGoForward: boolean;
@@ -109,7 +85,7 @@ const defaultPreferences: AppState['preferences'] = {
   language: 'en',
   notifications: true,
   autoSave: true,
-  telemetry: false
+  telemetry: false,
 };
 
 const initialState: AppState = {
@@ -118,6 +94,7 @@ const initialState: AppState = {
   settings_panel_open: false,
   theme: 'auto',
   currentView: 'chat',
+  current_view: 'chat',
   loading: false,
   error_message: undefined,
   success_message: undefined,
@@ -140,7 +117,31 @@ const initialState: AppState = {
   modalProps: {},
 
   // Notifications
-  notifications: []
+  notifications: [],
+
+  // Action stubs (real implementations provided in store creator below)
+  setCurrentView: () => {},
+  setSidebarOpen: () => {},
+  setSettingsPanelOpen: () => {},
+  setTheme: () => {},
+  setLoading: () => {},
+  setError: () => {},
+  setSuccess: () => {},
+  navigateTo: () => {},
+  goBack: () => {},
+  goForward: () => {},
+  clearHistory: () => {},
+  setConnected: () => {},
+  setOnline: () => {},
+  setInitialized: () => {},
+  updatePreferences: () => {},
+  resetPreferences: () => {},
+  openModal: () => {},
+  closeModal: () => {},
+  addNotification: () => {},
+  removeNotification: () => {},
+  clearNotifications: () => {},
+  resetAppState: () => {},
 };
 
 export const useAppStore = create<AppState>()(
@@ -148,56 +149,65 @@ export const useAppStore = create<AppState>()(
     ...initialState,
 
     // Basic UI actions
-    setCurrentView: (currentView: AppState['currentView']) => set({ currentView }),
+    setCurrentView: (currentView: AppState['currentView']) =>
+      set({ currentView, current_view: currentView }),
     setSidebarOpen: (sidebar_open: boolean) => set({ sidebar_open }),
     setSettingsPanelOpen: (settings_panel_open: boolean) => set({ settings_panel_open }),
-    setTheme: (theme: AppState['preferences']['theme']) => set({ theme, preferences: { ...get().preferences, theme } }),
+    setTheme: (theme: AppState['preferences']['theme']) =>
+      set({ theme, preferences: { ...get().preferences, theme } }),
     setLoading: (loading: boolean) => set({ loading }),
     setError: (error_message: string | undefined) => set({ error_message }),
     setSuccess: (success_message: string | undefined) => set({ success_message }),
 
     // Navigation actions
-    navigateTo: (view) => set((state) => {
-      const newHistory = [...state.navigationHistory.slice(0, -1), view];
-      return {
-        ...state,
-        currentView: view,
-        current_view: view, // Keep both for compatibility
-        navigationHistory: newHistory,
-        canGoBack: newHistory.length > 1,
-        canGoForward: false
-      };
-    }),
+    navigateTo: (view) =>
+      set((state) => {
+        const newHistory = [...state.navigationHistory.slice(0, -1), view];
+        return {
+          ...state,
+          currentView: view,
+          current_view: view, // Keep both for compatibility
+          navigationHistory: newHistory,
+          canGoBack: newHistory.length > 1,
+          canGoForward: false,
+        };
+      }),
 
-    goBack: () => set((state) => {
-      if (state.navigationHistory.length <= 1) return state;
+    goBack: () =>
+      set((state) => {
+        if (state.navigationHistory.length <= 1) return state;
 
-      const newHistory = [...state.navigationHistory];
-      newHistory.pop(); // Remove current view
-      const previousView = newHistory[newHistory.length - 1];
+        const newHistory = [...state.navigationHistory];
+        newHistory.pop(); // Remove current view
+        const previousView = newHistory[newHistory.length - 1] as AppState['currentView'];
 
-      return {
-        currentView: previousView,
-        navigationHistory: newHistory,
-        canGoBack: newHistory.length > 1,
-        canGoForward: true
-      };
-    }),
+        return {
+          currentView: previousView,
+          current_view: previousView,
+          navigationHistory: newHistory,
+          canGoBack: newHistory.length > 1,
+          canGoForward: true,
+        };
+      }),
 
-    goForward: () => set((state) => {
-      // For simplicity, we'll implement this as navigating to chat
-      // In a real app, you'd maintain a forward history stack
-      return {
-        currentView: 'chat',
-        canGoForward: false
-      };
-    }),
+    goForward: () =>
+      set((state) => {
+        // For simplicity, we'll implement this as navigating to chat
+        // In a real app, you'd maintain a forward history stack
+        return {
+          currentView: 'chat' as const,
+          current_view: 'chat' as const,
+          canGoForward: false,
+        };
+      }),
 
-    clearHistory: () => set({
-      navigationHistory: [get().currentView],
-      canGoBack: false,
-      canGoForward: false
-    }),
+    clearHistory: () =>
+      set({
+        navigationHistory: [get().currentView],
+        canGoBack: false,
+        canGoForward: false,
+        current_view: get().currentView,
+      }),
 
     // Connection actions
     setConnected: (isConnected) => set({ isConnected }),
@@ -205,9 +215,10 @@ export const useAppStore = create<AppState>()(
     setInitialized: (isInitialized) => set({ isInitialized }),
 
     // Preference actions
-    updatePreferences: (preferences) => set((state) => ({
-      preferences: { ...state.preferences, ...preferences }
-    })),
+    updatePreferences: (preferences) =>
+      set((state) => ({
+        preferences: { ...state.preferences, ...preferences },
+      })),
 
     resetPreferences: () => set({ preferences: defaultPreferences }),
 
@@ -221,11 +232,11 @@ export const useAppStore = create<AppState>()(
       const newNotification = {
         ...notification,
         id,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
 
       set((state) => ({
-        notifications: [...state.notifications, newNotification]
+        notifications: [...state.notifications, newNotification],
       }));
 
       // Auto-remove notification after duration
@@ -236,15 +247,16 @@ export const useAppStore = create<AppState>()(
       }
     },
 
-    removeNotification: (id) => set((state) => ({
-      notifications: state.notifications.filter(n => n.id !== id)
-    })),
+    removeNotification: (id) =>
+      set((state) => ({
+        notifications: state.notifications.filter((n) => n.id !== id),
+      })),
 
     clearNotifications: () => set({ notifications: [] }),
 
     // Utility actions
-    resetAppState: () => set(initialState)
-  }))
+    resetAppState: () => set(initialState),
+  })),
 );
 
 // Selectors for derived state
@@ -256,42 +268,44 @@ export const useTheme = () => useAppStore((state) => state.theme);
 export const usePreferences = () => useAppStore((state) => state.preferences);
 export const useIsConnected = () => useAppStore((state) => state.isConnected);
 export const useIsOnline = () => useAppStore((state) => state.isOnline);
-export const useNavigationState = () => useAppStore((state) => ({
-  currentView: state.currentView,
-  canGoBack: state.canGoBack,
-  canGoForward: state.canGoForward
-}));
+export const useNavigationState = () =>
+  useAppStore((state) => ({
+    currentView: state.currentView,
+    canGoBack: state.canGoBack,
+    canGoForward: state.canGoForward,
+  }));
 
 // Actions hook
-export const useAppActions = () => useAppStore((state) => ({
-  setCurrentView: state.setCurrentView,
-  setSidebarOpen: state.setSidebarOpen,
-  setSettingsPanelOpen: state.setSettingsPanelOpen,
-  setTheme: state.setTheme,
-  setLoading: state.setLoading,
-  setError: state.setError,
-  setSuccess: state.setSuccess,
-  navigateTo: state.navigateTo,
-  goBack: state.goBack,
-  goForward: state.goForward,
-  clearHistory: state.clearHistory,
-  setConnected: state.setConnected,
-  setOnline: state.setOnline,
-  setInitialized: state.setInitialized,
-  updatePreferences: state.updatePreferences,
-  resetPreferences: state.resetPreferences,
-  openModal: state.openModal,
-  closeModal: state.closeModal,
-  addNotification: state.addNotification,
-  removeNotification: state.removeNotification,
-  clearNotifications: state.clearNotifications,
-  resetAppState: state.resetAppState
-}));
+export const useAppActions = () =>
+  useAppStore((state) => ({
+    setCurrentView: state.setCurrentView,
+    setSidebarOpen: state.setSidebarOpen,
+    setSettingsPanelOpen: state.setSettingsPanelOpen,
+    setTheme: state.setTheme,
+    setLoading: state.setLoading,
+    setError: state.setError,
+    setSuccess: state.setSuccess,
+    navigateTo: state.navigateTo,
+    goBack: state.goBack,
+    goForward: state.goForward,
+    clearHistory: state.clearHistory,
+    setConnected: state.setConnected,
+    setOnline: state.setOnline,
+    setInitialized: state.setInitialized,
+    updatePreferences: state.updatePreferences,
+    resetPreferences: state.resetPreferences,
+    openModal: state.openModal,
+    closeModal: state.closeModal,
+    addNotification: state.addNotification,
+    removeNotification: state.removeNotification,
+    clearNotifications: state.clearNotifications,
+    resetAppState: state.resetAppState,
+  }));
 
 // Initialize app state
 useAppStore.setState({
   isInitialized: true,
-  isOnline: navigator.onLine
+  isOnline: navigator.onLine,
 });
 
 // Listen for online/offline events

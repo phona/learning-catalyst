@@ -1,26 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
 /**
  * Use Recent Sessions Hook
  *
@@ -35,7 +12,61 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Session } from '@/shared/types/session';
-import { useService } from './useAppServices';
+import type { SessionDisplay as ElectronSessionDisplay } from '@/shared/types/electron-api/sessions-api';
+import { useSessionService } from '@/renderer/services/services-context';
+import { isIPCErrorPayload, isIPCErrorException, requiresSetup, IPC_ERROR_CODES } from '@/shared/types/ipc-error';
+
+const ERROR_MESSAGE_MAP: Record<string, string> = {
+  [IPC_ERROR_CODES.learning.recentFailed]: 'Unable to load recent sessions. Please try again.',
+  [IPC_ERROR_CODES.sessions.notFound]: 'Session not found.',
+  [IPC_ERROR_CODES.sessions.createFailed]: 'Unable to create session.',
+};
+
+async function mapErrorToFriendlyMessage(error: unknown): Promise<string> {
+  if (isIPCErrorException(error)) {
+    const payload = error.payload;
+    const direct = ERROR_MESSAGE_MAP[payload.code];
+    if (direct) return direct;
+    if (requiresSetup(payload)) return 'Provider setup required. Please configure your API key in Settings.';
+    return payload.message || 'Failed to load sessions';
+  }
+  if (isIPCErrorPayload(error)) {
+    const direct = ERROR_MESSAGE_MAP[error.code];
+    if (direct) return direct;
+    if (requiresSetup(error)) return 'Provider setup required. Please configure your API key in Settings.';
+    return error.message || 'Failed to load sessions';
+  }
+  const anyErr = error as any;
+  if (anyErr && typeof anyErr === 'object' && typeof anyErr.code === 'string') {
+    const direct = ERROR_MESSAGE_MAP[anyErr.code];
+    if (direct) return direct;
+    return anyErr.message || 'Failed to load sessions';
+  }
+  try {
+    const buffer = await (window as any).electronAPI?.getErrorBuffer?.();
+    if (Array.isArray(buffer) && buffer.length > 0) {
+      const last = buffer[buffer.length - 1];
+      const direct = last && ERROR_MESSAGE_MAP[last.code];
+      if (direct) return direct;
+      return (last && last.message) || 'Failed to load sessions';
+    }
+  } catch {}
+  let errorMessage = anyErr?.message || 'Failed to load sessions';
+  if (typeof errorMessage === 'string') {
+    if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
+      errorMessage = 'Database is still initializing. Please wait a moment and try again.';
+    } else if (
+      errorMessage.includes('Session service not available') ||
+      errorMessage.includes('Sessions API is not available')
+    ) {
+      errorMessage = 'Session service is initializing. Please wait...';
+    } else if (errorMessage.includes('Session service is not initialized')) {
+      errorMessage =
+        'Session service is still initializing. The application may still be starting up. Please wait a moment.';
+    }
+  }
+  return errorMessage;
+}
 
 export interface RecentSessionsState {
   sessions: Session[];
@@ -62,15 +93,15 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   });
 
   // Get session service through dependency injection
-  const sessionService = useService('sessionService');
+  const sessionService = useSessionService();
 
   // Update loading state based on service availability
   useEffect(() => {
     if (!sessionService) {
-      setState(prev => ({
+      setState((prev) => ({
         ...prev,
         loading: false,
-        error: 'Session service is initializing...'
+        error: 'Session service is initializing...',
       }));
     }
   }, [sessionService]);
@@ -83,90 +114,113 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Track mount status to avoid setState after unmount (tests/teardown)
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+
   // Add a ref to track if loadMore is currently in progress to prevent multiple concurrent calls
   const isLoadingMoreRef = useRef(false);
 
   // Add a ref to track if initial load has been triggered to prevent duplicate initial loads
   const initialLoadTriggeredRef = useRef(false);
 
-  const fetchSessions = useCallback(async (sessionLimit: number, isRefresh = false) => {
-    try {
-      console.log('[useRecentSessions] Fetching sessions, service available:', !!sessionService);
-      setState(prev => ({
-        ...prev,
-        loading: !isRefresh && prev.loading,
-        refreshing: isRefresh,
-        error: null,
-      }));
+  const toSession = (display: ElectronSessionDisplay): Session => ({
+    id: display.id,
+    title: display.title ?? 'Session',
+    createdAt: new Date((display as any).createdAt ?? Date.now()),
+    updatedAt: new Date((display as any).updatedAt ?? Date.now()),
+    messages: [],
+    metadata: (display as any).metadata ?? {
+      title: display.title ?? '',
+      tags: (display as any).tags ?? [],
+    },
+    context: (display as any).context ?? {},
+    checkpoints: [],
+    statistics: {
+      totalMessages: 0,
+      userMessages: 0,
+      assistantMessages: 0,
+      totalTokensUsed: 0,
+      totalThinkingTokens: 0,
+      sessionDuration: 0,
+      averageResponseTime: 0,
+      conceptsLearned: 0,
+      checkpointsCreated: 0,
+      productivityScore: 0,
+      engagementScore: 0,
+    },
+  });
 
-      // Check if session service is available
-      if (!sessionService) {
-        console.log('[useRecentSessions] Session service not available');
-        throw new Error('Session service not available. Please wait for initialization to complete.');
-      }
+  const fetchSessions = useCallback(
+    async (sessionLimit: number, isRefresh = false) => {
+      try {
+        if (mountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            loading: !isRefresh && prev.loading,
+            refreshing: isRefresh,
+            error: null,
+          }));
+        }
 
-      console.log('[useRecentSessions] Calling getRecentSessions with limit:', sessionLimit);
-      const result = await sessionService.getRecentSessions(sessionLimit);
-      console.log('[useRecentSessions] Got sessions:', result.length);
+        // Check if session service is available
+        if (!sessionService) {
+          throw new Error(
+            'Session service not available. Please wait for initialization to complete.',
+          );
+        }
 
-      setState(prev => {
-        // Always deduplicate sessions by ID to prevent duplicates
-        const allSessions = isRefresh ? result : [...prev.sessions, ...result];
-        const uniqueSessions = Array.from(new Map(allSessions.map(session => [session.id, session])).values());
+        const result = await sessionService.getRecentSessions(sessionLimit);
 
-        // Properly calculate hasMore:
-        // 1. If we got fewer results than the limit, we've reached the end
-        // 2. If we got the full limit but the total unique sessions didn't increase beyond what we expected, we've reached the end
-        // 3. Otherwise, there might be more
-        const gotFewerThanRequested = result.length < limit;
-        const expectedNewSessions = Math.min(limit, sessionLimit - prev.sessions.length);
-        const actualNewSessions = uniqueSessions.length - prev.sessions.length;
-        const totalDidNotIncrease = !isRefresh && actualNewSessions < expectedNewSessions && !gotFewerThanRequested;
-        const hasMore = !gotFewerThanRequested && !totalDidNotIncrease && uniqueSessions.length < maxLimit;
+        setState((prev) => {
+          // Always deduplicate sessions by ID to prevent duplicates
+          const mapped = result.map(toSession);
+          const allSessions = isRefresh ? mapped : [...prev.sessions, ...mapped];
+          const uniqueSessions = Array.from(
+            new Map(allSessions.map((session) => [session.id, session])).values(),
+          );
 
-        console.log('[useRecentSessions] Session update:', {
-          sessionLimit,
-          resultCount: result.length,
-          previousCount: prev.sessions.length,
-          newTotalCount: uniqueSessions.length,
-          expectedNewSessions,
-          actualNewSessions,
-          gotFewerThanRequested,
-          totalDidNotIncrease,
-          hasMore,
-          isRefresh
+          // Properly calculate hasMore:
+          // 1. If we got fewer results than the limit, we've reached the end
+          // 2. If we got the full limit but the total unique sessions didn't increase beyond what we expected, we've reached the end
+          // 3. Otherwise, there might be more
+          const gotFewerThanRequested = result.length < limit;
+          const expectedNewSessions = Math.min(limit, sessionLimit - prev.sessions.length);
+          const actualNewSessions = uniqueSessions.length - prev.sessions.length;
+          const totalDidNotIncrease =
+            !isRefresh && actualNewSessions < expectedNewSessions && !gotFewerThanRequested;
+          const hasMore =
+            !gotFewerThanRequested && !totalDidNotIncrease && uniqueSessions.length < maxLimit;
+
+          return {
+            ...prev,
+            sessions: uniqueSessions,
+            loading: false,
+            refreshing: false,
+            error: null,
+            hasMore,
+          };
         });
-
-        return {
-          ...prev,
-          sessions: uniqueSessions,
-          loading: false,
-          refreshing: false,
-          error: null,
-          hasMore,
-        };
-      });
-    } catch (error: any) {
-      console.error('[useRecentSessions] Failed to fetch recent sessions:', error);
-
-      // Provide more user-friendly error messages
-      let errorMessage = error.message || 'Failed to load sessions';
-      if (errorMessage.includes('Database') && errorMessage.includes('not ready')) {
-        errorMessage = 'Database is still initializing. Please wait a moment and try again.';
-      } else if (errorMessage.includes('Session service not available') || errorMessage.includes('Sessions API is not available')) {
-        errorMessage = 'Session service is initializing. Please wait...';
-      } else if (errorMessage.includes('Session service is not initialized')) {
-        errorMessage = 'Session service is still initializing. The application may still be starting up. Please wait a moment.';
+      } catch (error: unknown) {
+        console.error('[useRecentSessions] Failed to fetch recent sessions:', error);
+        const errorMessage = await mapErrorToFriendlyMessage(error);
+        if (mountedRef.current) {
+          setState((prev) => ({
+            ...prev,
+            loading: false,
+            refreshing: false,
+            error: errorMessage,
+          }));
+        }
       }
-
-      setState(prev => ({
-        ...prev,
-        loading: false,
-        refreshing: false,
-        error: errorMessage,
-      }));
-    }
-  }, [sessionService, limit, maxLimit]);
+    },
+    [sessionService, limit, maxLimit],
+  );
 
   // Initial load only - don't refetch when currentLimit changes
   useEffect(() => {
@@ -174,7 +228,7 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
       initialLoadTriggeredRef.current = true;
       fetchSessions(currentLimit, true);
     }
-  }, [sessionService]); // Only run once when sessionService becomes available
+  }, [sessionService, fetchSessions, currentLimit]); // Only run once when sessionService becomes available
 
   const refresh = useCallback(async () => {
     await fetchSessions(currentLimit, true);
@@ -183,24 +237,24 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
   const loadMore = useCallback(async () => {
     // Prevent multiple concurrent loadMore calls
     if (isLoadingMoreRef.current) {
-      console.log('[useRecentSessions] loadMore skipped - already loading more');
       return;
     }
 
     // Use ref to get current state and avoid stale closures
     const currentState = stateRef.current;
-    console.log('[useRecentSessions] loadMore called, loading:', currentState.loading, 'refreshing:', currentState.refreshing, 'hasMore:', currentState.hasMore, 'currentLimit:', currentLimit, 'limit:', limit);
 
     // Enhanced conditions to prevent unnecessary calls
-    if (!currentState.loading &&
-        !currentState.refreshing &&
-        currentState.hasMore &&
-        currentLimit < maxLimit &&
-        currentState.sessions.length > 0) { // Only load more if we have sessions
+    if (
+      !currentState.loading &&
+      !currentState.refreshing &&
+      currentState.hasMore &&
+      currentLimit < maxLimit &&
+      currentState.sessions.length > 0
+    ) {
+      // Only load more if we have sessions
 
       isLoadingMoreRef.current = true;
       const newLimit = Math.min(currentLimit + limit, maxLimit);
-      console.log('[useRecentSessions] Increasing limit from', currentLimit, 'to', newLimit);
       setCurrentLimit(newLimit);
 
       try {
@@ -211,47 +265,34 @@ export function useRecentSessions(limit = 10): RecentSessionsState & RecentSessi
       } finally {
         isLoadingMoreRef.current = false;
       }
-    } else {
-      if (currentLimit >= maxLimit) {
-        console.log('[useRecentSessions] loadMore skipped - maximum limit reached');
-        setState(prev => ({ ...prev, hasMore: false }));
-      } else if (!currentState.hasMore) {
-        console.log('[useRecentSessions] loadMore skipped - no more sessions available');
-      } else if (currentState.sessions.length === 0) {
-        console.log('[useRecentSessions] loadMore skipped - no sessions to paginate from');
-      } else {
-        console.log('[useRecentSessions] loadMore skipped - conditions not met', {
-          loading: currentState.loading,
-          refreshing: currentState.refreshing,
-          hasMore: currentState.hasMore,
-          currentLimit,
-          maxLimit,
-          sessionCount: currentState.sessions.length
-        });
-      }
+    } else if (currentLimit >= maxLimit) {
+        setState((prev) => ({ ...prev, hasMore: false }));
     }
   }, [currentLimit, limit, fetchSessions, maxLimit]);
 
   const clearError = useCallback(() => {
-    setState(prev => ({ ...prev, error: null }));
+    setState((prev) => ({ ...prev, error: null }));
   }, []);
 
-  const retryWithBackoff = useCallback(async (maxRetries = 3, baseDelay = 1000) => {
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        await fetchSessions(currentLimit, true);
-        return; // Success, exit the retry loop
-      } catch (error) {
-        if (i === maxRetries - 1) {
-          throw error; // Last retry failed, throw the error
-        }
+  const retryWithBackoff = useCallback(
+    async (maxRetries = 3, baseDelay = 1000) => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          await fetchSessions(currentLimit, true);
+          return; // Success, exit the retry loop
+        } catch (error) {
+          if (i === maxRetries - 1) {
+            throw error; // Last retry failed, throw the error
+          }
 
-        // Wait with exponential backoff before retrying
-        const delay = baseDelay * Math.pow(2, i);
-        await new Promise(resolve => setTimeout(resolve, delay));
+          // Wait with exponential backoff before retrying
+          const delay = baseDelay * Math.pow(2, i);
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
-    }
-  }, [currentLimit, fetchSessions]);
+    },
+    [currentLimit, fetchSessions],
+  );
 
   return {
     ...state,

@@ -63,7 +63,12 @@ export interface UserContextTracker {
   };
   learningPatterns: LearningPattern[];
   recentActivity: Array<{
-    type: 'concept_introduction' | 'practice_attempt' | 'breakthrough' | 'confusion' | 'help_request';
+    type:
+      | 'concept_introduction'
+      | 'practice_attempt'
+      | 'breakthrough'
+      | 'confusion'
+      | 'help_request';
     concept: string;
     timestamp: number;
     outcome?: string;
@@ -104,7 +109,11 @@ export interface UserContextTracker {
 
 export interface ContextUpdateRequest {
   sessionId: string;
-  messageType: 'user_message' | 'assistant_message' | 'practice_completion' | 'concept_introduction';
+  messageType:
+    | 'user_message'
+    | 'assistant_message'
+    | 'practice_completion'
+    | 'concept_introduction';
   content: string;
   timestamp: number;
   concepts: string[];
@@ -236,21 +245,21 @@ export const DEFAULT_USER_PROFILE: Partial<UserLearningProfile> = {
     difficultyProgression: 'gradual',
     preferredPracticeLength: 15,
     optimalPracticeFrequency: 2,
-    attentionSpan: 25
+    attentionSpan: 25,
   },
   preferences: {
     feedbackStyle: 'encouraging',
     challengeLevel: 'adaptive',
     practiceTiming: 'immediate',
-    guidanceLevel: 'moderate'
+    guidanceLevel: 'moderate',
   },
   performance: {
     overallSuccessRate: 0.7,
     averageSessionLength: 30,
     preferredTopics: [],
     challengingTopics: [],
-    masteryProgress: {}
-  }
+    masteryProgress: {},
+  },
 };
 
 // Adaptive learning configuration defaults
@@ -262,12 +271,12 @@ export const DEFAULT_ADAPTIVE_CONFIG: AdaptiveLearningConfig = {
   constraints: {
     maxPracticePerSession: 5,
     minBreakBetweenPractices: 5,
-    maxDifficultyJump: 'one'
+    maxDifficultyJump: 'one',
   },
   adaptationTriggers: {
     successThreshold: 3,
     failureThreshold: 2,
     confidenceThreshold: 0.8,
-    timeThreshold: 20
-  }
+    timeThreshold: 20,
+  },
 };

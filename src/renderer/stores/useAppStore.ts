@@ -1,36 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { UIState } from '../types/ui';
+import type { ExtendedUIState } from '../types/ui';
 
-interface AppStore extends UIState {
+interface AppStore extends ExtendedUIState {
   // Focus mode
   focus_mode: boolean;
 
   // Actions
-  setCurrentView: (view: UIState['current_view']) => void;
+  setCurrentView: (view: ExtendedUIState['current_view']) => void;
   setSidebarOpen: (open: boolean) => void;
   setSettingsPanelOpen: (open: boolean) => void;
   setTheme: (theme: 'light' | 'dark' | 'auto') => void;
@@ -66,7 +43,8 @@ export const useAppStore = create<AppStore>()(
 
         setFocusMode: (enabled) => set({ focus_mode: enabled }, false, 'setFocusMode'),
 
-        toggleFocusMode: () => set((state) => ({ focus_mode: !state.focus_mode }), false, 'toggleFocusMode'),
+        toggleFocusMode: () =>
+          set((state) => ({ focus_mode: !state.focus_mode }), false, 'toggleFocusMode'),
 
         setTheme: (theme) => {
           // Apply theme to document
@@ -86,20 +64,35 @@ export const useAppStore = create<AppStore>()(
 
         setLoading: (loading) => set({ loading }, false, 'setLoading'),
 
-        setError: (error) => set({
-          error_message: error && error.trim().length > 0 ? error : undefined,
-          success_message: undefined
-        }, false, 'setError'),
+        setError: (error) =>
+          set(
+            {
+              error_message: error && error.trim().length > 0 ? error : undefined,
+              success_message: undefined,
+            },
+            false,
+            'setError',
+          ),
 
-        setSuccess: (message) => set({
-          success_message: message && message.trim().length > 0 ? message : undefined,
-          error_message: undefined
-        }, false, 'setSuccess'),
+        setSuccess: (message) =>
+          set(
+            {
+              success_message: message && message.trim().length > 0 ? message : undefined,
+              error_message: undefined,
+            },
+            false,
+            'setSuccess',
+          ),
 
-        clearMessages: () => set({
-          error_message: undefined,
-          success_message: undefined
-        }, false, 'clearMessages'),
+        clearMessages: () =>
+          set(
+            {
+              error_message: undefined,
+              success_message: undefined,
+            },
+            false,
+            'clearMessages',
+          ),
       }),
       {
         name: 'app-store',
@@ -107,8 +100,8 @@ export const useAppStore = create<AppStore>()(
           sidebar_open: state.sidebar_open,
           theme: state.theme,
         }),
-      }
+      },
     ),
-    { name: 'app-store' }
-  )
+    { name: 'app-store' },
+  ),
 );

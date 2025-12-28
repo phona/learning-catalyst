@@ -1,121 +1,112 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-undef */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-empty-function */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-access */
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
-/* eslint-disable @typescript-eslint/no-misused-promises */
-/* eslint-disable @typescript-eslint/require-await */
-
-
-
-
 /**
  * Test utilities for chat store - Clean dependency injection
  * No global state, no test flags, pure dependency injection
  */
 
 import type { SessionService } from '../../services/session/session-service';
-import type { ChatAPI, SessionsAPI } from '@/shared/types/electron-api';
+import type { SessionsAPI } from '@/shared/types/electron-api';
+import type { APIResponse } from '@/shared/types/electron-api/base';
+import type { SessionDisplay } from '@/shared/types/electron-api/sessions-api';
 import type { ChatStoreDependencies } from '../chat/chatStore';
 import { createChatStore } from '../chat/chatStore';
+
+const makeSessionDisplay = (overrides: Partial<SessionDisplay> = {}): SessionDisplay => ({
+  id: 'test-session-id',
+  title: 'Test Session',
+  topic: 'Test Topic',
+  difficulty: 'beginner',
+  status: 'active',
+  progress: 0,
+  agent: { type: 'learning', name: 'Test Agent' },
+  lastActivity: new Date().toISOString(),
+  duration: '0 min',
+  ...overrides,
+});
+
+const successResponse = <T,>(data: T): APIResponse<T> => ({ success: true, data });
 
 // Mock implementations for testing
 export function createMockSessionService(): SessionService {
   return {
-    createNewSession: async () => 'test-session-id',
-    saveSessionWithMessages: async () => undefined,
-    generateAITitle: async (content: string, _provider: string, _model: string) => `AI Title for: ${content}`,
+    getRecentSessions: async () => [],
+    getGlobalStatistics: async () => ({
+      totalSessions: 0,
+      totalMessages: 0,
+      totalUserMessages: 0,
+      totalAssistantMessages: 0,
+      totalTokensUsed: 0,
+      averageMessagesPerSession: 0,
+    }),
+    listSessions: async () => ({ sessions: [], total: 0, hasMore: false }),
+    getSession: async () => null,
+    generateAITitle: async (content: string, _provider?: string, _model?: string) =>
+      `AI Title for: ${content}`,
+    generateSessionId: () => 'generated-id',
     updateSessionTitle: async () => undefined,
-    saveMessage: async () => undefined,
+    createSession: async (payload) =>
+      makeSessionDisplay({
+        id: 'test-session-id',
+        title: payload.title ?? 'Test Session',
+        topic: payload.title ?? 'Test Topic',
+      }),
+    deleteSession: async () => undefined,
+    searchSessions: async () => ({ sessions: [], total: 0, hasMore: false }),
   };
 }
 
-export function createMockElectronAPI(): { chat: ChatAPI; sessions: SessionsAPI } {
+export function createMockElectronAPI(): { sessions: SessionsAPI } {
+  const baseSession = (): SessionDisplay => ({
+    ...makeSessionDisplay(),
+  });
+
   return {
-    chat: {
-      startConversation: async () => ({
-        id: 'test-conversation-id',
-        title: 'Test Conversation',
-        messages: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }),
-      sendMessage: async ({ message }) => ({
-        id: 'test-message-id',
-        role: 'assistant' as const,
-        content: `Mock response to: ${message}`,
-        timestamp: new Date().toISOString(),
-        status: 'delivered' as const,
-      }),
-      sendMessageStream: async function* ({ message }: { message: string }): AsyncGenerator<string> {
-        yield `Mock streaming response to: ${message}`;
-      },
-      getConversationHistory: async () => ({
-        messages: [],
-        totalMessages: 0,
-      }),
-    },
     sessions: {
-      createSession: async ({ title }: { title?: string }) => ({
-        success: true,
-        sessionId: 'test-session-id',
-        session: {
-          id: 'test-session-id',
-          title: title ?? 'Test Session',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages: [],
-        },
-      }),
-      getSession: async ({ sessionId }: { sessionId: string }) => ({
-        success: true,
-        session: {
-          id: sessionId,
-          title: 'Test Session',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messages: [],
-        },
-      }),
-      updateSession: async () => ({
-        success: true,
-      }),
-      deleteSession: async () => ({
-        success: true,
-      }),
-      listSessions: async () => ({
-        success: true,
-        sessions: [],
-        total: 0,
-        hasMore: false,
-      }),
-      searchSessions: async () => ({
-        success: true,
-        results: [],
-        total: 0,
-      }),
+      create: async (payload) =>
+        successResponse<{ sessionId: string; session?: SessionDisplay }>({
+          sessionId: payload.threadId ?? 'test-session-id',
+          session: {
+            ...baseSession(),
+            id: payload.threadId ?? 'test-session-id',
+            title: payload.title ?? 'Test Session',
+            topic: payload.title ?? 'Test Topic',
+          },
+        }),
+      get: async (sessionId: string) =>
+        successResponse<SessionDisplay | undefined>({ ...baseSession(), id: sessionId }),
+      update: async () => successResponse<SessionDisplay | undefined>(undefined),
+      delete: async () => successResponse({ deleted: true }),
+      updateTitle: async () => successResponse<void>(undefined),
+      list: async () =>
+        successResponse({
+          sessions: [],
+          total: 0,
+          hasMore: false,
+        }),
+      getRecentSessions: async () => successResponse<SessionDisplay[]>([]),
+      search: async () =>
+        successResponse({
+          sessions: [],
+          total: 0,
+          hasMore: false,
+        }),
+      getStatistics: async () =>
+        successResponse({
+          totalSessions: 0,
+          totalMessages: 0,
+          totalUserMessages: 0,
+          totalAssistantMessages: 0,
+          totalTokensUsed: 0,
+          averageMessagesPerSession: 0,
+        }),
     },
   };
 }
 
 // Test factory function
-export function createTestChatStore(overrides?: Partial<ChatStoreDependencies>): ReturnType<typeof createChatStore> {
+export function createTestChatStore(
+  overrides?: Partial<ChatStoreDependencies>,
+): ReturnType<typeof createChatStore> {
   const defaultDeps: ChatStoreDependencies = {
-    sessionService: createMockSessionService(),
     electronAPI: createMockElectronAPI(),
   };
 
@@ -123,54 +114,50 @@ export function createTestChatStore(overrides?: Partial<ChatStoreDependencies>):
 }
 
 // Test helper hook
-export function useTestChatStore(overrides?: Partial<ChatStoreDependencies>): ReturnType<typeof createChatStore> {
+export function useTestChatStore(
+  overrides?: Partial<ChatStoreDependencies>,
+): ReturnType<typeof createChatStore> {
   return createTestChatStore(overrides);
 }
 
 // Pre-configured test scenarios
 export const testScenarios = {
-  withError: (error: string): ReturnType<typeof createTestChatStore> => createTestChatStore({
-    sessionService: {
-      ...createMockSessionService(),
-      createNewSession: async () => { throw new Error(error); },
-    },
-  }),
-
-  withEmptyHistory: (): ReturnType<typeof createTestChatStore> => createTestChatStore({
-    electronAPI: {
-      ...createMockElectronAPI(),
-      sessions: {
-        ...createMockElectronAPI().sessions,
-        getSession: async () => ({
-          success: true,
-          session: {
-            id: 'test-session-id',
-            title: 'Test Session',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            messages: [],
+  withError: (error: string): ReturnType<typeof createTestChatStore> =>
+    createTestChatStore({
+      electronAPI: {
+        ...createMockElectronAPI(),
+        sessions: {
+          ...createMockElectronAPI().sessions,
+          get: async () => {
+            throw new Error(error);
           },
-        }),
+        },
       },
-    },
-  }),
+    }),
 
-  withPreloadedMessages: (messages: unknown[]): ReturnType<typeof createTestChatStore> => createTestChatStore({
-    electronAPI: {
-      ...createMockElectronAPI(),
-      sessions: {
-        ...createMockElectronAPI().sessions,
-        getSession: async () => ({
-          success: true,
-          session: {
-            id: 'test-session-id',
-            title: 'Test Session',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            messages,
-          },
-        }),
+  withEmptyHistory: (): ReturnType<typeof createTestChatStore> =>
+    createTestChatStore({
+      electronAPI: {
+        ...createMockElectronAPI(),
+        sessions: {
+          ...createMockElectronAPI().sessions,
+          get: async () => successResponse<SessionDisplay>(makeSessionDisplay()),
+        },
       },
-    },
-  }),
+    }),
+
+  withPreloadedMessages: (messages: unknown[]): ReturnType<typeof createTestChatStore> =>
+    createTestChatStore({
+      electronAPI: {
+        ...createMockElectronAPI(),
+        sessions: {
+          ...createMockElectronAPI().sessions,
+          get: async () =>
+            successResponse<SessionDisplay>({
+              ...makeSessionDisplay(),
+              messages,
+            } as SessionDisplay),
+        },
+      },
+    }),
 };

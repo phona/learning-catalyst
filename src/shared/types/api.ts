@@ -8,7 +8,7 @@ import type { ChatOptions, TokenUsage, StreamChunk } from './ai';
 import type { AppConfig } from './config';
 import type { Session, SessionMetadata, SessionExportOptions } from './session';
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -55,7 +55,7 @@ export interface StreamResponse {
 
 export interface ConfigRequest {
   key?: string;
-  value?: any;
+  value?: unknown;
   section?: string;
 }
 

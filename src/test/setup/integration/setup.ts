@@ -6,12 +6,32 @@
  * setup from both renderer and main process environments.
  */
 
-import '@testing-library/jest-dom'
-import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest'
+import React from 'react';
+import '@testing-library/jest-dom';
+import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 
 // Set test environment
-process.env.NODE_ENV = 'test'
-process.env.INTEGRATION_TEST = 'true'
+process.env.NODE_ENV = 'test';
+process.env.INTEGRATION_TEST = 'true';
+
+// Mock relation-graph-react before importing any React components
+// The module has initialization code that accesses DOM, so we need a proper mock
+const MockRelationGraph = React.forwardRef<any, any>((props, ref) => {
+  React.useImperativeHandle(ref, () => ({
+    getInstance: () => ({
+      setJsonData: vi.fn(),
+    }),
+  }));
+  return React.createElement('div', { 'data-testid': 'rg-mock' }, props.children);
+});
+
+vi.mock('relation-graph-react', () => ({
+  default: MockRelationGraph,
+  RelationGraph: MockRelationGraph,
+  useRelationGraph: vi.fn(() => ({
+    getInstance: vi.fn(),
+  })),
+}));
 
 // Mock Electron APIs for integration testing
 const mockElectron = {
@@ -19,28 +39,28 @@ const mockElectron = {
     getPath: (name: string) => {
       switch (name) {
       case 'userData':
-        return './test-data'
+        return './test-data';
       default:
-        return '.'
+        return '.';
       }
-    }
+    },
   },
   ipcMain: {
     handle: vi.fn(),
     removeHandler: vi.fn(),
     on: vi.fn(),
-    removeAllListeners: vi.fn()
+    removeAllListeners: vi.fn(),
   },
   ipcRenderer: {
     invoke: vi.fn(),
     on: vi.fn(),
-    removeListener: vi.fn()
+    removeListener: vi.fn(),
   },
   MessageChannelMain: class MockMessageChannelMain {
-    port1 = { postMessage: vi.fn(), close: vi.fn(), closed: false }
-    port2 = { postMessage: vi.fn(), close: vi.fn(), closed: false }
-  }
-}
+    port1 = { postMessage: vi.fn(), close: vi.fn(), closed: false };
+    port2 = { postMessage: vi.fn(), close: vi.fn(), closed: false };
+  },
+};
 
 // Mock Electron Store
 vi.mock('electron-store', () => ({
@@ -49,10 +69,10 @@ vi.mock('electron-store', () => ({
     set: vi.fn(),
     has: vi.fn(),
   })),
-}))
+}));
 
 // Mock Electron APIs
-vi.mock('electron', () => mockElectron)
+vi.mock('electron', () => mockElectron);
 
 // Mock window.electronAPI for renderer process
 Object.defineProperty(window, 'electronAPI', {
@@ -81,14 +101,14 @@ Object.defineProperty(window, 'electronAPI', {
     writeFile: vi.fn().mockResolvedValue({ success: true }),
   },
   writable: true,
-})
+});
 
 // Mock Node.js modules
 const mockFs = {
   readFile: async () => 'mock file content',
   writeFile: async () => {},
-  exists: async () => true
-}
+  exists: async () => true,
+};
 
 // Mock Kysely database
 const createMockDatabase = () => ({
@@ -96,61 +116,68 @@ const createMockDatabase = () => ({
     selectAll: vi.fn().mockReturnValue({
       where: vi.fn().mockReturnValue({
         executeTakeFirst: vi.fn().mockResolvedValue(null),
-        execute: vi.fn().mockResolvedValue([])
-      })
+        execute: vi.fn().mockResolvedValue([]),
+      }),
     }),
     select: vi.fn().mockReturnValue({
       where: vi.fn().mockReturnValue({
         executeTakeFirst: vi.fn().mockResolvedValue(null),
-        execute: vi.fn().mockResolvedValue([])
-      })
+        execute: vi.fn().mockResolvedValue([]),
+      }),
     }),
     where: vi.fn().mockReturnValue({
       executeTakeFirst: vi.fn().mockResolvedValue(null),
-      execute: vi.fn().mockResolvedValue([])
-    })
+      execute: vi.fn().mockResolvedValue([]),
+    }),
   }),
   insertInto: vi.fn().mockReturnValue({
     values: vi.fn().mockReturnValue({
       execute: vi.fn().mockResolvedValue({ insertId: 1 }),
-      executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 })
-    })
+      executeTakeFirst: vi.fn().mockResolvedValue({ insertId: 1 }),
+    }),
   }),
   updateTable: vi.fn().mockReturnValue({
     set: vi.fn().mockReturnValue({
       where: vi.fn().mockReturnValue({
-        execute: vi.fn().mockResolvedValue({ changes: 1 })
-      })
-    })
+        execute: vi.fn().mockResolvedValue({ changes: 1 }),
+      }),
+    }),
   }),
   deleteFrom: vi.fn().mockReturnValue({
     where: vi.fn().mockReturnValue({
-      execute: vi.fn().mockResolvedValue({ changes: 1 })
-    })
+      execute: vi.fn().mockResolvedValue({ changes: 1 }),
+    }),
   }),
   transaction: vi.fn().mockImplementation((fn) => fn(createMockDatabase())),
   close: vi.fn().mockResolvedValue(undefined),
-  connected: true
-})
+  connected: true,
+});
 
 // Mock global objects
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
 
-// Mock IntersectionObserver
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
+  // Some libs pass a callback (ignored in tests)
+  constructor(_callback?: ResizeObserverCallback) {}
+}
+
+class MockIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+
+  constructor(_callback?: IntersectionObserverCallback) {}
+}
+
+(globalThis as any).ResizeObserver = MockResizeObserver;
+(globalThis as any).IntersectionObserver = MockIntersectionObserver;
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation(query => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -160,67 +187,67 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-})
+});
 
 /**
  * Integration test environment setup
  */
 beforeAll(async () => {
   // Set up test environment variables
-  process.env.NODE_ENV = 'test'
-  process.env.LC_LOG_LEVEL = 'debug'
-  process.env.LC_DB_MAX_CONNECTIONS = '5'
-  process.env.LC_AGENTS_MAX_CONCURRENT = '2'
+  process.env.NODE_ENV = 'test';
+  process.env.LC_LOG_LEVEL = 'debug';
+  process.env.LC_DB_MAX_CONNECTIONS = '5';
+  process.env.LC_AGENTS_MAX_CONCURRENT = '2';
 
   // Mock require for Node.js modules
-  ;(global as any).require = (moduleName: string) => {
+  (global as any).require = (moduleName: string) => {
     switch (moduleName) {
     case 'electron':
-      return mockElectron
+      return mockElectron;
     case 'fs/promises':
-      return mockFs
+      return mockFs;
     case 'kysely':
-      return { Kysely: vi.fn().mockImplementation(() => createMockDatabase()) }
+      return { Kysely: vi.fn().mockImplementation(() => createMockDatabase()) };
     default:
-      return {}
+      return {};
     }
-  }
+  };
 
-  console.log('🧪 Integration test environment initialized')
-})
+  console.log('🧪 Integration test environment initialized');
+});
 
 /**
  * Global cleanup after all tests
  */
 afterAll(async () => {
-  console.log('✅ Integration test environment cleaned up')
-})
+  console.log('✅ Integration test environment cleaned up');
+});
 
 /**
  * Mock console methods to reduce noise in tests
  */
 Object.defineProperty(console, 'log', {
   value: vi.fn(() => {}),
-  writable: true
-})
+  writable: true,
+});
 
 Object.defineProperty(console, 'warn', {
   value: vi.fn(() => {}),
-  writable: true
-})
+  writable: true,
+});
 
 Object.defineProperty(console, 'error', {
   value: vi.fn(() => {}),
-  writable: true
-})
+  writable: true,
+});
 
 // Global cleanup after each test
 afterEach(() => {
-  vi.clearAllMocks()
-})
+  vi.clearAllMocks();
+});
 
 // Export utilities for integration tests
-export const createMockSession = (id: string = 'test-session') => ({
+export const createMockSession = (id = 'test-session') => ({
   id,
   title: 'Test Session',
   created_at: new Date(),
@@ -252,11 +279,11 @@ export const createMockSession = (id: string = 'test-session') => ({
     productivity_score: 0,
     engagement_score: 0,
   },
-})
+});
 
 export const createMockConfig = () => ({
   ai: {
-    model_types: {
+    modelTypes: {
       chat: {
         default_provider: 'openai',
         default_model: 'gpt-3.5-turbo',
@@ -267,7 +294,7 @@ export const createMockConfig = () => ({
     auto_scroll: true,
     theme: 'light',
   },
-})
+});
 
 export const waitFor = (ms: number): Promise<void> =>
-  new Promise(resolve => setTimeout(resolve, ms))
+  new Promise((resolve) => setTimeout(resolve, ms));

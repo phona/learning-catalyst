@@ -11,7 +11,7 @@ import type { EventEmitter } from 'events';
 export interface IPCMessage {
   id: string;
   channel: string;
-  data?: any;
+  data?: unknown;
   timestamp: number;
   type?: string;
   method?: string;
@@ -25,13 +25,13 @@ export interface IPCMessage {
 export interface IPCRequest extends IPCMessage {
   type: 'request';
   method: string;
-  params?: any;
+  params?: unknown;
 }
 
 export interface IPCResponse extends IPCMessage {
   type: 'response';
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
@@ -39,7 +39,7 @@ export interface IPCResponse extends IPCMessage {
 export interface IPCEvent extends IPCMessage {
   type: 'event';
   eventName: string;
-  eventData?: any;
+  eventData?: unknown;
 }
 
 // Stream message types
@@ -47,20 +47,18 @@ export interface IPCStreamMessage extends IPCMessage {
   type: 'chunk' | 'end' | 'interrupted' | 'interrupt';
   index?: number;
   content?: string;
-  metadata?: any;
+  metadata?: unknown;
   totalChunks?: number;
   atChunk?: number;
   streamId?: string;
 }
 
 // Process types for testing
-export interface MockMainProcess extends EventEmitter {
-  // Additional main process methods can be added here
-}
+export type MockMainProcess = EventEmitter;
 
 export interface MockRendererProcess extends EventEmitter {
-  invoke: (channel: string, data: any) => Promise<any>;
-  invokeWithTimeout: (channel: string, data: any, timeout: number) => Promise<any>;
+  invoke: (channel: string, data: unknown) => Promise<unknown>;
+  invokeWithTimeout: (channel: string, data: unknown, timeout: number) => Promise<unknown>;
   disconnect: () => void;
 }
 
@@ -72,18 +70,14 @@ export interface IPCMessageChannel {
 }
 
 // IPC Handler types
-export type IPCHandler = (event: any, data: any) => Promise<any>;
+export type IPCHandler = (event: unknown, data: unknown) => Promise<unknown>;
 
 export interface IPCHandlerMap {
   [channel: string]: IPCHandler;
 }
 
 // Error types
-export interface IPCError extends Error {
-  code: string;
-  channel?: string;
-  requestId?: string;
-}
+import type { IPCError } from './ipc-error';
 
 // Channel types for communication
 export const IPC_CHANNELS = {
@@ -137,28 +131,36 @@ export const IPC_EVENTS = {
 } as const;
 
 // Type guards
-export function isIPCMessage(obj: any): obj is IPCMessage {
-  return obj && typeof obj === 'object' &&
-         typeof obj.id === 'string' &&
-         typeof obj.channel === 'string' &&
-         typeof obj.timestamp === 'number';
+export function isIPCMessage(obj: unknown): obj is IPCMessage {
+  return (
+    obj !== null &&
+    obj !== undefined &&
+    typeof obj === 'object' &&
+    typeof (obj as IPCMessage).id === 'string' &&
+    typeof (obj as IPCMessage).channel === 'string' &&
+    typeof (obj as IPCMessage).timestamp === 'number'
+  );
 }
 
-export function isIPCRequest(obj: any): obj is IPCRequest {
-  return isIPCMessage(obj) && obj.type === 'request' && typeof obj.method === 'string';
+export function isIPCRequest(obj: unknown): obj is IPCRequest {
+  return isIPCMessage(obj) && (obj as IPCRequest).type === 'request' && typeof (obj as IPCRequest).method === 'string';
 }
 
-export function isIPCResponse(obj: any): obj is IPCResponse {
-  return isIPCMessage(obj) && obj.type === 'response' && typeof obj.success === 'boolean';
+export function isIPCResponse(obj: unknown): obj is IPCResponse {
+  return isIPCMessage(obj) && (obj as IPCResponse).type === 'response' && typeof (obj as IPCResponse).success === 'boolean';
 }
 
-export function isIPCEvent(obj: any): obj is IPCEvent {
-  return isIPCMessage(obj) && obj.type === 'event' && typeof obj.eventName === 'string';
+export function isIPCEvent(obj: unknown): obj is IPCEvent {
+  return isIPCMessage(obj) && (obj as IPCEvent).type === 'event' && typeof (obj as IPCEvent).eventName === 'string';
 }
 
-export function isIPCStreamMessage(obj: any): obj is IPCStreamMessage {
-  return isIPCMessage(obj) &&
-         obj.type === 'stream' &&
-         typeof obj.streamId === 'string' &&
-         typeof obj.isComplete === 'boolean';
+export function isIPCStreamMessage(obj: unknown): obj is IPCStreamMessage {
+  return (
+    isIPCMessage(obj) &&
+    ((obj as IPCStreamMessage).type === 'chunk' ||
+      (obj as IPCStreamMessage).type === 'end' ||
+      (obj as IPCStreamMessage).type === 'interrupted' ||
+      (obj as IPCStreamMessage).type === 'interrupt') &&
+    typeof (obj as IPCStreamMessage).streamId === 'string'
+  );
 }

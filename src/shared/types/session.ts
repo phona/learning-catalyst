@@ -31,6 +31,8 @@ export interface ConversationMessage {
   agentId?: string; // Agent that generated this message
   agentType?: string; // Type of agent that generated this message
   agentStateId?: string; // Agent execution state identifier
+  status?: 'sending' | 'delivered' | 'error' | 'typing';
+  showThinking?: boolean;
 }
 
 export interface MessageMetadata {
@@ -215,7 +217,7 @@ export interface SessionEvent {
   type: 'created' | 'updated' | 'deleted' | 'archived' | 'restored' | 'exported';
   sessionId: string;
   timestamp: Date;
-  data?: any;
+  data?: unknown;
 }
 
 export interface MessageEvent {
@@ -223,7 +225,7 @@ export interface MessageEvent {
   sessionId: string;
   messageId: string;
   timestamp: Date;
-  data?: any;
+  data?: unknown;
 }
 
 // Tool call types for function calling
@@ -279,7 +281,7 @@ export interface AgentSessionState {
   agentId: string;
   sessionId: string;
   stateType: 'checkpoint' | 'context' | 'memory' | 'execution';
-  stateData: any; // Serialized agent state
+  stateData: unknown; // Serialized agent state
   checkpointId?: string; // Reference to LangGraph checkpoint if applicable
   createdAt: Date;
   updatedAt: Date;
@@ -347,8 +349,8 @@ export interface AgentSessionEvent {
   data?: {
     fromAgentId?: string; // For handoffs
     toAgentId?: string; // For handoffs
-    stateBefore?: any;
-    stateAfter?: any;
+    stateBefore?: unknown;
+    stateAfter?: unknown;
     errorMessage?: string;
     executionTimeMs?: number;
   };
@@ -364,7 +366,7 @@ export interface AgentExecutionContext {
   threadId?: string; // LangGraph thread ID
   checkpointId?: string; // Current checkpoint
   messageHistory: ConversationMessage[];
-  agentState: any; // Current agent state
+  agentState: unknown; // Current agent state
   availableTools: string[];
   collaborationAgents: string[]; // Other agents in the session
   sessionMetadata: SessionMetadata;

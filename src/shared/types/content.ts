@@ -38,7 +38,7 @@ export interface SearchResult {
   relevanceScore: number;
   matchType: 'exact' | 'partial' | 'tag' | 'content';
   preview?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface LearningPathSuggestion {

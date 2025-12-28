@@ -1,12 +1,11 @@
 /**
  * Production Error Boundary and Health Monitoring
- * 
+ *
  * Enhanced error boundaries with recovery mechanisms, health monitoring,
  * and production-grade error reporting for the Learning Catalyst application.
  */
 
 import React, { Component, ReactNode } from 'react';
-import { performanceService } from '@/shared/services/performance-service';
 import { createTypedEventEmitter } from '@/shared/utils/type-utils';
 
 interface ErrorBoundaryProps {
@@ -24,6 +23,7 @@ interface ErrorBoundaryState {
   errorInfo: React.ErrorInfo | null;
   recoveryAttempts: number;
   healthStatus: HealthStatus;
+  errorCount: number;
 }
 
 interface HealthStatus {
@@ -45,7 +45,7 @@ interface ErrorRecoveryEvent {
 
 /**
  * Production Error Boundary Component
- * 
+ *
  * Provides comprehensive error handling with:
  * - Automatic error recovery
  * - Health status monitoring
@@ -53,6 +53,8 @@ interface ErrorRecoveryEvent {
  * - Graceful degradation
  * - User-friendly error messages
  */
+type ComponentEventKey = 'error:occurred' | 'recovery:attempted' | 'health:changed';
+
 export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   private readonly startTime = Date.now();
   private readonly events = createTypedEventEmitter<{
@@ -63,14 +65,14 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
 
   private recoveryTimeoutId: NodeJS.Timeout | null = null;
   private healthCheckInterval: NodeJS.Timeout | null = null;
-  
+
   private readonly MAX_RECOVERY_ATTEMPTS = 3;
   private readonly RECOVERY_DELAY = 5000; // 5 seconds
   private readonly HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    
+
     this.state = {
       hasError: false,
       error: null,
@@ -82,8 +84,9 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
         errorCount: 0,
         uptime: 0,
         memoryUsage: 0,
-        performanceScore: 100
-      }
+        performanceScore: 100,
+      },
+      errorCount: 0,
     };
 
     this.startHealthMonitoring();
@@ -96,37 +99,30 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
-      error
+      error,
     };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
     console.error('[ErrorBoundary] Component error caught:', error, errorInfo);
-    
-    // Record performance impact
-    performanceService.recordMetric('error_boundary_error', 0, {
-      component: this.props.componentName || 'Unknown',
-      error: error.message,
-      stack: error.stack,
-      errorInfo: errorInfo.componentStack
-    });
 
     // Update state
-    this.setState(prevState => ({
+    this.setState((prevState) => ({
       errorInfo,
       recoveryAttempts: prevState.recoveryAttempts + 1,
+      errorCount: prevState.errorCount + 1,
       healthStatus: {
         ...prevState.healthStatus,
         errorCount: prevState.healthStatus.errorCount + 1,
-        status: prevState.healthStatus.errorCount >= 5 ? 'critical' : 'degraded'
-      }
+        status: prevState.healthStatus.errorCount >= 5 ? 'critical' : 'degraded',
+      },
     }));
 
     // Emit error event
     this.events.emit('error:occurred', {
       error,
       componentName: this.props.componentName || 'Unknown',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // Call custom error handler
@@ -150,10 +146,13 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
     }
 
     console.info(`[ErrorBoundary] Scheduling recovery attempt ${this.state.recoveryAttempts + 1}`);
-    
-    this.recoveryTimeoutId = setTimeout(() => {
-      this.attemptRecovery();
-    }, this.RECOVERY_DELAY * (this.state.recoveryAttempts + 1)); // Exponential backoff
+
+    this.recoveryTimeoutId = setTimeout(
+      () => {
+        this.attemptRecovery();
+      },
+      this.RECOVERY_DELAY * (this.state.recoveryAttempts + 1),
+    ); // Exponential backoff
   }
 
   private async attemptRecovery(): Promise<void> {
@@ -161,14 +160,18 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
     console.info(`[ErrorBoundary] Attempting recovery ${attempt}/${this.MAX_RECOVERY_ATTEMPTS}`);
 
     try {
-      // Measure recovery performance
-      await performanceService.measureOperation('error_recovery', async () => {
-        // Clear error state to retry rendering
-        this.setState({
-          hasError: false,
-          error: null,
-          errorInfo: null
-        });
+      // Clear error state to retry rendering
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+        errorCount: 0,
+        healthStatus: {
+          ...this.state.healthStatus,
+          errorCount: 0,
+          status: 'healthy',
+          lastCheck: Date.now(),
+        },
       });
 
       // Record successful recovery
@@ -177,11 +180,10 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
         error: this.state.error?.message || 'Unknown',
         recoveryAttempt: attempt,
         success: true,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       console.info(`[ErrorBoundary] Recovery attempt ${attempt} successful`);
-
     } catch (recoveryError) {
       console.error(`[ErrorBoundary] Recovery attempt ${attempt} failed:`, recoveryError);
 
@@ -191,13 +193,13 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
         error: this.state.error?.message || 'Unknown',
         recoveryAttempt: attempt,
         success: false,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       // If we've exhausted recovery attempts, show error state
       if (attempt >= this.MAX_RECOVERY_ATTEMPTS) {
         this.setState({
-          hasError: true
+          hasError: true,
         });
       }
     }
@@ -219,28 +221,27 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
   }
 
   private performHealthCheck(): void {
-    const memoryStats = performanceService.getMemoryStats();
-    const healthStatus = this.calculateHealthStatus(memoryStats);
+    const healthStatus = this.calculateHealthStatus();
 
     this.setState({ healthStatus });
     this.events.emit('health:changed', healthStatus);
   }
 
-  private calculateHealthStatus(memoryStats: any): HealthStatus {
+  private calculateHealthStatus(): HealthStatus {
     const uptime = Date.now() - this.startTime;
-    const memoryUsage = memoryStats.percentage || 0;
-    
+    const memoryUsage = 0; // Not available without performance monitoring
+
     let status: HealthStatus['status'] = 'healthy';
     let performanceScore = 100;
 
-    // Determine health status based on metrics
-    if (this.state.errorCount >= 10 || memoryUsage > 90) {
+    // Determine health status based on error count only
+    if (this.state.errorCount >= 10) {
       status = 'critical';
       performanceScore = 20;
-    } else if (this.state.errorCount >= 5 || memoryUsage > 75) {
+    } else if (this.state.errorCount >= 5) {
       status = 'degraded';
       performanceScore = 50;
-    } else if (this.state.errorCount > 0 || memoryUsage > 60) {
+    } else if (this.state.errorCount > 0) {
       status = 'degraded';
       performanceScore = 75;
     }
@@ -251,7 +252,7 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
       errorCount: this.state.errorCount,
       uptime,
       memoryUsage,
-      performanceScore
+      performanceScore,
     };
   }
 
@@ -271,7 +272,14 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
       hasError: false,
       error: null,
       errorInfo: null,
-      recoveryAttempts: 0
+      recoveryAttempts: 0,
+      errorCount: 0,
+      healthStatus: {
+        ...this.state.healthStatus,
+        errorCount: 0,
+        status: 'healthy',
+        lastCheck: Date.now(),
+      },
     });
   }
 
@@ -293,8 +301,18 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
       <div className="error-boundary-fallback p-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
         <div className="flex items-start space-x-3">
           <div className="flex-shrink-0">
-            <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            <svg
+              className="w-6 h-6 text-red-600 dark:text-red-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
           <div className="flex-1">
@@ -302,18 +320,25 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
               Component Error
             </h3>
             <p className="text-sm text-red-700 dark:text-red-300 mb-4">
-              The component "{componentName || 'Unknown'}" encountered an error and couldn't be rendered.
+              The component "{componentName || 'Unknown'}" encountered an error and couldn't be
+              rendered.
             </p>
-            
+
             {/* Health Status Display */}
             <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded border">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Health</span>
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  healthStatus.status === 'healthy' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                    healthStatus.status === 'degraded' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                      'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                }`}>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  System Health
+                </span>
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    healthStatus.status === 'healthy'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : healthStatus.status === 'degraded'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  }`}
+                >
                   {healthStatus.status.toUpperCase()}
                 </span>
               </div>
@@ -332,10 +357,9 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
                 disabled={recoveryAttempts >= this.MAX_RECOVERY_ATTEMPTS}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded transition-colors"
               >
-                {recoveryAttempts >= this.MAX_RECOVERY_ATTEMPTS 
-                  ? 'Recovery Exhausted' 
-                  : `Retry (${recoveryAttempts}/${this.MAX_RECOVERY_ATTEMPTS})`
-                }
+                {recoveryAttempts >= this.MAX_RECOVERY_ATTEMPTS
+                  ? 'Recovery Exhausted'
+                  : `Retry (${recoveryAttempts}/${this.MAX_RECOVERY_ATTEMPTS})`}
               </button>
               <button
                 onClick={() => this.resetError()}
@@ -344,10 +368,11 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
                 Reset Error
               </button>
             </div>
-            
+
             {healthStatus.status === 'critical' && (
               <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-800 dark:text-yellow-200">
-                <strong>Warning:</strong> System is experiencing critical issues. Consider refreshing the page.
+                <strong>Warning:</strong> System is experiencing critical issues. Consider
+                refreshing the page.
               </div>
             )}
           </div>
@@ -372,7 +397,7 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
     if (this.recoveryTimeoutId) {
       clearTimeout(this.recoveryTimeoutId);
     }
-    
+
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval);
     }
@@ -382,16 +407,16 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
   // Event API
   // ============================================================================
 
-  on<TKey extends keyof typeof this.events>(
+  on<TKey extends ComponentEventKey>(
     event: TKey,
-    listener: Parameters<typeof this.events.on<TKey>>[1]
+    listener: Parameters<typeof this.events.on<TKey>>[1],
   ): void {
     this.events.on(event as any, listener);
   }
 
-  off<TKey extends keyof typeof this.events>(
+  off<TKey extends ComponentEventKey>(
     event: TKey,
-    listener: Parameters<typeof this.events.off<TKey>>[1]
+    listener: Parameters<typeof this.events.off<TKey>>[1],
   ): void {
     this.events.off(event as any, listener);
   }
@@ -405,19 +430,15 @@ export class ProductionErrorBoundary extends Component<ErrorBoundaryProps, Error
  * Global health monitoring service for the entire application
  */
 export class GlobalHealthMonitor {
-  private static instance: GlobalHealthMonitor;
   private readonly healthData = new Map<string, HealthStatus>();
+  private static readonly globalEventKeys = [
+    'global:health:changed',
+    'global:health:critical',
+  ] as const;
   private readonly events = createTypedEventEmitter<{
     'global:health:changed': { component: string; status: HealthStatus };
     'global:health:critical': { component: string; status: HealthStatus };
   }>();
-
-  static getInstance(): GlobalHealthMonitor {
-    if (!GlobalHealthMonitor.instance) {
-      GlobalHealthMonitor.instance = new GlobalHealthMonitor();
-    }
-    return GlobalHealthMonitor.instance;
-  }
 
   registerComponent(componentName: string): void {
     this.healthData.set(componentName, {
@@ -426,7 +447,7 @@ export class GlobalHealthMonitor {
       errorCount: 0,
       uptime: 0,
       memoryUsage: 0,
-      performanceScore: 100
+      performanceScore: 100,
     });
   }
 
@@ -439,7 +460,7 @@ export class GlobalHealthMonitor {
 
     // Emit events
     this.events.emit('global:health:changed', { component: componentName, status: updated });
-    
+
     if (updated.status === 'critical') {
       this.events.emit('global:health:critical', { component: componentName, status: updated });
     }
@@ -462,15 +483,23 @@ export class GlobalHealthMonitor {
       healthy: 0,
       degraded: 0,
       critical: 0,
-      error: 0
+      error: 0,
     };
 
-    components.forEach(status => {
+    components.forEach((status) => {
       switch (status.status) {
-      case 'healthy': summary.healthy++; break;
-      case 'degraded': summary.degraded++; break;
-      case 'critical': summary.critical++; break;
-      case 'error': summary.error++; break;
+      case 'healthy':
+        summary.healthy++;
+        break;
+      case 'degraded':
+        summary.degraded++;
+        break;
+      case 'critical':
+        summary.critical++;
+        break;
+      case 'error':
+        summary.error++;
+        break;
       }
     });
 
@@ -482,20 +511,19 @@ export class GlobalHealthMonitor {
     return { overall, components, summary };
   }
 
-  on<TKey extends keyof typeof this.events>(
+  on<TKey extends (typeof GlobalHealthMonitor.globalEventKeys)[number]>(
     event: TKey,
-    listener: Parameters<typeof this.events.on<TKey>>[1]
+    listener: Parameters<typeof this.events.on<TKey>>[1],
   ): void {
     this.events.on(event as any, listener);
   }
 
-  off<TKey extends keyof typeof this.events>(
+  off<TKey extends (typeof GlobalHealthMonitor.globalEventKeys)[number]>(
     event: TKey,
-    listener: Parameters<typeof this.events.off<TKey>>[1]
+    listener: Parameters<typeof this.events.off<TKey>>[1],
   ): void {
     this.events.off(event as any, listener);
   }
 }
 
-// Export singleton instance
-export const globalHealthMonitor = GlobalHealthMonitor.getInstance();
+export const createGlobalHealthMonitor = (): GlobalHealthMonitor => new GlobalHealthMonitor();

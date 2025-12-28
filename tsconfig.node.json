@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-	"jsx": "react",
+    "jsx": "react",
     "composite": true,
     "skipLibCheck": true,
     "module": "nodenext",
@@ -8,18 +8,10 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@/renderer/*": [
-        "src/renderer/*"
-      ],
-      "@/main/*": [
-        "src/main/*"
-      ],
-      "@/shared/*": [
-        "src/shared/*"
-      ]
+      "@/*": ["src/*"],
+      "@/renderer/*": ["src/renderer/*"],
+      "@/main/*": ["src/main/*"],
+      "@/shared/*": ["src/shared/*"]
     }
   },
   "include": ["vite.config.ts"],

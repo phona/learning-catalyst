@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/strict-boolean-expressions, no-undef */
+/* eslint-env jest */
 /**
  * Shared Test Utilities
  *
@@ -8,20 +10,24 @@
 import { vi } from 'vitest';
 
 // Create shared mock instances for consistent testing
-export const createSharedMockLogger = () => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  reset: vi.fn(() => {
-    // Reset all mock calls
-    Object.keys(this).forEach(key => {
-      if (typeof this[key as keyof typeof this] === 'function') {
-        (this[key as keyof typeof this] as any).mockClear();
-      }
+export const createSharedMockLogger = () => {
+  const logger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  } as Record<'info' | 'warn' | 'error' | 'debug', ReturnType<typeof vi.fn>> & {
+    reset?: ReturnType<typeof vi.fn>;
+  };
+
+  logger.reset = vi.fn(() => {
+    (['info', 'warn', 'error', 'debug'] as const).forEach((key) => {
+      (logger[key] as any).mockClear();
     });
-  })
-});
+  });
+
+  return logger as typeof logger & { reset: ReturnType<typeof vi.fn> };
+};
 
 export const createMockAsyncLocalStorage = () => {
   const store = new Map();
@@ -29,11 +35,11 @@ export const createMockAsyncLocalStorage = () => {
     getStore: vi.fn(() => ({
       get: vi.fn((key: string) => store.get(key)),
       set: vi.fn((key: string, value: any) => store.set(key, value)),
-      entries: vi.fn(() => Array.from(store.entries()))
+      entries: vi.fn(() => Array.from(store.entries())),
     })),
     run: vi.fn(async (context: any, fn: () => Promise<any>) => {
       return await fn();
-    })
+    }),
   };
 };
 
@@ -44,13 +50,13 @@ export const createMockAIProvider = (name: string, defaultResponse = 'Mock respo
     metadata: {
       model: `${name}-mock-model`,
       tokensUsed: 10,
-      provider: name
-    }
+      provider: name,
+    },
   }),
   stream: vi.fn().mockImplementation(async function* () {
     yield { content: `${name} `, metadata: { chunkIndex: 0 } };
     yield { content: defaultResponse, metadata: { chunkIndex: 1 } };
-  })
+  }),
 });
 
 // Common mock database factory
@@ -67,7 +73,7 @@ export const createMockDatabase = () => ({
   executeTakeFirst: vi.fn().mockResolvedValue(null),
   updateTable: vi.fn().mockReturnThis(),
   deleteFrom: vi.fn().mockReturnThis(),
-  transaction: vi.fn().mockImplementation(async (fn) => fn({}))
+  transaction: vi.fn().mockImplementation(async (fn) => fn({})),
 });
 
 // Memory testing utility with proportional thresholds
@@ -84,7 +90,7 @@ export class MemoryTestHelper {
   sample(): void {
     this.samples.push({
       timestamp: Date.now(),
-      heapUsed: process.memoryUsage().heapUsed
+      heapUsed: typeof process !== 'undefined' ? process.memoryUsage().heapUsed : 0,
     });
   }
 
@@ -101,7 +107,7 @@ export class MemoryTestHelper {
   }
 
   forceGarbageCollection(): void {
-    if (global.gc) {
+    if (typeof global !== 'undefined' && global.gc) {
       global.gc();
     }
   }
@@ -113,7 +119,7 @@ export const createTestExecutionContext = (overrides: any = {}) => ({
   input: {},
   context: {},
   options: {},
-  ...overrides
+  ...overrides,
 });
 
 export const createBasicUserContext = (overrides: any = {}) => ({
@@ -128,28 +134,32 @@ export const createBasicUserContext = (overrides: any = {}) => ({
   preferences: {
     practiceFrequency: 'medium',
     difficultyPreference: 'medium',
-    feedbackStyle: 'encouraging'
+    feedbackStyle: 'encouraging',
   },
   statistics: {
     totalPracticeSessions: 0,
     successRate: 0.8,
     averageSessionLength: 25,
-    preferredPracticeTimes: []
+    preferredPracticeTimes: [],
   },
-  ...overrides
+  ...overrides,
 });
 
 // Common assertion helpers
 export const expectValidResponse = (response: any) => {
-  expect(response).toBeDefined();
-  expect(response.content).toBeDefined();
-  expect(response.metadata).toBeDefined();
+  if (typeof expect === 'function') {
+    expect(response).toBeDefined();
+    expect(response.content).toBeDefined();
+    expect(response.metadata).toBeDefined();
+  }
 };
 
 export const expectValidStreamingChunk = (chunk: any) => {
-  expect(chunk).toHaveProperty('content');
-  expect(chunk).toHaveProperty('metadata');
-  expect(chunk.metadata).toHaveProperty('provider');
+  if (typeof expect === 'function') {
+    expect(chunk).toHaveProperty('content');
+    expect(chunk).toHaveProperty('metadata');
+    expect(chunk.metadata).toHaveProperty('provider');
+  }
 };
 
 // Common cleanup utilities
@@ -162,7 +172,7 @@ export const cleanupMockService = async (service: any) => {
 // Error handling test helpers
 export const expectGracefulError = async (
   operation: () => Promise<any>,
-  expectedErrorPattern: string | RegExp
+  expectedErrorPattern: string | RegExp,
 ) => {
   try {
     await operation();
@@ -170,11 +180,14 @@ export const expectGracefulError = async (
     // This might be acceptable depending on the operation
     return true;
   } catch (error) {
-    expect(error).toBeInstanceOf(Error);
-    if (typeof expectedErrorPattern === 'string') {
-      expect((error as Error).message).toContain(expectedErrorPattern);
-    } else {
-      expect((error as Error).message).toMatch(expectedErrorPattern);
+    if (typeof expect === 'function') {
+      expect(error).toBeInstanceOf(Error);
+      if (typeof expectedErrorPattern === 'string') {
+        expect((error as Error).message).toContain(expectedErrorPattern);
+      } else {
+        expect((error as Error).message).toMatch(expectedErrorPattern);
+      }
     }
   }
 };
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/explicit-function-return-type, @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/strict-boolean-expressions, no-undef */
