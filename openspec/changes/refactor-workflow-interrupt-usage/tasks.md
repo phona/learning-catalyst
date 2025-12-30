@@ -79,6 +79,33 @@
 - [ ] Demonstrates pattern: interrupt → extract choice → update state
 - [ ] Documented as reference implementation
 
+### Task 2.7: Update Chat IPC Handlers for Natural Flow
+**Files**: `src/main/handlers/chat-handlers.ts`
+**Description**: Update IPC handlers to work with phase-based routing instead of interrupt resume
+**Acceptance**:
+- [ ] Handler routes based on teach/practice phase (not interrupt state)
+- [ ] No special resume handling needed for teach/practice Q&A
+- [ ] Stream continues naturally through message flow
+- [ ] Structured interrupts still work (approve/select/upload)
+
+### Task 2.8: Update Workflow Stream Handler
+**Files**: `src/main/handlers/catalyst-handlers.ts` (or workflow handler file)
+**Description**: Ensure stream handler properly handles END vs interrupt in new pattern
+**Acceptance**:
+- [ ] Stream handler detects END correctly (normal completion)
+- [ ] Phase state properly checked for routing decisions
+- [ ] No interrupt events for teach/practice Q&A flows
+- [ ] Checkpoint saves phase state for resume
+
+### Task 2.9: Verify Frontend Chat Components
+**Files**: `src/renderer/components/Chat/`, `src/renderer/services/chat/`
+**Description**: Ensure frontend no longer needs resume handling for teach/practice flows
+**Acceptance**:
+- [ ] Chat components work with natural message flow (no resume protocol)
+- [ ] Structured interactions still trigger interrupt UI (approve/select buttons)
+- [ ] Message persistence works via checkpoint + messages (not interrupt state)
+- [ ] Thread restoration works correctly with new pattern
+
 ## Phase 3: Testing and Validation
 
 ### Task 3.1: Add Natural Chat Flow Tests for Teach
@@ -114,15 +141,25 @@
 - [ ] Test: ASSESS (high confidence) → FAST_TRACK_QUIZ → GRADE_QUIZ
 - [ ] All conditional routing paths validated
 
-### Task 3.5: Verify Frontend Compatibility
-**Files**: `src/renderer/components/Chat/`, `src/renderer/services/chat/`
+### Task 3.5: Test IPC Handler Phase Routing
+**Files**: `src/main/handlers/__tests__/chat-handlers.test.ts` (create if needed)
+**Description**: Test that IPC handlers route based on phase, not interrupt
+**Acceptance**:
+- [ ] Handler checks teach/practice phase for routing
+- [ ] No resume handling needed for Q&A flows
+- [ ] Structured interrupts still work correctly
+- [ ] Stream continuation works with END pattern
+
+### Task 3.6: Verify Frontend Compatibility
+**Files**: `src/renderer/components/Chat/__tests__/` (integration tests)
 **Description**: Ensure UI works with simplified chat flow
 **Acceptance**:
 - [ ] No special resume handling needed for Q&A
 - [ ] Messages flow naturally in chat UI
 - [ ] Interrupt still works for structured interactions (approve/select)
+- [ ] Thread restoration preserves conversation correctly
 
-### Task 3.6: Performance Validation
+### Task 3.7: Performance Validation
 **File**: `src/main/services/domain/workflow/__tests__/performance.test.ts` (create if needed)
 **Description**: Verify new pattern has no performance regression
 **Acceptance**:
@@ -162,6 +199,7 @@
 Before marking as complete:
 - [ ] All Phase 1 documentation changes reviewed
 - [ ] All Phase 2 refactored nodes tested individually
+- [ ] All Phase 2 IPC/frontend changes verified
 - [ ] All Phase 3 integration tests passing
 - [ ] No regressions in existing functionality
 - [ ] Frontend verified working with new pattern
@@ -174,22 +212,24 @@ Before marking as complete:
 - **Parallelizable**: Tasks 1.1-1.3 can run in parallel
 - **Sequential**: Task 2.1 must complete before 2.2
 - **Sequential**: Task 2.3 must complete before 2.4
-- **Prerequisite**: Tasks 2.1-2.5 complete before 3.1-3.6
+- **Sequential**: Tasks 2.7-2.9 depend on 2.1-2.5 completion
+- **Prerequisite**: Tasks 2.1-2.9 complete before 3.1-3.7
 - **Sequential**: All tests must pass before old nodes removed
 
 ## Estimated Effort
 
 - **Phase 1**: 4 hours
-- **Phase 2**: 16 hours
-- **Phase 3**: 12 hours
+- **Phase 2**: 24 hours (includes IPC/frontend work)
+- **Phase 3**: 16 hours
 - **Phase 4**: 4 hours
-- **Total**: 36 hours (4.5 days)
+- **Total**: 48 hours (6 days)
 
 ## Risk Level
 
 **Medium-High Risk**
 - Breaking changes to core workflow
 - Removes existing interrupt-based nodes
+- Requires IPC handler and frontend updates
 - Requires comprehensive testing
 
 **Mitigations**:
@@ -197,3 +237,4 @@ Before marking as complete:
 - Frontend compatibility verified
 - Clear migration documentation
 - All tests passing before merge
+- IPC layer changes planned and tested
