@@ -131,25 +131,40 @@ export function createThreadListAdapter(deps: {
           .map((c) => c.text)
           .join(' ') ?? '';
 
+      // If no user message, emit placeholder and close
+      if (!textContent) {
+        return createAssistantStream((controller) => {
+          controller.appendText('New Chat');
+          controller.close();
+        });
+      }
+
       return createAssistantStream(async (controller) => {
+        // Emit placeholder immediately (this creates the first text part with "New Chat")
         controller.appendText('New Chat');
-        controller.close();
 
         if (!textContent) {
+          controller.close();
           return;
         }
 
         try {
+          // Generate AI title
           const title = await sessionService.generateAITitle(textContent);
-          // Handle null, undefined, or empty title
           const safeTitle = title ?? '';
           const finalTitle = safeTitle.length > 47 ? safeTitle.slice(0, 47) + '...' : safeTitle;
-          if (finalTitle) {
-            await sessionService.updateSessionTitle(remoteId, finalTitle);
-          }
+
+          // Save to database
+          await sessionService.updateSessionTitle(remoteId, finalTitle);
+
+          // Append the AI-generated title to the stream so Assistant UI can update the UI
+          controller.appendText(finalTitle);
         } catch (error) {
           // Silently fail on title generation errors - UI will show "New Chat"
           console.error('[ThreadListAdapter] Failed to generate title:', error);
+        } finally {
+          // Close the stream
+          controller.close();
         }
       });
     },

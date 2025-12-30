@@ -92,35 +92,39 @@ async generateTitle(remoteId: string, messages: readonly ThreadMessage[]) {
       .map((c) => c.text)
       .join(' ') ?? '';
 
+  // If no user message, emit placeholder and close
+  if (!textContent) {
+    return createAssistantStream((controller) => {
+      controller.appendText('New Chat');
+      controller.close();
+    });
+  }
+
   return createAssistantStream(async (controller) => {
-    // 1. Emit placeholder immediately
+    // Emit placeholder immediately (this creates the first text part with "New Chat")
     controller.appendText('New Chat');
-    controller.close();
 
     if (!textContent) {
+      controller.close();
       return;
     }
 
     try {
-      // 2. Generate AI title
+      // Generate AI title
       const title = await sessionService.generateAITitle(textContent);
       const safeTitle = title ?? '';
       const finalTitle = safeTitle.length > 47 ? safeTitle.slice(0, 47) + '...' : safeTitle;
 
-      // 3. Save to database
+      // Save to database
       await sessionService.updateSessionTitle(remoteId, finalTitle);
 
-      // 4. Emit new title to stream for UI update
-      // FIX: Create a NEW stream with the final title
-      const finalStream = createAssistantStream((finalController) => {
-        finalController.appendText(finalTitle);
-        finalController.close();
-      });
-
-      // Merge the final stream so Assistant UI receives the updated title
-      controller.merge(finalStream);
+      // Append the AI-generated title to the stream so Assistant UI can update the UI
+      controller.appendText(finalTitle);
     } catch (error) {
       console.error('[ThreadListAdapter] Failed to generate title:', error);
+    } finally {
+      // Close the stream
+      controller.close();
     }
   });
 }

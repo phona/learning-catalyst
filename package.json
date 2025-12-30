@@ -76,6 +76,7 @@
     "@langchain/openai": "^1.0.0",
     "@langchain/textsplitters": "^1.0.0",
     "@qdrant/qdrant-js": "1.16.1",
+    "@rollup/rollup-linux-x64-gnu": "^4.54.0",
     "@tanstack/react-query": "^4.24.6",
     "@types/lodash": "^4.17.20",
     "better-sqlite3": "12.5.0",
