@@ -62,10 +62,8 @@ The frontend MUST be able to detect interrupt resolution either through updated 
 
 ---
 
-## MODIFIED Requirements
-
-### Requirement: Structured Interrupts Persist Metadata (modifies workflow-interrupt-message-persistence)
-Structured interrupt nodes MUST persist both the AIMessage with interrupt metadata AND the InterruptRecord in `interruptHistory`.
+### Requirement: Structured Interrupts Persist Both Message and Record
+Structured interrupt nodes MUST persist both the AIMessage with interrupt metadata AND the InterruptRecord in `interruptHistory` for complete audit trail.
 
 **Priority**: P1 (High)
 **Effort**: S

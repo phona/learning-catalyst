@@ -75,15 +75,13 @@ After refactoring, the `chat:start-stream` handler MUST be reduced to transport 
 
 ---
 
-## MODIFIED Requirements
-
-### Requirement: Interrupt Detection Uses Service (modifies chat-transport-bucket2)
-The `chat:start-stream` handler MUST use `interruptService.prepareRun()` instead of directly calling `hasPendingInterrupt()` for resume detection.
+### Requirement: Resume Detection Through Service
+The `chat:start-stream` handler MUST use `interruptService.prepareRun()` for resume detection instead of inline logic.
 
 **Priority**: P1 (High)
 **Effort**: S
 
-#### Scenario: Resume Detection Path (Updated)
+#### Scenario: Resume Detection Path
 - **Given** the workflow for `conversationId=X` has a pending interrupt
 - **When** a new user message arrives
 - **Then** the handler calls `interruptService.prepareRun(X, message)`
