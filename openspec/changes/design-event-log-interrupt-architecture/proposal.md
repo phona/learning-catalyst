@@ -1,213 +1,357 @@
-# Proposal: Design Event-Log Interrupt Architecture
+# Proposal: Native Interrupt with External Storage Restore
 
 ## Summary
 
-Design a transparent interrupt communication layer using an event-log pattern that moves interrupt handling out of `chat-handlers.ts` into a dedicated service. This provides proper separation of concerns, testability, and prepares the architecture for AI SDK v5 integration and future structured interaction features.
+Implement a reliable interrupt system using LangGraph's native `interrupt()` for workflow pausing, combined with external SQLite storage for interrupt context persistence. This enables seamless interrupt resuming across page reloads and app restarts.
 
-## Motivation
+## Problem
 
-### Current Problems
+LangGraph's native `interrupt()` provides workflow pausing but doesn't persist interrupt context:
 
-1. **Hidden Interrupt Logic**: `chat-handlers.ts` (lines 216-232) contains embedded interrupt detection and resume logic that is:
-   - Hard to test in isolation
-   - Tightly coupled to IPC transport
-   - Not reusable for other entry points
+```
+LangGraph interrupt():
+┌─────────────────────────────────────────────────────┐
+│  ✓ Pauses workflow                                   │
+│  ✓ Emits interrupt event in stream                  │
+│  ✗ Checkpoint doesn't store interrupt payload       │
+│  ✗ Page reload = handler gone = lose interrupt      │
+└─────────────────────────────────────────────────────┘
+```
 
-2. **No Audit Trail**: When structured interrupts occur, there's no durable record of:
-   - What prompt was shown to user
-   - When the interrupt occurred
-   - What response was provided
-   - Whether it was resolved or abandoned
+**Result**: Users lose their place in structured interactions when reloading the page.
 
-3. **Opaque State**: Interrupt state is scattered across:
-   - LangGraph `INTERRUPT` channel
-   - Checkpoint `pendingWrites`
-   - Handler-local variables
-   - No unified query interface
+## Solution
 
-4. **Limited Frontend Contract**: The current `toAssistantUIStream()` emits `finish` on interrupt but doesn't provide:
-   - Structured interrupt payload for UI rendering
-   - Interrupt status updates
-   - History restore with interrupt context
+Use external SQLite storage as the "interrupt context bridge":
 
-### Why Now?
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Workflow Node                                                       │
+│  return interrupt({ type: 'qa', prompt: 'What aspect?' })           │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│  Handler (active during stream)                                      │
+│  1. Receives interrupt event from LangGraph                         │
+│  2. Stores context in external storage                              │
+│  3. Emits interrupt-start to frontend                               │
+│  4. Workflow is paused                                               │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│  External Storage (SQLite)                                           │
+│  - interrupt_id                                                      │
+│  - thread_id (conversation)                                          │
+│  - checkpoint_id (for precise resume)                                │
+│  - type, payload, status, timestamps                                 │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│  Page Reload / App Restart                                           │
+│  1. Frontend queries pending interrupts                              │
+│  2. Backend returns interrupt context from SQLite                    │
+│  3. Frontend restores UI state                                       │
+│  4. User responds → resume-interrupt                                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-The current interrupt handling in `chat-handlers.ts` is embedded and hard to test. This creates a clear need for a proper interrupt service layer that:
-- Provides transparent interrupt handling separate from chat transport
-- Enables unit testing without IPC mocking
-- Creates an audit trail for structured interactions
-- Prepares the architecture for AI SDK v5 integration
+## Why This Approach
 
-## Why
-
-Current interrupt handling is scattered across multiple layers without proper separation of concerns. The `chat-handlers.ts` file contains embedded interrupt detection logic (lines 216-232) that is tightly coupled to IPC transport and difficult to test in isolation. When structured interrupts occur, there's no durable audit trail recording what prompt was shown, when it occurred, what response was provided, or whether it was resolved or abandoned.
-
-This architectural debt prevents us from:
-- Building a testable interrupt service layer
-- Supporting structured interrupt UI components
-- Implementing proper interrupt history and restore
-- Preparing for AI SDK v5 integration
-
-The solution is to implement an event-log pattern that moves interrupt handling into a dedicated service with canonical state management, creating proper separation of concerns while enabling rich frontend experiences for structured interactions.
+| Aspect | Benefit |
+|--------|---------|
+| **Native interrupt()** | Uses LangGraph's built-in pause mechanism |
+| **External storage** | Interrupt context survives app restart |
+| **Checkpoint_id** | Resume from exact point, not latest |
+| **Simple handler** | Just watches stream, stores record |
 
 ## What Changes
 
-This design introduces the following changes:
+### 1. External Storage Schema
 
-1. **New Interrupt Service Layer**
-   - `src/main/services/domain/interrupt/interrupt-service.ts` - Factory-based service handling interrupt lifecycle
-   - Extracts interrupt detection and resume logic from `chat-handlers.ts`
-   - Provides `prepareRun()`, `createInterruptRecord()`, and `getPendingInterrupt()` methods
+```sql
+CREATE TABLE interrupts (
+  id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL,
+  checkpoint_id TEXT NOT NULL,
+  checkpoint_timestamp INTEGER NOT NULL,
+  type TEXT NOT NULL,           -- 'qa', 'select', 'approve', 'rate', 'upload'
+  status TEXT NOT NULL DEFAULT 'pending',
+  payload TEXT NOT NULL,        -- JSON: { prompt, options? }
+  resolution TEXT,              -- JSON: { value } when resolved
+  created_at INTEGER NOT NULL,
+  resolved_at INTEGER,
+  FOREIGN KEY (thread_id) REFERENCES threads(id)
+);
 
-2. **Extended Workflow State**
-   - `src/main/services/domain/workflow/state.ts` - Adds `interruptHistory: InterruptRecord[]` channel
-   - Reducer appends new records and updates existing by ID
-   - Default value is empty array
-   - **IMPORTANT**: `interruptHistory` is a **derived index**; primary source of truth is `ChatMessage.metadata.interrupt`
+CREATE INDEX idx_interrupts_pending
+  ON interrupts(thread_id, status)
+  WHERE status = 'pending';
+```
 
-3. **Stream Utils Enhancement**
-   - `src/main/services/domain/workflow/utils/assistant-ui-stream.ts` - New chunk types:
-     - `InterruptStartChunk` - emitted when interrupt detected
-     - `InterruptEndChunk` - emitted when interrupt resolved
-   - Helper functions: `createInterruptStartChunk()`, `createInterruptEndChunk()`
+### 2. Handler: Creating Interrupt
 
-4. **Message Metadata Pattern**
-   - `src/main/services/domain/workflow/utils/interrupt-message.ts` - Helper to create AIMessage with interrupt metadata
-   - Embeds interrupt context in `additional_kwargs` for frontend detection
-   - **NEW**: `ChatMessage.metadata.interrupt` field for history persistence
+```typescript
+async function* handleStream(threadId: string, input: unknown) {
+  const stream = workflowGraph.stream(input, {
+    configurable: { thread_id: threadId },
+  });
 
-5. **Frontend Architecture**
-   - Interrupt store using Zustand (`src/renderer/stores/interrupt-store.ts`)
-   - Extended `AssistantMessage` component with conditional rendering
-   - Stream listener hook (`src/renderer/hooks/useInterruptListener.ts`)
-   - Structured interrupt UI components (SelectInterrupt, ApproveInterrupt, RateInterrupt)
+  for await (const chunk of stream) {
+    // LangGraph emits interrupt event
+    if (chunk.event === 'interrupt') {
+      const interruptValue = chunk.value;
+      const checkpoint = chunk.checkpoint;
 
-6. **Updated Chat Handler**
-   - `src/main/handlers/chat-handlers.ts` - Reduced to ~60 lines (from ~120)
-   - Delegates interrupt handling to service
-   - Maintains existing behavior
+      // Store in external storage
+      const interrupt = await interruptRepo.create({
+        id: crypto.randomUUID(),
+        threadId,
+        checkpointId: checkpoint.id,
+        checkpointTimestamp: Date.now(),
+        type: interruptValue.type,
+        payload: JSON.stringify(interruptValue),
+        status: 'pending',
+        createdAt: Date.now(),
+      });
 
-7. **New IPC Endpoint**
-   - `chat:submit-interrupt-resolution` - Dedicated endpoint for structured interrupt resolution
-   - Does not create visible user messages (unlike `chat:start-stream`)
+      // Emit to frontend
+      yield {
+        type: 'interrupt-start',
+        interruptId: interrupt.id,
+        interruptType: interrupt.type,
+        prompt: interruptValue.prompt,
+        options: interruptValue.options,
+      };
 
-8. **New Specifications**
-   - `openspec/specs/interrupt-service-architecture/spec.md` - Service layer requirements
-   - `openspec/specs/interrupt-event-log-state/spec.md` - State model requirements
-   - `openspec/specs/interrupt-message-metadata/spec.md` - Message metadata pattern
+      // Stop - workflow is paused
+      break;
+    }
+
+    // Normal message
+    yield chunk;
+  }
+}
+```
+
+### 3. Resume Endpoint
+
+```typescript
+ipcMain.handle('chat:resume-interrupt', async (event, payload) => {
+  const { conversationId, interruptId, resolution } = payload;
+
+  // 1. Validate interrupt
+  const interrupt = await interruptRepo.get(interruptId);
+  if (!interrupt || interrupt.status !== 'pending') {
+    throw createIPCError({ /* ... */ });
+  }
+
+  // 2. Update interrupt record
+  await interruptRepo.resolve(interruptId, {
+    value: resolution,
+    resolvedAt: Date.now(),
+  });
+
+  // 3. Resume from checkpoint
+  const stream = workflowGraph.stream(
+    new Command({ resume: resolution }),
+    {
+      configurable: {
+        thread_id: conversationId,
+        checkpoint_id: interrupt.checkpointId,
+      },
+      streamMode: ['messages', 'custom', 'updates'],
+    }
+  );
+
+  // 4. Stream output...
+});
+```
+
+### 4. Page Reload Query
+
+```typescript
+ipcMain.handle('chat:get-thread', async (event, payload) => {
+  const { conversationId } = payload;
+
+  // 1. Get messages from LangGraph checkpoint
+  const checkpoint = await workflowGraph.checkpointer.get({
+    configurable: { thread_id: conversationId },
+  });
+  const messages = checkpoint?.channel_values?.messages || [];
+
+  // 2. Get pending interrupt from external storage
+  const pendingInterrupt = await db.query`
+    SELECT * FROM interrupts
+    WHERE thread_id = ${conversationId}
+    AND status = 'pending'
+    LIMIT 1
+  `;
+
+  return {
+    messages,
+    pendingInterrupt: pendingInterrupt ? {
+      id: pendingInterrupt.id,
+      type: pendingInterrupt.type,
+      prompt: JSON.parse(pendingInterrupt.payload).prompt,
+      options: JSON.parse(pendingInterrupt.payload).options,
+    } : null,
+  };
+});
+```
+
+### 5. Frontend: Restore State
+
+```typescript
+export function ChatPage({ conversationId }: Props) {
+  const [pendingInterrupt, setPendingInterrupt] = useState<PendingInterrupt | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      // get-thread returns messages + pendingInterrupt
+      const { pendingInterrupt } = await chatService.getThread(conversationId);
+
+      if (pendingInterrupt) {
+        setPendingInterrupt(pendingInterrupt);
+        useInterruptStore.getState().setActiveInterrupt(pendingInterrupt);
+      }
+    }
+    load();
+  }, [conversationId]);
+
+  const handleSubmit = async (content: string) => {
+    if (pendingInterrupt && pendingInterrupt.type === 'qa') {
+      // Resume existing interrupt
+      await chatService.resumeInterrupt({
+        conversationId,
+        interruptId: pendingInterrupt.id,
+        resolution: content,
+      });
+      setPendingInterrupt(null);
+    } else {
+      // Normal message
+      await chatService.startStream(conversationId, content);
+    }
+  };
+
+  return (
+    <Thread
+      // QA: composer stays active
+      // Structured: render SelectInterrupt/ApproveInterrupt below message
+    />
+  );
+}
+```
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Active Session                                                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. workflow.stream()                                                    │
+│  2. Node calls interrupt({ type, payload })                             │
+│  3. LangGraph: checkpoint → emit interrupt event → pause                │
+│  4. Handler: receives event                                              │
+│  5. Handler: creates record in interrupts table                          │
+│  6. Handler: yields interrupt-start to frontend                          │
+│  7. Frontend: shows message + keeps composer active (QA)                 │
+│  8. User: submits response                                               │
+│  9. resume-interrupt: update record, Command(resume)                     │
+│  10. LangGraph: resumes from checkpoint                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Page Reload                                                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│  1. Frontend: get-thread (messages + pending interrupt)                  │
+│  2. Backend: SELECT * FROM interrupts WHERE pending                      │
+│  3. Backend: returns interrupt context                                   │
+│  4. Frontend: restores UI state                                          │
+│  5. User: submits response                                               │
+│  6. resume-interrupt: uses stored checkpoint_id                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+## Cost Analysis
+
+| Cost Type | Assessment |
+|-----------|------------|
+| **Performance** | Negligible (async DB ops, ~5ms) |
+| **Code complexity** | ~200 lines (handler + schema + endpoint) |
+| **Maintenance** | Low (prune job for old records) |
+| **Migration** | Low (2-3 hours) |
+
+## Reliability Mechanisms
+
+### 1. Idempotent Resume
+```typescript
+// Prevent double-resume
+if (interrupt.status === 'resolved') {
+  return { success: true, message: 'Already resolved' };
+}
+```
+
+### 2. Stale Checkpoint Recovery
+```typescript
+// If checkpoint_id is gone, fallback to latest
+try {
+  await workflowGraph.stream(Command(resume), {
+    configurable: { checkpoint_id: interrupt.checkpointId }
+  });
+} catch (error) {
+  if (error.message.includes('checkpoint not found')) {
+    // Resume from latest
+    await workflowGraph.stream(Command(resume), {
+      configurable: { thread_id: conversationId }
+    });
+  }
+}
+```
+
+### 3. Cleanup Job (Optional)
+```sql
+-- Delete resolved interrupts older than 30 days
+DELETE FROM interrupts
+WHERE status = 'resolved'
+AND resolved_at < (UNIXEPOCH() - 30 * 24 * 60 * 60);
+```
+
+## Files to Create/Modify
+
+### New Files
+- `src/main/services/domain/interrupt/interrupt-repo.ts` - SQLite repository
+- `src/main/services/domain/interrupt/types.ts` - Interrupt types
+
+### Modified Files
+- `src/main/handlers/chat-handlers.ts` - Add resume endpoint, update stream handler
+- `src/shared/types/electron-api/chat.ts` - Add `resume-interrupt` type
 
 ## Scope
 
 ### In Scope
-
-1. **Interrupt Service Design**: Factory-based service that owns interrupt lifecycle
-2. **Event-Log State Model**: Canonical storage for interrupt events with proper reducers
-3. **AI SDK v5 Protocol**: Chunk types and transforms for interrupt UI rendering
-4. **Interrupt Metadata in Messages**: Embed interrupt context in AIMessage for history restore
-5. **Frontend Architecture**: Complete design for interrupt state management, component hierarchy, and error handling
-6. **Architecture Documentation**: Patterns for interrupt usage in workflow nodes
+- External SQLite storage for interrupt context
+- Handler that watches stream and stores interrupts
+- Resume endpoint using stored checkpoint_id
+- Page reload restoration via `get-thread`
 
 ### Out of Scope
-
-1. **Specific Structured Interactions**: Individual features (selectLearningPath, etc.) are separate proposals
-
-## Design Overview
-
-### Proposed Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ LAYER 1: IPC Handlers (Transport Only)                                     │
-│ chat-handlers.ts - thin, delegates to services                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ LAYER 2: Interrupt Service (Business Logic)                                │
-│ interrupt-service.ts                                                        │
-│ - prepareRun(threadId) → { shouldResume, checkpointId }                     │
-│ - createInterruptRecord(params) → InterruptRecord                           │
-│ - getPendingInterrupt(history) → InterruptRecord | null                     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ LAYER 3: Workflow State (Event-Log Pattern)                                │
-│ state.ts - interruptHistory: InterruptRecord[]                              │
-│ - Reducer appends new records                                               │
-│ - Derived pending status                                                    │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Key Design Decisions
-
-1. **Event-Log for Structured Interrupts Only**: Chat messages stay in `messages[]`, interrupt metadata in `interruptHistory[]`
-
-2. **Service Layer Owns Logic**: `chat-handlers.ts` becomes thin transport, service handles:
-   - Interrupt detection
-   - Resume decision
-   - Event recording
-   - State derivation
-
-3. **AI SDK Protocol Extension**: New chunk types for interrupt events enable proper UI rendering
-
-4. **Interrupt Context in Messages**: Structured interrupt prompts embed metadata in AIMessage `additional_kwargs` for frontend to detect and render appropriate UI on history restore (no separate API endpoint needed)
-
-5. **Derived Pending Status**: No separate `pendingInterruptId` field; derive from `interruptHistory.findLast(e => e.status === 'pending')`
-
-## Dependencies
-
-- **Related Specs**: `workflow-interrupt-control-flow`, `workflow-interrupt-message-persistence`
-
-## Risks
-
-| Risk | Likelihood | Impact | Mitigation | Status |
-|------|------------|--------|------------|--------|
-| Complexity increase | Medium | Medium | Keep event-log for structured interrupts only | Mitigated |
-| Checkpoint size growth | Low | Low | Add retention policy in future | Accepted |
-| Breaking existing tests | Low | Medium | Staged rollout with test updates | Mitigated |
-| **Message metadata not persisting** | **High** | **High** | **Add `metadata.interrupt` to ChatMessage type** | **RESOLVED** |
-| **Cannot persist before interrupt()** | **High** | **High** | **Record in state, then interrupt** | **RESOLVED** |
-| **Stream chunks incompatible** | **High** | **Medium** | **Add interrupt-start/interrupt-end to DataStreamChunkType** | **RESOLVED** |
-| **Resolution creates visible message** | **Medium** | **Medium** | **Dedicated `chat:submit-interrupt-resolution` endpoint** | **RESOLVED** |
-| **Duplicate event-log scope** | **Medium** | **Low** | **Clarified: messages[] primary, interruptHistory derived** | **RESOLVED** |
-
-### Risk Mitigation Details
-
-**RESOLVED: Message Metadata Persistence**
-- **Issue**: `message-converter.ts` strips `additional_kwargs`, no `metadata.interrupt` field
-- **Fix**: Add `interrupt` to `ChatMessage.metadata`, update converter to extract from `additional_kwargs`
-- **Implementation**: Phase 2, Task 2.5
-
-**RESOLVED: Interrupt Persistence Timing**
-- **Issue**: Cannot call `createInterruptRecord()` before `interrupt()` (control flow doesn't return)
-- **Fix**: Record in `interruptHistory` state, then call `interrupt()` in same node return
-- **Alternative**: Use middleware handler if node pattern doesn't allow state update before interrupt
-- **Implementation**: Phase 1, Task 1.2
-
-**RESOLVED: Stream Chunk Protocol**
-- **Issue**: `DataStreamChunkType` lacks `interrupt-start`/`interrupt-end`, stream stops on interrupt
-- **Fix**: Add chunk types, emit interrupt-start before breaking iteration
-- **Implementation**: Phase 2, Task 2.3
-
-**RESOLVED: Resolution Endpoint**
-- **Issue**: UI sends JSON string as user message (visible in chat)
-- **Fix**: New `chat:submit-interrupt-resolution` endpoint for hidden control flow
-- **Implementation**: Phase 1, Task 1.4
+- Frontend UI components (existing design covers this)
+- Workflow node patterns (existing design covers this)
+- Interrupt history analytics
 
 ## Success Criteria
 
-1. Interrupt detection/resume logic moved out of `chat-handlers.ts`
-2. Interrupt service is unit-testable without IPC mocking
-3. Structured interrupt messages include metadata for UI rendering
-4. AI SDK chunks include interrupt payload during stream
-5. Frontend architecture provides complete implementation blueprint
-6. Documentation covers interrupt service patterns
+1. ✅ Interrupt pauses workflow correctly
+2. ✅ Interrupt context persists through page reload
+3. ✅ Resume works from exact checkpoint
+4. ✅ Idempotent resume prevents double-processing
+5. ✅ Performance impact < 10ms per operation
 
 ## Effort Estimate
 
-- **Design & Spec**: 8 hours
-- **Implementation**: 16 hours
-- **Testing**: 8 hours
-- **Documentation**: 4 hours
-- **Total**: 36 hours (4-5 days)
+- **Schema + Repository**: 2 hours
+- **Handler Integration**: 2 hours
+- **Resume Endpoint**: 1 hour
+- **Frontend Query**: 1 hour
+- **Testing**: 2 hours
+- **Total**: 8 hours (1 day)

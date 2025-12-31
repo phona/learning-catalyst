@@ -70,6 +70,13 @@ fi
 
 echo -e "\033[36m📋 Processing OpenSpec task: $task_id\033[0m"
 
+# Checkout new branch from develop
+echo -e "\n\033[36m🌿 Checking out new branch from 'develop'...\033[0m"
+git checkout develop
+git pull origin develop
+git checkout -b "fix/${task_id}"
+echo -e "\033[32m✅ Branch 'fix/${task_id}' created from 'develop'\033[0m"
+
 # Loop until all tasks are finished
 while true; do
     task_output=$(openspec list | grep "$task_id" || echo "")
@@ -95,5 +102,9 @@ invoke_claude "/openspec:archive $task_id"
 
 echo -e "\n\033[36m📝 Committing changes...\033[0m"
 invoke_claude "commit all changes of $task_id to git"
+
+echo -e "\n\033[36m🚀 Pushing branch to remote...\033[0m"
+git push -u origin "fix/${task_id}"
+echo -e "\033[32m✅ Branch 'fix/${task_id}' pushed to remote\033[0m"
 
 echo -e "\n\033[32m✅ OpenSpec apply process completed successfully!\033[0m"
